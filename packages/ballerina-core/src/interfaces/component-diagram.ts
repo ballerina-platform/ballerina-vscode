@@ -39,11 +39,16 @@ export type CDAutomation = {
 export type CDWorkflow = {
     symbol: string;
     location: CDLocation;
+    // "WORKFLOW" for @workflow:Workflow functions; "DURABLE_AGENT" for module-level
+    // workflow:DurableAgent declarations, which join the same overview column.
+    kind?: string;
     attachedServices: string[];
     attachedFunctions: string[];
     events?: CDWorkflowEvent[];
     humanTasks?: CDWorkflowHumanTask[];
     activities?: string[];
+    // Connections used directly by the entity (e.g. a durable agent's model provider).
+    connections?: string[];
     invalidSendDataServices?: string[];
     invalidSendDataFunctions?: string[];
     uuid: string;

@@ -70,6 +70,11 @@ public class ConnectorUtil {
         if (rawPackageName.equals(".")) {
             return connectorName;
         }
+        // A module with several client classes needs the class to be part of the key.
+        String exactName = CONNECTOR_NAME_MAP.get(rawPackageName + ":" + connectorName);
+        if (exactName != null) {
+            return exactName;
+        }
         String packageName = CONNECTOR_NAME_MAP.getOrDefault(rawPackageName, getLastPackagePrefix(rawPackageName));
         if (connectorName.equals(CLIENT)) {
             return packageName;

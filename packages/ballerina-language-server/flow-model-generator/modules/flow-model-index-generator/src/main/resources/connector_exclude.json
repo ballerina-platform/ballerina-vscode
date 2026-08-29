@@ -21,6 +21,9 @@
   "ftp": [
     "Caller"
   ],
+  "azure.storage.files": [
+    "Caller"
+  ],
   "websocket": [
     "Caller"
   ],

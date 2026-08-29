@@ -37,10 +37,10 @@ import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.PropertyType;
 import io.ballerina.flowmodelgenerator.core.model.RecordSelectorType;
-import io.ballerina.flowmodelgenerator.core.utils.FileSystemUtils;
 import io.ballerina.flowmodelgenerator.core.utils.FlowNodeUtil;
 import io.ballerina.flowmodelgenerator.core.utils.ParamUtils;
 import io.ballerina.modelgenerator.commons.CommonUtils;
+import io.ballerina.modelgenerator.commons.FileSystemUtils;
 import io.ballerina.modelgenerator.commons.FunctionData;
 import io.ballerina.modelgenerator.commons.FunctionDataBuilder;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
@@ -129,7 +129,8 @@ public abstract class CallBuilder extends NodeBuilder {
                 .inferredReturnType(functionData.inferredReturnType() ? functionData.returnType() : null);
 
         if (functionNodeKind != NodeKind.FUNCTION_CALL && functionNodeKind != NodeKind.AGENT &&
-                functionNodeKind != NodeKind.CLASS_INIT && functionNodeKind != NodeKind.ACTIVITY_CALL) {
+                functionNodeKind != NodeKind.CLASS_INIT && functionNodeKind != NodeKind.ACTIVITY_CALL &&
+                functionNodeKind != NodeKind.TYPED_AGENT) {
             properties().custom()
                     .metadata()
                     .label(Property.CONNECTION_LABEL)

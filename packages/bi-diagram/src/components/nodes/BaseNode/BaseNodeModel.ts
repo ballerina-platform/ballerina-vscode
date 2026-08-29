@@ -29,10 +29,10 @@ export class BaseNodeModel extends NodeModel {
     protected portIn: NodePortModel;
     protected portOut: NodePortModel;
 
-    constructor(node: FlowNode) {
+    constructor(node: FlowNode, type: NodeTypes = NodeTypes.BASE_NODE) {
         super({
             id: getNodeIdFromModel(node),
-            type: NodeTypes.BASE_NODE,
+            type,
             locked: true,
         });
         this.node = node;

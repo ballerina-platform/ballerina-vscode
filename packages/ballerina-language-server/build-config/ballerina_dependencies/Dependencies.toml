@@ -10,7 +10,7 @@ distribution-version = "2201.13.4"
 [[package]]
 org = "ballerina"
 name = "ai"
-version = "1.12.0"
+version = "1.13.0"
 dependencies = [
 	{org = "ballerina", name = "cache"},
 	{org = "ballerina", name = "constraint"},
@@ -41,6 +41,20 @@ modules = [
 	{org = "ballerina", packageName = "ai", moduleName = "ai"},
 	{org = "ballerina", packageName = "ai", moduleName = "ai.intelligence"},
 	{org = "ballerina", packageName = "ai", moduleName = "ai.observe"}
+]
+
+[[package]]
+org = "ballerina"
+name = "ai.eval"
+version = "0.9.0"
+dependencies = [
+	{org = "ballerina", name = "ai"},
+	{org = "ballerina", name = "test"},
+	{org = "ballerina", name = "time"},
+	{org = "ballerina", name = "uuid"}
+]
+modules = [
+	{org = "ballerina", packageName = "ai.eval", moduleName = "ai.eval"}
 ]
 
 [[package]]
@@ -111,7 +125,7 @@ modules = [
 [[package]]
 org = "ballerina"
 name = "data.jsondata"
-version = "1.1.3"
+version = "1.1.4"
 dependencies = [
 	{org = "ballerina", name = "jballerina.java"},
 	{org = "ballerina", name = "lang.object"}
@@ -129,11 +143,12 @@ dependencies = [
 [[package]]
 org = "ballerina"
 name = "email"
-version = "2.13.0"
+version = "2.14.0"
 dependencies = [
 	{org = "ballerina", name = "jballerina.java"},
 	{org = "ballerina", name = "log"},
 	{org = "ballerina", name = "mime"},
+	{org = "ballerina", name = "oauth2"},
 	{org = "ballerina", name = "task"}
 ]
 
@@ -151,7 +166,7 @@ dependencies = [
 [[package]]
 org = "ballerina"
 name = "ftp"
-version = "2.16.0"
+version = "2.20.1"
 dependencies = [
 	{org = "ballerina", name = "crypto"},
 	{org = "ballerina", name = "data.csv"},
@@ -160,8 +175,7 @@ dependencies = [
 	{org = "ballerina", name = "io"},
 	{org = "ballerina", name = "jballerina.java"},
 	{org = "ballerina", name = "log"},
-	{org = "ballerina", name = "task"},
-	{org = "ballerina", name = "time"}
+	{org = "ballerina", name = "task"}
 ]
 modules = [
 	{org = "ballerina", packageName = "ftp", moduleName = "ftp"}
@@ -169,8 +183,40 @@ modules = [
 
 [[package]]
 org = "ballerina"
+name = "graphql"
+version = "1.17.0"
+dependencies = [
+	{org = "ballerina", name = "auth"},
+	{org = "ballerina", name = "cache"},
+	{org = "ballerina", name = "crypto"},
+	{org = "ballerina", name = "file"},
+	{org = "ballerina", name = "http"},
+	{org = "ballerina", name = "io"},
+	{org = "ballerina", name = "jballerina.java"},
+	{org = "ballerina", name = "jwt"},
+	{org = "ballerina", name = "lang.array"},
+	{org = "ballerina", name = "lang.regexp"},
+	{org = "ballerina", name = "lang.value"},
+	{org = "ballerina", name = "log"},
+	{org = "ballerina", name = "mime"},
+	{org = "ballerina", name = "oauth2"},
+	{org = "ballerina", name = "observe"},
+	{org = "ballerina", name = "task"},
+	{org = "ballerina", name = "time"},
+	{org = "ballerina", name = "uuid"},
+	{org = "ballerina", name = "websocket"}
+]
+modules = [
+	{org = "ballerina", packageName = "graphql", moduleName = "graphql"},
+	{org = "ballerina", packageName = "graphql", moduleName = "graphql.dataloader"},
+	{org = "ballerina", packageName = "graphql", moduleName = "graphql.parser"},
+	{org = "ballerina", packageName = "graphql", moduleName = "graphql.subgraph"}
+]
+
+[[package]]
+org = "ballerina"
 name = "grpc"
-version = "1.13.2"
+version = "1.14.2"
 dependencies = [
 	{org = "ballerina", name = "auth"},
 	{org = "ballerina", name = "crypto"},
@@ -382,7 +428,7 @@ version = "1.2.0"
 [[package]]
 org = "ballerina"
 name = "mcp"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
 	{org = "ballerina", name = "http"},
 	{org = "ballerina", name = "jballerina.java"},
@@ -456,7 +502,7 @@ dependencies = [
 [[package]]
 org = "ballerina"
 name = "protobuf"
-version = "1.7.0"
+version = "1.8.0"
 dependencies = [
 	{org = "ballerina", name = "jballerina.java"},
 	{org = "ballerina", name = "time"}
@@ -478,6 +524,24 @@ version = "1.4.3"
 dependencies = [
 	{org = "ballerina", name = "jballerina.java"},
 	{org = "ballerina", name = "lang.string"}
+]
+
+[[package]]
+org = "ballerina"
+name = "smb"
+version = "2.0.1"
+dependencies = [
+	{org = "ballerina", name = "data.csv"},
+	{org = "ballerina", name = "data.jsondata"},
+	{org = "ballerina", name = "data.xmldata"},
+	{org = "ballerina", name = "io"},
+	{org = "ballerina", name = "jballerina.java"},
+	{org = "ballerina", name = "log"},
+	{org = "ballerina", name = "task"},
+	{org = "ballerina", name = "time"}
+]
+modules = [
+	{org = "ballerina", packageName = "smb", moduleName = "smb"}
 ]
 
 [[package]]
@@ -555,9 +619,53 @@ dependencies = [
 
 [[package]]
 org = "ballerina"
-name = "workflow"
-version = "0.7.0"
+name = "websocket"
+version = "2.15.0"
 dependencies = [
+	{org = "ballerina", name = "auth"},
+	{org = "ballerina", name = "constraint"},
+	{org = "ballerina", name = "http"},
+	{org = "ballerina", name = "io"},
+	{org = "ballerina", name = "jballerina.java"},
+	{org = "ballerina", name = "jwt"},
+	{org = "ballerina", name = "lang.array"},
+	{org = "ballerina", name = "lang.runtime"},
+	{org = "ballerina", name = "lang.string"},
+	{org = "ballerina", name = "lang.value"},
+	{org = "ballerina", name = "log"},
+	{org = "ballerina", name = "oauth2"},
+	{org = "ballerina", name = "time"}
+]
+modules = [
+	{org = "ballerina", packageName = "websocket", moduleName = "websocket"}
+]
+
+[[package]]
+org = "ballerina"
+name = "websub"
+version = "2.15.0"
+dependencies = [
+	{org = "ballerina", name = "crypto"},
+	{org = "ballerina", name = "http"},
+	{org = "ballerina", name = "jballerina.java"},
+	{org = "ballerina", name = "lang.runtime"},
+	{org = "ballerina", name = "lang.string"},
+	{org = "ballerina", name = "lang.value"},
+	{org = "ballerina", name = "log"},
+	{org = "ballerina", name = "mime"},
+	{org = "ballerina", name = "time"},
+	{org = "ballerina", name = "url"}
+]
+modules = [
+	{org = "ballerina", packageName = "websub", moduleName = "websub"}
+]
+
+[[package]]
+org = "ballerina"
+name = "workflow"
+version = "0.8.3"
+dependencies = [
+	{org = "ballerina", name = "ai"},
 	{org = "ballerina", name = "email"},
 	{org = "ballerina", name = "http"},
 	{org = "ballerina", name = "jballerina.java"},
@@ -849,6 +957,20 @@ modules = [
 
 [[package]]
 org = "ballerinax"
+name = "asb"
+version = "3.10.0"
+dependencies = [
+	{org = "ballerina", name = "jballerina.java"},
+	{org = "ballerina", name = "log"},
+	{org = "ballerina", name = "time"},
+	{org = "ballerinai", name = "observe"}
+]
+modules = [
+	{org = "ballerinax", packageName = "asb", moduleName = "asb"}
+]
+
+[[package]]
+org = "ballerinax"
 name = "asyncapi.native.handler"
 version = "0.5.0"
 dependencies = [
@@ -942,7 +1064,7 @@ modules = [
 [[package]]
 org = "ballerinax"
 name = "cdc"
-version = "1.3.2"
+version = "1.4.0"
 dependencies = [
 	{org = "ballerina", name = "crypto"},
 	{org = "ballerina", name = "data.jsondata"},
@@ -1045,6 +1167,20 @@ modules = [
 
 [[package]]
 org = "ballerinax"
+name = "googleapis.calendar"
+version = "3.2.1"
+dependencies = [
+	{org = "ballerina", name = "http"},
+	{org = "ballerina", name = "jwt"},
+	{org = "ballerina", name = "log"},
+	{org = "ballerina", name = "os"},
+	{org = "ballerina", name = "time"},
+	{org = "ballerina", name = "url"},
+	{org = "ballerinax", name = "client.config"}
+]
+
+[[package]]
+org = "ballerinax"
 name = "ibm.ibmmq"
 version = "1.4.4"
 dependencies = [
@@ -1112,7 +1248,7 @@ modules = [
 [[package]]
 org = "ballerinax"
 name = "mssql"
-version = "1.17.0"
+version = "1.19.0"
 dependencies = [
 	{org = "ballerina", name = "crypto"},
 	{org = "ballerina", name = "jballerina.java"},
@@ -1276,7 +1412,7 @@ modules = [
 [[package]]
 org = "ballerinax"
 name = "rabbitmq"
-version = "3.3.1"
+version = "3.6.0"
 dependencies = [
 	{org = "ballerina", name = "crypto"},
 	{org = "ballerina", name = "jballerina.java"},
@@ -1360,6 +1496,17 @@ modules = [
 
 [[package]]
 org = "ballerinax"
+name = "solace.jms"
+version = "1.0.0"
+dependencies = [
+	{org = "ballerina", name = "jballerina.java"}
+]
+modules = [
+	{org = "ballerinax", packageName = "solace.jms", moduleName = "solace.jms"}
+]
+
+[[package]]
+org = "ballerinax"
 name = "trigger.github"
 version = "0.11.0"
 dependencies = [
@@ -1373,6 +1520,26 @@ dependencies = [
 ]
 modules = [
 	{org = "ballerinax", packageName = "trigger.github", moduleName = "trigger.github"}
+]
+
+[[package]]
+org = "ballerinax"
+name = "trigger.google.calendar"
+version = "0.12.0"
+dependencies = [
+	{org = "ballerina", name = "http"},
+	{org = "ballerina", name = "lang.runtime"},
+	{org = "ballerina", name = "log"},
+	{org = "ballerina", name = "task"},
+	{org = "ballerina", name = "time"},
+	{org = "ballerina", name = "uuid"},
+	{org = "ballerinai", name = "observe"},
+	{org = "ballerinax", name = "asyncapi.native.handler"},
+	{org = "ballerinax", name = "client.config"},
+	{org = "ballerinax", name = "googleapis.calendar"}
+]
+modules = [
+	{org = "ballerinax", packageName = "trigger.google.calendar", moduleName = "trigger.google.calendar"}
 ]
 
 [[package]]
@@ -1455,10 +1622,15 @@ name = "ballerina_dependencies"
 version = "0.1.0"
 dependencies = [
 	{org = "ballerina", name = "ai"},
+	{org = "ballerina", name = "ai.eval"},
 	{org = "ballerina", name = "data.csv"},
 	{org = "ballerina", name = "ftp"},
+	{org = "ballerina", name = "graphql"},
 	{org = "ballerina", name = "grpc"},
 	{org = "ballerina", name = "mqtt"},
+	{org = "ballerina", name = "smb"},
+	{org = "ballerina", name = "websocket"},
+	{org = "ballerina", name = "websub"},
 	{org = "ballerina", name = "workflow"},
 	{org = "ballerinax", name = "ai.anthropic"},
 	{org = "ballerinax", name = "ai.azure"},
@@ -1474,6 +1646,7 @@ dependencies = [
 	{org = "ballerinax", name = "ai.pgvector"},
 	{org = "ballerinax", name = "ai.pinecone"},
 	{org = "ballerinax", name = "ai.weaviate"},
+	{org = "ballerinax", name = "asb"},
 	{org = "ballerinax", name = "azure.datalake"},
 	{org = "ballerinax", name = "azure_cosmosdb"},
 	{org = "ballerinax", name = "cdc"},
@@ -1497,7 +1670,9 @@ dependencies = [
 	{org = "ballerinax", name = "salesforce"},
 	{org = "ballerinax", name = "snowflake"},
 	{org = "ballerinax", name = "solace"},
+	{org = "ballerinax", name = "solace.jms"},
 	{org = "ballerinax", name = "trigger.github"},
+	{org = "ballerinax", name = "trigger.google.calendar"},
 	{org = "ballerinax", name = "trigger.hubspot"},
 	{org = "ballerinax", name = "trigger.salesforce"},
 	{org = "ballerinax", name = "trigger.shopify"},

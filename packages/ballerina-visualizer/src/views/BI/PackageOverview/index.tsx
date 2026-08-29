@@ -32,9 +32,8 @@ import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Typography, Codicon, ProgressRing, Button, Icon, Divider, CheckBox, ProgressIndicator, Overlay, Dropdown } from "@wso2/ui-toolkit";
 import styled from "@emotion/styled";
 import { ThemeColors } from "@wso2/ui-toolkit";
-import ComponentDiagram from "../ComponentDiagram";
 import { VSCodeLink } from "@vscode/webview-ui-toolkit/react";
-import ReactMarkdown from "react-markdown";
+import { Markdown } from "../../../components/Markdown";
 import { IOpenInConsoleCmdParams, WICommandIds } from "@wso2/wso2-platform-core";
 import { AlertBoxWithClose } from "../../AIPanel/AlertBoxWithClose";
 import { getIntegrationTypes, validateComponentName } from "./utils";
@@ -45,6 +44,13 @@ import { TitleBar } from "../../../components/TitleBar";
 import { PublishToCentralButton } from "./PublishToCentralButton";
 import { LibraryOverview } from "./LibraryOverview";
 import { CopilotHeroBox } from "../../../components/AgentStatusOrb/CopilotHeroBox";
+import { AWAITING_INPUT_LABEL, useAgentRunState, useAiPanelOpen } from "../../../components/AgentStatusOrb/shared";
+
+/** The diagram engine (`@wso2/component-diagram` and its layout stack) is the
+ *  heaviest thing this view renders. Kept out of the overview's chunk so the page —
+ *  header, README, deployment panel — paints without waiting for it; the diagram
+ *  fills in a moment later, and the prefetcher usually has it warm before then. */
+const LazyComponentDiagram = React.lazy(() => import("../ComponentDiagram"));
 
 const SpinnerContainer = styled.div`
     display: flex;
@@ -72,7 +78,14 @@ const ButtonContainer = styled.div`
     gap: 8px;
 `;
 
-const EmptyStateContainer = styled.div`
+const StatusRow = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 24px;
+`;
+
+const EmptyStateContainer = styled.div<{ withHero?: boolean }>`
     position: absolute;
     top: 0;
     left: 0;
@@ -82,6 +95,8 @@ const EmptyStateContainer = styled.div`
     flex-direction: column;
     align-items: center;
     justify-content: center;
+    // Offsets the prompt bar's height so the block keeps its former position.
+    padding-bottom: ${(props: { withHero?: boolean }) => (props.withHero ? "96px" : "0")};
 `;
 
 const PageLayout = styled.div`
@@ -106,18 +121,21 @@ const HeaderControls = styled.div`
     align-items: center;
 `;
 
-const MainContent = styled.div<{ fullWidth?: boolean; withHero?: boolean }>`
+const MainContent = styled.div<{ fullWidth?: boolean }>`
     padding: 16px;
     display: grid;
     grid-template-columns: ${(props: { fullWidth?: boolean }) => props.fullWidth ? '1fr' : '3fr 1fr'};
     min-height: 0; // Prevents grid blowout
     overflow: auto;
-    // Adjust based on header and any margins; the hero prompt row adds ~87px.
-    max-height: ${(props: { withHero?: boolean }) => props.withHero ? 'calc(100vh - 177px)' : 'calc(100vh - 90px)'};
+    // Adjust based on header and any margins.
+    max-height: calc(100vh - 90px);
 `;
 
+// Bounded so the prompt box does not stretch the full panel width.
 const HeroRow = styled.div`
-    margin: 16px 16px 0 16px;
+    width: 100%;
+    max-width: 560px;
+    margin-bottom: 24px;
 `;
 
 const DiagramPanel = styled.div<{ noPadding?: boolean, noBorder?: boolean }>`
@@ -811,10 +829,11 @@ function DevantDashboard({ projectStructure, handleDeploy, goToDevant }: { proje
 interface PackageOverviewProps {
     projectPath: string;
     isInDevant: boolean;
+    isICPSupported?: boolean;
 }
 
 export function PackageOverview(props: PackageOverviewProps) {
-    const { projectPath, isInDevant } = props;
+    const { projectPath, isInDevant, isICPSupported } = props;
     const { rpcClient } = useRpcContext();
     const [readmeContent, setReadmeContent] = React.useState<string>("");
     const { platformExtState } = usePlatformExtContext();
@@ -825,6 +844,12 @@ export function PackageOverview(props: PackageOverviewProps) {
     const [isInProject, setIsInProject] = useState(false);
     const [isLibrary, setIsLibrary] = useState<boolean>(false);
     const [isNPSupported, setIsNPSupported] = useState<boolean>(false);
+    const aiPanelOpen = useAiPanelOpen();
+    const agentState = useAgentRunState();
+    const awaitingInput = agentState === "awaiting-input";
+    const agentWorking = agentState === "running" || awaitingInput;
+    const showHero = !isLibrary && !aiPanelOpen;
+
     const fetchContext = useCallback(() => {
         rpcClient
             .getBIDiagramRpcClient()
@@ -847,12 +872,14 @@ export function PackageOverview(props: PackageOverviewProps) {
                 setReadmeContent(res.content);
             });
 
-        rpcClient
-            .getICPRpcClient()
-            .isIcpEnabled({ projectPath: '' })
-            .then((res) => {
-                setEnableICP(res.enabled);
-            });
+        if (isICPSupported) {
+            rpcClient
+                .getICPRpcClient()
+                .isIcpEnabled({ projectPath: '' })
+                .then((res) => {
+                    setEnableICP(res.enabled);
+                });
+        }
 
         rpcClient
             .getWorkflowManagementRpcClient()
@@ -860,14 +887,7 @@ export function PackageOverview(props: PackageOverviewProps) {
             .then((res) => {
                 setWorkflowMgmtEnabled(res.enabled);
             });
-
-        rpcClient
-            .getBIDiagramRpcClient()
-            .getReadmeContent({ projectPath })
-            .then((res) => {
-                setReadmeContent(res.content);
-            });
-    }, [rpcClient, projectPath]);
+    }, [rpcClient, projectPath, isICPSupported]);
 
     useEffect(() => {
         fetchContext();
@@ -929,7 +949,7 @@ export function PackageOverview(props: PackageOverviewProps) {
             (!projectStructure.directoryMap[DIRECTORY_MAP.SERVICE] || projectStructure.directoryMap[DIRECTORY_MAP.SERVICE].length === 0) &&
             (!projectStructure.directoryMap[DIRECTORY_MAP.WORKFLOW] || projectStructure.directoryMap[DIRECTORY_MAP.WORKFLOW].length === 0) &&
             (!projectStructure.directoryMap[DIRECTORY_MAP.ACTIVITY] || projectStructure.directoryMap[DIRECTORY_MAP.ACTIVITY].length === 0) &&
-            (!projectStructure.directoryMap.agents || projectStructure.directoryMap.agents.length === 0)
+            (!projectStructure.directoryMap[DIRECTORY_MAP.AGENT] || projectStructure.directoryMap[DIRECTORY_MAP.AGENT].length === 0)
         );
     }
 
@@ -1127,12 +1147,7 @@ export function PackageOverview(props: PackageOverviewProps) {
                         </HeaderControls>
                     </HeaderRow>
                 )}
-                {!isLibrary && (
-                    <HeroRow>
-                        <CopilotHeroBox />
-                    </HeroRow>
-                )}
-                <MainContent fullWidth={isLibrary} withHero={!isLibrary}>
+                <MainContent fullWidth={isLibrary}>
                     <LeftContent>
                         <DiagramPanel noPadding={true} noBorder={isLibrary}>
                             {showAlert && (
@@ -1156,6 +1171,8 @@ export function PackageOverview(props: PackageOverviewProps) {
                             {!isLibrary && (
                                 <DiagramHeaderContainer withPadding={true}>
                                     <Title variant="h2">Design</Title>
+                                    {/* An empty integration has its own copy of this below,
+                                        centred in the empty state, so only one is ever on screen. */}
                                     {!isEmptyIntegration() && (
                                         <ActionContainer>
                                             <Button appearance="primary" onClick={handleAddConstruct}>
@@ -1169,25 +1186,54 @@ export function PackageOverview(props: PackageOverviewProps) {
                             {!isLibrary && (
                                 <DiagramContent>
                                     {isEmptyIntegration() ? (
-                                        <EmptyStateContainer>
+                                        <EmptyStateContainer withHero={showHero}>
                                             <Typography variant="h3" sx={{ marginBottom: "16px" }}>
                                                 Your integration is empty
                                             </Typography>
-                                            <Typography
-                                                variant="body1"
-                                                sx={{ marginBottom: "24px", color: "var(--vscode-descriptionForeground)" }}
-                                            >
-                                                Add an artifact to get started, or describe what you want to build in
-                                                the Copilot box above
-                                            </Typography>
+                                            {showHero && (
+                                                <HeroRow>
+                                                    <CopilotHeroBox placeholder="What would you like to build?" />
+                                                </HeroRow>
+                                            )}
+                                            {/* Skipped only while the hero carries the status itself, so
+                                                the two never state it at once. */}
+                                            {!(agentWorking && showHero) && (
+                                                <StatusRow>
+                                                    {agentWorking && (
+                                                        awaitingInput
+                                                            ? <Codicon name="comment-discussion" />
+                                                            : <ProgressRing color={ThemeColors.PRIMARY} sx={{ width: 16, height: 16 }} />
+                                                    )}
+                                                    <Typography
+                                                        variant="body1"
+                                                        sx={{ color: "var(--vscode-descriptionForeground)" }}
+                                                    >
+                                                        {agentWorking
+                                                            ? (awaitingInput ? AWAITING_INPUT_LABEL : "Copilot is working…")
+                                                            : showHero
+                                                                ? "Describe what you want to build, or add an artifact to get started"
+                                                                : "Add an artifact to get started"}
+                                                    </Typography>
+                                                </StatusRow>
+                                            )}
                                             <ButtonContainer>
+                                                {/* The header's button, restated where the empty state can
+                                                    centre it — same handler, same enablement. */}
                                                 <Button appearance="primary" onClick={handleAddConstruct}>
                                                     <Codicon name="add" sx={{ marginRight: 8 }} /> Add Artifact
                                                 </Button>
                                             </ButtonContainer>
                                         </EmptyStateContainer>
                                     ) : (
-                                        <ComponentDiagram projectStructure={projectStructure} />
+                                        <React.Suspense
+                                            fallback={
+                                                <SpinnerContainer>
+                                                    <ProgressRing color={ThemeColors.PRIMARY} />
+                                                </SpinnerContainer>
+                                            }
+                                        >
+                                            <LazyComponentDiagram projectStructure={projectStructure} />
+                                        </React.Suspense>
                                     )}
                                 </DiagramContent>
                             )}
@@ -1209,7 +1255,7 @@ export function PackageOverview(props: PackageOverviewProps) {
                                 </ReadmeHeaderContainer>
                                 <ReadmeContent>
                                     {readmeContent ? (
-                                        <ReactMarkdown>{readmeContent}</ReactMarkdown>
+                                        <Markdown>{readmeContent}</Markdown>
                                     ) : (
                                         <EmptyReadmeContainer>
                                             <Description variant="body2">
@@ -1234,11 +1280,15 @@ export function PackageOverview(props: PackageOverviewProps) {
                                         hasDeployableIntegration={deployableIntegrationTypes.length > 0}
                                         projectPath={projectPath}
                                     />
-                                    <Divider sx={{ margin: "16px 0" }} />
-                                    <IntegrationControlPlane enabled={enabled} handleICP={handleICP} />
-                                    <div style={{ marginTop: 8 }}>
-                                        <LocalICPDeployment />
-                                    </div>
+                                    {isICPSupported && (
+                                        <>
+                                            <Divider sx={{ margin: "16px 0" }} />
+                                            <IntegrationControlPlane enabled={enabled} handleICP={handleICP} />
+                                            <div style={{ marginTop: 8 }}>
+                                                <LocalICPDeployment />
+                                            </div>
+                                        </>
+                                    )}
                                     {(projectStructure?.directoryMap?.[DIRECTORY_MAP.WORKFLOW]?.length ?? 0) > 0 && (
                                         <>
                                             <Divider sx={{ margin: "16px 0" }} />

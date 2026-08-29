@@ -1,0 +1,29 @@
+{
+  "description": "A Global identifier in a test document does not collide with a function-local variable",
+  "filePath": "testproj/tests/tests.bal",
+  "context": {
+    "expression": "localOnly",
+    "startLine": {
+      "line": 13,
+      "offset": 4
+    },
+    "offset": 0,
+    "property": {
+      "metadata": {
+        "label": "Test Function Name",
+        "description": "Name of the test function"
+      },
+      "types": [
+        {
+          "fieldType": "IDENTIFIER",
+          "scope": "Global"
+        }
+      ],
+      "value": "",
+      "optional": false,
+      "editable": true,
+      "advanced": false
+    }
+  },
+  "diagnostics": []
+}

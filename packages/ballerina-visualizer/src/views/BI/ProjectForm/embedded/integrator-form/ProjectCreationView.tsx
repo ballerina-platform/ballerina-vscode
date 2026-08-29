@@ -16,24 +16,17 @@
  * under the License.
  */
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import debounce from "lodash/debounce";
-import { Button, Icon, TextField } from "@wso2/ui-toolkit";
+import { Button, DirectorySelector, Icon, TextField } from "@wso2/ui-toolkit";
 import { useVisualizerContext } from "./context/WsClientContext";
-import { useCloudContext, useCloudProjects } from "./providers";
-import { useSignIn } from "./hooks/useSignIn";
-import { DirectorySelector } from "./components/DirectorySelector/DirectorySelector";
+import { useBrowsePick } from "./useBrowsePick";
 import {
     joinPath,
-    sanitizeProjectHandle,
-    sanitizeOrgHandle,
-    validateProjectHandle,
+    splitPath,
+    sanitizePackageName,
     validateProjectName,
-    validateOrgName,
-    suggestAvailableProjectName
 } from "./utils";
-import { WICommandIds } from "./shims/platform-core";
-import { CollapsibleSection, OrgField, Organization } from "./components";
 import { ValidateProjectFormErrorField } from "./shims/wi-core";
 import { useRealtimeProjectPathValidation } from "./useRealtimeProjectPathValidation";
 import {
@@ -50,44 +43,45 @@ import {
     FormContent,
     FormFooter,
 } from "./shared/FormPageLayout";
-import {
-    ResolvedPathText,
-    CloudErrorActionRow,
-    ActionLink,
-    Description,
-    FieldGroup,
-} from "./styles";
+import { FieldGroup } from "./styles";
 import { DEFAULT_PROJECT_NAME } from "./types";
-
+import { useDirectoryNameCoupling } from "../../hooks/useDirectoryNameCoupling";
+import { resolveDefaultNameAndDirectory, toTakenNames, emptyTakenNames } from "../../hooks/resolveAvailableDirectoryName";
 
 export function ProjectCreationView({ onBack, ballerinaUnavailable }: { onBack?: () => void; ballerinaUnavailable?: boolean }) {
     const { wsClient } = useVisualizerContext();
-    const { authState } = useCloudContext();
-    const organizations = authState?.userInfo?.organizations as Organization[] | undefined;
     const firstFieldRef = useRef<HTMLInputElement>(null);
-    const handleTouched = useRef(false);
-    const projectNameTouchedRef = useRef(false);
-    const orgNameInitialized = useRef(false);
     const defaultPathInitialized = useRef(false);
+    // True once the user has typed in the name field — stops the one-time seed from
+    // overwriting a name the user entered before the async seed resolved.
+    const projectNameTouchedRef = useRef(false);
     const [isValidating, setIsValidating] = useState(false);
     const [projectNameError, setProjectNameError] = useState<string | null>(null);
     const [pathError, setPathError] = useState<string | null>(null);
-    const [projectHandleError, setProjectHandleError] = useState<string | null>(null);
-    const [cloudProjectNameError, setCloudProjectNameError] = useState<string | null>(null);
-    const [cloudProjectHandleError, setCloudProjectHandleError] = useState<string | null>(null);
-    const [matchedCloudProject, setMatchedCloudProject] = useState<{ project: any; org: any } | null>(null);
-    const [orgNameError, setOrgNameError] = useState<string | null>(null);
-    const { isSigningIn, handleSignIn, handleCancelSignIn } = useSignIn();
-    const [isAdvancedExpanded, setIsAdvancedExpanded] = useState(false);
-    const [projectHandle, setProjectHandle] = useState(() => sanitizeProjectHandle(DEFAULT_PROJECT_NAME));
     const [defaultPath, setDefaultPath] = useState("");
     const [pathTouched, setPathTouched] = useState(false);
     const [editablePath, setEditablePath] = useState("");
-    const [formData, setFormData] = useState({
-        projectName: DEFAULT_PROJECT_NAME,
-        path: "",
-        orgName: "",
-        version: "",
+    const [projectName, setProjectName] = useState(DEFAULT_PROJECT_NAME);
+    // The on-disk folder name. Defaults to a name-derived value and stays in sync with
+    // the project name until the user edits the path's last segment (dirTouched), after
+    // which it is left under manual control.
+    const dirCoupling = useDirectoryNameCoupling(() => sanitizePackageName(DEFAULT_PROJECT_NAME), sanitizePackageName);
+    const { directoryName, dirTouched } = dirCoupling;
+
+    // Owns the Browse interaction. No `adoptProjectName`: this form only ever creates a NEW
+    // project, so the name field stays the user's — an existing project at the pick is a
+    // conflict for the path validation to report, not a name to take on.
+    const browsePick = useBrowsePick({
+        wsClient,
+        dirCoupling,
+        projectName,
+        setProjectName,
+        projectNameTouchedRef,
+        setEditablePath,
+        setPathTouched,
+        setPathError,
+        startPath: editablePath || defaultPath,
+        selectFailedMessage: "Failed to select path. Please try again.",
     });
 
     const debouncedSetProjectNameError = useMemo(
@@ -95,78 +89,58 @@ export function ProjectCreationView({ onBack, ballerinaUnavailable }: { onBack?:
         []
     );
 
-    const resolvedOrg = useMemo(() => {
-        if (!organizations || organizations.length === 0) return undefined;
-        return formData.orgName
-            ? (organizations.find(o => o.handle === formData.orgName) ?? organizations[0])
-            : organizations[0];
-    }, [organizations, formData.orgName]);
+    // The name-derived default for the directory segment (empty until a name is typed).
+    const autoDirectoryName = projectName.trim() ? sanitizePackageName(projectName) : "";
+    // The folder segment actually used: the manually edited value when the user has
+    // taken control, otherwise the name-derived default.
+    const effectiveDirectoryName = dirTouched ? directoryName.trim() : (directoryName.trim() || autoDirectoryName);
 
-    const { data: cloudProjectsData } = useCloudProjects(
-        resolvedOrg?.id?.toString(),
-        resolvedOrg?.handle
-    );
-
+    // Seed the default path once. Prefer the open workspace folder, falling back to the
+    // default creation directory. The indexed default directory name is resolved here —
+    // BEFORE the path and name are committed — so the path field shows the final value
+    // immediately (like the wizard) rather than flashing the un-indexed "default" and an
+    // "already exists" diagnostic while a reactive re-index catches up. The candidate is
+    // resolved locally against a single upfront folder listing (matching the integration
+    // wizard / library form) rather than probing `validateProjectPath` once per candidate.
     useEffect(() => {
         let mounted = true;
-        (async () => {
-            // Seed the default path only once. This effect also re-runs when the async
-            // cloud `organizations` list arrives/changes; without this guard it would
-            // overwrite a path the user has since chosen via Browse or by typing.
-            if (!defaultPathInitialized.current) {
-                try {
-                    const { path: workspacePath } = await wsClient.getWorkspaceRoot();
-                    if (!mounted) return;
-                    const dp = workspacePath || (await wsClient.getDefaultCreationPath()).path;
-                    if (!mounted) return;
-                    defaultPathInitialized.current = true;
-                    setDefaultPath(dp);
-                    setFormData(prev => ({ ...prev, path: dp }));
-                } catch (error) {
-                    console.error("Failed to fetch default path:", error);
-                }
-            }
 
-            if (!orgNameInitialized.current) {
-                orgNameInitialized.current = true;
-                if (organizations && organizations.length > 0) {
-                    if (mounted) setFormData(prev => ({ ...prev, orgName: organizations[0].handle }));
-                } else {
-                    try {
-                        const { orgName } = await wsClient.getDefaultOrgName();
-                        if (mounted) setFormData(prev => ({ ...prev, orgName }));
-                    } catch (error) {
-                        console.error("Failed to fetch default organization name:", error);
-                    }
+        (async () => {
+            if (defaultPathInitialized.current) return;
+            try {
+                // Re-checked before EVERY write below, not just once: this seed spans
+                // several round-trips, and a Browse that lands mid-flight has already
+                // retargeted the form — applying any part of a reading taken for the
+                // default location would drag it back.
+                const superseded = () => !mounted || browsePick.pathPickedRef.current;
+                const { path: workspacePath } = await wsClient.getWorkspaceRoot();
+                if (superseded()) return;
+                const dp = workspacePath || (await wsClient.getDefaultCreationPath()).path;
+                if (superseded()) return;
+                let taken = emptyTakenNames();
+                try {
+                    taken = toTakenNames(await wsClient.getProjectComponentNames({ projectPath: dp }));
+                } catch {
+                    // Best effort — fall back to the un-indexed default on failure.
                 }
+                if (superseded()) return;
+                const { directoryName: dirName } = resolveDefaultNameAndDirectory(DEFAULT_PROJECT_NAME, taken, sanitizePackageName);
+                defaultPathInitialized.current = true;
+                // Set the resolved directory name BEFORE the path becomes non-empty so no
+                // render ever pairs a real path with the un-indexed default name (which is
+                // what triggers the realtime "already exists" diagnostic flash).
+                // Don't clobber a name the user typed while the seed was resolving.
+                if (!projectNameTouchedRef.current) {
+                    dirCoupling.setDirectoryName(dirName);
+                }
+                setDefaultPath(dp);
+                setEditablePath(dp);
+            } catch (error) {
+                console.error("Failed to fetch default path:", error);
             }
         })();
         return () => { mounted = false; };
-    }, [organizations, wsClient]);
-
-    // Validate project handle against cached cloud project handles
-    useEffect(() => {
-        if (!cloudProjectsData?.projects || !projectHandle?.trim()) {
-            setCloudProjectHandleError(null);
-            return;
-        }
-        const handleToCheck = projectHandle.trim().toLowerCase();
-        const matched = cloudProjectsData.projects.find((p: any) => p.handler.toLowerCase() === handleToCheck);
-        if (matched) {
-            const suggested = suggestAvailableProjectName(
-                projectHandle.trim(),
-                cloudProjectsData.projects.map((p: any) => p.handler)
-            );
-            if (!handleTouched.current) {
-                setProjectHandle(suggested);
-                setCloudProjectHandleError(null);
-            } else {
-                setCloudProjectHandleError("A project with this id already exists in cloud");
-            }
-        } else {
-            setCloudProjectHandleError(null);
-        }
-    }, [cloudProjectsData, projectHandle]);
+    }, [wsClient]);
 
     // Focus and select the first field on mount — VSCodeTextField is a web component,
     // so the real <input> is inside its shadow DOM and needs to be targeted directly.
@@ -178,17 +152,10 @@ export function ProjectCreationView({ onBack, ballerinaUnavailable }: { onBack?:
         }, 0);
     }, []);
 
-    // Auto-derive handle from projectName unless manually edited
-    useEffect(() => {
-        if (handleTouched.current) return;
-        const derived = sanitizeProjectHandle(formData.projectName);
-        setProjectHandle(derived);
-    }, [formData.projectName]);
-
     // Real-time project name validation — clear immediately when valid, debounce errors
     // to avoid flashing "required" on every keystroke before the user finishes typing.
     useEffect(() => {
-        const error = validateProjectName(formData.projectName);
+        const error = validateProjectName(projectName);
         if (!error) {
             debouncedSetProjectNameError.cancel();
             setProjectNameError(null);
@@ -196,101 +163,70 @@ export function ProjectCreationView({ onBack, ballerinaUnavailable }: { onBack?:
         }
         debouncedSetProjectNameError(error);
         return () => debouncedSetProjectNameError.cancel();
-    }, [formData.projectName]);
-
-    // Real-time org name validation (mirrors LibraryCreationView behaviour)
-    useEffect(() => {
-        setOrgNameError(validateOrgName(formData.orgName));
-    }, [formData.orgName]);
-
-    // Validate handle
-    useEffect(() => {
-        setProjectHandleError(validateProjectHandle(projectHandle));
-    }, [projectHandle]);
-
-    // Validate project name against cached cloud projects — synchronous, no debounce needed.
-    useEffect(() => {
-        if (!cloudProjectsData?.projects || !formData.projectName?.trim()) {
-            setCloudProjectNameError(null);
-            setMatchedCloudProject(null);
-            return;
-        }
-        const nameToCheck = formData.projectName.trim().toLowerCase();
-        const matched = cloudProjectsData.projects.find((p: any) => p.name.toLowerCase() === nameToCheck);
-        if (matched) {
-            const suggested = suggestAvailableProjectName(
-                formData.projectName.trim(),
-                cloudProjectsData.projects.map((p: any) => p.name)
-            );
-            if (!projectNameTouchedRef.current) {
-                // Default name conflicts — silently auto-rename
-                setFormData(prev => ({ ...prev, projectName: suggested }));
-                setCloudProjectNameError(null);
-                setMatchedCloudProject(null);
-            } else {
-                setCloudProjectNameError("A project with this name already exists in cloud");
-                setMatchedCloudProject({ project: matched, org: resolvedOrg });
-            }
-        } else {
-            setCloudProjectNameError(null);
-            setMatchedCloudProject(null);
-        }
-    }, [cloudProjectsData, formData.projectName, resolvedOrg]);
-
-    // Keep editablePath in sync with the committed path when the user is not actively editing
-    useEffect(() => {
-        if (!pathTouched) {
-            setEditablePath(formData.path || defaultPath);
-        }
-    }, [formData.path, defaultPath, pathTouched]);
+    }, [projectName]);
 
     useRealtimeProjectPathValidation({
         wsClient,
         projectPath: editablePath,
-        projectName: projectHandle,
+        projectName,
         createAsWorkspace: true,
-        pathTouched,
+        // Validate as soon as there is a real target — once the path is seeded and a
+        // directory segment is present — so a "Ballerina project already exists"
+        // conflict surfaces live under the path field.
+        pathTouched: pathTouched || (editablePath.trim().length > 0 && effectiveDirectoryName.length > 0),
         requiredPathMessage: "Please select a path for your project",
         invalidPathMessage: "Invalid project path",
-        onPathErrorChange: setPathError,
+        onPathErrorChange: useCallback((error: string | null) => setPathError(error), []),
+        directoryName: effectiveDirectoryName,
+        // The path field is the exact project root — allow creating into an existing
+        // (empty or non-Ballerina) directory instead of forcing a brand-new folder.
+        allowExistingDirectory: true,
     });
 
-    const resolvedPath = editablePath ? joinPath(editablePath, projectHandle) : "";
+    const resolvedPath = editablePath ? joinPath(editablePath, effectiveDirectoryName) : "";
 
-    const handlePathSelection = async () => {
-        try {
-            const result = await wsClient.selectFileOrDirPath({ startPath: editablePath || formData.path || defaultPath });
-            if (!result.path) return;
-            setPathTouched(false);
-            setEditablePath(result.path);
-            setFormData(prev => ({ ...prev, path: result.path }));
-        } catch (error) {
-            console.error("Failed to select path:", error);
-            setPathError("Failed to select path. Please try again.");
-        }
+    const handleNameChange = (value: string) => {
+        projectNameTouchedRef.current = true;
+        setProjectName(value);
+        // Keep the directory name in sync with the project name until the user edits it.
+        // (Only the default name is auto-indexed, at seed time — a name the user types is
+        // used verbatim, matching the integration wizard.)
+        // A name typed while a Browse still pins an existing project's folder would be
+        // ignored by the path, so releasing the pin also recouples the folder to the name.
+        dirCoupling.handleDisplayNameChange(value, browsePick.releaseName() ? { recouple: true } : undefined);
     };
+
+    const handlePathChange = (value: string) => {
+        // The field shows the full target path; its last segment is the directory name
+        // (editable). Editing it away from the name-derived default takes manual control.
+        const { base, name } = splitPath(value);
+        setPathTouched(true);
+        setEditablePath(base);
+        dirCoupling.handleDirectoryNameEdit(name, autoDirectoryName);
+        // Only an edit to the SEGMENT claims it from a pick — retyping the parent portion
+        // leaves the pinned folder exactly as the pick left it.
+        browsePick.releaseFolderIfSegmentEdited(name);
+    };
+
+    /**
+     * Browse: the picked folder is normally the parent LOCATION, with the project folder
+     * derived from the name (`<picked>/<name>`). Picking a folder that is ITSELF a project
+     * is the exception — this form only ever creates a NEW project, so appending a folder
+     * inside the pick would nest one project in another. The pick is taken as the project
+     * root instead, which lets the realtime validation report the conflict under the path
+     * field rather than silently targeting `<project>/default`.
+     */
+    const handlePathSelection = browsePick.selectPath;
 
     const handleCreate = async () => {
         setIsValidating(true);
 
-        // Commit any un-blurred path before submitting
-        const currentPath = editablePath || formData.path;
-        if (pathTouched && editablePath !== formData.path) {
-            setFormData(prev => ({ ...prev, path: editablePath }));
-        }
-
+        const currentPath = editablePath || defaultPath;
         let hasError = false;
 
-        const nameError = validateProjectName(formData.projectName);
+        const nameError = validateProjectName(projectName);
         if (nameError) {
             setProjectNameError(nameError);
-            hasError = true;
-        }
-
-        const hErr = validateProjectHandle(projectHandle);
-        if (hErr) {
-            setProjectHandleError(hErr);
-            setIsAdvancedExpanded(true);
             hasError = true;
         }
 
@@ -299,18 +235,8 @@ export function ProjectCreationView({ onBack, ballerinaUnavailable }: { onBack?:
             hasError = true;
         }
 
-        const orgErr = validateOrgName(formData.orgName);
-        if (orgErr) {
-            setOrgNameError(orgErr);
-            setIsAdvancedExpanded(true);
-            hasError = true;
-        }
-
-        if (cloudProjectNameError) {
-            hasError = true;
-        }
-
-        if (cloudProjectHandleError) {
+        if (!effectiveDirectoryName) {
+            setPathError("Please provide a directory name for your project");
             hasError = true;
         }
 
@@ -322,17 +248,18 @@ export function ProjectCreationView({ onBack, ballerinaUnavailable }: { onBack?:
         try {
             const validationResult = await wsClient.validateProjectPath({
                 projectPath: currentPath,
-                projectName: projectHandle,
+                projectName,
                 createDirectory: true,
                 createAsWorkspace: true,
+                directoryName: effectiveDirectoryName,
+                allowExistingDirectory: true,
             });
 
             if (!validationResult.isValid) {
-                if (validationResult.errorField === ValidateProjectFormErrorField.PATH) {
+                if (validationResult.errorField === ValidateProjectFormErrorField.NAME) {
+                    setProjectNameError(validationResult.errorMessage || "Invalid project name");
+                } else {
                     setPathError(validationResult.errorMessage || "Invalid project path");
-                } else if (validationResult.errorField === ValidateProjectFormErrorField.NAME) {
-                    setProjectHandleError(validationResult.errorMessage || "Invalid project ID");
-                    setIsAdvancedExpanded(true);
                 }
                 setIsValidating(false);
                 return;
@@ -344,18 +271,12 @@ export function ProjectCreationView({ onBack, ballerinaUnavailable }: { onBack?:
         }
 
         try {
-            const orgHandle = organizations?.find(o => o.handle === formData.orgName)?.handle
-                || sanitizeOrgHandle(formData.orgName);
-
             await wsClient.createBIProject({
-                workspaceName: formData.projectName,
+                workspaceName: projectName,
                 projectPath: currentPath,
                 createDirectory: true,
                 createAsWorkspace: true,
-                orgName: formData.orgName || undefined,
-                orgHandle: orgHandle,
-                version: formData.version || undefined,
-                projectHandle: projectHandle,
+                directoryName: effectiveDirectoryName,
             });
         } catch (error) {
             console.error("Failed to create project:", error);
@@ -392,28 +313,13 @@ export function ProjectCreationView({ onBack, ballerinaUnavailable }: { onBack?:
                             <FieldGroup>
                                 <TextField
                                     ref={firstFieldRef}
-                                    onTextChange={(value) => {
-                                        projectNameTouchedRef.current = true;
-                                        setFormData(prev => ({ ...prev, projectName: value }));
-                                    }}
-                                    value={formData.projectName}
+                                    onTextChange={handleNameChange}
+                                    value={projectName}
                                     label="Project Name"
                                     placeholder="Enter a project name"
                                     required={true}
-                                    errorMsg={projectNameError || cloudProjectNameError || ""}
+                                    errorMsg={projectNameError || ""}
                                 />
-                                {cloudProjectNameError && matchedCloudProject && (
-                                    <CloudErrorActionRow>
-                                        <ActionLink type="button" onClick={() =>
-                                            wsClient.runCommand({
-                                                command: WICommandIds.CloneProject,
-                                                args: [{ organization: matchedCloudProject.org, project: matchedCloudProject.project, integrationOnly: true }],
-                                            })
-                                        }>
-                                            Open existing project
-                                        </ActionLink>
-                                    </CloudErrorActionRow>
-                                )}
                             </FieldGroup>
 
                             <FieldGroup>
@@ -421,65 +327,18 @@ export function ProjectCreationView({ onBack, ballerinaUnavailable }: { onBack?:
                                     id="project-folder-selector"
                                     label="Select Path"
                                     placeholder="Browse to select a folder..."
-                                    selectedPath={editablePath}
+                                    selectedPath={resolvedPath}
                                     required={true}
                                     onSelect={handlePathSelection}
-                                    onChange={(value) => {
-                                        setPathTouched(true);
-                                        setEditablePath(value);
-                                    }}
-                                    onBlur={() => {
-                                        if (pathTouched && editablePath !== formData.path) {
-                                            setFormData(prev => ({ ...prev, path: editablePath }));
-                                        }
-                                    }}
+                                    onChange={handlePathChange}
                                     errorMsg={pathError || undefined}
                                 />
-                                {resolvedPath && resolvedPath !== editablePath && (
-                                    <ResolvedPathText>Will be created at: {resolvedPath}</ResolvedPathText>
-                                )}
                             </FieldGroup>
-
-                            <CollapsibleSection
-                                isExpanded={isAdvancedExpanded}
-                                onToggle={() => setIsAdvancedExpanded(!isAdvancedExpanded)}
-                                icon="gear"
-                                title="Advanced Configurations"
-                                hasError={!!(orgNameError || projectHandleError || cloudProjectHandleError)}
-                            >
-                                <FieldGroup>
-                                    <OrgField
-                                        organizations={organizations}
-                                        orgName={formData.orgName}
-                                        orgNameError={orgNameError}
-                                        description="The organization that owns this project."
-                                        isSigningIn={isSigningIn}
-                                        onOrgChange={(value) => {
-                                            setFormData(prev => ({ ...prev, orgName: value }));
-                                        }}
-                                        onSignIn={handleSignIn}
-                                        onCancelSignIn={handleCancelSignIn}
-                                    />
-                                </FieldGroup>
-                                <FieldGroup>
-                                    <TextField
-                                        onTextChange={(value) => {
-                                            handleTouched.current = true;
-                                            if (projectHandleError) setProjectHandleError(null);
-                                            setProjectHandle(sanitizeProjectHandle(value, { trimTrailing: false }));
-                                        }}
-                                        value={projectHandle}
-                                        label="Project ID"
-                                        errorMsg={projectHandleError || cloudProjectHandleError || ""}
-                                    />
-                                    <Description>Unique identifier for your project in various contexts.</Description>
-                                </FieldGroup>
-                            </CollapsibleSection>
 
                             <FormFooter>
                                 <span title={ballerinaUnavailable ? "Ballerina distribution is not set up. Use Configure to set it up." : undefined}>
                                     <Button
-                                        disabled={isValidating || ballerinaUnavailable || !!projectNameError || !!cloudProjectNameError || !!cloudProjectHandleError || !!orgNameError || !!projectHandleError || !!pathError}
+                                        disabled={isValidating || ballerinaUnavailable || !!projectNameError || !!pathError}
                                         onClick={handleCreate}
                                         appearance="primary"
                                     >

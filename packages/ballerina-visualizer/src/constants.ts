@@ -35,8 +35,6 @@ export enum TypeHelperContext {
     HTTP_STATUS_CODE = 'HTTP_STATUS_CODE',
 }
 
-export const GET_DEFAULT_MODEL_PROVIDER = "getDefaultModelProvider";
-export const GET_DEFAULT_EMBEDDING_PROVIDER = "getDefaultEmbeddingProvider";
 export const WSO2_MODEL_PROVIDER = "Default Model Provider (WSO2)";
 
 export const PROVIDER_NAME_MAP: Record<string, string> = {
@@ -53,6 +51,7 @@ export const RESOURCE_ACTION_CALL = "RESOURCE_ACTION_CALL";
 export const REMOTE_ACTION_CALL = "REMOTE_ACTION_CALL";
 export const FUNCTION_CALL = "FUNCTION_CALL";
 export const METHOD_CALL = "METHOD_CALL";
+export const NEW_CONNECTION = "NEW_CONNECTION";
 
 export const LOADING_MESSAGE = "Loading...";
 export const FORM_LOADING_MESSAGE = "Loading form...";

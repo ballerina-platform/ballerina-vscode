@@ -15,15 +15,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Icon } from '@wso2/ui-toolkit';
 import { useRpcContext } from '@wso2/ballerina-rpc-client';
 import { EVENT_TYPE, MACHINE_VIEW } from '@wso2/ballerina-core';
 
 import { CardGrid, PanelViewMore, Title, TitleWrapper } from './styles';
 import { BodyText } from '../../styles';
 import ButtonCard from '../../../components/ButtonCard';
+import { ARTIFACT_CATEGORY_META, DURABLE_AGENT_CARD, WORKFLOW_CARD } from '../components/artifactCards';
+import { cardMatchesSearch } from './componentListUtils';
 
-export function WorkflowPanel() {
+const CATEGORY = ARTIFACT_CATEGORY_META.workflow;
+
+export function WorkflowPanel({ searchQuery }: { searchQuery?: string }) {
     const { rpcClient } = useRpcContext();
 
     const handleClick = () => {
@@ -35,23 +38,48 @@ export function WorkflowPanel() {
         });
     };
 
+    const handleDurableAgentClick = () => {
+        rpcClient.getVisualizerRpcClient().openView({
+            type: EVENT_TYPE.OPEN_VIEW,
+            location: {
+                view: MACHINE_VIEW.BIDurableAgentForm,
+            },
+        });
+    };
+
+    // The panel offers two authoring models, so each card is matched on its own title the way the
+    // AI integration panel does it; the panel drops out only when neither matches.
+    const workflowMatches = cardMatchesSearch(WORKFLOW_CARD.displayName, searchQuery);
+    const durableAgentMatches = cardMatchesSearch(DURABLE_AGENT_CARD.displayName, searchQuery);
+    if (!workflowMatches && !durableAgentMatches) {
+        return null;
+    }
+
     return (
         <PanelViewMore>
             <TitleWrapper>
-                <Title variant="h2">Durable Workflow</Title>
-                <BodyText>
-                    Design static workflow logic that can be interrupted by events, use timer-based
-                    activities, involve human tasks, and run for long periods with crash recovery enabled.
-                </BodyText>
+                <Title variant="h2">{CATEGORY.title}</Title>
+                <BodyText>{CATEGORY.description}</BodyText>
             </TitleWrapper>
             <CardGrid>
-                <ButtonCard
-                    id="workflow"
-                    icon={<Icon name="bi-flowchart" />}
-                    title="Durable Workflow"
-                    tooltip="Long-running workflow logic with events, timers, human tasks, and crash recovery."
-                    onClick={handleClick}
-                />
+                {workflowMatches && (
+                    <ButtonCard
+                        id={WORKFLOW_CARD.id}
+                        icon={WORKFLOW_CARD.icon}
+                        title={WORKFLOW_CARD.displayName}
+                        onClick={handleClick}
+                        tooltip={WORKFLOW_CARD.tooltip}
+                    />
+                )}
+                {durableAgentMatches && (
+                    <ButtonCard
+                        id={DURABLE_AGENT_CARD.id}
+                        icon={DURABLE_AGENT_CARD.icon}
+                        title={DURABLE_AGENT_CARD.displayName}
+                        onClick={handleDurableAgentClick}
+                        tooltip={DURABLE_AGENT_CARD.tooltip}
+                    />
+                )}
             </CardGrid>
         </PanelViewMore>
     );

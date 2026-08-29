@@ -22,7 +22,7 @@ import { Codicon, Dropdown, LinkButton, LocationSelector, RadioButtonGroup, Them
 import { FormRow, FormButtonContainer } from "../Form";
 
 import { FormField } from "../Form/types";
-import { buildRequiredRule, capitalize, getValueForDropdown } from "./utils";
+import { buildRequiredRule, capitalize, getValueForDropdown, withHeldValue } from "./utils";
 import { useFormContext } from "../../context";
 import styled from "@emotion/styled";
 import { FieldFactory } from "./FieldFactory";
@@ -63,7 +63,9 @@ export function DropdownChoiceForm(props: DropdownChoiceFormProps) {
     // Update dynamic fields when selection changes
     useEffect(() => {
         if (field.dynamicFormFields?.[selectedOption]) {
-            setDynamicFields(field.dynamicFormFields[selectedOption]);
+            const values = form.getValues();
+            setDynamicFields(field.dynamicFormFields[selectedOption].map((dynamicField) =>
+                withHeldValue(dynamicField, values)));
         } else {
             setDynamicFields([]);
         }
@@ -95,7 +97,9 @@ export function DropdownChoiceForm(props: DropdownChoiceFormProps) {
             </ChoiceSection>
             <FormSection>
                 {dynamicFields
-                    .filter(dfield => dfield.type !== "GROUP_SECTION" && !dfield.advanced && !dfield.optional)
+                    // An optional field of the selected branch still belongs to it — optional only means
+                    // it carries no required marker, so it renders like the rest.
+                    .filter(dfield => dfield.type !== "GROUP_SECTION" && !dfield.advanced && !dfield.hidden)
                     .map((dfield, index) => (
                         <FieldFactory
                             key={dfield.key}

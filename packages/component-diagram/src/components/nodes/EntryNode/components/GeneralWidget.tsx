@@ -18,7 +18,7 @@
 
 import React, { useState } from "react";
 import { PortWidget } from "@projectstorm/react-diagrams-core";
-import { CDAutomation, CDService, CDWorkflow, CDWorkflowEvent, CDWorkflowHumanTask } from "@wso2/ballerina-core";
+import { CDAutomation, CDService, CDWorkflow, CDWorkflowEvent, CDWorkflowHumanTask, resolveBrandIcon } from "@wso2/ballerina-core";
 import { Item, Menu, MenuItem, Popover, ImageWithFallback, Icon } from "@wso2/ui-toolkit";
 import { useDiagramContext } from "../../../DiagramContext";
 import { HttpIcon, TaskIcon } from "../../../../resources";
@@ -64,12 +64,15 @@ const getNodeTitle = (model: EntryNodeModel) => {
     return "";
 };
 
+const isDurableAgentWorkflow = (model: EntryNodeModel) =>
+    model.type === "workflow" && (model.node as CDWorkflow).kind === "DURABLE_AGENT";
+
 const getNodeDescription = (model: EntryNodeModel) => {
     if (model.type === "automation") {
         return "Automation";
     }
     if (model.type === "workflow") {
-        return "Durable Workflow";
+        return isDurableAgentWorkflow(model) ? "Durable Agentic Workflow" : "Durable Workflow";
     }
     // Service
     if ((model.node as CDService).type) {
@@ -106,52 +109,11 @@ function getCustomEntryNodeIcon(type: string) {
         typePart = typeParts.at(0);
     }
 
-    switch (typePart) {
-        case "tcp":
-            return <Icon name="bi-tcp" />;
-        case "kafka":
-            return <Icon name="bi-kafka" />;
-        case "rabbitmq":
-            return <Icon name="bi-rabbitmq" sx={{ color: "#f60" }} />;
-        case "nats":
-            return <Icon name="bi-nats" />;
-        case "mqtt":
-            return <Icon name="bi-mqtt" sx={{ color: "#606" }} />;
-        case "grpc":
-            return <Icon name="bi-grpc" />;
-        case "graphql":
-            return <Icon name="bi-graphql" sx={{ color: "#e535ab" }} />;
-        case "java.jms":
-            return <Icon name="bi-java" />;
-        case "trigger.github":
-            return <Icon name="bi-github" />;
-        case "http":
-            return <Icon name="bi-globe" />;
-        case "mcp":
-            return <Icon name="bi-mcp" />;
-        case "solace":
-            return <Icon name="bi-solace" sx={{ color: "#00C895" }}/>;
-        case "ftp":
-            return <Icon name="bi-ftp" />;
-        case "file":
-            return <Icon name="bi-file" />;
-        case "mssql":
-            return <Icon name="bi-mssql" sx={{ color: "#b61d1c" }}/>;
-        case "mysql":
-            return <Icon name="bi-mysql" sx={{ color: "#00758F" }}/>;
-        case "postgresql":
-            return <Icon name="bi-postgresql" sx={{ color: "#336791" }}/>;
-        case "trigger.shopify":
-        case "shopify":
-            return <Icon name="bi-shopify" sx={{ color: "#95BF47" }} />;
-        case "trigger.hubspot":
-        case "hubspot":
-            return <Icon name="bi-hubspot" sx={{ color: "#FF7A59" }} />;
-        case "trigger.twilio":
-            return <Icon name="bi-twilio" />;
-        default:
-            return null;
+    const brand = resolveBrandIcon(typePart);
+    if (!brand) {
+        return null;
     }
+    return <Icon name={brand.glyph} sx={brand.color ? { color: brand.color } : undefined} />;
 }
 
 function FunctionBox(props: { func: any; model: EntryNodeModel; engine: any; readonly?: boolean }) {
@@ -300,7 +262,9 @@ export function GeneralServiceWidget({ model, engine }: BaseNodeWidgetProps) {
     const nodeIcon = (() => {
         switch (model.type) {
             case "workflow":
-                return <Icon name="bi-flowchart" sx={{ fontSize: 24, width: 24, height: 24 }} />;
+                return isDurableAgentWorkflow(model)
+                    ? <Icon name="bi-ai-agent" sx={{ fontSize: 24, width: 24, height: 24 }} />
+                    : <Icon name="bi-flowchart" sx={{ fontSize: 24, width: 24, height: 24 }} />;
             case "automation":
                 return <TaskIcon />;
             case "service":

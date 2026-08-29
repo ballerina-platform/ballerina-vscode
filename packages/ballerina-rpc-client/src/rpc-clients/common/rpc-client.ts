@@ -27,6 +27,8 @@ import {
     DefaultOrgNameResponse,
     FileOrDirRequest,
     FileOrDirResponse,
+    ProjectFileRequest,
+    ProjectFileResponse,
     GoToSourceRequest,
     OpenExternalUrlRequest,
     PackageTomlValues,
@@ -55,10 +57,12 @@ import {
     goToSource,
     hasCentralPATConfigured,
     isNPSupported,
+    additionalTriggerSearchEnabled,
     openExternalUrl,
     publishToCentral,
     runBackgroundTerminalCommand,
     selectFileOrDirPath,
+    selectProjectRelativeFile,
     selectFileOrFolderPath,
     setPreferredTryItOption,
     showErrorMessage,
@@ -118,12 +122,20 @@ export class CommonRpcClient implements CommonRPCAPI {
         return this._messenger.sendRequest(selectFileOrDirPath, HOST_EXTENSION, params);
     }
 
+    selectProjectRelativeFile(params: ProjectFileRequest): Promise<ProjectFileResponse> {
+        return this._messenger.sendRequest(selectProjectRelativeFile, HOST_EXTENSION, params);
+    }
+
     selectFileOrFolderPath(): Promise<FileOrDirResponse> {
         return this._messenger.sendRequest(selectFileOrFolderPath, HOST_EXTENSION);
     }
 
     experimentalEnabled(): Promise<boolean> {
         return this._messenger.sendRequest(experimentalEnabled, HOST_EXTENSION);
+    }
+
+    additionalTriggerSearchEnabled(): Promise<boolean> {
+        return this._messenger.sendRequest(additionalTriggerSearchEnabled, HOST_EXTENSION);
     }
 
     isNPSupported(): Promise<boolean> {

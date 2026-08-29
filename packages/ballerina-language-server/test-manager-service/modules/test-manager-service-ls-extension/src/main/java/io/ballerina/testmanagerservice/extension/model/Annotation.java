@@ -34,6 +34,7 @@ public record Annotation(Metadata metadata, Codedata codedata, String org, Strin
         private Property dataProvider;
         private Property dataProviderMode;
         private Property evalSetFile;
+        private Property queries;
         private Property dependsOn;
         private Property after;
         private Property before;
@@ -68,6 +69,11 @@ public record Annotation(Metadata metadata, Codedata codedata, String org, Strin
         public void evalSetFile(String filePath) {
             evalSetFile = value("Evalset File", "Path to the evalSet data file", filePath,
                     "EXPRESSION", "evalSetFile");
+        }
+
+        public void queries(List<String> queryList) {
+            queries = value("Queries", "Queries used as the test input", queryList,
+                    "TEXT_SET", "queries");
         }
 
         public void dependsOn(List<String> functionList) {
@@ -144,6 +150,12 @@ public record Annotation(Metadata metadata, Codedata codedata, String org, Strin
                         "EXPRESSION", "evalSetFile");
             }
             properties.add(evalSetFile);
+
+            // Always add queries (default to empty list)
+            if (queries == null) {
+                queries(List.of());
+            }
+            properties.add(queries);
 
             // Always add dependsOn (default to empty list)
             if (dependsOn == null) {

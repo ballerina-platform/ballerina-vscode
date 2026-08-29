@@ -396,11 +396,13 @@ export interface CardListProps {
     // Supply both to keep a group expanded across view switches (e.g. returning from a form).
     expandedGroupId?: string | null;
     onExpandedGroupChange?: (groupId: string | null) => void;
+    // Optional extra content rendered below the categories (e.g. a WSO2 Cloud section).
+    extraSection?: React.ReactNode;
 }
 
 function CardList(props: CardListProps) {
     const { categories, title, searchPlaceholder, onSelect, onSearch, onBack, onClose,
-        expandedGroupId: controlledExpandedGroupId, onExpandedGroupChange } = props;
+        expandedGroupId: controlledExpandedGroupId, onExpandedGroupChange, extraSection } = props;
 
     const [searchText, setSearchText] = useState<string>("");
     const [isSearching, setIsSearching] = useState(false);
@@ -660,27 +662,30 @@ function CardList(props: CardListProps) {
 
             {!isSearching && (
                 <S.PanelBody>
-                    {!hasContent ? (
+                    {!hasContent && !extraSection ? (
                         <S.EmptyState>
                             <S.EmptyStateText>No results found</S.EmptyStateText>
                             <S.EmptyStateSubText>Try adjusting your search terms</S.EmptyStateSubText>
                         </S.EmptyState>
                     ) : (
-                        filteredCategories.map((category, index) => {
-                            if (!category?.items || category.items.length === 0) {
-                                return null;
-                            }
+                        <>
+                            {filteredCategories.map((category, index) => {
+                                if (!category?.items || category.items.length === 0) {
+                                    return null;
+                                }
 
-                            return (
-                                <S.CategorySection key={category.title + index}>
-                                    <S.CategoryTitle>{category.title}</S.CategoryTitle>
-                                    {category.description && (
-                                        <S.CategoryDescription>{category.description}</S.CategoryDescription>
-                                    )}
-                                    {renderCards(category.items)}
-                                </S.CategorySection>
-                            );
-                        })
+                                return (
+                                    <S.CategorySection key={category.title + index}>
+                                        <S.CategoryTitle>{category.title}</S.CategoryTitle>
+                                        {category.description && (
+                                            <S.CategoryDescription>{category.description}</S.CategoryDescription>
+                                        )}
+                                        {renderCards(category.items)}
+                                    </S.CategorySection>
+                                );
+                            })}
+                            {extraSection}
+                        </>
                     )}
                 </S.PanelBody>
             )}

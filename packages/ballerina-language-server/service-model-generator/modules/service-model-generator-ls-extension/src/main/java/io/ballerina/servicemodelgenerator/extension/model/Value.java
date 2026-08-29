@@ -46,10 +46,18 @@ public class Value {
     private List<Value> choices;
     private Map<String, Value> properties;
     private List<PropertyType> types;
+    private List<ValidationRule> validations;
     private boolean enabled;
     private boolean editable;
     private boolean optional;
     private boolean advanced;
+    // A fixed/internal field the form must carry but never render (e.g. a service type the connector
+    // pins for new services). Distinct from `enabled: false`, which means "not part of the model" and
+    // is skipped by the source generator -- a hidden field still contributes its value.
+    //
+    // Boxed, unlike the other markers, so it stays absent from the wire unless a model declares it:
+    // a primitive would serialize `hidden: false` onto every property of every response.
+    private Boolean hidden;
 
     public Value(Value value) {
         this.metadata = value.metadata;
@@ -60,12 +68,14 @@ public class Value {
         this.placeholder = value.placeholder;
         this.optional = value.optional;
         this.advanced = value.advanced;
+        this.hidden = value.hidden;
         this.properties = value.properties;
         this.items = value.items;
         this.codedata = value.codedata;
         this.choices = value.choices;
         this.imports = value.imports;
         this.types = value.types;
+        this.validations = value.validations;
     }
 
     public Value(MetaData metadata, boolean enabled, boolean editable, Object value, List<Object> values,
@@ -98,6 +108,7 @@ public class Value {
         TEXT_SET,
         IDENTIFIER,
         TEXT,
+        DOC_TEXT,
         TYPE,
         ENUM,
         NUMBER,
@@ -109,7 +120,9 @@ public class Value {
         RAW_TEMPLATE,
         SINGLE_SELECT_LISTENER,
         MULTIPLE_SELECT_LISTENER,
+        MULTI_SELECT_LISTENER,
         FILE_SELECT,
+        PROJECT_FILE_SELECT,
         OPTIONAL_IDENTIFIER,
         ACTION_TYPE,
         REPEATABLE_LIST,
@@ -301,6 +314,14 @@ public class Value {
         this.advanced = advanced;
     }
 
+    public boolean isHidden() {
+        return Boolean.TRUE.equals(hidden);
+    }
+
+    public void setHidden(Boolean hidden) {
+        this.hidden = hidden;
+    }
+
     public Map<String, Value> getProperties() {
         return properties;
     }
@@ -341,6 +362,14 @@ public class Value {
         return imports;
     }
 
+    public List<ValidationRule> getValidations() {
+        return validations;
+    }
+
+    public void setValidations(List<ValidationRule> validations) {
+        this.validations = validations;
+    }
+
     public static class ValueBuilder {
         private MetaData metadata;
         private Codedata codedata;
@@ -351,10 +380,12 @@ public class Value {
         private List<Object> items;
         private Map<String, Value> properties;
         private Map<String, String> imports;
+        private List<ValidationRule> validations;
         private boolean enabled = false;
         private boolean editable = false;
         private boolean optional = false;
         private boolean advanced = false;
+        private Boolean hidden;
 
         public ValueBuilder metadata(String label, String description) {
             this.metadata = new MetaData(label, description);
@@ -405,6 +436,11 @@ public class Value {
             return this;
         }
 
+        public ValueBuilder setHidden(Boolean hidden) {
+            this.hidden = hidden;
+            return this;
+        }
+
         public ValueBuilder setProperties(Map<String, Value> properties) {
             this.properties = properties;
             return this;
@@ -438,9 +474,17 @@ public class Value {
             return this;
         }
 
+        public ValueBuilder setValidations(List<ValidationRule> validations) {
+            this.validations = validations;
+            return this;
+        }
+
         public Value build() {
-            return new Value(metadata, enabled, editable, value, values, placeholder, optional, advanced,
+            Value built = new Value(metadata, enabled, editable, value, values, placeholder, optional, advanced,
                     properties, items, codedata, types, imports);
+            built.setValidations(validations);
+            built.setHidden(hidden);
+            return built;
         }
     }
 }

@@ -11,10 +11,8 @@ type Organization1 record {
     string name;
     string location;
 };
-type Employee1 readonly & record {|
+type Employee1 record {|
     Id1 id;
-    Role1 role;
-    readonly string name;
 |};
 
 service class Project1 {

@@ -89,10 +89,10 @@ const MethodBox = styled.div`
 `;
 
 export interface VariableCardProps {
-    fieldModel: FieldType;
+    fieldModel: Pick<FieldType, "type" | "name">;
     goToSource?: (fieldModel: FieldType) => void;
-    onEditVariable: (fieldModel: FieldType) => void;
-    onDeleteVariable: (fieldModel: FieldType) => void;
+    onEditVariable?: (fieldModel: FieldType) => void;
+    onDeleteVariable?: (fieldModel: FieldType) => void;
     onVariableImplement?: (fieldModel: FieldType) => void;
 }
 
@@ -105,7 +105,7 @@ export function VariableCard(params: VariableCardProps) {
 
     const handleEditResource = (e: Event) => {
         e.stopPropagation(); // Stop the event propagation
-        onEditVariable(fieldModel);
+        onEditVariable?.(fieldModel as FieldType);
     };
 
     const handleOpenConfirm = () => {
@@ -120,14 +120,14 @@ export function VariableCard(params: VariableCardProps) {
 
     const handleConfirm = (status: boolean) => {
         if (status) {
-            onDeleteVariable && onDeleteVariable(fieldModel);
+            onDeleteVariable?.(fieldModel as FieldType);
         }
         setConfirmOpen(false);
         setConfirmEl(null);
     };
 
     const handleVariableImplement = () => {
-        onVariableImplement && onVariableImplement(fieldModel)
+        onVariableImplement?.(fieldModel as FieldType)
     }
 
     return (
@@ -141,7 +141,7 @@ export function VariableCard(params: VariableCardProps) {
                 </MethodSection>
                 <ButtonSection>
                     <>
-                        {onEditVariable! && (
+                        {onEditVariable && (
                             <VSCodeButton
                                 data-testid={`edit-variable-button-${fieldModel.name.value}`}
                                 appearance="icon"
@@ -150,7 +150,7 @@ export function VariableCard(params: VariableCardProps) {
                                 <Icon name="bi-edit" sx={{ marginTop: 3.5 }} />
                             </VSCodeButton>
                         )}
-                        {onDeleteVariable! && (
+                        {onDeleteVariable && (
                             <VSCodeButton
                                 data-testid={`delete-variable-button-${fieldModel.name.value}`}
                                 appearance="icon"

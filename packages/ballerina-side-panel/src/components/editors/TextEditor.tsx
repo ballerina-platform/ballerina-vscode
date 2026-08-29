@@ -21,6 +21,10 @@ import { FormField } from "../Form/types";
 import { TextField } from "@wso2/ui-toolkit";
 import { useFormContext } from "../../context";
 import { buildRequiredRule, capitalize } from "./utils";
+import { buildValidate } from "../Form/validationRules";
+import { useFieldDiagnostics } from "../Form/useFieldDiagnostics";
+import { WarningBanner } from "../Form/WarningBanner";
+import { dedupeMessages } from "../Form/DiagnosticsStore";
 
 interface TextEditorProps {
     field: FormField;
@@ -30,18 +34,37 @@ interface TextEditorProps {
 
 export function TextEditor(props: TextEditorProps) {
     const { field, handleOnFieldFocus, autoFocus } = props;
-    const { form } = useFormContext();
+    const { form, fileName } = useFormContext();
     const { register, formState: { errors } } = form;
 
-    // Combine diagnostics and validation errors
-    const diagnosticMsg = field.diagnostics?.map((diagnostic) => diagnostic.message).join("\n");
+    // Live diagnostics: client rules run per keystroke, `ls.*` rules on a debounce. Fields with no
+    // `ls.*` rules never reach the server, so this stays inert for the vast majority of them.
+    const liveDiagnostics = useFieldDiagnostics(field, {
+        filePath: fileName,
+        moduleName: field.codedata?.moduleName,
+    });
+
+    // Merge every producer, deduped by message. The live rules (client on every keystroke, ls.*
+    // debounced) are rendered directly rather than read back from react-hook-form: its default
+    // `onSubmit` mode does not commit per-field errors until submit (only `isValid`, which gates
+    // the button), so a `validations[]` failure would otherwise disable the button with nothing
+    // shown. ERRORs go in the field's red slot (and mark it invalid); WARNINGs render amber below
+    // and never block. The RHF error still covers the built-in required/pattern rules.
     const validationError = errors[field.key]?.message;
-    const errorMsg = validationError ? String(validationError) : diagnosticMsg;
+    const errorMsg = dedupeMessages([
+        validationError ? String(validationError) : undefined,
+        ...liveDiagnostics.errors.map((diagnostic) => diagnostic.message),
+        ...(field.diagnostics ?? []).map((diagnostic) => diagnostic.message),
+    ]).join("\n");
+    const warningMsg = dedupeMessages(
+        liveDiagnostics.warnings.map((diagnostic) => diagnostic.message)
+    ).join("\n");
 
     // Build validation rules
     const validationRules: any = {
         required: buildRequiredRule({ isRequired: !field.optional, label: field.label }),
-        value: field.value
+        value: field.value,
+        validate: buildValidate(field)
     };
 
     // Add pattern validation if it exists in field types
@@ -58,20 +81,34 @@ export function TextEditor(props: TextEditorProps) {
         }
     }
 
+    // react-hook-form owns the change handler; chain onto it rather than replacing it, so the
+    // debounced server check sees every edit without disturbing form state.
+    const registration = register(field.key, validationRules);
+    const handleChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        await registration.onChange(event);
+        liveDiagnostics.onValueChange(event.target.value);
+    };
+
     return (
-        <TextField
-            id={field.key}
-            name={field.key}
-            {...register(field.key, validationRules)}
-            label={capitalize(field.label)}
-            required={!field.optional}
-            description={field.documentation}
-            placeholder={field.placeholder}
-            readOnly={!field.editable}
-            sx={{ width: "100%" }}
-            errorMsg={errorMsg}
-            onFocus={() => handleOnFieldFocus?.(field.key)}
-            autoFocus={autoFocus}
-        />
+        <div style={{ width: "100%" }}>
+            <TextField
+                id={field.key}
+                name={field.key}
+                {...registration}
+                onChange={handleChange}
+                label={capitalize(field.label)}
+                required={!field.optional}
+                description={field.documentation}
+                placeholder={field.placeholder}
+                readOnly={!field.editable}
+                sx={{ width: "100%" }}
+                errorMsg={errorMsg}
+                onFocus={() => handleOnFieldFocus?.(field.key)}
+                autoFocus={autoFocus}
+            />
+            {/* WARNINGs render amber below, independent of whether an ERROR is also showing above —
+                matches ExpressionEditor, whose ErrorBanner/WarningBanner render independently. */}
+            {warningMsg && <WarningBanner warningMsg={warningMsg} />}
+        </div>
     );
 }

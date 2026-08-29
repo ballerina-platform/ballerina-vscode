@@ -29,6 +29,7 @@ import org.testng.annotations.Test;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Objects;
 
 /**
  * Tests for the getTestFunction service.
@@ -63,6 +64,8 @@ public class GetFunctionModelTest extends AbstractLSTest {
     private boolean assertFunctionEquals(TestFunction actualFunctionModel,
                                          TestFunction expectedFunctionModel) {
         return expectedFunctionModel.functionName().value().equals(actualFunctionModel.functionName().value())
+                && Objects.equals(expectedFunctionModel.functionName().codedata(),
+                        actualFunctionModel.functionName().codedata())
                 && expectedFunctionModel.parameters().size() == actualFunctionModel.parameters().size()
                 && expectedFunctionModel.annotations().size() == actualFunctionModel.annotations().size();
     }

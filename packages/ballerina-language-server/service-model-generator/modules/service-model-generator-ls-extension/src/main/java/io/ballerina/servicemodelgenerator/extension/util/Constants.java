@@ -40,6 +40,7 @@ public class Constants {
     public static final String TWO_NEW_LINES = NEW_LINE + NEW_LINE;
     public static final String NEW_LINE_WITH_TAB = NEW_LINE + TAB;
     public static final String IMPORT_STMT_TEMPLATE = "%nimport %s/%s;%n";
+    public static final String IMPORT_STMT_TEMPLATE_WITH_ALIAS = "%nimport %s/%s as %s;%n";
     public static final String AT = "@";
     public static final String COLON = ":";
     public static final String COMMA = ",";
@@ -67,6 +68,8 @@ public class Constants {
     public static final String SF = "salesforce";
     public static final String TRIGGER_GITHUB = "trigger.github";
     public static final String TRIGGER_SHOPIFY = "trigger.shopify";
+    public static final String TRIGGER_TWILIO = "trigger.twilio";
+    public static final String SOLACE_JMS = "solace.jms";
     public static final String TRIGGER_HUBSPOT = "trigger.hubspot";
     public static final String MSSQL = "mssql";
     public static final String POSTGRESQL = "postgresql";
@@ -110,7 +113,12 @@ public class Constants {
     public static final String DB_KIND_OPTIONAL = "OPTIONAL";
 
     public static final String CD_TYPE_ANNOTATION_ATTACHMENT = "ANNOTATION_ATTACHMENT";
+    // Schema-driven (unified TriggerUISchemaModel) service-level annotation container, e.g. RabbitMQ's
+    // `serviceConfig` (-> @rabbitmq:ServiceConfig). Distinct from CD_TYPE_ANNOTATION_ATTACHMENT, which
+    // is the legacy hardcoded-builder convention (property keyed `annot<Name>`).
+    public static final String CD_TYPE_SERVICE_ANNOTATION = "SERVICE_ANNOTATION";
     public static final String CD_TYPE_INCLUDE_RECORD_PARAM = "INCLUDE_RECORD_PARAM";
+    public static final String CD_TYPE_LISTENER_CONFIG = "LISTENER_CONFIG";
 
     public static final String ARG_TYPE_LISTENER_VAR_NAME = "LISTENER_VAR_NAME";
     public static final String ARG_TYPE_LISTENER_PARAM_REQUIRED = "LISTENER_PARAM_REQUIRED";
@@ -122,6 +130,23 @@ public class Constants {
     public static final String ARG_TYPE_SERVICE_BASE_PATH = "SERVICE_BASE_PATH";
     public static final String ARG_TYPE_SERVICE_TYPE_DESCRIPTOR = "SERVICE_TYPE_DESCRIPTOR";
     public static final String ARG_TYPE_CDC_OPERATION_ENABLE = "CDC_OPERATION_ENABLE";
+
+    public static final String CD_TYPE_PAYLOAD_TYPE = "PAYLOAD_TYPE";
+    public static final String CD_TYPE_PAYLOAD_TYPE_INCLUDED_RECORD = "PAYLOAD_TYPE_INCLUDED_RECORD";
+    public static final String CD_TYPE_PAYLOAD_MODIFIER = "PAYLOAD_MODIFIER";
+    public static final String CD_TYPE_ENUM_VALUE = "ENUM_VALUE";
+    public static final String CD_TYPE_LISTENER_VAR_NAME = "LISTENER_VAR_NAME";
+    public static final String CD_TYPE_EXISTING_LISTENER = "KEY_EXISTING_LISTENER";
+    public static final String CD_TYPE_COMPLEX_FUNCTION_ANNOTATION = "COMPLEX_FUNCTION_ANNOTATION";
+    public static final String CD_TYPE_MAPPING_CONSTRUCTOR = "MAPPING_CONSTRUCTOR";
+    public static final String CD_TYPE_ENUM_LITERAL = "ENUM_LITERAL";
+    public static final String CD_TYPE_FIELD_VALUE_CHOICE = "FIELD_VALUE_CHOICE";
+    public static final String CD_TYPE_STRING_LITERAL = "STRING_LITERAL";
+    public static final String FIELD_TYPE_VARIATION_SELECTOR = "VARIATION_SELECTOR";
+    public static final String FIELD_TYPE_FLAG = "FLAG";
+    public static final String KIND_VARIANT = "VARIANT";
+    public static final String KIND_COMPLEX_REMOTE_FUNCTION = "COMPLEX_REMOTE_FUNCTION";
+    public static final String KIND_COMPLEX_RESOURCE_FUNCTION = "COMPLEX_RESOURCE_FUNCTION";
 
     public static final String TYPE_SERVICE = "Service";
 
@@ -254,6 +279,7 @@ public class Constants {
     public static final String WRAPPER_TYPE_NAME_PROPERTY = "wrapperTypeName";
 
     public static final String TYPES_BAL = "types.bal";
+    public static final String MAIN_BAL = "main.bal";
 
     private Constants() {
     }

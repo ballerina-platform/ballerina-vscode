@@ -76,6 +76,18 @@ export interface EnhanceTomlData {
     multiProject?: boolean;
     /** `true` when the migration ran with --keep-structure, preserving the original source file layout. */
     keepStructure?: boolean;
+    /** The source integration platform ('mule' for MuleSoft, 'tibco' for TIBCO BusinessWorks). */
+    sourcePlatform?: 'mule' | 'tibco';
+}
+
+/**
+ * Runtime context derived from the toml, passed to all prompt-generation functions.
+ * Adding a new wizard parameter here automatically makes it available to every stage prompt.
+ */
+export interface MigrationContext {
+    /** The source integration platform. 'unknown' when the toml predates this field. */
+    sourcePlatform: 'mule' | 'tibco' | 'unknown';
+    keepStructure: boolean;
 }
 
 /**

@@ -10,7 +10,7 @@
         "metadata": {
           "label": "Model Provider",
           "description": "Creates a default model provider based on the provided `wso2ProviderConfig`.",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.12.0.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png"
         },
         "codedata": {
           "node": "MODEL_PROVIDER",
@@ -982,14 +982,31 @@
         "metadata": {
           "label": "Agent",
           "description": "Represents an agent.",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.12.0.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png",
+          "data": {
+            "agentInfo": {
+              "systemPrompt": {
+                "instructions": "You are a helpful assistant",
+                "role": "Customer Support Assistant"
+              },
+              "modelProvider": {
+                "presentation": {
+                  "name": "customerSupportModel",
+                  "path": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png",
+                  "type": "Wso2ModelProvider"
+                }
+              }
+            }
+          }
         },
         "codedata": {
           "node": "AGENT",
           "org": "ballerina",
           "module": "ai",
+          "packageName": "ai",
           "object": "Agent",
           "symbol": "init",
+          "version": "1.13.0",
           "lineRange": {
             "fileName": "main.bal",
             "startLine": {
@@ -1017,7 +1034,7 @@
                 "typeMembers": [
                   {
                     "type": "SystemPrompt",
-                    "packageInfo": "ballerina:ai:1.12.0",
+                    "packageInfo": "ballerina:ai:1.13.0",
                     "packageName": "ai",
                     "kind": "RECORD_TYPE",
                     "selected": true
@@ -1036,7 +1053,7 @@
             "optional": false,
             "editable": true,
             "advanced": false,
-            "hidden": false,
+            "hidden": true,
             "codedata": {
               "kind": "INCLUDED_FIELD",
               "originalName": "systemPrompt"
@@ -1084,7 +1101,7 @@
                       "typeMembers": [
                         {
                           "type": "ToolConfig",
-                          "packageInfo": "ballerina:ai:1.12.0",
+                          "packageInfo": "ballerina:ai:1.13.0",
                           "packageName": "ai",
                           "kind": "RECORD_TYPE",
                           "selected": false
@@ -1115,7 +1132,7 @@
             "optional": true,
             "editable": true,
             "advanced": true,
-            "hidden": false,
+            "hidden": true,
             "codedata": {
               "kind": "INCLUDED_FIELD",
               "originalName": "tools"
@@ -1194,7 +1211,7 @@
             "optional": true,
             "editable": true,
             "advanced": true,
-            "hidden": false,
+            "hidden": true,
             "codedata": {
               "kind": "INCLUDED_FIELD",
               "originalName": "memory"
@@ -1278,7 +1295,7 @@
                 "typeMembers": [
                   {
                     "type": "Credential",
-                    "packageInfo": "ballerina:ai:1.12.0",
+                    "packageInfo": "ballerina:ai:1.13.0",
                     "packageName": "ai",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -1337,6 +1354,62 @@
             "advanced": true,
             "hidden": true
           },
+          "role": {
+            "metadata": {
+              "label": "Role",
+              "description": "Define the agent's primary function"
+            },
+            "types": [
+              {
+                "fieldType": "PROMPT",
+                "ballerinaType": "string",
+                "selected": true
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string",
+                "selected": false
+              }
+            ],
+            "value": "Customer Support Assistant",
+            "placeholder": "e.g., Customer Support Assistant, Sales Advisor, Data Analyst",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "REQUIRED"
+            },
+            "defaultValue": ""
+          },
+          "instructions": {
+            "metadata": {
+              "label": "Instructions",
+              "description": "Detailed instructions for the agent"
+            },
+            "types": [
+              {
+                "fieldType": "PROMPT",
+                "ballerinaType": "string",
+                "selected": true
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string",
+                "selected": false
+              }
+            ],
+            "value": "You are a helpful assistant",
+            "placeholder": "e.g., You are a friendly assistant. Your goal is to...",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "REQUIRED"
+            },
+            "defaultValue": ""
+          },
           "variable": {
             "metadata": {
               "label": "Variable Name",
@@ -1394,7 +1467,7 @@
         "metadata": {
           "label": "Model Provider",
           "description": "Creates a default model provider based on the provided `wso2ProviderConfig`.",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.12.0.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png"
         },
         "codedata": {
           "node": "MODEL_PROVIDER",

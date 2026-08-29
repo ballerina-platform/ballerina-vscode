@@ -1,0 +1,72 @@
+{
+  "description": "Durable agent declaration links to its model-provider connection",
+  "projectPath": "project_16",
+  "output": {
+    "designModel": {
+      "connections": [
+        {
+          "symbol": "supportModel",
+          "location": {
+            "filePath": "/Users/hasitha/Source/workflow/ballerina-vscode-agentic/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_16/agent.bal",
+            "startLine": {
+              "line": 3,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 3,
+              "offset": 92
+            }
+          },
+          "scope": "GLOBAL",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.12.0.png?wso2_icon",
+          "dependentFunctions": [],
+          "dependentConnection": [],
+          "kind": "Model Provider",
+          "uuid": "5bb983fd-b75f-7487-2106-916df0a3c268",
+          "enableFlowModel": true,
+          "sortText": "agent.bal3"
+        }
+      ],
+      "listeners": [],
+      "services": [],
+      "workflows": [
+        {
+          "symbol": "supportAgent",
+          "location": {
+            "filePath": "/Users/hasitha/Source/workflow/ballerina-vscode-agentic/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_16/agent.bal",
+            "startLine": {
+              "line": 5,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 12,
+              "offset": 3
+            }
+          },
+          "kind": "DURABLE_AGENT",
+          "attachedServices": [],
+          "attachedFunctions": [],
+          "events": [
+            {
+              "name": "customerMessage",
+              "type": "string",
+              "attachedServices": [],
+              "attachedFunctions": []
+            }
+          ],
+          "humanTasks": [],
+          "activities": [],
+          "connections": [
+            "5bb983fd-b75f-7487-2106-916df0a3c268"
+          ],
+          "invalidSendDataServices": [],
+          "invalidSendDataFunctions": [],
+          "uuid": "28f57a0f-2762-0adf-1f6f-baf5f3adcc93",
+          "enableFlowModel": true,
+          "sortText": "agent.bal5"
+        }
+      ],
+      "activities": []
+    }
+  }
+}

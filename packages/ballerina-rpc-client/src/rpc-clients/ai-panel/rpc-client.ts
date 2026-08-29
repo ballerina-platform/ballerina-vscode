@@ -41,6 +41,7 @@ import {
     PromptEnhancementResponse,
     RequirementSpecification,
     RestoreCheckpointRequest,
+    RevertGenerationRequest,
     SemanticDiffRequest,
     SemanticDiffResponse,
     SubmitFeedbackRequest,
@@ -59,7 +60,6 @@ import {
     submitClarifyAnswer,
     cancelClarify,
     abortAIGeneration,
-    acceptChanges,
     addFilesToProject,
     approvePlan,
     approveTask,
@@ -68,7 +68,7 @@ import {
     clearChat,
     clearInitialPrompt,
     createTestDirecoryIfNotExists,
-    declineChanges,
+    revertGeneration,
     declinePlan,
     declineTask,
     enhancePrompt,
@@ -78,11 +78,9 @@ import {
     getAIMachineSnapshot,
     getActiveTempDir,
     getChatMessages,
-    hasPendingReview,
     getRunStatus,
     GetRunStatusRequest,
     GetRunStatusResponse,
-    HasPendingReviewRequest,
     getLatestFollowupSuggestions,
     FollowupSuggestion,
     getCheckpoints,
@@ -299,12 +297,8 @@ export class AiPanelRpcClient implements AIPanelAPI {
         return this._messenger.sendRequest(isWorkspaceProject, HOST_EXTENSION);
     }
 
-    acceptChanges(): Promise<void> {
-        return this._messenger.sendRequest(acceptChanges, HOST_EXTENSION);
-    }
-
-    declineChanges(): Promise<void> {
-        return this._messenger.sendRequest(declineChanges, HOST_EXTENSION);
+    revertGeneration(params: RevertGenerationRequest): Promise<void> {
+        return this._messenger.sendRequest(revertGeneration, HOST_EXTENSION, params);
     }
 
     approvePlan(params: PlanApprovalRequest): Promise<void> {
@@ -369,10 +363,6 @@ export class AiPanelRpcClient implements AIPanelAPI {
 
     getActiveTempDir(): Promise<string> {
         return this._messenger.sendRequest(getActiveTempDir, HOST_EXTENSION);
-    }
-
-    hasPendingReview(params: HasPendingReviewRequest): Promise<boolean> {
-        return this._messenger.sendRequest(hasPendingReview, HOST_EXTENSION, params);
     }
 
     getRunStatus(params: GetRunStatusRequest): Promise<GetRunStatusResponse> {

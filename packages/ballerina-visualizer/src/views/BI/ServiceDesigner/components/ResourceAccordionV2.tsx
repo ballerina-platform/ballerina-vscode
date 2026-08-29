@@ -150,12 +150,11 @@ export interface ResourceAccordionPropsV2 {
     onResourceImplement: (resource: FunctionModel) => void;
     readOnly?: boolean;
     methodName?: string;
-    isMcpTool?: boolean;
     deletionTypeLabel?: string;
 }
 
 export function ResourceAccordionV2(params: ResourceAccordionPropsV2) {
-    const { resource, onEditResource, onDeleteResource, onResourceImplement, readOnly, methodName, isMcpTool, deletionTypeLabel } = params;
+    const { resource, onEditResource, onDeleteResource, onResourceImplement, readOnly, methodName, deletionTypeLabel } = params;
 
     const [isOpen, setIsOpen] = useState(false);
     const [isConfirmOpen, setConfirmOpen] = useState(false);

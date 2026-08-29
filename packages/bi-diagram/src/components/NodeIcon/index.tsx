@@ -62,7 +62,19 @@ export const CHART_COLORS = {
 // Node types grouped by color
 const NODE_COLOR_GROUPS = {
     // Control flow group - blue variants
-    BLUE_GROUP: ["IF", "WHILE", "FOREACH", "MATCH", "RETURN"],
+    BLUE_GROUP: [
+        "IF",
+        "WHILE",
+        "FOREACH",
+        "MATCH",
+        "RETURN",
+        // Running or calling another workflow hands the flow to it, so these read as control flow.
+        "WORKFLOW_RUN",
+        "CHILD_WORKFLOW_RUN",
+        "CHILD_WORKFLOW_CALL",
+        "CHILD_WORKFLOW_WAIT",
+        "CHILD_WORKFLOW_SEND_DATA",
+    ],
     
     // Break/continue - cyan variants
     CYAN_CONTROL_GROUP: ["BREAK", "CONTINUE"],
@@ -74,12 +86,24 @@ const NODE_COLOR_GROUPS = {
         "DATA_MAPPER_CALL",
         "REMOTE_ACTION_CALL", 
         "RESOURCE_ACTION_CALL",
-        "METHOD_CALL"
+        "METHOD_CALL",
+        // An activity is the unit of work a workflow executes — a call, like the ones above.
+        "ACTIVITY_CALL",
+        "CONNECTION_ACTIVITY_CALL",
+        // The workflow accessors are plain function calls on the context, and they render the
+        // function glyph, so they share the function colour.
+        "WORKFLOW_CURRENT_TIME",
+        "WORKFLOW_IS_REPLAYING",
+        "WORKFLOW_GET_ID",
+        "WORKFLOW_GET_TYPE"
     ],
     
     // AI/NP function group - cyan variants
     CYAN_FUNCTION_GROUP: [
         "AGENT_CALL",
+        "TYPED_AGENT",
+        "AGENT_RUN",
+        "AGENT",
         "AGENTS",
         "NP_FUNCTION",
         "NP_FUNCTION_CALL",
@@ -99,7 +123,15 @@ const NODE_COLOR_GROUPS = {
         "SHORT_TERM_MEMORY_STORE"
     ],
     // Data related - magenta variants
-    MAGENTA_DATA_GROUP: ["VARIABLE", "NEW_DATA", "UPDATE_DATA", "ASSIGN"],
+    MAGENTA_DATA_GROUP: [
+        "VARIABLE",
+        "NEW_DATA",
+        "UPDATE_DATA",
+        "ASSIGN",
+        // Data events carry data in and out of a running workflow, so they belong with the data.
+        "SEND_DATA",
+        "WAIT_DATA",
+    ],
     
     // Comments, concurrency and transactions - magenta variants
     MAGENTA_MISC_GROUP: [
@@ -114,6 +146,10 @@ const NODE_COLOR_GROUPS = {
     
     // Error handling - yellow variants
     YELLOW_GROUP: ["ERROR_HANDLER", "PANIC", "FAIL", "RETRY"],
+
+    // Suspension - the workflow stops and waits on something it does not control: a person acting,
+    // or a deadline passing. Yellow reads as "pending", which is exactly what these nodes are.
+    YELLOW_SUSPEND_GROUP: ["HUMAN_TASK", "SLEEP"],
 };
 
 // Get current theme type (light or dark)
@@ -183,6 +219,11 @@ export const getNodeChartColor = (nodeType: NodeKind): string => {
         return dark ? CHART_COLORS.BRIGHT_YELLOW : CHART_COLORS.YELLOW;
     }
 
+    // Suspended-on-the-outside-world nodes - yellow variants
+    if (NODE_COLOR_GROUPS.YELLOW_SUSPEND_GROUP.includes(nodeType)) {
+        return dark ? CHART_COLORS.BRIGHT_YELLOW : CHART_COLORS.YELLOW;
+    }
+
     // Default fallback
     return CHART_COLORS.DEFAULT;
 };
@@ -235,11 +276,28 @@ const NODE_ICONS: Record<NodeKind, React.FC<{ size: number; color: string; isDBC
     NP_FUNCTION: ({ size, color }) => <Icon name="bi-ai-function" sx={{ fontSize: size, width: size, height: size, color }} />,
     DATA_MAPPER_CALL: ({ size, color }) => <Icon name="dataMapper" sx={{ fontSize: size, width: size, height: size, color }} />,
     WORKFLOW_RUN: ({ size, color }) => <Icon name="bi-flowchart" sx={{ fontSize: size, width: size, height: size, color }} />,
+    CHILD_WORKFLOW_RUN: ({ size, color }) => <Icon name="bi-flowchart" sx={{ fontSize: size, width: size, height: size, color }} />,
+    CHILD_WORKFLOW_CALL: ({ size, color }) => <Icon name="bi-flowchart" sx={{ fontSize: size, width: size, height: size, color }} />,
+    CHILD_WORKFLOW_WAIT: ({ size, color }) => <Icon name="bi-flowchart" sx={{ fontSize: size, width: size, height: size, color }} />,
+    CHILD_WORKFLOW_SEND_DATA: ({ size, color }) => <Icon name="bi-flowchart" sx={{ fontSize: size, width: size, height: size, color }} />,
+    WORKFLOW_CURRENT_TIME: ({ size, color }) => <FunctionIcon />,
+    WORKFLOW_IS_REPLAYING: ({ size, color }) => <FunctionIcon />,
+    WORKFLOW_GET_ID: ({ size, color }) => <FunctionIcon />,
+    WORKFLOW_GET_TYPE: ({ size, color }) => <FunctionIcon />,
     ACTIVITY_CALL: ({ size, color }) => <Icon name="bi-task" sx={{ fontSize: size, width: size, height: size, color }} />,
     CONNECTION_ACTIVITY_CALL: ({ size, color }) => <Icon name="bi-task" sx={{ fontSize: size, width: size, height: size, color }} />,
-    SEND_DATA: ({ size, color }) => <Icon name="bi-arrow-outward" sx={{ fontSize: size, width: size, height: size, color }} />,
-    WAIT_DATA: ({ size, color }) => <Icon name="bi-wait" sx={{ fontSize: size, width: size, height: size, color }} />,
+    // Sending a data event into a workflow: the send icon, matching the receive-side bi-import.
+    SEND_DATA: ({ size, color }) => <Icon name="bi-send" sx={{ fontSize: size, width: size, height: size, color }} />,
+    // Awaiting data is a receive, not a sleep: the import icon reads as "data arriving from outside".
+    WAIT_DATA: ({ size, color }) => <Icon name="bi-import" sx={{ fontSize: size, width: size, height: size, color }} />,
     HUMAN_TASK: ({ size, color }) => <Icon name="bi-user" sx={{ fontSize: size, width: size, height: size, color }} />,
+    // Agent driver verbs mirror the workflow data-event icons: send for sendData, import
+    // (receive) for the result readers, and the agent glyph for starting an agent.
+    DURABLE_AGENT_RUN: ({ size, color }) => <Icon name="bi-ai-agent" sx={{ fontSize: size, width: size, height: size, color }} />,
+    DURABLE_AGENT_START: ({ size, color }) => <Icon name="bi-ai-agent" sx={{ fontSize: size, width: size, height: size, color }} />,
+    DURABLE_AGENT_UPDATE: ({ size, color }) => <Icon name="bi-send" sx={{ fontSize: size, width: size, height: size, color }} />,
+    DURABLE_AGENT_RESULT: ({ size, color }) => <Icon name="bi-flowchart" sx={{ fontSize: size, width: size, height: size, color }} />,
+    DURABLE_AGENT_DATA_RESULT: ({ size, color }) => <Icon name="bi-import" sx={{ fontSize: size, width: size, height: size, color }} />,
     SLEEP: ({ size, color }) => <Icon name="bi-clock" sx={{ fontSize: size, width: size, height: size, color }} />,
     FORK: ({ size, color }) => <Icon name="bi-parallel" sx={{ fontSize: size, width: size, height: size, color }} />,
     WAIT: ({ size, color }) => <Icon name="bi-wait" sx={{ fontSize: size, width: size, height: size, color }} />,
@@ -249,8 +307,10 @@ const NODE_ICONS: Record<NodeKind, React.FC<{ size: number; color: string; isDBC
     FAIL: ({ size, color }) => <Icon name="bi-error" sx={{ fontSize: size, width: size, height: size, color }} />,
     RETRY: ({ size, color }) => <Icon name="bi-retry" sx={{ fontSize: size, width: size, height: size, color }} />,
     AGENT_CALL: ({ size, color }) => <Icon name="bi-ai-agent" sx={{ fontSize: size, width: size, height: size, color }} />,
+    AGENT: ({ size, color }) => <Icon name="bi-ai-agent" sx={{ fontSize: size, width: size, height: size, color }} />,
     AGENTS: ({ size, color }) => <Icon name="bi-ai-agent" sx={{ fontSize: size, width: size, height: size, color }} />,
     AGENT_RUN: ({ size, color }) => <Icon name="bi-ai-agent" sx={{ fontSize: size, width: size, height: size, color }} />,
+    TYPED_AGENT: ({ size, color }) => <Icon name="bi-ai-agent" sx={{ fontSize: size, width: size, height: size, color }} />,
     MODEL_PROVIDER: ({ size, color }) => <Icon name="bi-ai-model" sx={{ fontSize: size, width: size, height: size, color }} />,
     MODEL_PROVIDERS: ({ size, color }) => <Icon name="bi-ai-model" sx={{ fontSize: size, width: size, height: size, color }} />,
     KNOWLEDGE_BASE: ({ size, color }) => <Icon name="bi-db-kb" sx={{ fontSize: size, width: size, height: size, color }} />,

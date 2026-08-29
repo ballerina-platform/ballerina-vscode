@@ -74,6 +74,14 @@ function ensureTrailingNewline(content: string): string {
     return trimmed.endsWith('\n') ? trimmed : trimmed + '\n';
 }
 
+export function writeBallerinaFileSilent(filePath: string, content: string) {
+    const dir = dirname(filePath);
+    if (!existsSync(dir)) {
+        mkdirSync(dir, { recursive: true });
+    }
+    writeFileSync(filePath, ensureTrailingNewline(content));
+}
+
 export function writeBallerinaFileDidOpenTemp(filePath: string, content: string) {
     // Replace the selection with:
     const dir = dirname(filePath);
@@ -82,8 +90,9 @@ export function writeBallerinaFileDidOpenTemp(filePath: string, content: string)
     }
     const contentWithNewline = ensureTrailingNewline(content);
     writeFileSync(filePath, contentWithNewline);
+    const fileUri = Uri.file(filePath).toString();
     StateMachine.langClient().didChange({
-        textDocument: { uri: filePath, version: 1 },
+        textDocument: { uri: fileUri, version: 1 },
         contentChanges: [
             {
                 text: contentWithNewline,
@@ -92,7 +101,7 @@ export function writeBallerinaFileDidOpenTemp(filePath: string, content: string)
     });
     StateMachine.langClient().didOpen({
         textDocument: {
-            uri: Uri.file(filePath).toString(),
+            uri: fileUri,
             languageId: 'ballerina',
             version: 1,
             text: contentWithNewline
@@ -103,8 +112,9 @@ export function writeBallerinaFileDidOpenTemp(filePath: string, content: string)
 export async function writeBallerinaFileDidOpen(filePath: string, content: string) {
     const contentWithNewline = ensureTrailingNewline(content);
     writeFileSync(filePath, contentWithNewline);
+    const fileUri = Uri.file(filePath).toString();
     StateMachine.langClient().didChange({
-        textDocument: { uri: filePath, version: 1 },
+        textDocument: { uri: fileUri, version: 1 },
         contentChanges: [
             {
                 text: contentWithNewline,
@@ -113,14 +123,14 @@ export async function writeBallerinaFileDidOpen(filePath: string, content: strin
     });
     StateMachine.langClient().didOpen({
         textDocument: {
-            uri: Uri.file(filePath).toString(),
+            uri: fileUri,
             languageId: 'ballerina',
             version: 1,
             text: contentWithNewline
         }
     });
 
-    return new Promise((resolve, reject) => {
+    const artifactsUpdated = new Promise((resolve, reject) => {
         // Get the artifact notification handler instance
         const notificationHandler = ArtifactNotificationHandler.getInstance();
         // Subscribe to artifact updated notifications
@@ -144,4 +154,10 @@ export async function writeBallerinaFileDidOpen(filePath: string, content: strin
             originalUnsubscribe();
         };
     });
+    // Many callers fire-and-forget this function (e.g. project scaffolding before
+    // a folder is open, where no ArtifactsUpdated ever arrives). Mark the timeout
+    // rejection as handled so it doesn't surface as an unhandled rejection;
+    // awaiting callers still observe it.
+    artifactsUpdated.catch(() => { });
+    return artifactsUpdated;
 }

@@ -391,7 +391,21 @@ export function Diagram(props: DiagramProps) {
 
             // link this workflow to the connections used by its activities. Activities are not
             // rendered on the overview — only the derived workflow → connection edges are drawn.
+            // Direct connections (e.g. a durable agent's model provider) are linked the same way.
             const linkedConnections = new Set<string>();
+            workflow.connections?.forEach((connectionUuid) => {
+                if (linkedConnections.has(connectionUuid)) {
+                    return;
+                }
+                linkedConnections.add(connectionUuid);
+                const connectionNode = nodes.find((node) => node.getID() === connectionUuid);
+                if (connectionNode) {
+                    const link = createNodesLink(workflowNode, connectionNode);
+                    if (link) {
+                        links.push(link);
+                    }
+                }
+            });
             workflow.activities?.forEach((activityUuid) => {
                 const activity = project.activities?.find((item) => item.uuid === activityUuid);
                 activity?.connections?.forEach((connectionUuid) => {
@@ -589,9 +603,12 @@ function createFunctionConnections(
                 return;
             }
             eventNames.forEach((eventName) => {
-                const eventPort = workflowNode.getEventPortByName(eventName);
                 const port = portGetter(func, group);
-                if (eventPort && port) {
+                if (!port) {
+                    return;
+                }
+                const eventPort = workflowNode.getEventPortByName(eventName);
+                if (eventPort) {
                     const link = createPortsLink(port, eventPort);
                     link.setSourceNode(node);
                     link.setTargetNode(workflowNode);

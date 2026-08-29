@@ -54,12 +54,21 @@ public class SourceGeneratorTest extends AbstractLSTest {
                 {Path.of("agent_source.json")},
                 {Path.of("agent_source_ballerina.json")},
                 {Path.of("agent_source_hide_td.json")},
+                {Path.of("agent_source_with_backticks.json")},
+                {Path.of("agent_source_with_variables.json")},
                 {Path.of("agent_call_source_ballerina.json")},
-                {Path.of("agent_call_source_with_backticks.json")},
-                {Path.of("agent_call_source_with_variables.json")},
                 {Path.of("agent_model_source_ballerina.json")},
                 {Path.of("agent_model_source_default.json")},
                 {Path.of("memory_manager_source.json")},
+                {Path.of("custom_agent_tool_source.json")},
+                {Path.of("custom_agent_tool_approval_unconditional_source.json")},
+                {Path.of("custom_agent_tool_approval_existing_source.json")},
+                {Path.of("custom_agent_tool_approval_generate_source.json")},
+                {Path.of("function_agent_tool_approval_with_auth_source.json")},
+                {Path.of("custom_agent_definition_tool_source.json")},
+                {Path.of("agent_definition_builtin_agent_tool_source.json")},
+                {Path.of("agent_definition_custom_agent_tool_source.json")},
+                {Path.of("agent_definition_agent_tool_return_type_source.json")},
                 {Path.of("agent_tool_function_call_source.json")}
         };
     }

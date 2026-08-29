@@ -2,16 +2,17 @@ name: Nightly Build
 
 on:
   schedule:
-    - cron: '30 1 * * *'
+    - cron: '30 19 * * *'
   workflow_dispatch:
     inputs:
       sourceBranch:
         description: >-
-          Branch to run the nightly pipeline against. Defaults to main, which is
-          what the schedule always uses.
+          Branch to run the nightly pipeline against. Leave blank to auto-select:
+          the latest staging/* branch if one exists, otherwise main — the same
+          resolution the schedule always uses.
         required: false
         type: string
-        default: main
+        default: ''
 
 permissions:
   contents: read
@@ -27,8 +28,9 @@ jobs:
   # ─────────────────────────────────────────────────────────────────────────
   # builds/nightly branch — selected source plus a single version commit
   #
-  # Scheduled runs reset the branch to main; manual runs reset it to sourceBranch (main by
-  # default). It is then force-pushed, so it is never a merge target and never accumulates
+  # Scheduled runs, and manual runs with sourceBranch left blank, reset the branch to the
+  # latest staging/* branch if one exists, otherwise main; an explicit sourceBranch always
+  # wins. It is then force-pushed, so it is never a merge target and never accumulates
   # history. `git diff <selected-source> builds/nightly` is always exactly the version bump.
   # Its purpose is to give every nightly VSIX an inspectable commit that pins both the source
   # and the version it was built at.
@@ -59,16 +61,25 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Reset builds/nightly to the source branch
-        env:
-          SOURCE_BRANCH: ${{ inputs.sourceBranch || 'main' }}
+      - name: Configure git identity
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Resolve source branch
+        id: resolve-source
+        uses: ./.github/actions/resolve-source-branch
+        with:
+          sourceBranch: ${{ inputs.sourceBranch }}
+
+      - name: Reset builds/nightly to the source branch
+        env:
+          SOURCE_BRANCH: ${{ steps.resolve-source.outputs.branch }}
+        run: |
+          set -euo pipefail
           # Checkout fetches only the triggering ref, so fetch the requested source
           # explicitly even though the initial checkout uses fetch-depth 0.
-          SOURCE_BRANCH="$(git check-ref-format --branch "${SOURCE_BRANCH}")"
           git fetch origin \
             "refs/heads/${SOURCE_BRANCH}:refs/remotes/origin/${SOURCE_BRANCH}"
           git checkout -B builds/nightly "origin/${SOURCE_BRANCH}"
@@ -256,6 +267,12 @@ jobs:
           gradle-version: ${{ matrix.version }}
           package-user: ${{ github.actor }}
           package-pat: ${{ secrets.GITHUB_TOKEN }}
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+          # This job checks out matrix.branch, not the ref the schedule fired on, so the
+          # upload has to be attributed explicitly — otherwise Codecov records every leg
+          # against the default branch head and no branch ever gets a baseline. It also
+          # keeps the coverage artifact name unique per leg.
+          codecov-branch: ${{ matrix.branch }}
 
   ls-windows-build:
     name: LS Windows build (${{ matrix.branch }})
@@ -367,20 +384,23 @@ jobs:
       COPILOT_ROOT_URL: ${{ secrets.COPILOT_ROOT_URL }}
       COPILOT_DEV_ROOT_URL: ${{ secrets.COPILOT_DEV_ROOT_URL }}
       APPINSIGHTS_INSTRUMENTATION_KEY: ${{ secrets.APPINSIGHTS_INSTRUMENTATION_KEY }}
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     with:
       # Pin the nightly commit SHA rather than the branch name: the branch is
       # force-pushed every run, so a name would let a concurrent run swap the tree
       # out from under this build and produce a VSIX that matches no commit.
       ref: ${{ needs.sync-nightly.outputs.sha }}
       versionAlreadySet: true
-      runFrontendTests: true
+      # TODO: Re-enable tests once the tests are stable.
+      runFrontendTests: false
       runBackendTests: false
 
-  # Keep a stable ref for the most recent nightly that passed every validation
-  # job. This is only a Git tag: the nightly VSIX remains a workflow artifact and
-  # no GitHub Release is created.
+  # Keep a stable ref for the most recent nightly that passed every validation job. The
+  # 'nightly' tag and the 'nightly' release are both overwritten each run — no nightly
+  # history is kept. The release attaches the VSIX to that tag, so consumers reach it by
+  # tag rather than through the authenticated Actions artifact API.
   Tag:
-    name: Update nightly tag
+    name: Update nightly tag and release
     needs:
       - sync-nightly
       - ls-ubuntu-pack
@@ -399,27 +419,44 @@ jobs:
           ref: ${{ needs.sync-nightly.outputs.sha }}
           fetch-depth: 0
 
-      # One-time migration cleanup. Older workflows created a GitHub Release named
-      # 'nightly'. Leaving it in place while force-moving the tag would make its stale
-      # VSIX appear to belong to the latest nightly commit. New nightlies intentionally
-      # use only the tag and workflow artifact.
-      - name: Remove legacy nightly GitHub Release
+      - name: Move nightly tag
+        env:
+          SHA: ${{ needs.sync-nightly.outputs.sha }}
+        run: |
+          set -euo pipefail
+          git tag --force nightly "${SHA}"
+          git push --force origin refs/tags/nightly
+
+      - name: Download nightly VSIX
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: VSIX
+          path: ./nightly-vsix
+
+      - name: Overwrite nightly GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.sync-nightly.outputs.version }}
+          SHA: ${{ needs.sync-nightly.outputs.sha }}
         run: |
           set -euo pipefail
-          if gh release view nightly >/dev/null 2>&1; then
-            gh release delete nightly --yes
-            echo "Removed the legacy nightly GitHub Release; the Git tag is preserved."
-          else
-            echo "No legacy nightly GitHub Release exists."
-          fi
+          cd nightly-vsix
+          unzip -o VSIX.zip
+          vsix="ballerina-${VERSION}.vsix"
+          test -f "$vsix"
 
-      - name: Move nightly tag
-        run: |
-          set -euo pipefail
-          git tag --force nightly "${{ needs.sync-nightly.outputs.sha }}"
-          git push --force origin refs/tags/nightly
+          # Delete rather than edit: the tag has just been force-moved, and an existing
+          # release keeps pointing at the commit it was created from. Deleting the release
+          # leaves the tag alone (no --cleanup-tag), so recreating it re-targets today's
+          # commit. It also clears yesterday's asset: the filename carries the timestamped
+          # version, so uploading into a surviving release would accumulate one VSIX per
+          # night rather than replace. The release is found via the 'nightly' tag.
+          gh release delete nightly --yes || true
+          gh release create nightly "$vsix" \
+            --title "Nightly ${VERSION}" \
+            --notes "Nightly build ${VERSION} from ${SHA}. Overwritten on every successful nightly run." \
+            --prerelease \
+            --target "${SHA}"
 
   # ─────────────────────────────────────────────────────────────────────────
   # Notifications

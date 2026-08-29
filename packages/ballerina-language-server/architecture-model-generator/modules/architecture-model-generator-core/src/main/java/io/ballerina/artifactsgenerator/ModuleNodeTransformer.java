@@ -44,6 +44,7 @@ import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.compiler.syntax.tree.Token;
 import io.ballerina.compiler.syntax.tree.TypeDefinitionNode;
 import io.ballerina.compiler.syntax.tree.TypeDescriptorNode;
+import io.ballerina.flowmodelgenerator.core.AiUtils;
 import io.ballerina.flowmodelgenerator.core.utils.WorkflowUtil;
 import io.ballerina.modelgenerator.commons.CommonUtils;
 import org.ballerinalang.langserver.commons.BallerinaCompilerApi;
@@ -55,6 +56,9 @@ import static io.ballerina.modelgenerator.commons.CommonUtils.CONNECTOR_TYPE;
 import static io.ballerina.modelgenerator.commons.CommonUtils.PERSIST;
 import static io.ballerina.modelgenerator.commons.CommonUtils.PERSIST_MODEL_FILE;
 import static io.ballerina.modelgenerator.commons.CommonUtils.getPersistModelFilePath;
+import static io.ballerina.modelgenerator.commons.CommonUtils.isAgentClass;
+import static io.ballerina.modelgenerator.commons.CommonUtils.isAiFixedTypedAgent;
+import static io.ballerina.modelgenerator.commons.CommonUtils.isAiDependentlyTypedAgent;
 import static io.ballerina.modelgenerator.commons.CommonUtils.isAiMemoryStore;
 import static io.ballerina.modelgenerator.commons.CommonUtils.isAiKnowledgeBase;
 import static io.ballerina.modelgenerator.commons.CommonUtils.isAiVectorStore;
@@ -89,21 +93,15 @@ public class ModuleNodeTransformer extends NodeTransformer<Optional<Artifact>> {
         String functionName = functionDefinitionNode.functionName().text();
 
         Optional<Symbol> functionSymbol = semanticModel.symbol(functionDefinitionNode);
+        // Hide agent tools from being rendered under "Functions" in the artifact tree
+        if (functionDefinitionNode.kind() == SyntaxKind.FUNCTION_DEFINITION
+                && functionSymbol.isPresent() && AiUtils.isAgentToolFunction(functionSymbol.get())) {
+            return Optional.empty();
+        }
         if (functionName.equals(MAIN_FUNCTION_NAME)) {
             functionBuilder
                     .name(AUTOMATION_FUNCTION_NAME)
                     .type(Artifact.Type.AUTOMATION);
-        } else if (functionDefinitionNode.functionBody().kind() == SyntaxKind.EXPRESSION_FUNCTION_BODY) {
-            if (BallerinaCompilerApi.getInstance()
-                    .isNaturalExpressionBody((ExpressionFunctionBodyNode) functionDefinitionNode.functionBody())) {
-                functionBuilder
-                        .name(functionName)
-                        .type(Artifact.Type.NP_FUNCTION);
-            } else {
-                functionBuilder
-                        .name(functionName)
-                        .type(Artifact.Type.DATA_MAPPER);
-            }
         } else if (functionDefinitionNode.functionBody().kind() == SyntaxKind.EXTERNAL_FUNCTION_BODY) {
             return Optional.empty();
         } else if (functionDefinitionNode.kind() == SyntaxKind.RESOURCE_ACCESSOR_DEFINITION) {
@@ -123,6 +121,17 @@ public class ModuleNodeTransformer extends NodeTransformer<Optional<Artifact>> {
             functionBuilder
                     .name(functionName)
                     .type(Artifact.Type.ACTIVITY);
+        } else if (functionDefinitionNode.functionBody().kind() == SyntaxKind.EXPRESSION_FUNCTION_BODY) {
+            if (BallerinaCompilerApi.getInstance()
+                    .isNaturalExpressionBody((ExpressionFunctionBodyNode) functionDefinitionNode.functionBody())) {
+                functionBuilder
+                        .name(functionName)
+                        .type(Artifact.Type.NP_FUNCTION);
+            } else {
+                functionBuilder
+                        .name(functionName)
+                        .type(Artifact.Type.DATA_MAPPER);
+            }
         } else {
             functionBuilder
                     .name(functionName)
@@ -150,7 +159,9 @@ public class ModuleNodeTransformer extends NodeTransformer<Optional<Artifact>> {
         Optional<TypeDescriptorNode> typeDescriptorNode = serviceDeclarationNode.typeDescriptor();
         NodeList<Node> resourcePaths = serviceDeclarationNode.absoluteResourcePath();
         if (!serviceBuilder.trySetNameFromAnnotation(serviceDeclarationNode)) {
-            if (typeDescriptorNode.isPresent()) {
+            if (!resourcePaths.isEmpty() && Artifact.usesAttachPointAsName(serviceBuilder.module())) {
+                serviceBuilder.serviceNameWithPath(getPathString(resourcePaths));
+            } else if (typeDescriptorNode.isPresent()) {
                 serviceBuilder.serviceName(typeDescriptorNode.get().toSourceCode().strip());
             } else if (!resourcePaths.isEmpty()) {
                 serviceBuilder.serviceNameWithPath(getPathString(resourcePaths));
@@ -195,6 +206,16 @@ public class ModuleNodeTransformer extends NodeTransformer<Optional<Artifact>> {
                         moduleVariableDeclarationNode.typedBindingPattern().bindingPattern()));
 
         Artifact.Visibility varVisibility = determineVisibility(moduleVariableDeclarationNode);
+        if (WorkflowUtil.isDurableAgentDeclaration(moduleVariableDeclarationNode, semanticModel)) {
+            // A `workflow:DurableAgent` declaration is a durable agentic workflow — a first-class
+            // artifact listed alongside durable workflows, opening the agent model on click.
+            variableBuilder
+                    .type(Artifact.Type.DURABLE_AGENT)
+                    .visibility(varVisibility);
+            // No symbol-derived icon: it would resolve to the workflow module's icon, while
+            // the explorer gives durable agents their own agent icon by artifact type.
+            return Optional.of(variableBuilder.build());
+        }
         if (hasQualifier(moduleVariableDeclarationNode.qualifiers(), SyntaxKind.CONFIGURABLE_KEYWORD)) {
             variableBuilder
                     .type(Artifact.Type.CONFIGURABLE)
@@ -214,9 +235,17 @@ public class ModuleNodeTransformer extends NodeTransformer<Optional<Artifact>> {
                             .ifPresent(modelFile -> variableBuilder.addMetadata(PERSIST_MODEL_FILE, modelFile));
                 }
             } else {
-                variableBuilder
-                        .type(Artifact.Type.VARIABLE)
-                        .visibility(varVisibility);
+                Optional<ClassSymbol> agent = getAgent(moduleVariableDeclarationNode);
+                if (agent.isPresent()) {
+                    variableBuilder
+                            .type(Artifact.Type.AGENT)
+                            .icon(agent.get())
+                            .visibility(varVisibility);
+                } else {
+                    variableBuilder
+                            .type(Artifact.Type.VARIABLE)
+                            .visibility(varVisibility);
+                }
             }
         }
 
@@ -245,14 +274,31 @@ public class ModuleNodeTransformer extends NodeTransformer<Optional<Artifact>> {
     public Optional<Artifact> transform(ClassDefinitionNode classDefinitionNode) {
         Artifact.Builder typeBuilder = new Artifact.Builder(classDefinitionNode)
                 .name(classDefinitionNode.className().text())
-                .type(Artifact.Type.TYPE)
                 .visibility(determineVisibility(classDefinitionNode));
+
+        Optional<ClassSymbol> agentDefinition = getAgentDefinition(classDefinitionNode);
+        if (agentDefinition.isPresent()) {
+            typeBuilder.type(Artifact.Type.AGENT_DEFINITION).icon(agentDefinition.get());
+        } else {
+            typeBuilder.type(Artifact.Type.TYPE);
+        }
 
         classDefinitionNode.members().forEach(member -> {
             member.apply(this).ifPresent(typeBuilder::child);
         });
 
         return Optional.of(typeBuilder.build());
+    }
+
+    private Optional<ClassSymbol> getAgentDefinition(ClassDefinitionNode classDefinitionNode) {
+        try {
+            ClassSymbol classSymbol = (ClassSymbol) semanticModel.symbol(classDefinitionNode).orElseThrow();
+            if (isAiFixedTypedAgent(classSymbol) || isAiDependentlyTypedAgent(classSymbol)) {
+                return Optional.of(classSymbol);
+            }
+        } catch (Throwable e) {
+        }
+        return Optional.empty();
     }
 
     @Override
@@ -287,7 +333,22 @@ public class ModuleNodeTransformer extends NodeTransformer<Optional<Artifact>> {
                 return Optional.of(classSymbol);
             }
         } catch (Throwable e) {
-            // Ignore
+        }
+        return Optional.empty();
+    }
+
+    private Optional<ClassSymbol> getAgent(Node node) {
+        try {
+            Symbol symbol = semanticModel.symbol(node).orElseThrow();
+            TypeReferenceTypeSymbol typeDescriptorSymbol =
+                    (TypeReferenceTypeSymbol) ((VariableSymbol) symbol).typeDescriptor();
+            ClassSymbol classSymbol = (ClassSymbol) typeDescriptorSymbol.typeDescriptor();
+            if (isAgentClass(classSymbol)
+                    || isAiFixedTypedAgent(classSymbol)
+                    || isAiDependentlyTypedAgent(classSymbol)) {
+                return Optional.of(classSymbol);
+            }
+        } catch (Throwable e) {
         }
         return Optional.empty();
     }

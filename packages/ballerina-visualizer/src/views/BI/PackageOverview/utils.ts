@@ -21,10 +21,11 @@ import {
     ProjectStructure,
     ProjectStructureResponse,
     ProjectScopeMapping,
-    findScopeByModule
+    findScopeByModule,
+    findScope
 } from "@wso2/ballerina-core";
 export { validateComponentName } from "../ProjectForm/utils";
-export { findScopeByModule };
+export { findScopeByModule, findScope };
 
 /**
  * Extracts deployable integration types (scopes) from project structure.
@@ -47,7 +48,7 @@ export function getIntegrationTypes(projectStructure: ProjectStructure | undefin
     // Extract scopes from services based on their module names
     if (services) {
         const svcScopes = services
-            .map(svc => findScopeByModule(svc?.moduleName))
+            .map(svc => findScope(svc?.kind, svc?.moduleName))
             .filter(svc => svc !== undefined);
         scopes = Array.from(new Set(svcScopes)); // Remove duplicates
     }

@@ -37,14 +37,15 @@ import { activate as activateBIFeatures } from './features/bi';
 import { activate as activateERDiagram } from './views/persist-layer-diagram';
 import { activateAiPanel } from './views/ai-panel';
 import { activateMigrationPanel } from './views/migration-panel';
-import { debug, handleResolveMissingDependencies, isInDevant, log } from './utils';
+import { debug, handleResolveMissingDependencies, isICPSupported, isInDevant, log } from './utils';
 import { activateUriHandlers } from './utils/uri-handlers';
 import { StateMachine } from './stateMachine';
 import { activateSubscriptions } from './views/visualizer/activate';
 import { VisualizerWebview } from './views/visualizer/webview';
 import { AiPanelWebview } from './views/ai-panel/webview';
 import { extension } from './BalExtensionContext';
-import { ExtendedClientCapabilities } from '@wso2/ballerina-core';
+import { BI_COMMANDS, ExtendedClientCapabilities } from '@wso2/ballerina-core';
+import { DefaultServer } from './webview-communication/DefaultServer';
 import { RPCLayer } from './RPCLayer';
 import { activateAIFeatures } from './features/ai/activator';
 import { runningServicesManager } from './features/ai/agent/tools/running-service-manager';
@@ -131,6 +132,30 @@ function onBeforeInit(langClient: ExtendedLangClient) {
 
 export async function activate(context: ExtensionContext) {
     extension.context = context;
+    // The BallerinaExtension instance is created HERE, before the state machine
+    // starts, rather than lazily in `activateBallerina`. The machine's very first
+    // states render the visualizer's loading panel (`renderInitialView`), and
+    // building that panel reads this instance (`getComposerWebViewOptions` and
+    // friends resolve resource paths through `ballerinaExtInstance.context`).
+    // While it was created only in `activateBallerina` — which runs later, in the
+    // `activateLS` state — `openWebView` threw on `undefined` and the machine fell
+    // through to `activateLS` with the error swallowed, so no webview appeared
+    // until the language server, project info and project structure were all
+    // ready. The constructor is cheap (path setup + status bar item).
+    extension.ballerinaExtInstance = new BallerinaExtension();
+    extension.ballerinaExtInstance.setContext(context);
+    // Registered HERE, ahead of `await StateMachine.initialize()`, rather than with the rest
+    // of the BI commands (`features/bi/activator`) which only run after the language server
+    // is up. The embedded Create flow's first screen needs nothing but this bridge, and the
+    // machine does not reach `extensionReady` until the LS has started and project info and
+    // structure have been fetched — several seconds the user spent staring at a spinner
+    // before the first screen of the wizard appeared. `getWsBootstrap` needs only
+    // `ballerinaExtInstance` (for its download-progress event), which exists by this line.
+    context.subscriptions.push(
+        commands.registerCommand(BI_COMMANDS.GET_BI_FORM_WS_BOOTSTRAP, () =>
+            DefaultServer.getInstance().getWsBootstrap()
+        )
+    );
     // Init RPC Layer methods
     RPCLayer.init();
 
@@ -170,7 +195,10 @@ export async function activate(context: ExtensionContext) {
 }
 
 export async function activateBallerina(): Promise<BallerinaExtension> {
-    const ballerinaExtInstance = new BallerinaExtension();
+    // Normally created in `activate` (see the note there) so the initial visualizer
+    // panel can be rendered before the language server activates; construct one
+    // here only for entry points that reach this without going through `activate`.
+    const ballerinaExtInstance = extension.ballerinaExtInstance ?? new BallerinaExtension();
     extension.ballerinaExtInstance = ballerinaExtInstance;
     debug('Active the Ballerina VS Code extension.');
     try {
@@ -181,6 +209,17 @@ export async function activateBallerina(): Promise<BallerinaExtension> {
     }
     debug('Setting context.');
     ballerinaExtInstance.setContext(extension.context);
+    // Anything that throws between here and the feature-support calculation would otherwise
+    // leave `featureSupportReady` pending forever, and the Create flow gates its "Next"
+    // button on that promise. Settle it on every exit path (the call is idempotent).
+    try {
+        return await activateBallerinaInternal(ballerinaExtInstance);
+    } finally {
+        ballerinaExtInstance.markFeatureSupportResolved();
+    }
+}
+
+async function activateBallerinaInternal(ballerinaExtInstance: BallerinaExtension): Promise<BallerinaExtension> {
     await updateCodeServerConfig();
     // Enable URI handlers
     debug('Activating URI handlers.');
@@ -250,8 +289,8 @@ export async function activateBallerina(): Promise<BallerinaExtension> {
         // Activate Tracing Feature
         activateTracing(ballerinaExtInstance);
 
-        // Activate ICP (Integration Control Plane) — skip in Devant
-        if (!isInDevant()) {
+        // Activate ICP (Integration Control Plane) — skip in Devant and without the Integrator extension
+        if (!isInDevant() && isICPSupported()) {
             activateICP(ballerinaExtInstance);
         }
 

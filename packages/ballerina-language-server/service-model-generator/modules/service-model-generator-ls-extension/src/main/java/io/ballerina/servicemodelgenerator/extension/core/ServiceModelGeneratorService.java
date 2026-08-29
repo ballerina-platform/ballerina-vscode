@@ -21,6 +21,7 @@ package io.ballerina.servicemodelgenerator.extension.core;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.google.gson.stream.JsonReader;
+import io.ballerina.centralconnector.RemoteCentral;
 import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.syntax.tree.ClassDefinitionNode;
 import io.ballerina.compiler.syntax.tree.ExplicitNewExpressionNode;
@@ -37,6 +38,7 @@ import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.modelgenerator.commons.ServiceDatabaseManager;
 import io.ballerina.modelgenerator.commons.ServiceDeclaration;
+import io.ballerina.modelgenerator.commons.trigger.models.TriggerUISchemaModel;
 import io.ballerina.projects.Document;
 import io.ballerina.projects.Module;
 import io.ballerina.projects.ModuleId;
@@ -45,6 +47,8 @@ import io.ballerina.projects.Package;
 import io.ballerina.projects.Project;
 import io.ballerina.servicemodelgenerator.extension.builder.FunctionBuilderRouter;
 import io.ballerina.servicemodelgenerator.extension.builder.ServiceBuilderRouter;
+import io.ballerina.servicemodelgenerator.extension.connector.PlatformDependencyEditUtil;
+import io.ballerina.servicemodelgenerator.extension.connector.TriggerModelReader;
 import io.ballerina.servicemodelgenerator.extension.model.Codedata;
 import io.ballerina.servicemodelgenerator.extension.model.Function;
 import io.ballerina.servicemodelgenerator.extension.model.Listener;
@@ -58,6 +62,7 @@ import io.ballerina.servicemodelgenerator.extension.model.request.AddFieldReques
 import io.ballerina.servicemodelgenerator.extension.model.request.ClassFieldModifierRequest;
 import io.ballerina.servicemodelgenerator.extension.model.request.ClassModelFromSourceRequest;
 import io.ballerina.servicemodelgenerator.extension.model.request.CommonModelFromSourceRequest;
+import io.ballerina.servicemodelgenerator.extension.model.request.CreateClassDependencyRequest;
 import io.ballerina.servicemodelgenerator.extension.model.request.FunctionModelRequest;
 import io.ballerina.servicemodelgenerator.extension.model.request.FunctionModifierRequest;
 import io.ballerina.servicemodelgenerator.extension.model.request.FunctionSourceRequest;
@@ -65,6 +70,7 @@ import io.ballerina.servicemodelgenerator.extension.model.request.ListenerDiscov
 import io.ballerina.servicemodelgenerator.extension.model.request.ListenerModelRequest;
 import io.ballerina.servicemodelgenerator.extension.model.request.ListenerModifierRequest;
 import io.ballerina.servicemodelgenerator.extension.model.request.ListenerSourceRequest;
+import io.ballerina.servicemodelgenerator.extension.model.request.ModifyClassDependencyRequest;
 import io.ballerina.servicemodelgenerator.extension.model.request.ServiceClassSourceRequest;
 import io.ballerina.servicemodelgenerator.extension.model.request.ServiceInitSourceRequest;
 import io.ballerina.servicemodelgenerator.extension.model.request.ServiceModelRequest;
@@ -73,6 +79,7 @@ import io.ballerina.servicemodelgenerator.extension.model.request.ServiceSourceR
 import io.ballerina.servicemodelgenerator.extension.model.request.TriggerListRequest;
 import io.ballerina.servicemodelgenerator.extension.model.request.TriggerRequest;
 import io.ballerina.servicemodelgenerator.extension.model.request.TypesRequest;
+import io.ballerina.servicemodelgenerator.extension.model.request.ValidatePropertyRequest;
 import io.ballerina.servicemodelgenerator.extension.model.response.AddOrGetDefaultListenerResponse;
 import io.ballerina.servicemodelgenerator.extension.model.response.CommonSourceResponse;
 import io.ballerina.servicemodelgenerator.extension.model.response.FunctionFromSourceResponse;
@@ -86,11 +93,19 @@ import io.ballerina.servicemodelgenerator.extension.model.response.ServiceInitMo
 import io.ballerina.servicemodelgenerator.extension.model.response.ServiceModelResponse;
 import io.ballerina.servicemodelgenerator.extension.model.response.TriggerListResponse;
 import io.ballerina.servicemodelgenerator.extension.model.response.TriggerResponse;
+import io.ballerina.servicemodelgenerator.extension.model.response.ValidatePropertyResponse;
 import io.ballerina.servicemodelgenerator.extension.util.FTPListenerUtil;
+import io.ballerina.servicemodelgenerator.extension.util.FunctionBadge;
 import io.ballerina.servicemodelgenerator.extension.util.ListenerUtil;
+import io.ballerina.servicemodelgenerator.extension.util.ModulePrefixContext;
 import io.ballerina.servicemodelgenerator.extension.util.ServiceClassUtil;
+import io.ballerina.servicemodelgenerator.extension.util.TriggerSearchUtil;
 import io.ballerina.servicemodelgenerator.extension.util.TypeCompletionGenerator;
 import io.ballerina.servicemodelgenerator.extension.util.Utils;
+import io.ballerina.servicemodelgenerator.extension.validation.SaveTimeValidator;
+import io.ballerina.servicemodelgenerator.extension.validation.ValidationContext;
+import io.ballerina.servicemodelgenerator.extension.validation.ValidationEngine;
+import io.ballerina.servicemodelgenerator.extension.validation.ValidationResult;
 import io.ballerina.tools.text.LineRange;
 import io.ballerina.tools.text.TextDocument;
 import io.ballerina.tools.text.TextRange;
@@ -114,12 +129,14 @@ import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.DEFAULT;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.FTP;
@@ -143,6 +160,10 @@ import static io.ballerina.servicemodelgenerator.extension.util.Utils.importExis
 @JavaSPIService("org.ballerinalang.langserver.commons.service.spi.ExtendedLanguageServerService")
 @JsonSegment("serviceDesign")
 public class ServiceModelGeneratorService implements ExtendedLanguageServerService {
+
+    // Built once: the registries are immutable, and `validateProperty` runs on a per-keystroke
+    // debounce where rebuilding both catalogs per call is pure waste.
+    private static final ValidationEngine LIVE_VALIDATION_ENGINE = ValidationEngine.withAllRules();
 
     private static final Type propertyMapType = new TypeToken<Map<String, TriggerProperty>>() {
     }.getType();
@@ -230,7 +251,7 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
             try {
                 Path filePath = Path.of(request.filePath());
 
-                this.workspaceManager.loadProject(filePath);
+                Project project = this.workspaceManager.loadProject(filePath);
                 Optional<SemanticModel> semanticModel = this.workspaceManager.semanticModel(filePath);
                 Optional<Document> documentOpt = this.workspaceManager.document(filePath);
 
@@ -246,10 +267,14 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                 return ListenerUtil.getListenerModelByName(request.codedata(), semanticModel.get(), moduleInfo,
                                 removeDeprecated)
                         .map(listenerModel -> {
-                            if (FTP.equals(request.codedata().getModuleName()) && request.removeDeprecated() != null) {
+                            if (FTP.equals(request.codedata().getModuleName())
+                                    && request.removeDeprecated() != null) {
                                 FTPListenerUtil.adjustFtpListenerModelForDeprecatedMode(
                                         listenerModel, request.removeDeprecated(), semanticModel.get(), document);
                             }
+                            PlatformDependencyEditUtil.overlayDriverDependencies(listenerModel,
+                                    request.codedata().getOrgName(), request.codedata().getModuleName(),
+                                    request.codedata().getVersion(), project);
                             return new ListenerModelResponse(listenerModel);
                         })
                         .orElseGet(ListenerModelResponse::new);
@@ -270,7 +295,7 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
         return CompletableFuture.supplyAsync(() -> {
             try {
                 Path filePath = Path.of(request.filePath());
-                this.workspaceManager.loadProject(filePath);
+                Project project = this.workspaceManager.loadProject(filePath);
 
                 Optional<Document> document = this.workspaceManager.document(filePath);
                 if (document.isEmpty()) {
@@ -288,7 +313,13 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                 }
                 String listenerDeclaration = listener.getListenerDeclaration();
                 edits.add(new TextEdit(Utils.toRange(lineRange.endLine()), NEW_LINE + listenerDeclaration));
-                return new CommonSourceResponse(Map.of(request.filePath(), edits));
+
+                Map<String, List<TextEdit>> allEdits = new LinkedHashMap<>();
+                allEdits.put(request.filePath(), edits);
+                PlatformDependencyEditUtil.addDriverDependenciesIfPresent(allEdits, project,
+                        listener.getProperties());
+
+                return new CommonSourceResponse(allEdits);
             } catch (Throwable e) {
                 return new CommonSourceResponse(e);
             }
@@ -429,6 +460,31 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
     }
 
     /**
+     * Discover event-integration trigger packages on Ballerina Central ("Search more"). Complements
+     * {@link #getTriggerModels} (local index) with a live Central search; connectors that ship their
+     * trigger models are then addable with no language-server release. Excludes triggers already known
+     * locally and degrades to an empty list when Central is unavailable.
+     *
+     * @param request Trigger list request ({@code query} is the search term)
+     * @return {@link TriggerListResponse} of the matching triggers
+     */
+    @JsonRequest
+    public CompletableFuture<TriggerListResponse> searchTriggers(TriggerListRequest request) {
+        return CompletableFuture.supplyAsync(() -> {
+            Set<String> localKeys = triggerProperties.values().stream()
+                    .map(tp -> tp.orgName() + "/" + tp.name())
+                    .collect(Collectors.toSet());
+            String query = request == null ? null : request.query();
+            List<TriggerBasicInfo> centralTriggers = TriggerSearchUtil.searchCentral(
+                    RemoteCentral.getInstance(), query, null, localKeys);
+            List<TriggerBasicInfo> localRepositoryTriggers = (request != null && request.includeLocalRepository())
+                    ? TriggerSearchUtil.searchLocalRepository(localKeys)
+                    : List.of();
+            return new TriggerListResponse(centralTriggers, localRepositoryTriggers);
+        });
+    }
+
+    /**
      * Get the function model template for a given function in a service type.
      *
      * @return {@link FunctionModelResponse} of the resource model response
@@ -515,6 +571,7 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
             SemanticModel semanticModel = semanticModelOp.get();
             Service service = ServiceBuilderRouter.getServiceFromSource(serviceNode, project, semanticModel,
                     workspaceManager, request.filePath());
+            FunctionBadge.stamp(service);
             return new ServiceFromSourceResponse(service);
         });
     }
@@ -641,10 +698,15 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                 Codedata codedata = request.function().getCodedata();
                 String moduleName = (codedata != null && codedata.getModuleName() != null) ? codedata.getModuleName() :
                         DEFAULT;
+                List<ValidationResult> validations = validateFunction(request.function(),
+                        new ValidationContext(semanticModelOp.get(), null, document.get(), moduleName, node, null));
+                if (SaveTimeValidator.blocksGeneration(validations)) {
+                    return CommonSourceResponse.validationFailure(validations);
+                }
                 Map<String, List<TextEdit>> textEdits = FunctionBuilderRouter.addFunction(moduleName,
                         request.function(), request.filePath(), semanticModelOp.get(), document.get(), node,
                         this.workspaceManager);
-                return new CommonSourceResponse(textEdits);
+                return new CommonSourceResponse(textEdits, validations);
             } catch (Exception e) {
                 return new CommonSourceResponse(e);
             }
@@ -685,10 +747,16 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                     return new CommonSourceResponse();
                 }
                 String moduleName = codedata.getModuleName() != null ? codedata.getModuleName() : DEFAULT;
+                List<ValidationResult> validations = validateFunction(function,
+                        new ValidationContext(semanticModelOp.get(), project, document.get(), moduleName,
+                                parentNode, functionDefinitionNode.lineRange()));
+                if (SaveTimeValidator.blocksGeneration(validations)) {
+                    return CommonSourceResponse.validationFailure(validations);
+                }
                 Map<String, List<TextEdit>> textEdits = FunctionBuilderRouter.updateFunction(moduleName, function,
                         request.filePath(), document.get(), functionDefinitionNode, semanticModelOp.get(), project,
                         this.workspaceManager);
-                return new CommonSourceResponse(textEdits);
+                return new CommonSourceResponse(textEdits, validations);
             } catch (Throwable e) {
                 return new CommonSourceResponse(e);
             }
@@ -717,10 +785,16 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                 if (node.kind() != SyntaxKind.SERVICE_DECLARATION) {
                     return new CommonSourceResponse();
                 }
+                List<ValidationResult> validations = SaveTimeValidator.validate(service.getProperties(),
+                        SaveTimeValidator.context(semanticModel.get(), null, document.get(),
+                                service.getModuleName()));
+                if (SaveTimeValidator.blocksGeneration(validations)) {
+                    return CommonSourceResponse.validationFailure(validations);
+                }
                 Map<String, List<TextEdit>> textEdits = ServiceBuilderRouter.updateService(service,
                         semanticModel.get(), workspaceManager, filePath.toString(), document.get(),
                         (ServiceDeclarationNode) node);
-                return new CommonSourceResponse(textEdits);
+                return new CommonSourceResponse(textEdits, validations);
             } catch (Throwable e) {
                 return new CommonSourceResponse(e);
             }
@@ -740,7 +814,7 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                 Path filePath = Path.of(request.filePath());
                 Listener listener = request.listener();
 
-                this.workspaceManager.loadProject(filePath);
+                Project project = this.workspaceManager.loadProject(filePath);
                 Optional<Document> document = this.workspaceManager.document(filePath);
                 if (document.isEmpty()) {
                     return new CommonSourceResponse();
@@ -752,16 +826,44 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                 }
 
                 LineRange lineRange = listener.getCodedata().getLineRange();
+                ModulePartNode modulePartNode = document.get().syntaxTree().rootNode();
+
+                // Save-time gate: an ERROR here means no edits are generated at all. editedRange is the
+                // listener's own declaration range, so a uniqueness rule (e.g.
+                // ls.validate.unique.listener.name) recognises re-saving it as itself, not a collision.
+                Optional<SemanticModel> semanticModel = this.workspaceManager.semanticModel(filePath);
+                if (semanticModel.isPresent()) {
+                    ValidationContext context = new ValidationContext(semanticModel.get(), null, document.get(),
+                            listener.getModuleName(), null, lineRange);
+                    List<ValidationResult> validations = SaveTimeValidator.validate(listener.getProperties(),
+                            context);
+                    if (SaveTimeValidator.blocksGeneration(validations)) {
+                        return CommonSourceResponse.validationFailure(validations);
+                    }
+                }
+
+                // The protocol is derived from the package name (the module's natural prefix), which is
+                // not what the file binds the module to when it is imported under an alias. Regenerating
+                // the declaration with the natural prefix would rewrite a working `triggerTwilio:Listener`
+                // into an out-of-scope `twilio:Listener`, so re-resolve it against the file first.
+                if (listener.getModuleName() != null && !listener.getModuleName().isBlank()) {
+                    listener.setListenerProtocol(ModulePrefixContext.from(modulePartNode)
+                            .prefixFor(listener.getOrgName(), listener.getModuleName()));
+                }
                 String listenerDeclaration = listener.getListenerDefinition();
 
                 List<TextEdit> edits = new ArrayList<>();
                 edits.add(new TextEdit(Utils.toRange(lineRange), listenerDeclaration));
 
                 // Add imports required by the FTP coordination config type cast
-                ModulePartNode modulePartNode = document.get().syntaxTree().rootNode();
                 FTPListenerUtil.addCoordinationConfigImports(listenerDeclaration, modulePartNode, edits);
 
-                return new CommonSourceResponse(Map.of(request.filePath(), edits));
+                Map<String, List<TextEdit>> allEdits = new LinkedHashMap<>();
+                allEdits.put(request.filePath(), edits);
+                PlatformDependencyEditUtil.addDriverDependenciesIfPresent(allEdits, project,
+                        listener.getProperties());
+
+                return new CommonSourceResponse(allEdits);
             } catch (Throwable e) {
                 return new CommonSourceResponse(e);
             }
@@ -926,6 +1028,83 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
         });
     }
 
+    @JsonRequest
+    public CompletableFuture<CommonSourceResponse> createClassDependency(CreateClassDependencyRequest request) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                Path filePath = Path.of(request.filePath());
+                this.workspaceManager.loadProject(filePath);
+                Optional<Document> document = this.workspaceManager.document(filePath);
+                if (document.isEmpty()) {
+                    return new CommonSourceResponse();
+                }
+                SyntaxTree syntaxTree = document.get().syntaxTree();
+                ModulePartNode modulePartNode = syntaxTree.rootNode();
+                TextDocument textDocument = syntaxTree.textDocument();
+                LineRange lineRange = request.classLineRange();
+                int start = textDocument.textPositionFrom(lineRange.startLine());
+                int end = textDocument.textPositionFrom(lineRange.endLine());
+                NonTerminalNode node = modulePartNode.findNode(TextRange.from(start, end - start), true);
+                if (!(node instanceof ClassDefinitionNode classDefinitionNode)) {
+                    return new CommonSourceResponse();
+                }
+                List<TextEdit> edits = ServiceClassUtil.buildAddInitParameterEdits(classDefinitionNode,
+                        request.field(), textDocument, modulePartNode);
+                return new CommonSourceResponse(Map.of(request.filePath(), edits));
+            } catch (Throwable e) {
+                return new CommonSourceResponse(e);
+            }
+        });
+    }
+
+    @JsonRequest
+    public CompletableFuture<CommonSourceResponse> updateClassDependency(ModifyClassDependencyRequest request) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                Path filePath = Path.of(request.filePath());
+                this.workspaceManager.loadProject(filePath);
+                Optional<Document> document = this.workspaceManager.document(filePath);
+                if (document.isEmpty()) {
+                    return new CommonSourceResponse();
+                }
+                NonTerminalNode node = findNonTerminalNode(request.field().codedata(), document.get());
+                if (!(node instanceof ObjectFieldNode fieldNode)) {
+                    return new CommonSourceResponse();
+                }
+                ModulePartNode modulePartNode = document.get().syntaxTree().rootNode();
+                List<TextEdit> edits = ServiceClassUtil.buildUpdateInitParameterEdits(fieldNode, request.field(),
+                        modulePartNode);
+                return new CommonSourceResponse(Map.of(request.filePath(), edits));
+            } catch (Throwable e) {
+                return new CommonSourceResponse(e);
+            }
+        });
+    }
+
+    @JsonRequest
+    public CompletableFuture<CommonSourceResponse> removeClassDependency(ModifyClassDependencyRequest request) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                Path filePath = Path.of(request.filePath());
+                this.workspaceManager.loadProject(filePath);
+                Optional<Document> document = this.workspaceManager.document(filePath);
+                if (document.isEmpty()) {
+                    return new CommonSourceResponse();
+                }
+                SyntaxTree syntaxTree = document.get().syntaxTree();
+                TextDocument textDocument = syntaxTree.textDocument();
+                NonTerminalNode node = findNonTerminalNode(request.field().codedata(), document.get());
+                if (!(node instanceof ObjectFieldNode fieldNode)) {
+                    return new CommonSourceResponse();
+                }
+                List<TextEdit> edits = ServiceClassUtil.buildRemoveInitParameterEdits(fieldNode, textDocument);
+                return new CommonSourceResponse(Map.of(request.filePath(), edits));
+            } catch (Throwable e) {
+                return new CommonSourceResponse(e);
+            }
+        });
+    }
+
     /**
      * Get the filtered list of types for a given protocol context.
      *
@@ -962,7 +1141,8 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                 if (document.isEmpty() || semanticModel.isEmpty()) {
                     throw new IllegalStateException("Failed to load the document or semantic model");
                 }
-                Utils.resolveModule(request.orgName(), request.pkgName(), request.moduleName(), lsClientLogger);
+                Utils.resolveModule(request.orgName(), request.pkgName(), request.moduleName(),
+                        request.version(), request.isLocalRepository(), lsClientLogger);
                 return new ServiceInitModelResponse(ServiceBuilderRouter.getServiceInitModel(request,
                         project, semanticModel.get(), document.get()));
             } catch (Throwable e) {
@@ -988,17 +1168,123 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                 if (document.isEmpty() || semanticModel.isEmpty()) {
                     return new CommonSourceResponse();
                 }
+                // Save-time gate: an ERROR here means no edits are generated at all.
+                List<ValidationResult> validations = SaveTimeValidator.validate(
+                        request.serviceInitModel().getProperties(),
+                        SaveTimeValidator.context(semanticModel.get(), project, document.get(),
+                                request.serviceInitModel().getModuleName()));
+                if (SaveTimeValidator.blocksGeneration(validations)) {
+                    return CommonSourceResponse.validationFailure(validations);
+                }
                 Map<String, List<TextEdit>> textEdits = ServiceBuilderRouter.addServiceInitSource(
                         request.serviceInitModel(), semanticModel.get(), project, workspaceManager,
                         request.filePath(), document.get());
-                return new CommonSourceResponse(textEdits);
+                return new CommonSourceResponse(textEdits, validations);
             } catch (Throwable e) {
                 return new CommonSourceResponse(e);
             }
         });
     }
 
-    private Optional<TriggerBasicInfo> getTriggerBasicInfoByName(String orgName, String name) {
+    /**
+     * Validates a single form node while the user types.
+     *
+     * <p>Read-only and stateless: it reuses whatever the workspace manager already holds and never
+     * calls {@code loadProject}, because this runs on a debounce per keystroke. If the project is
+     * not loaded yet the call yields no results rather than forcing a load — the save-time gate is
+     * what actually guarantees correctness, so degrading here only costs live feedback.
+     *
+     * @param request Validate property request
+     * @return {@link ValidatePropertyResponse} carrying the failures and the echoed version
+     */
+    @JsonRequest
+    public CompletableFuture<ValidatePropertyResponse> validateProperty(ValidatePropertyRequest request) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                if (request.property() == null) {
+                    return new ValidatePropertyResponse(request.propertyPath(), request.version(), List.of());
+                }
+                Path filePath = Path.of(request.filePath());
+                Optional<SemanticModel> semanticModel;
+                Optional<Document> document;
+                try {
+                    semanticModel = this.workspaceManager.semanticModel(filePath);
+                    document = this.workspaceManager.document(filePath);
+                } catch (Throwable e) {
+                    // Not loaded (or mid-reload) — no verdict, and never a hard failure.
+                    return new ValidatePropertyResponse(request.propertyPath(), request.version(), List.of());
+                }
+                if (semanticModel.isEmpty() || document.isEmpty()) {
+                    return new ValidatePropertyResponse(request.propertyPath(), request.version(), List.of());
+                }
+
+                NonTerminalNode serviceNode = null;
+                if (request.codedata() != null && request.codedata().getLineRange() != null) {
+                    NonTerminalNode node = findNonTerminalNode(request.codedata(), document.get());
+                    serviceNode = node instanceof ServiceDeclarationNode ? node : null;
+                }
+                ValidationContext context = new ValidationContext(semanticModel.get(), null, document.get(),
+                        request.moduleName(), serviceNode,
+                        request.codedata() == null ? null : request.codedata().getLineRange());
+                List<ValidationResult> results = LIVE_VALIDATION_ENGINE
+                        .validateNode(request.property(), request.propertyPath(), context);
+                return new ValidatePropertyResponse(request.propertyPath(), request.version(), results);
+            } catch (Throwable e) {
+                return new ValidatePropertyResponse(request.propertyPath(), request.version(), e);
+            }
+        });
+    }
+
+    /**
+     * Runs the save-time gate over a handler function: its property tree plus the name node, which
+     * carries its own rules for {@code nameEditable} handlers.
+     */
+    private static List<ValidationResult> validateFunction(Function function, ValidationContext context) {
+        Map<String, Value> extraNodes = function.getName() == null ? null : Map.of("name", function.getName());
+        return SaveTimeValidator.validate(function.getProperties(), context, extraNodes);
+    }
+
+    /**
+     * Resolves a trigger's basic info, preferring a schema-driven {@code TriggerUISchemaModel} -- bundled in
+     * this jar, or (on a miss) synthesized from the connector's own shipped
+     * {@code resources/trigger-metadata.json} plus semantic-API introspection of its {@code .bala} --
+     * over the legacy sqlite index derived from {@code service_artifacts.json}. This lets a
+     * schema-driven trigger appear in the picker with no {@code service_artifacts.json} entry or index
+     * rebuild; a trigger with neither source (e.g. HTTP, AI, TCP, GraphQL) falls through to the
+     * legacy index.
+     *
+     * <p>Package-visible for unit testing without a full LS bootstrap.
+     */
+    Optional<TriggerBasicInfo> getTriggerBasicInfoByName(String orgName, String name) {
+        Optional<TriggerUISchemaModel> schemaDriven = TriggerModelReader.getInstance()
+                .getSchemaDrivenTriggerModel(orgName, name);
+        if (schemaDriven.isPresent()) {
+            return schemaDriven.map(this::toTriggerBasicInfo);
+        }
+
+        return getTriggerBasicInfoFromLegacyIndex(orgName, name);
+    }
+
+    /** Builds {@link TriggerBasicInfo} straight from a resolved schema-driven {@link TriggerUISchemaModel}. */
+    TriggerBasicInfo toTriggerBasicInfo(TriggerUISchemaModel model) {
+        String protocol = getProtocol(model.moduleName());
+        String label = model.displayName();
+        String icon = (model.icon() == null || model.icon().isBlank())
+                ? CommonUtils.generateIcon(model.orgName(), model.packageName(), model.version())
+                : model.icon();
+        // TriggerUISchemaModel.id is a String catalog id and is inconsistently populated across real models
+        // (null / numeric / a slug), so it can't be reused as TriggerBasicInfo's int id. Nothing
+        // downstream looks a trigger up by this id (the frontend only uses it as a list key, and
+        // getTriggerModel's id-based lookup keys off the separate trigger_properties.json entry id),
+        // so a deterministic hash of moduleName is a safe, stable substitute.
+        int id = model.moduleName().hashCode();
+        return new TriggerBasicInfo(id, label, model.orgName(), model.packageName(), model.moduleName(),
+                model.version(), model.kind(), label, "", protocol, icon);
+    }
+
+    /** The legacy sqlite-index lookup (seeded from {@code service_artifacts.json}), reached only when
+     * no bundled {@link TriggerUISchemaModel} resolves for {@code orgName}/{@code name}. */
+    private Optional<TriggerBasicInfo> getTriggerBasicInfoFromLegacyIndex(String orgName, String name) {
         Optional<ServiceDeclaration> serviceDeclaration = ServiceDatabaseManager.getInstance()
                 .getServiceDeclaration(orgName, name); // TODO: improve this to use a single query
 
@@ -1018,7 +1304,21 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
         return Optional.of(triggerBasicInfo);
     }
 
-    private Optional<TriggerBasicInfo> getTriggerBasicInfoByName(TriggerProperty triggerProperty) {
+    /**
+     * Resolves a trigger picker entry's basic info. When {@code trigger_properties.json} already
+     * carries {@code version}/{@code kind} for this entry, builds {@link TriggerBasicInfo} straight from
+     * those scalars (deriving the icon URL from {@code orgName}/{@code packageName}/{@code version}) --
+     * no {@code TriggerUISchemaModel} is parsed or cached just to render a list row. Only an entry
+     * missing those fields (a legacy trigger with no schema-driven model, e.g. HTTP, or one not yet
+     * backfilled) falls back to the fuller {@link #getTriggerBasicInfoByName(String, String)} chain.
+     *
+     * <p>Package-visible for unit testing without a full LS bootstrap.
+     */
+    Optional<TriggerBasicInfo> getTriggerBasicInfoByName(TriggerProperty triggerProperty) {
+        if (triggerProperty.version() != null && triggerProperty.kind() != null) {
+            return Optional.of(toTriggerBasicInfo(triggerProperty));
+        }
+
         if (triggerProperty.triggerName() == null) {
             return getTriggerBasicInfoByName(triggerProperty.orgName(), triggerProperty.name());
         }
@@ -1028,5 +1328,17 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                         original.packageName(), original.moduleName(), original.version(), original.type(),
                         original.displayName(), original.documentation(), original.listenerProtocol(),
                         original.icon()));
+    }
+
+    /** Builds {@link TriggerBasicInfo} straight from a self-describing {@link TriggerProperty} entry. */
+    private TriggerBasicInfo toTriggerBasicInfo(TriggerProperty triggerProperty) {
+        String label = triggerProperty.triggerName() != null ? triggerProperty.triggerName() : triggerProperty.name();
+        String protocol = getProtocol(triggerProperty.name());
+        int id = triggerProperty.name().hashCode();
+        String icon = CommonUtils.generateIcon(triggerProperty.orgName(), triggerProperty.packageName(),
+                triggerProperty.version());
+        return new TriggerBasicInfo(id, label, triggerProperty.orgName(), triggerProperty.packageName(),
+                triggerProperty.name(), triggerProperty.version(), triggerProperty.kind(), label, "",
+                protocol, icon);
     }
 }

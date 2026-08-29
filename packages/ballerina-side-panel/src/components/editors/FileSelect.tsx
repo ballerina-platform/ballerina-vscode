@@ -16,10 +16,11 @@
  * under the License.
  */
 
-import React, { useState } from "react";
+import React from "react";
 
-import { Dropdown, LocationSelector } from "@wso2/ui-toolkit";
+import { LocationSelector } from "@wso2/ui-toolkit";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
+import { getPrimaryInputType } from "@wso2/ballerina-core";
 
 import { FormField } from "../Form/types";
 import { buildRequiredRule } from "./utils";
@@ -36,12 +37,20 @@ export function FileSelect(props: DropdownEditorProps) {
     const { setValue, control } = form;
 
     const { rpcClient } = useRpcContext();
-    const [filePath, setFilePath] = useState("");
 
     const handleFileSelect = async () => {
-        const projectDirectory = await rpcClient.getCommonRpcClient().selectFileOrDirPath({ isFile: true });
-        setFilePath(projectDirectory.path);
-        setValue(field.key, projectDirectory.path, { shouldValidate: true });
+        try {
+            const extensions = getPrimaryInputType(field.types)?.extensions;
+            const filters = extensions?.length ? { [field.label]: extensions } : undefined;
+            const selection = await rpcClient.getCommonRpcClient().selectFileOrDirPath({ isFile: true, filters });
+            // A dismissed dialog (and a host that rejected the selection) comes back
+            // with an empty path — keep any earlier pick rather than clearing it.
+            if (selection?.path) {
+                setValue(field.key, selection.path, { shouldValidate: true });
+            }
+        } catch (error) {
+            console.error(">>> Error selecting the file", error);
+        }
     };
 
     return (
@@ -54,6 +63,8 @@ export function FileSelect(props: DropdownEditorProps) {
                     label={`Select ${field.label} File`}
                     btnText="Select File"
                     selectedFile={value}
+                    required={!field.optional}
+                    errorMsg={error?.message}
                     onSelect={handleFileSelect}
                 />
             )}

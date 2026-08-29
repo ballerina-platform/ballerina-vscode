@@ -34,6 +34,23 @@ public class Codedata {
     private String packageName;
     private String moduleName;
     private String version;
+    private Integer position;
+    private String path;
+    private String valueQualifier;
+    private String template;
+    private String defaultType;
+    private String boundType;
+    private Boolean bindable;
+    private String modifier;
+    private String targetParam;
+    private String field;
+    private String typeIdentifier;
+    private Boolean optional;
+    private String value;
+    private Boolean nameEditable;
+    private Boolean preserveValue;
+    private String castType;
+    private DriverDependency driverDependency;
 
     public Codedata() {
     }
@@ -125,6 +142,142 @@ public class Codedata {
         this.version = version;
     }
 
+    public Integer getPosition() {
+        return position;
+    }
+
+    public void setPosition(Integer position) {
+        this.position = position;
+    }
+
+    public String getPath() {
+        return path;
+    }
+
+    public void setPath(String path) {
+        this.path = path;
+    }
+
+    public String getValueQualifier() {
+        return valueQualifier;
+    }
+
+    public void setValueQualifier(String valueQualifier) {
+        this.valueQualifier = valueQualifier;
+    }
+
+    public String getTemplate() {
+        return template;
+    }
+
+    public void setTemplate(String template) {
+        this.template = template;
+    }
+
+    public String getDefaultType() {
+        return defaultType;
+    }
+
+    public void setDefaultType(String defaultType) {
+        this.defaultType = defaultType;
+    }
+
+    public String getBoundType() {
+        return boundType;
+    }
+
+    public void setBoundType(String boundType) {
+        this.boundType = boundType;
+    }
+
+    public Boolean getBindable() {
+        return bindable;
+    }
+
+    public void setBindable(Boolean bindable) {
+        this.bindable = bindable;
+    }
+
+    public String getModifier() {
+        return modifier;
+    }
+
+    public void setModifier(String modifier) {
+        this.modifier = modifier;
+    }
+
+    public String getTargetParam() {
+        return targetParam;
+    }
+
+    public void setTargetParam(String targetParam) {
+        this.targetParam = targetParam;
+    }
+
+    public String getField() {
+        return field;
+    }
+
+    public void setField(String field) {
+        this.field = field;
+    }
+
+    public String getTypeIdentifier() {
+        return typeIdentifier;
+    }
+
+    public void setTypeIdentifier(String typeIdentifier) {
+        this.typeIdentifier = typeIdentifier;
+    }
+
+    public Boolean getOptional() {
+        return optional;
+    }
+
+    public void setOptional(Boolean optional) {
+        this.optional = optional;
+    }
+
+    public String getValue() {
+        return value;
+    }
+
+    public void setValue(String value) {
+        this.value = value;
+    }
+
+    public Boolean getNameEditable() {
+        return nameEditable;
+    }
+
+    public void setNameEditable(Boolean nameEditable) {
+        this.nameEditable = nameEditable;
+    }
+
+    public Boolean getPreserveValue() {
+        return preserveValue;
+    }
+
+    public void setPreserveValue(Boolean preserveValue) {
+        this.preserveValue = preserveValue;
+    }
+
+    public String getCastType() {
+        return castType;
+    }
+
+    public void setCastType(String castType) {
+        this.castType = castType;
+    }
+
+    public DriverDependency getDriverDependency() {
+        return driverDependency;
+    }
+
+    public void setDriverDependency(DriverDependency driverDependency) {
+        this.driverDependency = driverDependency;
+    }
+
     public static class Builder {
         private LineRange lineRange;
         private String type;
@@ -134,6 +287,9 @@ public class Codedata {
         private String packageName;
         private String moduleName;
         private String version;
+        private Integer position;
+        private String path;
+        private String valueQualifier;
 
         public Builder() {
         }
@@ -178,6 +334,21 @@ public class Codedata {
             return this;
         }
 
+        public Builder setPosition(Integer position) {
+            this.position = position;
+            return this;
+        }
+
+        public Builder setPath(String path) {
+            this.path = path;
+            return this;
+        }
+
+        public Builder setValueQualifier(String valueQualifier) {
+            this.valueQualifier = valueQualifier;
+            return this;
+        }
+
         public Codedata build() {
             Codedata codedata = new Codedata();
             codedata.setLineRange(lineRange);
@@ -188,6 +359,9 @@ public class Codedata {
             codedata.setPackageName(packageName);
             codedata.setModuleName(moduleName);
             codedata.setVersion(version);
+            codedata.setPosition(position);
+            codedata.setPath(path);
+            codedata.setValueQualifier(valueQualifier);
             return codedata;
         }
     }

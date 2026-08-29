@@ -21,6 +21,7 @@ package io.ballerina.testmanagerservice.extension;
 import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.api.symbols.AnnotationSymbol;
 import io.ballerina.compiler.syntax.tree.AnnotationNode;
+import io.ballerina.compiler.syntax.tree.BasicLiteralNode;
 import io.ballerina.compiler.syntax.tree.CheckExpressionNode;
 import io.ballerina.compiler.syntax.tree.ExpressionFunctionBodyNode;
 import io.ballerina.compiler.syntax.tree.ExpressionNode;
@@ -37,11 +38,14 @@ import io.ballerina.compiler.syntax.tree.MappingFieldNode;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
 import io.ballerina.compiler.syntax.tree.Node;
 import io.ballerina.compiler.syntax.tree.NodeList;
+import io.ballerina.compiler.syntax.tree.NodeParser;
 import io.ballerina.compiler.syntax.tree.PositionalArgumentNode;
 import io.ballerina.compiler.syntax.tree.ReturnStatementNode;
 import io.ballerina.compiler.syntax.tree.SeparatedNodeList;
 import io.ballerina.compiler.syntax.tree.SpecificFieldNode;
 import io.ballerina.compiler.syntax.tree.StatementNode;
+import io.ballerina.compiler.syntax.tree.SyntaxKind;
+import io.ballerina.compiler.syntax.tree.TemplateExpressionNode;
 import io.ballerina.testmanagerservice.extension.model.Annotation;
 import io.ballerina.testmanagerservice.extension.model.Codedata;
 import io.ballerina.testmanagerservice.extension.model.FunctionParameter;
@@ -67,6 +71,9 @@ import java.util.stream.Collectors;
  */
 public class Utils {
 
+    private static final String CONVERSATION_THREAD = "ConversationThread";
+    private static final String STRING_ARRAY_2D = "string[][]";
+
     private Utils() {
     }
 
@@ -88,7 +95,7 @@ public class Utils {
 
         functionBuilder.metadata(new Metadata("Test Function", "Test Function"))
                 .codedata(new Codedata(functionDefinitionNode.lineRange()))
-                .functionName(TestFunction.functionName(functionDefinitionNode.functionName().text()))
+                .functionName(TestFunction.functionName(functionDefinitionNode.functionName()))
                 .parameters(TestFunction.parameters(functionDefinitionNode.functionSignature().parameters()))
                 .returnType(TestFunction.returnType(functionDefinitionNode.functionSignature().returnTypeDesc()));
 
@@ -216,11 +223,17 @@ public class Utils {
             }
         }
 
-        // Extract evalSetFile from data provider function if present
         if (dataProviderName != null) {
             String evalSetPath = extractEvalSetFileFromDataProvider(modulePartNode, dataProviderName);
             if (!evalSetPath.isEmpty()) {
                 builder.evalSetFile(evalSetPath);
+                builder.dataProviderMode(Constants.DATA_PROVIDER_MODE_EVALSET);
+            } else {
+                List<String> queries = extractQueryExpressionsFromDataProvider(modulePartNode, dataProviderName);
+                if (!queries.isEmpty()) {
+                    builder.queries(queries);
+                    builder.dataProviderMode(Constants.DATA_SOURCE_MODE_QUERIES);
+                }
             }
         }
 
@@ -500,13 +513,17 @@ public class Utils {
      * @return true if the import exists, false otherwise
      */
     public static boolean isTestModuleImportExists(ModulePartNode node) {
+        return isModuleImportExists(node, Constants.MODULE_TEST);
+    }
+
+    private static boolean isModuleImportExists(ModulePartNode node, String module) {
         return node.imports().stream().anyMatch(importDeclarationNode -> {
             String moduleName = importDeclarationNode.moduleName().stream()
                     .map(IdentifierToken::text)
                     .collect(Collectors.joining("."));
-            return importDeclarationNode.orgName().isPresent() &&
-                    Constants.ORG_BALLERINA.equals(importDeclarationNode.orgName().get().orgName().text()) &&
-                    Constants.MODULE_TEST.equals(moduleName);
+            return importDeclarationNode.orgName().isPresent()
+                    && Constants.ORG_BALLERINA.equals(importDeclarationNode.orgName().get().orgName().text())
+                    && module.equals(moduleName);
         });
     }
 
@@ -517,14 +534,11 @@ public class Utils {
      * @return true if the import exists, false otherwise
      */
     public static boolean isAiModuleImportExists(ModulePartNode node) {
-        return node.imports().stream().anyMatch(importDeclarationNode -> {
-            String moduleName = importDeclarationNode.moduleName().stream()
-                    .map(IdentifierToken::text)
-                    .collect(Collectors.joining("."));
-            return importDeclarationNode.orgName().isPresent() &&
-                    Constants.ORG_BALLERINA.equals(importDeclarationNode.orgName().get().orgName().text()) &&
-                    Constants.MODULE_AI.equals(moduleName);
-        });
+        return isModuleImportExists(node, Constants.MODULE_AI);
+    }
+
+    public static boolean isAiEvalModuleImportExists(ModulePartNode node) {
+        return isModuleImportExists(node, Constants.MODULE_AI_EVAL);
     }
 
     /**
@@ -633,6 +647,128 @@ public class Utils {
                 .append(Constants.LINE_SEPARATOR)
                 .append(Constants.CLOSE_CURLY_BRACE);
         return builder.toString();
+    }
+
+    public static String buildEvalTemplateInvocation(String symbol, List<String> arguments) {
+        return Constants.KEYWORD_CHECK + Constants.SPACE + Constants.AI_EVAL_PREFIX + Constants.COLON + symbol
+                + Constants.OPEN_PARAM + String.join(Constants.COMMA + Constants.SPACE, arguments)
+                + Constants.CLOSED_PARAM + ";";
+    }
+
+    public static Optional<ExpressionStatementNode> findEvalTemplateCall(FunctionDefinitionNode function) {
+        if (!(function.functionBody() instanceof FunctionBodyBlockNode blockBody)) {
+            return Optional.empty();
+        }
+        List<ExpressionStatementNode> calls = new ArrayList<>();
+        for (StatementNode statement : blockBody.statements()) {
+            if (statement instanceof ExpressionStatementNode exprStmt && isEvalTemplateCall(exprStmt.expression())) {
+                calls.add(exprStmt);
+            }
+        }
+        return calls.size() == 1 ? Optional.of(calls.getFirst()) : Optional.empty();
+    }
+
+    private static boolean isEvalTemplateCall(ExpressionNode expression) {
+        if (expression instanceof CheckExpressionNode checkExpr) {
+            return isEvalTemplateCall(checkExpr.expression());
+        }
+        return expression instanceof FunctionCallExpressionNode funcCall
+                && funcCall.functionName().toSourceCode().trim()
+                        .startsWith(Constants.AI_EVAL_PREFIX + Constants.COLON);
+    }
+
+    /** Builds the query data-provider rows from the string expressions produced by the TEXT_SET editor. */
+    public static String buildQueryExpressionArray(List<String> queryExpressions) {
+        StringBuilder rows = new StringBuilder();
+        for (int i = 0; i < queryExpressions.size(); i++) {
+            if (i > 0) {
+                rows.append(Constants.COMMA).append(Constants.SPACE);
+            }
+            rows.append(Constants.OPEN_BRACKET)
+                    .append(validateQueryExpression(queryExpressions.get(i)))
+                    .append(Constants.CLOSE_BRACKET);
+        }
+        return Constants.OPEN_BRACKET + rows + Constants.CLOSE_BRACKET;
+    }
+
+    public static String getQueriesDataProviderFunctionTemplate(String functionName, List<String> queries) {
+        return Constants.LINE_SEPARATOR + Constants.LINE_SEPARATOR
+                + Constants.KEYWORD_ISOLATED + Constants.SPACE + Constants.KEYWORD_FUNCTION + Constants.SPACE
+                + functionName + Constants.OPEN_PARAM + Constants.CLOSED_PARAM + Constants.SPACE
+                + Constants.KEYWORD_RETURNS + Constants.SPACE + Constants.STRING_ARRAY_2D_RETURN_TYPE + Constants.SPACE
+                + Constants.OPEN_CURLY_BRACE + Constants.LINE_SEPARATOR + Constants.TAB_SEPARATOR
+                + "return " + buildQueryExpressionArray(queries) + ";"
+                + Constants.LINE_SEPARATOR + Constants.CLOSE_CURLY_BRACE;
+    }
+
+    public enum DataProviderShape { EVALSET, QUERIES, UNKNOWN }
+
+    public static DataProviderShape getDataProviderShape(FunctionDefinitionNode provider) {
+        String returnType = provider.functionSignature().returnTypeDesc()
+                .map(desc -> desc.type().toSourceCode().trim()).orElse("");
+        if (returnType.contains(CONVERSATION_THREAD)) {
+            return DataProviderShape.EVALSET;
+        }
+        if (returnType.replace(Constants.SPACE, "").contains(STRING_ARRAY_2D)) {
+            return DataProviderShape.QUERIES;
+        }
+        return DataProviderShape.UNKNOWN;
+    }
+
+    public static Optional<LineRange> findQueriesListLocation(FunctionDefinitionNode provider) {
+        return findQueriesList(provider.functionBody()).map(Node::lineRange);
+    }
+
+    public static List<String> extractQueryExpressionsFromDataProvider(ModulePartNode modulePartNode,
+                                                                         String providerName) {
+        Optional<FunctionDefinitionNode> provider = findFunctionByName(modulePartNode, providerName);
+        if (provider.isEmpty() || getDataProviderShape(provider.get()) != DataProviderShape.QUERIES) {
+            return List.of();
+        }
+        Optional<ListConstructorExpressionNode> rows = findQueriesList(provider.get().functionBody());
+        if (rows.isEmpty()) {
+            return List.of();
+        }
+        List<String> queries = new ArrayList<>();
+        for (Node row : rows.get().expressions()) {
+            if (row instanceof ListConstructorExpressionNode rowList) {
+                rowList.expressions().stream().findFirst()
+                        .ifPresent(value -> queries.add(value.toSourceCode().trim()));
+            } else {
+                queries.add(row.toSourceCode().trim());
+            }
+        }
+        return queries;
+    }
+
+    private static Optional<ListConstructorExpressionNode> findQueriesList(FunctionBodyNode body) {
+        if (body instanceof FunctionBodyBlockNode blockBody) {
+            for (StatementNode statement : blockBody.statements()) {
+                if (statement instanceof ReturnStatementNode returnStmt
+                        && returnStmt.expression().orElse(null) instanceof ListConstructorExpressionNode list) {
+                    return Optional.of(list);
+                }
+            }
+        } else if (body instanceof ExpressionFunctionBodyNode exprBody
+                && exprBody.expression() instanceof ListConstructorExpressionNode list) {
+            return Optional.of(list);
+        }
+        return Optional.empty();
+    }
+
+    private static String validateQueryExpression(String queryExpression) {
+        if (queryExpression == null || queryExpression.isBlank()) {
+            throw new IllegalArgumentException("A query expression is required");
+        }
+        ExpressionNode expression = NodeParser.parseExpression(queryExpression.trim());
+        boolean isStringLiteral = expression instanceof BasicLiteralNode
+                && expression.kind() == SyntaxKind.STRING_LITERAL;
+        boolean isStringTemplate = expression instanceof TemplateExpressionNode
+                && expression.kind() == SyntaxKind.STRING_TEMPLATE_EXPRESSION;
+        if (expression.hasDiagnostics() || (!isStringLiteral && !isStringTemplate)) {
+            throw new IllegalArgumentException("Queries must be string literals or string templates");
+        }
+        return expression.toSourceCode().trim();
     }
 
     /**

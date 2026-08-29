@@ -86,10 +86,11 @@ import { useFooterLogic } from "./Footer/useFooterLogic";
 import { SettingsPanel } from "../../SettingsPanel";
 import { McpManagerPanel } from "../../McpManagerPanel";
 
-/** Full-page panels reachable from the chat. The chat itself is the empty stack. */
-export type PanelRoute = "settings" | "mcp" | "skills";
+export type { PanelRoute } from "./utils/panelNav";
 import WelcomeMessage from "./Welcome";
 import { getOnboardingOpens, incrementOnboardingOpens, convertToUIMessages, isContainsSyntaxError } from "./utils/utils";
+import { applyGenerationStatus, deriveReviewBarState, PanelMessage } from "./utils/reviewBarState";
+import { backTooltipFor, PanelRoute } from "./utils/panelNav";
 import {
     serializeStream, parseStream, appendToLastEntry, upsertComponent, upsertRequestCard,
     buildRequestCardData, buildPlanItem, applyPlanApprovalResolution, appendAbortMarker, applyTaskWriteResult,
@@ -251,7 +252,7 @@ function scaffoldKeyHash(text: string, hiddenContext: string | undefined): strin
 
 const AIChat: React.FC = () => {
     const { rpcClient } = useRpcContext();
-    const [messages, setMessages] = useState<Array<{ role: string; content: string; type: string; checkpointId?: string; messageId?: string }>>([]);
+    const [messages, setMessages] = useState<PanelMessage[]>([]);
     const renderedMessagesRef = useRef(messages);
     const messagesCommitWaitersRef = useRef<Array<() => void>>([]);
     const [messagesCommitSignal, setMessagesCommitSignal] = useState(0);
@@ -294,7 +295,7 @@ const AIChat: React.FC = () => {
     };
 
     const ensureAssistantMessage = (
-        chatMessages: Array<{ role: string; content: string; type: string; checkpointId?: string; messageId?: string }>
+        chatMessages: PanelMessage[]
     ): number => {
         const targetIndex = getLatestAssistantMessageIndex(chatMessages);
         // Reuse the trailing assistant bubble only if it belongs to the CURRENT turn — i.e. it
@@ -334,6 +335,8 @@ const AIChat: React.FC = () => {
     // staleness has to be judged against a ref, not the captured isLoading value.
     const isLoadingRef = useRef(false);
     isLoadingRef.current = isLoading;
+    // Set by the "abort" notification, which always arrives before the RPC error (whose name is lost in transit).
+    const abortHandledRef = useRef(false);
     const [followupSuggestions, setFollowupSuggestions] = useState<FollowupSuggestion[]>([]);
     const [isCompacting, setIsCompacting] = useState(false);
     // Tools currently in flight, oldest first, for the composer's loading
@@ -363,6 +366,7 @@ const AIChat: React.FC = () => {
     const activePanel = panelStack[panelStack.length - 1];
     const pushPanel = (route: PanelRoute) => setPanelStack(s => [...s, route]);
     const popPanel = () => setPanelStack(s => s.slice(0, -1));
+    const backTooltip = backTooltipFor(panelStack);
     const [isAutoApproveEnabled, setIsAutoApproveEnabled] = useState(false);
     const [isWebToolsEnabled, setIsWebToolsEnabled] = useState(false);
     const userWebSearchPreferenceRef = useRef(false);
@@ -375,7 +379,6 @@ const AIChat: React.FC = () => {
 
     const [availableCheckpointIds, setAvailableCheckpointIds] = useState<Set<string>>(new Set());
     const [restoringCheckpointId, setRestoringCheckpointId] = useState<string | null>(null);
-    const [hasActiveReview, setHasActiveReview] = useState(false);
     const [historyOpen, setHistoryOpen] = useState(false);
     const [threads, setThreads] = useState<ThreadSummary[]>([]);
     const [threadsLoading, setThreadsLoading] = useState(false);
@@ -711,7 +714,6 @@ const AIChat: React.FC = () => {
             // Clear stale context usage — token count changed with the restore.
             // Widget will reappear with accurate data on the next agent turn.
             setContextUsage(null);
-            setHasActiveReview(false);
             // History is trimmed to the checkpoint — re-derive so the reverted turn's chips drop.
             await refreshFollowupSuggestions();
         } catch (error) {
@@ -857,6 +859,12 @@ const AIChat: React.FC = () => {
             if (runStatus.isPlanMode !== undefined) {
                 setAgentMode(runStatus.isPlanMode ? AgentMode.Plan : AgentMode.Edit);
             }
+            // The status notification is not buffered with the run's events, so the bubble
+            // the replay rebuilds below would lose it — carry the loaded value across.
+            const loadedGenerationStatus = historyMessages.find(
+                (message) => message.type === "assistant_message" && message.messageId === generationId
+            )?.generationStatus;
+
             if (!runStatus.truncated) {
                 // Drop any assistant bubble already loaded for this generation (stale
                 // partial uiResponse) — the replay rebuilds the full turn from scratch,
@@ -904,6 +912,13 @@ const AIChat: React.FC = () => {
                 }
             } finally {
                 replayingRef.current = false;
+            }
+            if (loadedGenerationStatus) {
+                setMessages(prev => prev.map(m =>
+                    m.type === "assistant_message" && m.messageId === generationId
+                        ? { ...m, generationStatus: loadedGenerationStatus }
+                        : m
+                ));
             }
             if (!runStatus.isRunning && generationId && !runStatus.truncated) {
                 // Finished while the panel was closed. Persist the rebuilt transcript so
@@ -959,17 +974,6 @@ const AIChat: React.FC = () => {
                 } catch (error) {
                     console.error('[AIChat] Failed to load initial chat history:', error);
                     // Continue with empty messages - don't block the UI
-                }
-                // Re-derive the review flag: it is otherwise only set by the live stream
-                // event, so a webview reload would leave a pending review inactive
-                // (ReviewBar unclickable, auto-accept-on-send skipped).
-                try {
-                    const pending = await rpcClient.getAiPanelRpcClient().hasPendingReview({});
-                    if (pending) {
-                        setHasActiveReview(true);
-                    }
-                } catch (error) {
-                    console.error('[AIChat] Failed to check pending review state:', error);
                 }
 
                 // Reconnect to an in-flight run: the run keeps executing on the
@@ -1469,9 +1473,10 @@ const AIChat: React.FC = () => {
                 msgs[targetIndex] = { ...last, content: serializeStream(updated, last.content) };
                 return msgs;
             });
-            if (componentType === "review") {
-                setHasActiveReview(true);
-            }
+
+        } else if (type === "generation_status") {
+            const { generationId, status } = response;
+            setMessages(prevMessages => applyGenerationStatus(prevMessages, generationId, status));
 
         } else if (type === "messages") {
             messagesRef.current = response.messages;
@@ -1509,6 +1514,7 @@ const AIChat: React.FC = () => {
             console.log("Received stop signal");
             setIsWebToolsEnabled(userWebSearchPreferenceRef.current);
             setWebToolApprovalRequest(null);
+            setApprovalRequest(null);
             setIsCompacting(false);
             setIsCodeLoading(false);
             setIsLoading(false);
@@ -1523,9 +1529,11 @@ const AIChat: React.FC = () => {
 
         } else if (type === "abort") {
             console.log("Received abort signal");
+            abortHandledRef.current = true;
             activeScaffoldKeyRef.current = null;
             setIsWebToolsEnabled(userWebSearchPreferenceRef.current);
             setWebToolApprovalRequest(null);
+            setApprovalRequest(null);
             setMessages(prevMessages => {
                 const msgs = [...prevMessages];
                 const targetIndex = ensureAssistantMessage(msgs);
@@ -1538,6 +1546,7 @@ const AIChat: React.FC = () => {
             setIsCodeLoading(false);
             setIsLoading(false);
             setBackendRequestTriggered(false);
+            setAgentMode(AgentMode.Edit);
             if (isMigrationEnhancementRunning) {
                 setIsMigrationEnhancementRunning(false);
                 // Re-fetch session so the Resume card appears
@@ -1740,7 +1749,7 @@ const AIChat: React.FC = () => {
             const t = setTimeout(() => scrollToEnd("auto"), 120);
             return () => clearTimeout(t);
         }
-    }, [messages, hasActiveReview, isLoading, isCodeLoading, followupSuggestions]);
+    }, [messages, isLoading, isCodeLoading, followupSuggestions]);
 
     async function handleSendQuery(content: {
         input: Input[];
@@ -1759,10 +1768,9 @@ const AIChat: React.FC = () => {
             setIsCompacting(false);
             setIsLoading(false);
             setIsCodeLoading(false);
-            if (error.name === "AbortError") {
-                updateLastMessage((lastContent) =>
-                    lastContent + `\n\n<error data-system="true" data-auth="${SYSTEM_ERROR_SECRET}">Generation stopped by the user</error>`
-                );
+            if (abortHandledRef.current || error.name === "AbortError") {
+                abortHandledRef.current = false;
+                // The "abort" notification already appended the interruption marker.
             } else if (error?.name === "UsageLimitError" || error?.statusCode === 429) {
                 setIsUsageExceeded(true);
                 fetchUsage();
@@ -1848,10 +1856,6 @@ const AIChat: React.FC = () => {
 
         if (content.input.length === 0) {
             return;
-        }
-        if (hasActiveReview) {
-            await rpcClient.getAiPanelRpcClient().acceptChanges().catch((e: unknown) => console.warn("[AIChat] auto-accept failed:", e));
-            setHasActiveReview(false);
         }
         const generationId = `msg-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
         activeRunGenerationIdRef.current = generationId;
@@ -2192,6 +2196,7 @@ const AIChat: React.FC = () => {
         setApprovalRequest(null);
         setContextUsage(null);
         setFollowupSuggestions([]);
+        setAgentMode(AgentMode.Edit);
         await rpcClient.getAiPanelRpcClient().clearChat();
         loadThreads();
     }
@@ -2226,15 +2231,13 @@ const AIChat: React.FC = () => {
             rpcClient.getAiPanelRpcClient().getCheckpoints(),
         ]);
 
-        setMessages(msgs.map(m => ({ role: m.role === "user" ? "User" : "Copilot", content: m.content, type: "text", checkpointId: m.checkpointId, messageId: m.messageId })));
+        setMessages(msgs.map(m => ({ role: m.role === "user" ? "User" : "Copilot", content: m.content, type: "text", checkpointId: m.checkpointId, messageId: m.messageId, generationStatus: m.generationStatus })));
 
         // Rebuild the checkpoint availability set for the switched-to thread.
         // Without this, every checkpointId from the old thread would be absent from the set
         // and all restore buttons would appear disabled.
         setAvailableCheckpointIds(new Set(checkpoints.map(cp => cp.id)));
 
-        // Clear review and restore state that belongs to the previous thread
-        setHasActiveReview(false);
         setRestoringCheckpointId(null);
         setApprovalRequest(null);
         setContextUsage(null);
@@ -2245,14 +2248,13 @@ const AIChat: React.FC = () => {
     async function handleDeleteThread(threadId: string): Promise<void> {
         await rpcClient.getAiPanelRpcClient().deleteThread({ threadId });
 
-        // Reload messages and checkpoints for the (possibly new) active thread in parallel
+        // Reload messages and checkpoints for the (possibly new) active thread
         const [msgs, checkpoints] = await Promise.all([
             rpcClient.getAiPanelRpcClient().getChatMessages(),
             rpcClient.getAiPanelRpcClient().getCheckpoints(),
         ]);
-        setMessages(msgs.map(m => ({ role: m.role === "user" ? "User" : "Copilot", content: m.content, type: "text", checkpointId: m.checkpointId, messageId: m.messageId })));
+        setMessages(msgs.map(m => ({ role: m.role === "user" ? "User" : "Copilot", content: m.content, type: "text", checkpointId: m.checkpointId, messageId: m.messageId, generationStatus: m.generationStatus })));
         setAvailableCheckpointIds(new Set(checkpoints.map(cp => cp.id)));
-        setHasActiveReview(false);
         setRestoringCheckpointId(null);
         setApprovalRequest(null);
         setContextUsage(null);
@@ -2296,25 +2298,6 @@ const AIChat: React.FC = () => {
         }
     }, [otherMessages.length]);
 
-
-    const updateReviewStatus = (message: { role: string; content: string; type: string }, newStatus: "discarded") => {
-        setMessages(prevMessages => {
-            const msgs = [...prevMessages];
-            const idx = msgs.findIndex(m => m === message);
-            if (idx === -1) return prevMessages;
-            const entries = parseStream(msgs[idx].content);
-            const updated = entries.map(entry => ({
-                ...entry,
-                items: entry.items.map(item =>
-                    item.kind === "component" && (item as any).componentType === "review"
-                        ? { ...item, data: { ...(item as any).data, status: newStatus } }
-                        : item
-                )
-            }));
-            msgs[idx] = { ...msgs[idx], content: serializeStream(updated, msgs[idx].content) };
-            return msgs;
-        });
-    };
 
     const saveDocumentation = async () => {
         if (!docGenIntermediaryState) return;
@@ -2588,6 +2571,7 @@ const AIChat: React.FC = () => {
                                     const isUserMessage = message.role === "User";
                                     const isAssistantMessage = message.role === "Copilot";
                                     const isLatestAssistantMessage = isAssistantMessage && index === lastAssistantIndex;
+                                    const reviewBar = deriveReviewBarState(message.generationStatus, isLatestAssistantMessage, isLoading);
 
                             // Note: Cannot use useMemo here as it's inside map() callback
                             // The stateless regex implementation in splitContent() ensures no corruption during streaming
@@ -2653,13 +2637,9 @@ const AIChat: React.FC = () => {
                                                                 isWorkspace={(reviewItem as any).data.isWorkspace}
                                                                 diffPackageMap={(reviewItem as any).data.diffPackageMap}
                                                                 generationId={(reviewItem as any).data.generationId}
-                                                                isDiscarded={(reviewItem as any)?.data?.status === "discarded"}
+                                                                isDiscarded={reviewBar.isDiscarded}
                                                                 rpcClient={isLatestAssistantMessage ? rpcClient : undefined}
-                                                                isActive={isLatestAssistantMessage && !isLoading && hasActiveReview}
-                                                                onDiscarded={() => {
-                                                                    updateReviewStatus(message, "discarded");
-                                                                    setHasActiveReview(false);
-                                                                }}
+                                                                isActive={reviewBar.isActive}
                                                             />
                                                         )}
                                                         {buttonItems.map((item: StreamItem, ci: number) => {
@@ -2936,54 +2916,54 @@ const AIChat: React.FC = () => {
                             (item: StreamItem) => item.kind === "ask" && (item as any).data?.stage === "asking"
                         ) as { kind: "ask"; data: { requestId: string; questions: any[] } } | undefined;
 
-                        if (activeClarifyItem) {
-                            return (
-                                <ClarifyFooter
-                                    questions={activeClarifyItem.data.questions}
-                                    requestId={activeClarifyItem.data.requestId}
-                                    rpcClient={rpcClient}
-                                />
-                            );
-                        }
-
                         const activeSkillEnableItem = lastStreamItems.find(
                             (item: StreamItem) => item.kind === "skill_enable" && (item as any).data?.stage === "prompting"
                         ) as { kind: "skill_enable"; data: { requestId: string; skillName: string; skillId: string } } | undefined;
 
-                        if (activeSkillEnableItem) {
-                            const { requestId, skillName, skillId } = activeSkillEnableItem.data;
-                            return (
-                                <CommonApprovalFooter
-                                    type="skill_enable"
-                                    skillName={skillName}
-                                    onEnable={() => rpcClient.getAiPanelRpcClient().enableSkillFromChat({ requestId, skillId })}
-                                    onSkip={() => rpcClient.getAiPanelRpcClient().cancelSkillEnable({ requestId })}
-                                />
-                            );
-                        }
+                        const approvalFooter = activeClarifyItem ? (
+                            <ClarifyFooter
+                                questions={activeClarifyItem.data.questions}
+                                requestId={activeClarifyItem.data.requestId}
+                                rpcClient={rpcClient}
+                                onStop={handleStop}
+                            />
+                        ) : activeSkillEnableItem ? (
+                            <CommonApprovalFooter
+                                type="skill_enable"
+                                skillName={activeSkillEnableItem.data.skillName}
+                                onEnable={() => rpcClient.getAiPanelRpcClient().enableSkillFromChat({
+                                    requestId: activeSkillEnableItem.data.requestId,
+                                    skillId: activeSkillEnableItem.data.skillId,
+                                })}
+                                onSkip={() => rpcClient.getAiPanelRpcClient().cancelSkillEnable({
+                                    requestId: activeSkillEnableItem.data.requestId,
+                                })}
+                                onStop={handleStop}
+                            />
+                        ) : webToolApprovalRequest ? (
+                            <CommonApprovalFooter
+                                type="web_tool"
+                                toolName={webToolApprovalRequest.toolName}
+                                content={webToolApprovalRequest.content}
+                                onAllow={handleWebToolAllow}
+                                onDeny={handleWebToolDeny}
+                                onStop={handleStop}
+                            />
+                        ) : approvalRequest ? (
+                            <CommonApprovalFooter
+                                type={approvalRequest.approvalType}
+                                onApprove={handleApprovalApprove}
+                                onReject={handleApprovalReject}
+                                onStop={handleStop}
+                            />
+                        ) : null;
 
-                        if (webToolApprovalRequest) {
-                            return (
-                                <CommonApprovalFooter
-                                    type="web_tool"
-                                    toolName={webToolApprovalRequest.toolName}
-                                    content={webToolApprovalRequest.content}
-                                    onAllow={handleWebToolAllow}
-                                    onDeny={handleWebToolDeny}
-                                />
-                            );
-                        }
-                        if (approvalRequest) {
-                            return (
-                                <CommonApprovalFooter
-                                    type={approvalRequest.approvalType}
-                                    onApprove={handleApprovalApprove}
-                                    onReject={handleApprovalReject}
-                                />
-                            );
-                        }
+                        // Kept mounted behind the approval footer so the draft and attachments survive.
                         return (
+                        <>
+                            {approvalFooter}
                             <Footer
+                            hidden={!!approvalFooter}
                             aiChatInputRef={aiChatInputRef}
                             tagOptions={{
                                 placeholderTags: placeholderTags,
@@ -3028,15 +3008,16 @@ const AIChat: React.FC = () => {
                             }}
                             skills={skills}
                         />
+                        </>
                         );
                     })()}
                 </AIChatView>
             )}
             {activePanel === "settings" && (
-                <SettingsPanel onClose={popPanel} onNavigate={pushPanel} mcpToolsEnabled={mcpToolsEnabled} />
+                <SettingsPanel onClose={popPanel} backTooltip={backTooltip} onNavigate={pushPanel} mcpToolsEnabled={mcpToolsEnabled} />
             )}
-            {activePanel === "mcp" && <McpManagerPanel onClose={popPanel} />}
-            {activePanel === "skills" && <SkillsManager onClose={popPanel} onSkillsChange={refreshSkills} />}
+            {activePanel === "mcp" && <McpManagerPanel onClose={popPanel} backTooltip={backTooltip} />}
+            {activePanel === "skills" && <SkillsManager onClose={popPanel} backTooltip={backTooltip} onSkillsChange={refreshSkills} />}
         </>
     );
 };

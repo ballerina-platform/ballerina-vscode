@@ -19,6 +19,7 @@
 package io.ballerina.testmanagerservice.extension.model;
 
 import io.ballerina.compiler.syntax.tree.DefaultableParameterNode;
+import io.ballerina.compiler.syntax.tree.IdentifierToken;
 import io.ballerina.compiler.syntax.tree.ParameterNode;
 import io.ballerina.compiler.syntax.tree.RequiredParameterNode;
 import io.ballerina.compiler.syntax.tree.ReturnTypeDescriptorNode;
@@ -87,11 +88,12 @@ public record TestFunction(Metadata metadata, Codedata codedata, Property functi
         return builder.build();
     }
 
-    public static Property functionName(String functionName) {
+    public static Property functionName(IdentifierToken functionName) {
         Property.PropertyBuilder builder = new Property.PropertyBuilder();
         builder.metadata(new Metadata("Test Function", "Test function"));
         builder.valueType("IDENTIFIER");
-        builder.value(functionName);
+        builder.value(functionName.text().trim());
+        builder.codedata(new Codedata(functionName.lineRange()));
         builder.advanced(false);
         builder.editable(true);
         return builder.build();

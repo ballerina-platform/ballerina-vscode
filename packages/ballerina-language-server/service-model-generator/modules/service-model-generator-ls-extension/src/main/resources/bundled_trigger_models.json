@@ -1,0 +1,30 @@
+{
+  "ftp": "trigger-models/ftp.json",
+  "smb": "trigger-models/smb.json",
+  "file": "trigger-models/file.json",
+  "kafka": "trigger-models/kafka.json",
+  "rabbitmq": "trigger-models/rabbitmq.json",
+  "mqtt": "trigger-models/mqtt.json",
+  "trigger.github": "trigger-models/trigger.github.json",
+  "asb": "trigger-models/asb.json",
+  "salesforce": "trigger-models/salesforce.json",
+  "trigger.twilio": "trigger-models/trigger.twilio.json",
+  "trigger.shopify": "trigger-models/trigger.shopify.json",
+  "mssql": "trigger-models/mssql.json",
+  "mysql": "trigger-models/mysql.json",
+  "postgresql": "trigger-models/postgresql.json",
+  "trigger.hubspot": "trigger-models/trigger.hubspot.json",
+  "azure.storage.files": "trigger-models/azure.storage.files.json",
+  "mcp": [
+    { "minVersion": "1.2.0", "resource": "trigger-models/mcp.json" },
+    { "resource": "trigger-models/mcp_1.0.3.json" }
+  ],
+  "oracledb": "trigger-models/oracledb.json",
+  "solace": "trigger-models/solace.json",
+  "solace.jms": "trigger-models/solace.jms.json",
+  "sap.jco": "trigger-models/sap.jco.json",
+  "whatsapp.business": "trigger-models/whatsapp.business.json",
+  "telegram": "trigger-models/telegram.json",
+  "googleapis.chat": "trigger-models/googleapis.chat.json",
+  "aws.sqs": "trigger-models/sqs.json"
+}

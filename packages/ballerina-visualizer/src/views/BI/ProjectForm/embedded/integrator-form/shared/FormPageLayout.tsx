@@ -71,8 +71,8 @@ export const BackButton = styled.button`
     }
 
     &:hover {
-        background-color: color-mix(in srgb, var(--wso2-brand-accent) 16%, transparent);
-        border-color: color-mix(in srgb, var(--wso2-brand-accent) 45%, transparent);
+        background-color: color-mix(in srgb, var(--wso2-brand-accent, var(--vscode-toolbar-hoverBackground)) 16%, transparent);
+        border-color: color-mix(in srgb, var(--wso2-brand-accent, var(--vscode-focusBorder)) 45%, transparent);
     }
 
     &:focus-visible {
@@ -105,18 +105,21 @@ export const FormPanel = styled.section<{ variant?: "default" | "compact" }>`
     display: flex;
     flex-direction: column;
     border-radius: 14px;
-    border: 1px solid color-mix(in srgb, var(--wso2-brand-primary) 16%, var(--vscode-panel-border));
+    /* Brand vars are injected by the integrator welcome host; fall back to VS Code
+       theme tokens so the card still reads as a bordered panel in the native
+       visualizer (where those vars are undefined). */
+    border: 1px solid color-mix(in srgb, var(--wso2-brand-primary, var(--vscode-focusBorder)) 16%, var(--vscode-panel-border));
     background: var(--vscode-editor-background);
-    box-shadow: 0 10px 24px color-mix(in srgb, var(--wso2-brand-neutral-900) 16%, transparent);
+    box-shadow: 0 10px 24px color-mix(in srgb, var(--wso2-brand-neutral-900, #000) 16%, transparent);
     overflow: hidden;
 `;
 
 export const FormPanelHeader = styled.div`
-    border-bottom: 1px solid color-mix(in srgb, var(--wso2-brand-accent) 10%, var(--vscode-panel-border));
+    border-bottom: 1px solid color-mix(in srgb, var(--wso2-brand-accent, var(--vscode-focusBorder)) 10%, var(--vscode-panel-border));
     padding: 25px 18px;
     background: linear-gradient(
         180deg,
-        color-mix(in srgb, var(--wso2-brand-accent) 4%, var(--vscode-editor-background)) 0%,
+        color-mix(in srgb, var(--wso2-brand-accent, var(--vscode-editor-background)) 4%, var(--vscode-editor-background)) 0%,
         var(--vscode-editor-background) 100%
     );
 `;

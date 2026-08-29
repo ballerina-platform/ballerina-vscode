@@ -16,11 +16,12 @@
  * under the License.
  */
 
-import { ExecutionContext, Command } from '@wso2/ballerina-core';
+import { ExecutionContext, Command, GenerationReviewState } from '@wso2/ballerina-core';
 import { CopilotEventHandler } from '../../utils/events';
 import { chatStateStorage, ChatStateStorage } from '../../../../views/ai-panel/chatStateStorage';
 import { getTempProject, cleanupTempProject } from '../../utils/project/temp-project';
 import { buildChatError } from '../../utils/ai-utils';
+import { finalizeRevertibleGeneration } from '../../utils/generation-response';
 import { runEventStore } from '../../utils/run-event-store';
 import { agentStatusManager } from '../../state/AgentStatusManager';
 import { MigrationDebugLogger } from '../../migration/debug-logger';
@@ -415,6 +416,23 @@ export abstract class AICommandExecutor<TParams = any> {
             metadata,
             this.config.generationId
         );
+    }
+
+    /** Implicitly accepts whichever generation is still in the revertible 'done' window. */
+    protected finalizePreviousGeneration(): void {
+        if (!this.config.chatStorage) {
+            return;
+        }
+        const { projectRootPath, threadId } = this.config.chatStorage;
+        finalizeRevertibleGeneration(projectRootPath, threadId);
+    }
+
+    protected settleGeneration(status: GenerationReviewState['status']): void {
+        if (!this.config.chatStorage) {
+            return;
+        }
+        const { projectRootPath, threadId } = this.config.chatStorage;
+        chatStateStorage.updateReviewState(projectRootPath, threadId, this.config.generationId, { status });
     }
 
     /**

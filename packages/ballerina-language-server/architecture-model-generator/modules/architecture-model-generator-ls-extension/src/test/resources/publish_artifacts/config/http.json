@@ -1,0 +1,162 @@
+{
+  "source": "new_proj/main.bal",
+  "description": "",
+  "packageName": "proj329",
+  "output": {
+    "Variables": {
+      "additions": {
+        "products": {
+          "id": "products",
+          "location": {
+            "fileName": "main.bal",
+            "startLine": {
+              "line": 11,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 15,
+              "offset": 2
+            }
+          },
+          "type": "VARIABLE",
+          "name": "products",
+          "scope": "Global",
+          "visibility": "module",
+          "children": {}
+        }
+      }
+    },
+    "Types": {
+      "additions": {
+        "Product": {
+          "id": "Product",
+          "location": {
+            "fileName": "main.bal",
+            "startLine": {
+              "line": 2,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 7,
+              "offset": 3
+            }
+          },
+          "type": "TYPE",
+          "name": "Product",
+          "scope": "Global",
+          "visibility": "public",
+          "children": {}
+        }
+      }
+    },
+    "Entry Points": {
+      "additions": {
+        "-611393306": {
+          "id": "-611393306",
+          "location": {
+            "fileName": "main.bal",
+            "startLine": {
+              "line": 17,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 35,
+              "offset": 1
+            }
+          },
+          "type": "SERVICE",
+          "name": "HTTP Service - /products",
+          "scope": "Global",
+          "visibility": "module",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.6.png",
+          "module": "http",
+          "children": {
+            "get#[string productId]": {
+              "id": "get#[string productId]",
+              "location": {
+                "fileName": "main.bal",
+                "startLine": {
+                  "line": 21,
+                  "offset": 4
+                },
+                "endLine": {
+                  "line": 26,
+                  "offset": 5
+                }
+              },
+              "type": "RESOURCE",
+              "name": "[string productId]",
+              "accessor": "get",
+              "scope": "Global",
+              "visibility": "module",
+              "children": {}
+            },
+            "get#.": {
+              "id": "get#.",
+              "location": {
+                "fileName": "main.bal",
+                "startLine": {
+                  "line": 19,
+                  "offset": 4
+                },
+                "endLine": {
+                  "line": 19,
+                  "offset": 70
+                }
+              },
+              "type": "RESOURCE",
+              "name": ".",
+              "accessor": "get",
+              "scope": "Global",
+              "visibility": "module",
+              "children": {}
+            },
+            "post#.": {
+              "id": "post#.",
+              "location": {
+                "fileName": "main.bal",
+                "startLine": {
+                  "line": 28,
+                  "offset": 4
+                },
+                "endLine": {
+                  "line": 34,
+                  "offset": 5
+                }
+              },
+              "type": "RESOURCE",
+              "name": ".",
+              "accessor": "post",
+              "scope": "Global",
+              "visibility": "module",
+              "children": {}
+            }
+          }
+        }
+      }
+    },
+    "Configurations": {
+      "additions": {
+        "port": {
+          "id": "port",
+          "location": {
+            "fileName": "main.bal",
+            "startLine": {
+              "line": 9,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 9,
+              "offset": 29
+            }
+          },
+          "type": "CONFIGURABLE",
+          "name": "port",
+          "scope": "Global",
+          "visibility": "module",
+          "children": {}
+        }
+      }
+    }
+  }
+}

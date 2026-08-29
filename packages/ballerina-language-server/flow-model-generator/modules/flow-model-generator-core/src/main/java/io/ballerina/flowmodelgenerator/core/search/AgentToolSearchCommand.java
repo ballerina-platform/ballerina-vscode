@@ -21,8 +21,6 @@ package io.ballerina.flowmodelgenerator.core.search;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import io.ballerina.compiler.api.ModuleID;
-import io.ballerina.compiler.api.symbols.AnnotationAttachmentSymbol;
-import io.ballerina.compiler.api.symbols.AnnotationSymbol;
 import io.ballerina.compiler.api.symbols.Documentation;
 import io.ballerina.compiler.api.symbols.FunctionSymbol;
 import io.ballerina.compiler.api.symbols.FunctionTypeSymbol;
@@ -32,6 +30,7 @@ import io.ballerina.compiler.api.symbols.Qualifier;
 import io.ballerina.compiler.api.symbols.Symbol;
 import io.ballerina.compiler.api.symbols.SymbolKind;
 import io.ballerina.compiler.api.symbols.TypeSymbol;
+import io.ballerina.flowmodelgenerator.core.AiUtils;
 import io.ballerina.flowmodelgenerator.core.model.AvailableNode;
 import io.ballerina.flowmodelgenerator.core.model.Category;
 import io.ballerina.flowmodelgenerator.core.model.Codedata;
@@ -54,8 +53,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
-import static io.ballerina.modelgenerator.commons.CommonUtils.isAiModule;
-
 /**
  * Handles the search command for agent tools.
  *
@@ -64,7 +61,6 @@ import static io.ballerina.modelgenerator.commons.CommonUtils.isAiModule;
 public class AgentToolSearchCommand extends SearchCommand {
 
     private static final Gson GSON = new Gson();
-    public static final String TOOL_ANNOTATION = "AgentTool";
     private List<Item> cachedAgentTools;
 
     public AgentToolSearchCommand(Project project, LineRange position, Map<String, String> queryMap) {
@@ -213,27 +209,7 @@ public class AgentToolSearchCommand extends SearchCommand {
         if (!functionSymbol.qualifiers().contains(Qualifier.ISOLATED)) {
             return false;
         }
-
-        // Check if function has AgentTool annotation
-        for (AnnotationAttachmentSymbol annotAttachment : functionSymbol.annotAttachments()) {
-            AnnotationSymbol annotationSymbol = annotAttachment.typeDescriptor();
-            Optional<ModuleSymbol> optModule = annotationSymbol.getModule();
-            if (optModule.isEmpty()) {
-                continue;
-            }
-            ModuleID id = optModule.get().id();
-            if (!isAiModule(id.orgName(), id.packageName())) {
-                continue;
-            }
-            Optional<String> optName = annotationSymbol.getName();
-            if (optName.isEmpty()) {
-                continue;
-            }
-            if (optName.get().equals(TOOL_ANNOTATION)) {
-                return isValidAgentToolSignature(functionSymbol);
-            }
-        }
-        return false;
+        return AiUtils.isAgentToolFunction(functionSymbol) && isValidAgentToolSignature(functionSymbol);
     }
 
     private boolean isValidAgentToolSignature(FunctionSymbol functionSymbol) {

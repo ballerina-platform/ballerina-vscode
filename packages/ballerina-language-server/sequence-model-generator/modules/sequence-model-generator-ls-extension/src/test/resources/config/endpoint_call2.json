@@ -50,7 +50,7 @@
             "targetId": "33773",
             "kind": "INTERACTION",
             "properties": {
-              "resourcePath": "western/apples",
+              "resourcePath": "/western/apples",
               "name": {
                 "type": "string",
                 "value": "get"
@@ -82,7 +82,7 @@
             "targetId": "33773",
             "kind": "INTERACTION",
             "properties": {
-              "resourcePath": "apples",
+              "resourcePath": "/apples",
               "name": {
                 "type": "string",
                 "value": "get"
@@ -93,9 +93,11 @@
               },
               "params": [
                 {
+                  "type": "string",
                   "value": "param1 = \"param1\""
                 },
                 {
+                  "type": "string",
                   "value": "param2 = \"param2\""
                 }
               ],
@@ -121,7 +123,7 @@
             "targetId": "33773",
             "kind": "INTERACTION",
             "properties": {
-              "resourcePath": "",
+              "resourcePath": "/",
               "name": {
                 "type": "string",
                 "value": "get"
@@ -153,7 +155,7 @@
             "targetId": "33773",
             "kind": "INTERACTION",
             "properties": {
-              "resourcePath": "apples",
+              "resourcePath": "/apples",
               "name": {
                 "type": "string",
                 "value": "get"
@@ -189,7 +191,7 @@
             "targetId": "33773",
             "kind": "INTERACTION",
             "properties": {
-              "resourcePath": "apples",
+              "resourcePath": "/apples",
               "name": {
                 "type": "string",
                 "value": "get"
@@ -221,7 +223,7 @@
             "targetId": "33773",
             "kind": "INTERACTION",
             "properties": {
-              "resourcePath": "apples",
+              "resourcePath": "/apples",
               "name": {
                 "type": "string",
                 "value": "get"
@@ -232,6 +234,7 @@
               },
               "params": [
                 {
+                  "type": "map<string|string[]>",
                   "value": "headers = {\n            \"first-header\": \"first\",\n            \"second-header\": \"second\"\n        }"
                 }
               ],
@@ -257,7 +260,7 @@
             "targetId": "33773",
             "kind": "INTERACTION",
             "properties": {
-              "resourcePath": "apples",
+              "resourcePath": "/apples",
               "name": {
                 "type": "string",
                 "value": "get"
@@ -289,7 +292,7 @@
             "targetId": "33773",
             "kind": "INTERACTION",
             "properties": {
-              "resourcePath": "apples/[varRef]/[12 + 3]",
+              "resourcePath": "/apples/[varRef]/[12 + 3]",
               "name": {
                 "type": "string",
                 "value": "get"
@@ -321,7 +324,11 @@
             "targetId": "33773",
             "kind": "INTERACTION",
             "properties": {
-              "resourcePath": "apples",
+              "resourcePath": "/apples",
+              "name": {
+                "type": "string",
+                "value": "get"
+              },
               "expr": {
                 "type": "http:Client",
                 "value": "foodClient"

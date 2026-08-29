@@ -19,8 +19,14 @@
  */
 
 import {
+    AddIntegrationArtifactRequest,
+    BINodeTemplateRequest,
+    BINodeTemplateResponse,
     ChatNotify,
+    CreateIntegrationRequest,
     DownloadProgress,
+    ExpressionDiagnosticsRequest,
+    ExpressionDiagnosticsResponse,
     GetMigrationToolsResponse,
     ImportIntegrationResponse,
     ImportIntegrationRPCRequest,
@@ -28,11 +34,22 @@ import {
     MigrationToolPullRequest,
     OpenMigrationReportRequest,
     OpenSubProjectReportRequest,
+    ProjectFileRequest,
+    ProjectFileResponse,
     ProjectMigrationResult,
     SaveMigrationReportRequest,
+    ScaffoldIntegrationProjectResponse,
+    ServiceModelInitResponse,
+    ServiceModelRequest,
     StoreSubProjectReportsRequest,
+    TriggerModelsRequest,
+    TriggerModelsResponse,
     ValidateProjectFormRequest,
     ValidateProjectFormResponse,
+    WizardCapabilitiesResponse,
+    WizardFormTargetRequest,
+    WizardFormTargetResponse,
+    WorkspaceSupportResponse,
 } from "@wso2/ballerina-core";
 import { ConnectionStatus, createWebviewTransportAdapter } from "@wso2/webview-giga-bridge/webview";
 import { WEBVIEW_WS_EVENTS, WebviewWsRequest, WebviewWsResponse, WebviewTransportBootstrap, SignInResult } from "@wso2/ballerina-core";
@@ -73,6 +90,41 @@ export function resolveBiBridgeBootstrap(): WebviewTransportBootstrap {
 }
 
 /**
+ * Returns the VS Code webview API, reusing the single instance shared across this
+ * page rather than calling `acquireVsCodeApi()` again.
+ *
+ * The API can only be acquired ONCE per webview. In the native visualizer the main
+ * RPC client (via ballerina-core's `vscode` singleton) has already acquired it and
+ * cached it on `globalThis.__ballerinaVsCodeApi`; the giga-bridge transport would
+ * otherwise call the raw `acquireVsCodeApi()` a second time and throw
+ * "An instance of the VS Code API has already been acquired", blocking proxy mode.
+ * We hand the transport this resolver so it reuses the shared handle (and populates
+ * it if we happen to be first), keeping the singleton mutually compatible.
+ */
+function resolveSharedVsCodeApi(): unknown {
+    const g = globalThis as {
+        __ballerinaVsCodeApi?: unknown;
+        acquireVsCodeApi?: () => unknown;
+    };
+    if (g.__ballerinaVsCodeApi) {
+        return g.__ballerinaVsCodeApi;
+    }
+    if (typeof g.acquireVsCodeApi === "function") {
+        try {
+            const api = g.acquireVsCodeApi();
+            if (api) {
+                g.__ballerinaVsCodeApi = api;
+            }
+            return api;
+        } catch {
+            // Already acquired elsewhere without sharing — nothing more we can do.
+            return undefined;
+        }
+    }
+    return undefined;
+}
+
+/**
  * The migrated-forms WS manager client. One flat client over the shared
  * giga-bridge transport, mirroring the integrator's `WsClient`: project-creation
  * + import-migration request/notify methods plus the streaming subscriptions the
@@ -98,6 +150,9 @@ export class BiWsClient {
             // upgrade without it. Ignored in proxy mode, which does not use a
             // socket.
             token: bootstrap.token,
+            // Reuse the already-acquired VS Code API instead of re-acquiring (which
+            // throws in the native visualizer, where the main RPC client owns it).
+            acquireVsCodeApi: resolveSharedVsCodeApi as () => any,
         });
         this.transport.subscribe(
             (message) => this.handleIncomingMessage(message),
@@ -114,8 +169,16 @@ export class BiWsClient {
         return this.request("validateProjectPath", params);
     }
 
+    public getProjectComponentNames(params: { projectPath: string }): Promise<{ folders: string[]; titles: string[] }> {
+        return this.request("getProjectComponentNames", params);
+    }
+
     public selectFileOrDirPath(params: any): Promise<any> {
         return this.request("selectFileOrDirPath", params);
+    }
+
+    public selectProjectRelativeFile(params: ProjectFileRequest): Promise<ProjectFileResponse> {
+        return this.request<ProjectFileResponse>("selectProjectRelativeFile", params);
     }
 
     public selectFileOrFolderPath(): Promise<any> {
@@ -136,6 +199,62 @@ export class BiWsClient {
 
     public isSupportedSLVersion(params: any): Promise<boolean> {
         return this.request("isSupportedSLVersion", params);
+    }
+    public getWizardCapabilities(): Promise<WizardCapabilitiesResponse> {
+        return this.request("getWizardCapabilities");
+    }
+
+    /** Settled workspace support. Resolves only once the extension knows the answer,
+     *  so unlike `getWizardCapabilities().isWorkspaceSupported` it is never `undefined`. */
+    public getWorkspaceSupport(): Promise<WorkspaceSupportResponse> {
+        return this.request("getWorkspaceSupport");
+    }
+
+    public getTriggerModels(params: TriggerModelsRequest): Promise<TriggerModelsResponse> {
+        return this.request("getTriggerModels", params);
+    }
+
+    public getServiceInitModel(params: ServiceModelRequest): Promise<ServiceModelInitResponse> {
+        return this.request("getServiceInitModel", params);
+    }
+
+    public getNodeTemplate(params: BINodeTemplateRequest): Promise<BINodeTemplateResponse> {
+        return this.request("getNodeTemplate", params);
+    }
+
+    public getWizardFormTarget(params: WizardFormTargetRequest): Promise<WizardFormTargetResponse> {
+        return this.request("getWizardFormTarget", params);
+    }
+
+    /**
+     * Validation for the Configure step's expression fields, resolved against the
+     * throwaway staging package. The request is file-scoped, so it works before the
+     * real project exists
+     */
+    public getExpressionDiagnostics(params: ExpressionDiagnosticsRequest): Promise<ExpressionDiagnosticsResponse> {
+        return this.request("getExpressionDiagnostics", params);
+    }
+
+    public scaffoldIntegrationProject(): Promise<ScaffoldIntegrationProjectResponse> {
+        return this.request("scaffoldIntegrationProject", {});
+    }
+
+    public createIntegration(params: CreateIntegrationRequest): Promise<void> {
+        return this.request("createIntegration", params);
+    }
+
+    /** Adds the configured artifact into an already-created package (no package
+     *  creation, no window reload) — the empty-integration "continue" flow. */
+    public addIntegrationArtifact(params: AddIntegrationArtifactRequest): Promise<void> {
+        return this.request("addIntegrationArtifact", params);
+    }
+
+    public cancelIntegrationWizard(): Promise<void> {
+        return this.request("cancelIntegrationWizard", {});
+    }
+
+    public cleanupAbandonedIntegrationScaffolds(): Promise<void> {
+        return this.request("cleanupAbandonedIntegrationScaffolds");
     }
 
     // ── Import / migration ────────────────────────────────────

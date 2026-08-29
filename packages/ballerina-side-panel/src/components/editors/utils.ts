@@ -23,6 +23,9 @@ import { InputMode } from "../..";
 import { EditorMode } from "./ExpandedEditor";
 import { EXPANDABLE_MODES } from "./ExpandedEditor/modes/types";
 
+// Re-exported so that the existing imports of these helpers keep working.
+export { stringToRawArrayElements, buildStringArray } from "./rawValueUtils";
+
 export function isDropdownField(field: FormField) {
     return field.type === "MULTIPLE_SELECT" || field.type === "SINGLE_SELECT" || field.type?.toUpperCase() === "ENUM";
 }
@@ -144,6 +147,24 @@ export const getFieldKeyForAdvanceProp = (fieldKey: string, advancePropKey: stri
     return `${fieldKey}.advanceProperties.${advancePropKey}`;
 }
 
+/**
+ * A field that belongs to one branch of a choice — a dropdown option's fields, a checkbox state's — is a
+ * definition: the value for its key lives in a property of its own, which the edit form fills in from the
+ * node being edited. Returns the field carrying whatever the form currently holds for its key, since
+ * without it the field's editor mounts with the definition's empty value and overwrites what was loaded.
+ * Nested advanced children follow the same rule.
+ */
+export function withHeldValue(field: FormField, values: Record<string, any> | undefined): FormField {
+    const held = values?.[field.key];
+    const withChildren = field.advanceProps
+        ? { ...field, advanceProps: field.advanceProps.map((child) => withHeldValue(child, values)) }
+        : field;
+    // Only an absent key means "never set". An empty string is a value the form holds — a cleared
+    // field — and folding it in with undefined would snap it back to the definition's default on the
+    // next render. Indistinguishable today, since every branch definition defaults to "".
+    return held === undefined ? withChildren : { ...withChildren, value: held };
+}
+
 
 export const isRecord = (value: unknown): value is Record<string, unknown> => {
     return (
@@ -213,50 +234,6 @@ export const getMapSubFormFieldFromTypes = (formId: string, types: InputType[]):
             enabled: true
         }
     ]
-}
-
-export function stringToRawArrayElements(input: string): string[] {
-    // remove outer [ ]
-    const s = input.trim().slice(1, -1);
-
-    if (s === "") {
-        return [];
-    }
-
-    const result: string[] = [];
-    let current = "";
-    let depth = 0;
-    let inString = false;
-
-    for (let i = 0; i < s.length; i++) {
-        const char = s[i];
-        const prev = s[i - 1];
-
-        // handle string boundaries
-        if (char === '"' && prev !== "\\") {
-            inString = !inString;
-            current += char;
-            continue;
-        }
-
-        if (!inString) {
-            if (char === "[" || char === "{") depth++;
-            if (char === "]" || char === "}") depth--;
-
-            if (char === "," && depth === 0) {
-                result.push(current);
-                current = "";
-                continue;
-            }
-        }
-
-        current += char;
-    }
-
-    // Always push the final element (even if empty) to preserve trailing empty values
-    result.push(current);
-
-    return result;
 }
 
 export function stringToRawObjectEntries(
@@ -337,14 +314,6 @@ function pushPair(
             }
         }
     }
-}
-
-export function buildStringArray(elements: FormField[]): string {
-    if (typeof elements === "string") return elements;
-    const parts = elements.map(el => {
-        return ((el.value as string) ?? "").trim();
-    });
-    return `[${parts.join(", ")}]`;
 }
 
 export function buildStringMap(elements: FormField[][] | string): string {

@@ -18,11 +18,14 @@
 
 package io.ballerina.flowmodelgenerator.core;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import io.ballerina.compiler.api.SemanticModel;
+import io.ballerina.compiler.api.symbols.ClassFieldSymbol;
 import io.ballerina.compiler.api.symbols.ClassSymbol;
 import io.ballerina.compiler.api.symbols.FunctionSymbol;
 import io.ballerina.compiler.api.symbols.ParameterSymbol;
@@ -31,6 +34,7 @@ import io.ballerina.compiler.api.symbols.Symbol;
 import io.ballerina.compiler.api.symbols.TypeReferenceTypeSymbol;
 import io.ballerina.compiler.api.symbols.TypeSymbol;
 import io.ballerina.compiler.api.symbols.VariableSymbol;
+import io.ballerina.compiler.syntax.tree.ClassDefinitionNode;
 import io.ballerina.compiler.syntax.tree.FunctionDefinitionNode;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
 import io.ballerina.compiler.syntax.tree.Node;
@@ -57,6 +61,7 @@ import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.projects.Document;
+import io.ballerina.projects.Module;
 import io.ballerina.projects.Package;
 import io.ballerina.tools.text.LinePosition;
 import io.ballerina.tools.text.TextRange;
@@ -64,6 +69,7 @@ import io.ballerina.tools.text.TextRange;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -73,8 +79,8 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import static io.ballerina.flowmodelgenerator.core.Constants.Ai;
-import static io.ballerina.flowmodelgenerator.core.Constants.Workflow;
 import static io.ballerina.flowmodelgenerator.core.Constants.NaturalFunctions;
+import static io.ballerina.flowmodelgenerator.core.Constants.Workflow;
 import static io.ballerina.modelgenerator.commons.CommonUtils.CONNECTOR_TYPE;
 import static io.ballerina.modelgenerator.commons.CommonUtils.PERSIST;
 import static io.ballerina.modelgenerator.commons.CommonUtils.PERSIST_MODEL_FILE;
@@ -82,6 +88,8 @@ import static io.ballerina.modelgenerator.commons.CommonUtils.getPersistDatabase
 import static io.ballerina.modelgenerator.commons.CommonUtils.getPersistModelFilePath;
 import static io.ballerina.modelgenerator.commons.CommonUtils.isAgentClass;
 import static io.ballerina.modelgenerator.commons.CommonUtils.isAiEmbeddingProvider;
+import static io.ballerina.modelgenerator.commons.CommonUtils.isAiFixedTypedAgent;
+import static io.ballerina.modelgenerator.commons.CommonUtils.isAiDependentlyTypedAgent;
 import static io.ballerina.modelgenerator.commons.CommonUtils.isAiModelProvider;
 import static io.ballerina.modelgenerator.commons.CommonUtils.isPersistClient;
 
@@ -98,9 +106,22 @@ public class AvailableNodesGenerator {
     private final Package pkg;
     private final Gson gson;
     private final Path filePath;
+    private WorkflowArtifacts workflowArtifacts;
     private static final String BALLERINAX = "ballerinax";
     private static final String TEST_MODULE_PREFIX = "test";
     private static final String TEST_CONFIG_ANNOTATION = "Config";
+
+    /**
+     * Which workflow artifacts each package declares, keyed by the package instance.
+     *
+     * <p>Weak keys make Caffeine compare by identity, which is what gives this its invalidation:
+     * every edit rebuilds the package ({@code Package.Modifier} hands the project a new instance),
+     * so a changed source is always a new key and the scan reruns. A superseded package is only
+     * held here weakly, so it is collected with the entry rather than kept alive by it. The size
+     * bound is a backstop for the handful of packages a session has open at once.
+     */
+    private static final Cache<Package, WorkflowArtifacts> WORKFLOW_ARTIFACTS_CACHE =
+            Caffeine.newBuilder().weakKeys().maximumSize(16).build();
 
     public AvailableNodesGenerator(SemanticModel semanticModel, Document document, Package pkg, Path filePath) {
         this.rootBuilder = new Category.Builder(null).name(Category.Name.ROOT);
@@ -120,8 +141,7 @@ public class AvailableNodesGenerator {
 
         if (!isInWorkflowFunction) {
             List<Category> connections = new ArrayList<>();
-            List<Symbol> symbols = semanticModel.visibleSymbols(document, position);
-            for (Symbol symbol : symbols) {
+            for (Symbol symbol : getScopedSymbols(position).values()) {
                 Optional<Category> connection = getConnection(symbol, checkAgentToolCompatibility);
                 if (connection.isEmpty()) {
                     continue;
@@ -163,12 +183,54 @@ public class AvailableNodesGenerator {
         }
     }
 
+    private List<ClassFieldSymbol> getEnclosingClassFields(LinePosition position) {
+        int textPosition;
+        try {
+            textPosition = document.textDocument().textPositionFrom(position);
+        } catch (Exception e) {
+            return List.of();
+        }
+        Node node = ((ModulePartNode) document.syntaxTree().rootNode())
+                .findNode(TextRange.from(textPosition, 0));
+        boolean insideFunctionBody = false;
+        while (node != null) {
+            if (node.kind() == SyntaxKind.FUNCTION_BODY_BLOCK) {
+                insideFunctionBody = true;
+            }
+            if (node.kind() == SyntaxKind.CLASS_DEFINITION) {
+                if (!insideFunctionBody) {
+                    return List.of();
+                }
+                Optional<Symbol> classSymbol = semanticModel.symbol((ClassDefinitionNode) node);
+                if (classSymbol.isPresent() && classSymbol.get() instanceof ClassSymbol resolvedClassSymbol
+                        && (isAiFixedTypedAgent(resolvedClassSymbol)
+                        || isAiDependentlyTypedAgent(resolvedClassSymbol))) {
+                    return new ArrayList<>(resolvedClassSymbol.fieldDescriptors().values());
+                }
+                return List.of();
+            }
+            node = node.parent();
+        }
+        return List.of();
+    }
+
+    private Map<String, Symbol> getScopedSymbols(LinePosition position) {
+        Map<String, Symbol> symbols = new LinkedHashMap<>();
+        semanticModel.visibleSymbols(document, position).forEach(symbol ->
+                symbol.getName().ifPresent(name -> symbols.put(name, symbol)));
+        getEnclosingClassFields(position).forEach(field ->
+                field.getName().ifPresent(name -> symbols.putIfAbsent(name, field)));
+        return symbols;
+    }
+
     public JsonArray getAvailableNodes(LinePosition position) {
         return getAvailableNodes(true, position, null);
     }
 
     public JsonArray getAvailableAgents(LinePosition position) {
-        return this.getAvailableItemsByCategory(position, Category.Name.AGENT, this::getAgent);
+        boolean includeTraceMethod = isInsideTestFunction(position);
+        return this.getAvailableItemsByCategory(position, Category.Name.AGENT,
+                symbol -> getAgent(symbol, includeTraceMethod));
     }
 
     public JsonArray getAvailableModelProviders(LinePosition position) {
@@ -320,11 +382,26 @@ public class AvailableNodesGenerator {
             this.rootBuilder.stepIn(Category.Name.AI)
                     .items(getAiNodes(disableBallerinaAiNodes))
                     .stepOut();
+
+            // The client-side workflow verbs, right after AI so they are easy to reach:
+            // shown only when the integration defines the matching artifacts — workflow
+            // functions enable Run Workflow / Send Data Event, durable agents enable the
+            // agent interaction nodes.
+            WorkflowArtifacts artifacts = workflowArtifacts();
+            if (artifacts.hasWorkflows() || artifacts.hasDurableAgents()) {
+                this.rootBuilder.stepIn(Category.Name.WORKFLOW)
+                        .items(getWorkflowNodes(false, artifacts.hasWorkflows(), artifacts.hasDurableAgents()))
+                        .stepOut();
+            }
         }
 
-        this.rootBuilder.stepIn(Category.Name.WORKFLOW)
-                .items(getWorkflowNodes(isInWorkflowFunction))
-                .stepOut();
+        // Inside a workflow function the Workflow section leads the palette — it holds the
+        // durable steps that make up the flow.
+        if (isInWorkflowFunction) {
+            this.rootBuilder.stepIn(Category.Name.WORKFLOW)
+                    .items(getWorkflowNodes(true, true, true))
+                    .stepOut();
+        }
 
         AvailableNode function = new AvailableNode(
                 new Metadata.Builder<>(null)
@@ -370,7 +447,61 @@ public class AvailableNodesGenerator {
                         .node(NodeKind.ROLLBACK)
                         .node(NodeKind.RETRY)
                         .stepOut();
+
         }
+    }
+
+    /**
+     * Which workflow artifacts the package declares.
+     *
+     * @param hasWorkflows     whether it declares a {@code @workflow:Workflow} function
+     * @param hasDurableAgents whether it declares a module-level {@code workflow:DurableAgent}
+     */
+    private record WorkflowArtifacts(boolean hasWorkflows, boolean hasDurableAgents) { }
+
+    /**
+     * Whether the package declares workflow functions and durable agents, scanned across every
+     * module rather than the default one alone — a multi-module package whose workflows live
+     * outside the default module would otherwise lose the whole Workflow category. Both answers
+     * come from one pass, memoized on this generator and, behind it, on the package itself.
+     *
+     * <p>The scan walks every module symbol, so its cost grows with the package. That is fine
+     * once per package version and wasteful once per palette open, which is what a
+     * generator-lifetime memo alone would give — a generator is built fresh for every request.
+     * {@link #WORKFLOW_ARTIFACTS_CACHE} carries the answer across opens instead, for as long as
+     * the package it was computed from is the current one.
+     *
+     * @return the artifacts the package declares
+     */
+    private WorkflowArtifacts workflowArtifacts() {
+        if (this.workflowArtifacts == null) {
+            this.workflowArtifacts =
+                    WORKFLOW_ARTIFACTS_CACHE.get(this.pkg, AvailableNodesGenerator::scanWorkflowArtifacts);
+        }
+        return this.workflowArtifacts;
+    }
+
+    /**
+     * Scans every module of the package for a {@code @workflow:Workflow} function and a
+     * module-level {@code workflow:DurableAgent}, resolving both against the semantic model so an
+     * aliased import prefix cannot change the answer.
+     *
+     * @param pkg the package to scan
+     * @return the artifacts the package declares
+     */
+    private static WorkflowArtifacts scanWorkflowArtifacts(Package pkg) {
+        boolean hasWorkflows = false;
+        boolean hasDurableAgents = false;
+        for (Module module : pkg.modules()) {
+            for (Symbol symbol : module.getCompilation().getSemanticModel().moduleSymbols()) {
+                hasWorkflows = hasWorkflows || WorkflowUtil.isWorkflowFunction(symbol);
+                hasDurableAgents = hasDurableAgents || WorkflowUtil.isDurableAgentVariable(symbol);
+                if (hasWorkflows && hasDurableAgents) {
+                    return new WorkflowArtifacts(true, true);
+                }
+            }
+        }
+        return new WorkflowArtifacts(hasWorkflows, hasDurableAgents);
     }
 
     private List<Item> getAiNodes(boolean disableBallerinaAiNodes) {
@@ -448,89 +579,84 @@ public class AvailableNodesGenerator {
         return List.of(directLlmCategory, ragCategory, agentCategory);
     }
 
-    private List<Item> getWorkflowNodes(boolean isInWorkflowFunction) {
+
+    private List<Item> getWorkflowNodes(boolean isInWorkflowFunction, boolean hasWorkflows,
+                                        boolean hasDurableAgents) {
         List<Item> workflowNodes = new ArrayList<>();
 
         if (isInWorkflowFunction) {
-            // Inside a workflow function: Call Activity, Await HumanTask, Await Data, Sleep
-            AvailableNode callActivity = new AvailableNode(
-                    new Metadata.Builder<>(null)
-                            .label(Workflow.CALL_ACTIVITY_LABEL)
-                            .description(Workflow.CALL_ACTIVITY_DESCRIPTION)
-                            .build(),
-                    new Codedata.Builder<>(null)
-                            .node(NodeKind.ACTIVITY_CALL)
-                            .build(),
-                    true
-            );
+            // Inside a workflow function the single Workflow section groups its items by
+            // functionality: durable Steps, Child Workflows, and the (advanced) context
+            // utility functions.
+            Category steps = new Category.Builder(null).name(Category.Name.WORKFLOW_STEPS)
+                    .items(List.of(
+                            workflowNode(Workflow.CALL_ACTIVITY_LABEL, Workflow.CALL_ACTIVITY_DESCRIPTION,
+                                    NodeKind.ACTIVITY_CALL),
+                            workflowNode(Workflow.HUMAN_TASK_LABEL, Workflow.HUMAN_TASK_DESCRIPTION,
+                                    NodeKind.HUMAN_TASK),
+                            workflowNode(Workflow.WAIT_DATA_LABEL, Workflow.WAIT_DATA_DESCRIPTION,
+                                    NodeKind.WAIT_DATA),
+                            workflowNode(Workflow.SLEEP_LABEL, Workflow.SLEEP_DESCRIPTION, NodeKind.SLEEP)))
+                    .build();
 
-            workflowNodes.add(callActivity);
+            Category childWorkflows = new Category.Builder(null).name(Category.Name.CHILD_WORKFLOWS)
+                    .items(List.of(
+                            workflowNode(Workflow.RUN_CHILD_WORKFLOW_LABEL, Workflow.RUN_CHILD_WORKFLOW_DESCRIPTION,
+                                    NodeKind.CHILD_WORKFLOW_RUN),
+                            workflowNode(Workflow.CALL_CHILD_WORKFLOW_LABEL, Workflow.CALL_CHILD_WORKFLOW_DESCRIPTION,
+                                    NodeKind.CHILD_WORKFLOW_CALL),
+                            workflowNode(Workflow.WAIT_CHILD_WORKFLOW_LABEL, Workflow.WAIT_CHILD_WORKFLOW_DESCRIPTION,
+                                    NodeKind.CHILD_WORKFLOW_WAIT),
+                            workflowNode(Workflow.SEND_DATA_CHILD_WORKFLOW_LABEL,
+                                    Workflow.SEND_DATA_CHILD_WORKFLOW_DESCRIPTION,
+                                    NodeKind.CHILD_WORKFLOW_SEND_DATA)))
+                    .build();
 
-            AvailableNode humanTask = new AvailableNode(
-                    new Metadata.Builder<>(null)
-                            .label(Workflow.HUMAN_TASK_LABEL)
-                            .description(Workflow.HUMAN_TASK_DESCRIPTION)
-                            .build(),
-                    new Codedata.Builder<>(null)
-                            .node(NodeKind.HUMAN_TASK)
-                            .build(),
-                    true
-            );
+            Category workflowFunctions = new Category.Builder(null).name(Category.Name.WORKFLOW_FUNCTIONS)
+                    .items(List.of(
+                            workflowNode(Workflow.CURRENT_TIME_LABEL, Workflow.CURRENT_TIME_DESCRIPTION,
+                                    NodeKind.WORKFLOW_CURRENT_TIME),
+                            workflowNode(Workflow.IS_REPLAYING_LABEL, Workflow.IS_REPLAYING_DESCRIPTION,
+                                    NodeKind.WORKFLOW_IS_REPLAYING),
+                            workflowNode(Workflow.GET_WORKFLOW_ID_LABEL, Workflow.GET_WORKFLOW_ID_DESCRIPTION,
+                                    NodeKind.WORKFLOW_GET_ID),
+                            workflowNode(Workflow.GET_WORKFLOW_TYPE_LABEL, Workflow.GET_WORKFLOW_TYPE_DESCRIPTION,
+                                    NodeKind.WORKFLOW_GET_TYPE)))
+                    .build();
 
-            AvailableNode waitData = new AvailableNode(
-                    new Metadata.Builder<>(null)
-                            .label(Workflow.WAIT_DATA_LABEL)
-                            .description(Workflow.WAIT_DATA_DESCRIPTION)
-                            .build(),
-                    new Codedata.Builder<>(null)
-                            .node(NodeKind.WAIT_DATA)
-                            .build(),
-                    true
-            );
-
-            AvailableNode sleep = new AvailableNode(
-                    new Metadata.Builder<>(null)
-                            .label(Workflow.SLEEP_LABEL)
-                            .description(Workflow.SLEEP_DESCRIPTION)
-                            .build(),
-                    new Codedata.Builder<>(null)
-                            .node(NodeKind.SLEEP)
-                            .build(),
-                    true
-            );
-
-            workflowNodes.add(humanTask);
-            workflowNodes.add(waitData);
-            workflowNodes.add(sleep);
+            workflowNodes.add(steps);
+            workflowNodes.add(childWorkflows);
+            workflowNodes.add(workflowFunctions);
         } else {
-            // Outside workflow function: Run Workflow and Send Data
-            AvailableNode runWorkflow = new AvailableNode(
-                    new Metadata.Builder<>(null)
-                            .label(Workflow.RUN_LABEL)
-                            .description(Workflow.RUN_DESCRIPTION)
-                            .build(),
-                    new Codedata.Builder<>(null)
-                            .node(NodeKind.WORKFLOW_RUN)
-                            .build(),
-                    true
-            );
-
-            AvailableNode sendData = new AvailableNode(
-                    new Metadata.Builder<>(null)
-                            .label(Workflow.SEND_DATA_LABEL)
-                            .description(Workflow.SEND_DATA_DESCRIPTION)
-                            .build(),
-                    new Codedata.Builder<>(null)
-                            .node(NodeKind.SEND_DATA)
-                            .build(),
-                    true
-            );
-
-            workflowNodes.add(runWorkflow);
-            workflowNodes.add(sendData);
+            // Outside workflow functions the items follow the integration's artifacts:
+            // workflow functions bring the workflow verbs, durable agents bring theirs.
+            if (hasWorkflows) {
+                workflowNodes.add(workflowNode(Workflow.RUN_LABEL, Workflow.RUN_DESCRIPTION,
+                        NodeKind.WORKFLOW_RUN));
+                workflowNodes.add(workflowNode(Workflow.SEND_DATA_LABEL, Workflow.SEND_DATA_DESCRIPTION,
+                        NodeKind.SEND_DATA));
+            }
+            if (hasDurableAgents) {
+                workflowNodes.add(workflowNode(Workflow.AGENT_START_LABEL, Workflow.AGENT_START_DESCRIPTION,
+                        NodeKind.DURABLE_AGENT_START));
+                workflowNodes.add(workflowNode(Workflow.AGENT_SEND_DATA_LABEL, Workflow.AGENT_SEND_DATA_DESCRIPTION,
+                        NodeKind.DURABLE_AGENT_UPDATE));
+                workflowNodes.add(workflowNode(Workflow.AGENT_RESULT_LABEL, Workflow.AGENT_RESULT_DESCRIPTION,
+                        NodeKind.DURABLE_AGENT_RESULT));
+                workflowNodes.add(workflowNode(Workflow.AGENT_DATA_RESULT_LABEL,
+                        Workflow.AGENT_DATA_RESULT_DESCRIPTION, NodeKind.DURABLE_AGENT_DATA_RESULT));
+            }
         }
 
         return workflowNodes;
+    }
+
+    // Builds a plain palette entry: a label/description pair whose click resolves to the node kind.
+    private static AvailableNode workflowNode(String label, String description, NodeKind kind) {
+        return new AvailableNode(
+                new Metadata.Builder<>(null).label(label).description(description).build(),
+                new Codedata.Builder<>(null).node(kind).build(),
+                true);
     }
 
     private void setStopNode(NonTerminalNode node) {
@@ -576,6 +702,8 @@ public class AvailableNodesGenerator {
                 typeDescriptorSymbol = (TypeReferenceTypeSymbol) variableSymbol.typeDescriptor();
             } else if (symbol instanceof ParameterSymbol parameterSymbol) {
                 typeDescriptorSymbol = (TypeReferenceTypeSymbol) parameterSymbol.typeDescriptor();
+            } else if (symbol instanceof ClassFieldSymbol classFieldSymbol) {
+                typeDescriptorSymbol = (TypeReferenceTypeSymbol) classFieldSymbol.typeDescriptor();
             } else {
                 return Optional.empty();
             }
@@ -583,26 +711,26 @@ public class AvailableNodesGenerator {
             if (!condition.test(classSymbol)) {
                 return Optional.empty();
             }
-            String parentSymbolName = symbol.getName().orElseThrow();
+            String symbolName = symbol.getName().orElseThrow();
+            String parentSymbolName = symbol instanceof ClassFieldSymbol ? "self." + symbolName : symbolName;
             ModuleInfo moduleInfo = classSymbol.getModule()
                     .map(moduleSymbol -> ModuleInfo.from(moduleSymbol.id()))
                     .orElse(null);
 
-            // Create and set the resolved package for the function
-            Optional<Package> resolvedPackage = moduleInfo != null ?
-                    PackageUtil.resolveModulePackage(moduleInfo.org(), moduleInfo.packageName(), moduleInfo.version()) :
-                    Optional.empty();
-
-            Optional<String> persistIcon = isPersistClient(classSymbol, semanticModel)
-                    ? getPersistDatabaseIcon(classSymbol) : Optional.empty();
+            boolean persistClient = isPersistClient(classSymbol, semanticModel);
+            Optional<String> persistIcon = persistClient ? getPersistDatabaseIcon(classSymbol) : Optional.empty();
             List<Item> methods = ConnectionActionProvider.getInstance().getActions(classSymbol, parentSymbolName,
                     pkg.project(), semanticModel, checkAgentToolCompatibility);
 
             Metadata.Builder<?> metadataBuilder = new Metadata.Builder<>(null)
                     .label(parentSymbolName);
-            if (isPersistClient(classSymbol, semanticModel)) {
+            if (persistClient) {
                 persistIcon.ifPresent(metadataBuilder::icon);
                 metadataBuilder.addData(CONNECTOR_TYPE, PERSIST);
+                Optional<Package> resolvedPackage = moduleInfo != null
+                        ? PackageUtil.resolveModulePackage(moduleInfo.org(), moduleInfo.packageName(),
+                                moduleInfo.version())
+                        : Optional.empty();
                 getPersistModelFilePath(
                         resolvedPackage.map(p -> p.project().sourceRoot())
                                 .orElse(pkg.project().sourceRoot()),
@@ -620,14 +748,25 @@ public class AvailableNodesGenerator {
         }
     }
 
-    private Optional<Category> getAgent(Symbol symbol) {
-        return getCategory(symbol, classSymbol -> {
+    private Optional<Category> getAgent(Symbol symbol, boolean includeTraceMethod) {
+        Optional<Category> agent = getCategory(symbol, classSymbol -> {
             try {
-                return isAgentClass(classSymbol);
+                return isAgentClass(classSymbol)
+                        || isAiFixedTypedAgent(classSymbol)
+                        || isAiDependentlyTypedAgent(classSymbol);
             } catch (Exception e) {
                 return false;
             }
         });
+        return includeTraceMethod ? agent : agent.map(AvailableNodesGenerator::withoutTraceMethod);
+    }
+
+    private static Category withoutTraceMethod(Category agent) {
+        List<Item> methods = agent.items().stream()
+                .filter(item -> !(item instanceof AvailableNode availableNode
+                        && Ai.AGENT_TRACE_METHOD_NAME.equals(availableNode.codedata().symbol())))
+                .toList();
+        return methods.size() == agent.items().size() ? agent : new Category(agent.metadata(), methods);
     }
 
     private Optional<Category> getModelProvider(Symbol symbol) {

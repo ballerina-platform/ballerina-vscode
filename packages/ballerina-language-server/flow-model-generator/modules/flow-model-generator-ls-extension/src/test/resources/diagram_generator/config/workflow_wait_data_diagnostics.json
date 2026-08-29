@@ -53,7 +53,7 @@
         "metadata": {
           "label": "Await Data",
           "description": "Wait for workflow data to be received",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.7.0.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.8.3.png"
         },
         "codedata": {
           "node": "WAIT_DATA",
@@ -62,7 +62,7 @@
           "packageName": "workflow",
           "object": "Context",
           "symbol": "await",
-          "version": "0.7.0",
+          "version": "0.8.3",
           "lineRange": {
             "fileName": "workflow_wait_data_diagnostics.bal",
             "startLine": {
@@ -115,12 +115,12 @@
             "types": [
               {
                 "fieldType": "RECORD_MAP_EXPRESSION",
-                "ballerinaType": "time:Duration",
+                "ballerinaType": "workflow:Duration",
                 "typeMembers": [
                   {
                     "type": "Duration",
-                    "packageInfo": "ballerina:time:2.8.1",
-                    "packageName": "time",
+                    "packageInfo": "ballerina:workflow:0.8.3",
+                    "packageName": "workflow",
                     "kind": "RECORD_TYPE",
                     "selected": false
                   }
@@ -129,7 +129,7 @@
               },
               {
                 "fieldType": "EXPRESSION",
-                "ballerinaType": "time:Duration?",
+                "ballerinaType": "workflow:Duration?",
                 "selected": false
               }
             ],
@@ -141,9 +141,6 @@
             "codedata": {
               "kind": "DEFAULTABLE",
               "originalName": "timeout"
-            },
-            "imports": {
-              "time": "ballerina/time"
             },
             "defaultValue": "()"
           },

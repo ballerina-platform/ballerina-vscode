@@ -35,6 +35,7 @@ import {
     OpenViewRequest,
     redo,
     reopenApprovalView,
+    NavigateReviewModeRequest,
     ReopenApprovalViewRequest,
     resetUndoRedoStack,
     saveEvalThread,
@@ -69,5 +70,5 @@ export function registerVisualizerRpcHandlers(messenger: Messenger) {
     messenger.onNotification(handleApprovalPopupClose, (args: HandleApprovalPopupCloseRequest) => rpcManger.handleApprovalPopupClose(args));
     messenger.onNotification(reopenApprovalView, (args: ReopenApprovalViewRequest) => rpcManger.reopenApprovalView(args));
     messenger.onRequest(saveEvalThread, (args: SaveEvalThreadRequest) => rpcManger.saveEvalThread(args));
-    messenger.onNotification(navigateReviewMode, (index: number) => rpcManger.navigateReviewMode(index));
+    messenger.onNotification(navigateReviewMode, (args: NavigateReviewModeRequest) => rpcManger.navigateReviewMode(args));
 }

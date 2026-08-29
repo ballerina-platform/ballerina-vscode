@@ -16,9 +16,10 @@
  * under the License.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { FormField, FormValues, FormImports } from "@wso2/ballerina-side-panel";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
+import { PanelOverlayContext } from "../../views/BI/FlowDiagram/context/PanelOverlayContext";
 import { convertConfig } from "../../utils/bi";
 import { ArtifactForm } from "../../views/BI/Forms/ArtifactForm";
 import { RelativeLoader } from "../RelativeLoader";
@@ -27,10 +28,10 @@ import { ConnectionCreatorProps } from "./types";
 import { getConnectionSpecialConfig } from "./config";
 import { updateFormFieldsWithData, updateNodeTemplateProperties, updateNodeWithConnectionVariable, updateNodeLineRange } from "./utils";
 import { cloneDeep } from "lodash";
-import { LineRange, RecordTypeField, getPrimaryInputType, PropertyTypeMemberInfo } from "@wso2/ballerina-core";
+import { GET_DEFAULT_EMBEDDING_PROVIDER, GET_DEFAULT_MODEL_PROVIDER, LineRange, RecordTypeField, getPrimaryInputType, PropertyTypeMemberInfo } from "@wso2/ballerina-core";
 import { LoaderContainer } from "../RelativeLoader/styles";
 import { URI, Utils } from "vscode-uri";
-import { CONNECTIONS_FILE, GET_DEFAULT_EMBEDDING_PROVIDER, GET_DEFAULT_MODEL_PROVIDER } from "../../constants";
+import { CONNECTIONS_FILE } from "../../constants";
 
 export function ConnectionCreator(props: ConnectionCreatorProps): JSX.Element {
     const { connectionKind, selectedNode, nodeFormTemplate, onSave } = props;
@@ -40,6 +41,7 @@ export function ConnectionCreator(props: ConnectionCreatorProps): JSX.Element {
     const shouldShowInfo = useMemo(() => specialConfig.shouldShowInfo?.(connectionSymbol) ?? false, [specialConfig, connectionSymbol]);
 
     const { rpcClient } = useRpcContext();
+    const isInPopup = !useContext(PanelOverlayContext);
     const [connectionFields, setConnectionFields] = useState<FormField[]>([]);
     const [recordTypeFields, setRecordTypeFields] = useState<RecordTypeField[]>([]);
     const [loading, setLoading] = useState<boolean>(false);
@@ -112,7 +114,11 @@ export function ConnectionCreator(props: ConnectionCreatorProps): JSX.Element {
         try {
             const response = await rpcClient
                 .getBIDiagramRpcClient()
-                .getSourceCode({ filePath: projectPath.current, flowNode: nodeTemplate });
+                .getSourceCode({
+                    filePath: projectPath.current,
+                    flowNode: nodeTemplate,
+                    isConnector: nodeTemplate?.codedata?.node === "NEW_CONNECTION",
+                });
             // Update the selected node with the new connection variable
             updateNodeWithConnectionVariable(connectionKind, selectedNode, nodeTemplate?.properties?.variable?.value as string);
             // Update the line range for the selected node if it was updated
@@ -143,6 +149,7 @@ export function ConnectionCreator(props: ConnectionCreatorProps): JSX.Element {
                         onSubmit={handleOnSave}
                         submitText={savingForm ? "Saving..." : "Save"}
                         disableSaveButton={savingForm}
+                        footerActionButton={isInPopup}
                         targetLineRange={targetLineRangeRef.current}
                         helperPaneSide="left"
                         isSaving={savingForm}

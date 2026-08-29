@@ -32,27 +32,54 @@ import java.util.Set;
  */
 public final class Workflow extends DesignGraphNode {
 
+    /** A plain {@code @workflow:Workflow} function. */
+    public static final String KIND_WORKFLOW = "WORKFLOW";
+    /** A module-level {@code workflow:DurableAgent} declaration. */
+    public static final String KIND_DURABLE_AGENT = "DURABLE_AGENT";
+
     private final String symbol;
     private final Location location;
+    private final String kind;
     private final Set<String> attachedServices;
     private final Set<String> attachedFunctions;
     private final List<Event> events;
     private final List<HumanTask> humanTasks;
     private final Set<String> activities;
+    // Connections used directly by the entity (e.g. a durable agent's model provider);
+    // the overview draws workflow -> connection edges for these plus the activity-derived set.
+    private final Set<String> connections;
     private final Set<String> invalidSendDataServices;
     private final Set<String> invalidSendDataFunctions;
 
     public Workflow(String symbol, String sortText, Location location) {
+        this(symbol, sortText, location, KIND_WORKFLOW);
+    }
+
+    public Workflow(String symbol, String sortText, Location location, String kind) {
         super(true, sortText);
         this.symbol = symbol;
         this.location = location;
+        this.kind = kind;
         this.attachedServices = new HashSet<>();
         this.attachedFunctions = new HashSet<>();
         this.events = new ArrayList<>();
         this.humanTasks = new ArrayList<>();
         this.activities = new HashSet<>();
+        this.connections = new HashSet<>();
         this.invalidSendDataServices = new HashSet<>();
         this.invalidSendDataFunctions = new HashSet<>();
+    }
+
+    public String getKind() {
+        return kind;
+    }
+
+    public Set<String> getConnections() {
+        return connections;
+    }
+
+    public void addConnection(String connectionUuid) {
+        this.connections.add(connectionUuid);
     }
 
     public Set<String> getInvalidSendDataServices() {

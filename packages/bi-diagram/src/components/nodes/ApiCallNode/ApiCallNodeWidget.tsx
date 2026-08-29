@@ -39,14 +39,20 @@ import {
     NODE_TEXT_COLOR,
     NODE_WIDTH,
 } from "../../../resources/constants";
-import { Button, Item, Menu, MenuItem, ThemeColors } from "@wso2/ui-toolkit";
+import { Button, Icon, Item, Menu, MenuItem, ThemeColors } from "@wso2/ui-toolkit";
 import { MoreVertIcon } from "../../../resources";
 import { FlowNode } from "../../../utils/types";
 import NodeIcon from "../../NodeIcon";
 import ConnectorIcon from "../../ConnectorIcon";
 import { useDiagramContext } from "../../DiagramContext";
 import { DiagnosticsPopUp } from "../../DiagnosticsPopUp";
-import { getDiffContainerStyles, getDiffTitleStyles, getNodeTitle, nodeHasError } from "../../../utils/node";
+import {
+    getDiffContainerStyles,
+    getDiffTitleStyles,
+    getNodeTitle,
+    getWorkflowFunctionName,
+    nodeHasError,
+} from "../../../utils/node";
 import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
 import { NodeMetadata } from "@wso2/ballerina-core";
 
@@ -223,8 +229,18 @@ export interface NodeWidgetProps extends Omit<ApiCallNodeWidgetProps, "children"
 
 export function ApiCallNodeWidget(props: ApiCallNodeWidgetProps) {
     const { model, engine, onClick } = props;
-    const { onNodeSelect, onConnectionSelect, goToSource, onDeleteNode, removeBreakpoint, addBreakpoint, readOnly, selectedNodeId } =
-        useDiagramContext();
+    const {
+        onNodeSelect,
+        onConnectionSelect,
+        goToSource,
+        onDeleteNode,
+        removeBreakpoint,
+        addBreakpoint,
+        readOnly,
+        selectedNodeId,
+        openView,
+        project,
+    } = useDiagramContext();
 
     const isSelected = selectedNodeId === model.node.id;
 
@@ -265,7 +281,28 @@ export function ApiCallNodeWidget(props: ApiCallNodeWidgetProps) {
     const processFunctionProperty = (model.node.properties as any)?.processFunction;
     const connectionValue = connectionProperty?.value as string | undefined;
     const fallbackEndpointValue = processFunctionProperty?.value as string | undefined;
-    const endpointLabel = connectionValue ?? fallbackEndpointValue ?? "";
+    // A child workflow statement targets a workflow rather than a connection: the form carries it
+    // as the selected workflow, and a statement read back from source carries it as the node's
+    // second line, so the arrow points at the workflow being run either way.
+    const workflowValue = (model.node.properties as any)?.workflow?.value as string | undefined;
+    const isWorkflowTarget = model.node.codedata?.node?.startsWith("CHILD_WORKFLOW")
+        || model.node.codedata?.node === "WORKFLOW_RUN";
+    // A child workflow statement carries the workflow it concerns as its second line. A workflow
+    // run does not — its second line is the node's own description, so using it here printed the
+    // documentation instead of a name. Only the child statements may fall back to it.
+    const childWorkflowTarget = model.node.codedata?.node?.startsWith("CHILD_WORKFLOW")
+        ? model.node.metadata?.description
+        : undefined;
+    // A workflow run keeps the workflow it runs as its symbol — the property the form uses is
+    // dropped when the statement is read back, so the symbol is where the name actually is.
+    const runWorkflowTarget = model.node.codedata?.node === "WORKFLOW_RUN"
+        ? model.node.codedata?.symbol
+        : undefined;
+    const endpointLabel =
+        connectionValue ?? fallbackEndpointValue ?? workflowValue ?? childWorkflowTarget ?? runWorkflowTarget ?? "";
+    // The workflow the side icon stands for: clicking it opens that workflow, the way clicking a
+    // connection opens the connection it stands for.
+    const workflowTargetName = isWorkflowTarget ? getWorkflowFunctionName(endpointLabel) : "";
     const connectorType = (connectionProperty?.metadata?.data as NodeMetadata | undefined)?.connectorType;
 
     useEffect(() => {
@@ -305,6 +342,29 @@ export function ApiCallNodeWidget(props: ApiCallNodeWidgetProps) {
             onNodeClick();
         }
         setMenuPos(null);
+    };
+
+    // A workflow node's side icon is the workflow being run, so clicking it goes there. A workflow
+    // that cannot be located (one from a dependency, say) falls back to the connection behaviour
+    // rather than swallowing the click.
+    const onWorkflowClick = async (event?: React.MouseEvent<SVGElement>) => {
+        // A read-only diagram handles the click no differently than it did before this handler existed,
+        // so the event is left to propagate as it used to.
+        if (readOnly) {
+            return;
+        }
+        event?.stopPropagation();
+        if (workflowTargetName) {
+            const functionLocation = await project?.getFunctionLocation?.(workflowTargetName);
+            // Both are needed to navigate: without either, the click falls through to the connection
+            // behaviour rather than being swallowed.
+            if (functionLocation && openView) {
+                openView(functionLocation);
+                setMenuPos(null);
+                return;
+            }
+        }
+        onConnectionClick();
     };
 
     const onGoToSource = () => {
@@ -457,10 +517,23 @@ export function ApiCallNodeWidget(props: ApiCallNodeWidgetProps) {
                 width={NODE_GAP_X + NODE_HEIGHT + LABEL_HEIGHT}
                 height={NODE_HEIGHT + LABEL_HEIGHT}
                 viewBox="0 0 130 70"
-                onClick={onConnectionClick}
+                onClick={isWorkflowTarget ? onWorkflowClick : onConnectionClick}
                 onMouseEnter={() => !readOnly && setIsCircleHovered(true)}
                 onMouseLeave={() => setIsCircleHovered(false)}
             >
+                {isWorkflowTarget ? (
+                    <rect
+                        x="58"
+                        y="2"
+                        width="44"
+                        height="44"
+                        rx="12"
+                        fill={NODE_BG_COLOR}
+                        stroke={isCircleHovered && !disabled ? NODE_BORDER_SELECTED_COLOR : NODE_BORDER_COLOR}
+                        strokeWidth={1.5}
+                        opacity={disabled ? 0.7 : 1}
+                    />
+                ) : (
                 <circle
                     cx="80"
                     cy="24"
@@ -475,6 +548,7 @@ export function ApiCallNodeWidget(props: ApiCallNodeWidgetProps) {
                         transition: 'filter 0.1s ease',
                     }}
                 />
+                )}
                 <text
                     x="80"
                     y="66"
@@ -486,6 +560,9 @@ export function ApiCallNodeWidget(props: ApiCallNodeWidgetProps) {
                     {endpointLabel.length > 16 ? `${endpointLabel.slice(0, 16)}...` : endpointLabel}
                 </text>
                 <foreignObject x="68" y="12" width="24" height="24" fill={NODE_TEXT_COLOR}>
+                    {isWorkflowTarget ? (
+                        <Icon name="bi-flowchart" sx={{ width: 24, height: 24, fontSize: 24 }} />
+                    ) : (
                     <ConnectorIcon
                         url={model.node.metadata.icon}
                         style={{
@@ -498,6 +575,7 @@ export function ApiCallNodeWidget(props: ApiCallNodeWidgetProps) {
                         codedata={model.node?.codedata}
                         connectorType={connectorType}
                     />
+                    )}
                 </foreignObject>
                 <line
                     x1="0"

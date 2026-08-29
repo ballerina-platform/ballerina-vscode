@@ -1,0 +1,112 @@
+{
+  "filePath": "update_ftp_listener.bal",
+  "description": "Regression: updateListener must run the save-time validation gate (like addServiceAndListener/addFunction/updateFunction/updateService already do) instead of silently emitting edits for a model that fails a required-field rule",
+  "listener": {
+    "name": "Ftp Listener",
+    "type": "ftp",
+    "displayName": "Ftp",
+    "description": "FTP listener",
+    "moduleName": "ftp",
+    "orgName": "ballerina",
+    "version": "2.16.0",
+    "packageName": "ftp",
+    "listenerProtocol": "ftp",
+    "icon": "",
+    "properties": {
+      "variableNameKey": {
+        "metadata": {
+          "label": "Name",
+          "description": "The name of the listener"
+        },
+        "codedata": {
+          "lineRange": {
+            "fileName": "update_ftp_listener.bal",
+            "startLine": {
+              "line": 2,
+              "offset": 22
+            },
+            "endLine": {
+              "line": 2,
+              "offset": 31
+            }
+          }
+        },
+        "value": "listener1",
+        "types": [
+          {
+            "fieldType": "IDENTIFIER",
+            "selected": true
+          }
+        ],
+        "enabled": true,
+        "editable": false,
+        "optional": false,
+        "advanced": false
+      },
+      "listenerType": {
+        "metadata": {
+          "label": "Listener Type",
+          "description": "The type of the listener"
+        },
+        "value": "Listener",
+        "types": [
+          {
+            "fieldType": "TYPE",
+            "selected": true
+          }
+        ],
+        "enabled": false,
+        "editable": false,
+        "optional": false,
+        "advanced": false
+      },
+      "host": {
+        "metadata": {
+          "label": "Host",
+          "description": "FTP server host"
+        },
+        "codedata": {
+          "type": "LISTENER_INIT_PARAM",
+          "originalName": "host"
+        },
+        "placeholder": "\"127.0.0.1\"",
+        "value": "",
+        "types": [
+          {
+            "fieldType": "TEXT",
+            "ballerinaType": "string",
+            "selected": true,
+            "validations": [
+              {
+                "rule": "common.validate.required"
+              }
+            ]
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string",
+            "selected": false
+          }
+        ],
+        "enabled": true,
+        "editable": true,
+        "optional": true,
+        "advanced": false
+      }
+    },
+    "codedata": {
+      "lineRange": {
+        "fileName": "update_ftp_listener.bal",
+        "startLine": {
+          "line": 2,
+          "offset": 0
+        },
+        "endLine": {
+          "line": 2,
+          "offset": 59
+        }
+      }
+    }
+  },
+  "output": {}
+}

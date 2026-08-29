@@ -135,10 +135,12 @@ export interface ResourceAccordionProps {
     onDeleteResource: (resource: FunctionModel) => void;
     onResourceImplement: (resource: FunctionModel) => void;
     deletionTypeLabel?: string;
+    /** Grays out the edit button even when the resource is otherwise editable (nothing to configure). */
+    editDisabled?: boolean;
 }
 
 export function ResourceAccordion(params: ResourceAccordionProps) {
-    const { functionModel, method, goToSource, onEditResource, onDeleteResource, onResourceImplement, deletionTypeLabel } = params;
+    const { functionModel, method, goToSource, onEditResource, onDeleteResource, onResourceImplement, deletionTypeLabel, editDisabled } = params;
 
     const [isOpen, setIsOpen] = useState(false);
     const [isConfirmOpen, setConfirmOpen] = useState(false);
@@ -196,27 +198,32 @@ export function ResourceAccordion(params: ResourceAccordionProps) {
             <AccordionHeader onClick={handleResourceImplement}>
                 <MethodSection>
                     <MethodBox>
-                        {method || "Event"}
+                        {functionModel.metadata?.badge || method || "Event"}
                     </MethodBox>
                     <MethodPath>{functionModel.name.value}</MethodPath>
                 </MethodSection>
                 {functionModel &&
                     <ButtonSection>
                         <>
-                            {onEditResource! && (
-                                <ActionButton id="bi-edit" appearance="secondary" onClick={handleEditResource} disabled={!functionModel.editable && !canDataBind(functionModel)}>
+                            {onEditResource && (
+                                <ActionButton
+                                    id="bi-edit"
+                                    appearance="secondary"
+                                    onClick={handleEditResource}
+                                    disabled={editDisabled || (!functionModel.editable && !canDataBind(functionModel))}
+                                >
                                     <Icon
                                         name="bi-settings"
                                         sx={{
-                                            cursor: !functionModel.editable ? "not-allowed" : "pointer",
-                                            opacity: !functionModel.editable ? 0.5 : 1,
+                                            cursor: editDisabled || !functionModel.editable ? "not-allowed" : "pointer",
+                                            opacity: editDisabled || !functionModel.editable ? 0.5 : 1,
                                             fontSize: "16px",
                                             width: "16px",
                                         }}
                                     />
                                 </ActionButton >
                             )}
-                            {onDeleteResource! && (
+                            {onDeleteResource && (
                                 <ActionButton id="bi-delete" appearance="secondary" onClick={handleDeleteResource} disabled={!functionModel.optional}>
                                     <Codicon
                                         name="trash"

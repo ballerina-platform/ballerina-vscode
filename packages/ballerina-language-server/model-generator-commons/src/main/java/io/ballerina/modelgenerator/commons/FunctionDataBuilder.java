@@ -64,11 +64,11 @@ import io.ballerina.projects.ModuleName;
 import io.ballerina.projects.Package;
 import io.ballerina.projects.PackageDescriptor;
 import io.ballerina.projects.Project;
+import io.ballerina.projects.ProjectException;
 import io.ballerina.runtime.api.utils.IdentifierUtils;
 import io.ballerina.tools.text.LinePosition;
 import org.ballerinalang.langserver.LSClientLogger;
 import org.ballerinalang.langserver.common.utils.CommonUtil;
-import org.ballerinalang.langserver.commons.BallerinaCompilerApi;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceManager;
 import org.eclipse.lsp4j.MessageType;
 
@@ -78,11 +78,13 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Stream;
 
 import static io.ballerina.modelgenerator.commons.FunctionData.Kind.isAiClassKind;
@@ -276,26 +278,46 @@ public class FunctionDataBuilder {
     }
 
     private void resolvePackageAndSemanticModel() {
+        // A caller may have already resolved the package from a non-Central repository.
+        // Do not discard that explicit resolution by resolving the same module from Central again.
+        if (resolvedPackage != null) {
+            return;
+        }
         if (workspaceManager != null && filePath != null) {
             boolean isLocal = PackageUtil.isLocalFunction(workspaceManager, filePath,
                     moduleInfo.org(), moduleInfo.moduleName());
             if (isLocal) {
                 // For local functions: use current workspace package + document + semantic model
                 Optional<Project> optProject = workspaceManager.project(filePath);
-                if (optProject.isEmpty()) {
-                    return;
+                if (optProject.isPresent()) {
+                    Package currentPackage = optProject.get().currentPackage();
+                    try {
+                        Document document = currentPackage.getDefaultModule()
+                                .document(currentPackage.project().documentId(filePath));
+                        Optional<SemanticModel> localModel = workspaceManager.semanticModel(filePath);
+                        if (localModel.isPresent()) {
+                            this.resolvedPackage(currentPackage)
+                                    .document(document)
+                                    .project(currentPackage.project())
+                                    .semanticModel(localModel.get());
+                            return;
+                        }
+                    } catch (ProjectException ignored) {
+                        // Fall through to the workspace/central resolution path.
+                    }
                 }
-                Package currentPackage = optProject.get().currentPackage();
-                Module defaultModule = currentPackage.getDefaultModule();
-                Document document = defaultModule.document(currentPackage.project().documentId(filePath));
+            }
+        }
 
-                this.resolvedPackage(currentPackage)
-                        .document(document)
-                        .project(currentPackage.project());
-
-                // Set semantic model automatically for local functions
-                SemanticModel semanticModel = workspaceManager.semanticModel(filePath).orElseThrow();
-                this.semanticModel(semanticModel);
+        // Resolve packages in the current workspace before looking in the local cache or Central. A workspace
+        // package can also exist in the cache, but that copy may be stale and resolvedPackage() initially selects
+        // its default module. In particular, this would make a function in a sibling package's submodule invisible.
+        if (project != null) {
+            Optional<PackageUtil.WorkspacePackageResolution> workspaceResolution =
+                    PackageUtil.getSemanticModelFromWorkspace(project,
+                            moduleInfo.org(), moduleInfo.packageName(), moduleInfo.moduleName(), moduleInfo.version());
+            if (workspaceResolution.isPresent()) {
+                applyWorkspaceResolution(workspaceResolution.get());
                 return;
             }
         }
@@ -307,13 +329,17 @@ public class FunctionDataBuilder {
     }
 
     private void updateModuleInfo() {
-        // Update version from resolved package if available
+        // Use the resolved package identity when the request omits package information, as workspace modules
+        // can be identified by their module name alone.
         if (resolvedPackage != null && moduleInfo != null) {
+            String packageName = moduleInfo.packageName();
+            if (packageName == null || packageName.isBlank()) {
+                packageName = resolvedPackage.descriptor().name().value();
+            }
             String resolvedVersion = resolvedPackage.descriptor().version().toString();
-            // Always update moduleInfo with the resolved version to ensure consistency
             this.moduleInfo = new ModuleInfo(
                 moduleInfo.org(),
-                moduleInfo.packageName(),
+                packageName,
                 moduleInfo.moduleName(),
                 resolvedVersion
             );
@@ -351,25 +377,11 @@ public class FunctionDataBuilder {
 
         checkLocalModule();
 
-        // Check if the package exists in the workspace
+        // Check if the package exists in the workspace. This is retained as a fallback for builders that derive or
+        // replace their project while resolving local data.
         if (semanticModel == null && project != null) {
-            BallerinaCompilerApi compilerApi = BallerinaCompilerApi.getInstance();
-            Optional<Project> workspaceProject = compilerApi.getWorkspaceProject(project);
-            if (workspaceProject.isPresent()) {
-                List<Project> childProjects = compilerApi.getWorkspaceProjectsInOrder(workspaceProject.get());
-                for (Project childProject : childProjects) {
-                    Package currentPackage = childProject.currentPackage();
-                    String currentPackageName = currentPackage.packageName().value();
-                    if (currentPackage.packageOrg().value().equals(moduleInfo.org()) &&
-                            (currentPackageName.equals(moduleInfo.packageName()) ||
-                                    currentPackageName.equals(moduleInfo.moduleName()))) {
-                        // TODO: Extend the support for sub-modules of a project.
-                        semanticModel(PackageUtil.getCompilation(childProject)
-                                .getSemanticModel(currentPackage.getDefaultModule().moduleId()));
-                        break;
-                    }
-                }
-            }
+            PackageUtil.getSemanticModelFromWorkspace(project, moduleInfo.org(), moduleInfo.packageName(),
+                    moduleInfo.moduleName(), moduleInfo.version()).ifPresent(this::applyWorkspaceResolution);
         }
 
         // Check the index before attempting external package resolution.
@@ -556,6 +568,20 @@ public class FunctionDataBuilder {
         return functionData;
     }
 
+    private void applyWorkspaceResolution(PackageUtil.WorkspacePackageResolution workspaceResolution) {
+        SemanticModel workspaceSemanticModel = workspaceResolution.semanticModel();
+        Package workspacePackage = workspaceResolution.resolvedPackage();
+        semanticModel(workspaceSemanticModel);
+        this.resolvedPackage = workspacePackage;
+        Symbol targetSymbol = functionSymbol != null ? functionSymbol : workspaceSemanticModel.moduleSymbols().stream()
+                .filter(symbol -> symbol instanceof FunctionSymbol && symbol.nameEquals(functionName))
+                .findFirst()
+                .orElse(null);
+        this.document = targetSymbol == null ? null : targetSymbol.getLocation()
+                .map(location -> CommonUtils.getDocument(workspacePackage.project(), location))
+                .orElse(null);
+    }
+
     private void checkLocalModule() {
         if (project != null && moduleInfo != null && isLocal()) {
             for (Module module : project.currentPackage().modules()) {
@@ -601,8 +627,9 @@ public class FunctionDataBuilder {
                     }
                     if (functionKind == FunctionData.Kind.CLASS_INIT || isConnector(functionKind)
                             || isAiClassKind(functionKind)) {
-                        return CommonUtils.getClassType(moduleInfo.moduleName(),
-                                parentSymbol.getName().orElse("Client"));
+                        String className = parentSymbol.getName().orElse("Client");
+                        return isSameAsUserModule() ? className
+                                : CommonUtils.getClassType(moduleInfo.moduleName(), className);
                     }
                     return getTypeSignature(typeSymbol, true);
                 }).orElse("");
@@ -1036,42 +1063,110 @@ public class FunctionDataBuilder {
         return parameters;
     }
 
+    /**
+     * Collects every leaf type reachable from a type, flattening unions, arrays, maps, tables, streams,
+     * intersections and inline records into {@code typeMap}.
+     *
+     * <p><b>Bounded, because the type graph is not a tree.</b> An anonymous structural type can reach itself
+     * — {@code ballerinax/sap.jco} pairs an inline union with an inline record that contains it. Unbounded
+     * recursion there is a {@link StackOverflowError}, which being an {@code Error} escapes every
+     * {@code catch (RuntimeException)} on the way out and takes down the whole request.
+     *
+     * <p>Two independent guards, because either alone is insufficient:
+     * <ul>
+     *   <li><b>Depth.</b> A hard cap terminates regardless of the graph's shape and needs nothing from the
+     *       symbol API. {@value #MAX_MEMBER_DEPTH} is far past any hand-written type.</li>
+     *   <li><b>Repeat expansion.</b> A type already expanded contributes no new leaves the second time, so
+     *       skipping it keeps the common diamond-shaped graph from being walked exponentially. Keyed by
+     *       signature rather than identity, because the compiler API hands back a fresh symbol instance per
+     *       traversal.</li>
+     * </ul>
+     * The depth cap is what guarantees termination; the signature set is what keeps the walk cheap. A
+     * signature that cannot be computed degrades to depth-only rather than aborting.
+     *
+     * @param typeMap    collects the reachable leaf types, keyed by name
+     * @param typeSymbol the type to walk
+     */
     public static void allMembers(Map<String, TypeSymbol> typeMap, TypeSymbol typeSymbol) {
+        allMembers(typeMap, typeSymbol, new HashSet<>(), 0);
+    }
 
+    /** The deepest structural nesting {@link #allMembers} will walk before treating a type as a leaf. */
+    private static final int MAX_MEMBER_DEPTH = 64;
+
+    private static void allMembers(Map<String, TypeSymbol> typeMap, TypeSymbol typeSymbol,
+                                   Set<String> expanded, int depth) {
+        if (typeSymbol == null) {
+            return;
+        }
+        if (depth >= MAX_MEMBER_DEPTH) {
+            // Record what was reached rather than dropping it: a truncated leaf is still a real type.
+            typeMap.put(typeSymbol.getName().orElse(""), typeSymbol);
+            return;
+        }
         switch (typeSymbol.typeKind()) {
             case UNION -> {
+                if (alreadyExpanded(typeSymbol, expanded)) {
+                    return;
+                }
                 UnionTypeSymbol unionTypeSymbol = (UnionTypeSymbol) typeSymbol;
-                unionTypeSymbol.memberTypeDescriptors().forEach(memberType -> allMembers(typeMap, memberType));
+                unionTypeSymbol.memberTypeDescriptors()
+                        .forEach(memberType -> allMembers(typeMap, memberType, expanded, depth + 1));
             }
             case INTERSECTION -> {
+                if (alreadyExpanded(typeSymbol, expanded)) {
+                    return;
+                }
                 IntersectionTypeSymbol intersectionTypeSymbol = (IntersectionTypeSymbol) typeSymbol;
-                intersectionTypeSymbol.memberTypeDescriptors().forEach(memberType -> allMembers(typeMap, memberType));
+                intersectionTypeSymbol.memberTypeDescriptors()
+                        .forEach(memberType -> allMembers(typeMap, memberType, expanded, depth + 1));
             }
             case STREAM -> {
                 StreamTypeSymbol streamTypeSymbol = (StreamTypeSymbol) typeSymbol;
-                allMembers(typeMap, streamTypeSymbol.typeParameter());
-                allMembers(typeMap, streamTypeSymbol.completionValueTypeParameter());
+                allMembers(typeMap, streamTypeSymbol.typeParameter(), expanded, depth + 1);
+                allMembers(typeMap, streamTypeSymbol.completionValueTypeParameter(), expanded, depth + 1);
             }
             case ARRAY -> {
                 ArrayTypeSymbol arrayTypeSymbol = (ArrayTypeSymbol) typeSymbol;
-                allMembers(typeMap, arrayTypeSymbol.memberTypeDescriptor());
+                allMembers(typeMap, arrayTypeSymbol.memberTypeDescriptor(), expanded, depth + 1);
             }
             case MAP -> {
                 MapTypeSymbol mapTypeSymbol = (MapTypeSymbol) typeSymbol;
-                allMembers(typeMap, mapTypeSymbol.typeParam());
+                allMembers(typeMap, mapTypeSymbol.typeParam(), expanded, depth + 1);
             }
             case TABLE -> {
                 TableTypeSymbol tableTypeSymbol = (TableTypeSymbol) typeSymbol;
-                allMembers(typeMap, tableTypeSymbol.rowTypeParameter());
-                tableTypeSymbol.keyConstraintTypeParameter().ifPresent(keyType -> allMembers(typeMap, keyType));
+                allMembers(typeMap, tableTypeSymbol.rowTypeParameter(), expanded, depth + 1);
+                tableTypeSymbol.keyConstraintTypeParameter()
+                        .ifPresent(keyType -> allMembers(typeMap, keyType, expanded, depth + 1));
             }
             case RECORD -> {
+                if (alreadyExpanded(typeSymbol, expanded)) {
+                    return;
+                }
                 RecordTypeSymbol recordTypeSymbol = (RecordTypeSymbol) typeSymbol;
                 recordTypeSymbol.fieldDescriptors()
-                        .forEach((key, value) -> allMembers(typeMap, value.typeDescriptor()));
-                recordTypeSymbol.restTypeDescriptor().ifPresent(restType -> allMembers(typeMap, restType));
+                        .forEach((key, value) -> allMembers(typeMap, value.typeDescriptor(), expanded,
+                                depth + 1));
+                recordTypeSymbol.restTypeDescriptor()
+                        .ifPresent(restType -> allMembers(typeMap, restType, expanded, depth + 1));
             }
             default -> typeMap.put(typeSymbol.getName().orElse(""), typeSymbol);
+        }
+    }
+
+    /**
+     * Whether this composite type has been expanded already in this walk, recording it when it has not.
+     *
+     * <p>A signature that cannot be computed returns {@code false}, which means "expand it": the depth cap
+     * still bounds the walk, so degrading to depth-only is safe, whereas refusing to expand would silently
+     * drop the type's members.
+     */
+    private static boolean alreadyExpanded(TypeSymbol typeSymbol, Set<String> expanded) {
+        try {
+            return !expanded.add(typeSymbol.signature());
+        } catch (RuntimeException | StackOverflowError e) {
+            return false;
         }
     }
 
@@ -1158,10 +1253,14 @@ public class FunctionDataBuilder {
     }
 
     private String getImportStatement(ModuleInfo moduleInfo) {
-        if (isCurrentModule && moduleInfo.equals(userModuleInfo)) {
+        if (isSameAsUserModule()) {
             return null;
         }
         return CommonUtils.getImportStatement(moduleInfo.org(), moduleInfo.packageName(), moduleInfo.moduleName());
+    }
+
+    private boolean isSameAsUserModule() {
+        return isCurrentModule && moduleInfo.equals(userModuleInfo);
     }
 
     private String getImportStatements(TypeSymbol typeSymbol) {

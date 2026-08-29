@@ -1,0 +1,7 @@
+[package]
+org = "testorg"
+name = "sample_update_eval_template"
+version = "0.1.0"
+
+[build-options]
+observabilityIncluded = true

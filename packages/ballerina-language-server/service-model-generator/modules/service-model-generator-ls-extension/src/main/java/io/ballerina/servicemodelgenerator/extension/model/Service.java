@@ -51,6 +51,10 @@ public class Service {
     private Map<String, Value> properties;
     private Codedata codedata;
     private List<Function> functions;
+    // Schema-driven triggers (unified TriggerUISchemaModel) split the handlers in two: `functions` holds
+    // what exists in the user's source, `schemaFunctions` the connector-shipped addable catalog
+    // (one entry per handler variant, consumed entries removed). Null for every other service kind.
+    private List<Function> schemaFunctions;
 
     public Service(String id, String name, String type, String displayName, String moduleName, String orgName,
                    String version, String packageName, String listenerProtocol, String icon, Value documentation,
@@ -88,6 +92,14 @@ public class Service {
 
     public void addFunction(Function function) {
         this.functions.add(function);
+    }
+
+    public List<Function> getSchemaFunctions() {
+        return schemaFunctions;
+    }
+
+    public void setSchemaFunctions(List<Function> schemaFunctions) {
+        this.schemaFunctions = schemaFunctions;
     }
 
     public Codedata getCodedata() {

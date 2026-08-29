@@ -41,7 +41,12 @@
             "org": "org",
             "module": "agent",
             "symbol": "fn",
-            "version": "0.1.0"
+            "version": "0.1.0",
+            "isGenerated": false,
+            "data": {
+              "moduleRelation": "CURRENT_MODULE",
+              "moduleKind": "DEFAULT_MODULE"
+            }
           },
           "enabled": true
         },
@@ -59,7 +64,12 @@
             "org": "org",
             "module": "agent",
             "symbol": "fn2",
-            "version": "0.1.0"
+            "version": "0.1.0",
+            "isGenerated": false,
+            "data": {
+              "moduleRelation": "CURRENT_MODULE",
+              "moduleKind": "DEFAULT_MODULE"
+            }
           },
           "enabled": true
         },
@@ -77,7 +87,12 @@
             "org": "org",
             "module": "agent",
             "symbol": "fn1",
-            "version": "0.1.0"
+            "version": "0.1.0",
+            "isGenerated": false,
+            "data": {
+              "moduleRelation": "CURRENT_MODULE",
+              "moduleKind": "DEFAULT_MODULE"
+            }
           },
           "enabled": true
         }
@@ -110,7 +125,12 @@
             "org": "org",
             "module": "agent",
             "symbol": "foo",
-            "version": "0.1.0"
+            "version": "0.1.0",
+            "isGenerated": false,
+            "data": {
+              "moduleRelation": "CURRENT_MODULE",
+              "moduleKind": "DEFAULT_MODULE"
+            }
           },
           "enabled": true
         }

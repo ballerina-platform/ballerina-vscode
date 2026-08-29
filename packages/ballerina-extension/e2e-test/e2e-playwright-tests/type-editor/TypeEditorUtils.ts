@@ -167,7 +167,9 @@ export class TypeEditorUtils {
      * Save form and wait for completion
      */
     async saveAndWait(form: Form): Promise<void> {
-        await form.submit('Save');
+        // `force` — the floating Copilot orb/invite box has been observed to
+        // overlap and intercept pointer events on this button.
+        await form.submit('Save', true);
         await this.page.waitForTimeout(2000);
         await this.page.waitForLoadState('domcontentloaded');
     }

@@ -216,7 +216,7 @@ public class ConnectionActionProviderTest {
     public void testPolymorphicSerializationRoundTrip() {
         String key = "ballerina:http:http:Client:polymorphic";
         List<Item> expected = List.of(new Category(
-                new Metadata("Connections", "Connector actions", null, null, null, null, null),
+                new Metadata("Connections", "Connector actions", null, null, null, null, null, null),
                 List.of(availableNode("query", null, null), availableNode("close", null, null))));
 
         provider.getOrBuild(key, () -> expected);
@@ -315,7 +315,7 @@ public class ConnectionActionProviderTest {
 
     private static AvailableNode availableNode(String symbol, String parentSymbol, Map<String, Object> data) {
         return new AvailableNode(
-                new Metadata(symbol, symbol + " description", null, "icon-" + symbol, null, null, null),
+                new Metadata(symbol, symbol + " description", null, "icon-" + symbol, null, null, null, null),
                 new Codedata(NodeKind.METHOD_CALL, "ballerina", "http", "http", "Client", symbol, "1.0.0",
                         null, null, parentSymbol, null, null, false, false, null, data),
                 true);

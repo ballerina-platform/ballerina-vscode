@@ -30,6 +30,194 @@ import { Branch, FlowNode, FlowNodeDiffState } from "./types";
 
 const WORKFLOW_NODE_KINDS = new Set(["WORKFLOW_RUN", "ACTIVITY_CALL", "SEND_DATA", "WAIT_DATA", "HUMAN_TASK"]);
 
+// Durable-agentic-workflow register/add statements: rendered without the module prefix and
+// with the registered name (metadata.description) as the node's second line.
+const DURABLE_AGENT_REGISTER_NODE_KINDS = new Set([
+    "DURABLE_AGENT_REGISTER_EVENT",
+    "DURABLE_AGENT_REGISTER_TOOL",
+    "DURABLE_AGENT_ADD_ACTIVITY",
+    "DURABLE_AGENT_HUMAN_TASK",
+]);
+
+// Workflow and durable-agent statements are actions on the context or the agent — `ctx->callActivity`,
+// `ctx->runChildWorkflow`, `agent.sendData` — not calls into a module's API. Titling them
+// "workflow : <label>" misreads what they are, so they keep their plain action label.
+const WORKFLOW_ACTION_NODE_KINDS = new Set([
+    "ACTIVITY_CALL",
+    "CONNECTION_ACTIVITY_CALL",
+    "HUMAN_TASK",
+    "SEND_DATA",
+    "WAIT_DATA",
+    "UPDATE_DATA",
+    "WORKFLOW_RUN",
+    "CHILD_WORKFLOW_RUN",
+    "CHILD_WORKFLOW_CALL",
+    "CHILD_WORKFLOW_WAIT",
+    "CHILD_WORKFLOW_SEND_DATA",
+    "DURABLE_AGENT_RUN",
+    "DURABLE_AGENT_START",
+    "DURABLE_AGENT_UPDATE",
+    "DURABLE_AGENT_RESULT",
+    "DURABLE_AGENT_DATA_RESULT",
+]);
+
+export function isWorkflowActionNode(nodeOrKind?: FlowNode | string) {
+    if (!nodeOrKind) {
+        return false;
+    }
+
+    const nodeKind = typeof nodeOrKind === "string" ? nodeOrKind : nodeOrKind.codedata?.node;
+    return typeof nodeKind === "string" && WORKFLOW_ACTION_NODE_KINDS.has(nodeKind);
+}
+
+export function isDurableAgentRegisterNode(nodeOrKind?: FlowNode | string) {
+    if (!nodeOrKind) {
+        return false;
+    }
+
+    const nodeKind = typeof nodeOrKind === "string" ? nodeOrKind : nodeOrKind.codedata?.node;
+    return typeof nodeKind === "string" && DURABLE_AGENT_REGISTER_NODE_KINDS.has(nodeKind);
+}
+
+/**
+ * Whether a durable agent call suspends the caller until the agent answers.
+ *
+ * The waiting and non-waiting reads share a node kind — `waitForDataResult`/`getDataResult` and
+ * `waitForResult`/`getResult` — so the flag the language server attaches is what decides between
+ * the wait shape and a plain node.
+ */
+/**
+ * Whether a node is a workflow receiving one of its declared data events, as opposed to merely
+ * waiting on something. Receiving is the same act in a workflow and in an agent, so both show the
+ * agent box's receive-event icon.
+ */
+export function isReceiveEventNode(node?: FlowNode) {
+    return node?.codedata?.node === "WAIT_DATA";
+}
+
+/**
+ * Whether a node is a human task. A human task suspends the workflow on someone outside it acting,
+ * so it is drawn as a wait: the person on the left, an arrow into the body.
+ */
+export function isHumanTaskNode(node?: FlowNode) {
+    return node?.codedata?.node === "HUMAN_TASK";
+}
+
+/**
+ * The roles permitted to complete a human task, when the statement names them literally.
+ *
+ * The property holds a Ballerina expression (`string|string[]`), so it is only a set of role names
+ * we can put on the canvas when every element is a string literal — an identifier or a call is
+ * resolved at run time and would read as a role that does not exist.
+ */
+export function getHumanTaskUserRoles(node?: FlowNode): string[] {
+    const value = (node?.properties as any)?.userRoles?.value;
+    if (typeof value !== "string") {
+        return [];
+    }
+
+    const expression = value.trim();
+    const isListLiteral = expression.startsWith("[") && expression.endsWith("]");
+    const elements = splitListElements(isListLiteral ? expression.slice(1, -1) : expression);
+
+    if (elements.length === 0 || !elements.every((element) => /^(".*"|'.*')$/.test(element))) {
+        return [];
+    }
+
+    return elements.map((element) => normalizeNodePropertyValue(element)).filter(Boolean);
+}
+
+/**
+ * The elements of a list literal's body, split on the commas that separate them rather than on every
+ * comma: a comma inside a role name (`"finance,approver"`) belongs to the name, and splitting there
+ * would leave two halves that are not literals — so the roles would silently not render at all.
+ */
+function splitListElements(body: string): string[] {
+    const elements: string[] = [];
+    let current = "";
+    let quote: string | undefined;
+    let escaped = false;
+
+    for (const char of body) {
+        if (escaped) {
+            current += char;
+            escaped = false;
+            continue;
+        }
+        if (quote && char === "\\") {
+            current += char;
+            escaped = true;
+            continue;
+        }
+        if (quote) {
+            current += char;
+            if (char === quote) {
+                quote = undefined;
+            }
+            continue;
+        }
+        if (char === '"' || char === "'") {
+            quote = char;
+            current += char;
+            continue;
+        }
+        if (char === ",") {
+            elements.push(current);
+            current = "";
+            continue;
+        }
+        current += char;
+    }
+    elements.push(current);
+
+    return elements.map((element) => element.trim()).filter(Boolean);
+}
+
+export function isWaitingAgentCall(node?: FlowNode) {
+    return (node?.metadata?.data as { waits?: boolean } | undefined)?.waits === true;
+}
+
+/**
+ * The data-event channel a durable agent send/wait concerns, used as the node's title so it reads
+ * "Send to &lt;event&gt;" / "Wait for &lt;event&gt;". Absent when the channel is not statically known.
+ */
+export function getAgentDataEventName(node?: FlowNode) {
+    return (node?.metadata?.data as { dataName?: string } | undefined)?.dataName;
+}
+
+/**
+ * A property value as it should be read: a string value arrives quoted when the statement carried a
+ * string literal, and the quotes are not part of what the node names.
+ */
+export function normalizeNodePropertyValue(value?: string): string {
+    if (typeof value !== "string") {
+        return "";
+    }
+
+    const trimmed = value.trim();
+    // Only a matched pair is quoting. An unbalanced quote is part of the value, and stripping one end
+    // of it would quietly change what the node names.
+    const quote = trimmed.charAt(0);
+    if (trimmed.length >= 2 && (quote === '"' || quote === "'") && trimmed.endsWith(quote)) {
+        return trimmed.slice(1, -1);
+    }
+    return trimmed;
+}
+
+/**
+ * The bare function name of a workflow a node targets. The value reaches the widget in whatever
+ * shape the statement wrote it — quoted, module-qualified (`orders:orderWorkflow`), or as a call
+ * (`orderWorkflow(...)`) — and only the name resolves to a location.
+ */
+export function getWorkflowFunctionName(value?: string): string {
+    const normalizedValue = normalizeNodePropertyValue(value);
+    if (!normalizedValue) {
+        return "";
+    }
+
+    return normalizedValue.split(":").pop()?.split("(")[0]?.trim() ?? normalizedValue;
+}
+
 export interface DiffStatePresentation {
     symbol: "+" | "−" | "~";
     label: "Added" | "Removed" | "Modified";
@@ -248,7 +436,19 @@ export function getNodeTitle(node: FlowNode) {
         }
     }
 
+    // Durable-agentic-workflow register statements keep their plain label ("Register Event", ...)
+    // without the module prefix; the registered name renders as the node's second line instead.
+    if (isDurableAgentRegisterNode(node)) {
+        return node.metadata?.label ?? node.codedata.node;
+    }
+
     const label = node.metadata.label.includes(".") ? node.metadata.label.split(".").pop() : node.metadata.label;
+
+    // An action keeps its own name: the module prefix would describe where the API lives, which is
+    // not what these statements are.
+    if (isWorkflowActionNode(node)) {
+        return label;
+    }
 
     if (node.codedata?.org === "ballerina" || node.codedata?.org === "ballerinax") {
         const module = node.codedata.module?.includes(".")

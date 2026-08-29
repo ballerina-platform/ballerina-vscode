@@ -44,7 +44,9 @@ import {
     getAvailableChatAgents,
     switchChatAgent,
     activeAgentChanged,
-    tracingStatusChanged
+    tracingStatusChanged,
+    submitDecision,
+    SubmitDecisionRequest
 } from "@wso2/ballerina-core";
 import { HOST_EXTENSION } from "vscode-messenger-common";
 import { Messenger } from "vscode-messenger-webview";
@@ -62,6 +64,10 @@ export class AgentChatRpcClient implements AgentChatAPI {
 
     abortChatRequest(): void {
         return this._messenger.sendNotification(abortChatRequest, HOST_EXTENSION);
+    }
+
+    submitDecision(params: SubmitDecisionRequest): Promise<ChatRespMessage> {
+        return this._messenger.sendRequest(submitDecision, HOST_EXTENSION, params);
     }
 
     getTracingStatus(params: TraceStatusRequest = {}): Promise<TraceStatus> {

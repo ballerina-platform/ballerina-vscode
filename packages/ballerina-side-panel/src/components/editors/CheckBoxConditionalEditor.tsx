@@ -24,16 +24,22 @@ import { FieldFactory } from "./FieldFactory";
 import { useFormContext } from "../../context";
 import { getPrimaryInputType, PropertyModel } from "@wso2/ballerina-core";
 
+// align-items: start is deliberate. Grid's default (stretch) combined with height:100% controls
+// (e.g. the AutoComplete editor's container) inflates a revealed sub-field to the full row height,
+// so its input/chevron stretches down over the following section. Self-sizing the items keeps each
+// sub-field at its natural height, matching how fields render inside the normal flex form rows.
 const Form = styled.div`
     display: grid;
     gap: 20px;
     width: 100%;
+    align-items: start;
 `;
 
 const FormSection = styled.div`
     display: grid;
     gap: 20px;
     width: 100%;
+    align-items: start;
 `;
 
 const Label = styled.div`
@@ -57,7 +63,6 @@ const BoxGroup = styled.div`
     flex-direction: row;
     width: 100%;
     align-items: flex-start;
-    gap: 10px;
 `;
 
 interface CheckBoxConditionalEditorProps {
@@ -188,7 +193,8 @@ function mapPropertiesToFormFields(properties: { [key: string]: PropertyModel; }
         }
 
         let items = undefined;
-        if (getPrimaryInputType(property.types)?.fieldType === "MULTIPLE_SELECT" || getPrimaryInputType(property.types)?.fieldType === "SINGLE_SELECT") {
+        const primaryFieldType = getPrimaryInputType(property.types)?.fieldType;
+        if (primaryFieldType === "MULTIPLE_SELECT" || primaryFieldType === "SINGLE_SELECT" || primaryFieldType === "AUTOCOMPLETE") {
             items = property.items;
         }
 
@@ -205,6 +211,7 @@ function mapPropertiesToFormFields(properties: { [key: string]: PropertyModel; }
             advanced: property.advanced,
             diagnostics: [],
             items,
+            allowItemCreate: property.allowItemCreate,
             choices: property.choices,
             placeholder: property.placeholder,
             addNewButton: property.addNewButton,

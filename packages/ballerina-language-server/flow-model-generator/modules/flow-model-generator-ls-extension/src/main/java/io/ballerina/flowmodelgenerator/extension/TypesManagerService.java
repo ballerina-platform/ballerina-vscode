@@ -19,6 +19,7 @@
 package io.ballerina.flowmodelgenerator.extension;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonIOException;
 import com.google.gson.JsonObject;
@@ -36,9 +37,9 @@ import io.ballerina.flowmodelgenerator.core.converters.JsonToTypeMapper;
 import io.ballerina.flowmodelgenerator.core.model.Codedata;
 import io.ballerina.flowmodelgenerator.core.model.PropertyTypeMemberInfo;
 import io.ballerina.flowmodelgenerator.core.model.TypeData;
+import io.ballerina.flowmodelgenerator.core.type.AmbiguousTypeCastResolver;
 import io.ballerina.flowmodelgenerator.core.type.RecordValueGenerator;
 import io.ballerina.flowmodelgenerator.core.type.TypeSymbolAnalyzerFromTypeModel;
-import io.ballerina.flowmodelgenerator.core.utils.FileSystemUtils;
 import io.ballerina.flowmodelgenerator.extension.request.DeleteTypeRequest;
 import io.ballerina.flowmodelgenerator.extension.request.FilePathRequest;
 import io.ballerina.flowmodelgenerator.extension.request.FindTypeRequest;
@@ -60,6 +61,7 @@ import io.ballerina.flowmodelgenerator.extension.response.TypeOfExpressionRespon
 import io.ballerina.flowmodelgenerator.extension.response.TypeResponse;
 import io.ballerina.flowmodelgenerator.extension.response.TypeUpdateResponse;
 import io.ballerina.flowmodelgenerator.extension.response.VerifyTypeDeleteResponse;
+import io.ballerina.modelgenerator.commons.FileSystemUtils;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.projects.Document;
@@ -103,7 +105,7 @@ public class TypesManagerService implements ExtendedLanguageServerService {
     private WorkspaceManagerProxy workspaceManagerProxy;
 
     // Cache key for SemanticModel
-    private record CacheKey(String org, String packageName, String version) {
+    private record CacheKey(String org, String packageName, String moduleName, String version) {
     }
 
     // Cache for SemanticModel instances
@@ -133,17 +135,18 @@ public class TypesManagerService implements ExtendedLanguageServerService {
             try {
                 Path filePath = PathUtil.convertUriStringToPath(request.filePath());
                 WorkspaceManager workspaceManager = this.workspaceManagerProxy.get(request.filePath());
-                workspaceManager.loadProject(filePath);
-                Optional<Document> document = workspaceManager.document(filePath);
-                Optional<SemanticModel> semanticModel = workspaceManager.semanticModel(filePath);
-                if (document.isEmpty() || semanticModel.isEmpty()) {
+                Optional<FileSystemUtils.ModuleModel> moduleModel =
+                        FileSystemUtils.resolveModuleModel(workspaceManager, filePath);
+                if (moduleModel.isEmpty()) {
+                    response.setTypes(new JsonArray());
                     return response;
                 }
-                TypesManager typesManager = new TypesManager(document.get());
-                JsonElement allTypes = typesManager.getAllTypes(semanticModel.get());
+                TypesManager typesManager = new TypesManager(moduleModel.get().document());
+                JsonElement allTypes = typesManager.getAllTypes(moduleModel.get().semanticModel());
                 response.setTypes(allTypes);
             } catch (Throwable e) {
-                throw new RuntimeException(e);
+                response.setTypes(new JsonArray());
+                response.setError(e);
             }
             return response;
         });
@@ -486,7 +489,30 @@ public class TypesManagerService implements ExtendedLanguageServerService {
         return CompletableFuture.supplyAsync(() -> {
             RecordValueGenerateResponse response = new RecordValueGenerateResponse();
             try {
-                response.setRecordValue(RecordValueGenerator.generate(request.type().getAsJsonObject()));
+                JsonObject typeJson = request.type().getAsJsonObject();
+
+                // A type constraint surfaces a top-level union ambiguity; codedata alone is enough to probe the
+                // concrete type for a nested ambiguity. Either is sufficient to attempt cast resolution.
+                String typeConstraint = request.typeConstraint();
+                if ((typeConstraint != null && !typeConstraint.isBlank()) || request.codedata() != null) {
+                    // Probing is best-effort: an invalid typeConstraint/codedata/filePath must never fail the
+                    // request — fall back to the bare value the endpoint would have produced before.
+                    try {
+                        Path filePath = PathUtil.convertUriStringToPath(request.filePath());
+                        WorkspaceManager workspaceManager = this.workspaceManagerProxy.get(request.filePath());
+                        Project project = workspaceManager.loadProject(filePath);
+                        Optional<Document> document = workspaceManager.document(filePath);
+                        Optional<SemanticModel> semanticModel = workspaceManager.semanticModel(filePath);
+                        if (document.isPresent() && semanticModel.isPresent()) {
+                            AmbiguousTypeCastResolver.applyAmbiguityCasts(project, document.get(),
+                                    semanticModel.get(), typeConstraint, request.codedata(), typeJson);
+                        }
+                    } catch (Throwable ignored) {
+                        // Best-effort cast probing failed; return the bare value below.
+                    }
+                }
+
+                response.setRecordValue(RecordValueGenerator.generate(typeJson));
             } catch (Throwable e) {
                 response.setError(e);
             }
@@ -606,13 +632,14 @@ public class TypesManagerService implements ExtendedLanguageServerService {
 
     private Optional<SemanticModel> getCachedSemanticModel(String org, String packageName, String moduleName,
                                                            String version, Path filePath) {
+        String normalizedModuleName = moduleName == null || moduleName.isBlank() ? packageName : moduleName;
         // Check cache with filePath
-        CacheKey keyWithPath = new CacheKey(org, packageName, version);
+        CacheKey keyWithPath = new CacheKey(org, packageName, normalizedModuleName, version);
         // Try to load via filePath-specific method
 
         WorkspaceManager workspaceManager = this.workspaceManagerProxy.get();
         Optional<SemanticModel> model = PackageUtil.getSemanticModelIfMatched(workspaceManager, filePath, org,
-                packageName, moduleName, version);
+                packageName, normalizedModuleName, version);
         if (model.isPresent()) {
             semanticModelCache.put(keyWithPath, model.get());
             return model;
@@ -624,7 +651,7 @@ public class TypesManagerService implements ExtendedLanguageServerService {
         }
 
         // Fallback to general package lookup
-        CacheKey keyWithoutPath = new CacheKey(org, packageName, version);
+        CacheKey keyWithoutPath = new CacheKey(org, packageName, normalizedModuleName, version);
         cachedModel = semanticModelCache.get(keyWithoutPath);
         if (cachedModel != null) {
             return Optional.of(cachedModel);
@@ -634,7 +661,8 @@ public class TypesManagerService implements ExtendedLanguageServerService {
         try {
             Project project = workspaceManager.loadProject(filePath);
             Optional<SemanticModel> workspaceModel = PackageUtil.getSemanticModelFromWorkspace(
-                    project, org, packageName, moduleName);
+                            project, org, packageName, normalizedModuleName, version)
+                    .map(PackageUtil.WorkspacePackageResolution::semanticModel);
             if (workspaceModel.isPresent()) {
                 semanticModelCache.put(keyWithoutPath, workspaceModel.get());
                 return workspaceModel;
@@ -643,7 +671,7 @@ public class TypesManagerService implements ExtendedLanguageServerService {
             // Fall through to general package lookup
         }
 
-        ModuleInfo moduleInfo = new ModuleInfo(org, packageName, moduleName, version);
+        ModuleInfo moduleInfo = new ModuleInfo(org, packageName, normalizedModuleName, version);
         model = PackageUtil.getSemanticModel(moduleInfo);
         model.ifPresent(m -> semanticModelCache.put(keyWithoutPath, m));
         return model;

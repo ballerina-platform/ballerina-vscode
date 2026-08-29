@@ -17,7 +17,7 @@
     "metadata": {
       "label": "toJson",
       "description": "Converts a value of type `anydata` to `json`.\n",
-      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_data.jsondata_1.1.3.png"
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_data.jsondata_1.1.4.png"
     },
     "codedata": {
       "node": "FUNCTION_CALL",

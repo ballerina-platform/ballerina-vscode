@@ -20,20 +20,29 @@ package io.ballerina.servicemodelgenerator.extension.util;
 
 import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.api.symbols.AnnotationSymbol;
+import io.ballerina.compiler.api.symbols.ClassSymbol;
 import io.ballerina.compiler.api.symbols.ModuleSymbol;
 import io.ballerina.compiler.api.symbols.Symbol;
+import io.ballerina.compiler.syntax.tree.AssignmentStatementNode;
 import io.ballerina.compiler.syntax.tree.ClassDefinitionNode;
+import io.ballerina.compiler.syntax.tree.DefaultableParameterNode;
+import io.ballerina.compiler.syntax.tree.FunctionBodyBlockNode;
 import io.ballerina.compiler.syntax.tree.FunctionDefinitionNode;
 import io.ballerina.compiler.syntax.tree.FunctionSignatureNode;
+import io.ballerina.compiler.syntax.tree.ImportDeclarationNode;
+import io.ballerina.compiler.syntax.tree.IncludedRecordParameterNode;
 import io.ballerina.compiler.syntax.tree.MarkdownDocumentationLineNode;
 import io.ballerina.compiler.syntax.tree.MarkdownDocumentationNode;
 import io.ballerina.compiler.syntax.tree.MetadataNode;
+import io.ballerina.compiler.syntax.tree.ModulePartNode;
 import io.ballerina.compiler.syntax.tree.Node;
 import io.ballerina.compiler.syntax.tree.NodeList;
 import io.ballerina.compiler.syntax.tree.ObjectFieldNode;
 import io.ballerina.compiler.syntax.tree.ParameterNode;
+import io.ballerina.compiler.syntax.tree.RequiredParameterNode;
 import io.ballerina.compiler.syntax.tree.ReturnTypeDescriptorNode;
 import io.ballerina.compiler.syntax.tree.SeparatedNodeList;
+import io.ballerina.compiler.syntax.tree.StatementNode;
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.compiler.syntax.tree.Token;
 import io.ballerina.modelgenerator.commons.CommonUtils;
@@ -51,14 +60,20 @@ import io.ballerina.servicemodelgenerator.extension.model.Value;
 import io.ballerina.servicemodelgenerator.extension.model.context.ModelFromSourceContext;
 import io.ballerina.tools.text.LinePosition;
 import io.ballerina.tools.text.LineRange;
+import io.ballerina.tools.text.TextDocument;
 import org.eclipse.lsp4j.TextEdit;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static io.ballerina.servicemodelgenerator.extension.builder.function.GraphqlFunctionBuilder.getGraphqlParameterModel;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.ANNOT_PREFIX;
@@ -70,6 +85,7 @@ import static io.ballerina.servicemodelgenerator.extension.util.Constants.GRAPHQ
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.NEW_LINE;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.RESOURCE_CONFIG;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.SERCVICE_CLASS_NAME_METADATA;
+import static io.ballerina.servicemodelgenerator.extension.util.Constants.TAB;
 import static io.ballerina.servicemodelgenerator.extension.util.ServiceModelUtils.getServiceDocumentation;
 import static io.ballerina.servicemodelgenerator.extension.util.Utils.getDocumentationEdits;
 import static io.ballerina.servicemodelgenerator.extension.util.Utils.updateFunctionDocs;
@@ -95,6 +111,327 @@ public class ServiceClassUtil {
         }
         builder.append(";");
         return builder.toString();
+    }
+
+    public static List<TextEdit> buildAddInitParameterEdits(ClassDefinitionNode classDef, Field field,
+                                                            TextDocument textDocument,
+                                                            ModulePartNode modulePartNode) {
+        List<TextEdit> edits = new ArrayList<>(buildTypeImportEdits(modulePartNode, field));
+        String memberIndent = detectMemberIndent(classDef, textDocument);
+        String name = field.getName().getValue();
+        String paramStr = buildParameterString(field);
+        String assignment = "self." + name + " = " + name + ";";
+        Optional<FunctionDefinitionNode> initFn = findInitFunction(classDef);
+        if (initFn.isPresent() && !(initFn.get().functionBody() instanceof FunctionBodyBlockNode)) {
+            return List.of();
+        }
+
+        StringBuilder header = new StringBuilder(NEW_LINE).append(memberIndent).append(buildInjectedFieldString(field));
+        if (initFn.isEmpty()) {
+            header.append(NEW_LINE).append(NEW_LINE).append(memberIndent)
+                    .append("public function init(").append(paramStr).append(") returns error? {")
+                    .append(NEW_LINE).append(memberIndent).append(memberIndent).append(assignment)
+                    .append(NEW_LINE).append(memberIndent).append("}");
+        }
+        edits.add(new TextEdit(Utils.toRange(classDef.openBrace().lineRange().endLine()), header.toString()));
+
+        if (initFn.isPresent()) {
+            FunctionDefinitionNode init = initFn.get();
+            edits.add(buildAddParameterEdit(init.functionSignature(), paramStr, hasDefaultValue(field)));
+            if (init.functionBody() instanceof FunctionBodyBlockNode body) {
+                edits.add(new TextEdit(Utils.toRange(body.openBraceToken().lineRange().endLine()),
+                        NEW_LINE + memberIndent + memberIndent + assignment));
+            }
+        }
+        return edits;
+    }
+
+    private static List<TextEdit> buildTypeImportEdits(ModulePartNode modulePartNode, Field field) {
+        Map<String, String> imports = field.getType() == null ? null : field.getType().getImports();
+        if (imports == null || imports.isEmpty()) {
+            return List.of();
+        }
+        List<ImportDeclarationNode> existing = modulePartNode.imports().stream().toList();
+        Map<String, String> moduleToPrefix = new HashMap<>();
+        Set<String> usedPrefixes = new HashSet<>();
+        for (ImportDeclarationNode imp : existing) {
+            String prefix = importPrefix(imp);
+            moduleToPrefix.put(importModuleId(imp), prefix);
+            usedPrefixes.add(prefix);
+        }
+
+        List<String> newImports = new ArrayList<>();
+        String typeValue = field.getType().getValue();
+        for (Map.Entry<String, String> entry : imports.entrySet()) {
+            String requestedPrefix = entry.getKey();
+            String moduleId = entry.getValue();
+            String naturalPrefix = defaultPrefix(moduleId);
+            String effectivePrefix;
+            if (moduleToPrefix.containsKey(moduleId)) {
+                effectivePrefix = moduleToPrefix.get(moduleId);
+            } else {
+                effectivePrefix = naturalPrefix;
+                for (int n = 2; usedPrefixes.contains(effectivePrefix); n++) {
+                    effectivePrefix = naturalPrefix + n;
+                }
+                usedPrefixes.add(effectivePrefix);
+                String stmt = "import " + moduleId
+                        + (effectivePrefix.equals(naturalPrefix) ? "" : " as " + effectivePrefix) + ";";
+                newImports.add(stmt);
+            }
+            if (!effectivePrefix.equals(requestedPrefix)) {
+                typeValue = typeValue.replaceAll("(?<![A-Za-z0-9_])" + Pattern.quote(requestedPrefix + COLON),
+                        effectivePrefix + COLON);
+            }
+        }
+        field.getType().setValue(typeValue);
+        return newImports.isEmpty() ? List.of()
+                : List.of(importTextEdit(modulePartNode, existing, String.join(NEW_LINE, newImports)));
+    }
+
+    private static TextEdit importTextEdit(ModulePartNode modulePartNode, List<ImportDeclarationNode> existing,
+                                           String stmt) {
+        if (existing.isEmpty()) {
+            return new TextEdit(Utils.toRange(modulePartNode.lineRange().startLine()), stmt + NEW_LINE);
+        }
+        return new TextEdit(Utils.toRange(existing.getLast().lineRange().endLine()), NEW_LINE + stmt);
+    }
+
+    private static String importModuleId(ImportDeclarationNode imp) {
+        String org = imp.orgName().map(o -> o.orgName().text().trim()).orElse("");
+        String module = imp.moduleName().stream().map(t -> t.text().trim()).collect(Collectors.joining("."));
+        return org.isEmpty() ? module : org + "/" + module;
+    }
+
+    private static String importPrefix(ImportDeclarationNode imp) {
+        if (imp.prefix().isPresent()) {
+            return imp.prefix().get().prefix().text().trim();
+        }
+        List<String> segments = imp.moduleName().stream().map(t -> t.text().trim()).toList();
+        return segments.get(segments.size() - 1);
+    }
+
+    private static String defaultPrefix(String moduleId) {
+        String module = moduleId.contains("/") ? moduleId.substring(moduleId.indexOf('/') + 1) : moduleId;
+        return module.contains(".") ? module.substring(module.lastIndexOf('.') + 1) : module;
+    }
+
+    public static List<TextEdit> buildUpdateInitParameterEdits(ObjectFieldNode fieldNode, Field field,
+                                                                ModulePartNode modulePartNode) {
+        String oldName = fieldNode.fieldName().text().trim();
+        String newName = field.getName().getValue();
+
+        if (!(fieldNode.parent() instanceof ClassDefinitionNode classDef)) {
+            return List.of();
+        }
+        Optional<FunctionDefinitionNode> initFn = findInitFunction(classDef);
+        if (initFn.isEmpty() || !(initFn.get().functionBody() instanceof FunctionBodyBlockNode body)) {
+            return List.of();
+        }
+        FunctionDefinitionNode init = initFn.get();
+        ParameterNode parameter = null;
+        for (ParameterNode param : init.functionSignature().parameters()) {
+            if (oldName.equals(getParameterName(param))) {
+                parameter = param;
+                break;
+            }
+        }
+        TextEdit assignmentEdit = null;
+        for (StatementNode stmt : body.statements()) {
+            if (stmt instanceof AssignmentStatementNode asn
+                    && asn.varRef().toSourceCode().trim().equals("self." + oldName)
+                    && asn.expression().toSourceCode().trim().equals(oldName)) {
+                assignmentEdit = new TextEdit(Utils.toRange(stmt.lineRange()),
+                        "self." + newName + " = " + newName + ";");
+                break;
+            }
+        }
+        if (parameter == null || assignmentEdit == null) {
+            return List.of();
+        }
+        List<TextEdit> edits = new ArrayList<>(buildTypeImportEdits(modulePartNode, field));
+        edits.add(new TextEdit(Utils.toRange(fieldNode.lineRange()), buildInjectedFieldString(field)));
+        boolean wasDefaultable = parameter.kind() == SyntaxKind.DEFAULTABLE_PARAM;
+        if (wasDefaultable != hasDefaultValue(field)) {
+            edits.add(buildReorderedParameterEdit(init.functionSignature(), parameter, field));
+        } else {
+            edits.add(new TextEdit(Utils.toRange(parameter.lineRange()), buildParameterString(field)));
+        }
+        edits.add(assignmentEdit);
+        return edits;
+    }
+
+    private static TextEdit buildReorderedParameterEdit(FunctionSignatureNode signature, ParameterNode updatedParameter,
+                                                        Field field) {
+        List<String> requiredParameters = new ArrayList<>();
+        List<String> defaultableParameters = new ArrayList<>();
+        List<String> restParameters = new ArrayList<>();
+        for (ParameterNode parameter : signature.parameters()) {
+            String source = parameter == updatedParameter ? buildParameterString(field)
+                    : parameter.toSourceCode().strip();
+            if (parameter == updatedParameter ? hasDefaultValue(field)
+                    : parameter.kind() == SyntaxKind.DEFAULTABLE_PARAM) {
+                defaultableParameters.add(source);
+            } else if (parameter.kind() == SyntaxKind.REST_PARAM) {
+                restParameters.add(source);
+            } else {
+                requiredParameters.add(source);
+            }
+        }
+        requiredParameters.addAll(defaultableParameters);
+        requiredParameters.addAll(restParameters);
+        LineRange parameterRange = LineRange.from(signature.lineRange().fileName(),
+                signature.openParenToken().lineRange().endLine(),
+                signature.closeParenToken().lineRange().startLine());
+        return new TextEdit(Utils.toRange(parameterRange), String.join(", ", requiredParameters));
+    }
+
+    public static List<TextEdit> buildRemoveInitParameterEdits(ObjectFieldNode fieldNode, TextDocument textDocument) {
+        String name = fieldNode.fieldName().text().trim();
+
+        if (!(fieldNode.parent() instanceof ClassDefinitionNode classDef)) {
+            return List.of();
+        }
+        Optional<FunctionDefinitionNode> initFn = findInitFunction(classDef);
+        if (initFn.isEmpty() || !(initFn.get().functionBody() instanceof FunctionBodyBlockNode body)) {
+            return List.of();
+        }
+        FunctionDefinitionNode init = initFn.get();
+        Optional<TextEdit> parameterEdit = buildRemoveParameterEdit(init.functionSignature(), name);
+        if (parameterEdit.isEmpty()) {
+            return List.of();
+        }
+        TextEdit assignmentEdit = null;
+        for (StatementNode stmt : body.statements()) {
+            if (stmt instanceof AssignmentStatementNode asn
+                    && asn.varRef().toSourceCode().trim().equals("self." + name)
+                    && asn.expression().toSourceCode().trim().equals(name)) {
+                assignmentEdit = removeLineEdit(stmt.lineRange(), textDocument);
+                break;
+            }
+        }
+        if (assignmentEdit == null) {
+            return List.of();
+        }
+        List<TextEdit> edits = new ArrayList<>();
+        edits.add(removeLineEdit(fieldNode.lineRange(), textDocument));
+        edits.add(parameterEdit.get());
+        edits.add(assignmentEdit);
+        return edits;
+    }
+
+    private static Optional<FunctionDefinitionNode> findInitFunction(ClassDefinitionNode classDef) {
+        for (Node member : classDef.members()) {
+            if (member instanceof FunctionDefinitionNode fn && fn.functionName().text().trim().equals("init")) {
+                return Optional.of(fn);
+            }
+        }
+        return Optional.empty();
+    }
+
+    private static String buildInjectedFieldString(Field field) {
+        return "private final " + field.getType().getValue() + " " + field.getName().getValue() + ";";
+    }
+
+    private static boolean hasDefaultValue(Field field) {
+        Value defaultValue = field.getDefaultValue();
+        return Objects.nonNull(defaultValue) && Objects.nonNull(defaultValue.getValue())
+                && !defaultValue.getValue().isEmpty();
+    }
+
+    private static String buildParameterString(Field field) {
+        String base = field.getType().getValue() + " " + field.getName().getValue();
+        if (hasDefaultValue(field)) {
+            return base + " = " + field.getDefaultValue().getValue();
+        }
+        return base;
+    }
+
+    private static TextEdit buildAddParameterEdit(FunctionSignatureNode signature, String paramStr,
+                                                  boolean hasDefault) {
+        SeparatedNodeList<ParameterNode> params = signature.parameters();
+        if (params.isEmpty()) {
+            return new TextEdit(Utils.toRange(signature.openParenToken().lineRange().endLine()), paramStr);
+        }
+        int insertIndex = IntStream.range(0, params.size())
+                .filter(i -> mustFollowNewParam(params.get(i).kind(), hasDefault))
+                .findFirst()
+                .orElse(params.size());
+        if (insertIndex == params.size()) {
+            ParameterNode last = params.get(params.size() - 1);
+            return new TextEdit(Utils.toRange(last.lineRange().endLine()), ", " + paramStr);
+        }
+        LinePosition before = params.get(insertIndex).lineRange().startLine();
+        return new TextEdit(Utils.toRange(before), paramStr + ", ");
+    }
+
+    private static boolean mustFollowNewParam(SyntaxKind existingKind, boolean newHasDefault) {
+        return existingKind == SyntaxKind.REST_PARAM
+                || (!newHasDefault && existingKind == SyntaxKind.DEFAULTABLE_PARAM);
+    }
+
+    private static Optional<TextEdit> buildRemoveParameterEdit(FunctionSignatureNode signature, String name) {
+        SeparatedNodeList<ParameterNode> params = signature.parameters();
+        for (int i = 0; i < params.size(); i++) {
+            if (!name.equals(getParameterName(params.get(i)))) {
+                continue;
+            }
+            LinePosition start;
+            LinePosition end;
+            if (params.size() == 1) {
+                start = params.get(i).lineRange().startLine();
+                end = params.get(i).lineRange().endLine();
+            } else if (i == 0) {
+                start = params.get(0).lineRange().startLine();
+                end = params.getSeparator(0).lineRange().endLine();
+            } else {
+                start = params.getSeparator(i - 1).lineRange().startLine();
+                end = params.get(i).lineRange().endLine();
+            }
+            LineRange range = LineRange.from(signature.lineRange().fileName(), start, end);
+            return Optional.of(new TextEdit(Utils.toRange(range), ""));
+        }
+        return Optional.empty();
+    }
+
+    private static String getParameterName(ParameterNode param) {
+        return switch (param.kind()) {
+            case REQUIRED_PARAM -> ((RequiredParameterNode) param).paramName().map(t -> t.text().trim()).orElse("");
+            case DEFAULTABLE_PARAM ->
+                    ((DefaultableParameterNode) param).paramName().map(t -> t.text().trim()).orElse("");
+            case INCLUDED_RECORD_PARAM ->
+                    ((IncludedRecordParameterNode) param).paramName().map(t -> t.text().trim()).orElse("");
+            default -> "";
+        };
+    }
+
+    private static TextEdit removeLineEdit(LineRange range, TextDocument textDocument) {
+        LinePosition start = LinePosition.from(range.startLine().line(), 0);
+        LinePosition end = LinePosition.from(range.endLine().line() + 1, 0);
+        return new TextEdit(Utils.toRange(LineRange.from(range.fileName(), start, end)), "");
+    }
+
+    private static String detectMemberIndent(ClassDefinitionNode classDef, TextDocument textDocument) {
+        NodeList<Node> members = classDef.members();
+        if (!members.isEmpty()) {
+            String line = textDocument.line(members.get(0).lineRange().startLine().line()).text();
+            int i = 0;
+            while (i < line.length() && (line.charAt(i) == ' ' || line.charAt(i) == '\t')) {
+                i++;
+            }
+            if (i > 0) {
+                return line.substring(0, i);
+            }
+        }
+        return TAB;
+    }
+
+    public static boolean isAgentClass(SemanticModel semanticModel, ClassDefinitionNode classDef) {
+        return semanticModel.symbol(classDef)
+                .filter(ClassSymbol.class::isInstance)
+                .map(ClassSymbol.class::cast)
+                .map(CommonUtils::isAgentClass)
+                .orElse(false);
     }
 
     public static ServiceClass getServiceClass(SemanticModel semanticModel, ClassDefinitionNode classDef,

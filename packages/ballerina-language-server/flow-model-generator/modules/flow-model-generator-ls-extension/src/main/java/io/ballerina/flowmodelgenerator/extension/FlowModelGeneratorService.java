@@ -26,6 +26,7 @@ import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
 import io.ballerina.flowmodelgenerator.core.AgentsGenerator;
 import io.ballerina.flowmodelgenerator.core.AvailableNodesGenerator;
+import io.ballerina.flowmodelgenerator.core.ClassMemberManager;
 import io.ballerina.flowmodelgenerator.core.CopilotContextGenerator;
 import io.ballerina.flowmodelgenerator.core.DeleteNodeHandler;
 import io.ballerina.flowmodelgenerator.core.EnclosedNodeFinder;
@@ -38,10 +39,12 @@ import io.ballerina.flowmodelgenerator.core.SuggestedModelGenerator;
 import io.ballerina.flowmodelgenerator.core.analyzers.function.ModuleNodeAnalyzer;
 import io.ballerina.flowmodelgenerator.core.diagnostics.DiagnosticRequest;
 import io.ballerina.flowmodelgenerator.core.diagnostics.DiagnosticsDebouncer;
+import io.ballerina.flowmodelgenerator.core.model.FlowNode;
 import io.ballerina.flowmodelgenerator.core.search.SearchCommand;
-import io.ballerina.flowmodelgenerator.core.utils.FileSystemUtils;
+import io.ballerina.flowmodelgenerator.extension.request.ClassMemberRequest;
 import io.ballerina.flowmodelgenerator.extension.request.ComponentDeleteRequest;
 import io.ballerina.flowmodelgenerator.extension.request.CopilotContextRequest;
+import io.ballerina.flowmodelgenerator.extension.request.DeleteClassMemberRequest;
 import io.ballerina.flowmodelgenerator.extension.request.EnclosedFuncDefRequest;
 import io.ballerina.flowmodelgenerator.extension.request.FilePathRequest;
 import io.ballerina.flowmodelgenerator.extension.request.FlowModelAvailableNodesRequest;
@@ -51,6 +54,7 @@ import io.ballerina.flowmodelgenerator.extension.request.FlowModelSourceGenerato
 import io.ballerina.flowmodelgenerator.extension.request.FlowModelSuggestedGenerationRequest;
 import io.ballerina.flowmodelgenerator.extension.request.FlowNodeDeleteRequest;
 import io.ballerina.flowmodelgenerator.extension.request.FunctionDefinitionRequest;
+import io.ballerina.flowmodelgenerator.extension.request.SaveClassMemberRequest;
 import io.ballerina.flowmodelgenerator.extension.request.SearchNodesRequest;
 import io.ballerina.flowmodelgenerator.extension.request.SearchRequest;
 import io.ballerina.flowmodelgenerator.extension.request.ServiceFieldNodesRequest;
@@ -66,6 +70,7 @@ import io.ballerina.flowmodelgenerator.extension.response.FlowNodeDeleteResponse
 import io.ballerina.flowmodelgenerator.extension.response.FunctionDefinitionResponse;
 import io.ballerina.flowmodelgenerator.extension.response.SearchNodesResponse;
 import io.ballerina.modelgenerator.commons.CommonUtils;
+import io.ballerina.modelgenerator.commons.FileSystemUtils;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.projects.Document;
@@ -93,6 +98,7 @@ import org.eclipse.lsp4j.services.LanguageServer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
@@ -125,7 +131,6 @@ public class FlowModelGeneratorService implements ExtendedLanguageServerService 
 
     @JsonRequest
     public CompletableFuture<FlowModelGeneratorResponse> getFlowModel(FlowModelGeneratorRequest request) {
-
         return CompletableFuture.supplyAsync(() -> {
             FlowModelGeneratorResponse response = new FlowModelGeneratorResponse();
             try {
@@ -279,6 +284,57 @@ public class FlowModelGeneratorService implements ExtendedLanguageServerService 
                 SourceGenerator sourceGenerator =
                         new SourceGenerator(this.workspaceManagerProxy.get(), Path.of(request.filePath()));
                 response.setTextEdits(sourceGenerator.toSourceCode(request.flowNode(), lsClientLogger));
+            } catch (Throwable e) {
+                response.setError(e);
+            }
+            return response;
+        });
+    }
+
+    @JsonRequest
+    public CompletableFuture<FlowModelGeneratorResponse> listClassMembers(ClassMemberRequest request) {
+        return CompletableFuture.supplyAsync(() -> {
+            FlowModelGeneratorResponse response = new FlowModelGeneratorResponse();
+            try {
+                Path filePath = Path.of(request.filePath());
+                WorkspaceManager workspaceManager = this.workspaceManagerProxy.get();
+                Project project = workspaceManager.loadProject(filePath);
+                SemanticModel semanticModel = FileSystemUtils.getSemanticModel(workspaceManager, filePath);
+                ModelGenerator modelGenerator = new ModelGenerator(project, semanticModel, filePath, workspaceManager);
+                response.setFlowDesignModel(modelGenerator.getClassMembers(request.classLineRange()));
+            } catch (Throwable e) {
+                response.setError(e);
+            }
+            return response;
+        });
+    }
+
+    @JsonRequest
+    public CompletableFuture<FlowModelSourceGeneratorResponse> saveClassMember(SaveClassMemberRequest request) {
+        return CompletableFuture.supplyAsync(() -> {
+            FlowModelSourceGeneratorResponse response = new FlowModelSourceGeneratorResponse();
+            try {
+                FlowNode flowNode = new Gson().fromJson(request.flowNode(), FlowNode.class);
+                Map<Path, List<org.eclipse.lsp4j.TextEdit>> edits = ClassMemberManager.save(
+                        this.workspaceManagerProxy.get(), Path.of(request.filePath()), flowNode,
+                        request.classLineRange(), lsClientLogger);
+                response.setTextEdits(new Gson().toJsonTree(edits));
+            } catch (Throwable e) {
+                response.setError(e);
+            }
+            return response;
+        });
+    }
+
+    @JsonRequest
+    public CompletableFuture<FlowModelSourceGeneratorResponse> deleteClassMember(DeleteClassMemberRequest request) {
+        return CompletableFuture.supplyAsync(() -> {
+            FlowModelSourceGeneratorResponse response = new FlowModelSourceGeneratorResponse();
+            try {
+                Map<Path, List<org.eclipse.lsp4j.TextEdit>> edits = ClassMemberManager.delete(
+                        this.workspaceManagerProxy.get(), Path.of(request.filePath()), request.fieldName(),
+                        request.classLineRange());
+                response.setTextEdits(new Gson().toJsonTree(edits));
             } catch (Throwable e) {
                 response.setError(e);
             }
@@ -649,9 +705,13 @@ public class FlowModelGeneratorService implements ExtendedLanguageServerService 
 
                 // Generate the flow nodes based on search criteria
                 ModelGenerator modelGenerator = new ModelGenerator(project, semanticModel, filePath, workspaceManager);
+                SearchNodesRequest.SearchQuery query = request.query();
+                var nodes = modelGenerator.searchNodes(document, position,
+                        query == null ? null : query.kind(),
+                        query == null ? null : query.exactMatch(),
+                        query == null ? null : query.targetType());
                 Gson gson = new Gson();
-                JsonElement jsonElement = gson.toJsonTree(
-                        modelGenerator.searchNodes(document, position, request.queryMap()));
+                JsonElement jsonElement = gson.toJsonTree(nodes);
                 response.setOutput(jsonElement.getAsJsonArray());
             } catch (Throwable e) {
                 response.setError(e);
@@ -667,33 +727,49 @@ public class FlowModelGeneratorService implements ExtendedLanguageServerService 
             try {
                 Path filePath = Path.of(request.filePath());
                 WorkspaceManager workspaceManager = this.workspaceManagerProxy.get();
-                Path projectPath = workspaceManager.projectRoot(filePath);
+                // The search is scoped to the project rather than to the requested file, and the file need not
+                // exist on disk yet (e.g., searching for connectors before connections.bal is created). Hence,
+                // resolve the project without requiring the file, instead of creating it.
+                Project project = FileSystemUtils.resolveProject(workspaceManager, filePath);
+
+                // The source root is used instead of WorkspaceManager.projectRoot() since the latter cannot
+                // resolve the package root of a file that is absent on disk.
+                Path projectPath = project.sourceRoot();
 
                 // Ensure functions.bal is loaded into the workspace before reading the project.
                 // loadProject returns a cached project that can predate a freshly-generated
                 // functions.bal (e.g. an activity just created into it), so without this the search
                 // would miss newly created functions/activities. FileSystemUtils.getDocument performs a
                 // didOpen when the file is not yet tracked, which refreshes the cached project so the
-                // subsequent loadProject sees the new declarations.
+                // subsequent resolveProject sees the new declarations.
                 Path functionsBalPath = projectPath.resolve("functions.bal");
                 Optional<Document> functionsDoc = Files.exists(functionsBalPath)
                         ? Optional.ofNullable(FileSystemUtils.getDocument(workspaceManager, functionsBalPath))
                         : Optional.empty();
+                if (functionsDoc.isPresent()) {
+                    project = FileSystemUtils.resolveProject(workspaceManager, filePath);
+                }
 
-                Project project = workspaceManager.loadProject(filePath);
                 SearchCommand.Kind searchKind = SearchCommand.Kind.valueOf(request.searchKind());
                 LineRange position = request.position();
                 if (request.position() != null) {
-                    position = LineRange.from(
-                            Optional.ofNullable(filePath.getFileName()).map(Path::toString).orElse(""),
-                            request.position().startLine(),
+                    String positionFileName = searchKind == SearchCommand.Kind.TYPE
+                            || searchKind == SearchCommand.Kind.FUNCTION
+                            ? filePath.toString()
+                            : Optional.ofNullable(filePath.getFileName()).map(Path::toString).orElse("");
+                    position = LineRange.from(positionFileName, request.position().startLine(),
                             request.position().endLine());
+                } else if (searchKind == SearchCommand.Kind.TYPE) {
+                    LinePosition start = LinePosition.from(0, 0);
+                    position = LineRange.from(filePath.toString(), start, start);
                 }
 
                 SearchCommand command = SearchCommand.from(searchKind, project, position, request.queryMap(),
                         functionsDoc.orElse(null));
                 JsonArray categories = command.execute();
-                if (request.position() != null) {
+                // A document cannot be resolved for a file that does not exist, and such a file has no test
+                // function to be inside of either.
+                if (request.position() != null && Files.exists(filePath)) {
                     Optional<Document> document = workspaceManager.document(filePath);
                     LinePosition cursorPosition = request.position().startLine();
                     if (document.isPresent() &&
@@ -728,6 +804,7 @@ public class FlowModelGeneratorService implements ExtendedLanguageServerService 
             return Optional.empty();
         }
     }
+
 
     private void propagateCodedataDataToTemplate(JsonObject requestId, JsonElement nodeTemplate) {
         if (!requestId.has("data") || !requestId.get("data").isJsonObject()) {

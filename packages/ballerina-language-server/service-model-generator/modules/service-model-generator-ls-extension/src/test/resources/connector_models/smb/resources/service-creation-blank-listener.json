@@ -1,0 +1,97 @@
+{
+  "schemaVersion": "1.0",
+  "id": "smb",
+  "displayName": "Smb",
+  "description": "",
+  "orgName": "ballerina",
+  "packageName": "smb",
+  "moduleName": "smb",
+  "version": "1.0.2",
+  "type": "event",
+  "icon": "docs/icon.png",
+  "properties": {
+    "listener": {
+      "metadata": { "label": "Listener", "description": "The listener this service attaches to" },
+      "codedata": { "type": "LISTENER_CONFIG" },
+      "value": 0,
+      "types": [ { "fieldType": "CHOICE", "selected": false } ],
+      "enabled": true,
+      "editable": true,
+      "optional": false,
+      "advanced": false,
+      "choices": [
+        {
+          "metadata": { "label": "Create New Listener", "description": "Create a new listener" },
+          "codedata": {},
+          "enabled": true,
+          "editable": true,
+          "optional": false,
+          "advanced": false,
+          "properties": {
+            "listenerConfig": {
+              "metadata": { "label": "Listener Configuration", "description": "Configure the listener." },
+              "types": [ { "fieldType": "GROUP_SECTION", "selected": true } ],
+              "enabled": true,
+              "editable": true,
+              "optional": false,
+              "advanced": false,
+              "properties": {
+                "listenerVarName": {
+                  "metadata": { "label": "Listener Name", "description": "Provide a name for the listener being created" },
+                  "codedata": { "type": "LISTENER_VAR_NAME" },
+                  "value": "smbListener",
+                  "types": [ { "fieldType": "IDENTIFIER", "ballerinaType": "smb:Listener", "selected": false } ],
+                  "enabled": true,
+                  "editable": true,
+                  "optional": false,
+                  "advanced": false
+                },
+                "host": {
+                  "metadata": { "label": "Host", "description": "Target SMB server hostname or IP address" },
+                  "codedata": { "argType": "LISTENER_PARAM_INCLUDED_DEFAULTABLE_FIELD" },
+                  "placeholder": "\"\"",
+                  "value": "",
+                  "types": [ { "fieldType": "TEXT", "ballerinaType": "string", "selected": true } ],
+                  "enabled": true,
+                  "editable": true,
+                  "optional": true,
+                  "advanced": false
+                },
+                "port": {
+                  "metadata": { "label": "Port", "description": "Port number of the SMB service (default: 445)" },
+                  "codedata": { "argType": "LISTENER_PARAM_INCLUDED_DEFAULTABLE_FIELD" },
+                  "placeholder": "0",
+                  "value": "",
+                  "types": [ { "fieldType": "NUMBER", "ballerinaType": "int", "selected": true } ],
+                  "enabled": true,
+                  "editable": true,
+                  "optional": true,
+                  "advanced": false
+                }
+              }
+            }
+          }
+        },
+        {
+          "metadata": { "label": "Use existing (none available)", "description": "No compatible listener of this type is present in the project." },
+          "codedata": {},
+          "enabled": false,
+          "editable": false,
+          "optional": false,
+          "advanced": false,
+          "properties": {
+            "listener": {
+              "metadata": { "label": "Listener", "description": "The existing listener to attach to" },
+              "codedata": { "type": "KEY_EXISTING_LISTENER" },
+              "types": [ { "fieldType": "SINGLE_SELECT_LISTENER", "selected": true } ],
+              "enabled": true,
+              "editable": true,
+              "optional": false,
+              "advanced": false
+            }
+          }
+        }
+      ]
+    }
+  }
+}

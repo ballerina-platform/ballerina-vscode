@@ -29,9 +29,17 @@ import io.ballerina.compiler.api.symbols.RecordTypeSymbol;
 import io.ballerina.compiler.api.symbols.Symbol;
 import io.ballerina.compiler.api.symbols.TypeSymbol;
 import io.ballerina.compiler.api.symbols.VariableSymbol;
+import io.ballerina.compiler.syntax.tree.ExpressionNode;
 import io.ballerina.compiler.syntax.tree.FunctionDefinitionNode;
+import io.ballerina.compiler.syntax.tree.ListConstructorExpressionNode;
+import io.ballerina.compiler.syntax.tree.MappingConstructorExpressionNode;
+import io.ballerina.compiler.syntax.tree.MappingFieldNode;
+import io.ballerina.compiler.syntax.tree.ModuleMemberDeclarationNode;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
+import io.ballerina.compiler.syntax.tree.ModuleVariableDeclarationNode;
+import io.ballerina.compiler.syntax.tree.Node;
 import io.ballerina.compiler.syntax.tree.NonTerminalNode;
+import io.ballerina.compiler.syntax.tree.SpecificFieldNode;
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.designmodelgenerator.core.model.Activity;
 import io.ballerina.designmodelgenerator.core.model.Automation;
@@ -56,6 +64,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import static io.ballerina.modelgenerator.commons.CommonUtils.CONNECTOR_TYPE;
@@ -78,6 +87,7 @@ public class DesignModelGenerator {
     public static final String MAIN_FUNCTION_NAME = "main";
     private static final String AUTOMATION = "automation";
     private static final String SERVICE = "Service";
+    private static final String DURABLE_AGENT_CLASS_NAME = "DurableAgent";
     private final Map<String, ModulePartNode> documentMap;
 
     public DesignModelGenerator(Package ballerinaPackage) {
@@ -95,8 +105,8 @@ public class DesignModelGenerator {
     public DesignModel generate() {
         IntermediateModel intermediateModel = new IntermediateModel();
         this.populateModuleLevelConnections(intermediateModel);
-        this.populateModuleLevelWorkflows(intermediateModel);
         this.populateModuleLevelActivities(intermediateModel);
+        this.populateModuleLevelWorkflows(intermediateModel);
         ConnectionFinder connectionFinder = new ConnectionFinder(semanticModel, rootPath, documentMap,
                 intermediateModel);
         this.defaultModule.documentIds().forEach(d -> {
@@ -248,13 +258,15 @@ public class DesignModelGenerator {
             if (workflow == null) {
                 return;
             }
-            eventNames.forEach(eventName -> workflow.getEvent(eventName).ifPresent(event -> {
-                if (isFunction) {
-                    event.addAttachedFunction(senderUuid);
-                } else {
-                    event.addAttachedService(senderUuid);
-                }
-            }));
+            eventNames.forEach(eventName -> {
+                workflow.getEvent(eventName).ifPresent(event -> {
+                    if (isFunction) {
+                        event.addAttachedFunction(senderUuid);
+                    } else {
+                        event.addAttachedService(senderUuid);
+                    }
+                });
+            });
         });
     }
 
@@ -275,23 +287,53 @@ public class DesignModelGenerator {
 
     private void populateModuleLevelWorkflows(IntermediateModel intermediateModel) {
         for (Symbol symbol : this.semanticModel.moduleSymbols()) {
-            if (!WorkflowUtil.isWorkflowFunction(symbol)) {
-                continue;
-            }
-
             if (symbol.getName().isEmpty() || symbol.getLocation().isEmpty()) {
                 continue;
             }
-            // symbol.getLocation() points at the function name only; use the enclosing function
-            // definition's range so deleting the workflow removes the whole function, not just its name.
-            LineRange nameRange = symbol.getLocation().get().lineRange();
-            LineRange lineRange = resolveEnclosingFunctionRange(symbol.getLocation().get(), nameRange);
-            String sortText = lineRange.fileName() + lineRange.startLine().line();
-            Workflow workflow = new Workflow(symbol.getName().get(), sortText, getLocation(lineRange));
-            populateWorkflowEvents(workflow, (FunctionSymbol) symbol);
-            intermediateModel.workflowMap.put(symbol.getName().get(), workflow);
-            intermediateModel.uuidToWorkflowMap.put(workflow.getUuid(), workflow);
+            if (WorkflowUtil.isWorkflowFunction(symbol)) {
+                // symbol.getLocation() points at the function name only; use the enclosing function
+                // definition's range so deleting the workflow removes the whole function, not just its name.
+                LineRange nameRange = symbol.getLocation().get().lineRange();
+                LineRange lineRange = resolveEnclosingFunctionRange(symbol.getLocation().get(), nameRange);
+                String sortText = lineRange.fileName() + lineRange.startLine().line();
+                Workflow workflow = new Workflow(symbol.getName().get(), sortText, getLocation(lineRange));
+                populateWorkflowEvents(workflow, (FunctionSymbol) symbol);
+                intermediateModel.workflowMap.put(symbol.getName().get(), workflow);
+                intermediateModel.uuidToWorkflowMap.put(workflow.getUuid(), workflow);
+            } else if (isDurableAgentVariable(symbol)) {
+                // A module-level `workflow:DurableAgent` declaration joins the overview's workflow
+                // column as a durable agentic workflow; its identity is the variable name. As with
+                // functions, the symbol location covers only the name — widen to the whole
+                // declaration so deleting the agent removes the full statement.
+                LineRange nameRange = symbol.getLocation().get().lineRange();
+                LineRange lineRange = resolveEnclosingModuleVarDeclRange(symbol.getLocation().get(), nameRange);
+                String sortText = lineRange.fileName() + lineRange.startLine().line();
+                Workflow agent = new Workflow(symbol.getName().get(), sortText, getLocation(lineRange),
+                        Workflow.KIND_DURABLE_AGENT);
+                populateAgentDeclaredCapabilities(intermediateModel, agent, lineRange);
+                intermediateModel.workflowMap.put(symbol.getName().get(), agent);
+                intermediateModel.uuidToWorkflowMap.put(agent.getUuid(), agent);
+            }
         }
+    }
+
+    /**
+     * Checks whether the symbol is a module-level variable of the {@code workflow:DurableAgent} class.
+     *
+     * @param symbol the module symbol to check
+     * @return {@code true} for a durable agent declaration
+     */
+    private boolean isDurableAgentVariable(Symbol symbol) {
+        if (!(symbol instanceof VariableSymbol variableSymbol)) {
+            return false;
+        }
+        TypeSymbol typeDescriptor = variableSymbol.typeDescriptor();
+        TypeSymbol rawType = CommonUtils.getRawType(typeDescriptor);
+        if (!(rawType instanceof ClassSymbol classSymbol)) {
+            return false;
+        }
+        return classSymbol.getName().map(DURABLE_AGENT_CLASS_NAME::equals).orElse(false)
+                && WorkflowUtil.isWorkflowModule(classSymbol.getModule());
     }
 
     /**
@@ -318,6 +360,156 @@ public class DesignModelGenerator {
                 workflow.addEvent(new Workflow.Event(fieldName, eventType));
             }
         });
+    }
+
+
+    /**
+     * Derives a durable agent's declared capabilities from the declaration's config literal:
+     * event channels (name + request type), human tasks, and links to declared activities.
+     *
+     * @param intermediateModel the intermediate model holding the activity registry
+     * @param agent             the agent's design node
+     * @param lineRange         the agent variable symbol's line range
+     */
+    private void populateAgentDeclaredCapabilities(IntermediateModel intermediateModel, Workflow agent,
+                                                   LineRange lineRange) {
+        ModulePartNode root = this.documentMap.get(lineRange.fileName());
+        if (root == null) {
+            return;
+        }
+        for (ModuleMemberDeclarationNode member : root.members()) {
+            // The symbol's location is the variable-name token, so match by line containment.
+            if (!(member instanceof ModuleVariableDeclarationNode varDecl)
+                    || varDecl.lineRange().startLine().line() > lineRange.startLine().line()
+                    || varDecl.lineRange().endLine().line() < lineRange.startLine().line()
+                    || varDecl.initializer().isEmpty()) {
+                continue;
+            }
+            // Shared with the edit paths so an explicit `new workflow:DurableAgent({...})` agent
+            // renders its capability circles too, not just the implicit-new shape.
+            Optional<MappingConstructorExpressionNode> configLiteral = WorkflowUtil.agentConfigLiteral(varDecl);
+            if (configLiteral.isEmpty()) {
+                continue;
+            }
+            for (MappingFieldNode field : configLiteral.get().fields()) {
+                if (!(field instanceof SpecificFieldNode specificField)
+                        || specificField.valueExpr().isEmpty()) {
+                    continue;
+                }
+                String fieldName = specificField.fieldName().toSourceCode().trim();
+                ExpressionNode valueExpr = specificField.valueExpr().get();
+                // The model provider is a module-level client — link it so the overview draws
+                // the agent -> model-provider connection edge.
+                if ("model".equals(fieldName)) {
+                    linkAgentModelProvider(intermediateModel, agent, valueExpr);
+                    continue;
+                }
+                if (!(valueExpr instanceof ListConstructorExpressionNode list)) {
+                    continue;
+                }
+                switch (fieldName) {
+                    case "events" -> populateAgentEvents(agent, list);
+                    case "humanTasks" -> populateAgentHumanTasks(agent, list);
+                    case "activities" -> linkAgentActivities(intermediateModel, agent, list);
+                    default -> {
+                    }
+                }
+            }
+            return;
+        }
+    }
+
+    private void populateAgentEvents(Workflow agent,
+                                     ListConstructorExpressionNode events) {
+        for (Node item : events.expressions()) {
+            if (!(item instanceof MappingConstructorExpressionNode entry)) {
+                continue;
+            }
+            String name = getMappingStringField(entry, "name");
+            String requestType = getMappingRawField(entry, "request");
+            if (name != null) {
+                agent.addEvent(new Workflow.Event(name, requestType == null ? "anydata" : requestType));
+            }
+        }
+    }
+
+    private void populateAgentHumanTasks(Workflow agent,
+                                         ListConstructorExpressionNode tasks) {
+        for (Node item : tasks.expressions()) {
+            if (!(item instanceof MappingConstructorExpressionNode entry)) {
+                continue;
+            }
+            String name = getMappingStringField(entry, "name");
+            if (name != null) {
+                agent.addHumanTask(new Workflow.HumanTask(name, getLocation(item.lineRange())));
+            }
+        }
+    }
+
+    // The agent's `model: <var>` config field references a module-level model-provider client;
+    // resolve the variable to its overview connection (keyed by the symbol location, same as
+    // populateModuleLevelConnections) and record the edge on the agent.
+    private void linkAgentModelProvider(IntermediateModel intermediateModel, Workflow agent,
+                                        ExpressionNode valueExpr) {
+        if (valueExpr.kind() != SyntaxKind.SIMPLE_NAME_REFERENCE) {
+            return;
+        }
+        String providerVarName = valueExpr.toSourceCode().trim();
+        for (Symbol symbol : this.semanticModel.moduleSymbols()) {
+            if (!(symbol instanceof VariableSymbol) || symbol.getName().isEmpty()
+                    || !providerVarName.equals(symbol.getName().get()) || symbol.getLocation().isEmpty()) {
+                continue;
+            }
+            Connection connection = intermediateModel.connectionMap
+                    .get(String.valueOf(symbol.getLocation().get().hashCode()));
+            if (connection != null) {
+                agent.addConnection(connection.getUuid());
+            }
+            return;
+        }
+    }
+
+    // Declared activity functions link the agent to the shared activities column, exactly like
+    // ctx->callActivity does for workflow functions.
+    private void linkAgentActivities(IntermediateModel intermediateModel, Workflow agent,
+                                     ListConstructorExpressionNode activities) {
+        for (Node item : activities.expressions()) {
+            String activityName = null;
+            if (item.kind() == SyntaxKind.SIMPLE_NAME_REFERENCE) {
+                activityName = item.toSourceCode().trim();
+            } else if (item instanceof MappingConstructorExpressionNode entry) {
+                activityName = getMappingRawField(entry, "activity");
+            }
+            if (activityName == null) {
+                continue;
+            }
+            Activity activity = intermediateModel.activityMap.get(activityName);
+            if (activity != null) {
+                agent.addActivity(activity.getUuid());
+                activity.addAttachedWorkflow(agent.getUuid());
+            }
+        }
+    }
+
+    private static String getMappingStringField(
+            MappingConstructorExpressionNode mapping, String fieldName) {
+        String raw = getMappingRawField(mapping, fieldName);
+        if (raw != null && raw.length() >= 2 && raw.startsWith("\"") && raw.endsWith("\"")) {
+            return raw.substring(1, raw.length() - 1);
+        }
+        return raw;
+    }
+
+    private static String getMappingRawField(
+            MappingConstructorExpressionNode mapping, String fieldName) {
+        for (MappingFieldNode field : mapping.fields()) {
+            if (field instanceof SpecificFieldNode specificField
+                    && fieldName.equals(specificField.fieldName().toSourceCode().trim())
+                    && specificField.valueExpr().isPresent()) {
+                return specificField.valueExpr().get().toSourceCode().trim();
+            }
+        }
+        return null;
     }
 
     private void populateModuleLevelActivities(IntermediateModel intermediateModel) {
@@ -477,6 +669,24 @@ public class DesignModelGenerator {
         }
         NonTerminalNode node = modulePartNode.findNode(symbolLocation.textRange());
         while (node != null && !(node instanceof FunctionDefinitionNode)) {
+            node = node.parent();
+        }
+        return node != null ? node.lineRange() : nameRange;
+    }
+
+    /**
+     * Resolves the full module-variable-declaration range enclosing a symbol location. A durable
+     * agent variable's symbol location covers only the variable name, so deletion needs the whole
+     * declaration. Falls back to the given name range when the node cannot be resolved.
+     */
+    private LineRange resolveEnclosingModuleVarDeclRange(io.ballerina.tools.diagnostics.Location symbolLocation,
+                                                         LineRange nameRange) {
+        ModulePartNode modulePartNode = documentMap.get(nameRange.fileName());
+        if (modulePartNode == null) {
+            return nameRange;
+        }
+        NonTerminalNode node = modulePartNode.findNode(symbolLocation.textRange());
+        while (node != null && node.kind() != SyntaxKind.MODULE_VAR_DECL) {
             node = node.parent();
         }
         return node != null ? node.lineRange() : nameRange;

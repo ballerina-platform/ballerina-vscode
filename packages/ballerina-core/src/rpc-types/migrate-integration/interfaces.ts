@@ -90,6 +90,8 @@ export interface MigrateRequest {
     sourcePath?: string;
     /** `true` when the migration ran with --keep-structure, preserving original source file layout. */
     keepStructure?: boolean;
+    /** The source integration platform ('mule' for MuleSoft, 'tibco' for TIBCO BusinessWorks). */
+    sourcePlatform?: 'mule' | 'tibco';
 }
 
 export interface OpenSubProjectReportRequest {

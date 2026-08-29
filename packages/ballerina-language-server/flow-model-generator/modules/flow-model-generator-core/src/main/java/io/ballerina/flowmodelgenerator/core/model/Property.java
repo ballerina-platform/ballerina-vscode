@@ -220,7 +220,6 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
     public static final String SERVICE_INIT_SCOPE = "ServiceInit";
     public static final String OBJECT_SCOPE = "Object";
     public static final String LOCAL_SCOPE = "Local";
-
     public static final String CONNECTION_KEY = "connection";
     public static final String CONNECTION_LABEL = "Connection";
     public static final String CONNECTION_DOC = "Connection to use";

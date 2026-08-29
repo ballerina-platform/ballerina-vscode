@@ -50,11 +50,19 @@ export interface UpdateSourceCodeRequest {
 
 export async function updateSourceCode(updateSourceCodeRequest: UpdateSourceCodeRequest, isChangeFromHelperPane?: boolean): Promise<ProjectStructureArtifactResponse[]> {
     const skipUndoRedoStack = updateSourceCodeRequest.artifactData?.artifactType === "CONFIGURABLE";
+    // Capture the current undo/redo manager instance for the whole operation. The
+    // module-level `undoRedoManager` is reassigned to a fresh instance when the
+    // webview (re)loads (`webviewReady`); if that happens mid-operation — e.g. a
+    // source update generated right after a folder open, while the visualizer is
+    // still initialising — the later batch calls would hit the new instance and
+    // throw "No batch operation in progress". Pinning it here keeps
+    // start/add/commit/cancel on one consistent instance.
+    const batchManager = undoRedoManager;
     try {
         let tomlFilesUpdated = false;
         StateMachine.setEditMode();
         if (!skipUndoRedoStack) {
-            undoRedoManager?.startBatchOperation();
+            batchManager?.startBatchOperation();
         }
         const modificationRequests: Record<string, { filePath: string; modifications: STModification[] }> = {};
         for (const [key, value] of Object.entries(updateSourceCodeRequest.textEdits)) {
@@ -92,7 +100,7 @@ export async function updateSourceCode(updateSourceCodeRequest: UpdateSourceCode
             const document = await workspace.openTextDocument(fileUri);
             const beforeContent = document.getText();
             if (!skipUndoRedoStack) {
-                undoRedoManager?.addFileToBatch(fileUri.fsPath, beforeContent, beforeContent);
+                batchManager?.addFileToBatch(fileUri.fsPath, beforeContent, beforeContent);
             }
 
             if (edits && edits.length > 0) {
@@ -121,7 +129,7 @@ export async function updateSourceCode(updateSourceCodeRequest: UpdateSourceCode
             }
             if (edits.length === 0) {
                 if (!skipUndoRedoStack) {
-                    undoRedoManager?.cancelBatchOperation();
+                    batchManager?.cancelBatchOperation();
                 }
                 StateMachine.setReadyMode();
                 return [];
@@ -131,7 +139,7 @@ export async function updateSourceCode(updateSourceCodeRequest: UpdateSourceCode
         // If modificationRequests is empty, return empty array
         if (Object.keys(modificationRequests).length === 0) {
             if (!skipUndoRedoStack) {
-                undoRedoManager?.cancelBatchOperation();
+                batchManager?.cancelBatchOperation();
             }
             StateMachine.setReadyMode();
             return [];
@@ -204,13 +212,13 @@ export async function updateSourceCode(updateSourceCodeRequest: UpdateSourceCode
                         formattedSource.newText
                     );
                     if (!skipUndoRedoStack) {
-                        undoRedoManager?.addFileToBatch(fileUri.fsPath, formattedSource.newText, formattedSource.newText);
+                        batchManager?.addFileToBatch(fileUri.fsPath, formattedSource.newText, formattedSource.newText);
                     }
                 }
             }
 
             if (!skipUndoRedoStack) {
-                undoRedoManager?.commitBatchOperation(updateSourceCodeRequest.description ? updateSourceCodeRequest.description : (updateSourceCodeRequest.artifactData ? `Change in ${updateSourceCodeRequest.artifactData?.artifactType} ${updateSourceCodeRequest.artifactData?.identifier}` : "Update Source Code"));
+                batchManager?.commitBatchOperation(updateSourceCodeRequest.description ? updateSourceCodeRequest.description : (updateSourceCodeRequest.artifactData ? `Change in ${updateSourceCodeRequest.artifactData?.artifactType} ${updateSourceCodeRequest.artifactData?.identifier}` : "Update Source Code"));
             }
 
             await workspace.applyEdit(formattedWorkspaceEdit);
@@ -279,7 +287,7 @@ export async function updateSourceCode(updateSourceCodeRequest: UpdateSourceCode
     } catch (error) {
         StateMachine.setReadyMode();
         if (!skipUndoRedoStack) {
-            undoRedoManager?.cancelBatchOperation();
+            batchManager?.cancelBatchOperation();
         }
         console.log(">>> error updating source", error);
         throw error;
@@ -320,4 +328,3 @@ export async function injectImportIfMissing(importStatement: string, filePath: s
         await vscode.workspace.applyEdit(workspaceEdit);
     }
 }
-

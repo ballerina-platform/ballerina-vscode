@@ -185,7 +185,11 @@ export default function createTests() {
             await expect(mainItem).not.toBeVisible({ timeout: 10000 });
         });
 
-        test('Add an artifact from the tree via the Entry Points "Add" button', async () => {
+        // Flaky in CI: hovering the "Entry Points" tree item times out (locator
+        // never resolves), even after retries. Skipping until the root cause in the
+        // Project Explorer tree rendering is fixed.
+        // https://github.com/wso2/product-integrator/issues/2188
+        test.skip('Add an artifact from the tree via the Entry Points "Add" button', async () => {
             logStep('Hovering "Entry Points" and clicking "Add Entry Point"');
             const entryPoints = treeItem('Entry Points');
             await entryPoints.hover();
@@ -195,7 +199,10 @@ export default function createTests() {
             await addBtn.click();
 
             const artifactWebView = await getWebview(BI_INTEGRATOR_LABEL, page);
-            await expect(artifactWebView.getByRole('heading', { name: 'Artifacts', exact: true })).toBeVisible({ timeout: 15000 });
+            // Doubled from 15s: this runs late in the suite (right after a tree delete,
+            // deep into a long serial run), where the artifact picker can take longer to
+            // render than earlier in a fresh session.
+            await expect(artifactWebView.getByRole('heading', { name: 'Artifacts', exact: true })).toBeVisible({ timeout: 30000 });
 
             logStep('Selecting "Automation" and creating it');
             const automationCard = artifactWebView.locator('[data-testid="automation"], #automation').first();

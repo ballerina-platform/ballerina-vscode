@@ -44,6 +44,7 @@ import { registerTestManagerRpcHandlers } from './rpc-managers/test-manager/rpc-
 import { registerIcpServiceRpcHandlers } from './rpc-managers/icp-service/rpc-handler';
 import { registerWorkflowManagementServiceRpcHandlers } from './rpc-managers/workflow-management-service/rpc-handler';
 import { extension } from './BalExtensionContext';
+import { isICPSupported } from './utils/config';
 import { registerAgentChatRpcHandlers } from './rpc-managers/agent-chat/rpc-handler';
 import { ChatPanel } from './views/agent-chat/webview';
 import { activeAgentChanged, tracingStatusChanged, TraceStatus } from '@wso2/ballerina-core';
@@ -168,6 +169,7 @@ async function getContext(): Promise<VisualizerLocation> {
             view: context.view,
             identifier: context.identifier,
             parentIdentifier: context.parentIdentifier,
+            artifactType: context.artifactType,
             position: context.position,
             syntaxTree: context.syntaxTree,
             isBI: context.isBI,
@@ -182,6 +184,7 @@ async function getContext(): Promise<VisualizerLocation> {
             rootDiagramId: context.rootDiagramId,
             metadata: {
                 isBISupported: context.isBISupported,
+                isICPSupported: isICPSupported(),
                 haveLS: StateMachine.langClient() && true,
                 recordFilePath: context.projectPath ? path.join(context.projectPath, "types.bal") : undefined,
                 enableSequenceDiagram: extension.ballerinaExtInstance.enableSequenceDiagramView(),

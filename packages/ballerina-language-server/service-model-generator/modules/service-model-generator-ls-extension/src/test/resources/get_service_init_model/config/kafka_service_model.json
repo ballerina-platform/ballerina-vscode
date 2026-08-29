@@ -6,7 +6,7 @@
   "moduleName": "kafka",
   "response": {
     "serviceInitModel": {
-      "id": "11",
+      "id": "1",
       "displayName": "Kafka Event Integration",
       "description": "Create a service to handle messages from Kafka topic(s)",
       "orgName": "ballerinax",
@@ -16,13 +16,35 @@
       "type": "kafka",
       "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_kafka_4.5.0.png",
       "properties": {
+        "listenerVarName": {
+          "metadata": {
+            "label": "Listener Name",
+            "description": "Provide a name for the listener being created."
+          },
+          "codedata": {
+            "type": "LISTENER_VAR_NAME"
+          },
+          "value": "kafkaListener1",
+          "types": [
+            {
+              "fieldType": "IDENTIFIER",
+              "ballerinaType": "kafka:Listener",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": false,
+          "advanced": true
+        },
         "bootstrapServers": {
           "metadata": {
             "label": "Bootstrap Servers",
-            "description": "List of remote server endpoints of the Kafka brokers"
+            "description": "List of remote server endpoints of the Kafka brokers."
           },
           "codedata": {
-            "argType": "LISTENER_PARAM_REQUIRED"
+            "argType": "LISTENER_PARAM_REQUIRED",
+            "position": 1
           },
           "placeholder": "localhost:9092",
           "value": "\"localhost:9092\"",
@@ -36,11 +58,14 @@
               "fieldType": "REPEATABLE_LIST",
               "ballerinaType": "string[]",
               "template": {
+                "metadata": {
+                  "label": "Server"
+                },
                 "types": [
                   {
                     "fieldType": "TEXT",
                     "ballerinaType": "string",
-                    "selected": false
+                    "selected": true
                   },
                   {
                     "fieldType": "EXPRESSION",
@@ -49,7 +74,7 @@
                   }
                 ],
                 "enabled": false,
-                "editable": false,
+                "editable": true,
                 "optional": false,
                 "advanced": false
               },
@@ -69,10 +94,11 @@
         "topics": {
           "metadata": {
             "label": "Topic(s)",
-            "description": "The topic(s) to subscribe to"
+            "description": "The topic(s) to subscribe to."
           },
           "codedata": {
-            "argType": "LISTENER_PARAM_INCLUDED_FIELD"
+            "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+            "path": "topics"
           },
           "placeholder": "myTopic",
           "value": "\"myTopic\"",
@@ -86,11 +112,14 @@
               "fieldType": "REPEATABLE_LIST",
               "ballerinaType": "string[]",
               "template": {
+                "metadata": {
+                  "label": "Topic"
+                },
                 "types": [
                   {
                     "fieldType": "TEXT",
                     "ballerinaType": "string",
-                    "selected": false
+                    "selected": true
                   },
                   {
                     "fieldType": "EXPRESSION",
@@ -99,7 +128,7 @@
                   }
                 ],
                 "enabled": false,
-                "editable": false,
+                "editable": true,
                 "optional": false,
                 "advanced": false
               },
@@ -115,26 +144,6 @@
           "editable": true,
           "optional": false,
           "advanced": false
-        },
-        "listenerVarName": {
-          "metadata": {
-            "label": "Listener Name",
-            "description": "Provide a name for the listener being created"
-          },
-          "codedata": {
-            "type": "LISTENER_VAR_NAME"
-          },
-          "value": "kafkaListener1",
-          "types": [
-            {
-              "fieldType": "IDENTIFIER",
-              "selected": true
-            }
-          ],
-          "enabled": true,
-          "editable": true,
-          "optional": false,
-          "advanced": true
         }
       }
     }

@@ -16,14 +16,13 @@
  * under the License.
  */
 
+import { useEffect, useLayoutEffect, useState } from "react";
 import styled from "@emotion/styled";
 import { keyframes } from "@emotion/react";
-import { AgentRunState, AgentRunStatus, ChatNotify } from "@wso2/ballerina-core";
-import { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
+import { AgentRunState, AgentRunStatus, ChatNotify, MACHINE_VIEW } from "@wso2/ballerina-core";
+import { BallerinaRpcClient, useRpcContext } from "@wso2/ballerina-rpc-client";
 import type { MiniChatPrompt } from "./promptHandoff";
-
-/** WSO2 brand orange — the pulse-icon color from wso2.com/about/brand. */
-export const BRAND_ORANGE = "#F14E23";
+import { ambientBorderColor } from "./orbTheme";
 
 /** Floating orb geometry, shared with the mini chat for anchor-relative placement. */
 export const ORB_SIZE = 56;
@@ -44,26 +43,21 @@ export function loadAnchor(): Anchor {
     } catch {
         stored = null;
     }
-    // Default to bottom-center so the copilot invitation is front and center
-    // when BI opens; users can drag the orb to any of the six anchors.
-    return stored && (ANCHORS as readonly string[]).includes(stored) ? (stored as Anchor) : "bottom-center";
+    // bottom-center sits on top of whatever the active view docks at its own
+    // bottom-center (form submit buttons, artifact-picker cards, …), so default
+    // to bottom-right instead; users can still drag the orb to any anchor.
+    return stored && (ANCHORS as readonly string[]).includes(stored) ? (stored as Anchor) : "bottom-right";
 }
-
-export const ORB_COLORS: Record<AgentRunState, [string, string, string]> = {
-    "idle": ["#6b5ce8", BRAND_ORANGE, "#ffb199"],
-    "running": ["#4facfe", "#a78bfa", "#f472b6"],
-    "awaiting-input": ["#fbbf24", "#f59e0b", "#fb923c"],
-    "completed": ["#34d399", "#10b981", "#6ee7b7"],
-    "error": ["#f87171", "#ef4444", "#fb7185"],
-};
 
 /** Flow speed / contrast of the shader per state (0 = still, 1 = lively). */
 export const ORB_ENERGY: Record<AgentRunState, number> = {
-    "idle": 0.35,
+    // Raised across the board so the single-hue orb visibly flows (the motion,
+    // not the color, is what carries "alive"). Running stays at the ceiling.
+    "idle": 0.6,
     "running": 1.0,
-    "awaiting-input": 0.55,
-    "completed": 0.45,
-    "error": 0.5,
+    "awaiting-input": 0.72,
+    "completed": 0.6,
+    "error": 0.65,
 };
 
 const ambientGradientShift = keyframes`
@@ -79,8 +73,9 @@ interface AmbientFrameProps {
     $variant?: AmbientFrameVariant;
 }
 
-function ambientColors(props: AmbientFrameProps): [string, string, string] {
-    return ORB_COLORS[props.$state ?? "idle"];
+/** The frame's base color (accent floored to focusBorder for visibility); tinted in CSS. */
+function ambientBase(props: AmbientFrameProps): string {
+    return ambientBorderColor(props.$state ?? "idle");
 }
 
 /**
@@ -94,27 +89,35 @@ export const AmbientFrame = styled.div<AmbientFrameProps>`
     padding: ${(props: AmbientFrameProps) => props.$variant === "hero" ? "1.5px" : "1px"};
     border-radius: ${(props: AmbientFrameProps) => props.$variant === "hero" ? "14px" : "10px"};
     background: ${(props: AmbientFrameProps) => {
-        const [first, second, third] = ambientColors(props);
-        return `linear-gradient(120deg, ${first}, ${second}, ${third}, ${first})`;
+        // Monochromatic gradient tinted from the state's accent so the frame
+        // reads as one theme color (light stop → base → dark stop).
+        const base = ambientBase(props);
+        return `linear-gradient(120deg,`
+            + ` color-mix(in srgb, ${base} 82%, #ffffff),`
+            + ` ${base},`
+            + ` color-mix(in srgb, ${base} 80%, #000000),`
+            + ` color-mix(in srgb, ${base} 82%, #ffffff))`;
     }};
     background-size: 300% 300%;
     animation: ${ambientGradientShift} 9s ease infinite;
     box-shadow: ${(props: AmbientFrameProps) => {
-        const [first, second] = ambientColors(props);
+        const base = ambientBase(props);
         const hero = props.$variant === "hero";
         const active = !!props.$state && props.$state !== "idle";
-        const outerStrength = hero ? 25 : active ? 20 : 12;
-        const innerStrength = hero ? 12 : active ? 13 : 7;
-        const outerSize = hero ? 18 : active ? 16 : 12;
-        const innerSize = hero ? 10 : active ? 10 : 8;
-        return `0 0 ${outerSize}px color-mix(in srgb, ${first} ${outerStrength}%, transparent), 0 0 ${innerSize}px color-mix(in srgb, ${second} ${innerStrength}%, transparent)`;
+        // Idle composer used to be the faintest (12/7); bump it so the frame
+        // stays legible where the accent is muted or near the panel background.
+        const outerStrength = hero ? 25 : active ? 20 : 18;
+        const innerStrength = hero ? 12 : active ? 13 : 11;
+        const outerSize = hero ? 18 : active ? 16 : 14;
+        const innerSize = hero ? 10 : active ? 10 : 9;
+        return `0 0 ${outerSize}px color-mix(in srgb, ${base} ${outerStrength}%, transparent), 0 0 ${innerSize}px color-mix(in srgb, ${base} ${innerStrength}%, transparent)`;
     }};
     transition: box-shadow 0.25s ease;
 
     &:focus-within {
         box-shadow: ${(props: AmbientFrameProps) => {
-            const [first, second] = ambientColors(props);
-            return `0 0 22px color-mix(in srgb, ${first} 34%, transparent), 0 0 13px color-mix(in srgb, ${second} 20%, transparent)`;
+            const base = ambientBase(props);
+            return `0 0 22px color-mix(in srgb, ${base} 34%, transparent), 0 0 13px color-mix(in srgb, ${base} 20%, transparent)`;
         }};
     }
 
@@ -131,18 +134,20 @@ export const AmbientFrame = styled.div<AmbientFrameProps>`
 `;
 
 /** User-facing label for a non-idle run state, shared by the orb and the hero box. */
+export const AWAITING_INPUT_LABEL = "WSO2 Integration Intelligence needs your input";
+
 export function activeStateLabel(status: AgentRunStatus): string {
     switch (status.state) {
         case "completed":
-            return "Done — click to open Copilot";
+            return "Done — click to open WSO2 Integration Intelligence";
         case "running":
             return status.label ?? "Working on it…";
         case "awaiting-input":
-            return status.label ?? "Copilot needs your input";
+            return status.label ?? AWAITING_INPUT_LABEL;
         case "error":
-            return status.label ?? "Copilot hit an error";
+            return status.label ?? "WSO2 Integration Intelligence hit an error";
         default:
-            return "Chat with WSO2 Integrator Copilot";
+            return "Chat with WSO2 Integration Intelligence";
     }
 }
 
@@ -283,6 +288,48 @@ export function subscribeAgentRunStatus(
     };
 }
 
+/** Test-only: clears the module-level status cache and listeners between test cases. */
+export function __resetAgentRunStatusStoreForTests(): void {
+    currentStatus = null;
+    statusWired = false;
+    receivedStatusNotification = false;
+    statusListeners.clear();
+}
+
+/**
+ * True while the Copilot panel is open — inline copilot surfaces stand down so
+ * the panel is the only chat entry point. Seeded from the cached status so a
+ * remount does not flash the surface it is about to hide.
+ */
+export function useAiPanelOpen(): boolean {
+    const { rpcClient } = useRpcContext();
+    const [open, setOpen] = useState(() => currentStatus?.aiPanelOpen ?? false);
+
+    useEffect(() => {
+        if (!rpcClient) {
+            return;
+        }
+        return subscribeAgentRunStatus(rpcClient, (status) => setOpen(status?.aiPanelOpen ?? false));
+    }, [rpcClient]);
+
+    return open;
+}
+
+/** The live run state — says nothing about what the turn will produce. */
+export function useAgentRunState(): AgentRunState | undefined {
+    const { rpcClient } = useRpcContext();
+    const [state, setState] = useState(() => currentStatus?.state);
+
+    useEffect(() => {
+        if (!rpcClient) {
+            return;
+        }
+        return subscribeAgentRunStatus(rpcClient, (status) => setState(status?.state));
+    }, [rpcClient]);
+
+    return state;
+}
+
 // ---------------------------------------------------------------------------
 // Contextual mini-chat launch requests.
 //
@@ -339,33 +386,66 @@ export function subscribeCopilotChatNotify(
 }
 
 // ---------------------------------------------------------------------------
-// Hero-box presence.
+// Floating-orb suppression.
 //
-// While a landing-page hero box is on screen it IS the copilot surface for
-// that view, so the floating orb hides itself to avoid showing two orbs.
+// A view opts out of the floating orb either because its own hero box is the
+// copilot surface there, or because it deliberately offers no ambient copilot.
 // ---------------------------------------------------------------------------
 
-let heroCount = 0;
-const heroListeners = new Set<(present: boolean) => void>();
+let orbSuppressCount = 0;
+const orbSuppressListeners = new Set<(suppressed: boolean) => void>();
 
-function notifyHeroPresence() {
-    heroListeners.forEach((listener) => listener(heroCount > 0));
+function notifyOrbSuppressed() {
+    orbSuppressListeners.forEach((listener) => listener(orbSuppressCount > 0));
 }
 
-/** Called by a hero box on mount; returns the matching unmount cleanup. */
-export function registerHeroPresence(): () => void {
-    heroCount++;
-    notifyHeroPresence();
-    return () => {
-        heroCount--;
-        notifyHeroPresence();
-    };
+/**
+ * Hides the floating orb while the caller is mounted and `suppressed` holds.
+ * Layout effect, not passive: suppression has to land in the same frame as the
+ * render that caused it, or the orb paints once over a view that opts out.
+ */
+export function useSuppressAgentStatusOrb(suppressed = true): void {
+    useLayoutEffect(() => {
+        if (!suppressed) {
+            return;
+        }
+        orbSuppressCount++;
+        notifyOrbSuppressed();
+        return () => {
+            orbSuppressCount--;
+            notifyOrbSuppressed();
+        };
+    }, [suppressed]);
 }
 
-export function subscribeHeroPresence(listener: (present: boolean) => void): () => void {
-    heroListeners.add(listener);
-    listener(heroCount > 0);
+/**
+ * The hubs and design canvases the ambient orb belongs on. Forms, wizards, list
+ * and settings pages, setup/welcome pages, Copilot's own views and anything still
+ * loading go without it, so a view added later has to opt in here rather than
+ * inherit the overlay.
+ */
+const VIEWS_WITH_ORB: ReadonlySet<MACHINE_VIEW> = new Set([
+    MACHINE_VIEW.PackageOverview,
+    MACHINE_VIEW.BIComponentView,
+    MACHINE_VIEW.BIDiagram,
+    MACHINE_VIEW.ServiceDesigner,
+    MACHINE_VIEW.BIServiceClassDesigner,
+    MACHINE_VIEW.AIAgentDesigner,
+    MACHINE_VIEW.ERDiagram,
+    MACHINE_VIEW.TypeDiagram,
+    MACHINE_VIEW.GraphQLDiagram,
+    MACHINE_VIEW.DataMapper,
+    MACHINE_VIEW.InlineDataMapper,
+]);
+
+export function viewHidesAgentStatusOrb(view: MACHINE_VIEW | null | undefined): boolean {
+    return !view || !VIEWS_WITH_ORB.has(view);
+}
+
+export function subscribeOrbSuppressed(listener: (suppressed: boolean) => void): () => void {
+    orbSuppressListeners.add(listener);
+    listener(orbSuppressCount > 0);
     return () => {
-        heroListeners.delete(listener);
+        orbSuppressListeners.delete(listener);
     };
 }

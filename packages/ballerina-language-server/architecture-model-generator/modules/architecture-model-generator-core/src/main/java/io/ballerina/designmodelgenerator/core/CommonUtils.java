@@ -72,6 +72,8 @@ public class CommonUtils {
     private static final String MEMORY_TYPE_NAME = "Memory";
     private static final String ST_MEMORY_STORE_TYPE_NAME = "ShortTermMemoryStore";
     private static final String KNOWLEDGE_BASE_TYPE_NAME = "KnowledgeBase";
+    private static final String FIXED_TYPED_AGENT_TYPE_NAME = "FixedTypedAgent";
+    private static final String DEPENDENTLY_TYPED_AGENT_TYPE_NAME = "DependentlyTypedAgent";
 
     private static final String WSO2_MODEL_PROVIDER = "Wso2ModelProvider";
     private static final String WSO2_EMBEDDING_PROVIDER = "Wso2EmbeddingProvider";
@@ -262,15 +264,19 @@ public class CommonUtils {
         if (symbol instanceof ClassSymbol classSymbol) {
             return classSymbol;
         }
-        TypeReferenceTypeSymbol typeDescriptorSymbol;
+        TypeSymbol typeDescriptor;
         if (symbol instanceof VariableSymbol variableSymbol) {
-            typeDescriptorSymbol = (TypeReferenceTypeSymbol) variableSymbol.typeDescriptor();
+            typeDescriptor = variableSymbol.typeDescriptor();
         } else if (symbol instanceof ParameterSymbol parameterSymbol) {
-            typeDescriptorSymbol = (TypeReferenceTypeSymbol) parameterSymbol.typeDescriptor();
+            typeDescriptor = parameterSymbol.typeDescriptor();
         } else {
             return null;
         }
-        return (ClassSymbol) typeDescriptorSymbol.typeDescriptor();
+        if (typeDescriptor instanceof TypeReferenceTypeSymbol typeRef
+                && typeRef.typeDescriptor() instanceof ClassSymbol classSymbol) {
+            return classSymbol;
+        }
+        return null;
     }
 
     public static boolean isAgentClass(Symbol symbol) {
@@ -283,6 +289,16 @@ public class CommonUtils {
             return false;
         }
         return symbol.getName().isPresent() && symbol.getName().get().equals(AGENT);
+    }
+
+    public static boolean isAiFixedTypedAgent(Symbol symbol) {
+        ClassSymbol classSymbol = getClassSymbol(symbol);
+        return classSymbol != null && hasAiTypeInclusion(classSymbol, FIXED_TYPED_AGENT_TYPE_NAME);
+    }
+
+    public static boolean isAiDependentlyTypedAgent(Symbol symbol) {
+        ClassSymbol classSymbol = getClassSymbol(symbol);
+        return classSymbol != null && hasAiTypeInclusion(classSymbol, DEPENDENTLY_TYPED_AGENT_TYPE_NAME);
     }
 
     public static boolean isAiMemory(Symbol symbol) {
@@ -304,8 +320,8 @@ public class CommonUtils {
     }
 
     public static boolean isHiddenAiClass(Symbol symbol) {
-        return isAgentClass(symbol) || isAiKnowledgeBase(symbol) || isAiMemory(symbol) ||
-                isAiShortTermMemoryStore(symbol);
+        return isAgentClass(symbol) || isAiFixedTypedAgent(symbol) || isAiDependentlyTypedAgent(symbol)
+                || isAiKnowledgeBase(symbol) || isAiMemory(symbol) || isAiShortTermMemoryStore(symbol);
     }
 
     private static boolean hasAiTypeInclusion(ObjectTypeSymbol objectTypeSymbol, String includedTypeName) {

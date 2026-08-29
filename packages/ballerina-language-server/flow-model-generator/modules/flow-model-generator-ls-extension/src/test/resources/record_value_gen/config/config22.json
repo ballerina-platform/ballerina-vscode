@@ -1,0 +1,44 @@
+{
+  "filePath": "proj/types.bal",
+  "description": "Non-ambiguous type with a typeConstraint is returned without a cast",
+  "typeConstraint": "Address",
+  "type": {
+    "typeName": "record",
+    "name": "Address",
+    "selected": true,
+    "fields": [
+      {
+        "name": "street",
+        "typeName": "string",
+        "optional": false,
+        "defaultable": false,
+        "isRestType": false,
+        "selected": true,
+        "value": "\"\""
+      },
+      {
+        "name": "city",
+        "typeName": "string",
+        "optional": false,
+        "defaultable": false,
+        "isRestType": false,
+        "selected": true,
+        "value": "\"\""
+      },
+      {
+        "name": "country",
+        "typeName": "string",
+        "optional": false,
+        "defaultable": false,
+        "isRestType": false,
+        "selected": true,
+        "value": "\"\""
+      }
+    ],
+    "hasRestType": false,
+    "optional": false,
+    "defaultable": false,
+    "isRestType": false
+  },
+  "output": "{\n    street: \"\",\n    city: \"\",\n    country: \"\"\n}"
+}

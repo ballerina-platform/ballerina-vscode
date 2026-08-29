@@ -1,0 +1,5 @@
+[package]
+org = "wso2"
+name = "test_identifiers"
+version = "0.1.0"
+distribution = "2201.9.2"

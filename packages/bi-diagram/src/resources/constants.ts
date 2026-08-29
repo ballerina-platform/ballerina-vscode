@@ -32,6 +32,10 @@ export enum NodeTypes {
     END_NODE = "end-node",
     ERROR_NODE = "error-node",
     AGENT_CALL_NODE = "agent-call-node",
+    DURABLE_AGENT_RUN_NODE = "durable-agent-run-node",
+    EVAL_NODE = "eval-node",
+    TYPED_AGENT_NODE = "typed-agent-node",
+    AGENT_NODE = "agent-node",
     PROMPT_NODE = "prompt-node",
     WORKFLOW_RUN_NODE = "workflow-run-node",
     CALL_ACTIVITY_NODE = "call-activity-node",
@@ -158,7 +162,9 @@ export const LAST_NODE = "lastNode";
 // agent node
 export const AGENT_NODE_TOOL_GAP = 5;
 export const AGENT_NODE_TOOL_SECTION_GAP = 120;
+export const AGENT_CALL_TOOL_SECTION_GAP = 80;
 export const AGENT_NODE_ADD_TOOL_BUTTON_WIDTH = 20;
+export const AGENT_CALL_AGENT_ROW_HEIGHT = 38;
 
 // prompt node
 export const PROMPT_NODE_WIDTH = 350;
@@ -171,3 +177,9 @@ export const WAIT_DATA_DETAILS_WIDTH = 220;
 export const WAIT_DATA_DETAILS_GAP = 12;
 export const WAIT_DATA_CIRCLE_SIZE = 56;
 export const WAIT_DATA_ARROW_WIDTH = 60;
+
+// A human task names the roles it waits on to the left of the person icon, so the node reserves a
+// strip for them there. Both the sizing visitor and the widget measure from this, or the icon would
+// be drawn somewhere the layout did not put it.
+export const HUMAN_TASK_ROLES_LABEL_WIDTH = 140;
+export const HUMAN_TASK_ROLES_LABEL_GAP = 8;

@@ -1,0 +1,117 @@
+{
+  "schemaVersion": "1.0",
+  "id": "trigger.hubspot",
+  "displayName": "HubSpot Event Integration",
+  "description": "Create a service to handle webhook events from HubSpot CRM objects",
+  "orgName": "ballerinax",
+  "packageName": "trigger.hubspot",
+  "moduleName": "trigger.hubspot",
+  "version": "0.12.0",
+  "type": "trigger.hubspot",
+  "icon": "docs/icon.png",
+  "properties": {
+    "serviceType": {
+      "metadata": { "label": "Event Type", "description": "The HubSpot CRM object whose events this service handles" },
+      "codedata": { "argType": "SERVICE_TYPE_DESCRIPTOR" },
+      "value": "CompanyService",
+      "types": [ { "fieldType": "SINGLE_SELECT", "ballerinaType": "hubspot:GenericServiceType", "selected": true } ],
+      "enabled": true,
+      "editable": true,
+      "optional": false,
+      "advanced": false
+    },
+    "configureListener": {
+      "metadata": { "label": "Configure HubSpot Listener", "description": "Select an existing HubSpot listener or create a new one" },
+      "value": "0",
+      "types": [ { "fieldType": "CHOICE", "selected": true } ],
+      "enabled": true,
+      "editable": true,
+      "optional": false,
+      "advanced": false,
+      "choices": [
+        {
+          "metadata": { "label": "Create new", "description": "Create a new HubSpot listener" },
+          "value": "true",
+          "types": [ { "fieldType": "FORM", "selected": true } ],
+          "enabled": true,
+          "editable": true,
+          "optional": false,
+          "advanced": false,
+          "properties": {
+            "listenerConfig": {
+              "metadata": { "label": "Listener Configuration", "description": "Configure the HubSpot webhook listener" },
+              "codedata": { "argType": "LISTENER_PARAM_REQUIRED", "originalName": "listenerConfig", "position": 1 },
+              "types": [ { "fieldType": "GROUP_SECTION", "selected": true } ],
+              "enabled": true,
+              "editable": true,
+              "optional": false,
+              "advanced": false,
+              "properties": {
+                "listenerVarName": {
+                  "metadata": { "label": "Listener Name", "description": "Provide a name for the listener being created" },
+                  "codedata": { "type": "LISTENER_VAR_NAME" },
+                  "value": "hubspotListener",
+                  "types": [ { "fieldType": "IDENTIFIER", "selected": true } ],
+                  "enabled": true,
+                  "editable": true,
+                  "optional": false,
+                  "advanced": false
+                },
+                "clientSecret": {
+                  "metadata": { "label": "Client Secret", "description": "The Client Secret of the HubSpot App" },
+                  "codedata": { "argType": "LISTENER_PARAM_CONFIG_FIELD", "originalName": "clientSecret", "path": "clientSecret" },
+                  "value": "clientSecretValue",
+                  "types": [ { "fieldType": "TEXT", "ballerinaType": "string", "selected": true } ],
+                  "enabled": true,
+                  "editable": true,
+                  "optional": false,
+                  "advanced": false
+                },
+                "callbackURL": {
+                  "metadata": { "label": "Callback URL", "description": "The callback URL HubSpot uses" },
+                  "codedata": { "argType": "LISTENER_PARAM_CONFIG_FIELD", "originalName": "callbackURL", "path": "callbackURL" },
+                  "value": "callbackUrlValue",
+                  "types": [ { "fieldType": "TEXT", "ballerinaType": "string", "selected": true } ],
+                  "enabled": true,
+                  "editable": true,
+                  "optional": false,
+                  "advanced": false
+                },
+                "listenOn": {
+                  "metadata": { "label": "Listener Port", "description": "The port the webhook listener uses" },
+                  "codedata": { "argType": "LISTENER_PARAM_REQUIRED", "originalName": "listenOn", "position": 2 },
+                  "value": "8090",
+                  "types": [ { "fieldType": "NUMBER", "ballerinaType": "int", "selected": true } ],
+                  "enabled": true,
+                  "editable": true,
+                  "optional": true,
+                  "advanced": false
+                }
+              }
+            }
+          }
+        },
+        {
+          "metadata": { "label": "Use existing", "description": "Select an existing HubSpot listener" },
+          "value": "true",
+          "types": [ { "fieldType": "FORM", "selected": true } ],
+          "enabled": false,
+          "editable": false,
+          "optional": false,
+          "advanced": false,
+          "properties": {
+            "listenerConfig": {
+              "metadata": { "label": "Listener Configuration", "description": "Existing listener configuration (populated by the language server)" },
+              "types": [ { "fieldType": "GROUP_SECTION", "selected": true } ],
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "properties": {}
+            }
+          }
+        }
+      ]
+    }
+  }
+}

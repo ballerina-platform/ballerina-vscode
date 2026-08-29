@@ -36,7 +36,8 @@ import {
     OperationType,
     Protocol,
     webToolToggle,
-    onCopilotChatNotify
+    onCopilotChatNotify,
+    GenerationReviewState
 } from "@wso2/ballerina-core";
 import { ModelMessage } from "ai";
 import { MessageRole } from "./ai-types";
@@ -320,6 +321,15 @@ export function sendSkillEnableNotification(event: ChatNotify & { type: "skill_e
     sendAIPanelNotification(event);
 }
 
+export function sendGenerationStatusNotification(generationId: string, status: GenerationReviewState["status"]): void {
+    const msg: ChatNotify = {
+        type: "generation_status",
+        generationId,
+        status,
+    };
+    sendAIPanelNotification(msg);
+}
+
 export function sendWebToolToggleNotification(active: boolean): void {
     RPCLayer._messenger.sendNotification(
         webToolToggle,
@@ -440,7 +450,7 @@ export function getErrorMessage(error: unknown): string {
             return "The AI service returned an invalid response. Please try again.";
         }
         if (msg.includes("Unsupported login method")) {
-            return "Please sign in to WSO2 Integrator Copilot to use AI features.";
+            return "Please sign in to WSO2 Integration Intelligence to use AI features.";
         }
 
         return msg;

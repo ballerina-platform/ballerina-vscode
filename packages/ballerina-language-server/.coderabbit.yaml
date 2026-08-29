@@ -1,9 +1,0 @@
-language: "en-US"
-reviews:
-  request_changes_workflow: false
-  high_level_summary: true
-  auto_review:
-    enabled: true
-    base_branches:
-      - 'main'
-      - '1\.\d+\.x'

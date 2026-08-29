@@ -36,15 +36,21 @@ export class AiPanelWebview {
     constructor() {
         this._panel = AiPanelWebview.createWebview();
         this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
+        this._panel.onDidChangeViewState(
+            () => agentStatusManager.setAiPanelVisible(this._panel?.visible ?? false),
+            null,
+            this._disposables
+        );
         this._panel.webview.html = this.getWebviewContent(this._panel.webview);
         RPCLayer.create(this._panel);
         agentStatusManager.setAiPanelOpen(true);
+        agentStatusManager.setAiPanelVisible(this._panel.visible);
     }
 
     private static createWebview(): vscode.WebviewPanel {
         const panel = vscode.window.createWebviewPanel(
             AiPanelWebview.viewType,
-            "WSO2 Integrator Copilot",
+            "WSO2 Integration Intelligence",
             ViewColumn.Beside,
             {
                 enableScripts: true,
@@ -139,6 +145,7 @@ export class AiPanelWebview {
 
         AiPanelWebview.currentPanel = undefined;
         agentStatusManager.setAiPanelOpen(false);
+        agentStatusManager.setAiPanelVisible(false);
         AIStateMachine.sendEvent(AIMachineEventType.DISPOSE);
         this._panel?.dispose();
 

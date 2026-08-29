@@ -37,7 +37,12 @@
                 "module": "package1",
                 "packageName": "package1",
                 "symbol": "Employee",
-                "version": "0.1.0"
+                "version": "0.1.0",
+                "isGenerated": false,
+                "data": {
+                  "moduleRelation": "CURRENT_MODULE",
+                  "moduleKind": "DEFAULT_MODULE"
+                }
               },
               "enabled": true
             },
@@ -52,9 +57,43 @@
                 "module": "package1",
                 "packageName": "package1",
                 "symbol": "InternalConfig",
-                "version": "0.1.0"
+                "version": "0.1.0",
+                "isGenerated": false,
+                "data": {
+                  "moduleRelation": "CURRENT_MODULE",
+                  "moduleKind": "DEFAULT_MODULE"
+                }
               },
               "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "package1.helpers",
+                "description": "",
+                "keywords": []
+              },
+              "items": [
+                {
+                  "metadata": {
+                    "label": "WorkspaceHelperType",
+                    "description": ""
+                  },
+                  "codedata": {
+                    "node": "RECORD",
+                    "org": "testorg",
+                    "module": "package1.helpers",
+                    "packageName": "package1",
+                    "symbol": "WorkspaceHelperType",
+                    "version": "0.1.0",
+                    "isGenerated": false,
+                    "data": {
+                      "moduleRelation": "SAME_PACKAGE_MODULE",
+                      "moduleKind": "SUBMODULE"
+                    }
+                  },
+                  "enabled": true
+                }
+              ]
             }
           ]
         },
@@ -76,7 +115,12 @@
                 "module": "package2",
                 "packageName": "package2",
                 "symbol": "Address",
-                "version": "0.1.0"
+                "version": "0.1.0",
+                "isGenerated": false,
+                "data": {
+                  "moduleRelation": "WORKSPACE_PACKAGE_MODULE",
+                  "moduleKind": "DEFAULT_MODULE"
+                }
               },
               "enabled": true
             }

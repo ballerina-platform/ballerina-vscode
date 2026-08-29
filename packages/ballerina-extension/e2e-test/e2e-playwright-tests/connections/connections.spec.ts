@@ -17,7 +17,7 @@
  */
 import { Frame, Locator, test } from '@playwright/test';
 import * as path from 'path';
-import { BI_INTEGRATOR_LABEL, BI_WEBVIEW_NOT_FOUND_ERROR, initTest, page, logStep, newProjectPath } from '../utils/helpers';
+import { BI_INTEGRATOR_LABEL, BI_WEBVIEW_NOT_FOUND_ERROR, initTest, page, logStep, newProjectPath, domClick } from '../utils/helpers';
 import { switchToIFrame, Form } from '@wso2/playwright-vscode-tester';
 import { ProjectExplorer, Diagram, SidePanel } from '../utils/pages';
 import { DEFAULT_PROJECT_NAME } from '../utils/helpers/constants';
@@ -137,7 +137,14 @@ export default function createTests() {
                     }
                 }
             });
-            await form.submit('Save Connection');
+            // `force: true` still dispatches the click at the button's on-screen
+            // coordinates, so it can land on the floating Copilot orb instead of
+            // the button when the orb's default bottom-center dock happens to sit
+            // exactly on top of it — dispatch directly on the DOM node instead,
+            // which is immune to any overlay regardless of on-screen position.
+            const saveConnectionBtn = artifactWebView.locator('vscode-button:has-text("Save Connection")[appearance="primary"]');
+            await saveConnectionBtn.waitFor({ state: 'visible', timeout: 30000 });
+            await saveConnectionBtn.evaluate((el: HTMLElement) => el.click());
 
             // Verify via the project explorer tree (decoupled from the
             // webview's own re-render timing) rather than racing the side
@@ -318,11 +325,18 @@ export default function createTests() {
             // diagram — no explicit "Open View" navigation is needed.
             artifactWebView = await switchToIFrame(BI_INTEGRATOR_LABEL, page.page, 30000);
 
-            await artifactWebView.getByRole('button', { name: /Add Artifact/i }).click({ force: true });
-            await artifactWebView.locator('[data-testid="function-card-Connection"], #connection').first().click({ force: true });
+            // The diagram can still be settling right after the previous test's save
+            // (same drag-tolerance trap as elsewhere in this file) — retry the click
+            // rather than assume it registered.
+            const connectionCard = artifactWebView.locator('[data-testid="function-card-Connection"], #connection').first();
+            await clickUntil(artifactWebView.getByRole('button', { name: /Add Artifact/i }), connectionCard, 'Add Artifact button');
+            // domClick avoids the floating Copilot orb intercepting a coordinate click.
+            await domClick(connectionCard);
             await page.page.waitForTimeout(1500);
 
-            await artifactWebView.getByText('Connect via API Specification', { exact: false }).first().click({ force: true });
+            const apiSpecOption = artifactWebView.getByText('Connect via API Specification', { exact: false }).first();
+            await apiSpecOption.waitFor({ state: 'visible', timeout: 30000 });
+            await domClick(apiSpecOption);
             await page.page.waitForTimeout(1000);
 
             const connectorNameInput = artifactWebView.locator('#connector-name');
@@ -349,13 +363,18 @@ export default function createTests() {
             await artifactWebView.getByText('petstore.yaml', { exact: false }).first()
                 .waitFor({ state: 'visible', timeout: 15000 }).catch(() => { });
 
+            // `force: true` still dispatches the click at the button's on-screen
+            // coordinates, so it can land on the floating Copilot orb instead of
+            // the button when the orb's default bottom-center dock happens to sit
+            // exactly on top of it — dispatch directly on the DOM node instead,
+            // which is immune to any overlay regardless of on-screen position.
             const saveConnectorButton = artifactWebView.getByRole('button', { name: 'Save Connector' });
             await saveConnectorButton.waitFor({ state: 'visible', timeout: 15000 });
-            await saveConnectorButton.click({ force: true });
+            await saveConnectorButton.evaluate((el: HTMLElement) => el.click());
 
             const saveConnectionButtonStep2 = artifactWebView.getByRole('button', { name: 'Save Connection' });
             await saveConnectionButtonStep2.waitFor({ state: 'visible', timeout: 120000 });
-            await saveConnectionButtonStep2.click({ force: true });
+            await saveConnectionButtonStep2.evaluate((el: HTMLElement) => el.click());
             await page.page.waitForTimeout(2000);
             logStep('petstore connector generated from the OpenAPI spec and saved');
 

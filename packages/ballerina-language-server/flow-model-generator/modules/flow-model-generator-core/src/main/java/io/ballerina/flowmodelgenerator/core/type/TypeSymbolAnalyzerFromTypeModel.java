@@ -26,6 +26,7 @@ import io.ballerina.compiler.syntax.tree.MappingConstructorExpressionNode;
 import io.ballerina.compiler.syntax.tree.MappingFieldNode;
 import io.ballerina.compiler.syntax.tree.NodeParser;
 import io.ballerina.compiler.syntax.tree.SpecificFieldNode;
+import io.ballerina.compiler.syntax.tree.TypeCastExpressionNode;
 import org.ballerinalang.diagramutil.connector.models.connector.Type;
 import org.ballerinalang.diagramutil.connector.models.connector.types.ArrayType;
 import org.ballerinalang.diagramutil.connector.models.connector.types.IntersectionType;
@@ -48,6 +49,10 @@ public class TypeSymbolAnalyzerFromTypeModel {
     public static Type analyze(Symbol typeSymbol, String expr, SemanticModel semanticModel) {
         // Rest of your existing type processing logic
         ExpressionNode expressionNode = NodeParser.parseExpression(expr);
+        // Unwrap to handle cast record types
+        if (expressionNode instanceof TypeCastExpressionNode typeCast) {
+            expressionNode = typeCast.expression();
+        }
         Type type = Type.fromSemanticSymbol(typeSymbol, semanticModel);
 
         if (expressionNode instanceof MappingConstructorExpressionNode mapping) {

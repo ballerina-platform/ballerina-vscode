@@ -84,6 +84,7 @@ public abstract class SearchCommand {
             case ALL -> new AllKindsSearchCommand(module, position, queryMap, functionsDoc);
             case WORKFLOW_RUN -> new WorkflowSearchCommand(module, position, queryMap);
             case ACTIVITY_CALL -> new ActivitySearchCommand(module, position, queryMap);
+            case EVAL_TEMPLATE -> new EvalTemplateSearchCommand(module, position, queryMap);
         };
     }
 
@@ -216,6 +217,7 @@ public abstract class SearchCommand {
         KNOWLEDGE_BASE,
         ALL,
         WORKFLOW_RUN,
-        ACTIVITY_CALL
+        ACTIVITY_CALL,
+        EVAL_TEMPLATE
     }
 }

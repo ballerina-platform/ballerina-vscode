@@ -69,6 +69,11 @@ export interface ActiveExecution {
     abortController: AbortController;  // For actual abort operation
 }
 
+export type GenerationStatusObserver = (
+    generationId: string,
+    status: GenerationReviewState['status']
+) => void;
+
 // ============================================
 // Conversion Helpers
 // ============================================
@@ -127,6 +132,7 @@ function toPersistedGeneration(gen: Generation): PersistedGeneration {
             status: gen.reviewState.status,
             modifiedFiles: gen.reviewState.modifiedFiles,
             errorMessage: gen.reviewState.errorMessage,
+            reviewView: gen.reviewState.reviewView,
         },
         metadata: {
             isPlanMode: gen.metadata.isPlanMode,
@@ -145,6 +151,15 @@ function toPersistedGeneration(gen: Generation): PersistedGeneration {
     };
 }
 
+/**
+ * A 'done' status on its own does not mean the review can still be acted on. Settling clears
+ * `reviewView`, so its absence marks a generation whose window has closed — including one written
+ * before reviews were persisted, which comes back claiming to be revertible with nothing behind it.
+ */
+export function isRevertible(generation: Generation | undefined): boolean {
+    return generation?.reviewState.status === 'done' && !!generation.reviewState.reviewView;
+}
+
 function fromPersistedGeneration(pg: PersistedGeneration): Generation {
     return {
         id: pg.id,
@@ -157,7 +172,9 @@ function fromPersistedGeneration(pg: PersistedGeneration): Generation {
             status: pg.reviewState.status,
             modifiedFiles: pg.reviewState.modifiedFiles,
             errorMessage: pg.reviewState.errorMessage,
-            // tempProjectPath and affectedPackagePaths are runtime-only
+            reviewView: pg.reviewState.reviewView,
+            // tempProjectPath and affectedPackagePaths are re-derived, never restored: both are
+            // absolute paths a moved workspace would silently invalidate.
         },
         metadata: {
             isPlanMode: pg.metadata.isPlanMode,
@@ -266,6 +283,8 @@ export class ChatStateStorage {
 
     // File-based persistence store
     private readonly persistenceStore: CopilotPersistenceStore;
+
+    private generationStatusObservers: Set<GenerationStatusObserver> = new Set();
 
     constructor() {
         this.persistenceStore = new CopilotPersistenceStore({
@@ -657,6 +676,9 @@ export class ChatStateStorage {
     ): Generation {
         const thread = this.getOrCreateThread(projectRootPath, threadId);
 
+        // Keeps "at most one 'done' generation per thread" true by construction.
+        this.finalizeLastGenerationIfDone(projectRootPath, threadId);
+
         const generation: Generation = {
             id: id || generateId(),
             userPrompt,
@@ -904,6 +926,30 @@ export class ChatStateStorage {
     // ============================================
 
     /**
+     * Subscribe to review-status transitions. Storage only announces — it never imports
+     * the notification layer.
+     * @returns Disposer that removes the observer
+     */
+    onGenerationStatusChanged(cb: GenerationStatusObserver): () => void {
+        this.generationStatusObservers.add(cb);
+        return () => { this.generationStatusObservers.delete(cb); };
+    }
+
+    private setStatus(generation: Generation, status: GenerationReviewState['status']): void {
+        if (generation.reviewState.status === status) {
+            return;
+        }
+        generation.reviewState.status = status;
+        for (const observer of this.generationStatusObservers) {
+            try {
+                observer(generation.id, status);
+            } catch (error) {
+                console.error('[ChatStateStorage] Generation status observer failed:', error);
+            }
+        }
+    }
+
+    /**
      * Get the generation currently in the revertible 'done' window, if any.
      * By construction there is at most one at a time: starting a new generation always
      * finalizes ('accepted') whichever generation was previously 'done' first.
@@ -920,7 +966,7 @@ export class ChatStateStorage {
         // Iterate in reverse defensively — the invariant guarantees at most one match.
         for (let i = thread.generations.length - 1; i >= 0; i--) {
             const generation = thread.generations[i];
-            if (generation.reviewState.status === 'done') {
+            if (isRevertible(generation)) {
                 console.log(`[ChatStateStorage] Found done generation: ${generation.id}`);
                 return generation;
             }
@@ -951,7 +997,11 @@ export class ChatStateStorage {
             return;
         }
 
-        Object.assign(generation.reviewState, state);
+        const { status, ...rest } = state;
+        Object.assign(generation.reviewState, rest);
+        if (status !== undefined) {
+            this.setStatus(generation, status);
+        }
         thread.updatedAt = Date.now();
 
         // Persist immediately
@@ -973,8 +1023,9 @@ export class ChatStateStorage {
             return undefined;
         }
 
-        generation.reviewState.status = 'accepted';
+        this.setStatus(generation, 'accepted');
         generation.reviewState.affectedPackagePaths = [];
+        generation.reviewState.reviewView = undefined;
 
         const thread = this.getOrCreateThread(projectRootPath, threadId);
         thread.updatedAt = Date.now();
@@ -997,8 +1048,9 @@ export class ChatStateStorage {
             return undefined;
         }
 
-        generation.reviewState.status = 'reverted';
+        this.setStatus(generation, 'reverted');
         generation.reviewState.affectedPackagePaths = [];
+        generation.reviewState.reviewView = undefined;
 
         const thread = this.getOrCreateThread(projectRootPath, threadId);
         thread.updatedAt = Date.now();

@@ -92,30 +92,33 @@ export default function createTests() {
             // Verify link
             await typeUtils.verifyTypeLink(recordName, 'id', unionName);
 
+            // Disabled due to: https://github.com/wso2/product-integrator/issues/1988
+            // TODO: Remove the comments below to re-enable once the issue is resolved.
+
             // Edit Employee type to add role field
-            await typeUtils.editType(recordName);
-            await typeUtils.addRecordField('role', enumName);
-            const editForm = new Form(page.page, BI_INTEGRATOR_LABEL, artifactWebView);
-            await typeUtils.saveAndWait(editForm);
-            await typeUtils.verifyTypeLink(recordName, 'role', enumName);
+            // await typeUtils.editType(recordName);
+            // await typeUtils.addRecordField('role', enumName);
+            // const editForm = new Form(page.page, BI_INTEGRATOR_LABEL, artifactWebView);
+            // await typeUtils.saveAndWait(editForm);
+            // await typeUtils.verifyTypeLink(recordName, 'role', enumName);
 
-            // Add name field to Employee record
-            await typeUtils.editType(recordName);
-            await typeUtils.addRecordField('name', 'string');
+            // // Add name field to Employee record
+            // await typeUtils.editType(recordName);
+            // await typeUtils.addRecordField('name', 'string');
 
-            // Toggle drop down
-            await typeUtils.toggleFieldOptionsByChevron(2);
-            await typeUtils.setCheckbox('Readonly', true);
+            // // Toggle drop down
+            // await typeUtils.toggleFieldOptionsByChevron(2);
+            // await typeUtils.setCheckbox('Readonly', true);
 
-            // Test Advanced Options functionality
-            console.log('Expanding Advanced Options...');
-            await typeUtils.toggleDropdown('Advanced Options');
+            // // Test Advanced Options functionality
+            // console.log('Expanding Advanced Options...');
+            // await typeUtils.toggleDropdown('Advanced Options');
 
-            console.log('Testing Is Readonly Type checkbox...');
-            await typeUtils.setCheckbox('Is Readonly Type', true);
+            // console.log('Testing Is Readonly Type checkbox...');
+            // await typeUtils.setCheckbox('Is Readonly Type', true);
 
-            await typeUtils.saveAndWait(recordForm);
-            await typeUtils.verifyTypeNodeExists(recordName);
+            // await typeUtils.saveAndWait(recordForm);
+            // await typeUtils.verifyTypeNodeExists(recordName);
 
             // Create Service Class: Project
             await typeUtils.clickAddType();

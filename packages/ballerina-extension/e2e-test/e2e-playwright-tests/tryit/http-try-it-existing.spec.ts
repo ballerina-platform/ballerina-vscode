@@ -19,7 +19,7 @@ import { expect, test } from '@playwright/test';
 import * as path from 'path';
 import * as os from 'os';
 import fs from 'fs';
-import { BI_INTEGRATOR_LABEL, BI_WEBVIEW_NOT_FOUND_ERROR, initTest, logStep, newProjectPath, page, toggleNotifications } from '../utils/helpers';
+import { BI_INTEGRATOR_LABEL, BI_WEBVIEW_NOT_FOUND_ERROR, domClick, initTest, logStep, newProjectPath, page, toggleNotifications } from '../utils/helpers';
 import { switchToIFrame } from '@wso2/playwright-vscode-tester';
 
 type WebView = NonNullable<Awaited<ReturnType<typeof switchToIFrame>>>;
@@ -275,11 +275,13 @@ export default function createTests() {
             const webview = await getWebView();
 
             logStep('Navigate to the secure resource\'s flow diagram');
-            await webview.getByText('HTTP Service - /', { exact: false }).first().click({ force: true });
+            const serviceNodeLink = webview.getByText('HTTP Service - /', { exact: false }).first();
+            await serviceNodeLink.waitFor({ state: 'visible', timeout: 30000 });
+            await domClick(serviceNodeLink);
             await page.page.waitForTimeout(1000);
             const secureRow = webview.getByText('secure', { exact: false }).first();
             await secureRow.waitFor({ timeout: 15000 });
-            await secureRow.click({ force: true });
+            await domClick(secureRow);
             await page.page.waitForTimeout(1500);
 
             const hurlPath = path.join(newProjectPath, 'target', 'TryIt.hurl');
@@ -288,7 +290,7 @@ export default function createTests() {
             logStep('Click the resource\'s own Try It button');
             const tryResourceBtn = webview.locator('vscode-button[title="Try Resource"]').first();
             await tryResourceBtn.waitFor({ timeout: 15000 });
-            await tryResourceBtn.click({ force: true });
+            await domClick(tryResourceBtn);
             await page.page.waitForTimeout(1500);
 
             const hurlOption = page.page.getByRole('option', { name: /Try It.*Hurl Client/ }).first();

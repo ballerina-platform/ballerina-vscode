@@ -36,8 +36,18 @@ public class TypeDef {
     private List<LibraryFunction> functions;
     private String value;
     private Type varType;
+    // The compiler's own signature for the type, carried only for definitions that have no members
+    // to model (error types, tuples, maps, tables, streams, intersections). For every other category
+    // the members ARE the shape, and this stays null.
+    private String baseType;
+    // Set for an object type carrying the `client` qualifier (e.g. sql:Client), so it renders as
+    // `client class` rather than a plain `class`. Class definitions with the qualifier never reach
+    // here — they are emitted as clients instead.
+    @SerializedName("isClient")
+    private Boolean client;
     @SerializedName("isDeprecated")
     private Boolean deprecated;
+    private List<AnnotationAttachment> annotations;
 
     public TypeDef() {
     }
@@ -112,5 +122,29 @@ public class TypeDef {
 
     public void setDeprecated(Boolean deprecated) {
         this.deprecated = deprecated;
+    }
+
+    public Boolean getClient() {
+        return client;
+    }
+
+    public void setClient(Boolean client) {
+        this.client = client;
+    }
+
+    public String getBaseType() {
+        return baseType;
+    }
+
+    public void setBaseType(String baseType) {
+        this.baseType = baseType;
+    }
+
+    public List<AnnotationAttachment> getAnnotations() {
+        return annotations;
+    }
+
+    public void setAnnotations(List<AnnotationAttachment> annotations) {
+        this.annotations = annotations;
     }
 }

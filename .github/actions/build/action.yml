@@ -122,6 +122,34 @@ runs:
         COPILOT_DEV_ROOT_URL: ${{ inputs.COPILOT_DEV_ROOT_URL }}
         APPINSIGHTS_INSTRUMENTATION_KEY: ${{ inputs.APPINSIGHTS_INSTRUMENTATION_KEY }}
 
+    # Guards the federated BI project form consumed by the WSO2 Integrator webview.
+    # A missing remote is invisible until runtime, so fail here rather than upload a
+    # VSIX that cannot federate. See packages/ballerina-extension/scripts/copy-federation.js.
+    - name: Verify federation assets in the VSIX
+      shell: bash
+      run: |
+        set -euo pipefail
+        version=$(node -p "require('./packages/ballerina-extension/package.json').version")
+        vsix="packages/ballerina-extension/vsix/ballerina-${version}.vsix"
+        entry='extension/resources/jslibs/federation/remoteEntry.js'
+        # 'zip' and 'unzip' are separate packages, so the sibling Compress build step
+        # using zip does not imply unzip is here. Say so plainly rather than surfacing
+        # a bare 'unzip: command not found' against a step about federation.
+        if ! command -v unzip >/dev/null 2>&1; then
+          echo "::error::unzip is not installed on this runner, so ${vsix} cannot be verified."
+          exit 1
+        fi
+        # Listed once into a variable: piping unzip into 'grep -q' lets grep exit on the
+        # first match, and the resulting SIGPIPE fails the pipeline under pipefail.
+        listing=$(unzip -Z1 "$vsix")
+        if ! grep -Fxq "$entry" <<<"$listing"; then
+          echo "::error::${vsix} is missing ${entry}; the BI project form cannot be federated."
+          grep -F 'resources/jslibs/federation' <<<"$listing" || echo "No federation files at all."
+          exit 1
+        fi
+        count=$(grep -cF 'extension/resources/jslibs/federation/' <<<"$listing")
+        echo "Federation assets present in ${vsix}: ${count} file(s)."
+
     - name: Compress build
       shell: bash
       run: |

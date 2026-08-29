@@ -101,8 +101,8 @@ describe("upsertComponent", () => {
     });
 
     it("MERGES data on a repeat event rather than replacing it", () => {
-        // The ReviewBar's "discarded" write sends only { status }, and must not wipe
-        // semanticDiffs — losing those empties the diff view.
+        // A follow-up event carrying a partial payload must not wipe semanticDiffs —
+        // losing those empties the diff view.
         const seeded = upsertComponent([floating()], "review", undefined, {
             semanticDiffs: [{ a: 1 }, { b: 2 }],
             generationId: "msg-1",

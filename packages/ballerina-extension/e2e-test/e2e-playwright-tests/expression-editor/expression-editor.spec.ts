@@ -16,15 +16,55 @@
  * under the License.
  */
 
-import { test } from '@playwright/test';
-import { addArtifact, BI_INTEGRATOR_LABEL, BI_WEBVIEW_NOT_FOUND_ERROR, initTest, page } from '../utils/helpers';
+import { Locator, test } from '@playwright/test';
+import path from 'path';
+import {
+    addArtifact,
+    BI_INTEGRATOR_LABEL,
+    BI_WEBVIEW_NOT_FOUND_ERROR,
+    initTest,
+    page,
+    submitArtifactCreation
+} from '../utils/helpers';
 import { switchToIFrame } from '@wso2/playwright-vscode-tester';
 import { Diagram, SidePanel } from '../utils/pages';
+
+// Creates the project's *first* automation, so it needs a genuinely empty
+// template rather than the shared `empty_project` (which ships a seeded
+// automation so other suites can reach "Add Artifact"; see automation.spec.ts).
+const AUTOMATION_CREATION_PROJECT_TEMPLATE = path.join(__dirname, '..', 'data', 'automation_creation_project');
+
+/**
+ * Click an architecture-diagram node until it actually navigates.
+ *
+ * These nodes (entry, connection, listener) have no onClick — component-diagram
+ * wires onMouseDown/onMouseUp through useClickWithDragTolerance, which only
+ * fires the handler when the pointer moved less than 5px between the two
+ * events. Any layout shift mid-click therefore reads as a drag and the click is
+ * dropped with no error at all, so a single attempt can silently do nothing.
+ * Retry against `expected` — the thing the click is supposed to open.
+ */
+async function clickUntil(
+    node: Locator,
+    expected: Locator,
+    description: string,
+    attempts: number = 5
+): Promise<void> {
+    for (let attempt = 0; attempt < attempts; attempt++) {
+        await node.click({ timeout: 15000 }).catch(() => { /* node re-rendering; retry */ });
+        const opened = await expected.waitFor({ state: 'visible', timeout: 15000 })
+            .then(() => true).catch(() => false);
+        if (opened) {
+            return;
+        }
+    }
+    throw new Error(`Clicking the ${description} did not open the expected view after ${attempts} attempts`);
+}
 
 export default function createTests() {
     test.describe.serial('Expression Editor Tests', {
     }, async () => {
-        initTest();
+        initTest(true, true, undefined, undefined, AUTOMATION_CREATION_PROJECT_TEMPLATE);
         test('Retrieving suggestions', async ({ }, testInfo) => {
             const testAttempt = testInfo.retry + 1;
             console.log('Retrieving suggestions: ', testAttempt);
@@ -36,7 +76,20 @@ export default function createTests() {
             if (!artifactWebView) {
                 throw new Error(BI_WEBVIEW_NOT_FOUND_ERROR);
             }
-            await artifactWebView.getByRole('button', { name: 'Create' }).click();
+            // "Create" on the artifact form.
+            await submitArtifactCreation(artifactWebView);
+
+            // Submitting the form normally lands straight on the designer's canvas. When it
+            // settles on the overview instead, the automation is there as an entry node, and
+            // clicking that opens the same designer.
+            const diagramCanvas = artifactWebView.getByTestId('bi-diagram-canvas');
+            const automationNode = artifactWebView.locator('[data-testid="entry-node-automation"]');
+            const landedOnDiagram = await diagramCanvas.waitFor({ timeout: 10000 })
+                .then(() => true).catch(() => false);
+            if (!landedOnDiagram) {
+                await automationNode.waitFor({ state: 'visible', timeout: 30000 });
+                await clickUntil(automationNode, diagramCanvas, 'Automation entry node');
+            }
 
             // Add a node to the diagram
             const diagram = new Diagram(page.page);

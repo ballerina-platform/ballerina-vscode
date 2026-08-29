@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { Icon } from "@wso2/ui-toolkit";
+import { useMemo } from "react";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import {
     DIRECTORY_MAP,
@@ -30,18 +30,29 @@ import {
 import { CardGrid, PanelViewMore, Title, TitleWrapper } from "./styles";
 import { BodyText } from "../../styles";
 import ButtonCard from "../../../components/ButtonCard";
-import { isBetaModule, OutOfScopeComponentTooltip } from "./componentListUtils";
+import { AI_CHAT_AGENT_CARD, ARTIFACT_CATEGORY_META } from "../components/artifactCards";
+import { cardMatchesSearch, isBetaModule, OutOfScopeComponentTooltip } from "./componentListUtils";
 import { RelativeLoader } from "../../../components/RelativeLoader";
 import { getEntryNodeIcon } from "./EventIntegrationPanel";
 
 interface AIAgentPanelProps {
     scope: SCOPE;
     triggers: TriggerModelsResponse;
+    /** Page-level gallery search; when set, only matching cards show. */
+    searchQuery?: string;
 }
+
+const CATEGORY = ARTIFACT_CATEGORY_META["ai-integration"];
 
 export function AIAgentPanel(props: AIAgentPanelProps) {
     const { rpcClient } = useRpcContext();
     const isDisabled = props.scope && props.scope !== SCOPE.AI_AGENT && props.scope !== SCOPE.ANY;
+    const q = props.searchQuery;
+    const mcpTriggers = useMemo(
+        () => props.triggers.local.filter((t) => t.type === "mcp" && cardMatchesSearch(t.name, q)),
+        [props.triggers, q]
+    );
+    const agentMatches = cardMatchesSearch(AI_CHAT_AGENT_CARD.displayName, q);
 
     const handleMcpClick = async (key: DIRECTORY_MAP, model: ServiceModel) => {
         console.log(">>>>> Model: ", model);
@@ -68,40 +79,41 @@ export function AIAgentPanel(props: AIAgentPanelProps) {
         });
     };
 
+    // While searching, hide the whole panel when nothing here matches.
+    if (q?.trim() && !agentMatches && mcpTriggers.length === 0) {
+        return null;
+    }
+
     return (
         <PanelViewMore disabled={isDisabled}>
             <TitleWrapper>
-                <Title variant="h2">AI Integration</Title>
-                <BodyText>Create an integration that connects your system with AI capabilities.</BodyText>
+                <Title variant="h2">{CATEGORY.title}</Title>
+                <BodyText>{CATEGORY.description}</BodyText>
             </TitleWrapper>
             <CardGrid>
-                <ButtonCard
-                    id="ai-agent-card"
-                    icon={<Icon name="bi-ai-agent" />}
-                    title="AI Chat Agent"
-                    onClick={handleClick}
-                    disabled={isDisabled}
-                    tooltip={isDisabled ? OutOfScopeComponentTooltip : ""}
-                />
+                {agentMatches && (
+                    <ButtonCard
+                        id={AI_CHAT_AGENT_CARD.id}
+                        icon={AI_CHAT_AGENT_CARD.icon}
+                        title={AI_CHAT_AGENT_CARD.displayName}
+                        onClick={handleClick}
+                        disabled={isDisabled}
+                        tooltip={isDisabled ? OutOfScopeComponentTooltip : ""}
+                    />
+                )}
                 {props.triggers.local.length === 0 && <RelativeLoader />}
-                {props.triggers.local
-                    .filter((t) => t.type === "mcp")
-                    .map((item, index) => {
-                        return (
-                            <ButtonCard
-                                id={`trigger-${item.moduleName.replace(/\./g, "-")}`}
-                                key={item.id}
-                                title={item.name}
-                                icon={getEntryNodeIcon(item)}
-                                onClick={() => {
-                                    handleMcpClick(DIRECTORY_MAP.SERVICE, item);
-                                }}
-                                disabled={isDisabled}
-                                tooltip={isDisabled ? OutOfScopeComponentTooltip : ""}
-                                isBeta={isBetaModule(item.moduleName)}
-                            />
-                        );
-                    })}
+                {mcpTriggers.map((item) => (
+                    <ButtonCard
+                        id={`trigger-${item.moduleName.replace(/\./g, "-")}`}
+                        key={item.id}
+                        title={item.name}
+                        icon={getEntryNodeIcon(item)}
+                        onClick={() => handleMcpClick(DIRECTORY_MAP.SERVICE, item)}
+                        disabled={isDisabled}
+                        tooltip={isDisabled ? OutOfScopeComponentTooltip : ""}
+                        isBeta={isBetaModule(item.moduleName)}
+                    />
+                ))}
             </CardGrid>
         </PanelViewMore>
     );

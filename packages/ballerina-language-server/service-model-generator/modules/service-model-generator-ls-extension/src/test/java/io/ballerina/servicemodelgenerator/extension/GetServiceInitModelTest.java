@@ -84,18 +84,26 @@ public class GetServiceInitModelTest extends AbstractLSTest {
     }
 
     /**
-     * The "*_2" cases compile a source project that imports {@code ballerinax/salesforce}. Under the
-     * test-provisioned distribution, salesforce currently fails to load from its BIR
-     * ({@code Cannot read field "scope" because "env" is null}) because of an upstream Ballerina
-     * whole-program BIR cache corruption produced while provisioning the shared dependency home.
-     * Skip these until the upstream issue is resolved.
+     * {@code salesforce_service_model_2.json}: under the test-provisioned distribution, salesforce
+     * currently fails to load from its BIR ({@code Cannot read field "scope" because "env" is null})
+     * because of an upstream Ballerina whole-program BIR cache corruption produced while provisioning
+     * the shared dependency home. Skip until the upstream issue is resolved.
      *
      * @see <a href="https://github.com/wso2/product-integrator/issues/1920">product-integrator#1920</a>
+     *
+     * <p>{@code sap.jco_service_model_2.json}: {@code ballerinax/sap.jco}'s Java bridge depends on
+     * SAP's proprietary JCo/IDoc libraries ({@code com.sap:com.sap.conn.jco}, {@code
+     * com.sap:com.sap.conn.idoc}), which aren't published to Maven Central and can't be redistributed.
+     * The shared offline dependency home (build-config/ballerina_dependencies) can't provision
+     * sap.jco as a result, so its listener stays semantically unresolved under offline test resolution and
+     * {@code sapJcoListener} in sample2/main.bal never matches as a compatible existing listener.
+     * Skip until sap.jco can be provisioned some other way (e.g. a real JCo jar becomes available).
      */
     @Override
     protected String[] skipList() {
         return new String[]{
                 "salesforce_service_model_2.json",
+                 "sap.jco_service_model_2.json",
         };
     }
 

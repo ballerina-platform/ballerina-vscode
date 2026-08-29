@@ -22,28 +22,26 @@ import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { SHARED_COMMANDS, AgentRunStatus } from "@wso2/ballerina-core";
 import { Codicon, Icon } from "@wso2/ui-toolkit";
 import { ShaderOrb } from "./ShaderOrb";
+import { useOrbColors } from "./orbTheme";
 import {
-    BRAND_ORANGE,
-    ORB_COLORS,
     ORB_ENERGY,
     Sphere,
     Gloss,
     IconOverlay,
     activeStateLabel,
     AmbientFrame,
-    registerHeroPresence,
+    useSuppressAgentStatusOrb,
     subscribeAgentRunStatus,
 } from "./shared";
 
 /**
- * Inline "ask the Copilot" hero for the package overview landing page: a
- * prompt box that is the primary way into the Copilot. Submitting opens the
- * AI panel with the prompt auto-submitted into the agent. While a run is
- * active the box morphs into the orb + live status label (the same status
- * feed as the floating AgentStatusOrb), and clicking it opens the panel.
+ * Inline "ask the Copilot" prompt box in the package overview's design panel,
+ * the primary way into the Copilot from that page. Submitting opens the AI
+ * panel with the prompt auto-submitted into the agent. While a run is active
+ * the box morphs into the orb + live status label (the same status feed as the
+ * floating AgentStatusOrb), and clicking it opens the panel.
  *
- * While mounted it registers hero presence so the floating orb hides —
- * one copilot surface per view.
+ * While mounted it suppresses the floating orb — one copilot surface per view.
  */
 
 const HERO_ORB_SIZE = 44;
@@ -111,8 +109,8 @@ const SendButton = styled.button`
     border-radius: 9px;
     padding: 0;
     font-size: 16px;
-    color: #ffffff;
-    background: linear-gradient(135deg, #6b5ce8, ${BRAND_ORANGE});
+    color: var(--vscode-button-foreground);
+    background: var(--vscode-button-background);
     cursor: pointer;
     transition: filter 0.15s ease, transform 0.15s ease;
     &:hover {
@@ -124,7 +122,7 @@ const SendButton = styled.button`
     }
 `;
 
-export function CopilotHeroBox() {
+export function CopilotHeroBox({ placeholder }: { placeholder: string }) {
     const { rpcClient } = useRpcContext();
     const [status, setStatus] = useState<AgentRunStatus | null>(null);
     const [text, setText] = useState("");
@@ -133,7 +131,7 @@ export function CopilotHeroBox() {
     const handleWebglFailed = useCallback(() => setWebglFailed(true), []);
     const inputRef = useRef<HTMLInputElement | null>(null);
 
-    useEffect(() => registerHeroPresence(), []);
+    useSuppressAgentStatusOrb();
 
     useEffect(() => {
         if (!rpcClient) {
@@ -142,12 +140,12 @@ export function CopilotHeroBox() {
         return subscribeAgentRunStatus(rpcClient, setStatus);
     }, [rpcClient]);
 
-    // Unlike the floating orb, the hero box always renders: with no status yet
-    // (or an older host without the RPC) it is still the AI entry point, just
-    // in its idle prompt form.
+    // Unlike the floating orb, a missing status does not hide the box: with no
+    // status yet (or an older host without the RPC) it is still the AI entry
+    // point, just in its idle prompt form.
     const state = status?.state ?? "idle";
     const active = state !== "idle";
-    const colors = ORB_COLORS[state];
+    const colors = useOrbColors(state);
     const label = active && status ? activeStateLabel(status) : null;
 
     const openCopilot = () => {
@@ -179,7 +177,7 @@ export function CopilotHeroBox() {
                         openCopilot();
                     }
                 }}
-                aria-label={label ? `WSO2 Integrator Copilot: ${label}. Open the Copilot chat.` : undefined}
+                aria-label={label ? `WSO2 Integration Intelligence: ${label}. Open the WSO2 Integration Intelligence chat.` : undefined}
             >
                 <OrbHolder>
                     {webglFailed ? (
@@ -197,7 +195,7 @@ export function CopilotHeroBox() {
                         <Icon
                             name="bi-ai-chat"
                             sx={{ width: 20, height: 20 }}
-                            iconSx={{ fontSize: "20px", color: "#ffffff", cursor: "inherit" }}
+                            iconSx={{ fontSize: "20px", color: "var(--vscode-button-foreground)", cursor: "inherit" }}
                         />
                     </IconOverlay>
                 </OrbHolder>
@@ -205,7 +203,7 @@ export function CopilotHeroBox() {
                     <>
                         <StatusText>{label}</StatusText>
                         <OpenHint>
-                            Open Copilot <Codicon name="arrow-right" />
+                            Open WSO2 Integration Intelligence <Codicon name="arrow-right" />
                         </OpenHint>
                     </>
                 ) : (
@@ -219,12 +217,12 @@ export function CopilotHeroBox() {
                                     submit();
                                 }
                             }}
-                            placeholder="What can I help you build or change?"
-                            aria-label="Message WSO2 Integrator Copilot"
+                            placeholder={placeholder}
+                            aria-label="Message WSO2 Integration Intelligence"
                         />
                         <SendButton
-                            title="Send to WSO2 Integrator Copilot"
-                            aria-label="Send to WSO2 Integrator Copilot"
+                            title="Send to WSO2 Integration Intelligence"
+                            aria-label="Send to WSO2 Integration Intelligence"
                             onClick={(event) => {
                                 event.stopPropagation();
                                 submit();

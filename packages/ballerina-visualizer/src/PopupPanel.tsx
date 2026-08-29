@@ -23,9 +23,10 @@ import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { ThemeColors, Overlay } from "@wso2/ui-toolkit";
 import { URI, Utils } from "vscode-uri";
 import { CONNECTIONS_FILE } from "./constants";
-import { FunctionForm } from "./views/BI";
+import { FunctionForm } from "./views/BI/FunctionForm";
 import { DataMapper } from "./views/DataMapper";
 import AddConnectionPopup from "./views/BI/Connection/AddConnectionPopup";
+import AddAgentPopup from "./views/BI/AIChatAgent/AddAgentPopup";
 import { ConnectionConfigurationPopup } from "./views/BI/Connection/ConnectionConfigurationPopup";
 import EditConnectionPopup from "./views/BI/Connection/EditConnectionPopup";
 import { ConfigurationCollector } from "./views/AIPanel/components/ConfigurationCollector";
@@ -97,6 +98,18 @@ const PopupPanel = (props: PopupPanelProps) => {
                         );
                     });
                     break;
+                case MACHINE_VIEW.AddAgent:
+                    rpcClient.getVisualizerLocation().then((location) => {
+                        setViewComponent(
+                            <AddAgentPopup
+                                projectPath={location.projectPath}
+                                onClose={onClose}
+                                onNavigateToOverview={handleNavigateToOverview}
+                                isPopup={true}
+                            />
+                        );
+                    });
+                    break;
                 case MACHINE_VIEW.ConnectionConfiguration:
                     const connectorMetadata = machineState.metadata ?? {};
 
@@ -158,19 +171,6 @@ const PopupPanel = (props: PopupPanelProps) => {
                         );
                     });
                     break;
-                case MACHINE_VIEW.BIAgentToolForm:
-                    setIsFullScreen(true);
-                    rpcClient.getVisualizerLocation().then(async (location) => {
-                        const agentsFile = (await rpcClient.getVisualizerRpcClient().joinProjectPath({ segments: ['agents.bal'] })).filePath;
-                        setViewComponent(<FunctionForm
-                            projectPath={location.projectPath}
-                            filePath={agentsFile}
-                            functionName={undefined}
-                            isAgentTool={true}
-                            isPopup={true} />
-                        );
-                    });
-                    break;
                 case MACHINE_VIEW.BIWorkflowForm:
                     setIsFullScreen(true);
                     rpcClient.getVisualizerLocation().then(async (location) => {
@@ -181,6 +181,23 @@ const PopupPanel = (props: PopupPanelProps) => {
                                 filePath={defaultFunctionsFile}
                                 functionName={undefined}
                                 isWorkflow={true}
+                                isPopup={true}
+                            />
+                        );
+                    });
+                    break;
+                case MACHINE_VIEW.BIDurableAgentForm:
+                    setIsFullScreen(true);
+                    rpcClient.getVisualizerLocation().then(async (location) => {
+                        // Durable agent declarations live in workflow.bal alongside the workflow
+                        // artifacts, not in functions.bal — same target as the main panel form.
+                        const workflowFile = (await rpcClient.getVisualizerRpcClient().joinProjectPath({ segments: ['workflow.bal'] })).filePath;
+                        setViewComponent(
+                            <FunctionForm
+                                projectPath={location.projectPath}
+                                filePath={workflowFile}
+                                functionName={undefined}
+                                isDurableAgent={true}
                                 isPopup={true}
                             />
                         );

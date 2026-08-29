@@ -105,6 +105,22 @@ export function shouldRunExternalFormValidation({
     return formStateIsValid && Object.keys(errors ?? {}).length === 0 && !hasIncompleteRequiredFields;
 }
 
+export function groupHasBlockingIssue({
+    groupFields,
+    errors,
+    values,
+    hasFieldError,
+}: {
+    groupFields: FormField[];
+    errors?: Record<string, unknown>;
+    values?: Record<string, unknown>;
+    hasFieldError?: (fieldKey: string) => boolean;
+}): boolean {
+    return groupFields.some((field) => !!errors?.[field.key])
+        || hasIncompleteRequiredFormFields(groupFields, values)
+        || groupFields.some((field) => hasFieldError?.(field.key) === true);
+}
+
 export function isPrioritizedField(field: FormField): boolean {
     return field.key === "variable" || getPrimaryInputType(field.types)?.fieldType === "TYPE" || field.codedata?.kind === "PARAM_FOR_TYPE_INFER";
 }
@@ -142,4 +158,43 @@ export function isDefaultModelProvider(formFields: FormField[]): boolean {
         field.value === "ai:Wso2ModelProvider" &&
         field.enabled === false
     );
+}
+
+/**
+ * Every field key reachable in the form, including the nested groups (`advanceProps`) and the
+ * per-option branches (`dynamicFormFields`) that render their leaves with the leaf's own key.
+ */
+export function collectFieldKeys(fields: FormField[]): Set<string> {
+    const keys = new Set<string>();
+    const visit = (candidates: FormField[]) => {
+        candidates?.forEach((field) => {
+            if (!field) {
+                return;
+            }
+            keys.add(field.key);
+            visit(field.advanceProps);
+            Object.values(field.dynamicFormFields ?? {}).forEach(visit);
+        });
+    };
+    visit(fields);
+    return keys;
+}
+
+/**
+ * Resolves a language-server `propertyPath` onto a form field key.
+ *
+ * The server addresses nodes by their full dot path (`auth.choices.0.privateKey`), while the form
+ * registers nested leaves under their own key — so the full path is tried first, then the leaf
+ * segment. An unresolvable path returns undefined and is shown at form level instead of being
+ * silently dropped.
+ */
+export function resolveValidationFieldKey(propertyPath: string, fieldKeys: Set<string>): string | undefined {
+    if (!propertyPath) {
+        return undefined;
+    }
+    if (fieldKeys.has(propertyPath)) {
+        return propertyPath;
+    }
+    const leaf = propertyPath.split(".").pop();
+    return leaf && fieldKeys.has(leaf) ? leaf : undefined;
 }

@@ -26,11 +26,16 @@ import {
     ErrorBanner,
     FormExpressionEditorRef,
     HelperPaneHeight,
+    Icon,
     RequiredFormInput,
     ThemeColors
 } from '@wso2/ui-toolkit';
 import { LinkButton } from "@wso2/ui-toolkit/lib/components/LinkButton/LinkButton";
 import { buildRequiredRule, getPropertyFromFormField, isExpandableMode, sanitizeType, toEditorMode } from './utils';
+import { buildValidate } from '../Form/validationRules';
+import { useFieldDiagnostics } from '../Form/useFieldDiagnostics';
+import { WarningBanner } from '../Form/WarningBanner';
+import { dedupeMessages } from '../Form/DiagnosticsStore';
 import { FormField, FormExpressionEditorProps, HelperpaneOnChangeOptions } from '../Form/types';
 import { useFormContext, useFormFieldLoadingContext } from '../../context';
 import {
@@ -64,6 +69,7 @@ export type ContextAwareExpressionEditorProps = {
     required?: boolean;
     showHeader?: boolean;
     field: FormField;
+    initialValue?: string;
     openSubPanel?: (subPanel: SubPanel) => void;
     subPanelView?: SubPanelView;
     handleOnFieldFocus?: (key: string) => void;
@@ -130,12 +136,16 @@ export namespace S {
         display: 'block'
     });
 
-    export const HeaderContainer = styled.div({
-        display: 'flex',
-        alignItems: 'flex-end',
-        justifyContent: 'space-between',
-        minHeight: '26px'
-    });
+    // The min-height reserves the mode switcher's row. Fields that hide the switcher have nothing
+    // to reserve it for, so the slack reads as uneven spacing above the label.
+    export const HeaderContainer = styled.div<{ reserveSwitcherRow?: boolean }>(
+        ({ reserveSwitcherRow = true }: { reserveSwitcherRow?: boolean }) => ({
+            display: 'flex',
+            alignItems: 'flex-end',
+            justifyContent: 'space-between',
+            ...(reserveSwitcherRow ? { minHeight: '26px' } : {}),
+        })
+    );
 
     export const Header = styled.div({
         display: 'flex',
@@ -146,8 +156,7 @@ export namespace S {
     export const HeaderRow = styled.div({
         display: 'flex',
         justifyContent: 'space-between',
-        alignItems: 'flex-end',
-        gap: '8px'
+        alignItems: 'center',
     });
 
     export const HeaderMain = styled.div({
@@ -384,6 +393,7 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
         autoFocus,
         control,
         field,
+        initialValue,
         fieldInputType,
         id,
         placeholder,
@@ -417,6 +427,7 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
     } = props as ExpressionEditorProps;
 
     const key = fieldKey ?? field.key;
+    const readOnly = field.editable === false;
     const [focused, setFocused] = useState<boolean>(false);
     const [formDiagnostics, setFormDiagnostics] = useState(field.diagnostics);
     const [isExpandedModalOpen, setIsExpandedModalOpen] = useState(false);
@@ -477,6 +488,26 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
 
     const { inputMode } = modeSwitcherContext;
 
+    // The type member the user is currently editing. Validation rules live on a `types[]` member
+    // and run only while that member is active, so a NUMBER member's `port` rule is skipped the
+    // moment the user switches to the EXPRESSION member and types a variable reference.
+    const activeFieldType = field.types?.find((type) => getInputModeFromTypes(type) === inputMode)?.fieldType
+        ?? getPrimaryInputType(field.types)?.fieldType;
+
+    // Live validation of the connector-shipped `validations[]`. Client rules run synchronously on
+    // every change and render here directly — react-hook-form's default `onSubmit` mode does not
+    // surface per-field errors until submit (only `isValid`, which gates the button), so relying on
+    // its `fieldState.error` would disable the button with no visible reason. Inert for fields with
+    // no `validations[]` on the active member.
+    const liveDiagnostics = useFieldDiagnostics(field, {
+        filePath: effectiveFileName,
+        moduleName: field.codedata?.moduleName,
+        activeFieldType,
+    });
+    // Errors and warnings render in separate slots — red (blocking) vs amber (advisory).
+    const liveErrorMessages = liveDiagnostics.errors.map((diagnostic) => diagnostic.message);
+    const liveWarningMessages = liveDiagnostics.warnings.map((diagnostic) => diagnostic.message);
+
     const isPromptWithDiagnostics = inputMode === InputMode.PROMPT && key !== 'role' && key !== 'instructions';
 
     // Use to fetch initial diagnostics
@@ -489,6 +520,7 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
     // Initial render
     useEffect(() => {
         if (!targetLineRange) return;
+        if (readOnly) return;
         // Fetch initial diagnostics
         if (getExpressionEditorDiagnostics && fieldValue !== undefined
             && (inputMode === InputMode.EXP || inputMode === InputMode.TEMPLATE || isPromptWithDiagnostics)
@@ -607,6 +639,22 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
             : `${field.documentation}.`
         : '';
 
+    const modeSwitcherNode = modeSwitcherContext?.isModeSwitcherEnabled && !field.hideModeSwitcher ? (
+        <S.FieldInfoSection>
+            {isLoading ? (
+                <SkeletonBase height="24px" width="112px" style={{ borderRadius: '2px', marginTop: '2px' }} />
+            ) : (
+                <ModeSwitcher
+                    fieldKey={field.key}
+                    value={modeSwitcherContext.inputMode}
+                    isRecordTypeField={modeSwitcherContext.isRecordTypeField}
+                    onChange={modeSwitcherContext.onModeChange}
+                    types={modeSwitcherContext.types}
+                />
+            )}
+        </S.FieldInfoSection>
+    ) : null;
+
     return (
         <FieldProvider
             initialField={props.field}
@@ -619,13 +667,20 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
                 {showHeader && (
                     <S.Header>
                         {field.label && (
-                            <S.HeaderContainer>
+                            <S.HeaderContainer reserveSwitcherRow={!field.hideModeSwitcher}>
                                 {isLoading ? (
                                     <SkeletonBase height="14px" width="40%" />
                                 ) : (
                                     <S.LabelContainer>
-                                        <S.Label>{field.label}</S.Label>
-                                        {(field.defaultValue && field.defaultValue?.trim() !== "()") && <S.DefaultValue style={{ marginLeft: '8px' }}>{`(Default: ${field.defaultValue}) `}</S.DefaultValue>}
+                                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                            <S.Label>{field.label}</S.Label>
+                                            {readOnly && (
+                                                <span title="Read-only" style={{ display: 'inline-flex' }}>
+                                                    <Icon name="bi-lock" iconSx={{ fontSize: "14px" }} sx={{ color: 'var(--vscode-list-deemphasizedForeground)' }} />
+                                                </span>
+                                            )}
+                                        </span>
+                                        {(field.defaultValue && field.defaultValue?.trim() !== "()" && field.defaultValue?.trim() !== "object {}") && <S.DefaultValue style={{ marginLeft: '8px' }}>{`(Default: ${field.defaultValue}) `}</S.DefaultValue>}
                                         {(required ?? !field.optional) && <RequiredFormInput />}
                                         {getFieldTypeLabel(field.types) && (
                                             <S.Type style={{ marginLeft: '5px' }} isVisible={focused} title={getFieldTypeLabel(field.types)}>
@@ -634,39 +689,29 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
                                         )}
                                     </S.LabelContainer>
                                 )}
+                                {!documentation && modeSwitcherNode}
                             </S.HeaderContainer>
                         )}
-                        <S.HeaderRow>
-                            <S.HeaderMain>
-                                {isLoading ? (
-                                    documentation ? <SkeletonBase height="13px" width="80%" /> : null
-                                ) : (
-                                    <S.EditorMdContainer>
-                                        {documentation && <ReactMarkdown>{documentation}</ReactMarkdown>}
-                                    </S.EditorMdContainer>
-                                )}
-                            </S.HeaderMain>
-                            {modeSwitcherContext?.isModeSwitcherEnabled && (
-                                <S.FieldInfoSection>
+                        {(documentation || !field.label) && (
+                            <S.HeaderRow>
+                                <S.HeaderMain>
                                     {isLoading ? (
-                                        <SkeletonBase height="24px" width="112px" style={{ borderRadius: '2px', marginTop: '2px' }} />
+                                        documentation ? <SkeletonBase height="13px" width="80%" /> : null
                                     ) : (
-                                        <ModeSwitcher
-                                            fieldKey={field.key}
-                                            value={modeSwitcherContext.inputMode}
-                                            isRecordTypeField={modeSwitcherContext.isRecordTypeField}
-                                            onChange={modeSwitcherContext.onModeChange}
-                                            types={modeSwitcherContext.types}
-                                        />
+                                        <S.EditorMdContainer>
+                                            {documentation && <ReactMarkdown>{documentation}</ReactMarkdown>}
+                                        </S.EditorMdContainer>
                                     )}
-                                </S.FieldInfoSection>
-                            )}
-                        </S.HeaderRow>
+                                </S.HeaderMain>
+                                {modeSwitcherNode}
+                            </S.HeaderRow>
+                        )}
                     </S.Header>
                 )}
                 <Controller
                     control={control}
                     name={key}
+                    defaultValue={initialValue}
                     rules={(() => {
                         const expressionSetType = field.types?.find(t => t.fieldType === "EXPRESSION_SET" || t.fieldType === "TEXT_SET");
                         const patternType = field.types?.find(t => t.pattern);
@@ -741,15 +786,18 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
                             };
                         }
 
+                        // Connector-shipped ERROR rules compose with the pattern/minItems rules above.
+                        rules.validate = { ...(rules.validate ?? {}), ...buildValidate(field, activeFieldType) };
+
                         return rules;
                     })()}
                     render={({ field: { name, value, onChange }, fieldState: { error } }) => {
                         return (
                             <div>
                                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: '4px' }}>
-                                    <div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
+                                    <div style={{ flex: 1, minWidth: 0, position: 'relative', cursor: readOnly ? 'not-allowed' : undefined }}>
                                         {isLoading && <SkeletonBase height="28px" style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 1, borderRadius: '2px' }} />}
-                                        <div style={{ visibility: isLoading ? 'hidden' : 'visible' }}>
+                                        <div style={{ visibility: isLoading ? 'hidden' : 'visible', opacity: readOnly ? 0.7 : 1 }}>
                                             <ExpressionField
                                                 field={field}
                                                 inputMode={inputMode}
@@ -774,6 +822,9 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
                                                         rawExpression ? rawExpression(typeof updatedValue === 'string' ? updatedValue : JSON.stringify(updatedValue)) : updatedValue;
 
                                                     onChange(rawValue);
+                                                    // Run the connector-shipped rules on this edit (sync client rules
+                                                    // now, ls.* debounced) so their messages render live.
+                                                    liveDiagnostics.onValueChange(rawValue);
                                                     if (getExpressionEditorDiagnostics && (currentMode === InputMode.EXP || currentMode === InputMode.TEMPLATE || isPromptWithDiagnostics)) {
                                                         getExpressionEditorDiagnostics(
                                                             (required ?? !field.optional) || updatedValue !== '',
@@ -827,6 +878,7 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
                                                 onNormalizeValue={(normalizedValue: string) => {
                                                     setValue(key, normalizedValue, { shouldDirty: false, shouldValidate: true });
                                                 }}
+                                                disabled={readOnly}
                                             />
                                         </div>
                                     </div>
@@ -841,11 +893,29 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
                                         </Button>
                                     )}
                                 </div>
-                                {error ?
-                                    <ErrorBanner errorMsg={error.message.toString()} /> :
-                                    formDiagnostics && formDiagnostics.length > 0 &&
-                                    <ErrorBanner errorMsg={formDiagnostics.map(d => d.message).join('\n')} />
-                                }
+                                {(() => {
+                                    // ERRORs (red) and WARNINGs (amber) render in separate slots.
+                                    // Errors merge react-hook-form's committed error, the blocking
+                                    // connector rules (which render live, ahead of RHF's onSubmit-mode
+                                    // commit), and compiler diagnostics; warnings are advisory and
+                                    // never mark the field invalid. Deduped by message.
+                                    const errorMessages = dedupeMessages([
+                                        error?.message?.toString(),
+                                        ...liveErrorMessages,
+                                        ...((formDiagnostics ?? []).map((d) => d.message)),
+                                    ]);
+                                    const warningMessages = dedupeMessages(liveWarningMessages);
+                                    return (
+                                        <>
+                                            {errorMessages.length > 0 && (
+                                                <ErrorBanner errorMsg={errorMessages.join('\n')} />
+                                            )}
+                                            {warningMessages.length > 0 && (
+                                                <WarningBanner warningMsg={warningMessages.join('\n')} />
+                                            )}
+                                        </>
+                                    );
+                                })()}
                                 {field.actionCallback && (
                                     <LinkButton
                                         onClick={field.actionCallback}
@@ -912,6 +982,7 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
                                         error={error}
                                         formDiagnostics={formDiagnostics}
                                         inputMode={inputMode}
+                                        readOnly={readOnly}
                                     />
                                 )}
                             </div>

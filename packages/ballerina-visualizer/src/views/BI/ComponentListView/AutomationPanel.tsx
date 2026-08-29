@@ -16,18 +16,22 @@
  * under the License.
  */
 import React, { useEffect, useState } from 'react';
-import { Icon } from '@wso2/ui-toolkit';
 import { useRpcContext } from '@wso2/ballerina-rpc-client';
 import { DIRECTORY_MAP, EVENT_TYPE, isSamePath, MACHINE_VIEW, SCOPE } from '@wso2/ballerina-core';
 
 import { CardGrid, PanelViewMore, Title, TitleWrapper } from './styles';
 import { BodyText } from '../../styles';
 import ButtonCard from '../../../components/ButtonCard';
-import { AutomationAlreadyExistsTooltip, OutOfScopeComponentTooltip } from './componentListUtils';
+import { ARTIFACT_CATEGORY_META, AUTOMATION_CARD } from '../components/artifactCards';
+import { AutomationAlreadyExistsTooltip, cardMatchesSearch, OutOfScopeComponentTooltip } from './componentListUtils';
 
 interface AutomationPanelProps {
     scope: SCOPE;
+    /** Page-level gallery search; when set, only matching cards show. */
+    searchQuery?: string;
 };
+
+const CATEGORY = ARTIFACT_CATEGORY_META.automation;
 
 export function AutomationPanel(props: AutomationPanelProps) {
     const [automationExists, setAutomationExists] = useState(false);
@@ -61,17 +65,21 @@ export function AutomationPanel(props: AutomationPanelProps) {
         });
     };
 
+    if (!cardMatchesSearch(AUTOMATION_CARD.displayName, props.searchQuery)) {
+        return null;
+    }
+
     return (
         <PanelViewMore disabled={isDisabled}>
             <TitleWrapper>
-                <Title variant="h2">Automation</Title>
-                <BodyText>Create an automation that can be invoked periodically or manually.</BodyText>
+                <Title variant="h2">{CATEGORY.title}</Title>
+                <BodyText>{CATEGORY.description}</BodyText>
             </TitleWrapper>
             <CardGrid>
                 <ButtonCard
-                    id="automation"
-                    icon={<Icon name="bi-task" />}
-                    title="Automation"
+                    id={AUTOMATION_CARD.id}
+                    icon={AUTOMATION_CARD.icon}
+                    title={AUTOMATION_CARD.displayName}
                     onClick={handleClick}
                     disabled={isDisabled}
                     tooltip={tooltip}

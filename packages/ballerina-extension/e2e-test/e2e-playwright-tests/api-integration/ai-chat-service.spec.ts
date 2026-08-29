@@ -17,13 +17,13 @@
  * under the License.
  */
 import { test } from '@playwright/test';
-import { createArtifactAndGetWebview, deleteArtifactFromTree, getWebview, BI_INTEGRATOR_LABEL, initTest, page } from '../utils/helpers';
+import { createArtifactAndGetWebview, deleteArtifactFromTree, getWebview, domClick, BI_INTEGRATOR_LABEL, initTest, page } from '../utils/helpers';
 import { Form } from '@wso2/playwright-vscode-tester';
 import { ProjectExplorer } from '../utils/pages';
 import { DEFAULT_PROJECT_NAME } from '../utils/helpers/constants';
 
 // Titles use "AI Chat Service"; the product UI calls the same artifact
-// "AI Chat Agent" (kept verbatim in the selectors below).
+// "Chat Agent Service" (kept verbatim in the selectors below).
 export default function createTests() {
     test.describe.serial('AI Chat Service Tests', {
     }, async () => {
@@ -33,35 +33,37 @@ export default function createTests() {
             const testAttempt = testInfo.retry + 1;
             console.log('Creating a new AI Chat Service in test attempt: ', testAttempt);
 
-            const artifactWebView = await createArtifactAndGetWebview('AI Chat Agent', 'ai-agent-card');
+            const artifactWebView = await createArtifactAndGetWebview('Chat Agent Service', 'ai-agent-card');
             sampleName = `sample${testAttempt}`;
             const form = new Form(page.page, BI_INTEGRATOR_LABEL, artifactWebView);
             await form.switchToFormView(false, artifactWebView);
+            await artifactWebView.locator('div[data-testid="ex-editor-role"]').waitFor({ state: 'visible', timeout: 30000 });
+            await artifactWebView.locator('div[data-testid="ex-editor-instructions"]').waitFor({ state: 'visible', timeout: 30000 });
             await form.fill({
                 values: {
-                    "NameName of the agent (e.g. 'Customer Support Assistant', 'Sales Advisor', 'Data Analyst')": {
-                        type: 'input',
-                        value: sampleName,
-                    }
+                    role: { type: 'cmEditor', value: 'You are a helpful customer support assistant.' },
+                    instructions: { type: 'cmEditor', value: 'Greet the user and answer their questions.' },
+                    "Agent Name*Name of the agent": { type: 'input', value: sampleName },
                 }
             });
-            await form.submit('Create');
+            const submitButton = artifactWebView.locator('vscode-button:has-text("Create")');
+            await submitButton.waitFor({ state: 'visible', timeout: 60000 });
+            await domClick(submitButton);
             console.log('AI Chat Service creation form submitted');
 
             // Check if the diagram canvas is visible
             const diagramCanvas = artifactWebView.locator('#bi-diagram-canvas');
             await diagramCanvas.waitFor({ state: 'visible', timeout: 240000 });
 
-            const diagramTitle = artifactWebView.locator('h2', { hasText: 'AI Chat Agent' });
+            const diagramTitle = artifactWebView.locator('h2', { hasText: 'Chat Agent Service' });
             await diagramTitle.waitFor();
 
             // Check if the agent call node is visible
             const agentCallNode = artifactWebView.locator('[data-testid="agent-call-node"]');
             await agentCallNode.waitFor();
 
-            // Check if the service is created in the project explorer
             const projectExplorer = new ProjectExplorer(page.page);
-            await projectExplorer.findItem([DEFAULT_PROJECT_NAME, `AI Agent Services - /${sampleName}`]);
+            await projectExplorer.findItem([DEFAULT_PROJECT_NAME, `AI Agent Services - /sample-${testAttempt}`], 30000);
         });
 
         test('Delete AI Chat Service', async ({ }, testInfo) => {
@@ -69,7 +71,7 @@ export default function createTests() {
             console.log('Deleting an AI Chat Service in test attempt: ', testAttempt);
 
             await getWebview(BI_INTEGRATOR_LABEL, page);
-            await deleteArtifactFromTree([DEFAULT_PROJECT_NAME, `AI Agent Services - /${sampleName}`]);
+            await deleteArtifactFromTree([DEFAULT_PROJECT_NAME, `AI Agent Services - /sample-${testAttempt}`]);
         });
     });
 }

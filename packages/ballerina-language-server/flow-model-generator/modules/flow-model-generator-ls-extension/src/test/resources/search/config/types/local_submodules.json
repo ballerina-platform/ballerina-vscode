@@ -1,0 +1,126 @@
+{
+  "description": "Local manual and generated module types use project-local categories",
+  "kind": "TYPE",
+  "source": "submodule_project/main.bal",
+  "queryMap": {
+    "q": ""
+  },
+  "categories": [
+    {
+      "metadata": {
+        "label": "Current Integration",
+        "description": "Components defined within the current integration",
+        "keywords": [
+          "Project",
+          "Local",
+          "Function",
+          "Types",
+          "Data Mapper"
+        ]
+      },
+      "items": [
+        {
+          "metadata": {
+            "label": "submodule_project.client (Generated)",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "GeneratedPublic",
+                "description": ""
+              },
+              "codedata": {
+                "node": "RECORD",
+                "org": "testorg",
+                "module": "submodule_project.client",
+                "packageName": "submodule_project",
+                "symbol": "GeneratedPublic",
+                "version": "0.1.0",
+                "isGenerated": true,
+                "data": {
+                  "moduleRelation": "SAME_PACKAGE_MODULE",
+                  "moduleKind": "SUBMODULE"
+                }
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "GeneratedState",
+                "description": ""
+              },
+              "codedata": {
+                "node": "ENUM",
+                "org": "testorg",
+                "module": "submodule_project.client",
+                "packageName": "submodule_project",
+                "symbol": "GeneratedState",
+                "version": "0.1.0",
+                "isGenerated": true,
+                "data": {
+                  "moduleRelation": "SAME_PACKAGE_MODULE",
+                  "moduleKind": "SUBMODULE"
+                }
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "submodule_project.manual",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "ManualPublic",
+                "description": ""
+              },
+              "codedata": {
+                "node": "RECORD",
+                "org": "testorg",
+                "module": "submodule_project.manual",
+                "packageName": "submodule_project",
+                "symbol": "ManualPublic",
+                "version": "0.1.0",
+                "isGenerated": false,
+                "data": {
+                  "moduleRelation": "SAME_PACKAGE_MODULE",
+                  "moduleKind": "SUBMODULE"
+                }
+              },
+              "enabled": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "label": "Imported Types",
+        "description": "Types imported from other integrations",
+        "keywords": [
+          "Imported",
+          "Type",
+          "Library"
+        ]
+      },
+      "items": []
+    },
+    {
+      "metadata": {
+        "label": "Standard Library",
+        "description": "Components supported officially by Ballerina",
+        "keywords": [
+          "Ballerina",
+          "Library"
+        ]
+      },
+      "items": []
+    }
+  ]
+}

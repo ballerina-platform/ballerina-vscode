@@ -23,7 +23,7 @@
 // pattern for the fast tier.
 
 import React from "react";
-import { waitFor } from "@testing-library/react";
+import { fireEvent, waitFor } from "@testing-library/react";
 
 // NodeList reads useRpcContext from the @wso2/ballerina-rpc-client barrel; mock it to
 // delegate to the harness so the component and the Provider share one context.
@@ -34,6 +34,7 @@ jest.mock("@wso2/ballerina-rpc-client", () => {
 
 import { renderWithRpc } from "./rpcHarness";
 import { NodeList } from "../components/NodeList";
+import type { Category } from "../components/NodeList/types";
 
 const fakeRpc = (npSupported = false) => ({
     getCommonRpcClient: () => ({ isNPSupported: async () => npSupported }),
@@ -57,6 +58,78 @@ const props = (categories: any[]) =>
         onSelectConnector: jest.fn(),
     } as any);
 
+type CreateFunctionCase = {
+    name: string;
+    categories: Category[];
+    expand: string[];
+    showsCreateFunction: boolean;
+};
+
+const createFunctionCases: CreateFunctionCase[] = [
+    {
+        name: "canonical current-integration category",
+        categories: [{
+            title: "Current Integration",
+            description: "Functions in the current integration",
+            items: [],
+        }],
+        expand: [],
+        showsCreateFunction: true,
+    },
+    {
+        name: "submodule-shaped current-integration category within a project",
+        categories: [{
+            title: "Within Project",
+            description: "Packages within the project",
+            items: [
+                {
+                    title: "orders.helpers (Current Integration)",
+                    description: "Current integration submodule",
+                    items: [{
+                        id: "local",
+                        label: "localFunction",
+                        description: "Local function",
+                        enabled: true,
+                    }],
+                },
+                {
+                    title: "inventory",
+                    description: "Another package",
+                    items: [],
+                },
+            ],
+        }],
+        expand: ["Within Project"],
+        showsCreateFunction: true,
+    },
+    {
+        name: "workspace packages without a current-integration marker",
+        categories: [{
+            title: "Within Project",
+            description: "Packages within the project",
+            items: [
+                {
+                    title: "orders",
+                    description: "Workspace package",
+                    items: [{
+                        id: "workspace",
+                        label: "workspaceFunction",
+                        description: "Workspace function",
+                        enabled: true,
+                    }],
+                },
+                {
+                    title: "orders.helpers",
+                    description: "Workspace submodule",
+                    items: [],
+                },
+            ],
+        }],
+        expand: ["Within Project"],
+        showsCreateFunction: false,
+    },
+];
+
 describe("NodeList (rpc-driven)", () => {
     it("INVARIANT: renders every category title from the categories prop", async () => {
         const categories = [
@@ -79,6 +152,37 @@ describe("NodeList (rpc-driven)", () => {
         expect(container.textContent).toContain("Functions");
     });
 
+    it("does not crash when a malformed category has no title", () => {
+        const malformedCategory = {
+            title: undefined,
+            items: [node("fn", "Function")],
+        } as unknown as Category;
+        const { container } = renderWithRpc(
+            <NodeList {...props([malformedCategory])} />,
+            { getCommonRpcClient: () => ({ isNPSupported: () => new Promise<boolean>(() => undefined) }) }
+        );
+
+        expect(container).toBeTruthy();
+    });
+
+    it.each(createFunctionCases)("offers function creation for $name: $showsCreateFunction", async (testCase) => {
+        const onAddFunction = jest.fn();
+        const { getByText, queryAllByText } = renderWithRpc(
+            <NodeList {...props(testCase.categories)} onAddFunction={onAddFunction} />,
+            fakeRpc()
+        );
+
+        testCase.expand.forEach((title) => fireEvent.click(getByText(title)));
+        const expectedActionCount = testCase.showsCreateFunction ? 1 : 0;
+        const visibleCreateFunctionActions = () => queryAllByText("Create Function")
+            .filter((element) => getComputedStyle(element).visibility !== "hidden");
+        await waitFor(() => expect(visibleCreateFunctionActions()).toHaveLength(expectedActionCount));
+        if (testCase.showsCreateFunction) {
+            fireEvent.click(visibleCreateFunctionActions()[0]);
+        }
+        expect(onAddFunction).toHaveBeenCalledTimes(expectedActionCount);
+    });
+
     // rpc feature-flag gating: the NP_FUNCTION node must appear only when the LS reports
     // natural-programming supported — a node wrongly listed/hidden is the #766-class of
     // "node not (correctly) listed in the UI", decided here on the FE from the rpc flag.
@@ -97,4 +201,3 @@ describe("NodeList (rpc-driven)", () => {
         expect((container.textContent ?? "").includes("Natural Function")).toBe(expectVisible);
     });
 });
-

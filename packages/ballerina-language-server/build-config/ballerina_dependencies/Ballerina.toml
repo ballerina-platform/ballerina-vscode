@@ -25,7 +25,7 @@ version = "4.6.5"
 [[dependency]]
 org = "ballerinax"
 name = "rabbitmq"
-version = "3.3.1"
+version = "3.6.0"
 
 [[dependency]]
 org = "ballerinax"
@@ -160,7 +160,12 @@ version = "1.2.4"
 [[dependency]]
 org = "ballerina"
 name = "ai"
-version = "1.12.0"
+version = "1.13.0"
+
+[[dependency]]
+org = "ballerina"
+name = "ai.eval"
+version = "0.9.0"
 
 [[dependency]]
 org = "ballerinax"
@@ -170,12 +175,12 @@ version = "0.3.0"
 [[dependency]]
 org = "ballerinax"
 name = "cdc"
-version = "1.3.2"
+version = "1.4.0"
 
 [[dependency]]
 org = "ballerinax"
 name = "mssql"
-version = "1.17.0"
+version = "1.19.0"
 
 [[dependency]]
 org = "ballerinax"
@@ -188,9 +193,14 @@ name = "salesforce"
 version = "8.4.0"
 
 [[dependency]]
+org = "ballerinax"
+name = "solace.jms"
+version = "1.0.0"
+
+[[dependency]]
 org = "ballerina"
 name = "ftp"
-version = "2.16.0"
+version = "2.20.1"
 
 [[dependency]]
 org = "ballerina"
@@ -200,12 +210,12 @@ version = "0.8.2"
 [[dependency]]
 org = "ballerina"
 name = "workflow"
-version = "0.7.0"
+version = "0.8.3"
 
 [[dependency]]
 org = "ballerina"
 name = "grpc"
-version = "1.13.2"
+version = "1.14.2"
 
 [[dependency]]
 org = "ballerina"
@@ -256,6 +266,41 @@ version = "1.4.4"
 org = "ballerinax"
 name = "trigger.hubspot"
 version = "0.12.0"
+
+[[dependency]]
+org = "ballerina"
+name = "mcp"
+version = "1.2.0"
+
+[[dependency]]
+org = "ballerina"
+name = "smb"
+version = "2.0.1"
+
+[[dependency]]
+org = "ballerina"
+name = "websub"
+version = "2.15.0"
+
+[[dependency]]
+org = "ballerina"
+name = "websocket"
+version = "2.15.0"
+
+[[dependency]]
+org = "ballerina"
+name = "graphql"
+version = "1.17.0"
+
+[[dependency]]
+org = "ballerinax"
+name = "trigger.google.calendar"
+version = "0.12.0"
+
+[[dependency]]
+org = "ballerinax"
+name = "asb"
+version = "3.10.0"
 
 # ballerinax/ibm.ibmmq declares the IBM MQ client jar with 'provided' scope, so it
 # is not bundled and must be supplied by the consuming project. Declaring it here

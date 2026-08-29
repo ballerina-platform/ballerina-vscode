@@ -32,6 +32,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Represents an artifact in the project tree.
@@ -63,6 +64,8 @@ public record Artifact(String id, LineRange location, String type, String name, 
     private static final String CATEGORY_CONFIGURATIONS = "Configurations";
     private static final String CATEGORY_TYPES = "Types";
     private static final String CATEGORY_CONNECTIONS = "Connections";
+    private static final String CATEGORY_AGENTS = "Agents";
+    private static final String CATEGORY_AGENT_DEFINITIONS = "Agent Definitions";
     private static final String CATEGORY_VARIABLES = "Variables";
     private static final String CATEGORY_WORKFLOWS = "Workflows";
     private static final String CATEGORY_DEFAULT = "Others";
@@ -79,29 +82,49 @@ public record Artifact(String id, LineRange location, String type, String name, 
             Map.entry(Type.CONFIGURABLE.name(), CATEGORY_CONFIGURATIONS),
             Map.entry(Type.TYPE.name(), CATEGORY_TYPES),
             Map.entry(Type.CONNECTION.name(), CATEGORY_CONNECTIONS),
+            Map.entry(Type.AGENT.name(), CATEGORY_AGENTS),
+            Map.entry(Type.AGENT_DEFINITION.name(), CATEGORY_AGENT_DEFINITIONS),
             Map.entry(Type.VARIABLE.name(), CATEGORY_VARIABLES),
             Map.entry(Type.WORKFLOW.name(), CATEGORY_WORKFLOWS),
+            Map.entry(Type.DURABLE_AGENT.name(), CATEGORY_WORKFLOWS),
             Map.entry(Type.ACTIVITY.name(), CATEGORY_WORKFLOWS));
 
     private static final Map<String, String> entryPointMap = Map.ofEntries(
+            Map.entry("ai", "AI Agent Services"),
+            Map.entry("mcp", "MCP Service"),
             Map.entry("http", "HTTP Service"),
             Map.entry("graphql", "GraphQL Service"),
             Map.entry("tcp", "TCP Service"),
-            Map.entry("file", "Local Files"),
-            Map.entry("ftp", "FTP Integration"),
+            Map.entry("kafka", "Kafka Event Integration"),
+            Map.entry("rabbitmq", "RabbitMQ Event Integration"),
             Map.entry("mqtt", "MQTT Event Integration"),
             Map.entry("asb", "Azure Service Bus Event Integration"),
-            Map.entry("rabbitmq", "RabbitMQ Event Integration"),
-            Map.entry("kafka", "Kafka Event Integration"),
+            Map.entry("aws.sqs", "SQS Event Integration"),
             Map.entry("salesforce", "Salesforce Event Integration"),
-            Map.entry("github", "GitHub Event Integration"),
             Map.entry("twilio", "Twilio Event Integration"),
-            Map.entry("ai", "AI Agent Services"),
+            Map.entry("github", "GitHub Event Integration"),
             Map.entry("solace", "Solace Event Integration"),
+            Map.entry("solace.jms", "Solace (JMS) Event Integration"),
+            Map.entry("shopify", "Shopify Event Integration"),
+            Map.entry("oracledb", "CDC Oracle Service"),
             Map.entry("mssql", "CDC MSSQL Service"),
             Map.entry("postgresql", "CDC PostgreSQL Service"),
             Map.entry("mysql", "CDC MySQL Service"),
-            Map.entry("shopify", "Shopify Event Integration")
+            Map.entry("hubspot", "Hubspot Event Integration"),
+            Map.entry("jco", "SAP JCO Event Integration"),
+            Map.entry("ftp", "FTP Integration"),
+            Map.entry("file", "Local Files"),
+            Map.entry("smb", "SMB Integration"),
+            Map.entry("azure.storage.files", "Azure Files Integration"),
+            Map.entry("business", "Whatsapp Event Integration"),
+            Map.entry("chat", "Google Chat Event Integration"),
+            Map.entry("telegram", "Telegram Event Integration")
+    );
+
+    private static final Map<String, Map<String, String>> serviceTypeMap = Map.of(
+            "sap.jco", Map.of(
+                    "jco:IDocService", "SAP JCo IDoc Service",
+                    "jco:RfcService", "SAP JCo RFC Service")
     );
 
     /**
@@ -113,8 +136,17 @@ public record Artifact(String id, LineRange location, String type, String name, 
             "mssql", new String[]{"tables"},
             "postgresql", new String[]{"tables"},
             "mysql", new String[]{"tables"},
-            "ftp", new String[]{"path"}
+            "ftp", new String[]{"path"},
+            "smb", new String[]{"path"},
+            "rabbitmq", new String[]{"queueName"}
     );
+
+    /**
+     * Modules whose service can carry its watched path in the attach point, so the entry-point label appends that
+     * path even though the service also has a type descriptor. Azure Files has no path annotation at all; SMB has
+     * one that wins whenever it is present, which leaves the attach point as its fallback.
+     */
+    private static final Set<String> attachPointNamedModules = Set.of("azure.storage.files", "smb");
 
     public static String getCategory(String type) {
         return typeCategoryMap.getOrDefault(type, CATEGORY_DEFAULT);
@@ -143,8 +175,11 @@ public record Artifact(String id, LineRange location, String type, String name, 
         CONFIGURABLE,
         TYPE,
         CONNECTION,
+        AGENT,
+        AGENT_DEFINITION,
         VARIABLE,
         WORKFLOW,
+        DURABLE_AGENT,
         ACTIVITY
     }
 
@@ -261,20 +296,23 @@ public record Artifact(String id, LineRange location, String type, String name, 
         }
 
         public Builder serviceNameWithPath(String path) {
+            // A string-literal attach point (`service files:Service "/invoices" on lsn`) reaches here with its
+            // quotes, unlike the identifier form (`service /invoices on lsn`).
+            String attachPoint = unquote(path);
             if (module == null || !entryPointMap.containsKey(module)) {
-                this.name = path;
+                this.name = attachPoint;
             } else {
-                this.name = entryPointMap.get(module) + " - " + path;
+                this.name = entryPointMap.get(module) + " - " + attachPoint;
             }
             return this;
         }
 
+        public String module() {
+            return module;
+        }
+
         public Builder serviceName(String name) {
-            if (module == null || !entryPointMap.containsKey(module)) {
-                this.name = name;
-            } else {
-                this.name = entryPointMap.get(module);
-            }
+            this.name = resolveServiceName(module, name);
             return this;
         }
 
@@ -325,5 +363,34 @@ public record Artifact(String id, LineRange location, String type, String name, 
                     visibility == null ? null : visibility.getValue(), icon,
                     module, new HashMap<>(children), metadata == null ? null : new HashMap<>(metadata));
         }
+    }
+
+    /**
+     * Whether the module can take its service's watched path from the attach point, as in
+     * {@code service files:Service /invoices on lsn}.
+     *
+     * <p>An entry-point label is required too, since without one {@code serviceNameWithPath} would emit a bare
+     * path with no connector name — worse than the type-descriptor label this branch pre-empts.
+     *
+     * @param module the module name the semantic model reports
+     * @return true when the attach point supplies the name
+     */
+    public static boolean usesAttachPointAsName(String module) {
+        return module != null && attachPointNamedModules.contains(module) && entryPointMap.containsKey(module);
+    }
+
+    static String unquote(String value) {
+        if (value == null || value.length() < 2 || !value.startsWith("\"") || !value.endsWith("\"")) {
+            return value;
+        }
+        return value.substring(1, value.length() - 1);
+    }
+
+    public static String resolveServiceName(String module, String name) {
+        if (module == null) {
+            return name;
+        }
+        String serviceTypeName = serviceTypeMap.getOrDefault(module, Collections.emptyMap()).get(name);
+        return serviceTypeName != null ? serviceTypeName : entryPointMap.getOrDefault(module, name);
     }
 }

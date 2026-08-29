@@ -22,6 +22,7 @@ import { debounce } from "lodash";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { useFormContext } from "../../context";
 import { buildRequiredRule, capitalize, getFriendlyIdentifierMessage, getPropertyFromFormField, mapDiagnosticsServerityToFormSeverity } from "./utils";
+import { buildValidate } from "../Form/validationRules";
 import { FormField } from "../Form/types";
 export interface IdentifierFieldProps {
     field: FormField;
@@ -37,6 +38,8 @@ export function IdentifierField(props: IdentifierFieldProps) {
     const { watch, formState, register, setValue, setError, clearErrors } = form;
     const { errors } = formState;
     const [formDiagnostics, setFormDiagnostics] = useState(field.diagnostics);
+    // Defer validation of a pristine empty field until touched.
+    const [isTouched, setIsTouched] = useState(Boolean(field.value));
 
     useEffect(() => {
         setFormDiagnostics(field.diagnostics?.map((diagnostic) => ({
@@ -83,14 +86,18 @@ export function IdentifierField(props: IdentifierFieldProps) {
         }
     }, 250), [rpcClient, field.key, field.codedata, targetLineRange, fileName, setError, clearErrors]);
 
-    // Validate on value change (covers initial load, paste, programmatic updates, typing)
+    // Validate on value change, but skip a pristine empty value so a freshly opened field
+    // doesn't show an error upfront (Save still triggers the required rule).
     const fieldValue = watch(field.key);
     useEffect(() => {
         if (fieldValue !== undefined && fieldValue !== null) {
-            validateIdentifierName(String(fieldValue));
+            const isPristineEmpty = String(fieldValue).trim() === '' && !isTouched;
+            if (!isPristineEmpty) {
+                validateIdentifierName(String(fieldValue));
+            }
         }
         return () => validateIdentifierName.cancel();
-    }, [fieldValue, validateIdentifierName]);
+    }, [fieldValue, isTouched, validateIdentifierName]);
 
     // Clear error on unmount so it doesn't persist and block save after the field is gone
     useEffect(() => {
@@ -100,7 +107,8 @@ export function IdentifierField(props: IdentifierFieldProps) {
 
     const registerField = register(field.key, {
         required: buildRequiredRule({ isRequired: !field.optional, label: field.label }),
-        value: field.value
+        value: field.value,
+        validate: buildValidate(field)
     })
     const { onChange } = registerField;
 
@@ -123,7 +131,7 @@ export function IdentifierField(props: IdentifierFieldProps) {
                 placeholder={field.placeholder}
                 readOnly={!field.editable}
                 errorMsg={errors[field.key]?.message.toString()}
-                onBlur={() => onBlur?.()}
+                onBlur={() => { setIsTouched(true); onBlur?.(); }}
                 onFocus={() => handleOnFieldFocus?.(field.key)}
                 autoFocus={autoFocus}
                 sx={{ width: "100%" }}

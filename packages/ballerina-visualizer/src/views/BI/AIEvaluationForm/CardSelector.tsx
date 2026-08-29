@@ -49,8 +49,12 @@ const Title = styled.label`
 
 const CardsContainer = styled.div`
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 16px;
+
+    @media (max-width: 520px) {
+        grid-template-columns: 1fr;
+    }
 `;
 
 const Card = styled.div<{ selected: boolean }>`
@@ -58,6 +62,8 @@ const Card = styled.div<{ selected: boolean }>`
     display: flex;
     flex-direction: column;
     gap: 12px;
+    min-width: 0;
+    box-sizing: border-box;
     padding: 20px;
     border: 1px solid ${(props: { selected: boolean; }) => props.selected ? 'var(--vscode-button-background)' : 'var(--vscode-panel-border)'};
     border-radius: 8px;

@@ -20,7 +20,7 @@
 import { HistoryEntry } from "../../history";
 import { ProjectStructureArtifactResponse, UpdatedArtifactsResponse } from "../../interfaces/bi";
 import { ColorThemeKind, EvalSet } from "../../state-machine-types";
-import { AddToUndoStackRequest, HandleApprovalPopupCloseRequest, JoinProjectPathRequest, JoinProjectPathResponse, OpenViewRequest, ReopenApprovalViewRequest, UndoRedoStateResponse, SaveEvalThreadRequest, SaveEvalThreadResponse, GoHomeRequest } from "./interfaces";
+import { AddToUndoStackRequest, HandleApprovalPopupCloseRequest, JoinProjectPathRequest, JoinProjectPathResponse, NavigateReviewModeRequest, OpenViewRequest, ReopenApprovalViewRequest, UndoRedoStateResponse, SaveEvalThreadRequest, SaveEvalThreadResponse, GoHomeRequest } from "./interfaces";
 import { NotificationType, RequestType } from "vscode-messenger-common";
 
 const _preFix = "visualizer";
@@ -39,7 +39,7 @@ export const joinProjectPath: RequestType<JoinProjectPathRequest, JoinProjectPat
 export const getThemeKind: RequestType<void, ColorThemeKind> = { method: `${_preFix}/getThemeKind` };
 export const updateCurrentArtifactLocation: RequestType<UpdatedArtifactsResponse, ProjectStructureArtifactResponse> = { method: `${_preFix}/updateCurrentArtifactLocation` };
 export const navigateReviewIndex: NotificationType<number> = { method: `${_preFix}/navigateReviewIndex` };
-export const navigateReviewMode: NotificationType<number> = { method: `${_preFix}/navigateReviewMode` };
+export const navigateReviewMode: NotificationType<NavigateReviewModeRequest> = { method: `${_preFix}/navigateReviewMode` };
 export const reviewModeOpened: NotificationType<void> = { method: `${_preFix}/reviewModeOpened` };
 export const reviewModeClosed: NotificationType<void> = { method: `${_preFix}/reviewModeClosed` };
 export const handleApprovalPopupClose: NotificationType<HandleApprovalPopupCloseRequest> = { method: `${_preFix}/handleApprovalPopupClose` };

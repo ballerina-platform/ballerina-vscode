@@ -28,6 +28,7 @@ import io.ballerina.compiler.api.symbols.TypeReferenceTypeSymbol;
 import io.ballerina.compiler.api.symbols.TypeSymbol;
 import io.ballerina.compiler.syntax.tree.ArrayTypeDescriptorNode;
 import io.ballerina.compiler.syntax.tree.FunctionDefinitionNode;
+import io.ballerina.compiler.syntax.tree.ImportDeclarationNode;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
 import io.ballerina.compiler.syntax.tree.Node;
 import io.ballerina.compiler.syntax.tree.RecordFieldNode;
@@ -37,6 +38,7 @@ import io.ballerina.compiler.syntax.tree.ServiceDeclarationNode;
 import io.ballerina.compiler.syntax.tree.SimpleNameReferenceNode;
 import io.ballerina.compiler.syntax.tree.SyntaxInfo;
 import io.ballerina.compiler.syntax.tree.TypeDefinitionNode;
+import io.ballerina.modelgenerator.commons.FileSystemUtils;
 import io.ballerina.projects.Document;
 import io.ballerina.projects.Project;
 import io.ballerina.servicemodelgenerator.extension.model.Codedata;
@@ -54,6 +56,7 @@ import org.ballerinalang.langserver.common.utils.CommonUtil;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceManager;
 import org.eclipse.lsp4j.TextEdit;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -70,7 +73,9 @@ import static io.ballerina.servicemodelgenerator.extension.util.Constants.DATA_B
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.DATA_BINDING_TEMPLATE;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.EMPTY_ARRAY;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.KIND_REQUIRED;
+import static io.ballerina.servicemodelgenerator.extension.util.Constants.MAIN_BAL;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.PAYLOAD_FIELD_NAME_PROPERTY;
+import static io.ballerina.servicemodelgenerator.extension.util.Constants.TYPES_BAL;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.WRAPPER_TYPE_NAME_PROPERTY;
 import static io.ballerina.servicemodelgenerator.extension.util.Utils.getFunctionModel;
 import static io.ballerina.servicemodelgenerator.extension.util.Utils.getImportStmt;
@@ -263,7 +268,7 @@ public final class DatabindUtil {
      * @param payloadFieldName The field name to look up
      * @return DataBindingTypeInfo or null if not found
      */
-    private static DataBindingTypeInfo extractDataBindingType(FunctionDefinitionNode functionNode, String paramName,
+    public static DataBindingTypeInfo extractDataBindingType(FunctionDefinitionNode functionNode, String paramName,
                                                               SemanticModel semanticModel,
                                                               String payloadFieldName) {
         Optional<RequiredParameterNode> targetParam = findRequiredParameter(functionNode, paramName);
@@ -359,7 +364,7 @@ public final class DatabindUtil {
         String wrapperTypeName = "";
         if (match.sourceFunctionNode() != null && context.semanticModel() != null && context.project() != null) {
             String paramName = dataBindingParam.getName().getValue();
-            Document mainDocument = getDocumentByName(context.filePath(), "main.bal", context.workspaceManager());
+            Document mainDocument = getDocumentByName(context.filePath(), MAIN_BAL, context.workspaceManager());
 
             if (mainDocument != null) {
                 String extractedTypeName = extractExistingDatabindTypeName(match.sourceFunctionNode(), paramName,
@@ -695,7 +700,7 @@ public final class DatabindUtil {
      * @param baseType                 The base event type (for reference checking)
      * @return Map of TextEdits to delete the type, or empty if type is still in use
      */
-    private static Map<String, List<TextEdit>> handleDataBindingDeletion(UpdateModelContext context,
+    public static Map<String, List<TextEdit>> handleDataBindingDeletion(UpdateModelContext context,
                                                                          Function function,
                                                                          Parameter disabledDataBindingParam,
                                                                          String baseType) {
@@ -785,7 +790,7 @@ public final class DatabindUtil {
         TextEdit deleteEdit = new TextEdit(Utils.toRange(typeDefToDelete.lineRange()), "");
         edits.add(deleteEdit);
 
-        Path typesFilePath = getFilePathForFile(context.filePath(), context.workspaceManager(), "types.bal");
+        Path typesFilePath = getFilePathForFile(context.filePath(), context.workspaceManager(), TYPES_BAL);
         if (typesFilePath == null) {
             return Map.of();
         }
@@ -865,14 +870,14 @@ public final class DatabindUtil {
      * @param prefix           The prefix for generated type names
      * @return The generated unique type name
      */
-    private static String generateNewDataBindTypeName(String contextFilePath, WorkspaceManager workspaceManager,
+    public static String generateNewDataBindTypeName(String contextFilePath, WorkspaceManager workspaceManager,
                                                       SemanticModel semanticModel, FunctionDefinitionNode functionNode,
                                                       String prefix) {
         if (semanticModel == null) {
             return prefix;
         }
 
-        Document mainDocument = getDocumentByName(contextFilePath, "main.bal", workspaceManager);
+        Document mainDocument = getDocumentByName(contextFilePath, MAIN_BAL, workspaceManager);
         if (mainDocument == null) {
             return prefix;
         }
@@ -901,6 +906,15 @@ public final class DatabindUtil {
             String moduleName = baseType.substring(0, baseType.indexOf(COLON));
             String org = "ballerinax";
             String importModule = moduleName.toLowerCase(java.util.Locale.ENGLISH);
+
+            // The guess above (org "ballerinax", module == prefix) breaks for dotted module names
+            // (e.g. "solace.jms", whose default prefix is "jms", not a real "ballerinax/jms" package) —
+            // an explicit override keyed by that same prefix takes precedence when supplied.
+            if (importsForTypeDef != null && importsForTypeDef.containsKey(moduleName)) {
+                String[] overrideParts = importsForTypeDef.get(moduleName).split("/");
+                org = overrideParts[0];
+                importModule = overrideParts[1].split(":")[0];
+            }
 
             if (!importExists(modulePartNode, org, importModule)) {
                 imports.add(getImportStmt(org, importModule));
@@ -935,7 +949,7 @@ public final class DatabindUtil {
                                                                               String contextFilePath,
                                                                               WorkspaceManager workspaceManager,
                                                                               Map<String, String> importsForTypeDef) {
-        Document typesDocument = getTypesDocument(contextFilePath, workspaceManager);
+        Document typesDocument = getOrCreateTypesDocument(contextFilePath, workspaceManager);
         if (typesDocument == null || typesDocument.syntaxTree() == null) {
             return null;
         }
@@ -959,7 +973,7 @@ public final class DatabindUtil {
      * @param importsForTypeDef Map of imports needed for the type definition
      * @return Map of file paths to TextEdit lists
      */
-    private static Map<String, List<TextEdit>> createTypeDefinitionEdits(Project project, String typeName,
+    public static Map<String, List<TextEdit>> createTypeDefinitionEdits(Project project, String typeName,
                                                                          String baseType, String dataBindingType,
                                                                          String payloadFieldName,
                                                                          String contextFilePath,
@@ -974,18 +988,29 @@ public final class DatabindUtil {
 
         String typeDefinition = generateTypeDefinition(typeName, baseType, dataBindingType, payloadFieldName);
 
-        // Determine insertion point
+        // Determine insertion point: always after the last existing declaration (member, else the
+        // last import), never above pre-existing imports — a members-empty file can still have
+        // imports (imports() and members() are separate lists), so that alone doesn't mean "empty".
         LinePosition insertPosition;
+        String typeDefPrefix;
         ModulePartNode modulePartNode = context.modulePartNode();
 
-        if (modulePartNode.members().isEmpty()) {
-            // No members yet — anchor at the module-part start, which skips leading minutiae
-            // (license/doc comments) so the type definition lands below them.
-            insertPosition = modulePartNode.lineRange().startLine();
-        } else {
+        if (!modulePartNode.members().isEmpty()) {
             // Insert at the end of the file
             Node lastMember = modulePartNode.members().get(modulePartNode.members().size() - 1);
             insertPosition = lastMember.lineRange().endLine();
+            typeDefPrefix = "\n\n";
+        } else if (!modulePartNode.imports().isEmpty()) {
+            // No type/function members yet, but the file already has imports — anchor after the
+            // last one so the type definition doesn't land above them.
+            ImportDeclarationNode lastImport = modulePartNode.imports().get(modulePartNode.imports().size() - 1);
+            insertPosition = lastImport.lineRange().endLine();
+            typeDefPrefix = "\n\n";
+        } else {
+            // Truly empty — anchor at the module-part start, which skips leading minutiae
+            // (license/doc comments) so the type definition lands below them.
+            insertPosition = modulePartNode.lineRange().startLine();
+            typeDefPrefix = "";
         }
 
         List<TextEdit> edits = new ArrayList<>();
@@ -997,12 +1022,11 @@ public final class DatabindUtil {
         }
 
         // Add the type definition
-        TextEdit typeEdit = new TextEdit(Utils.toRange(insertPosition),
-                (modulePartNode.members().isEmpty() ? "" : "\n\n") + typeDefinition);
+        TextEdit typeEdit = new TextEdit(Utils.toRange(insertPosition), typeDefPrefix + typeDefinition);
         edits.add(typeEdit);
 
         // Construct the path to types.bal
-        Path typesFilePath = getFilePathForFile(contextFilePath, workspaceManager, "types.bal");
+        Path typesFilePath = getFilePathForFile(contextFilePath, workspaceManager, TYPES_BAL);
         if (typesFilePath == null) {
             return Map.of();
         }
@@ -1020,7 +1044,9 @@ public final class DatabindUtil {
     private static Document getDocumentByName(String contextFilePath, String fileName,
                                               WorkspaceManager workspaceManager) {
         Path filePath = getFilePathForFile(contextFilePath, workspaceManager, fileName);
-        if (filePath == null) {
+        // WorkspaceManager.document() rejects a path that does not exist on disk with a ProjectException. Hence, the
+        // absence of the file is checked beforehand, since the document is only read here.
+        if (filePath == null || !Files.exists(filePath)) {
             return null;
         }
         Optional<Document> documentOpt = workspaceManager.document(filePath);
@@ -1028,15 +1054,39 @@ public final class DatabindUtil {
     }
 
     /**
+     * Gets the types.bal document in the project, and creates it when it does not exist.
+     * <p>
+     * The type definition of the data binding is written to types.bal, which is one of the files that the project
+     * need not hold yet. Hence, the document is resolved through {@link FileSystemUtils#getDocument}, which creates
+     * the file when it is absent.
+     * <p>
+     * Creating the file is deliberate. The callers of this method are the add and the update operations of a
+     * function, which the user has already committed to, and the text edits that they return are anchored to this
+     * document and are applied to it right away. A text edit cannot bring the file into being on its own.
+     *
+     * @param contextFilePath  The context file path for locating types.bal
+     * @param workspaceManager The workspace manager for document retrieval
+     * @return The types.bal Document, or null if the path cannot be resolved
+     */
+    private static Document getOrCreateTypesDocument(String contextFilePath,
+                                                     WorkspaceManager workspaceManager) {
+        Path typesFilePath = getFilePathForFile(contextFilePath, workspaceManager, TYPES_BAL);
+        if (typesFilePath == null) {
+            return null;
+        }
+        return FileSystemUtils.getDocument(workspaceManager, typesFilePath);
+    }
+
+    /**
      * Gets the types.bal document in the project.
      *
      * @param contextFilePath  The context file path for locating types.bal
      * @param workspaceManager The workspace manager for document retrieval
-     * @return The types.bal Document
+     * @return The types.bal Document, or null if it does not exist
      */
     private static Document getTypesDocument(String contextFilePath,
                                              WorkspaceManager workspaceManager) {
-        return getDocumentByName(contextFilePath, "types.bal", workspaceManager);
+        return getDocumentByName(contextFilePath, TYPES_BAL, workspaceManager);
     }
 
     /**
@@ -1065,7 +1115,7 @@ public final class DatabindUtil {
      * @param baseType      The base record type (e.g., "kafka:AnydataConsumerRecord") to check against
      * @return The databind type name, or null if not found or not a subtype of baseType
      */
-    private static String extractExistingDatabindTypeName(FunctionDefinitionNode functionNode, String paramName,
+    public static String extractExistingDatabindTypeName(FunctionDefinitionNode functionNode, String paramName,
                                                           SemanticModel semanticModel, Document document,
                                                           String baseType) {
         Optional<RequiredParameterNode> targetParam = findRequiredParameter(functionNode, paramName);
@@ -1200,7 +1250,7 @@ public final class DatabindUtil {
      * @param importsForTypeDef  Map of imports needed for the type definition
      * @return Map of file paths to TextEdit lists
      */
-    private static Map<String, List<TextEdit>> updateTypeDefinitionEdits(UpdateModelContext context,
+    public static Map<String, List<TextEdit>> updateTypeDefinitionEdits(UpdateModelContext context,
                                                                          String existingTypeName,
                                                                          String baseType,
                                                                          String newDataBindingType,
@@ -1253,7 +1303,7 @@ public final class DatabindUtil {
         // Create a TextEdit to replace the old definition
         TextEdit replaceEdit = new TextEdit(Utils.toRange(existingTypeDef.lineRange()), newTypeDefinition);
         edits.add(replaceEdit);
-        Path typesFilePath = getFilePathForFile(context.filePath(), context.workspaceManager(), "types.bal");
+        Path typesFilePath = getFilePathForFile(context.filePath(), context.workspaceManager(), TYPES_BAL);
         if (typesFilePath == null) {
             return Map.of();
         }
@@ -1312,7 +1362,7 @@ public final class DatabindUtil {
      * @param typeName The data binding type name (e.g., "Order")
      * @param editable Whether the data binding parameter should be editable
      */
-    private record DataBindingTypeInfo(
+    public record DataBindingTypeInfo(
             String typeName,
             boolean editable
     ) {

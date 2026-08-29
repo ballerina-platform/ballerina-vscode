@@ -1,0 +1,10 @@
+[package]
+org = "wso2"
+name = "already_declared"
+version = "0.1.0"
+
+[[dependency]]
+org = "testlocaldep"
+name = "myconnector"
+version = "0.1.0"
+repository = "local"

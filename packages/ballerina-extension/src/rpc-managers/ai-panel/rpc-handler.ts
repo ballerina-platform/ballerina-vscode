@@ -20,7 +20,6 @@
 import {
     abortAIGeneration,
     AbortAIGenerationRequest,
-    acceptChanges,
     addFilesToProject,
     AddFilesToProjectRequest,
     AIPanelPrompt,
@@ -36,7 +35,7 @@ import {
     ConnectorSpecCancelRequest,
     ConnectorSpecRequest,
     createTestDirecoryIfNotExists,
-    declineChanges,
+    revertGeneration,
     declinePlan,
     declineTask,
     DocGenerationRequest,
@@ -46,9 +45,7 @@ import {
     generateContextTypes,
     generateOpenAPI,
     GenerateOpenAPIRequest,
-    HasPendingReviewRequest,
     getActiveTempDir,
-    hasPendingReview,
     getRunStatus,
     getLatestFollowupSuggestions,
     getAIMachineSnapshot,
@@ -85,6 +82,7 @@ import {
     RequirementSpecification,
     restoreCheckpoint,
     RestoreCheckpointRequest,
+    RevertGenerationRequest,
     SemanticDiffRequest,
     showSignInAlert,
     submitFeedback,
@@ -192,8 +190,7 @@ export function registerAiPanelRpcHandlers(messenger: Messenger) {
     messenger.onRequest(openAIPanel, (args: AIPanelPrompt) => rpcManger.openAIPanel(args));
     messenger.onRequest(getSemanticDiff, (args: SemanticDiffRequest) => rpcManger.getSemanticDiff(args));
     messenger.onRequest(isWorkspaceProject, () => rpcManger.isWorkspaceProject());
-    messenger.onRequest(acceptChanges, () => rpcManger.acceptChanges());
-    messenger.onRequest(declineChanges, () => rpcManger.declineChanges());
+    messenger.onRequest(revertGeneration, (args: RevertGenerationRequest) => rpcManger.revertGeneration(args));
     messenger.onRequest(approvePlan, (args: PlanApprovalRequest) => rpcManger.approvePlan(args));
     messenger.onRequest(declinePlan, (args: PlanApprovalRequest) => rpcManger.declinePlan(args));
     messenger.onRequest(approveTask, (args: ApproveTaskRequest) => rpcManger.approveTask(args));
@@ -210,7 +207,6 @@ export function registerAiPanelRpcHandlers(messenger: Messenger) {
     messenger.onRequest(clearChat, () => rpcManger.clearChat());
     messenger.onRequest(updateChatMessage, (args: UpdateChatMessageRequest) => rpcManger.updateChatMessage(args));
     messenger.onRequest(getActiveTempDir, () => rpcManger.getActiveTempDir());
-    messenger.onRequest(hasPendingReview, (args: HasPendingReviewRequest) => rpcManger.hasPendingReview(args));
     messenger.onRequest(getRunStatus, (args) => rpcManger.getRunStatus(args));
     messenger.onRequest(getLatestFollowupSuggestions, () => rpcManger.getLatestFollowupSuggestions());
     messenger.onRequest(getUsage, () => rpcManger.getUsage());

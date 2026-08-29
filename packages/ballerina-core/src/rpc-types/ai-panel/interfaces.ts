@@ -18,7 +18,7 @@
  */
 
 import { FunctionDefinition } from "@wso2/syntax-tree";
-import { AIMachineContext, AIMachineStateValue, ChatNotify } from "../../state-machine-types";
+import { AIMachineContext, AIMachineStateValue, ChatNotify, GenerationReviewState } from "../../state-machine-types";
 import { Command, SkillCommand, TemplateId } from "../../interfaces/ai-panel";
 import { AllDataMapperSourceRequest, ExtendedDataMapperMetadata } from "../../interfaces/extended-lang-client";
 import { ComponentInfo, Diagnostics, DMModel, ImportStatements, LinePosition, LineRange, OperationType } from "../..";
@@ -427,6 +427,10 @@ export interface SemanticDiffResponse {
     semanticDiffs: SemanticDiff[];
 }
 
+export interface RevertGenerationRequest {
+    generationId: string;
+}
+
 export interface RestoreCheckpointRequest {
     checkpointId: string;
 }
@@ -529,6 +533,7 @@ export interface UIChatMessage {
     content: string;
     checkpointId?: string;
     messageId?: string;
+    generationStatus?: GenerationReviewState["status"];
 }
 
 /**
@@ -584,13 +589,6 @@ export interface AbortAIGenerationRequest {
     /** Project root path (defaults to current workspace/project root) */
     projectRootPath?: string;
     /** Thread identifier (defaults to 'default') */
-    threadId?: string;
-}
-
-export interface HasPendingReviewRequest {
-    /** Project root path (defaults to current workspace/project root). */
-    projectRootPath?: string;
-    /** Thread identifier (defaults to the active thread). */
     threadId?: string;
 }
 

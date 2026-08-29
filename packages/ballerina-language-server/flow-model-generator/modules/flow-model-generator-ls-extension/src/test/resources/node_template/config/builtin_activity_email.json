@@ -285,20 +285,59 @@
         "value": "true",
         "optional": true,
         "editable": true,
+        "advanced": true,
+        "hidden": false,
+        "dynamicFormFields": {
+          "true": {},
+          "false": {
+            "variable": {
+              "metadata": {
+                "label": "Result",
+                "description": "Name of the variable that receives the error the activity failed with, or nil when it succeeded"
+              },
+              "types": [
+                {
+                  "fieldType": "IDENTIFIER",
+                  "selected": true
+                }
+              ],
+              "value": "",
+              "optional": false,
+              "editable": true,
+              "advanced": false,
+              "hidden": false
+            }
+          }
+        }
+      },
+      "variable": {
+        "metadata": {
+          "label": "Result",
+          "description": "Name of the result variable"
+        },
+        "types": [
+          {
+            "fieldType": "IDENTIFIER",
+            "selected": true
+          }
+        ],
+        "value": "activityResult",
+        "optional": true,
+        "editable": true,
         "advanced": false,
-        "hidden": false
+        "hidden": true
       },
       "retryPolicy": {
         "metadata": {
           "label": "Retry Policy",
-          "description": "Retry strategy to apply when the activity call fails"
+          "description": "Engine retry strategy when the activity fails: no automatic retry (an AI agent may still re-invoke it), automatic backoff retries, or a human review task"
         },
         "types": [
           {
             "fieldType": "DROPDOWN_CHOICE",
             "options": [
               {
-                "label": "No Retry",
+                "label": "No Automatic Retry",
                 "value": "NoRetry"
               },
               {
@@ -306,7 +345,7 @@
                 "value": "AutoRetry"
               },
               {
-                "label": "Manual Retry",
+                "label": "Human Review",
                 "value": "ManualRetry"
               }
             ],
@@ -324,7 +363,7 @@
             "maxRetries": {
               "metadata": {
                 "label": "Max Retries",
-                "description": "Maximum number of retry attempts"
+                "description": "Maximum retry attempts (default: 3)"
               },
               "types": [
                 {
@@ -334,7 +373,7 @@
                 }
               ],
               "value": "",
-              "optional": false,
+              "optional": true,
               "editable": true,
               "advanced": false,
               "hidden": false
@@ -342,7 +381,7 @@
             "retryDelay": {
               "metadata": {
                 "label": "Retry Delay",
-                "description": "Initial delay between retries in seconds"
+                "description": "Initial delay in seconds before the first retry (default: 1.0)"
               },
               "types": [
                 {
@@ -352,7 +391,7 @@
                 }
               ],
               "value": "",
-              "optional": false,
+              "optional": true,
               "editable": true,
               "advanced": false,
               "hidden": false
@@ -360,7 +399,7 @@
             "retryBackoff": {
               "metadata": {
                 "label": "Retry Backoff",
-                "description": "Exponential backoff multiplier (e.g. 2.0 doubles each delay)"
+                "description": "Multiplier applied to delay after each retry (default: 2.0)"
               },
               "types": [
                 {
@@ -370,7 +409,7 @@
                 }
               ],
               "value": "",
-              "optional": false,
+              "optional": true,
               "editable": true,
               "advanced": false,
               "hidden": false
@@ -378,12 +417,32 @@
             "maxRetryDelay": {
               "metadata": {
                 "label": "Max Retry Delay",
-                "description": "Maximum delay cap in seconds"
+                "description": "Cap on the delay between retries, in seconds"
               },
               "types": [
                 {
                   "fieldType": "EXPRESSION",
                   "ballerinaType": "decimal",
+                  "selected": true
+                }
+              ],
+              "value": "",
+              "optional": true,
+              "editable": true,
+              "advanced": false,
+              "hidden": false
+            }
+          },
+          "ManualRetry": {
+            "retryUserRoles": {
+              "metadata": {
+                "label": "Reviewer Roles",
+                "description": "Role(s) permitted to decide the human review, e.g. \"manager\" or [\"finance\", \"manager\"]. Leave empty to allow any role."
+              },
+              "types": [
+                {
+                  "fieldType": "EXPRESSION",
+                  "ballerinaType": "string|string[]",
                   "selected": true
                 }
               ],
@@ -393,13 +452,12 @@
               "advanced": false,
               "hidden": false
             }
-          },
-          "ManualRetry": {}
+          }
         },
         "itemOptions": [
           {
             "id": "NoRetry",
-            "content": "No Retry",
+            "content": "No Automatic Retry",
             "value": "NoRetry"
           },
           {
@@ -409,7 +467,7 @@
           },
           {
             "id": "ManualRetry",
-            "content": "Manual Retry",
+            "content": "Human Review",
             "value": "ManualRetry"
           }
         ]
@@ -417,7 +475,7 @@
       "maxRetries": {
         "metadata": {
           "label": "Max Retries",
-          "description": "Maximum number of retry attempts"
+          "description": "Maximum retry attempts (default: 3)"
         },
         "types": [
           {
@@ -435,7 +493,7 @@
       "retryDelay": {
         "metadata": {
           "label": "Retry Delay",
-          "description": "Initial delay between retries in seconds"
+          "description": "Initial delay in seconds before the first retry (default: 1.0)"
         },
         "types": [
           {
@@ -450,10 +508,28 @@
         "advanced": false,
         "hidden": true
       },
+      "retryUserRoles": {
+        "metadata": {
+          "label": "Reviewer Roles",
+          "description": "Role(s) permitted to decide the retry review"
+        },
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string|string[]",
+            "selected": true
+          }
+        ],
+        "value": "",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": true
+      },
       "retryBackoff": {
         "metadata": {
           "label": "Retry Backoff",
-          "description": "Exponential backoff multiplier"
+          "description": "Multiplier applied to delay after each retry (default: 2.0)"
         },
         "types": [
           {
@@ -471,7 +547,7 @@
       "maxRetryDelay": {
         "metadata": {
           "label": "Max Retry Delay",
-          "description": "Maximum delay cap in seconds"
+          "description": "Cap on the delay between retries, in seconds"
         },
         "types": [
           {

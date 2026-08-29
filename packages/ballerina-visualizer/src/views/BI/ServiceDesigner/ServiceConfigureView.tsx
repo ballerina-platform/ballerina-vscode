@@ -37,27 +37,6 @@ const Container = styled.div`
     overflow-y: auto;
 `;
 
-const SearchStyle = {
-    width: '100%',
-
-    '& > vscode-text-field': {
-        width: '100%',
-        borderRadius: '5px'
-    },
-};
-
-const EmptyReadmeContainer = styled.div`
-    display: flex;
-    margin: 80px 0px;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    height: 100%;
-`;
-
-const Description = styled(Typography)`
-    color: var(--vscode-descriptionForeground);
-`;
 
 const TitleBoxShadow = styled.div`
     box-shadow: var(--vscode-scrollbar-shadow) 0 6px 6px -6px inset;
@@ -70,13 +49,6 @@ const TitleContent = styled.div`
     justify-content: space-between;
 `;
 
-const SearchContainer = styled.div`
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 15px;
-    gap: 40px;
-`;
 
 const AccordionContainer = styled.div`
     width: 587px;
@@ -159,27 +131,12 @@ namespace S {
         }
     `;
 }
-
-const searchIcon = (<Codicon name="search" sx={{ cursor: "auto" }} />);
-
 export interface ServiceConfigureProps {
     projectPath: string;
     filePath: string;
     position: NodePosition;
     listenerName?: string;
 }
-
-interface CategoryWithModules {
-    name: string;
-    modules: string[];
-}
-
-type ConfigVariablesState = {
-    [category: string]: {
-        [module: string]: ConfigVariable[];
-    };
-};
-
 interface ChangeMap {
     data: ServiceModel | ListenerModel;
     isService: boolean;
@@ -264,9 +221,6 @@ export function ServiceConfigureView(props: ServiceConfigureProps) {
 
     // Ref for debounce timer
     const scrollTimerRef = useRef<number | null>(null);
-
-    // State to manage which accordion is expanded
-    const [expandedAccordion, setExpandedAccordion] = useState<string | null>(null);
 
     const [listenerType, setListenerType] = useState<"SINGLE" | "MULTIPLE">("MULTIPLE");
     const [haveServiceConfigs, setHaveServiceConfigs] = useState<boolean>(true);
@@ -458,8 +412,6 @@ export function ServiceConfigureView(props: ServiceConfigureProps) {
                 block: 'start'
             });
         }
-        // Clear any expanded accordion when switching to service view
-        setExpandedAccordion(null);
     };
 
     const fetchService = (targetPosition: NodePosition) => {
@@ -671,10 +623,7 @@ export function ServiceConfigureView(props: ServiceConfigureProps) {
     const handleOnListenerClick = (listenerId: string) => {
         // Set the selected listener for highlighting
         setSelectedListener(listenerId);
-
-        // Expand the clicked accordion
-        setExpandedAccordion(listenerId);
-
+        
         // Scroll to the corresponding accordion container
         setTimeout(() => {
             const accordionElement = accordionRefs.current[listenerId];

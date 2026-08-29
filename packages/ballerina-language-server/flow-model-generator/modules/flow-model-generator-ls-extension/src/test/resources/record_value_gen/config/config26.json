@@ -1,0 +1,47 @@
+{
+  "filePath": "proj/types.bal",
+  "description": "Valid non-ambiguous typeConstraint with erroneous codedata - bad import ignored, bare value",
+  "typeConstraint": "Address",
+  "codedata": {
+    "org": "bad",
+    "module": "nope",
+    "version": "9.9.9",
+    "packageName": "nope"
+  },
+  "type": {
+    "name": "Address",
+    "typeName": "record",
+    "selected": true,
+    "hasRestType": false,
+    "optional": false,
+    "defaultable": false,
+    "isRestType": false,
+    "fields": [
+      {
+        "name": "street",
+        "typeName": "string",
+        "optional": false,
+        "defaultable": false,
+        "isRestType": false,
+        "selected": true
+      },
+      {
+        "name": "city",
+        "typeName": "string",
+        "optional": false,
+        "defaultable": false,
+        "isRestType": false,
+        "selected": true
+      },
+      {
+        "name": "country",
+        "typeName": "string",
+        "optional": false,
+        "defaultable": false,
+        "isRestType": false,
+        "selected": true
+      }
+    ]
+  },
+  "output": "{\n    street: \"\",\n    city: \"\",\n    country: \"\"\n}"
+}

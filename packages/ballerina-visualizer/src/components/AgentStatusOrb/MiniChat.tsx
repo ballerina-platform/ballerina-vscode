@@ -114,6 +114,9 @@ type MiniTail =
  *    chat stream. ⚠️ If migration is ever folded into the main chat, this one could
  *    start mutating persisted content in the panel — and the tripwire will NOT catch
  *    that, since it only fires on newly added `ChatNotify` variants.
+ *  - `generation_status` reports a generation's review status, which the mini chat
+ *    never renders — it has no revert affordance. The panel reads it off the message
+ *    rather than the transcript, so ignoring it here loses nothing.
  */
 /**
  * The events whose content `applyContentEvent` folds into the transcript. Naming the
@@ -141,7 +144,8 @@ type UnmodelledNotifyType =
     | "compaction_end"
     | "config_change"
     | "migration_progress"
-    | "followup_suggestions";
+    | "followup_suggestions"
+    | "generation_status";
 
 /** Friendly one-line label for a tool call (mirrors the status-bar phrasing). */
 function describeTool(toolName: string, toolInput: any): string {
@@ -351,7 +355,8 @@ const spin = keyframes`
 
 const Panel = styled.div`
     position: fixed;
-    z-index: 10001;
+    /* One above the orb, still below panels/modals so an open panel takes priority. */
+    z-index: 1801;
     width: ${PANEL_WIDTH}px;
     max-width: calc(100vw - ${EDGE_MARGIN * 2}px);
     height: min(520px, calc(100vh - 150px));
@@ -972,10 +977,10 @@ export function MiniChat({ anchor, onClose, takeInitialPrompt }: MiniChatProps) 
     const transcript = renderTranscript(msgs, streaming);
 
     return (
-        <Panel style={panelPosition(anchor)} role="dialog" aria-label="WSO2 Integrator Copilot mini chat">
+        <Panel style={panelPosition(anchor)} role="dialog" aria-label="WSO2 Integration Intelligence mini chat">
             <Header>
                 <Icon name="bi-ai-chat" sx={{ width: 16, height: 16, flex: "none" }} iconSx={{ fontSize: "16px" }} />
-                <HeaderTitle>WSO2 Integrator Copilot</HeaderTitle>
+                <HeaderTitle>WSO2 Integration Intelligence</HeaderTitle>
                 <HeaderButton title="Open full chat" aria-label="Open the full Copilot chat" onClick={openFullChat}>
                     <Codicon name="screen-full" />
                 </HeaderButton>
@@ -1044,7 +1049,7 @@ export function MiniChat({ anchor, onClose, takeInitialPrompt }: MiniChatProps) 
                                 ? "What should I add here?"
                                 : "What should we work on?"
                     }
-                    aria-label="Message WSO2 Integrator Copilot"
+                    aria-label="Message WSO2 Integration Intelligence"
                     disabled={runActive}
                 />
                 <SendButton title="Send" aria-label="Send message" onClick={send} disabled={runActive || !input.trim()}>

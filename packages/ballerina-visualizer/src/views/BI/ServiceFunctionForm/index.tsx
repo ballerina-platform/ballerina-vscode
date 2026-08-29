@@ -51,10 +51,11 @@ export interface ServiceFunctionFormProps {
     position: NodePosition;
     currentFilePath?: string;
     projectPath?: string;
+    isAgentDefinitionConstructor?: boolean;
 }
 
 export function ServiceFunctionForm(props: ServiceFunctionFormProps) {
-    const { position, currentFilePath, projectPath } = props;
+    const { position, currentFilePath, projectPath, isAgentDefinitionConstructor } = props;
     const { rpcClient } = useRpcContext();
     const [model, setFunctionModel] = useState<FunctionModel | null>(null);
     const [fields, setFields] = useState<FormField[]>([]);
@@ -195,8 +196,8 @@ export function ServiceFunctionForm(props: ServiceFunctionFormProps) {
         <View>
             <TopNavigationBar projectPath={projectPath} />
             <TitleBar
-                title="Service Function"
-                subtitle="Build reusable custom flows"
+                title={isAgentDefinitionConstructor ? "Agent Definition Constructor" : "Service Function"}
+                subtitle={isAgentDefinitionConstructor ? "Configure the inputs used to create this agent" : "Build reusable custom flows"}
             />
             <ViewContent padding>
                 <Container>

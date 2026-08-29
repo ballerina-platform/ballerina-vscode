@@ -122,7 +122,7 @@
             "character": 0
           }
         },
-        "newText": "\nlistener salesforce:Listener salesforceListener = new ({auth: {username: \"\", password: \"\"}});\nservice \"/data/ChangeEvents\" on salesforceListener {\n\tremote function onCreate(salesforce:EventData payload) returns error|() {\n\t\tdo {\n\t\t} on fail error err {\n\t\t\t// handle error\n\t\t\treturn error(\"unhandled error\", err);\n\t\t}\n\t}\n\n\tremote function onUpdate(salesforce:EventData payload) returns error|() {\n\t\tdo {\n\t\t} on fail error err {\n\t\t\t// handle error\n\t\t\treturn error(\"unhandled error\", err);\n\t\t}\n\t}\n\n\tremote function onDelete(salesforce:EventData payload) returns error|() {\n\t\tdo {\n\t\t} on fail error err {\n\t\t\t// handle error\n\t\t\treturn error(\"unhandled error\", err);\n\t\t}\n\t}\n\n\tremote function onRestore(salesforce:EventData payload) returns error|() {\n\t\tdo {\n\t\t} on fail error err {\n\t\t\t// handle error\n\t\t\treturn error(\"unhandled error\", err);\n\t\t}\n\t}\n}\n"
+        "newText": "\nlistener salesforce:Listener salesforceListener = new ({auth: {username: \"\", password: \"\"}});\nservice salesforce:CdcService \"/data/ChangeEvents\" on salesforceListener {\n\tremote function onCreate(salesforce:EventData payload) returns error? {\n\t}\n\n\tremote function onUpdate(salesforce:EventData payload) returns error? {\n\t}\n\n\tremote function onDelete(salesforce:EventData payload) returns error? {\n\t}\n\n\tremote function onRestore(salesforce:EventData payload) returns error? {\n\t}\n}\n"
       }
     ]
   }

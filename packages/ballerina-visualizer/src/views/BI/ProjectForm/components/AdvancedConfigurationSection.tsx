@@ -60,6 +60,12 @@ export interface AdvancedConfigurationSectionProps {
     hasError?: boolean;
     /** Whether the org field is locked (derived from context.yaml or existing package) */
     isOrgLocked?: boolean;
+    /**
+     * Whether to render the "Ballerina Package" fields (package name / version, and the
+     * org field when not creating within a project). Defaults to true. Set to false for
+     * the convert-only flow, where no new package is scaffolded.
+     */
+    showPackageFields?: boolean;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -387,7 +393,8 @@ export function AdvancedConfigurationSection({
     projectHandleError,
     organizations,
     hasError,
-    isOrgLocked
+    isOrgLocked,
+    showPackageFields = true
 }: AdvancedConfigurationSectionProps) {
     const { isSigningIn, handleSignIn, handleCancelSignIn } = useSignIn();
     const createWithinProject = data.projectHandle !== undefined;
@@ -425,46 +432,50 @@ export function AdvancedConfigurationSection({
                         />
                         <Description>Unique identifier for your project in various contexts. Cannot be changed after creation.</Description>
                     </FieldGroup>
-                    <SubSectionDivider />
+                    {showPackageFields && <SubSectionDivider />}
                 </>
             )}
-            <SubSectionLabel>Ballerina Package</SubSectionLabel>
-            <Note style={{ marginBottom: "16px" }}>
-                {`This ${isLibrary ? "library" : "integration"} is generated as a Ballerina package. Specify the organization, package name and version to be assigned.`}
-            </Note>
-            <FieldGroup>
-                <TextField
-                    onTextChange={(value) => onChange({ packageName: sanitizePackageName(value) })}
-                    value={data.packageName}
-                    label="Package Name"
-                    errorMsg={packageNameError || undefined}
-                />
-                <Description>Specify the package name.</Description>
-            </FieldGroup>
-            {!createWithinProject && (
-                <FieldGroup>
-                    <OrgField
-                        organizations={organizations}
-                        orgName={data.orgName}
-                        orgNameError={orgNameError}
-                        description="The organization that owns this package."
-                        isSigningIn={isSigningIn}
-                        onOrgChange={(value) => onChange({ orgName: value })}
-                        onSignIn={handleSignIn}
-                        onCancelSignIn={handleCancelSignIn}
-                        isLocked={isOrgLocked}
-                    />
-                </FieldGroup>
+            {showPackageFields && (
+                <>
+                    <SubSectionLabel>Ballerina Package</SubSectionLabel>
+                    <Note style={{ marginBottom: "16px" }}>
+                        {`This ${isLibrary ? "library" : "integration"} is generated as a Ballerina package. Specify the organization, package name and version to be assigned.`}
+                    </Note>
+                    <FieldGroup>
+                        <TextField
+                            onTextChange={(value) => onChange({ packageName: sanitizePackageName(value) })}
+                            value={data.packageName}
+                            label="Package Name"
+                            errorMsg={packageNameError || undefined}
+                        />
+                        <Description>Specify the package name.</Description>
+                    </FieldGroup>
+                    {!createWithinProject && (
+                        <FieldGroup>
+                            <OrgField
+                                organizations={organizations}
+                                orgName={data.orgName}
+                                orgNameError={orgNameError}
+                                description="The organization that owns this package."
+                                isSigningIn={isSigningIn}
+                                onOrgChange={(value) => onChange({ orgName: value })}
+                                onSignIn={handleSignIn}
+                                onCancelSignIn={handleCancelSignIn}
+                                isLocked={isOrgLocked}
+                            />
+                        </FieldGroup>
+                    )}
+                    <FieldGroup>
+                        <TextField
+                            onTextChange={(value) => onChange({ version: value })}
+                            value={data.version}
+                            label="Package Version"
+                            placeholder="0.1.0"
+                        />
+                        <Description>Version of the package.</Description>
+                    </FieldGroup>
+                </>
             )}
-            <FieldGroup>
-                <TextField
-                    onTextChange={(value) => onChange({ version: value })}
-                    value={data.version}
-                    label="Package Version"
-                    placeholder="0.1.0"
-                />
-                <Description>Version of the package.</Description>
-            </FieldGroup>
         </CollapsibleSection>
     );
 }

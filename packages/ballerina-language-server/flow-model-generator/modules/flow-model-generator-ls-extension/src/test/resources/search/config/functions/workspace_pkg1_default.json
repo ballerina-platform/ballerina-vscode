@@ -80,7 +80,12 @@
                 "org": "testorg",
                 "module": "package1",
                 "symbol": "calculateTotal",
-                "version": "0.1.0"
+                "version": "0.1.0",
+                "isGenerated": false,
+                "data": {
+                  "moduleRelation": "CURRENT_MODULE",
+                  "moduleKind": "DEFAULT_MODULE"
+                }
               },
               "enabled": true
             },
@@ -99,7 +104,12 @@
                 "org": "testorg",
                 "module": "package1",
                 "symbol": "multiply",
-                "version": "0.1.0"
+                "version": "0.1.0",
+                "isGenerated": false,
+                "data": {
+                  "moduleRelation": "CURRENT_MODULE",
+                  "moduleKind": "DEFAULT_MODULE"
+                }
               },
               "enabled": true
             },
@@ -118,7 +128,12 @@
                 "org": "testorg",
                 "module": "package1",
                 "symbol": "findMax",
-                "version": "0.1.0"
+                "version": "0.1.0",
+                "isGenerated": false,
+                "data": {
+                  "moduleRelation": "CURRENT_MODULE",
+                  "moduleKind": "DEFAULT_MODULE"
+                }
               },
               "enabled": true
             },
@@ -137,7 +152,12 @@
                 "org": "testorg",
                 "module": "package1",
                 "symbol": "isEven",
-                "version": "0.1.0"
+                "version": "0.1.0",
+                "isGenerated": false,
+                "data": {
+                  "moduleRelation": "CURRENT_MODULE",
+                  "moduleKind": "DEFAULT_MODULE"
+                }
               },
               "enabled": true
             },
@@ -155,7 +175,12 @@
                 "org": "testorg",
                 "module": "package1",
                 "symbol": "helperFunction",
-                "version": "0.1.0"
+                "version": "0.1.0",
+                "isGenerated": false,
+                "data": {
+                  "moduleRelation": "CURRENT_MODULE",
+                  "moduleKind": "DEFAULT_MODULE"
+                }
               },
               "enabled": true
             },
@@ -174,7 +199,12 @@
                 "org": "testorg",
                 "module": "package1",
                 "symbol": "getCurrentTimestamp",
-                "version": "0.1.0"
+                "version": "0.1.0",
+                "isGenerated": false,
+                "data": {
+                  "moduleRelation": "CURRENT_MODULE",
+                  "moduleKind": "DEFAULT_MODULE"
+                }
               },
               "enabled": true
             },
@@ -193,9 +223,47 @@
                 "org": "testorg",
                 "module": "package1",
                 "symbol": "secondsToMillis",
-                "version": "0.1.0"
+                "version": "0.1.0",
+                "isGenerated": false,
+                "data": {
+                  "moduleRelation": "CURRENT_MODULE",
+                  "moduleKind": "DEFAULT_MODULE"
+                }
               },
               "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "package1.helpers",
+                "description": "",
+                "keywords": []
+              },
+              "items": [
+                {
+                  "metadata": {
+                    "label": "workspaceHelper",
+                    "data": {
+                      "isDataMappedFunction": false,
+                      "isAgentTool": false,
+                      "isIsolatedFunction": false
+                    }
+                  },
+                  "codedata": {
+                    "node": "FUNCTION_CALL",
+                    "org": "testorg",
+                    "module": "package1.helpers",
+                    "packageName": "package1",
+                    "symbol": "workspaceHelper",
+                    "version": "0.1.0",
+                    "isGenerated": false,
+                    "data": {
+                      "moduleRelation": "SAME_PACKAGE_MODULE",
+                      "moduleKind": "SUBMODULE"
+                    }
+                  },
+                  "enabled": true
+                }
+              ]
             }
           ]
         },
@@ -220,8 +288,14 @@
                 "node": "FUNCTION_CALL",
                 "org": "testorg",
                 "module": "package2",
+                "packageName": "package2",
                 "symbol": "filterGreaterThan",
-                "version": "0.1.0"
+                "version": "0.1.0",
+                "isGenerated": false,
+                "data": {
+                  "moduleRelation": "WORKSPACE_PACKAGE_MODULE",
+                  "moduleKind": "DEFAULT_MODULE"
+                }
               },
               "enabled": true
             },
@@ -239,8 +313,14 @@
                 "node": "FUNCTION_CALL",
                 "org": "testorg",
                 "module": "package2",
+                "packageName": "package2",
                 "symbol": "computeAverage",
-                "version": "0.1.0"
+                "version": "0.1.0",
+                "isGenerated": false,
+                "data": {
+                  "moduleRelation": "WORKSPACE_PACKAGE_MODULE",
+                  "moduleKind": "DEFAULT_MODULE"
+                }
               },
               "enabled": true
             },
@@ -258,8 +338,14 @@
                 "node": "FUNCTION_CALL",
                 "org": "testorg",
                 "module": "package2",
+                "packageName": "package2",
                 "symbol": "sortArray",
-                "version": "0.1.0"
+                "version": "0.1.0",
+                "isGenerated": false,
+                "data": {
+                  "moduleRelation": "WORKSPACE_PACKAGE_MODULE",
+                  "moduleKind": "DEFAULT_MODULE"
+                }
               },
               "enabled": true
             },
@@ -277,8 +363,14 @@
                 "node": "FUNCTION_CALL",
                 "org": "testorg",
                 "module": "package2",
+                "packageName": "package2",
                 "symbol": "formatMessage",
-                "version": "0.1.0"
+                "version": "0.1.0",
+                "isGenerated": false,
+                "data": {
+                  "moduleRelation": "WORKSPACE_PACKAGE_MODULE",
+                  "moduleKind": "DEFAULT_MODULE"
+                }
               },
               "enabled": true
             },
@@ -296,8 +388,14 @@
                 "node": "FUNCTION_CALL",
                 "org": "testorg",
                 "module": "package2",
+                "packageName": "package2",
                 "symbol": "toUpperCase",
-                "version": "0.1.0"
+                "version": "0.1.0",
+                "isGenerated": false,
+                "data": {
+                  "moduleRelation": "WORKSPACE_PACKAGE_MODULE",
+                  "moduleKind": "DEFAULT_MODULE"
+                }
               },
               "enabled": true
             },
@@ -315,8 +413,14 @@
                 "node": "FUNCTION_CALL",
                 "org": "testorg",
                 "module": "package2",
+                "packageName": "package2",
                 "symbol": "reverseString",
-                "version": "0.1.0"
+                "version": "0.1.0",
+                "isGenerated": false,
+                "data": {
+                  "moduleRelation": "WORKSPACE_PACKAGE_MODULE",
+                  "moduleKind": "DEFAULT_MODULE"
+                }
               },
               "enabled": true
             }
