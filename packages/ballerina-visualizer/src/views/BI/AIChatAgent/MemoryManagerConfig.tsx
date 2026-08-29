@@ -31,11 +31,6 @@ import { ConnectionSelectionList } from "../../../components/ConnectionSelector/
 import { ConnectionCreator } from "../../../components/ConnectionSelector/ConnectionCreator";
 import { getNodeTemplateForConnection } from "../FlowDiagram/utils";
 
-const ScrollWrapper = styled.div`
-    height: 100%;
-    overflow-y: auto;
-`;
-
 const Container = styled.div`
     padding: 24px 16px 0;
 `;
@@ -490,7 +485,7 @@ export function MemoryManagerConfig(props: MemoryConfigProps): JSX.Element {
     };
 
     return (
-        <ScrollWrapper>
+        <>
             {availableMemory.length > 0 && (
                 <Container>
                     <Row>
@@ -562,6 +557,6 @@ export function MemoryManagerConfig(props: MemoryConfigProps): JSX.Element {
                     }}
                 />
             )}
-        </ScrollWrapper>
+        </>
     );
 }
