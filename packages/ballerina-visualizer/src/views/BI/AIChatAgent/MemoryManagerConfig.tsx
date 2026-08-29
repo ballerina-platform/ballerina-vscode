@@ -499,9 +499,10 @@ export function MemoryManagerConfig(props: MemoryConfigProps): JSX.Element {
                     disableSaveButton={isSaving}
                     submitText={isSaving ? "Saving..." : "Save"}
                     showProgressIndicator={isSaving}
-                    defaultExpandAdvanced={formKey > 0}
+                    hideInfoBanner
                     fieldOverrides={{
                         store: {
+                            advanced: false,
                             type: "ACTION_EXPRESSION",
                             types: [{ fieldType: "ACTION_EXPRESSION", selected: true }, { fieldType: "EXPRESSION", selected: false }],
                             codedata: { searchNodesKind: "SHORT_TERM_MEMORY_STORE" },
