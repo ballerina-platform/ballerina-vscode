@@ -86,6 +86,7 @@ export enum SidePanelView {
     CONNECTION_SELECT = "CONNECTION_SELECT",
     CONNECTION_CREATE = "CONNECTION_CREATE",
     AGENT_MEMORY_MANAGER = "AGENT_MEMORY_MANAGER",
+    AGENT_MEMORY_STORE = "AGENT_MEMORY_STORE",
     AGENT_CONFIG = "AGENT_CONFIG",
     AGENT_LIST = "AGENT_LIST",
     ERROR = "ERROR",
@@ -584,6 +585,7 @@ export function PanelManager(props: PanelManagerProps) {
                 );
 
             case SidePanelView.AGENT_MEMORY_MANAGER:
+            case SidePanelView.AGENT_MEMORY_STORE:
             case SidePanelView.ADD_TOOL:
             case SidePanelView.NEW_TOOL_CUSTOM:
             case SidePanelView.NEW_TOOL_FROM_CONNECTION:
@@ -719,6 +721,8 @@ export function PanelManager(props: PanelManagerProps) {
         switch (sidePanelView) {
             case SidePanelView.AGENT_MEMORY_MANAGER:
                 return "Configure Memory";
+            case SidePanelView.AGENT_MEMORY_STORE:
+                return "Configure Memory Store";
             case SidePanelView.NEW_TOOL_FROM_AGENT:
             case SidePanelView.NEW_TOOL_FROM_AGENT_FORM:
                 return addToolTitle("AGENT");

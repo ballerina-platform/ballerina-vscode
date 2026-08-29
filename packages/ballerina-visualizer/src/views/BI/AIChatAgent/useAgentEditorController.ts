@@ -19,7 +19,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { AgentNodeActions } from "@wso2/bi-diagram";
-import { CodeData, EVENT_TYPE, FlowNode, MACHINE_VIEW, NodeMetadata, NodePosition, ProjectStructureArtifactResponse, ToolData }
+import { CodeData, EVENT_TYPE, FlowNode, MACHINE_VIEW, NodeMetadata, NodePosition, ProjectStructureArtifactResponse, SearchNodesQuery, ToolData }
     from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { findFunctionByName } from "../FlowDiagram/utils";
@@ -33,7 +33,7 @@ import {
 } from "./utils";
 
 export type AgentEditorView =
-    | "NONE" | "MEMORY" | "ADD_TOOL" | "NEW_TOOL_CUSTOM" | "NEW_TOOL_CONNECTION"
+    | "NONE" | "MEMORY" | "MEMORY_STORE" | "ADD_TOOL" | "NEW_TOOL_CUSTOM" | "NEW_TOOL_CONNECTION"
     | "NEW_TOOL_FUNCTION" | "NEW_TOOL_AGENT" | "NEW_TOOL_AGENT_FORM" | "ADD_MCP" | "EDIT_MCP";
 
 export interface AgentEditorHost {
@@ -52,6 +52,7 @@ export interface AgentEditorController {
     view: AgentEditorView;
     agentNode?: FlowNode;
     memoryNode?: FlowNode;
+    memoryStoreNode?: FlowNode;
     memoryPropertyKey: string;
     selectedTool?: ToolData;
     selectedAgentName: string;
@@ -67,11 +68,15 @@ export interface AgentEditorController {
 const memoryKeyOf = (node?: FlowNode): string =>
     (node?.metadata?.data as NodeMetadata)?.agentInfo?.memory?.propertyKey || "memory";
 
+const memoryStoreNameOf = (node?: FlowNode): string | undefined =>
+    (node?.metadata?.data as NodeMetadata)?.agentInfo?.memory?.presentation?.store?.name;
+
 export function useAgentEditorController(host: AgentEditorHost): AgentEditorController {
     const { rpcClient } = useRpcContext();
     const [view, setView] = useState<AgentEditorView>("NONE");
     const [agentNode, setAgentNode] = useState<FlowNode>();
     const [memoryNode, setMemoryNode] = useState<FlowNode>();
+    const [memoryStoreNode, setMemoryStoreNode] = useState<FlowNode>();
     const [selectedTool, setSelectedTool] = useState<ToolData>();
     const [selectedAgentName, setSelectedAgentName] = useState("");
     const [backOverride, setBackOverride] = useState<(() => void) | null>(null);
@@ -86,6 +91,7 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
         setBackOverride(null);
         setView("NONE");
         setMemoryNode(undefined);
+        setMemoryStoreNode(undefined);
         setSelectedTool(undefined);
         setSelectedAgentName("");
         setAgentNode(undefined);
@@ -126,25 +132,41 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
         return resolveToolComponent(toolName);
     }, [host.projectPath, resolveToolComponent, rpcClient]);
 
+    const findAgentScopedNode = useCallback(async (
+        node: FlowNode, kind: SearchNodesQuery["kind"], name?: string
+    ): Promise<FlowNode | undefined> => {
+        if (!name?.trim() || name.trim() === "()") {
+            return undefined;
+        }
+        const fileName = node.codedata?.lineRange?.fileName;
+        const filePath = fileName
+            ? (await rpcClient.getVisualizerRpcClient().joinProjectPath({ segments: [fileName] })).filePath
+            : host.filePath;
+        const nodes = await findFlowNode(rpcClient, filePath, node.codedata?.lineRange?.startLine, {
+            kind, exactMatch: name.trim(),
+        });
+        return nodes?.[0];
+    }, [host.filePath, rpcClient]);
+
     const selectMemory = useCallback(async (node: FlowNode) => {
         activate(node);
         const value = (node.properties as any)?.[memoryKeyOf(node)]?.value;
-        let existing: FlowNode | undefined;
-        if (typeof value === "string" && value.trim() && value.trim() !== "()") {
-            const start = node.codedata?.lineRange?.startLine;
-            const fileName = node.codedata?.lineRange?.fileName;
-            const filePath = fileName
-                ? (await rpcClient.getVisualizerRpcClient().joinProjectPath({ segments: [fileName] })).filePath
-                : host.filePath;
-            const nodes = await findFlowNode(rpcClient, filePath, start, {
-                kind: "MEMORY", exactMatch: value.trim(),
-            });
-            existing = nodes?.[0];
-        }
-        setMemoryNode(existing);
+        setMemoryNode(await findAgentScopedNode(node, "MEMORY", typeof value === "string" ? value : undefined));
         setBackOverride(null);
         setView("MEMORY");
-    }, [activate, host.filePath, rpcClient]);
+    }, [activate, findAgentScopedNode]);
+
+    const selectMemoryStore = useCallback(async (node: FlowNode) => {
+        activate(node);
+        const store = await findAgentScopedNode(node, "SHORT_TERM_MEMORY_STORE", memoryStoreNameOf(node));
+        if (!store) {
+            console.error("Memory store declaration not found");
+            return;
+        }
+        setMemoryStoreNode(store);
+        setBackOverride(null);
+        setView("MEMORY_STORE");
+    }, [activate, findAgentScopedNode]);
 
     const deleteMemory = useCallback(async (node: FlowNode) => {
         activate(node);
@@ -317,9 +339,10 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
         onDeleteTool: (tool, node) => void deleteTool(tool, resolve(node)),
         goToTool: (tool, node) => void openTool(tool, resolve(node), false),
         onSelectMemoryManager: (node) => void selectMemory(resolve(node)),
+        onSelectMemoryStore: (node) => void selectMemoryStore(resolve(node)),
         onDeleteMemoryManager: (node) => void deleteMemory(resolve(node)),
         onChatWithAgent: host.onChat && ((node) => host.onChat(resolve(node))),
-    }), [activate, deleteMemory, deleteTool, host, openTool, resolve, selectMemory]);
+    }), [activate, deleteMemory, deleteTool, host, openTool, resolve, selectMemory, selectMemoryStore]);
 
     const setBackHandler = useCallback(
         (handler: (() => void) | null) => setBackOverride(() => handler),
@@ -346,7 +369,8 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
     };
 
     return {
-        view, agentNode, memoryNode, memoryPropertyKey: memoryKeyOf(agentNode), selectedTool, selectedAgentName,
+        view, agentNode, memoryNode, memoryStoreNode, memoryPropertyKey: memoryKeyOf(agentNode),
+        selectedTool, selectedAgentName,
         diagramCallbacks, onAgentCreated: host.onAgentCreated,
         openView, selectAgent, close, back, setBackHandler,
     };

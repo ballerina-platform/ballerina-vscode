@@ -22,7 +22,6 @@ import com.google.gson.Gson;
 import io.ballerina.compiler.api.ModuleID;
 import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.api.symbols.AnnotationAttachmentSymbol;
-import io.ballerina.compiler.api.symbols.ClassFieldSymbol;
 import io.ballerina.compiler.api.symbols.ClassSymbol;
 import io.ballerina.compiler.api.symbols.Documentation;
 import io.ballerina.compiler.api.symbols.FunctionSymbol;
@@ -129,6 +128,7 @@ import io.ballerina.compiler.syntax.tree.VariableDeclarationNode;
 import io.ballerina.compiler.syntax.tree.WaitActionNode;
 import io.ballerina.compiler.syntax.tree.WaitFieldsListNode;
 import io.ballerina.compiler.syntax.tree.WhileStatementNode;
+import io.ballerina.flowmodelgenerator.core.AiUtils.ModelData;
 import io.ballerina.flowmodelgenerator.core.model.Branch;
 import io.ballerina.flowmodelgenerator.core.model.Codedata;
 import io.ballerina.flowmodelgenerator.core.model.CommentProperty;
@@ -312,7 +312,6 @@ public class CodeAnalyzer extends NodeVisitor {
     private static final String FIELD_MODEL = "model";
     private static final String FIELD_SYSTEM_PROMPT = "systemPrompt";
     private static final String FIELD_MEMORY = "memory";
-    private static final String MODEL_PROVIDER_INTERFACE_NAME = "ModelProvider";
 
     // Metadata data keys
     private static final String KIND_KEY = "kind";
@@ -642,14 +641,14 @@ public class CodeAnalyzer extends NodeVisitor {
     }
 
     private void populateAgentRunMetaData(ExpressionNode expressionNode, ClassSymbol classSymbol) {
-        SeparatedNodeList<FunctionArgumentNode> argumentNodes = getAgentInstanceNewExpr(expressionNode)
+        SeparatedNodeList<FunctionArgumentNode> argumentNodes = getInstanceNewExpr(expressionNode)
                 .flatMap(ImplicitNewExpressionNode::parenthesizedArgList)
                 .map(ParenthesizedArgList::arguments)
                 .orElse(null);
         AiUtils.applyAgentRunMetadata(nodeBuilder, classSymbol, argumentNodes, project, this::getModelIconUrl);
     }
 
-    private Optional<ImplicitNewExpressionNode> getAgentInstanceNewExpr(ExpressionNode expressionNode) {
+    private Optional<ImplicitNewExpressionNode> getInstanceNewExpr(ExpressionNode expressionNode) {
         if (isClassField(expressionNode)) {
             FieldAccessExpressionNode fieldAccess = (FieldAccessExpressionNode) expressionNode;
             Optional<Symbol> fieldSymbol = semanticModel.symbol(fieldAccess.fieldName());
@@ -4542,38 +4541,7 @@ public class CodeAnalyzer extends NodeVisitor {
     }
 
     private ModelData getModelIconUrl(ExpressionNode expressionNode) {
-        if (expressionNode.kind() == SyntaxKind.SIMPLE_NAME_REFERENCE) {
-            Optional<Symbol> optSymbol = semanticModel.symbol(expressionNode);
-            if (optSymbol.isEmpty()) {
-                return null;
-            }
-            Symbol symbol = optSymbol.get();
-            TypeSymbol typeDescriptor;
-            if (symbol.kind() == SymbolKind.VARIABLE) {
-                typeDescriptor = ((VariableSymbol) symbol).typeDescriptor();
-            } else if (symbol.kind() == SymbolKind.CLASS_FIELD) {
-                typeDescriptor = ((ClassFieldSymbol) symbol).typeDescriptor();
-            } else {
-                return null;
-            }
-            Optional<String> symbolName = typeDescriptor.getName();
-            Optional<ModuleSymbol> optModule = typeDescriptor.getModule();
-            if (optModule.isEmpty()) {
-                return null;
-            }
-            ModuleID id = optModule.get().id();
-            String iconType = symbolName.orElse("");
-            if (iconType.isEmpty() || iconType.equals(MODEL_PROVIDER_INTERFACE_NAME)) {
-                iconType = id.packageName();
-            }
-            return new ModelData(optSymbol.get().getName().orElse(""),
-                    CommonUtils.generateIcon(id.orgName(), id.packageName(), id.version()),
-                    iconType);
-        } else if (expressionNode.kind() == SyntaxKind.FIELD_ACCESS) {
-            FieldAccessExpressionNode fieldAccessExpressionNode = (FieldAccessExpressionNode) expressionNode;
-            return getModelIconUrl(fieldAccessExpressionNode.fieldName());
-        }
-        return new ModelData(expressionNode.toSourceCode().strip(), null, null);
+        return AiUtils.getModelIconUrl(semanticModel, expressionNode);
     }
 
     private MemoryManagerData getMemoryData(ExpressionNode memory) {
@@ -4583,13 +4551,18 @@ public class CodeAnalyzer extends NodeVisitor {
         if (memory.kind() == SyntaxKind.EXPLICIT_NEW_EXPRESSION) {
             ExplicitNewExpressionNode newExpr = (ExplicitNewExpressionNode) memory;
             SeparatedNodeList<FunctionArgumentNode> arguments = newExpr.parenthesizedArgList().arguments();
-            String size = arguments.size() == 1 ? arguments.get(0).toSourceCode() : "";
-            return new MemoryManagerData(newExpr.typeDescriptor().toSourceCode(), size);
+            ModelData store = AiUtils.getMemoryStoreData(semanticModel, arguments);
+            String size = store == null && arguments.size() == 1 ? arguments.get(0).toSourceCode() : "";
+            return new MemoryManagerData(newExpr.typeDescriptor().toSourceCode(), size, store);
         }
         if (memory.kind() == SyntaxKind.SIMPLE_NAME_REFERENCE) {
+            ModelData store = getInstanceNewExpr(memory)
+                    .flatMap(ImplicitNewExpressionNode::parenthesizedArgList)
+                    .map(argList -> AiUtils.getMemoryStoreData(semanticModel, argList.arguments()))
+                    .orElse(null);
             return semanticModel.typeOf(memory)
                     .map(typeSymbol -> new MemoryManagerData(typeSymbol.getName().orElse("Memory Not Configured"),
-                            AiUtils.MEMORY_DEFAULT_VALUE))
+                            AiUtils.MEMORY_DEFAULT_VALUE, store))
                     .orElse(null);
         }
         return null;
@@ -4597,7 +4570,7 @@ public class CodeAnalyzer extends NodeVisitor {
 
     private MemoryManagerData defaultMemoryData(ClassSymbol classSymbol) {
         String name = getDefaultMemoryManagerName(classSymbol);
-        return name.isEmpty() ? null : new MemoryManagerData(name, AiUtils.MEMORY_DEFAULT_VALUE);
+        return name.isEmpty() ? null : new MemoryManagerData(name, AiUtils.MEMORY_DEFAULT_VALUE, null);
     }
 
     private static String getIdentifierName(NameReferenceNode nameReferenceNode) {
@@ -5577,12 +5550,8 @@ public class CodeAnalyzer extends NodeVisitor {
 
     }
 
-    private record ModelData(String name, String path, String type) {
-
-    }
-
     // TODO: Update data based on requirements
-    private record MemoryManagerData(String type, String size) {
+    private record MemoryManagerData(String type, String size, ModelData store) {
 
     }
 

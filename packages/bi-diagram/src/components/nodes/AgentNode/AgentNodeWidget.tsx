@@ -38,6 +38,7 @@ import { Button, Icon, Item, Menu, MenuItem, Popover, ThemeColors, getAIModuleIc
 import { MoreVertIcon } from "../../../resources/icons";
 import { FlowNode, ToolData } from "../../../utils/types";
 import NodeIcon from "../../NodeIcon";
+import { AIModelIcon } from "../../AIModelIcon";
 import ConnectorIcon from "../../ConnectorIcon";
 import { DiagnosticsPopUp } from "../../DiagnosticsPopUp";
 import { nodeHasError } from "../../../utils/node";
@@ -294,6 +295,16 @@ export namespace NodeStyles {
         border-radius: 5px;
     `;
 
+    export const MemoryStoreButton = styled(Button)`
+        margin-right: 4px;
+        &::part(control) {
+            width: 36px;
+            height: 36px;
+            padding: 0;
+            border-radius: 4px;
+        }
+    `;
+
     export const MemoryButton = styled.div<{ readOnly: boolean }>`
         display: flex;
         align-items: center;
@@ -419,6 +430,31 @@ function getAgentNodePresentation(variant: "agent" | "typedAgent", agentInfo?: N
     };
 }
 
+function MemoryStoreButton({ store, readOnly, onClick }: {
+    store?: ToolData;
+    readOnly: boolean;
+    onClick: (event: React.MouseEvent) => void;
+}) {
+    if (!store?.name) {
+        return null;
+    }
+    return (
+        <NodeStyles.MemoryStoreButton
+            appearance="icon"
+            buttonSx={readOnly ? { cursor: "not-allowed" } : {}}
+            tooltip={`Memory store: ${store.name}`}
+            onClick={onClick}
+        >
+            <AIModelIcon
+                type={store.type}
+                codedata={{ module: store.type, node: "SHORT_TERM_MEMORY_STORE" }}
+                iconUrl={store.path}
+                size={18}
+            />
+        </NodeStyles.MemoryStoreButton>
+    );
+}
+
 export function AgentNodeWidget(props: AgentNodeWidgetProps) {
     const { model, engine, onClick, variant = model.getType() === NodeTypes.TYPED_AGENT_NODE ? "typedAgent" : "agent" } = props;
     const controller = useAgentNodeController(model);
@@ -488,6 +524,14 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
         }
         agentNode?.onSelectMemoryManager && agentNode.onSelectMemoryManager(model.node);
         setMemoryMenuAnchorEl(null);
+    };
+
+    const onMemoryStoreClick = (event: React.MouseEvent) => {
+        event.stopPropagation();
+        if (readOnly) {
+            return;
+        }
+        agentNode?.onSelectMemoryStore?.(model.node);
     };
 
     const onMemoryManagerDeleteClick = () => {
@@ -852,6 +896,11 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                                 {(memory.type || "MessageWindowChatMemory").replace(/^ai:/, "")}
                                             </NodeStyles.MemoryMeta>
                                         </div>
+                                        <MemoryStoreButton
+                                            store={memory.store}
+                                            readOnly={readOnly}
+                                            onClick={onMemoryStoreClick}
+                                        />
                                         <NodeStyles.MenuButton
                                             ref={setMemoryMenuButtonElement}
                                             buttonSx={readOnly ? { cursor: "not-allowed" } : {}}
