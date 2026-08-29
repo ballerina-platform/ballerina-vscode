@@ -45,3 +45,8 @@ export function sanitizeAgentData(data: AgentData): AgentData {
         instructions: data.instructions ? unwrapBallerinaString(data.instructions) : data.instructions,
     };
 }
+
+export const releaseBoxHover = (setHovered: (hovered: boolean) => void) => ({
+    onMouseEnter: () => setHovered(false),
+    onMouseLeave: () => setHovered(true),
+});

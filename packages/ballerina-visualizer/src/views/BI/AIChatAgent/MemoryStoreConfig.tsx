@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { FlowNode, NodePosition } from "@wso2/ballerina-core";
+import { FlowNode, NodePosition, ProjectStructureArtifactResponse } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { useEffect, useRef, useState } from "react";
 import { RelativeLoader } from "../../../components/RelativeLoader";
@@ -27,7 +27,7 @@ import { getNodeTemplate, resolveAgentNodePosition } from "./utils";
 interface MemoryStoreConfigProps {
     storeNode: FlowNode;
     agentNode: FlowNode;
-    onSave?: (agentPosition?: NodePosition) => void;
+    onSave?: (agentPosition?: NodePosition, artifacts?: ProjectStructureArtifactResponse[]) => void;
 }
 
 export function MemoryStoreConfig(props: MemoryStoreConfigProps): JSX.Element {
@@ -55,9 +55,9 @@ export function MemoryStoreConfig(props: MemoryStoreConfigProps): JSX.Element {
     const handleOnSave = async (updatedNode?: FlowNode): Promise<void> => {
         setIsSaving(true);
         try {
-            await rpcClient.getBIDiagramRpcClient()
+            const response = await rpcClient.getBIDiagramRpcClient()
                 .getSourceCode({ filePath: filePath.current, flowNode: updatedNode });
-            onSave?.(await resolveAgentNodePosition(agentNode, rpcClient));
+            onSave?.(await resolveAgentNodePosition(agentNode, rpcClient), response?.artifacts);
         } catch (error) {
             console.error("Error saving memory store configuration", error);
         } finally {

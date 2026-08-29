@@ -47,7 +47,7 @@ import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
 import { NodeMetadata, isDefaultModelProviderExpr } from "@wso2/ballerina-core";
 import ReactMarkdown from "react-markdown";
 
-import { flowDashAnimation, sanitizeAgentData, sanitizeId } from "../agentNodeUtils";
+import { flowDashAnimation, releaseBoxHover, sanitizeAgentData, sanitizeId } from "../agentNodeUtils";
 import { getAgentNodeContainerHeight } from "../AgentWidget/agentNodeLayout";
 import { useAgentNodeController } from "../AgentWidget/useAgentNodeController";
 import { ApprovalBadge } from "../AgentWidget/ApprovalBadge";
@@ -531,11 +531,6 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
         setMemoryMenuAnchorEl(null);
     };
 
-    const releaseBoxHover = {
-        onMouseEnter: () => setIsBoxHovered(false),
-        onMouseLeave: () => setIsBoxHovered(true),
-    };
-
     const onMemoryStoreClick = (event: React.MouseEvent) => {
         event.stopPropagation();
         if (readOnly) {
@@ -898,7 +893,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                     onClick={onMemoryManagerClick}
                                     title="Configure Memory"
                                     onContextMenu={!readOnly ? handleMemoryContextMenu : undefined}
-                                    {...releaseBoxHover}
+                                    {...releaseBoxHover(setIsBoxHovered)}
                                 >
                                     <NodeStyles.Row readOnly={readOnly}>
                                         <div style={{ flex: 1 }}>
@@ -923,7 +918,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                     </NodeStyles.Row>
                                 </NodeStyles.MemoryCard>
                             ) : (
-                                <NodeStyles.MemoryButton readOnly={readOnly} onClick={onMemoryManagerClick} title="Add Memory" {...releaseBoxHover}>
+                                <NodeStyles.MemoryButton readOnly={readOnly} onClick={onMemoryManagerClick} title="Add Memory" {...releaseBoxHover(setIsBoxHovered)}>
                                     <Icon name="bi-plus" sx={{ fontSize: "16px", marginRight: "4px" }} />
                                     Add Memory
                                 </NodeStyles.MemoryButton>
