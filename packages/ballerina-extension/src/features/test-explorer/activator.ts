@@ -22,7 +22,7 @@ import { BallerinaExtension } from "../../core";
 import { runHandler } from "./runner";
 import { activateEditBiTest } from "./commands";
 import { createNewEvalset, createNewThread, deleteEvalset, deleteThread } from "./evalset-commands";
-import { discoverTestFunctionsInProject, debouncedHandleFileChange, handleFileDelete as handleTestFileDelete } from "./discover";
+import { discoverTestFunctionsInProject, debouncedHandleFileChange, cancelPendingFileChange, handleFileDelete as handleTestFileDelete } from "./discover";
 import { extension } from "../../BalExtensionContext";
 import { getCurrentBallerinaProject, getWorkspaceRoot } from "../../utils/project-utils";
 import { checkIsBallerinaPackage, checkIsBallerinaWorkspace } from "../../utils";
@@ -154,7 +154,10 @@ export async function activate(ballerinaExtInstance: BallerinaExtension) {
     // Handle file creation, modification, and deletion
     fileWatcher.onDidCreate((uri) => debouncedHandleFileChange(ballerinaExtInstance, uri, testController));
     fileWatcher.onDidChange((uri) => debouncedHandleFileChange(ballerinaExtInstance, uri, testController));
-    fileWatcher.onDidDelete((uri) => handleTestFileDelete(uri, testController));
+    fileWatcher.onDidDelete((uri) => {
+        cancelPendingFileChange(uri);
+        handleTestFileDelete(uri, testController);
+    });
 
     // Initial test discovery
     discoverTestFunctionsInProject(ballerinaExtInstance, testController);

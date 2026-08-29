@@ -231,6 +231,16 @@ export function debouncedHandleFileChange(ballerinaExtInstance: BallerinaExtensi
     }, FILE_CHANGE_DEBOUNCE_MS));
 }
 
+// Only for the watcher's delete event; handleFileDelete is also reused mid-refresh by handleFileChange.
+export function cancelPendingFileChange(uri: Uri) {
+    const key = uri.fsPath;
+    const existing = fileChangeTimers.get(key);
+    if (existing) {
+        clearTimeout(existing);
+        fileChangeTimers.delete(key);
+    }
+}
+
 export async function handleFileDelete(uri: Uri, testController: TestController) {
     // Determine which project this file belongs to
     const projectInfo = StateMachine.context().projectInfo;
