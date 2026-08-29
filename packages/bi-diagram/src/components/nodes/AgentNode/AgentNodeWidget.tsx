@@ -298,7 +298,7 @@ export namespace NodeStyles {
     export const MemoryStoreButton = styled(Button)`
         margin-right: 4px;
         & > vscode-button::part(control) {
-            padding: 8px;
+            padding: 4px;
             border-radius: 4px;
             border: 1px solid transparent;
             transition: border-color 0.4s ease-out;

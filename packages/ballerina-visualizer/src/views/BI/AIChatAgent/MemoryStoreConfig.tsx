@@ -79,7 +79,8 @@ export function MemoryStoreConfig(props: MemoryStoreConfigProps): JSX.Element {
             disableSaveButton={isSaving}
             submitText={isSaving ? "Saving..." : "Save"}
             showProgressIndicator={isSaving}
-            fieldOverrides={{ variable: { hidden: true }, type: { hidden: true } }}
+            hideInfoBanner={Boolean(template.properties?.size)}
+            fieldOverrides={{ type: { hidden: true }, size: { advanced: false } }}
         />
     );
 }
