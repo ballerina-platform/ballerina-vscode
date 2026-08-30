@@ -63,6 +63,7 @@ export interface AgentEditorController {
     openView(view: AgentEditorView): void;
     selectAgent(name: string): void;
     close(position?: NodePosition): void;
+    cancel(): void;
     back(): void;
     setBackHandler(handler: (() => void) | null): void;
 }
@@ -85,7 +86,7 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
 
     const setLoading = (loading: boolean) => host.onLoadingChange?.(loading);
 
-    const close = useCallback((position?: NodePosition) => {
+    const resetView = useCallback(() => {
         setBackOverride(null);
         setView("NONE");
         setMemoryNode(undefined);
@@ -93,8 +94,16 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
         setSelectedAgentName("");
         setAgentNode(undefined);
         host.onSelectionChange?.(undefined);
-        void host.onRefresh(position);
     }, [host]);
+
+    const close = useCallback((position?: NodePosition) => {
+        resetView();
+        void host.onRefresh(position);
+    }, [resetView, host]);
+
+    const cancel = useCallback(() => {
+        resetView();
+    }, [resetView]);
 
     const resolveToolComponent = useCallback(async (toolName: string) => {
         const project = await rpcClient.getBIDiagramRpcClient().getProjectComponents();
@@ -351,6 +360,6 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
     return {
         view, agentNode, memoryNode, memoryPropertyKey: memoryKeyOf(agentNode), selectedTool, selectedAgentName,
         diagramCallbacks, onAgentCreated: host.onAgentCreated,
-        openView, selectAgent, close, back, setBackHandler,
+        openView, selectAgent, close, cancel, back, setBackHandler,
     };
 }

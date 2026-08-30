@@ -166,6 +166,12 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
     const expressionOffsetRef = useRef<number>(0); // To track the expression offset on adding import statements
 
     useEffect(() => {
+        if (embedded && props.position) {
+            embeddedPositionRef.current = props.position;
+        }
+    }, [embedded, props.position?.startLine, props.position?.endLine]);
+
+    useEffect(() => {
         if (isAgent) {
             getAgentModel();
         } else if (isAgentType) {
@@ -293,7 +299,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
 
 
     const loadAgentUsages = (renderNode: FlowNode, flow: Flow, pos: NodePosition, projectKey: string) => {
-        const key = usageCacheKey(projectKey, filePath, pos.startLine);
+        const key = usageCacheKey(projectKey, filePath, String(renderNode.properties?.variable?.value ?? ""));
         const cached = getCachedUsages(key);
         if (!usagesDirtyRef.current && cached) {
             return;
@@ -380,7 +386,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
             : "The agent will no longer run when this event occurs.";
         const remainder = trigger.orphansService
             ? `No other ${label.toLowerCase()} on ${trigger.serviceName} uses the agent, `
-                + `so the service can be deleted as well.${listenerNote}`
+            + `so the service can be deleted as well.${listenerNote}`
             : `Other ${label.toLowerCase()}s on ${trigger.serviceName} are unaffected.`;
 
         const choice = await rpcClient.getCommonRpcClient().showInformationModal({
@@ -486,7 +492,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
             const connections = fetchedFlow?.connections || [];
             const projectKey = location?.projectPath ?? projectPath ?? "";
             const cachedUsages = kind === "AGENT"
-                ? getCachedUsages(usageCacheKey(projectKey, filePath, pos.startLine))
+                ? getCachedUsages(usageCacheKey(projectKey, filePath, String(agentDecl.properties?.variable?.value ?? "")))
                 : undefined;
             const renderNode: FlowNode = kind === "AGENT"
                 ? withAgentUsages(buildAgentRenderNode(agentDecl, connections), cachedUsages ?? [], false)
@@ -1080,7 +1086,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
         } else if (agentPanel !== "NONE") {
             handleCloseAgentPanel();
         } else {
-            agentEditor.close();
+            agentEditor.cancel();
         }
     };
 
@@ -1286,7 +1292,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                     title={agentPanelTitle}
                     show={true}
                     onClose={showConnectionPanel ? handleCloseConnectionPanel
-                        : agentPanel !== "NONE" ? handleCloseAgentPanel : () => agentEditor.close()}
+                        : agentPanel !== "NONE" ? handleCloseAgentPanel : () => agentEditor.cancel()}
                     onBack={agentPanelOnBack}
                 >
                     {renderAgentPanelContent()}

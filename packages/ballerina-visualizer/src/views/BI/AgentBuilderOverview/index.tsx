@@ -26,6 +26,7 @@ import {
     FOCUS_FLOW_DIAGRAM_VIEW,
     MACHINE_VIEW,
     ProjectStructure,
+    ProjectStructureArtifactResponse,
     isSamePath,
 } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
@@ -169,6 +170,8 @@ export interface AgentFocusRequest {
     requestId: number;
 }
 
+const rememberedKeys = new Map<string, string>();
+
 interface AgentBuilderOverviewProps {
     projectPath: string;
     agentFocus?: AgentFocusRequest;
@@ -179,7 +182,8 @@ export function AgentBuilderOverview({ projectPath, agentFocus }: AgentBuilderOv
     const { platformExtState } = usePlatformExtContext();
     const [projectStructure, setProjectStructure] = useState<ProjectStructure>();
     const [isInProject, setIsInProject] = useState(false);
-    const [selectedKey, setSelectedKey] = useState<string>();
+    const [selectedKey, setSelectedKeyState] = useState<string | undefined>(() => rememberedKeys.get(projectPath));
+    const pendingRenameRef = useRef<{ artifact: ProjectStructureArtifactResponse; agentsAtStash: ProjectStructureArtifactResponse[] }>();
     const [showAddAgent, setShowAddAgent] = useState(false);
     const [showAddLibraryArtifact, setShowAddLibraryArtifact] = useState(false);
     const [deployAnchor, setDeployAnchor] = useState<HTMLElement | null>(null);
@@ -216,12 +220,41 @@ export function AgentBuilderOverview({ projectPath, agentFocus }: AgentBuilderOv
         [projectStructure]
     );
 
+    const setSelectedKey = useCallback((key: string) => {
+        rememberedKeys.set(projectPath, key);
+        setSelectedKeyState(key);
+    }, [projectPath]);
+
     const isLibrary = projectStructure?.isLibrary ?? false;
 
     const selectedAgent = useMemo(
         () => agents.find((agent) => agentKey(agent) === selectedKey) ?? agents[0],
         [agents, selectedKey]
     );
+
+    useEffect(() => {
+        if (!selectedKey && agents.length > 0) {
+            setSelectedKey(agentKey(agents[0]));
+        }
+    }, [agents, selectedKey, setSelectedKey]);
+
+    useEffect(() => rpcClient.onIdentifierUpdated((artifacts) => {
+        const renamed = artifacts?.find((artifact) => artifact.type === DIRECTORY_MAP.AGENT);
+        if (renamed) {
+            pendingRenameRef.current = { artifact: renamed, agentsAtStash: agents };
+        }
+    }), [rpcClient, agents]);
+
+    useEffect(() => {
+        const pending = pendingRenameRef.current;
+        if (!pending || pending.agentsAtStash === agents) {
+            return;
+        }
+        pendingRenameRef.current = undefined;
+        if (selectedKey && !agents.some((agent) => agentKey(agent) === selectedKey)) {
+            setSelectedKey(agentKey(pending.artifact));
+        }
+    }, [agents, selectedKey, setSelectedKey]);
 
     const appliedFocusRef = useRef<number>();
 
@@ -238,7 +271,7 @@ export function AgentBuilderOverview({ projectPath, agentFocus }: AgentBuilderOv
         appliedFocusRef.current = agentFocus.requestId;
         setSelectedKey(agentKey(match));
         setShowAddAgent(false);
-    }, [agents, agentFocus]);
+    }, [agents, agentFocus, setSelectedKey]);
 
     if (projectStructure && !selectedAgent) {
         sawEmptyRef.current = true;

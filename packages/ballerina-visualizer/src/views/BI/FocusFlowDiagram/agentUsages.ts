@@ -300,8 +300,8 @@ export function findAgentUsages(
 
 const usageCache = new Map<string, AgentUsage[]>();
 
-export function usageCacheKey(projectPath: string, filePath: string, startLine: number): string {
-    return `${projectPath}::${filePath}::${startLine}`;
+export function usageCacheKey(projectPath: string, filePath: string, agentName: string): string {
+    return `${projectPath}::${filePath}::${agentName}`;
 }
 
 export function getCachedUsages(key: string): AgentUsage[] | undefined {

@@ -1258,7 +1258,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         pendingCapabilityCloseRef.current = false;
         pendingDurableMcpAgentRef.current = null;
         if (agentEditor.view !== "NONE") {
-            agentEditor.close();
+            agentEditor.cancel();
         }
         // Dismissing the panel ends the agent flow, so the flags that say "this activity list belongs
         // to an agent" end with it. They are not cleared in resetNodeSelectionStates, which also runs
