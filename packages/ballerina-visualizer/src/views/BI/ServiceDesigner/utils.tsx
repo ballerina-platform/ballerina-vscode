@@ -58,7 +58,14 @@ export function getDefaultResponse(httpMethod: HTTP_METHOD): string {
 }
 
 export function applyMethod(model: FunctionModel, method: string): FunctionModel {
-    const updated = { ...model, accessor: { ...model.accessor, value: method } };
+    const acceptsPayload = method.toUpperCase() !== HTTP_METHOD.GET;
+    const updated = {
+        ...model,
+        accessor: { ...model.accessor, value: method },
+        parameters: acceptsPayload
+            ? model.parameters
+            : model.parameters?.filter((p) => p.httpParamType !== "PAYLOAD"),
+    };
     const responses = updated.returnType?.responses;
     if (!responses?.length) {
         return updated;
