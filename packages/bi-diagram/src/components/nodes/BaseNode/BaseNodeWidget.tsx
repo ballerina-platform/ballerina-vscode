@@ -530,7 +530,7 @@ export function BaseNodeWidget(props: BaseNodeWidgetProps) {
                                     onClick={handleOnOpenDataMapperClick}
                                 >
                                     <Icon
-                                        name="bi-function-flow"
+                                        name="bi-open-in"
                                         sx={{ width: 16, height: 16 }}
                                         iconSx={{ fontSize: 16 }}
                                     />
