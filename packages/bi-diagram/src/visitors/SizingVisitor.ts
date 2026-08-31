@@ -19,6 +19,7 @@
 import { BaseVisitor } from "@wso2/ballerina-core";
 
 import {
+    AGENT_BOX_BOTTOM_AFFORDANCE_GAP,
     AGENT_NODE_TOOL_GAP,
     AGENT_NODE_TOOL_SECTION_GAP,
     EMPTY_NODE_CONTAINER_WIDTH,
@@ -415,7 +416,9 @@ export class SizingVisitor implements BaseVisitor {
             NODE_HEIGHT +
             AGENT_NODE_TOOL_SECTION_GAP +
             AGENT_NODE_TOOL_GAP * 2 +
-            (numberOfRows - 1) * (NODE_HEIGHT + AGENT_NODE_TOOL_GAP);
+            (numberOfRows - 1) * (NODE_HEIGHT + AGENT_NODE_TOOL_GAP) +
+            // Reserve space so the corner "+" affordance buttons don't overlap the role/instructions text.
+            AGENT_BOX_BOTTOM_AFFORDANCE_GAP;
         this.setNodeSize(node, containerLeftWidth, containerRightWidth, containerHeight);
     }
 

@@ -165,6 +165,7 @@ export const AGENT_NODE_TOOL_SECTION_GAP = 120;
 export const AGENT_CALL_TOOL_SECTION_GAP = 80;
 export const AGENT_NODE_ADD_TOOL_BUTTON_WIDTH = 20;
 export const AGENT_CALL_AGENT_ROW_HEIGHT = 38;
+export const AGENT_BOX_BOTTOM_AFFORDANCE_GAP = 20;
 
 // prompt node
 export const PROMPT_NODE_WIDTH = 350;
