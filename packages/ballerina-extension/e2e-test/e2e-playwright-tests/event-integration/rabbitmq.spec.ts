@@ -17,7 +17,7 @@
  * under the License.
  */
 import { expect, test } from '@playwright/test';
-import { confirmSaveChangesAndGoBack, createArtifactAndGetWebview, deleteArtifactFromTree, domClick, getWebview, BI_INTEGRATOR_LABEL, initTest, page } from '../utils/helpers';
+import { clickUntilEffect, confirmSaveChangesAndGoBack, createArtifactAndGetWebview, deleteArtifactFromTree, domClick, getWebview, logStep, pollGeneratedSource, waitUntilEnabled, BI_INTEGRATOR_LABEL, initTest, page } from '../utils/helpers';
 import { Form } from '@wso2/playwright-vscode-tester';
 import { ProjectExplorer } from '../utils/pages';
 import { DEFAULT_PROJECT_NAME } from '../utils/helpers/constants';
@@ -151,28 +151,66 @@ export default function createTests() {
             // through the "Record Configuration" modal it opens on focus is the one edit
             // this form's guided UI genuinely supports.
             const serviceConfigTextarea = artifactWebView.locator('vscode-text-area[name="serviceConfig"] textarea');
+            const readServiceConfig = async () => (await serviceConfigTextarea.inputValue()).replace(/\s+/g, ' ').trim();
+
             await serviceConfigTextarea.click({ force: true });
             const recordConfigOverlay = artifactWebView.locator('.unq-modal-overlay').last();
-            const autoAckCheckbox = recordConfigOverlay.locator(
-                'xpath=//p[normalize-space(text())="autoAck"]/preceding-sibling::vscode-checkbox[1]'
-            );
+            // Addressed by the field's own test id (added on the record tree's
+            // checkbox in RecordConstructView) — the previous sibling-XPath walk from
+            // the label broke as soon as the tree's markup moved.
+            const autoAckCheckbox = recordConfigOverlay.getByTestId('record-field-checkbox-autoAck');
             await autoAckCheckbox.waitFor();
-            await autoAckCheckbox.evaluate((el: HTMLElement) => el.click());
-            await recordConfigOverlay.getByRole('button').first().click({ force: true });
+            logStep(`Record Configuration open, serviceConfig is ${await readServiceConfig()}`);
+
+            // Ticking the box is what regenerates the record value (CustomType ->
+            // onChange -> typesManager/generateValue), so the tick itself is the
+            // assertion — a swallowed click here is otherwise invisible until the
+            // final source check.
+            await clickUntilEffect(
+                autoAckCheckbox,
+                async () => await autoAckCheckbox.getAttribute('aria-checked') === 'true',
+                'Tick the optional autoAck field in Record Configuration'
+            );
+
+            // The field is optional and carries no editor of its own (the record tree
+            // renders a checkbox only), so the value comes from the record's default.
+            // Wait for the regenerated expression to actually reach the form field
+            // rather than assuming the round-trip finished.
+            await expect.poll(readServiceConfig, { timeout: 30000 }).toContain('autoAck');
+            const configuredValue = await readServiceConfig();
+            logStep(`serviceConfig after ticking autoAck: ${configuredValue}`);
+
+            // Modal's header control ("minimize") closes it; the record value has
+            // already been pushed to the field by then.
+            await clickUntilEffect(
+                recordConfigOverlay.getByRole('button').first(),
+                async () => !(await recordConfigOverlay.isVisible().catch(() => false)),
+                'Close the Record Configuration modal'
+            );
 
             const form = new Form(page.page, BI_INTEGRATOR_LABEL, artifactWebView);
             await form.switchToFormView(false, artifactWebView);
+
+            // `Form.submit` asserts `isEnabled()`, which is always true for a
+            // `vscode-button` — check the real attribute before trusting the click.
+            await waitUntilEnabled(
+                artifactWebView.getByRole('button', { name: 'Save Changes' }).last(),
+                'Save Changes'
+            );
             await form.submit('Save Changes');
             await confirmSaveChangesAndGoBack(artifactWebView);
 
-            // Verify the edit persisted by reopening Configure and re-checking the field.
+            // Source is the real assertion: the webview happily keeps showing an edit
+            // the language server never wrote.
+            await pollGeneratedSource('main.bal', 'autoAck');
+            logStep('main.bal carries the autoAck field');
+
+            // Verify the edit round-trips back into the form.
             await domClick(configureBtn);
             const reopenedTextarea = artifactWebView.locator('vscode-text-area[name="serviceConfig"] textarea');
             await reopenedTextarea.click({ force: true });
             const reopenedOverlay = artifactWebView.locator('.unq-modal-overlay').last();
-            const reopenedAutoAckCheckbox = reopenedOverlay.locator(
-                'xpath=//p[normalize-space(text())="autoAck"]/preceding-sibling::vscode-checkbox[1]'
-            );
+            const reopenedAutoAckCheckbox = reopenedOverlay.getByTestId('record-field-checkbox-autoAck');
             await expect(reopenedAutoAckCheckbox).toHaveAttribute('current-checked', 'true');
         });
 
