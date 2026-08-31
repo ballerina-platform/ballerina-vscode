@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { CDFunction, CDModel } from "@wso2/ballerina-core";
+import { CDFunction, CDModel, CDResourceFunction } from "@wso2/ballerina-core";
 import {
     AgentTriggerScopes,
     agentCallerProtocols,
@@ -771,7 +771,7 @@ const issuesService = (wired: string[], helpers: string[]) => ({
     location: { filePath: GITHUB_BAL, ...range(5) },
     attachedListeners: ["github-listener"],
     connections: [AGENT_UUID],
-    resourceFunctions: [],
+    resourceFunctions: [] as CDResourceFunction[],
     remoteFunctions: ["onOpened", "onClosed", "onReopened"].map((name, i) =>
         handler(name, 10 + i * 5, wired.includes(name))),
     functions: helpers.map((name, i) => handler(name, 40 + i * 5, true)),
