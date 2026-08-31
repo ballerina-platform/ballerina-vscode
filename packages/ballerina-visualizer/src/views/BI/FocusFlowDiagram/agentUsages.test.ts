@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { CDModel } from "@wso2/ballerina-core";
+import { CDFunction, CDModel } from "@wso2/ballerina-core";
 import {
     AgentTriggerScopes,
     agentCallerProtocols,
@@ -410,8 +410,8 @@ const supportApi = {
     location: { filePath: HTTP_BAL, ...range(5) },
     attachedListeners: ["http-listener"],
     connections: [AGENT_UUID],
-    functions: [],
-    remoteFunctions: [],
+    functions: [] as CDFunction[],
+    remoteFunctions: [] as CDFunction[],
     resourceFunctions: [
         {
             accessor: "post",
