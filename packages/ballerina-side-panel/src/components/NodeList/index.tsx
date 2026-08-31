@@ -289,10 +289,10 @@ namespace S {
     `;
 
 
-    export const AdvancedSubTitle = styled.div`
+    export const AdvancedSubTitle = styled.div<{ muted?: boolean }>`
         font-size: 12px;
-        opacity: 0.7;
-        color: ${ThemeColors.ON_SURFACE_VARIANT};
+        opacity: ${(props) => (props.muted ? 0.7 : 0.9)};
+        color: ${(props) => (props.muted ? ThemeColors.ON_SURFACE_VARIANT : "inherit")};
         transition: all 0.2s ease;
     `;
 
@@ -358,7 +358,7 @@ namespace S {
 
 // Subcategories rendered as chevron-collapsible sections that start collapsed,
 // in addition to the generic "More" section.
-const COLLAPSED_SUBCATEGORIES = ["Workflow Functions"];
+const COLLAPSED_SUBCATEGORIES = ["Workflow Functions", "Child Workflows"];
 
 interface NodeListProps {
     categories: Category[];
@@ -655,7 +655,7 @@ export function NodeList(props: NodeListProps) {
                         return (
                             <S.AdvancedSubcategoryContainer key={subcategory.title + index}>
                                 <S.AdvancedSubcategoryHeader onClick={() => toggleMoreSection(sectionKey)}>
-                                    <S.AdvancedSubTitle>{subcategory.title}</S.AdvancedSubTitle>
+                                    <S.AdvancedSubTitle muted={subcategory.title === "More"}>{subcategory.title}</S.AdvancedSubTitle>
                                     <Button
                                         appearance="icon"
                                         sx={{
@@ -885,14 +885,18 @@ export function NodeList(props: NodeListProps) {
                                             shouldUseConnectionContainer(normalizedGroupTitle) &&
                                             group.items.filter((item) => item != null).every((item) => !("id" in item))
                                                 ? getConnectionContainer(group.items as Category[], normalizedGroupTitle === "Agent")
-                                                : // 2. If ALL items don't have id (all are categories), use getCategoryContainer
-                                                group.items.filter((item) => item != null).every((item) => !("id" in item))
+                                                : // 2. If ALL items don't have id (all are categories) and none need
+                                                  // chevron-collapsible treatment, use getCategoryContainer
+                                                group.items.filter((item) => item != null).every((item) => !("id" in item)) &&
+                                                !(group.items as Category[]).some(
+                                                    (item) => item && (item.title === "More" || COLLAPSED_SUBCATEGORIES.includes(item.title))
+                                                )
                                                 ? getCategoryContainer(
                                                       group.items as Category[],
                                                       true,
                                                       !isSubCategory ? group.title : parentCategoryTitle
                                                   )
-                                                : // 3. Otherwise (has items with id or mixed), use getNodesContainer
+                                                : // 3. Otherwise (has items with id, mixed, or collapsible subcategories), use getNodesContainer
                                                   getNodesContainer(
                                                       group.items as (Node | Category)[],
                                                       !isSubCategory ? group.title : parentCategoryTitle
@@ -1033,7 +1037,7 @@ export function NodeList(props: NodeListProps) {
                     {callFunctionNode && !searchText && (
                         <S.AdvancedSubcategoryContainer key={"showMoreFunctions"} style={{ marginBottom: "12px" }}>
                             <S.AdvancedSubcategoryHeader onClick={() => handleAddNode(callFunctionNode as Node)}>
-                                <S.AdvancedSubTitle>Show More Functions</S.AdvancedSubTitle>
+                                <S.AdvancedSubTitle muted>Show More Functions</S.AdvancedSubTitle>
                                 <Button
                                     appearance="icon"
                                     sx={{
