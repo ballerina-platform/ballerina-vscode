@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { CDModel } from "@wso2/ballerina-core";
+import { CDFunction, CDModel } from "@wso2/ballerina-core";
 import { AgentTriggerScopes, findAgentUsages, findListenerPosition } from "./agentUsages";
 
 const AGENT_UUID = "c371fce0-2d2e-4e47-2f32-13911cf544a8";
@@ -404,8 +404,8 @@ const supportApi = {
     location: { filePath: HTTP_BAL, ...range(5) },
     attachedListeners: ["http-listener"],
     connections: [AGENT_UUID],
-    functions: [],
-    remoteFunctions: [],
+    functions: [] as CDFunction[],
+    remoteFunctions: [] as CDFunction[],
     resourceFunctions: [
         {
             accessor: "post",
