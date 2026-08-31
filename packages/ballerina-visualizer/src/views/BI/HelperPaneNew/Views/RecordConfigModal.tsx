@@ -16,13 +16,14 @@
  * under the License.
  */
 
-import { GetRecordConfigResponse, GetRecordConfigRequest, LineRange, RecordTypeField, TypeField, RecordSourceGenRequest, RecordSourceGenResponse, GetRecordModelFromSourceRequest, GetRecordModelFromSourceResponse, ExpressionProperty, NodeKind, getPrimaryInputType, getSecondaryInputType, InputType } from "@wso2/ballerina-core";
+import { AvailableNode, CodeData, GetRecordConfigResponse, GetRecordConfigRequest, LineRange, RecordTypeField, TypeField, RecordSourceGenRequest, RecordSourceGenResponse, GetRecordModelFromSourceRequest, GetRecordModelFromSourceResponse, ExpressionProperty, NodeKind, getPrimaryInputType, getSecondaryInputType, InputType } from "@wso2/ballerina-core";
 import { Dropdown, HelperPane, Typography, HelperPaneHeight, FormExpressionEditorRef, ErrorBanner, ProgressRing, ThemeColors } from "@wso2/ui-toolkit";
 import styled from "@emotion/styled";
 import { useEffect, useRef, useState, RefObject } from "react";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { RecordConfigView } from "./RecordConfigView";
-import { ChipExpressionEditorComponent, Context as FormContext, HelperpaneOnChangeOptions, FieldProvider, FormField, FormExpressionEditorProps, getPropertyFromFormField, RecordConfigExpressionEditorConfig } from "@wso2/ballerina-side-panel";
+import { ChipExpressionEditorComponent, Context as FormContext, HelperpaneOnChangeOptions, FieldProvider, FormField, FormExpressionEditorProps, getPropertyFromFormField, RecordConfigExpressionEditorConfig, ExpandedEditor, InputMode } from "@wso2/ballerina-side-panel";
+import { PromptFieldEditorContext } from "../Components/RecordConstructView/PromptFieldEditorContext";
 import { useForm } from "react-hook-form";
 import { debounce } from "lodash";
 import ReactMarkdown from "react-markdown";
@@ -62,6 +63,15 @@ type ConfigureRecordPageProps = {
         nodeInfo: {
             kind: NodeKind;
         };
+        onRequestCreateConnection?: (params: {
+            selectedConnector: AvailableNode;
+            onSaved: (variableName: string) => void;
+        }) => void;
+        onCreateNode?: (
+            kind: string,
+            onCreated: (variableName: string) => void,
+            nodeCodeData?: CodeData
+        ) => void;
     };
 };
 
@@ -159,6 +169,34 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
     // Diagnostics state
     const [formDiagnostics, setFormDiagnostics] = useState<any[]>(field?.diagnostics || []);
 
+    const [promptEditTarget, setPromptEditTarget] = useState<{ param: TypeField; onChange: () => void } | null>(null);
+
+    const sanitizePrompt = (value: string) =>
+        value && value.startsWith("`") && value.endsWith("`") ? value.slice(1, -1) : value;
+    const wrapPrompt = (value: string) =>
+        value && !value.startsWith("`") && !value.endsWith("`") ? `\`${value}\`` : value;
+
+    const handlePromptChange = (updatedValue: string) => {
+        if (!promptEditTarget) {
+            return;
+        }
+        promptEditTarget.param.value = wrapPrompt(updatedValue);
+        promptEditTarget.param.selected = true;
+        promptEditTarget.onChange();
+    };
+
+    const promptField: FormField | null = promptEditTarget && {
+        key: "instructions",
+        label: promptEditTarget.param.name || "Prompt",
+        type: "EXPRESSION",
+        optional: promptEditTarget.param.optional ?? true,
+        editable: true,
+        documentation: promptEditTarget.param.documentation || "",
+        value: promptEditTarget.param.value || "",
+        types: [{ fieldType: "RAW_TEMPLATE", ballerinaType: "ai:Prompt", selected: true }],
+        enabled: true
+    };
+
     // Refs for helper pane
     const exprRef = useRef<FormExpressionEditorRef>(null);
     const anchorRef = useRef<HTMLDivElement>(null);
@@ -207,7 +245,9 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
         targetLineRange: targetLineRange || { startLine: { line: 1, offset: 0 }, endLine: { line: 1, offset: 0 } },
         fileName: fileName,
         popupManager: formContext.popupManager,
-        nodeInfo: formContext.nodeInfo
+        nodeInfo: formContext.nodeInfo,
+        onRequestCreateConnection: formContext.onRequestCreateConnection,
+        onCreateNode: formContext.onCreateNode
     };
 
     useEffect(() => {
@@ -697,6 +737,7 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
     return (
         <>
             <HelperPane.Body sx={{ zIndex: 2001 }} >
+              <FormContext.Provider value={formContextValue}>
                 <TwoColumnLayout>
                     <LeftColumn>
                         {isLoading && (
@@ -723,10 +764,14 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
                         {hasTooManyFieldsError ? (
                             <Typography variant="body3">Record construction assistance is unavailable due to too many fields in the record type. Please switch to Expression mode.</Typography>
                         ) : selectedMemberName && recordModel?.length > 0 ? (
-                            <RecordConfigView
-                                recordModel={recordModel}
-                                onModelChange={handleModelChange}
-                            />
+                            <PromptFieldEditorContext.Provider
+                                value={{ openPromptEditor: (param, onChange) => setPromptEditTarget({ param, onChange }) }}
+                            >
+                                <RecordConfigView
+                                    recordModel={recordModel}
+                                    onModelChange={handleModelChange}
+                                />
+                            </PromptFieldEditorContext.Provider>
                         ) : !isLoading ? (
                             <Typography variant="body3">Record construction assistance is unavailable. Please switch to Expression mode.</Typography>
                         ) : null}
@@ -743,8 +788,7 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
                                     </ExpressionEditorDocumentation>
                                 )}
                             </div>
-                            <FormContext.Provider value={formContextValue}>
-                                <FieldProvider
+                            <FieldProvider
                                     initialField={field ? {
                                         ...field,
                                         value: localExpressionValue
@@ -793,13 +837,29 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
                                             <ErrorBanner errorMsg={formDiagnostics.map((d: any) => d.message).join(', ')} />
                                         )}
                                     </div>
-                                </FieldProvider>
-                            </FormContext.Provider>
+                            </FieldProvider>
                         </ExpressionEditorContainer>
                     </RightColumn>
                 </TwoColumnLayout>
+              </FormContext.Provider>
 
             </HelperPane.Body>
+            {promptField && (
+                <ExpandedEditor
+                    isOpen={!!promptEditTarget}
+                    field={promptField}
+                    value={promptEditTarget?.param.value || ""}
+                    mode={InputMode.PROMPT}
+                    zIndex={2101}
+                    sanitizedExpression={sanitizePrompt}
+                    rawExpression={wrapPrompt}
+                    fileName={fileName}
+                    targetLineRange={targetLineRange}
+                    onChange={handlePromptChange}
+                    onClose={() => setPromptEditTarget(null)}
+                    onSave={() => setPromptEditTarget(null)}
+                />
+            )}
         </>
     );
 }

@@ -64,6 +64,7 @@ interface ExpandedPromptEditorProps {
     formDiagnostics?: DiagnosticMessage[];
     inputMode?: InputMode;
     readOnly?: boolean;
+    zIndex?: number;
 }
 
 const ModalContainer = styled.div`
@@ -190,7 +191,8 @@ export const ExpandedEditor: React.FC<ExpandedPromptEditorProps> = ({
     error,
     formDiagnostics,
     inputMode,
-    readOnly
+    readOnly,
+    zIndex = 2001
 }) => {
     const promptFields = ["instructions", "role"];
 
@@ -286,8 +288,8 @@ export const ExpandedEditor: React.FC<ExpandedPromptEditorProps> = ({
     const targetEl = document.getElementById("visualizer-container");
 
     return targetEl ? createPortal(
-        <ModalContainer onMouseDown={handleBackdropMouseDown} onClick={handleBackdropClick}>
-            <ModalBox onClick={(e) => e.stopPropagation()}>
+        <ModalContainer style={{ zIndex }} onMouseDown={handleBackdropMouseDown} onClick={handleBackdropClick}>
+            <ModalBox style={{ zIndex }} onClick={(e) => e.stopPropagation()}>
                 <ModalHeaderSection>
                     <TitleWrapper>
                         <Typography variant="h3">{field.label}</Typography>

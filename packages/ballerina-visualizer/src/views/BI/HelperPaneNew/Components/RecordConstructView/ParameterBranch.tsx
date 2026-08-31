@@ -22,9 +22,11 @@ import { Button, Codicon } from "@wso2/ui-toolkit";
 
 
 import { useHelperPaneStyles } from "./styles";
-import { isAnyFieldSelected, isRequiredParam } from "./utils";
+import { isAnyFieldSelected, isModelProviderField, isPromptField, isRequiredParam } from "./utils";
 
 import * as Types from "./Types";
+import PromptType from "./Types/PromptType";
+import ModelProviderType from "./Types/ModelProviderType";
 
 export interface ParameterBranchProps {
     parameters: TypeField[];
@@ -48,7 +50,11 @@ export function ParameterBranch(props: ParameterBranchProps) {
     const optionalParams: JSX.Element[] = [];
 
     parameters?.forEach((param: TypeField, index: number) => {
-        let TypeComponent = (Types as any)[param.typeName];
+        let TypeComponent = isPromptField(param)
+            ? PromptType
+            : isModelProviderField(param)
+                ? ModelProviderType
+                : (Types as any)[param.typeName];
         const typeProps: TypeProps = {
             param,
             depth,
