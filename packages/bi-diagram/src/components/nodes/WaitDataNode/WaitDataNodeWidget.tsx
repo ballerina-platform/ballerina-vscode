@@ -534,17 +534,25 @@ export function WaitDataNodeWidget(props: WaitDataNodeWidgetProps) {
                                 sx={{ fontSize: 24, width: 24, height: 24, color: NODE_TEXT_COLOR }}
                             />
                             {hasTimeout && (
-                                <Icon
-                                    name="bi-clock"
-                                    sx={{
-                                        fontSize: "11px",
-                                        width: "11px",
-                                        height: "11px",
+                                <div
+                                    style={{
                                         position: "absolute",
-                                        right: "-5px",
-                                        bottom: "-3px",
+                                        right: "-3px",
+                                        bottom: "-1px",
+                                        width: "12px",
+                                        height: "12px",
+                                        borderRadius: "50%",
+                                        background: NODE_BG_COLOR,
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
                                     }}
-                                />
+                                >
+                                    <Icon
+                                        name="bi-clock"
+                                        sx={{ fontSize: "13px", width: "13px", height: "13px", color: NODE_TEXT_COLOR }}
+                                    />
+                                </div>
                             )}
                         </div>
                         <NodeStyles.TextGroup>
