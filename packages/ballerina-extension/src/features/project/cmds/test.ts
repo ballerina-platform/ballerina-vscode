@@ -25,6 +25,7 @@ import { runCommand, BALLERINA_COMMANDS, PROJECT_TYPE, PALETTE_COMMANDS, MESSAGE
     from "./cmd-runner";
 import { getCurrentBallerinaProject, getCurrentBallerinaFile, getCurrenDirectoryPath } from "../../../utils/project-utils";
 import { LANGUAGE } from "../../../core";
+import { refreshDefaultProviderToken } from "../../ai/utils";
 
 export function activateTestRunner() {
     // register run project tests handler
@@ -44,9 +45,15 @@ export function activateTestRunner() {
                 getCurrentBallerinaProject(extension.ballerinaExtInstance.getDocumentContext().getLatestDocument()?.toString())
                 : await getCurrentBallerinaProject();
             if (currentProject.kind !== PROJECT_TYPE.SINGLE_FILE) {
+                if (!(await refreshDefaultProviderToken(currentProject.path!))) {
+                    return;
+                }
                 runCommand(currentProject, extension.ballerinaExtInstance.getBallerinaCmd(), BALLERINA_COMMANDS.TEST,
                     ...args, currentProject.path!);
             } else {
+                if (!(await refreshDefaultProviderToken(getCurrenDirectoryPath()))) {
+                    return;
+                }
                 runCommand(getCurrenDirectoryPath(), extension.ballerinaExtInstance.getBallerinaCmd(),
                     BALLERINA_COMMANDS.TEST, ...args, getCurrentBallerinaFile());
             }
