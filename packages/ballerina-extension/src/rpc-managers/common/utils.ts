@@ -20,7 +20,7 @@ import * as os from 'os';
 import { NodePosition } from "@wso2/syntax-tree";
 import { StateMachine } from "../../stateMachine";
 import { Position, Progress, Range, Uri, ViewColumn, window, workspace, WorkspaceEdit } from "vscode";
-import { isPathInside, isSamePath, PROJECT_KIND, ProjectInfo, TextEdit, WorkspaceTypeResponse } from "@wso2/ballerina-core";
+import { isPathInside, isSamePath, PackageVisibility, PROJECT_KIND, ProjectInfo, TextEdit, WorkspaceTypeResponse } from "@wso2/ballerina-core";
 import axios from 'axios';
 import fs from 'fs';
 import * as path from 'path';
@@ -390,6 +390,7 @@ export interface PublishPackageInfo {
     orgName: string;
     packageName: string;
     version: string;
+    visibility: PackageVisibility;
 }
 
 export async function getPublishDescriptionInfo(projectPath: string): Promise<PublishDescriptionInfo> {
@@ -440,6 +441,7 @@ export function getPublishConfirmation(
         `Organization: ${packageInfo.orgName || '<required>'}`,
         `Package: ${packageInfo.packageName || '<required>'}`,
         `Version: ${packageInfo.version || '<required>'}`,
+        `Visibility: ${packageInfo.visibility === 'private' ? 'Private' : 'Public'}`,
         `Description file: ${descriptionInfo.activeDocName}`
     ].join('\n');
 
@@ -455,8 +457,11 @@ export function getPublishConfirmation(
             primaryButton: 'Edit Description File'
         };
     }
+    const audience = packageInfo.visibility === 'private'
+        ? `Your ${artifactType} will be accessible only to members of the "${packageInfo.orgName}" organization.`
+        : `Your ${artifactType} will be made available to the Ballerina community.`;
     return {
-        message: `Publish "${projectName}" to Ballerina Central\n\n${packageDetails}\n\nYour ${artifactType} will be made available to the Ballerina community.`,
+        message: `Publish "${projectName}" to Ballerina Central\n\n${packageDetails}\n\n${audience}`,
         primaryButton: 'Publish to Central'
     };
 }
