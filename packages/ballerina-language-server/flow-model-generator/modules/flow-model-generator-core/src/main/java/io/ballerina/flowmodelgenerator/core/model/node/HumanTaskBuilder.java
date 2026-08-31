@@ -34,6 +34,7 @@ import org.eclipse.lsp4j.TextEdit;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.Map;
 import java.util.Optional;
 
@@ -75,6 +76,7 @@ public class HumanTaskBuilder extends CallBuilder {
     // a human task call from source, keeping the template and source-analysis paths in sync.
     public static final String TASK_NAME_KEY = "taskName";
     public static final String USER_ROLES_KEY = "userRoles";
+    public static final String ADDITIONAL_VALUES_KEY = "additionalValues";
     public static final String PAYLOAD_KEY = "payload";
     public static final String TITLE_KEY = "title";
     public static final String DESCRIPTION_KEY = "description";
@@ -243,7 +245,7 @@ public class HumanTaskBuilder extends CallBuilder {
                     .stepOut()
                 .type().fieldType(Property.ValueType.EXPRESSION).ballerinaType("string|string[]").selected(true)
                     .stepOut()
-                .codedata().kind(ParameterData.Kind.REQUIRED.name()).originalName(USER_ROLES_KEY).stepOut()
+                .codedata().kind(ParameterData.Kind.INCLUDED_FIELD.name()).originalName(USER_ROLES_KEY).stepOut()
                 .value(values.get(USER_ROLES_KEY))
                 .editable(true)
                 .stepOut()
@@ -255,7 +257,7 @@ public class HumanTaskBuilder extends CallBuilder {
                     .description(PAYLOAD_DOC)
                     .stepOut()
                 .type().fieldType(Property.ValueType.EXPRESSION).ballerinaType("map<json>").selected(true).stepOut()
-                .codedata().kind(ParameterData.Kind.DEFAULTABLE.name()).originalName(PAYLOAD_KEY).stepOut()
+                .codedata().kind(ParameterData.Kind.INCLUDED_FIELD.name()).originalName(PAYLOAD_KEY).stepOut()
                 .value(values.get(PAYLOAD_KEY))
                 .editable(true)
                 .optional(true)
@@ -270,7 +272,7 @@ public class HumanTaskBuilder extends CallBuilder {
                 .type().fieldType(Property.ValueType.TEXT).ballerinaType(OPTIONAL_STRING_TYPE).selected(true).stepOut()
                 .type().fieldType(Property.ValueType.EXPRESSION).ballerinaType(OPTIONAL_STRING_TYPE).selected(false)
                     .stepOut()
-                .codedata().kind(ParameterData.Kind.DEFAULTABLE.name()).originalName(TITLE_KEY).stepOut()
+                .codedata().kind(ParameterData.Kind.INCLUDED_FIELD.name()).originalName(TITLE_KEY).stepOut()
                 .value(values.get(TITLE_KEY))
                 .editable(true)
                 .optional(true)
@@ -285,7 +287,7 @@ public class HumanTaskBuilder extends CallBuilder {
                 .type().fieldType(Property.ValueType.TEXT).ballerinaType(OPTIONAL_STRING_TYPE).selected(true).stepOut()
                 .type().fieldType(Property.ValueType.EXPRESSION).ballerinaType(OPTIONAL_STRING_TYPE).selected(false)
                     .stepOut()
-                .codedata().kind(ParameterData.Kind.DEFAULTABLE.name()).originalName(DESCRIPTION_KEY).stepOut()
+                .codedata().kind(ParameterData.Kind.INCLUDED_FIELD.name()).originalName(DESCRIPTION_KEY).stepOut()
                 .value(values.get(DESCRIPTION_KEY))
                 .editable(true)
                 .optional(true)
@@ -299,7 +301,7 @@ public class HumanTaskBuilder extends CallBuilder {
                     .stepOut()
                 .type().fieldType(Property.ValueType.EXPRESSION).ballerinaType("workflow:Duration?").selected(true)
                     .stepOut()
-                .codedata().kind(ParameterData.Kind.DEFAULTABLE.name()).originalName(TIMEOUT_KEY).stepOut()
+                .codedata().kind(ParameterData.Kind.INCLUDED_FIELD.name()).originalName(TIMEOUT_KEY).stepOut()
                 .imports("ballerina/workflow")
                 .value(values.get(TIMEOUT_KEY))
                 .editable(true)
@@ -363,31 +365,21 @@ public class HumanTaskBuilder extends CallBuilder {
                 .map(p -> p.value() == null || !"false".equals(p.value().toString()))
                 .orElse(true);
 
-        // Required positional args. taskName and userRoles are required by the awaitHumanTask signature,
-        // so surface a validation error when they are missing rather than silently emitting an empty
-        // value (in particular, never fall back to a privileged role for userRoles). Use toSourceCode()
-        // (not the raw value) so structured/templated values are converted to valid Ballerina source.
-        String taskName = sourceBuilder.getProperty(TASK_NAME_KEY)
+        // Required values. taskName is the only positional argument the signature keeps; the
+        // rest — userRoles included — are fields of the HumanTaskOptions record and travel as
+        // named arguments. Both are still required by the form: surface a validation error
+        // when they are missing rather than silently emitting an empty value (in particular,
+        // never fall back to a privileged role for userRoles).
+        sourceBuilder.getProperty(TASK_NAME_KEY)
                 .filter(p -> p.value() != null && !p.value().toString().isEmpty())
-                .map(Property::toSourceCode)
                 .orElseThrow(() -> new IllegalStateException(
                         "A task name is required for the human task. Provide a value for '"
                                 + TASK_NAME_LABEL + "'."));
-        String userRoles = sourceBuilder.getProperty(USER_ROLES_KEY)
+        sourceBuilder.getProperty(USER_ROLES_KEY)
                 .filter(p -> p.value() != null && !p.value().toString().isEmpty())
-                .map(Property::toSourceCode)
                 .orElseThrow(() -> new IllegalStateException(
                         "At least one user role is required for the human task. Provide a value for '"
                                 + USER_ROLES_LABEL + "'."));
-
-        // Optional named args (only when the user provided a value)
-        List<String> callArgs = new ArrayList<>();
-        callArgs.add(taskName);
-        callArgs.add(userRoles);
-        addNamedArg(sourceBuilder, callArgs, PAYLOAD_KEY);
-        addNamedArg(sourceBuilder, callArgs, TITLE_KEY);
-        addNamedArg(sourceBuilder, callArgs, DESCRIPTION_KEY);
-        addNamedArg(sourceBuilder, callArgs, TIMEOUT_KEY);
 
         String ctxParamName = ActivityCallBuilder.resolveContextParamName(sourceBuilder);
 
@@ -405,7 +397,38 @@ public class HumanTaskBuilder extends CallBuilder {
         sourceBuilder.token()
                 .name(ctxParamName)
                 .keyword(SyntaxKind.RIGHT_ARROW_TOKEN)
-                .name(CALL_HUMAN_TASK_METHOD_NAME)
+                .name(CALL_HUMAN_TASK_METHOD_NAME);
+
+        // The argument list comes from the node's own properties, generically: taskName emits
+        // positionally, and every other value-bearing property — userRoles, payload, title,
+        // description, timeout, stepId, and whatever field a future module adds — emits as a
+        // named argument (a HumanTaskOptions record field). No fixed field list on purpose:
+        // this is what keeps the form forward compatible — a new record field surfaces in the
+        // form from the resolved signature and emits here without this builder ever learning
+        // its name. Deliberately tolerant of properties without codedata kinds, which older
+        // clients still send.
+        Set<String> excludedKeys = Set.of(TASK_NAME_KEY, Property.VARIABLE_KEY, Property.CHECK_ERROR_KEY,
+                DATABINDING_TYPE_KEY, Property.RESULT_NAME, Property.CONNECTION_KEY, ADDITIONAL_VALUES_KEY);
+        List<String> callArgs = new ArrayList<>();
+        callArgs.add(sourceBuilder.getProperty(TASK_NAME_KEY).map(Property::toSourceCode).orElse(""));
+        for (Map.Entry<String, Property> entry : sourceBuilder.flowNode.properties().entrySet()) {
+            String key = entry.getKey();
+            Property prop = entry.getValue();
+            if (excludedKeys.contains(key) || prop.value() == null || prop.value().toString().isEmpty()) {
+                continue;
+            }
+            String kind = prop.codedata() != null ? prop.codedata().kind() : null;
+            if (ParameterData.Kind.PARAM_FOR_TYPE_INFER.name().equals(kind)
+                    || ParameterData.Kind.INCLUDED_RECORD.name().equals(kind)
+                    || ParameterData.Kind.INCLUDED_RECORD_REST.name().equals(kind)) {
+                continue;
+            }
+            String argName = prop.codedata() != null && prop.codedata().originalName() != null
+                    ? prop.codedata().originalName() : key;
+            callArgs.add(argName + " = " + prop.toSourceCode());
+        }
+
+        sourceBuilder.token()
                 .keyword(SyntaxKind.OPEN_PAREN_TOKEN)
                 .name(String.join(", ", callArgs))
                 .keyword(SyntaxKind.CLOSE_PAREN_TOKEN)
@@ -417,15 +440,15 @@ public class HumanTaskBuilder extends CallBuilder {
                 .build();
     }
 
-    private static void addNamedArg(SourceBuilder sourceBuilder, List<String> args, String key) {
-        sourceBuilder.getProperty(key).ifPresent(p -> {
-            // toSourceCode() converts structured values (e.g. a map<json> payload) into a Ballerina
-            // literal; the raw value.toString() would emit the internal form-field object.
-            String source = p.toSourceCode();
-            if (source != null && !source.isEmpty()) {
-                args.add(key + " = " + source);
-            }
-        });
+    /**
+     * The open rest of {@code HumanTaskOptions} is the module's forward door for hand-written
+     * record literals; a generic key-value editor here would emit named arguments the compiler
+     * rejects for unknown names, so the form offers declared fields only.
+     */
+    @Override
+    protected boolean processSpecialParameter(ParameterData paramData) {
+        return paramData.kind() == ParameterData.Kind.INCLUDED_RECORD_REST
+                || super.processSpecialParameter(paramData);
     }
 
     /**
