@@ -59,6 +59,8 @@ import io.ballerina.compiler.syntax.tree.Token;
 import io.ballerina.compiler.syntax.tree.TypeDefinitionNode;
 import io.ballerina.compiler.syntax.tree.TypeDescriptorNode;
 import io.ballerina.modelgenerator.commons.CommonUtils;
+import io.ballerina.modelgenerator.commons.ImportPrefixReader;
+import io.ballerina.modelgenerator.commons.ModuleAliasResolver;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.projects.Document;
@@ -95,7 +97,6 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -553,7 +554,7 @@ public final class Utils {
             // `annot<Name>` property alongside the real one. Resolve the prefix through the file's
             // imports so the two are compared as the same kind of thing.
             String moduleName = prefix.isEmpty() ? ""
-                    : Utils.moduleNameForPrefix(rootNode, prefix).orElse(prefix);
+                    : ImportPrefixReader.moduleNameForPrefix(rootNode, prefix).orElse(prefix);
 
             // A schema-driven SERVICE_ANNOTATION container (e.g. RabbitMQ's `serviceConfig`, keyed by
             // its own schema key, not `annot<Name>`) is matched by module/name wherever it sits in the
@@ -949,7 +950,7 @@ public final class Utils {
         if (rootNode == null || moduleName == null || moduleName.isBlank()) {
             return natural;
         }
-        Optional<String> exact = existingImportPrefix(rootNode, org, moduleName);
+        Optional<String> exact = ImportPrefixReader.existingImportPrefix(rootNode, org, moduleName);
         if (exact.isPresent()) {
             return exact.get();
         }
@@ -960,7 +961,7 @@ public final class Utils {
                     .map(IdentifierToken::text)
                     .collect(Collectors.joining("."));
             if (natural.equals(ModuleAliasResolver.selfPrefix(imported))) {
-                return importPrefixOf(importDeclarationNode, imported);
+                return ImportPrefixReader.prefixOf(importDeclarationNode);
             }
         }
         return natural;
@@ -1447,74 +1448,6 @@ public final class Utils {
         });
     }
 
-    /**
-     * The effective import prefix an {@code org/module} is already imported under in this file, if any —
-     * its explicit {@code as <alias>} clause when present, otherwise the module's last dot-segment
-     * (the natural prefix). Lets the generator reuse whatever alias a prior add-service already
-     * committed for the same module, so a second service block stays consistent with the existing import.
-     * A null/blank {@code org} matches any organization, for callers that only know the module name.
-     */
-    public static Optional<String> existingImportPrefix(ModulePartNode node, String org, String module) {
-        boolean anyOrg = org == null || org.isBlank();
-        for (ImportDeclarationNode importDeclarationNode : node.imports()) {
-            String moduleName = importDeclarationNode.moduleName().stream()
-                    .map(IdentifierToken::text)
-                    .collect(Collectors.joining("."));
-            if (!module.equals(moduleName)) {
-                continue;
-            }
-            if (anyOrg || (importDeclarationNode.orgName().isPresent()
-                    && org.equals(importDeclarationNode.orgName().get().orgName().text()))) {
-                return Optional.of(importPrefixOf(importDeclarationNode, moduleName));
-            }
-        }
-        return Optional.empty();
-    }
-
-    /**
-     * The module a prefix is bound to in this file — the inverse of {@link #existingImportPrefix}.
-     *
-     * <p>A prefix read out of source ({@code @ftp2:ServiceConfig}) identifies a module only relative to
-     * the file's imports, and is <b>not</b> interchangeable with a module name: {@code ballerina/ftp} and
-     * {@code ballerina/abc.ftp} both present as {@code ftp} by default, and an alias can bind any prefix
-     * to any module. Resolving through the imports is the only way to recover the real identity.
-     *
-     * @return the imported module name (e.g. {@code abc.ftp}), or empty when nothing binds the prefix
-     */
-    public static Optional<String> moduleNameForPrefix(ModulePartNode node, String prefix) {
-        if (node == null || prefix == null || prefix.isBlank()) {
-            return Optional.empty();
-        }
-        for (ImportDeclarationNode importDeclarationNode : node.imports()) {
-            String moduleName = importDeclarationNode.moduleName().stream()
-                    .map(IdentifierToken::text)
-                    .collect(Collectors.joining("."));
-            if (prefix.equals(importPrefixOf(importDeclarationNode, moduleName))) {
-                return Optional.of(moduleName);
-            }
-        }
-        return Optional.empty();
-    }
-
-    /** The effective prefixes of every import in the file (explicit alias, else module last segment). */
-    public static Set<String> importedPrefixes(ModulePartNode node) {
-        Set<String> prefixes = new HashSet<>();
-        for (ImportDeclarationNode importDeclarationNode : node.imports()) {
-            String moduleName = importDeclarationNode.moduleName().stream()
-                    .map(IdentifierToken::text)
-                    .collect(Collectors.joining("."));
-            prefixes.add(importPrefixOf(importDeclarationNode, moduleName));
-        }
-        return prefixes;
-    }
-
-    private static String importPrefixOf(ImportDeclarationNode importDeclarationNode, String moduleName) {
-        if (importDeclarationNode.prefix().isPresent()) {
-            return importDeclarationNode.prefix().get().prefix().text();
-        }
-        int lastDot = moduleName.lastIndexOf('.');
-        return lastDot < 0 ? moduleName : moduleName.substring(lastDot + 1);
-    }
 
     /**
      * Generates the import statement for the given organization and module.

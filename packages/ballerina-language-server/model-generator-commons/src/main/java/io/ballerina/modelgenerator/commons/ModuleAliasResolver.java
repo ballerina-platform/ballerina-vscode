@@ -16,7 +16,7 @@
  *  under the License.
  */
 
-package io.ballerina.servicemodelgenerator.extension.util;
+package io.ballerina.modelgenerator.commons;
 
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
 
@@ -82,11 +82,24 @@ public final class ModuleAliasResolver {
         if (rootNode == null) {
             return overridePrefix != null && !overridePrefix.isBlank() ? overridePrefix : selfPrefix(module);
         }
-        Optional<String> existing = Utils.existingImportPrefix(rootNode, org, module);
+        Optional<String> existing = ImportPrefixReader.existingImportPrefix(rootNode, org, module);
         if (existing.isPresent()) {
             return existing.get();
         }
-        return allocate(module, overridePrefix, Utils.importedPrefixes(rootNode));
+        return allocate(module, overridePrefix, ImportPrefixReader.importedPrefixes(rootNode));
+    }
+
+    /**
+     * A prefix for {@code module} that none of {@code taken} already uses: its natural prefix when free,
+     * else the generated alias, else a numbered suffix. For callers that hold a set of prefixes already
+     * spoken for but no file to resolve against.
+     *
+     * @param module the module to name
+     * @param taken  the prefixes already in use
+     * @return a prefix not present in {@code taken}
+     */
+    public static String allocatePrefix(String module, Set<String> taken) {
+        return allocate(module, null, taken);
     }
 
     /**

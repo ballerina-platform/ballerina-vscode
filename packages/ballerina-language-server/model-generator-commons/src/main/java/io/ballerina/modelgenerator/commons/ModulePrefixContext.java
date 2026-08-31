@@ -16,7 +16,7 @@
  *  under the License.
  */
 
-package io.ballerina.servicemodelgenerator.extension.util;
+package io.ballerina.modelgenerator.commons;
 
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
 
@@ -52,7 +52,7 @@ public final class ModulePrefixContext {
     private ModulePrefixContext(ModulePartNode rootNode) {
         this.rootNode = rootNode;
         if (rootNode != null) {
-            claimed.addAll(Utils.importedPrefixes(rootNode));
+            claimed.addAll(ImportPrefixReader.importedPrefixes(rootNode));
         }
     }
 
@@ -77,7 +77,7 @@ public final class ModulePrefixContext {
         }
         String natural = ModuleAliasResolver.selfPrefix(module);
         Optional<String> existing = rootNode == null
-                ? Optional.empty() : Utils.existingImportPrefix(rootNode, org, module);
+                ? Optional.empty() : ImportPrefixReader.existingImportPrefix(rootNode, org, module);
         String resolved;
         if (existing.isPresent()) {
             resolved = existing.get();
@@ -93,6 +93,31 @@ public final class ModulePrefixContext {
             ambiguousNaturals.add(natural);
         }
         return resolved;
+    }
+
+    /**
+     * The prefix already settled on for {@code org/module}, <b>without</b> registering anything: the
+     * decision this context has already made, else the prefix the file itself binds, else empty.
+     * <p>
+     * For callers that must not cause an import to be emitted as a side effect of asking. Rewriting a
+     * reference is only safe once the module is going to be imported anyway, so an empty answer means
+     * "leave the reference alone".
+     * </p>
+     *
+     * @param org    the organization name
+     * @param module the module name
+     * @return the resolved prefix, or empty when this context has no binding for the module
+     */
+    public String resolvedPrefixFor(String org, String module) {
+        if (module == null || module.isBlank()) {
+            return "";
+        }
+        String cached = byModule.get((org == null ? "" : org) + "/" + module);
+        if (cached != null) {
+            return cached;
+        }
+        return rootNode == null ? ""
+                : ImportPrefixReader.existingImportPrefix(rootNode, org, module).orElse("");
     }
 
     /**

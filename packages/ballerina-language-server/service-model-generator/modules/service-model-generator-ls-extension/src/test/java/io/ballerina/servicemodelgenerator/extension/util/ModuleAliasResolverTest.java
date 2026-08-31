@@ -20,6 +20,9 @@ package io.ballerina.servicemodelgenerator.extension.util;
 
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
 import io.ballerina.compiler.syntax.tree.SyntaxTree;
+import io.ballerina.modelgenerator.commons.ImportPrefixReader;
+import io.ballerina.modelgenerator.commons.ModuleAliasResolver;
+import io.ballerina.modelgenerator.commons.ModulePrefixContext;
 import io.ballerina.servicemodelgenerator.extension.model.Codedata;
 import io.ballerina.servicemodelgenerator.extension.model.Function;
 import io.ballerina.servicemodelgenerator.extension.model.Service;
@@ -159,17 +162,17 @@ public class ModuleAliasResolverTest {
         // A prefix read out of source identifies a module only via the file's imports. Resolving it is
         // what lets a `@ftp2:ServiceConfig` attachment be matched to the model's `ftp` container instead
         // of being duplicated as a second `annot<Name>` property.
-        Assert.assertEquals(Utils.moduleNameForPrefix(
+        Assert.assertEquals(ImportPrefixReader.moduleNameForPrefix(
                 rootOf("import ballerina/ftp as ftp2;\n"), "ftp2").orElseThrow(), "ftp");
 
         // And the ambiguity that makes prefix-matching unsound in the first place: two different modules
         // both present as `ftp`, so only the import can say which one a prefix means.
-        Assert.assertEquals(Utils.moduleNameForPrefix(
+        Assert.assertEquals(ImportPrefixReader.moduleNameForPrefix(
                 rootOf("import ballerina/abc.ftp;\n"), "ftp").orElseThrow(), "abc.ftp");
-        Assert.assertEquals(Utils.moduleNameForPrefix(
+        Assert.assertEquals(ImportPrefixReader.moduleNameForPrefix(
                 rootOf("import ballerina/ftp;\n"), "ftp").orElseThrow(), "ftp");
 
-        Assert.assertTrue(Utils.moduleNameForPrefix(rootOf("import ballerina/io;\n"), "ftp").isEmpty(),
+        Assert.assertTrue(ImportPrefixReader.moduleNameForPrefix(rootOf("import ballerina/io;\n"), "ftp").isEmpty(),
                 "an unbound prefix resolves to nothing");
     }
 
