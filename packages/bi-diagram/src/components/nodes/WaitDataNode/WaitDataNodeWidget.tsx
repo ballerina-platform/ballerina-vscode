@@ -307,8 +307,10 @@ export function WaitDataNodeWidget(props: WaitDataNodeWidgetProps) {
     const nodeIconName = isHumanTask ? "bi-user" : isReceiveEventNode(model.node) ? "bi-import" : "bi-wait";
     const sourceIconName = isHumanTask ? "bi-user" : sourceName ? "bi-ai-agent" : "bi-import";
     // A configured timeout is a deadline on the wait: surface it with the same clock badge the
-    // plain node used.
-    const hasTimeout = !!(model.node.properties as any)?.timeout?.value;
+    // plain node used. An explicitly unset arg surfaces as the literal Ballerina nil `()`, not an
+    // empty value, so a plain truthiness check would still badge a `timeout = ()` call.
+    const timeoutValue = (model.node.properties as any)?.timeout?.value as string | undefined;
+    const hasTimeout = !!timeoutValue && timeoutValue.trim() !== "()";
     // Who the task is waiting on: the roles named on the statement, reading into the person icon
     // they describe.
     const userRoles = isHumanTask ? getHumanTaskUserRoles(model.node) : [];
