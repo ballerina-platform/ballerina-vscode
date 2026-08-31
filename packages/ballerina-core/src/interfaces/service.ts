@@ -36,7 +36,7 @@ export type ListenerModel = {
 };
 
 
-export type AgentTriggerKind = "CHAT" | "EVENT" | "HTTP";
+export type AgentTriggerKind = "CHAT" | "EVENT" | "HTTP" | "FILE";
 
 export type AgentTriggerDeletionScope = "ENTRY_POINT" | "ENTRY_POINT_BODY" | "SERVICE";
 

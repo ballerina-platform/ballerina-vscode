@@ -70,14 +70,16 @@ public class EventAgentTriggerChannel implements AgentTriggerChannel {
             }""";
 
     private final String moduleName;
+    private final AgentTriggerKind kind;
 
-    public EventAgentTriggerChannel(String moduleName) {
+    public EventAgentTriggerChannel(String moduleName, AgentTriggerKind kind) {
         this.moduleName = moduleName;
+        this.kind = kind;
     }
 
     @Override
     public AgentTriggerKind kind() {
-        return AgentTriggerKind.EVENT;
+        return kind;
     }
 
     @Override

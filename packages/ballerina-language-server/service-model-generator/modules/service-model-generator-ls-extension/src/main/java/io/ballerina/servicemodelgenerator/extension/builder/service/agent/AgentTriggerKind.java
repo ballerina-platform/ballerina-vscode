@@ -19,10 +19,8 @@
 package io.ballerina.servicemodelgenerator.extension.builder.service.agent;
 
 public enum AgentTriggerKind {
-
     CHAT,
-
     EVENT,
-
-    HTTP
+    HTTP,
+    FILE
 }

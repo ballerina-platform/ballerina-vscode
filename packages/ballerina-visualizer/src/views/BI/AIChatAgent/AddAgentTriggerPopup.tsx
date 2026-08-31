@@ -61,8 +61,12 @@ const SECTIONS: { kind: AgentTriggerKind; title: string; description: string }[]
     {
         kind: "EVENT",
         title: "Event Sources",
-        description: "The agent runs when something happens in another system. "
-            + "You describe what it should do, and decide what its answer is for.",
+        description: "The agent runs when something happens in another system.",
+    },
+    {
+        kind: "FILE",
+        title: "File Integration",
+        description: "The agent runs when a file becomes available in a location.",
     },
 ];
 
