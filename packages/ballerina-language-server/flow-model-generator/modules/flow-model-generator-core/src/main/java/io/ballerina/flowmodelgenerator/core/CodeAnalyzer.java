@@ -1916,6 +1916,11 @@ public class CodeAnalyzer extends NodeVisitor {
                 || currentProps.containsKey(HumanTaskBuilder.USER_ROLES_KEY);
         if (resolved) {
             populateResolvedHumanTaskProperties();
+            // The options may also arrive as one positional record literal — the form the
+            // module documents for options a resolved signature does not declare yet
+            // (unknown members ride HumanTaskOptions' open rest). Fold its declared fields
+            // back into the matching form properties so the round trip holds.
+            overlayHumanTaskOptionsLiteral(callNode);
         } else {
             populateFallbackHumanTaskProperties(callNode, currentProps);
         }
@@ -1962,6 +1967,33 @@ public class CodeAnalyzer extends NodeVisitor {
      * matching {@link HumanTaskBuilder}'s fallback shape. The result type uses the inferred {@code T} key so
      * {@code toSource} round-trips consistently with the resolved path.
      */
+    private void overlayHumanTaskOptionsLiteral(RemoteMethodCallActionNode callNode) {
+        Map<String, Property> props = nodeBuilder.properties().build();
+        for (FunctionArgumentNode arg : callNode.arguments()) {
+            if (!(arg instanceof PositionalArgumentNode positional)
+                    || !(positional.expression() instanceof MappingConstructorExpressionNode mapping)) {
+                continue;
+            }
+            for (MappingFieldNode field : mapping.fields()) {
+                if (!(field instanceof SpecificFieldNode specificField)
+                        || specificField.valueExpr().isEmpty()) {
+                    continue;
+                }
+                String name = specificField.fieldName().toSourceCode().strip();
+                if (name.length() >= 2 && name.startsWith("\"") && name.endsWith("\"")) {
+                    name = name.substring(1, name.length() - 1);
+                }
+                Property existing = props.get(name);
+                if (existing != null
+                        && (existing.value() == null || existing.value().toString().isEmpty())) {
+                    props.put(name, Property.Builder.copyFrom(existing)
+                            .value(specificField.valueExpr().get().toSourceCode().strip())
+                            .build());
+                }
+            }
+        }
+    }
+
     private void populateFallbackHumanTaskProperties(RemoteMethodCallActionNode callNode,
                                                      Map<String, Property> currentProps) {
         SeparatedNodeList<FunctionArgumentNode> args = callNode.arguments();
