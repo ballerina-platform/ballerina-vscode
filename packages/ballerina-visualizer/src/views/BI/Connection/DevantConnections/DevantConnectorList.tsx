@@ -34,7 +34,7 @@ import {
     SectionHeader,
     SectionTitle,
 } from "../AddConnectionPopup/styles";
-import { DevantConnectionFlow, getKnownAvailableNode, isKnowledgeBaseService, ProgressWrap } from "./utils";
+import { DevantConnectionFlow, filterConnectionMarketplaceItems, getKnownAvailableNode, ProgressWrap } from "./utils";
 
 // Target number of connections to show. Knowledge base services can only be filtered out client-side
 // (the marketplace tag filter is include-only), so over-fetch and trim to this size so filtered-out
@@ -165,18 +165,12 @@ export function DevantConnectorList(props: DevantConnectorListProps) {
             filterType !== "databases" && platformExtState.isLoggedIn && !!platformExtState?.selectedContext?.project,
         select: (data) => ({
             ...data,
-            data: data.data
-                .filter((item) => {
-                    // Knowledge base services are listed under "Add Knowledge Base", not here.
-                    if (isKnowledgeBaseService(item)) {
-                        return false;
-                    }
-                    if (filterType === "internal-services") {
-                        return item.component?.componentId !== platformExtState?.selectedComponent?.metadata?.id;
-                    }
-                    return true;
-                })
-                .slice(0, CONNECTIONS_PAGE_SIZE),
+            data: filterConnectionMarketplaceItems(
+                data.data,
+                filterType,
+                platformExtState?.selectedComponent?.metadata?.id,
+                CONNECTIONS_PAGE_SIZE,
+            ),
         }),
     });
 

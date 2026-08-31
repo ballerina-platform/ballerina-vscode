@@ -31,6 +31,32 @@ export const ProgressWrap = styled.div`
 export const KB_SERVICE_TAG = "knowledge-base-as-service";
 export const isKnowledgeBaseService = (item: MarketplaceItem) => item.tags?.includes(KB_SERVICE_TAG) ?? false;
 
+/**
+ * Filters marketplace items for the connections list: drops knowledge base services (they belong
+ * under "Add Knowledge Base"), applies the internal-services component filter, and trims to the
+ * page size. Order is preserved. The list is over-fetched because knowledge base services can only
+ * be excluded client-side, so trimming keeps the visible count independent of how many KBs are in
+ * the fetched page.
+ */
+export function filterConnectionMarketplaceItems(
+    items: MarketplaceItem[],
+    filterType: string,
+    selectedComponentId: string | undefined,
+    pageSize: number,
+): MarketplaceItem[] {
+    return items
+        .filter((item) => {
+            if (isKnowledgeBaseService(item)) {
+                return false;
+            }
+            if (filterType === "internal-services") {
+                return item.component?.componentId !== selectedComponentId;
+            }
+            return true;
+        })
+        .slice(0, pageSize);
+}
+
 export enum DevantConnectionFlow {
     // Create related flows
     CREATE_INTERNAL_OAS = "CREATE_INTERNAL_OAS",
