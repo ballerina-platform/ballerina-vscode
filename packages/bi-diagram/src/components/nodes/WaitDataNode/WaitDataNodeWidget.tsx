@@ -65,6 +65,9 @@ import {
 const EXTERNAL_DOT_RADIUS = 4;
 const SOURCE_BOX_SIZE = 44;
 const EXTERNAL_DOT_STROKE = 2.5;
+// The source box's stroke is centered on its path, so its left edge needs at least half this
+// margin from x=0 or the SVG viewport clips it — see sourceBoxX below.
+const SOURCE_BOX_STROKE_WIDTH = 1.5;
 // The roles beside the source box are drawn as SVG text, which neither wraps nor ellipsizes, so
 // they are trimmed to what the reserved strip holds. The advance approximates the label font's.
 const SOURCE_LABEL_FONT_SIZE = 12;
@@ -176,7 +179,6 @@ export namespace NodeStyles {
         display: flex;
         flex-direction: row;
         /* Pinned to the top-right of the box, as on every other node. */
-        align-self: flex-start;
         margin-left: auto;
         align-items: center;
         gap: 2px;
@@ -328,8 +330,10 @@ export function WaitDataNodeWidget(props: WaitDataNodeWidgetProps) {
     const rolesLabelWidth = userRolesLabel
         ? Math.max(0, Math.min(HUMAN_TASK_ROLES_LABEL_WIDTH, svgWidth - SOURCE_BOX_SIZE))
         : 0;
-    // The source sits at the far left, and the arrow runs from it into the body.
-    const sourceBoxX = rolesLabelWidth;
+    // The source sits at the far left, and the arrow runs from it into the body. Clamped to at
+    // least half the box's stroke width so the left edge always has room to render its full
+    // stroke inside the SVG viewport instead of getting clipped at x=0.
+    const sourceBoxX = Math.max(rolesLabelWidth, SOURCE_BOX_STROKE_WIDTH / 2);
     const sourceBoxY = svgMidY - SOURCE_BOX_SIZE / 2;
     const lineX1 = sourceBoxX + SOURCE_BOX_SIZE;
     const arrowColor = isHovered && !readOnly ? NODE_BORDER_SELECTED_COLOR : NODE_TEXT_COLOR;
@@ -428,7 +432,7 @@ export function WaitDataNodeWidget(props: WaitDataNodeWidgetProps) {
                     rx={12}
                     fill={NODE_BG_COLOR}
                     stroke={arrowColor}
-                    strokeWidth={1.5}
+                    strokeWidth={SOURCE_BOX_STROKE_WIDTH}
                 />
                 <foreignObject x={sourceBoxX} y={sourceBoxY} width={SOURCE_BOX_SIZE} height={SOURCE_BOX_SIZE}>
                     <div
