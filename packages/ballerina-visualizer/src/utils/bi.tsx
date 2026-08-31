@@ -404,6 +404,8 @@ export {
     // existing `utils/bi` importers are unaffected.
     convertConfig,
     DEFAULT_MODEL_PROVIDER_ITEM,
+    DURABLE_AGENT_FORM_ORDER,
+    orderFormFields,
 } from "./node-property-utils";
 
 export function getFormProperties(flowNode: FlowNode): NodeProperties {
