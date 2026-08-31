@@ -49,6 +49,14 @@ public abstract class DiagnosticsRequest extends DebouncedExpressionEditorReques
             throw new IllegalArgumentException("Property cannot be null");
         }
 
+        // A resource path parameter is not validated through the field-type switch below. Its value
+        // is spliced into a computed resource-access segment, so the switch would route it to
+        // expression validation and reject documented bare-word values such as Gmail's `me`. It
+        // also arrives from a node template with no type selected, which the switch cannot handle.
+        if (PathParamDiagnosticsRequest.handles(property)) {
+            return new PathParamDiagnosticsRequest(context);
+        }
+
         Property.ValueType fieldType = property.propertyType().fieldType();
         return switch (fieldType) {
             case EXPRESSION, SQL_QUERY, RECORD_MAP_EXPRESSION, PROMPT -> new ExpressionDiagnosticsRequest(context);

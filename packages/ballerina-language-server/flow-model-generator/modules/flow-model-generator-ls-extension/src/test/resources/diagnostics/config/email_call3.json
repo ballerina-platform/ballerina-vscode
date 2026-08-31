@@ -1,0 +1,84 @@
+{
+  "description": "Path parameter value that cannot be a single literal segment is still validated",
+  "filePath": "proj/agents.bal",
+  "context": {
+    "expression": "me/foo",
+    "startLine": {
+      "line": 0,
+      "offset": 0
+    },
+    "offset": 0,
+    "lineOffset": 0,
+    "codedata": {
+      "kind": "PATH_PARAM",
+      "originalName": "userId"
+    },
+    "property": {
+      "metadata": {
+        "label": "userId",
+        "description": "The user's email address. The special value `me` can be used to indicate the authenticated user."
+      },
+      "value": "me/foo",
+      "optional": false,
+      "editable": true,
+      "advanced": false,
+      "placeholder": "",
+      "types": [
+        {
+          "fieldType": "TEXT",
+          "ballerinaType": "string",
+          "selected": false
+        },
+        {
+          "fieldType": "EXPRESSION",
+          "ballerinaType": "string",
+          "selected": true
+        }
+      ],
+      "codedata": {
+        "kind": "PATH_PARAM",
+        "originalName": "userId"
+      },
+      "diagnostics": {
+        "hasDiagnostics": false,
+        "diagnostics": []
+      }
+    }
+  },
+  "diagnostics": [
+    {
+      "range": {
+        "start": {
+          "line": 0,
+          "character": 25
+        },
+        "end": {
+          "line": 0,
+          "character": 28
+        }
+      },
+      "severity": "Error",
+      "code": {
+        "left": "BCE2010"
+      },
+      "message": "undefined symbol 'foo'"
+    },
+    {
+      "range": {
+        "start": {
+          "line": 0,
+          "character": 22
+        },
+        "end": {
+          "line": 0,
+          "character": 24
+        }
+      },
+      "severity": "Error",
+      "code": {
+        "left": "BCE2010"
+      },
+      "message": "undefined symbol 'me'"
+    }
+  ]
+}

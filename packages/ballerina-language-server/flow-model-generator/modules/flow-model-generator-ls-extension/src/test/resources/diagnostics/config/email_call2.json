@@ -1,0 +1,49 @@
+{
+  "description": "Quoted path parameter literal accepted",
+  "filePath": "proj/agents.bal",
+  "context": {
+    "expression": "\"abc-def\"",
+    "startLine": {
+      "line": 0,
+      "offset": 0
+    },
+    "offset": 0,
+    "lineOffset": 0,
+    "codedata": {
+      "kind": "PATH_PARAM",
+      "originalName": "userId"
+    },
+    "property": {
+      "metadata": {
+        "label": "userId",
+        "description": "The user's email address. The special value `me` can be used to indicate the authenticated user."
+      },
+      "value": "\"abc-def\"",
+      "optional": false,
+      "editable": true,
+      "advanced": false,
+      "placeholder": "",
+      "types": [
+        {
+          "fieldType": "TEXT",
+          "ballerinaType": "string",
+          "selected": false
+        },
+        {
+          "fieldType": "EXPRESSION",
+          "ballerinaType": "string",
+          "selected": true
+        }
+      ],
+      "codedata": {
+        "kind": "PATH_PARAM",
+        "originalName": "userId"
+      },
+      "diagnostics": {
+        "hasDiagnostics": false,
+        "diagnostics": []
+      }
+    }
+  },
+  "diagnostics": []
+}

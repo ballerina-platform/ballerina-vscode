@@ -413,6 +413,7 @@ public class ExpressionEditorContext {
         private static final String NODE_KEY = "node";
         private static final String PROPERTY_CODEDATA_KEY = "codedata";
         private static final String LINE_RANGE_KEY = "lineRange";
+        private static final String KIND_KEY = "kind";
 
         public Property(JsonObject property, JsonObject codedata) {
             this.property = property;
@@ -504,6 +505,25 @@ public class ExpressionEditorContext {
         public NodeKind nodeKind() {
             initialize();
             return nodeKind;
+        }
+
+        /**
+         * Returns the parameter kind recorded in the property's own codedata (e.g.
+         * {@code PATH_PARAM}). This is distinct from the node-level codedata passed alongside the
+         * request, which describes the flow node rather than the parameter being edited.
+         *
+         * @return the parameter kind, or empty when the property carries none
+         */
+        public Optional<String> parameterKind() {
+            if (property == null || !property.has(PROPERTY_CODEDATA_KEY)
+                    || !property.get(PROPERTY_CODEDATA_KEY).isJsonObject()) {
+                return Optional.empty();
+            }
+            JsonObject propertyCodedata = property.getAsJsonObject(PROPERTY_CODEDATA_KEY);
+            if (!propertyCodedata.has(KIND_KEY) || !propertyCodedata.get(KIND_KEY).isJsonPrimitive()) {
+                return Optional.empty();
+            }
+            return Optional.of(propertyCodedata.get(KIND_KEY).getAsString());
         }
 
         /**
