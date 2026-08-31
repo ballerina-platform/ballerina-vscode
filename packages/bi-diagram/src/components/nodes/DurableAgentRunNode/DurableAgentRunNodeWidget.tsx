@@ -1049,7 +1049,7 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
                             <NodeStyles.Row readOnly={readOnly} onClick={handleOnClick}>
                                 <Tooltip
                                     content={
-                                        <NodeStyles.TooltipMarkdown>
+                                        <NodeStyles.TooltipMarkdown onWheel={(e) => e.stopPropagation()}>
                                             <ReactMarkdown
                                                 disallowedElements={['script', 'iframe', 'object', 'embed', 'link', 'style']}
                                                 unwrapDisallowed={true}
@@ -1082,7 +1082,7 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
                             <NodeStyles.InstructionsRow readOnly={readOnly} onClick={handleOnClick}>
                                 <Tooltip
                                     content={
-                                        <NodeStyles.TooltipMarkdown>
+                                        <NodeStyles.TooltipMarkdown onWheel={(e) => e.stopPropagation()}>
                                             <ReactMarkdown
                                                 disallowedElements={['script', 'iframe', 'object', 'embed', 'link', 'style']}
                                                 unwrapDisallowed={true}
