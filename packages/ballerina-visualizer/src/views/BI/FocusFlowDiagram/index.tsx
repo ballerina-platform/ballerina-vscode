@@ -394,9 +394,14 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
         const resource = tryIt.resource
             ? { methodValue: tryIt.resource.method, pathValue: tryIt.resource.path }
             : undefined;
-        await rpcClient.getCommonRpcClient().executeCommand({
-            commands: ["ballerina.tryIt", false, resource, { basePath: tryIt.basePath, listener: tryIt.listener }],
-        });
+        try {
+            await rpcClient.getCommonRpcClient().executeCommand({
+                commands: ["ballerina.tryIt", false, resource, { basePath: tryIt.basePath, listener: tryIt.listener }],
+            });
+        } catch (error) {
+            console.error(">>> agent focus: failed to open try it", error);
+            rpcClient.getCommonRpcClient().showErrorMessage({ message: "Failed to open Try It." });
+        }
     };
 
     const deleteAgentTrigger = async (usage: AgentUsage) => {

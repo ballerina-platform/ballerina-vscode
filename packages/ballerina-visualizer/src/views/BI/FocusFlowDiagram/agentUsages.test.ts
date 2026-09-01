@@ -691,7 +691,9 @@ describe("triggers that only Ballerina Central knows about", () => {
     });
 
     it("deletes a Central trigger as a whole service", async () => {
-        const { client, searchTriggers } = clientReturning([{ listenerProtocol: "slack" }]);
+        const { client, searchTriggers } = clientReturning([
+            { listenerProtocol: "slack", agentTriggerKind: "EVENT", deletionScope: "SERVICE" },
+        ]);
 
         const scopes = await resolveTriggerScopes(client, new Map(), agentCallerProtocols(slackModel, agent));
         const row = findAgentUsages(slackModel, agent, scopes).find((usage) => usage.label === "onMessage");
@@ -717,7 +719,9 @@ describe("triggers that only Ballerina Central knows about", () => {
     });
 
     it("never asks twice about the same protocol", async () => {
-        const { client, searchTriggers } = clientReturning([{ listenerProtocol: "repeated" }]);
+        const { client, searchTriggers } = clientReturning([
+            { listenerProtocol: "repeated", agentTriggerKind: "EVENT", deletionScope: "SERVICE" },
+        ]);
 
         await resolveTriggerScopes(client, new Map(), ["repeated"]);
         const second = await resolveTriggerScopes(client, new Map(), ["repeated"]);

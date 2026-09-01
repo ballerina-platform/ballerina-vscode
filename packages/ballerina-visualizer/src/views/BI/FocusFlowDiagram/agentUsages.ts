@@ -344,8 +344,8 @@ export async function resolveTriggerScopes(
                 .getServiceDesignerRpcClient()
                 .searchTriggers({ query: protocol, includeLocalRepository: true });
             const results = [...(models?.local ?? []), ...(models?.localRepositoryResults ?? [])];
-            const match = results.some((trigger) => trigger.listenerProtocol === protocol);
-            centralScopes.set(protocol, match ? "SERVICE" : undefined);
+            const match = results.find((trigger) => trigger.listenerProtocol === protocol && trigger.agentTriggerKind && trigger.deletionScope);
+            centralScopes.set(protocol, match?.deletionScope);
         } catch (error) {
             console.error(`>>> agent focus: could not resolve the trigger protocol '${protocol}'`, error);
             centralScopes.set(protocol, undefined);
