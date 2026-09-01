@@ -185,6 +185,42 @@ describe("unwrapIntersection", () => {
         expect(result.value).toBe("9090");
     });
 
+    it("keeps the field metadata only the wrapper carries", () => {
+        // Spreading the member would drop all of these, and `hide` is the one that shows: a field the
+        // producer marked hidden would come back on screen once its `readonly &` wrapper collapsed.
+        const result = unwrapIntersection({
+            name: "cacheConfig",
+            typeName: "intersection",
+            displayName: "Cache Configuration",
+            displayAnnotation: { label: "Cache" },
+            hide: true,
+            isRestType: false,
+            position: { startLine: 3, startColumn: 4, endLine: 3, endColumn: 40 },
+            members: [readonlyMember, { typeName: "record", fields: [] }],
+        });
+        expect(result.typeName).toBe("record");
+        expect(result.displayName).toBe("Cache Configuration");
+        expect(result.displayAnnotation).toEqual({ label: "Cache" });
+        expect(result.hide).toBe(true);
+        expect(result.isRestType).toBe(false);
+        expect(result.position).toEqual({ startLine: 3, startColumn: 4, endLine: 3, endColumn: 40 });
+    });
+
+    it("lets the member's own display metadata win over the wrapper's", () => {
+        const result = unwrapIntersection({
+            name: "cacheConfig",
+            typeName: "intersection",
+            displayName: "wrapper label",
+            hide: true,
+            members: [
+                readonlyMember,
+                { typeName: "record", displayName: "member label", hide: false, fields: [] },
+            ],
+        });
+        expect(result.displayName).toBe("member label");
+        expect(result.hide).toBe(false);
+    });
+
     it("collapses nested wrappers to a fixpoint", () => {
         const result = unwrapIntersection({
             name: "nested",

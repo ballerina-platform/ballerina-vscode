@@ -90,7 +90,10 @@ jest.mock("../../utils/utils", () => ({
 import { TestRpcContext } from "../../test/rpcHarness";
 import { GraphqlServiceEditor } from "./GraphqlServiceEditor";
 
-(global as any).IS_REACT_ACT_ENVIRONMENT = true;
+declare global {
+    var IS_REACT_ACT_ENVIRONMENT: boolean;
+}
+globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
 const PROJECT_PATH = "/workspace/orders";
 const FILE_PATH = "/workspace/orders/main.bal";

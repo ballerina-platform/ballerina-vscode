@@ -83,9 +83,12 @@ public final class IntersectionNormalizer {
         if (cached != null) {
             return cached;
         }
-        // Reserve the slot before recursing, so a self-referential type resolves instead of overflowing. The
-        // collapsed node is what is reserved, not the input: an occurrence reached from inside its own subtree
-        // must not be the intersection this class exists to remove.
+        // The input is a DAG, never cyclic: while a type is still being built, `Type.getAlreadyVisitedType`
+        // hands out a fresh bare `Type` carrying only `typeInfo` rather than the half-built node, so a
+        // recursive `type Node record {| Node? next; |}` has no back edge. The memo is therefore about cost -
+        // shared subtrees are wide - and is belt-and-braces on that invariant. Reserving the collapsed node
+        // rather than the input keeps that second role honest: an occurrence reached from inside its own
+        // subtree must not be the intersection this class exists to remove.
         Type unwrapped = unwrap(node);
         memo.put(node, unwrapped);
 

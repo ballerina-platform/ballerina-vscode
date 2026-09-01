@@ -52,7 +52,10 @@ jest.mock("@vscode/webview-ui-toolkit/react", () => ({
 import { ParameterBranch } from "./ParameterBranch";
 import { normalizeIntersections } from "./utils/intersection";
 
-(global as any).IS_REACT_ACT_ENVIRONMENT = true;
+declare global {
+    var IS_REACT_ACT_ENVIRONMENT: boolean;
+}
+globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
 const GRAPHQL_CONFIG = "graphql-resource-config.json";
 

@@ -54,7 +54,11 @@ export function isUnwrappableIntersection(tf: TypeField | null | undefined): boo
     return shapeMember(tf) !== undefined;
 }
 
-/** Merge the wrapper's identity onto the member that replaces it. */
+/**
+ * Merge the wrapper's identity onto the member that replaces it. Mirrors `IntersectionNormalizer.merge`
+ * in the language server; the two have to agree, or the same payload collapses differently depending on
+ * which side got to it (see AGENTS.md rule 7).
+ */
 function mergeWrapper(wrapper: TypeField, member: TypeField): TypeField {
     const merged: TypeField = { ...member };
     // The wrapper is the field: its name and position in the record win.
@@ -64,14 +68,33 @@ function mergeWrapper(wrapper: TypeField, member: TypeField): TypeField {
     if (wrapper.typeInfo !== undefined) {
         merged.typeInfo = wrapper.typeInfo;
     }
+    if (wrapper.displayAnnotation !== undefined) {
+        merged.displayAnnotation = wrapper.displayAnnotation;
+    }
     if (wrapper.optional !== undefined) {
         merged.optional = wrapper.optional;
     }
     if (wrapper.defaultable !== undefined) {
         merged.defaultable = wrapper.defaultable;
     }
+    if (wrapper.isRestType !== undefined) {
+        merged.isRestType = wrapper.isRestType;
+    }
     if (wrapper.selected !== undefined) {
         merged.selected = wrapper.selected;
+    }
+    // Field metadata the Java `Type` has no counterpart for, so it reaches these nodes only from a
+    // producer other than the language server. Spreading the member drops whatever the field slot
+    // carried, which for `hide` would put a hidden field back on screen — fill them back in, but let
+    // the member win where it names its own.
+    if (member.displayName === undefined && wrapper.displayName !== undefined) {
+        merged.displayName = wrapper.displayName;
+    }
+    if (member.hide === undefined && wrapper.hide !== undefined) {
+        merged.hide = wrapper.hide;
+    }
+    if (member.position === undefined && wrapper.position !== undefined) {
+        merged.position = wrapper.position;
     }
     // The member describes the shape, so anything it states about the value stands.
     if (member.documentation === undefined && wrapper.documentation !== undefined) {
