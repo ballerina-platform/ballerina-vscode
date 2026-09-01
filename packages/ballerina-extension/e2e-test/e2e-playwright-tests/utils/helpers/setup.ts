@@ -63,6 +63,31 @@ const POST_FAILURE_CLEANUP_TIMEOUT_MS = Number(process.env.BI_E2E_POST_FAILURE_C
  * message so the caller can fall back to a recovery path instead of hanging.
  */
 const ELECTRON_EXIT_WAIT_MS = Number(process.env.BI_E2E_ELECTRON_EXIT_WAIT_MS ?? 5000);
+const TASKKILL_TIMEOUT_MS = Number(process.env.BI_E2E_TASKKILL_TIMEOUT_MS ?? 15000);
+
+/**
+ * Windows only, diagnostics only: lists Code.exe still running after a tree kill. A
+ * surviving process is what holds the handle that makes the next rmdir fail, so naming
+ * it here beats inferring it from an EBUSY two log lines later. Never throws.
+ */
+function logSurvivingVSCodeProcesses(): void {
+    if (process.platform !== 'win32') {
+        return;
+    }
+    try {
+        const out = execFileSync('tasklist', ['/FI', 'IMAGENAME eq Code.exe', '/NH'], {
+            stdio: 'pipe',
+            timeout: TASKKILL_TIMEOUT_MS,
+        }).toString();
+        const survivors = out.split('\n').filter((l) => /Code\.exe/i.test(l));
+        if (survivors.length) {
+            console.warn(`  ⚠️  ${survivors.length} Code.exe process(es) survived the kill:`);
+            survivors.forEach((l) => console.warn(`     ${l.trim()}`));
+        }
+    } catch {
+        // diagnostics only — never fail a test over this
+    }
+}
 
 /**
  * Kills the VS Code Electron process and clears the module-level handles, so the
@@ -89,13 +114,27 @@ export async function terminateVSCode(): Promise<void> {
                 const timer = setTimeout(done, ELECTRON_EXIT_WAIT_MS);
                 electronProcess.once('exit', done);
                 try {
-                    electronProcess.kill('SIGKILL');
+                    if (process.platform === 'win32' && electronProcess.pid) {
+                        // SIGKILL maps to TerminateProcess on a single PID, which the
+                        // process Playwright holds obeys in ~10ms while the renderer,
+                        // GPU, utility and language-server processes it spawned keep
+                        // running — and keep handles on the project folder, so the next
+                        // rmdir fails with EBUSY. /T takes the descendants too.
+                        execFileSync('taskkill', ['/PID', String(electronProcess.pid), '/T', '/F'], {
+                            stdio: 'pipe',
+                            timeout: TASKKILL_TIMEOUT_MS,
+                        });
+                    } else {
+                        electronProcess.kill('SIGKILL');
+                    }
                 } catch {
-                    // already gone — resolve immediately
+                    // taskkill exits 128 when the tree is already gone; either way there
+                    // is nothing left to wait for.
                     done();
                 }
             });
             console.log('✅ VS Code Electron app terminated');
+            logSurvivingVSCodeProcesses();
         } else {
             console.log('ℹ️  No live Electron process to terminate');
         }
@@ -558,7 +597,11 @@ export function initTest(newProject: boolean = true, skipProjectCreation: boolea
 
         const wipeAndRecreateDataFolder = (): void => {
             if (fs.existsSync(dataFolder)) {
-                fs.rmSync(dataFolder, { recursive: true, force: true });
+                // maxRetries/retryDelay: Node retries EBUSY/EPERM on Windows, where a
+                // handle can outlive the process that held it by a short margin. Covers
+                // the gap after the tree kill, and anything /T did not reach. No-op on
+                // Linux, which does not raise either error here.
+                fs.rmSync(dataFolder, { recursive: true, force: true, maxRetries: 10, retryDelay: 250 });
             }
             // Read/write/execute for all files and folders in the data folder
             fs.mkdirSync(dataFolder, { recursive: true, mode: 0o777 });
