@@ -2201,7 +2201,6 @@ public class CodeAnalyzer extends NodeVisitor {
                     dropdownValue = ActivityCallBuilder.MANUAL_RETRY_VALUE;
                     review = new ActivityCallBuilder.ReviewFormValues(
                             fields.getOrDefault(USER_ROLES_FIELD, ""),
-                            unquoted(fields.get("taskName")),
                             unquoted(fields.get("title")),
                             unquoted(fields.get("description")),
                             fields.getOrDefault("timeout", ""));

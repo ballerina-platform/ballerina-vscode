@@ -272,12 +272,66 @@
                 "retryUserRoles": {
                   "metadata": {
                     "label": "Reviewer Roles",
-                    "description": "Role(s) permitted to decide the human review, e.g. \"manager\" or [\"finance\", \"manager\"]. Leave empty to allow any role."
+                    "description": "Role(s) permitted to decide this review, e.g. \"manager\" or [\"finance\", \"manager\"]."
                   },
                   "types": [
                     {
                       "fieldType": "EXPRESSION",
                       "ballerinaType": "string|string[]",
+                      "selected": true
+                    }
+                  ],
+                  "value": "",
+                  "optional": false,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "retryTitle": {
+                  "metadata": {
+                    "label": "Title",
+                    "description": "Short summary shown in the reviewer's inbox. Defaults to a phrase naming the activity being reviewed."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "string",
+                      "selected": true
+                    }
+                  ],
+                  "value": "",
+                  "optional": false,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "retryDescription": {
+                  "metadata": {
+                    "label": "Description",
+                    "description": "Context shown with the decision. Defaults to a description of the failure and the outcomes available."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "string",
+                      "selected": true
+                    }
+                  ],
+                  "value": "",
+                  "optional": false,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "retryTimeout": {
+                  "metadata": {
+                    "label": "Timeout",
+                    "description": "How long to wait for a decision, e.g. {hours: 4}. Empty waits indefinitely."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "workflow:Duration",
                       "selected": true
                     }
                   ],
@@ -352,6 +406,60 @@
               {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
+                "selected": true
+              }
+            ],
+            "value": "",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "retryTitle": {
+            "metadata": {
+              "label": "Title",
+              "description": "Short summary shown in the reviewer's inbox"
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string",
+                "selected": true
+              }
+            ],
+            "value": "",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "retryDescription": {
+            "metadata": {
+              "label": "Description",
+              "description": "Context shown with the decision"
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string",
+                "selected": true
+              }
+            ],
+            "value": "",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "retryTimeout": {
+            "metadata": {
+              "label": "Timeout",
+              "description": "How long to wait for a decision"
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "workflow:Duration",
                 "selected": true
               }
             ],

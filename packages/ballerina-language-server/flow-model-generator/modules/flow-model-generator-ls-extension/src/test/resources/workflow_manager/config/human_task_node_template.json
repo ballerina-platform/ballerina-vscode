@@ -104,7 +104,7 @@
       "payload": {
         "metadata": {
           "label": "Payload",
-          "description": "Read-only JSON object shown alongside the form"
+          "description": "Read-only JSON object shown alongside the form. Required — a task with nothing to show says so with {}, and the runtime checks this against the task's payloadType"
         },
         "types": [
           {

@@ -99,7 +99,11 @@ public class HumanTaskBuilder extends CallBuilder {
     // Form field descriptions.
     private static final String TASK_NAME_DOC = "Identifies the task type";
     private static final String USER_ROLES_DOC = "One or more roles permitted to complete this task";
-    private static final String PAYLOAD_DOC = "Read-only JSON object shown alongside the form";
+    private static final String PAYLOAD_DOC =
+            "Read-only JSON object shown alongside the form. Required — a task with nothing to show "
+                    + "says so with {}, and the runtime checks this against the task's payloadType";
+    /** What an unstated payload is: a task that shows nothing, said explicitly. */
+    private static final String EMPTY_PAYLOAD = "{}";
     private static final String TITLE_DOC = "Short summary shown in the inbox";
     private static final String DESCRIPTION_DOC = "Additional context shown alongside the form";
     private static final String TIMEOUT_DOC = "Maximum time to wait; omit to wait indefinitely";
@@ -257,10 +261,14 @@ public class HumanTaskBuilder extends CallBuilder {
                     .description(PAYLOAD_DOC)
                     .stepOut()
                 .type().fieldType(Property.ValueType.EXPRESSION).ballerinaType("map<json>").selected(true).stepOut()
-                .codedata().kind(ParameterData.Kind.INCLUDED_FIELD.name()).originalName(PAYLOAD_KEY).stepOut()
-                .value(values.get(PAYLOAD_KEY))
+                .codedata().kind(ParameterData.Kind.REQUIRED.name()).originalName(PAYLOAD_KEY).stepOut()
+                // The payload is a required argument of awaitHumanTask now, not a field of the
+                // definition record: a task with nothing to show says so with `{}` rather than
+                // by omission. The form defaults to `{}` for the same reason — leaving the
+                // field blank would emit a call that does not compile.
+                .value(values.getOrDefault(PAYLOAD_KEY, EMPTY_PAYLOAD))
                 .editable(true)
-                .optional(true)
+                .optional(false)
                 .stepOut()
                 .addProperty(PAYLOAD_KEY);
 
