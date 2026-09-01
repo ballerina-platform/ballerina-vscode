@@ -23,6 +23,7 @@ import io.ballerina.flowmodelgenerator.core.model.NodeBuilder;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
+import io.ballerina.flowmodelgenerator.core.utils.FlowNodeUtil;
 import io.ballerina.modelgenerator.commons.FunctionData;
 import io.ballerina.modelgenerator.commons.FunctionDataBuilder;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
@@ -324,11 +325,15 @@ public class HumanTaskBuilder extends CallBuilder {
     }
 
     private static void relabel(Map<String, Property> properties, String key, String label, String description) {
-        Property existing = properties.get(key);
+        // Same reserved-key escaping as resolveParameterProperty: `description` lands under
+        // `$description` on the signature-derived path, so relabelling only the plain key left
+        // that field showing the compiler-derived doc instead of the form's own.
+        String actualKey = properties.containsKey(key) ? key : FlowNodeUtil.getPropertyKey(key);
+        Property existing = properties.get(actualKey);
         if (existing == null) {
             return;
         }
-        properties.put(key, Property.Builder.copyFrom(existing)
+        properties.put(actualKey, Property.Builder.copyFrom(existing)
                 .metadata().label(label).description(description).stepOut()
                 .build());
     }
@@ -404,14 +409,35 @@ public class HumanTaskBuilder extends CallBuilder {
     }
 
     private static void addNamedArg(SourceBuilder sourceBuilder, List<String> args, String key) {
-        sourceBuilder.getProperty(key).ifPresent(p -> {
+        resolveParameterProperty(sourceBuilder, key).ifPresent(p -> {
             // toSourceCode() converts structured values (e.g. a map<json> payload) into a Ballerina
             // literal; the raw value.toString() would emit the internal form-field object.
             String source = p.toSourceCode();
             if (source != null && !source.isEmpty()) {
+                // The argument is always written with the parameter's real name, never the escaped
+                // property key.
                 args.add(key + " = " + source);
             }
         });
+    }
+
+    /**
+     * Looks up an {@code awaitHumanTask} parameter property under either spelling of its key.
+     *
+     * <p>A parameter whose name collides with a reserved property key is stored escaped on the
+     * signature-derived path — {@code description} is held as {@code $description}, see
+     * {@link FlowNodeUtil#getPropertyKey} — while the fallback form built by
+     * {@link #addFallbackHumanTaskParameters} uses the plain name. Reading only the plain key found
+     * nothing on the signature path, so the Description the user typed was dropped from the
+     * generated call instead of being written as a named argument.
+     *
+     * @param sourceBuilder the source builder holding the flow node
+     * @param key the parameter name as declared by {@code awaitHumanTask}
+     * @return the property under the plain key, else under the reserved-escaped key
+     */
+    private static Optional<Property> resolveParameterProperty(SourceBuilder sourceBuilder, String key) {
+        Optional<Property> property = sourceBuilder.getProperty(key);
+        return property.isPresent() ? property : sourceBuilder.getProperty(FlowNodeUtil.getPropertyKey(key));
     }
 
     /**
