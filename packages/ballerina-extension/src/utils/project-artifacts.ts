@@ -419,6 +419,7 @@ async function getEntryValue(artifact: BaseArtifact, projectPath: string, icon: 
             entryValue.iconColor = resolveEntryColor(serviceIcon, artifact.module);
             entryValue.iconLight = serviceIcon?.light;
             entryValue.iconDark = serviceIcon?.dark;
+            entryValue.triggerKind = artifact.triggerKind;
             entryValue.kind = serviceIcon?.kind;
             if (artifact.module === "ai") {
                 entryValue.resources = [];
@@ -452,6 +453,7 @@ async function getEntryValue(artifact: BaseArtifact, projectPath: string, icon: 
             entryValue.iconColor = resolveEntryColor(listenerIcon, artifact.module);
             entryValue.iconLight = listenerIcon?.light;
             entryValue.iconDark = listenerIcon?.dark;
+            entryValue.triggerKind = artifact.triggerKind;
             entryValue.kind = listenerIcon?.kind;
             break;
         case DIRECTORY_MAP.CONNECTION:
@@ -767,11 +769,12 @@ async function populateLocalConnectors(projectDir: string, response: ProjectStru
  */
 function resolveEntryGlyph(icon: IconDescriptor | undefined, module: string | undefined): string {
     return icon?.glyph
-        ?? resolveBrandIcon(module)?.glyph
+        ?? (icon?.source === "trigger-ui-metadata" ? undefined : resolveBrandIcon(module)?.glyph)
         ?? resolveKindDefaultIcon(icon?.kind).glyph;
 }
 
 /** Resolves the glyph tint: the LS-declared `icon.color`, else the shared registry's brand color. */
 function resolveEntryColor(icon: IconDescriptor | undefined, module: string | undefined): string | undefined {
-    return icon?.color ?? resolveBrandIcon(module)?.color;
+    return icon?.color
+        ?? (icon?.source === "trigger-ui-metadata" ? undefined : resolveBrandIcon(module)?.color);
 }

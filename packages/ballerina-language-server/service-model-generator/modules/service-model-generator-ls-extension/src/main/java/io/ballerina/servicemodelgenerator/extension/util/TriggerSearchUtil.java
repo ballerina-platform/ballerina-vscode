@@ -20,8 +20,11 @@ package io.ballerina.servicemodelgenerator.extension.util;
 
 import io.ballerina.centralconnector.CentralAPI;
 import io.ballerina.centralconnector.response.PackageResponse;
+import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.trigger.LibraryMetadataReader;
+import io.ballerina.modelgenerator.commons.trigger.models.ArtifactIcon;
+import io.ballerina.modelgenerator.commons.trigger.models.ArtifactMetadata;
 import io.ballerina.servicemodelgenerator.extension.model.TriggerBasicInfo;
 
 import java.util.ArrayList;
@@ -125,8 +128,8 @@ public final class TriggerSearchUtil {
                 if (known.contains(key(moduleInfo.org(), moduleInfo.packageName()))) {
                     continue;
                 }
-                boolean hasTriggerFiles = reader.getTriggerUISchemaModelFromLocalRepository(moduleInfo).isPresent()
-                        || reader.getTriggerMetadataModelFromLocalRepository(moduleInfo).isPresent();
+                boolean hasTriggerFiles = reader.getTriggerMetadataModelFromLocalRepository(moduleInfo).isPresent()
+                        || reader.getTriggerUIMetadataModelFromLocalRepository(moduleInfo).isPresent();
                 if (!hasTriggerFiles) {
                     continue;
                 }
@@ -141,6 +144,12 @@ public final class TriggerSearchUtil {
 
     private static TriggerBasicInfo toLocalRepositoryTriggerBasicInfo(ModuleInfo moduleInfo) {
         String protocol = ServiceModelUtils.getProtocol(moduleInfo.packageName());
+        String fallback = CommonUtils.generateIcon(moduleInfo.org(), moduleInfo.packageName(), moduleInfo.version());
+        ArtifactMetadata metadata = LibraryMetadataReader.getInstance()
+                .getArtifactMetadataFromLocalRepository(moduleInfo).orElse(null);
+        String triggerKind = metadata == null || metadata.triggerKind() == null ? EVENT_TYPE : metadata.triggerKind();
+        Object icon = metadata == null ? fallback
+                : ArtifactIcon.from(fallback, triggerKind, metadata.artifactInfo());
         return new TriggerBasicInfo(
                 0,
                 moduleInfo.packageName(),
@@ -152,7 +161,8 @@ public final class TriggerSearchUtil {
                 displayName(moduleInfo.packageName()),
                 "",
                 protocol,
-                "");
+                icon,
+                triggerKind);
     }
 
     /**
@@ -197,6 +207,13 @@ public final class TriggerSearchUtil {
 
     static TriggerBasicInfo toTriggerBasicInfo(PackageResponse.Package pkg) {
         String protocol = ServiceModelUtils.getProtocol(pkg.name());
+        String fallback = pkg.icon() == null ? "" : pkg.icon();
+        ModuleInfo moduleInfo = new ModuleInfo(pkg.organization(), pkg.name(), pkg.name(), pkg.version());
+        ArtifactMetadata metadata = LibraryMetadataReader.getInstance()
+                .getPackagedArtifactMetadata(moduleInfo).orElse(null);
+        String triggerKind = metadata == null || metadata.triggerKind() == null ? EVENT_TYPE : metadata.triggerKind();
+        Object icon = metadata == null ? fallback
+                : ArtifactIcon.from(fallback, triggerKind, metadata.artifactInfo());
         return new TriggerBasicInfo(
                 pkg.id(),
                 pkg.name(),
@@ -208,7 +225,8 @@ public final class TriggerSearchUtil {
                 displayName(pkg.name()),
                 pkg.summary() == null ? "" : pkg.summary(),
                 protocol,
-                pkg.icon() == null ? "" : pkg.icon());
+                icon,
+                triggerKind);
     }
 
     private static String key(String org, String name) {

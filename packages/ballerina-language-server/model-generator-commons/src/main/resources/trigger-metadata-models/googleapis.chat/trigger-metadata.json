@@ -7,7 +7,7 @@
       "doc": "Webhook listener that dispatches each inbound Google Chat interaction event to the attached service.",
       "type": { "name": "Listener" },
       "services": ["$service"],
-      "multipleServicesAllowed": false
+      "multipleServicesAllowed": true
     }
   ],
 

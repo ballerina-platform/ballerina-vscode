@@ -163,6 +163,7 @@ public class Constants {
     public static final String PROP_KEY_LISTENER = "listener";
     public static final String PROP_KEY_SERVICE_TYPE = "serviceType";
     public static final String PROP_KEY_BASE_PATH = "basePath";
+    public static final String PROP_KEY_IDENTIFIER = "identifier";
     public static final String PROP_KEY_STRING_LITERAL = "stringLiteral";
     public static final String PROP_READONLY_METADATA_KEY = "readOnlyMetadata";
     public static final String PROP_KEY_DEFAULT_LISTENER = "defaultListener";

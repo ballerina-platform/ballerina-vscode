@@ -39,7 +39,7 @@ public class Service extends DesignGraphNode {
     private final List<ResourceFunction> resourceFunctions;
     private final String absolutePath;
     private String type;
-    private String icon;
+    private Object icon;
 
     public Service(String name, String absolutePath, Location location, String sortText, List<String> connections,
                    List<Function> functions, List<Function> remoteFunctions, List<ResourceFunction> resourceFunctions,
@@ -56,7 +56,7 @@ public class Service extends DesignGraphNode {
         this.attachedListeners = new ArrayList<>();
     }
 
-    public void setIcon(String icon) {
+    public void setIcon(Object icon) {
         this.icon = icon;
     }
 
@@ -68,7 +68,7 @@ public class Service extends DesignGraphNode {
         this.attachedListeners.add(listener);
     }
 
-    public String getIcon() {
+    public Object getIcon() {
         return icon;
     }
 

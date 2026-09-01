@@ -1,0 +1,21 @@
+{
+  "variants": [
+    {
+      "minVersion": "1.2.0",
+      "model": {
+        "version": "v1.0",
+        "trigger": {
+          "displayName": "Newer"
+        }
+      }
+    },
+    {
+      "model": {
+        "version": "v1.0",
+        "trigger": {
+          "displayName": "Older"
+        }
+      }
+    }
+  ]
+}

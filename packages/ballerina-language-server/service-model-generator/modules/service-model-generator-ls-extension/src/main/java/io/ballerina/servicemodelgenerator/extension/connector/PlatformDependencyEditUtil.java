@@ -18,6 +18,9 @@
 
 package io.ballerina.servicemodelgenerator.extension.connector;
 
+import io.ballerina.modelgenerator.commons.ModuleInfo;
+import io.ballerina.modelgenerator.commons.trigger.LibraryMetadataReader;
+import io.ballerina.modelgenerator.commons.trigger.models.TriggerMetadataModel;
 import io.ballerina.projects.BallerinaToml;
 import io.ballerina.projects.Project;
 import io.ballerina.projects.util.ProjectConstants;
@@ -133,46 +136,22 @@ public final class PlatformDependencyEditUtil {
         return rawPath.replace('\\', '/');
     }
 
+    /**
+     * Shows what's already configured instead of hiding it: a driver dependency already declared in
+     * Ballerina.toml gets its discovered path filled in and becomes read-only, mirroring
+     * {@link #overlayDriverDependencies}'s treatment of the same case for a listener. The section
+     * stays visible either way -- disabling the field (and, previously, collapsing its enclosing
+     * group when every field in it was hidden) looked identical to the field never having been
+     * generated at all, which is indistinguishable from the bug it was meant to avoid.
+     */
     public static void populateDriverDependencyFields(ServiceInitModel creationModel, Project project) {
         for (Value field : findDriverDependencyFields(creationModel.getProperties()).values()) {
             DriverDependency dependency = field.getCodedata().getDriverDependency();
-            if (isDeclared(project, dependency)) {
-                field.setEnabled(false);
-            }
+            findDeclaredPath(project, dependency).ifPresent(path -> {
+                field.setValue(path);
+                field.setEditable(false);
+            });
         }
-        collapseEmptyDriverGroups(creationModel.getProperties());
-    }
-
-    /**
-     * Disables any group left holding nothing but driver-dependency fields that were just hidden.
-     * The side panel drops a disabled leaf but still renders its enclosing group, so without this a
-     * project already declaring every driver shows an empty section header (e.g. "SAP Driver
-     * Libraries"). Purely a display concern: source generation ignores these fields either way,
-     * since their codedata carries no {@code argType}.
-     */
-    private static void collapseEmptyDriverGroups(Map<String, Value> properties) {
-        if (properties == null) {
-            return;
-        }
-        for (Value value : properties.values()) {
-            if (value == null || value.getProperties() == null || value.getProperties().isEmpty()) {
-                continue;
-            }
-            collapseEmptyDriverGroups(value.getProperties());
-            if (allHiddenDriverFields(value.getProperties())) {
-                value.setEnabled(false);
-            }
-        }
-    }
-
-    private static boolean allHiddenDriverFields(Map<String, Value> properties) {
-        for (Value child : properties.values()) {
-            if (child == null || child.isEnabled() || child.getCodedata() == null
-                    || child.getCodedata().getDriverDependency() == null) {
-                return false;
-            }
-        }
-        return true;
     }
 
     public static void addDriverDependenciesIfPresent(Map<String, List<TextEdit>> edits, Project project,
@@ -194,13 +173,13 @@ public final class PlatformDependencyEditUtil {
         if (listener == null || project == null) {
             return;
         }
-        // This runs on every getListenerModel call, so resolve no further than the bundled registry.
-        // Driver dependencies are declared only by bundled trigger models today; without this gate
-        // every non-bundled connector (http, grpc, ...) would fall through to LibraryMetadataReader
-        // for a template that can never carry one — and for a connector not yet in the local
-        // repository that resolution is deliberately not memoized (TriggerModelReader.Resolution),
-        // so it would re-run on every fetch. Revisit if a connector-shipped model ever needs one.
-        if (!TriggerModelReader.getInstance().hasBundledTriggerModel(moduleName)) {
+        // This runs on every getListenerModel call, so resolve no further than the packaged L1
+        // classpath tier -- a classpath-only read, no package compile. Without this gate, a connector
+        // whose packaged L1 declares no platformDependencies (http, grpc, ...) would fall through to
+        // getSchemaDrivenServiceInitModel for a template that can never carry one — and for a connector
+        // not yet in the local repository that resolution is deliberately not memoized
+        // (TriggerModelReader.Resolution), so it would re-run on every fetch.
+        if (!packagedModuleDeclaresDriverDependencies(moduleName)) {
             return;
         }
         Optional<ServiceInitModel> template = TriggerModelReader.getInstance()
@@ -224,6 +203,22 @@ public final class PlatformDependencyEditUtil {
             }
             listener.getProperties().put(entry.getKey(), displayField);
         }
+    }
+
+    /**
+     * Whether the module's packaged L1 declares a driver dependency on any listener -- a
+     * classpath-only presence check, precise enough to replace the old bundled-registry gate (which
+     * was only ever a proxy for "this connector needs a jar the user must supply") without becoming a
+     * package compile.
+     */
+    private static boolean packagedModuleDeclaresDriverDependencies(String moduleName) {
+        ModuleInfo moduleInfo = new ModuleInfo(null, moduleName, moduleName, null);
+        return LibraryMetadataReader.getInstance().getPackagedTriggerMetadataModel(moduleInfo)
+                .map(TriggerMetadataModel::listeners)
+                .map(listeners -> listeners.stream().anyMatch(
+                        listener -> listener.platformDependencies() != null
+                                && !listener.platformDependencies().isEmpty()))
+                .orElse(false);
     }
 
     /**

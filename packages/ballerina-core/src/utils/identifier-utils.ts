@@ -80,9 +80,8 @@ export function isIntegrationKind(kind: string): kind is IntegrationKind {
 }
 
 /**
- * Maps a connector's declared semantic `kind` (from its trigger metadata) to a project {@link SCOPE}.
- * This is the connector-agnostic classifier: any trigger that declares `kind: "event"` (GitHub, or a
- * new webhook connector) is an Event Integration with no per-module entry and no release.
+ * Maps a connector's declared semantic `triggerKind` to a project {@link SCOPE}. This is the
+ * connector-agnostic classifier: any event trigger is an Event Integration without a per-module entry.
  */
 const KIND_TO_SCOPE: Record<IntegrationKind, SCOPE> = {
     event: SCOPE.EVENT_INTEGRATION,
@@ -94,12 +93,12 @@ const KIND_TO_SCOPE: Record<IntegrationKind, SCOPE> = {
 };
 
 /**
- * Resolves a project scope, preferring the connector-declared `kind` and falling back to the (legacy)
- * module allow-lists in {@link findScopeByModule} for connectors that ship no kind.
+ * Resolves a project scope, preferring the connector-declared `triggerKind` and falling back to the
+ * legacy module allow-lists in {@link findScopeByModule} for responses that do not provide it.
  */
-export function findScope(kind: string | undefined, moduleName: string | undefined): SCOPE | undefined {
-    if (kind && isIntegrationKind(kind)) {
-        return KIND_TO_SCOPE[kind];
+export function findScope(triggerKind: string | undefined, moduleName: string | undefined): SCOPE | undefined {
+    if (triggerKind && isIntegrationKind(triggerKind)) {
+        return KIND_TO_SCOPE[triggerKind];
     }
     return moduleName ? findScopeByModule(moduleName) : undefined;
 }

@@ -22,6 +22,7 @@ import com.google.gson.JsonObject;
 import io.ballerina.designmodelgenerator.extension.request.ArtifactsRequest;
 import io.ballerina.modelgenerator.commons.AbstractLSTest;
 import org.testng.Assert;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
@@ -35,6 +36,30 @@ import java.util.Objects;
  * @since 1.0.0
  */
 public class ArtifactsTest extends AbstractLSTest {
+
+    @DataProvider(name = "trigger-kind-artifacts")
+    public Object[][] triggerKindArtifacts() {
+        return new Object[][] {
+                {"kafka.json", "event", "Types"},
+                {"http_service.json", "http", "Connections"},
+        };
+    }
+
+    @Test(dataProvider = "trigger-kind-artifacts")
+    public void testTriggerKindIsLimitedToServiceAndListenerArtifacts(String configFile, String expectedKind,
+                                                                      String unrelatedCategory) throws IOException {
+        Path configJsonPath = configDir.resolve(configFile);
+        TestConfig testConfig = gson.fromJson(Files.newBufferedReader(configJsonPath), TestConfig.class);
+        ArtifactsRequest request = new ArtifactsRequest(getSourcePath(testConfig.source()));
+        JsonObject response = getResponseAndCloseFile(request, testConfig.source());
+        JsonObject artifacts = response.getAsJsonObject("artifacts");
+
+        assertTriggerKind(artifacts.getAsJsonObject("Entry Points"), expectedKind);
+        assertTriggerKind(artifacts.getAsJsonObject("Listeners"), expectedKind);
+        artifacts.getAsJsonObject(unrelatedCategory).entrySet().forEach(entry ->
+                Assert.assertFalse(entry.getValue().getAsJsonObject().has("triggerKind"),
+                        entry.getKey() + " must not inherit connector triggerKind"));
+    }
 
     @Override
     @Test(dataProvider = "data-provider")
@@ -93,6 +118,12 @@ public class ArtifactsTest extends AbstractLSTest {
     private static String getStringValue(JsonObject jsonObject, String key) {
         return jsonObject.get(key) != null && !jsonObject.get(key).isJsonNull() ?
                 jsonObject.get(key).getAsString() : null;
+    }
+
+    private static void assertTriggerKind(JsonObject category, String expectedKind) {
+        Assert.assertFalse(category.isEmpty());
+        category.entrySet().forEach(entry -> Assert.assertEquals(
+                getStringValue(entry.getValue().getAsJsonObject(), "triggerKind"), expectedKind, entry.getKey()));
     }
 
     public record TestConfig(String description, String source, String packageName, String moduleName,

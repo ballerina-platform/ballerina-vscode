@@ -96,7 +96,7 @@ public final class ModuleAliasResolver {
      * file's existing imports) and {@code ModulePrefixContext} (taken = every prefix claimed so far
      * across several modules in one operation).
      */
-    static String allocate(String module, String overridePrefix, Set<String> taken) {
+    public static String allocate(String module, String overridePrefix, Set<String> taken) {
         boolean pinned = overridePrefix != null && !overridePrefix.isBlank();
         String preferred = pinned ? overridePrefix : selfPrefix(module);
         if (!taken.contains(preferred)) {

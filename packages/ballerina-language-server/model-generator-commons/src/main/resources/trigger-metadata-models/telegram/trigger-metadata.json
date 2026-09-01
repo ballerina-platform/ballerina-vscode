@@ -1,25 +1,34 @@
 {
   "version": "v1.0",
-
   "listeners": [
     {
       "id": "$listener",
       "doc": "Webhook listener that dispatches each inbound Telegram bot update to the attached service.",
-      "type": { "name": "Listener" },
-      "services": ["$service"],
+      "type": {
+        "name": "Listener"
+      },
+      "services": [
+        "$service"
+      ],
       "multipleServicesAllowed": true,
       "multipleServicesOfSameTypeAllowed": true
     }
   ],
-
   "serviceTypes": [
     {
       "id": "$service",
       "doc": "Receives Telegram bot updates: messages, channel posts, callback and inline queries, polls, and payment queries.",
-      "type": { "name": "TelegramService" },
+      "type": {
+        "name": "TelegramService"
+      },
       "concrete": false,
       "multipleListenersAllowed": true,
-      "identifier": { "presence": "optional", "form": ["basePath"] },
+      "identifier": {
+        "presence": "optional",
+        "form": [
+          "basePath"
+        ]
+      },
       "handlers": {
         "backedByConcreteType": false,
         "options": [
@@ -34,11 +43,34 @@
                 "id": "$service.onMessage.message",
                 "name": "message",
                 "doc": "The received message.",
-                "type": { "name": "Message" },
+                "type": {
+                  "name": "Message"
+                },
                 "presence": "required"
+              },
+              {
+                "id": "$service.onMessage.caller",
+                "name": "caller",
+                "doc": "Telegram caller used to manually acknowledge updates.",
+                "type": {
+                  "name": "Caller"
+                },
+                "presence": "optional"
               }
             ],
-            "returns": { "id": "$service.onMessage.returns", "type": [{ "name": "error", "builtin": true }, { "name": "()", "builtin": true }] }
+            "returns": {
+              "id": "$service.onMessage.returns",
+              "type": [
+                {
+                  "name": "error",
+                  "builtin": true
+                },
+                {
+                  "name": "()",
+                  "builtin": true
+                }
+              ]
+            }
           },
           {
             "id": "$service.onEditedMessage",
@@ -51,13 +83,33 @@
                 "id": "$service.onEditedMessage.editedMessage",
                 "name": "editedMessage",
                 "doc": "The message after the edit.",
-                "type": { "name": "Message" },
+                "type": {
+                  "name": "Message"
+                },
                 "presence": "required"
+              },
+              {
+                "id": "$service.onEditedMessage.caller",
+                "name": "caller",
+                "doc": "Telegram caller used to manually acknowledge updates.",
+                "type": {
+                  "name": "Caller"
+                },
+                "presence": "optional"
               }
             ],
             "returns": {
               "id": "$service.onEditedMessage.returns",
-              "type": [{ "name": "error", "builtin": true }, { "name": "()", "builtin": true }]
+              "type": [
+                {
+                  "name": "error",
+                  "builtin": true
+                },
+                {
+                  "name": "()",
+                  "builtin": true
+                }
+              ]
             }
           },
           {
@@ -71,13 +123,33 @@
                 "id": "$service.onChannelPost.channelPost",
                 "name": "channelPost",
                 "doc": "The channel post.",
-                "type": { "name": "Message" },
+                "type": {
+                  "name": "Message"
+                },
                 "presence": "required"
+              },
+              {
+                "id": "$service.onChannelPost.caller",
+                "name": "caller",
+                "doc": "Telegram caller used to manually acknowledge updates.",
+                "type": {
+                  "name": "Caller"
+                },
+                "presence": "optional"
               }
             ],
             "returns": {
               "id": "$service.onChannelPost.returns",
-              "type": [{ "name": "error", "builtin": true }, { "name": "()", "builtin": true }]
+              "type": [
+                {
+                  "name": "error",
+                  "builtin": true
+                },
+                {
+                  "name": "()",
+                  "builtin": true
+                }
+              ]
             }
           },
           {
@@ -91,13 +163,33 @@
                 "id": "$service.onEditedChannelPost.editedChannelPost",
                 "name": "editedChannelPost",
                 "doc": "The channel post after the edit.",
-                "type": { "name": "Message" },
+                "type": {
+                  "name": "Message"
+                },
                 "presence": "required"
+              },
+              {
+                "id": "$service.onEditedChannelPost.caller",
+                "name": "caller",
+                "doc": "Telegram caller used to manually acknowledge updates.",
+                "type": {
+                  "name": "Caller"
+                },
+                "presence": "optional"
               }
             ],
             "returns": {
               "id": "$service.onEditedChannelPost.returns",
-              "type": [{ "name": "error", "builtin": true }, { "name": "()", "builtin": true }]
+              "type": [
+                {
+                  "name": "error",
+                  "builtin": true
+                },
+                {
+                  "name": "()",
+                  "builtin": true
+                }
+              ]
             }
           },
           {
@@ -111,13 +203,33 @@
                 "id": "$service.onCallbackQuery.callbackQuery",
                 "name": "callbackQuery",
                 "doc": "The callback query raised by the button press.",
-                "type": { "name": "CallbackQuery" },
+                "type": {
+                  "name": "CallbackQuery"
+                },
                 "presence": "required"
+              },
+              {
+                "id": "$service.onCallbackQuery.caller",
+                "name": "caller",
+                "doc": "Telegram caller used to manually acknowledge updates.",
+                "type": {
+                  "name": "Caller"
+                },
+                "presence": "optional"
               }
             ],
             "returns": {
               "id": "$service.onCallbackQuery.returns",
-              "type": [{ "name": "error", "builtin": true }, { "name": "()", "builtin": true }]
+              "type": [
+                {
+                  "name": "error",
+                  "builtin": true
+                },
+                {
+                  "name": "()",
+                  "builtin": true
+                }
+              ]
             }
           },
           {
@@ -131,13 +243,33 @@
                 "id": "$service.onInlineQuery.inlineQuery",
                 "name": "inlineQuery",
                 "doc": "The inline query.",
-                "type": { "name": "InlineQuery" },
+                "type": {
+                  "name": "InlineQuery"
+                },
                 "presence": "required"
+              },
+              {
+                "id": "$service.onInlineQuery.caller",
+                "name": "caller",
+                "doc": "Telegram caller used to manually acknowledge updates.",
+                "type": {
+                  "name": "Caller"
+                },
+                "presence": "optional"
               }
             ],
             "returns": {
               "id": "$service.onInlineQuery.returns",
-              "type": [{ "name": "error", "builtin": true }, { "name": "()", "builtin": true }]
+              "type": [
+                {
+                  "name": "error",
+                  "builtin": true
+                },
+                {
+                  "name": "()",
+                  "builtin": true
+                }
+              ]
             }
           },
           {
@@ -151,11 +283,34 @@
                 "id": "$service.onPoll.poll",
                 "name": "poll",
                 "doc": "The poll's new state.",
-                "type": { "name": "Poll" },
+                "type": {
+                  "name": "Poll"
+                },
                 "presence": "required"
+              },
+              {
+                "id": "$service.onPoll.caller",
+                "name": "caller",
+                "doc": "Telegram caller used to manually acknowledge updates.",
+                "type": {
+                  "name": "Caller"
+                },
+                "presence": "optional"
               }
             ],
-            "returns": { "id": "$service.onPoll.returns", "type": [{ "name": "error", "builtin": true }, { "name": "()", "builtin": true }] }
+            "returns": {
+              "id": "$service.onPoll.returns",
+              "type": [
+                {
+                  "name": "error",
+                  "builtin": true
+                },
+                {
+                  "name": "()",
+                  "builtin": true
+                }
+              ]
+            }
           },
           {
             "id": "$service.onPreCheckoutQuery",
@@ -168,13 +323,33 @@
                 "id": "$service.onPreCheckoutQuery.preCheckoutQuery",
                 "name": "preCheckoutQuery",
                 "doc": "The pre-checkout query.",
-                "type": { "name": "PreCheckoutQuery" },
+                "type": {
+                  "name": "PreCheckoutQuery"
+                },
                 "presence": "required"
+              },
+              {
+                "id": "$service.onPreCheckoutQuery.caller",
+                "name": "caller",
+                "doc": "Telegram caller used to manually acknowledge updates.",
+                "type": {
+                  "name": "Caller"
+                },
+                "presence": "optional"
               }
             ],
             "returns": {
               "id": "$service.onPreCheckoutQuery.returns",
-              "type": [{ "name": "error", "builtin": true }, { "name": "()", "builtin": true }]
+              "type": [
+                {
+                  "name": "error",
+                  "builtin": true
+                },
+                {
+                  "name": "()",
+                  "builtin": true
+                }
+              ]
             }
           },
           {
@@ -188,13 +363,33 @@
                 "id": "$service.onShippingQuery.shippingQuery",
                 "name": "shippingQuery",
                 "doc": "The shipping query.",
-                "type": { "name": "ShippingQuery" },
+                "type": {
+                  "name": "ShippingQuery"
+                },
                 "presence": "required"
+              },
+              {
+                "id": "$service.onShippingQuery.caller",
+                "name": "caller",
+                "doc": "Telegram caller used to manually acknowledge updates.",
+                "type": {
+                  "name": "Caller"
+                },
+                "presence": "optional"
               }
             ],
             "returns": {
               "id": "$service.onShippingQuery.returns",
-              "type": [{ "name": "error", "builtin": true }, { "name": "()", "builtin": true }]
+              "type": [
+                {
+                  "name": "error",
+                  "builtin": true
+                },
+                {
+                  "name": "()",
+                  "builtin": true
+                }
+              ]
             }
           }
         ]
@@ -205,18 +400,58 @@
           "rule": "structure.atLeastOne",
           "message": "A TelegramService needs at least one of the nine update handlers; one with none of them receives nothing and does nothing.",
           "subjects": [
-            { "kind": "handler", "id": "$service.onMessage" },
-            { "kind": "handler", "id": "$service.onEditedMessage" },
-            { "kind": "handler", "id": "$service.onChannelPost" },
-            { "kind": "handler", "id": "$service.onEditedChannelPost" },
-            { "kind": "handler", "id": "$service.onCallbackQuery" },
-            { "kind": "handler", "id": "$service.onInlineQuery" },
-            { "kind": "handler", "id": "$service.onPoll" },
-            { "kind": "handler", "id": "$service.onPreCheckoutQuery" },
-            { "kind": "handler", "id": "$service.onShippingQuery" }
+            {
+              "kind": "handler",
+              "id": "$service.onMessage"
+            },
+            {
+              "kind": "handler",
+              "id": "$service.onEditedMessage"
+            },
+            {
+              "kind": "handler",
+              "id": "$service.onChannelPost"
+            },
+            {
+              "kind": "handler",
+              "id": "$service.onEditedChannelPost"
+            },
+            {
+              "kind": "handler",
+              "id": "$service.onCallbackQuery"
+            },
+            {
+              "kind": "handler",
+              "id": "$service.onInlineQuery"
+            },
+            {
+              "kind": "handler",
+              "id": "$service.onPoll"
+            },
+            {
+              "kind": "handler",
+              "id": "$service.onPreCheckoutQuery"
+            },
+            {
+              "kind": "handler",
+              "id": "$service.onShippingQuery"
+            }
           ]
         }
+      ],
+      "annotations": [
+        "$serviceConfig"
       ]
+    }
+  ],
+  "annotations": [
+    {
+      "id": "$serviceConfig",
+      "type": {
+        "name": "TelegramServiceConfig"
+      },
+      "attachPoint": "service",
+      "presence": "optional"
     }
   ]
 }

@@ -45,12 +45,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Supplier;
 
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.DEFAULT;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.GRAPHQL;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.HTTP;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.OBJECT_METHOD;
+import static io.ballerina.servicemodelgenerator.extension.util.Constants.TCP;
 import static io.ballerina.servicemodelgenerator.extension.util.ServiceModelUtils.deriveServiceType;
 
 /**
@@ -69,6 +71,10 @@ public class FunctionBuilderRouter {
         put(GRAPHQL, GraphqlFunctionBuilder::new);
     }};
 
+    /** Protocols with dedicated, mature builders that must never fall through to the schema-driven
+     * path, regardless of what {@link TriggerModelReader} resolves for them now or in the future. */
+    private static final Set<String> NEVER_SCHEMA_DRIVEN = Set.of(HTTP, GRAPHQL, TCP);
+
     private static NodeBuilder<Function> getFunctionBuilder(String protocol) {
         return CONSTRUCTOR_MAP.getOrDefault(protocol, DefaultFunctionBuilder::new).get();
     }
@@ -80,10 +86,11 @@ public class FunctionBuilderRouter {
      * (see {@link TriggerModelReader#getSchemaDrivenTriggerModel}). Mirrors
      * {@code ServiceBuilderRouter} (the hardcoded builder still wins whenever neither source has a
      * model). {@code orgName == null} degrades to the bundled-only check -- {@link #getModelTemplate}
-     * has no org field to resolve a {@code .bala} with.
+     * has no org field to resolve a {@code .bala} with. {@link #NEVER_SCHEMA_DRIVEN} short-circuits
+     * this to {@code false} unconditionally.
      */
     private static boolean useSchemaDrivenPath(String orgName, String moduleName) {
-        if (moduleName == null) {
+        if (moduleName == null || NEVER_SCHEMA_DRIVEN.contains(moduleName)) {
             return false;
         }
         return TriggerModelReader.getInstance().hasSchemaDrivenModel(orgName, moduleName);

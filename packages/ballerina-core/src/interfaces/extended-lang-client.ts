@@ -2152,8 +2152,8 @@ export interface WorkspaceDeploymentRequest {
  * A structured, multi-representation icon descriptor resolved by the Language Server (Phase-6 icon
  * architecture). The LS fills `url`/`kind`/`source` and any connector-declared `glyph`/`color`; the IDE
  * completes missing `glyph`/`color` from its brand-icon registry and applies the `kind` default.
- * `light`/`dark` are a paired set of theme-specific images (data: URI) used when a single `url` isn't
- * theme-aware.
+ * `light`/`dark` are a paired set of theme-specific raw SVG documents used when a single `url` isn't
+ * theme-aware. Clients turn the selected document into an image URI locally.
  */
 export interface IconDescriptor {
     url?: string;
@@ -2192,6 +2192,7 @@ export interface BaseArtifact<T = any> {
     type: DIRECTORY_MAP;
     name: string;
     module?: string;
+    triggerKind?: string; // Canonical integration kind for service/listener artifacts
     scope: string;
     visibility?: VISIBILITY;
     icon?: IconDescriptor | string; // Resolved icon descriptor; a bare string (legacy URL) is accepted

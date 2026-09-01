@@ -40,7 +40,8 @@ import java.util.Map;
  * @param type         the entry-point kind bucket used for icon/category fallback (e.g.
  *                     {@code event}/{@code file}/{@code http}/{@code graphql}/{@code ai})
  * @param icon             the icon reference shown for this trigger
- * @param kind             the trigger's category (e.g. listener-based vs. service-based)
+ * @param kind             the legacy trigger category retained for compatibility
+ * @param triggerKind      the canonical integration kind derived from L2 metadata
  * @param listenerKind the listener property's widget (a {@code Value.FieldType} name, e.g.
  *                     {@code SINGLE_SELECT_LISTENER} / {@code MULTIPLE_SELECT_LISTENER}); defaults to
  *                     {@code SINGLE_SELECT_LISTENER} when a model omits it
@@ -70,6 +71,7 @@ public record TriggerUISchemaModel(
         String type,
         String icon,
         String kind,
+        String triggerKind,
         String listenerKind,
         Map<String, Property> initProperties,
         ListenerFormModel listenerForm,
@@ -87,10 +89,50 @@ public record TriggerUISchemaModel(
      *                     "Listener Configuration"
      * @param typeSelector the switch between listener kinds. Its {@code description} is what the form
      *                     renders above the options; defaults to "Listener Type"
+     * @param createNew    the create-new-listener branch's presentation text; defaults to generic wording
+     * @param useExisting  the use-existing-listener branch's presentation text; defaults to generic wording
+     * @param listenerConfig the group a listener's own constructor fields sit in, when named independently
+     *                       of {@code section}; defaults to "Listener Configuration"
+     * @param existingListener       the use-existing selector's own presentation text, when it is shown
+     *                                under its own {@code existingListener} key instead of the generic
+     *                                {@code listener} key
+     * @param existingListenerWidget the use-existing selector's widget kind; defaults to
+     *                                {@code SINGLE_SELECT_LISTENER}/{@code MULTIPLE_SELECT_LISTENER}
+     *                                depending on whether the connector allows multiple listeners
+     * @param useExistingEnabled     overrides the use-existing branch's own {@code enabled}; defaults to
+     *                                {@code false}
+     * @param useExistingEditable    overrides the use-existing branch's own {@code editable}; defaults to
+     *                                {@code false}
+     * @param existingListenerBallerinaType the selector's {@code ballerinaType}, e.g. {@code "ftp:Listener"}
+     * @param existingListenerItems  example already-declared listener variable names shown before the
+     *                                selector is populated from the user's actual source
+     * @param existingListenerValue  the selector's initial value -- a plain {@code String} for a
+     *                               single-select widget, or a {@code List<String>} for a multi-select one
      */
     public record ListenerFormModel(
             Metadata section,
-            Metadata typeSelector) {
+            Metadata typeSelector,
+            Metadata createNew,
+            Metadata useExisting,
+            Metadata listenerConfig,
+            Metadata existingListener,
+            String existingListenerWidget,
+            Boolean useExistingEnabled,
+            Boolean useExistingEditable,
+            String existingListenerBallerinaType,
+            List<String> existingListenerItems,
+            Object existingListenerValue) {
+
+        /** Compatibility constructor for existing models that only customized section/type selection. */
+        public ListenerFormModel(Metadata section, Metadata typeSelector) {
+            this(section, typeSelector, null, null, null, null, null, null, null, null, null, null);
+        }
+
+        public ListenerFormModel(Metadata section, Metadata typeSelector, Metadata createNew,
+                                 Metadata useExisting, Metadata listenerConfig) {
+            this(section, typeSelector, createNew, useExisting, listenerConfig, null, null, null, null, null, null,
+                    null);
+        }
     }
 
     /**
@@ -160,6 +202,7 @@ public record TriggerUISchemaModel(
      * @param editable    whether the user may change this field's value
      * @param optional    whether this field may be left unset
      * @param advanced    whether this field is hidden behind an advanced toggle
+     * @param hidden      whether this field is hidden from the UI entirely
      * @param placeholder placeholder text shown when the field is empty
      * @param value       the field's current value
      * @param types       the candidate rendering descriptors for this field
@@ -175,6 +218,7 @@ public record TriggerUISchemaModel(
             boolean editable,
             boolean optional,
             boolean advanced,
+            Boolean hidden,
             String placeholder,
             Object value,
             List<PropertyType> types,
@@ -183,6 +227,15 @@ public record TriggerUISchemaModel(
             Map<String, Property> properties,
             Codedata codedata,
             List<ValidationRule> validations) {
+
+        /** Compatibility constructor for call sites predating the authored {@code hidden} state. */
+        public Property(Metadata metadata, boolean enabled, boolean editable, boolean optional, boolean advanced,
+                        String placeholder, Object value, List<PropertyType> types, List<String> items,
+                        List<Property> choices, Map<String, Property> properties, Codedata codedata,
+                        List<ValidationRule> validations) {
+            this(metadata, enabled, editable, optional, advanced, null, placeholder, value, types, items, choices,
+                    properties, codedata, validations);
+        }
     }
 
     /**

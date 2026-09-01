@@ -159,7 +159,7 @@ public class ModuleNodeTransformer extends NodeTransformer<Optional<Artifact>> {
         Optional<TypeDescriptorNode> typeDescriptorNode = serviceDeclarationNode.typeDescriptor();
         NodeList<Node> resourcePaths = serviceDeclarationNode.absoluteResourcePath();
         if (!serviceBuilder.trySetNameFromAnnotation(serviceDeclarationNode)) {
-            if (!resourcePaths.isEmpty() && Artifact.usesAttachPointAsName(serviceBuilder.module())) {
+            if (!resourcePaths.isEmpty() && serviceBuilder.usesAttachPointAsName()) {
                 serviceBuilder.serviceNameWithPath(getPathString(resourcePaths));
             } else if (typeDescriptorNode.isPresent()) {
                 serviceBuilder.serviceName(typeDescriptorNode.get().toSourceCode().strip());

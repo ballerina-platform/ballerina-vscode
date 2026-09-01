@@ -50,6 +50,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Supplier;
 
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.AI;
@@ -78,6 +79,10 @@ public class ServiceBuilderRouter {
         put(GRAPHQL, GraphqlServiceBuilder::new);
     }};
 
+    /** Protocols with dedicated, mature builders that must never fall through to the schema-driven
+     * path, regardless of what {@link TriggerModelReader} resolves for them now or in the future. */
+    private static final Set<String> NEVER_SCHEMA_DRIVEN = Set.of(HTTP, GRAPHQL, TCP);
+
     public static ServiceNodeBuilder getServiceBuilder(String protocol) {
         return CONSTRUCTOR_MAP.getOrDefault(protocol, DefaultServiceBuilder::new).get();
     }
@@ -88,6 +93,7 @@ public class ServiceBuilderRouter {
      * {@code resources/trigger-authoring.json} plus semantic-API introspection of its {@code .bala}
      * (see {@link TriggerModelReader#getSchemaDrivenTriggerModel}). The hardcoded builder still wins
      * whenever neither source has a model, so an unrecognized connector's behavior is unchanged.
+     * {@link #NEVER_SCHEMA_DRIVEN} short-circuits this to {@code false} unconditionally.
      */
     private static boolean useSchemaDrivenPath(String orgName, String moduleName) {
         return useSchemaDrivenPath(orgName, moduleName, null, false);
@@ -96,7 +102,7 @@ public class ServiceBuilderRouter {
     /** {@code isLocalRepository} variant, checking the Ballerina local repository instead. */
     private static boolean useSchemaDrivenPath(String orgName, String moduleName, String version,
                                                boolean isLocalRepository) {
-        return TriggerModelReader.getInstance()
+        return !NEVER_SCHEMA_DRIVEN.contains(moduleName) && TriggerModelReader.getInstance()
                 .hasSchemaDrivenModel(orgName, moduleName, version, isLocalRepository);
     }
 

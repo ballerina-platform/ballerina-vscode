@@ -73,7 +73,7 @@
                 "name": "fileInfo",
                 "doc": "The file's name, path, size, and timestamps.",
                 "type": { "name": "FileInfo" },
-                "presence": "required"
+                "presence": "optional"
               },
               {
                 "id": "$service.onFileCsv.caller",
@@ -111,7 +111,14 @@
                 "name": "fileInfo",
                 "doc": "The file's name, path, size, and timestamps.",
                 "type": { "name": "FileInfo" },
-                "presence": "required"
+                "presence": "optional"
+              },
+              {
+                "id": "$service.onFileJson.caller",
+                "name": "caller",
+                "doc": "The FTP connection, for reading or writing other files while this one is being processed.",
+                "type": { "name": "Caller" },
+                "presence": "optional"
               }
             ],
             "returns": { "id": "$service.onFileJson.returns", "type": [{ "name": "error", "builtin": true }, { "name": "()", "builtin": true }] }
@@ -142,7 +149,14 @@
                 "name": "fileInfo",
                 "doc": "The file's name, path, size, and timestamps.",
                 "type": { "name": "FileInfo" },
-                "presence": "required"
+                "presence": "optional"
+              },
+              {
+                "id": "$service.onFileXml.caller",
+                "name": "caller",
+                "doc": "The FTP connection, for reading or writing other files while this one is being processed.",
+                "type": { "name": "Caller" },
+                "presence": "optional"
               }
             ],
             "returns": { "id": "$service.onFileXml.returns", "type": [{ "name": "error", "builtin": true }, { "name": "()", "builtin": true }] }
@@ -167,7 +181,14 @@
                 "name": "fileInfo",
                 "doc": "The file's name, path, size, and timestamps.",
                 "type": { "name": "FileInfo" },
-                "presence": "required"
+                "presence": "optional"
+              },
+              {
+                "id": "$service.onFileText.caller",
+                "name": "caller",
+                "doc": "The FTP connection, for reading or writing other files while this one is being processed.",
+                "type": { "name": "Caller" },
+                "presence": "optional"
               }
             ],
             "returns": { "id": "$service.onFileText.returns", "type": [{ "name": "error", "builtin": true }, { "name": "()", "builtin": true }] }
@@ -199,7 +220,14 @@
                 "name": "fileInfo",
                 "doc": "The file's name, path, size, and timestamps.",
                 "type": { "name": "FileInfo" },
-                "presence": "required"
+                "presence": "optional"
+              },
+              {
+                "id": "$service.onFile.caller",
+                "name": "caller",
+                "doc": "The FTP connection, for reading or writing other files while this one is being processed.",
+                "type": { "name": "Caller" },
+                "presence": "optional"
               }
             ],
             "returns": { "id": "$service.onFile.returns", "type": [{ "name": "error", "builtin": true }, { "name": "()", "builtin": true }] }
@@ -233,6 +261,35 @@
             }
           },
           {
+            "id": "$service.onFileChange",
+            "name": "onFileChange",
+            "kind": "remote",
+            "doc": "Invoked once per poll with the complete set of files added and deleted since the previous poll.",
+            "deprecated": "Superseded by the typed content handlers. onFileChange only reports which files changed, leaving the read and the parse to the handler, whereas onFileText, onFileJson, onFileXml, onFileCsv and onFile deliver the file body already bound to a declared type.",
+            "presence": "optional",
+            "annotations": ["$functionConfig"],
+            "params": [
+              {
+                "id": "$service.onFileChange.watchEvent",
+                "name": "watchEvent",
+                "doc": "The files added and deleted in this poll.",
+                "type": { "name": "WatchEvent" },
+                "presence": "required"
+              },
+              {
+                "id": "$service.onFileChange.caller",
+                "name": "caller",
+                "doc": "The FTP connection, for acting on the share in response to the changes.",
+                "type": { "name": "Caller" },
+                "presence": "optional"
+              }
+            ],
+            "returns": {
+              "id": "$service.onFileChange.returns",
+              "type": [{ "name": "error", "builtin": true }, { "name": "()", "builtin": true }]
+            }
+          },
+          {
             "id": "$service.onError",
             "name": "onError",
             "kind": "remote",
@@ -256,28 +313,6 @@
               }
             ],
             "returns": { "id": "$service.onError.returns", "type": [{ "name": "error", "builtin": true }, { "name": "()", "builtin": true }] }
-          },
-          {
-            "id": "$service.onFileChange",
-            "name": "onFileChange",
-            "kind": "remote",
-            "doc": "Invoked once per poll with the complete set of files added and deleted since the previous poll.",
-            "deprecated": "Superseded by the typed content handlers. onFileChange only reports which files changed, leaving the read and the parse to the handler, whereas onFileText, onFileJson, onFileXml, onFileCsv and onFile deliver the file body already bound to a declared type.",
-            "presence": "optional",
-            "annotations": ["$functionConfig"],
-            "params": [
-              {
-                "id": "$service.onFileChange.watchEvent",
-                "name": "watchEvent",
-                "doc": "The files added and deleted in this poll.",
-                "type": { "name": "WatchEvent" },
-                "presence": "required"
-              }
-            ],
-            "returns": {
-              "id": "$service.onFileChange.returns",
-              "type": [{ "name": "error", "builtin": true }, { "name": "()", "builtin": true }]
-            }
           }
         ]
       },

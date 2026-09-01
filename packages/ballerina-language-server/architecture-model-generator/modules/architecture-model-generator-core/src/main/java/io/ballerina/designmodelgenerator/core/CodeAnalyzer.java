@@ -96,6 +96,9 @@ import io.ballerina.designmodelgenerator.core.model.Location;
 import io.ballerina.designmodelgenerator.core.model.Workflow;
 import io.ballerina.flowmodelgenerator.core.Constants;
 import io.ballerina.flowmodelgenerator.core.utils.WorkflowUtil;
+import io.ballerina.modelgenerator.commons.ModuleInfo;
+import io.ballerina.modelgenerator.commons.trigger.LibraryMetadataReader;
+import io.ballerina.modelgenerator.commons.trigger.models.ArtifactIcon;
 import io.ballerina.tools.text.LineRange;
 
 import java.nio.file.Path;
@@ -208,8 +211,7 @@ public class CodeAnalyzer extends NodeVisitor {
                                 classSymbol, explicitNewExpressionNode.parenthesizedArgList().arguments());
                     }
                 }
-                String icon = symbol.flatMap(Symbol::getModule)
-                        .map(module -> CommonUtils.generateIcon(module.id())).orElse("");
+                Object icon = resolveArtifactIcon(symbol);
                 Listener listener = new Listener("ANON", sortText,
                         getLocation(serviceDeclarationNode.lineRange()),
                         explicitNewExpressionNode.typeDescriptor().toSourceCode(), icon,
@@ -227,8 +229,7 @@ public class CodeAnalyzer extends NodeVisitor {
                         TypeSymbol typeSymbol = CommonUtils.getRawType(variableSymbol.typeDescriptor());
                         String typeSignature = CommonUtils.getTypeSignature(typeSymbol,
                                 CommonUtils.ModuleInfo.from(typeSymbol.getModule().get().id()));
-                        String icon = typeSymbol.getModule()
-                                .map(module -> CommonUtils.generateIcon(module.id())).orElse("");
+                        Object icon = resolveArtifactIcon(Optional.of(typeSymbol));
                         Listener listener = new Listener(fullQualifiedName, sortText,
                                 getLocation(serviceDeclarationNode.lineRange()),
                                 typeSignature, icon,
@@ -671,8 +672,7 @@ public class CodeAnalyzer extends NodeVisitor {
             }
         }
 
-        String icon = typeSymbol.flatMap(Symbol::getModule)
-                .map(module -> CommonUtils.generateIcon(module.id())).orElse("");
+        Object icon = resolveArtifactIcon(typeSymbol.map(symbol -> (Symbol) symbol));
         LineRange lineRange = listenerDeclarationNode.lineRange();
         String sortText = lineRange.fileName() + lineRange.startLine().line();
 
@@ -909,5 +909,17 @@ public class CodeAnalyzer extends NodeVisitor {
         }
 
         return false;
+    }
+
+    private Object resolveArtifactIcon(Optional<Symbol> symbol) {
+        return symbol.flatMap(Symbol::getModule).<Object>map(module -> {
+            ModuleInfo moduleInfo = ModuleInfo.from(module.id());
+            String fallback = CommonUtils.generateIcon(module.id());
+            LibraryMetadataReader reader = LibraryMetadataReader.getInstance();
+            return reader.getPackagedArtifactInfo(moduleInfo)
+                    .or(() -> reader.getArtifactInfo(moduleInfo))
+                    .<Object>map(info -> ArtifactIcon.from(fallback, null, info))
+                    .orElse(fallback);
+        }).orElse("");
     }
 }

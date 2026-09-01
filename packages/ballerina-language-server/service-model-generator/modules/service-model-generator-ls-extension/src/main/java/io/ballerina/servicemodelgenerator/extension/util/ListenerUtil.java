@@ -45,11 +45,10 @@ import io.ballerina.modelgenerator.commons.FunctionDataBuilder;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.ParameterData;
 import io.ballerina.modelgenerator.commons.ServiceDatabaseManager;
-import io.ballerina.modelgenerator.commons.trigger.models.TriggerUISchemaModel;
+import io.ballerina.modelgenerator.commons.trigger.LibraryMetadataReader;
 import io.ballerina.projects.Document;
 import io.ballerina.projects.DocumentId;
 import io.ballerina.projects.Project;
-import io.ballerina.servicemodelgenerator.extension.connector.TriggerModelReader;
 import io.ballerina.servicemodelgenerator.extension.model.Codedata;
 import io.ballerina.servicemodelgenerator.extension.model.Listener;
 import io.ballerina.servicemodelgenerator.extension.model.MetaData;
@@ -327,16 +326,19 @@ public class ListenerUtil {
     }
 
     /**
-     * The compact display name the connector's bundled trigger model ships (e.g. {@code Azure Files} for
-     * {@code azure.storage.files}), for connectors whose package name would otherwise render awkwardly.
+     * The compact display name the connector's packaged L2 UI metadata declares (e.g. {@code Azure
+     * Files} for {@code azure.storage.files}), for connectors whose package name would otherwise render
+     * awkwardly. A classpath-only read: no package compile, so it stays cheap on this hot path.
      *
      * @param packageName the connector's package name
-     * @return the model's {@code shortDisplayName}, or empty when no bundled model declares one
+     * @return the L2 model's {@code trigger.shortDisplayName}, or empty when none declares one
      */
     private static Optional<String> bundledShortDisplayName(String packageName) {
-        return TriggerModelReader.getInstance().getBundledTriggerModel(packageName)
-                .map(TriggerUISchemaModel::shortDisplayName)
-                .filter(name -> !name.isBlank());
+        ModuleInfo moduleInfo = new ModuleInfo(null, packageName, packageName, null);
+        return LibraryMetadataReader.getInstance().getPackagedTriggerUIMetadataModel(moduleInfo)
+                .map(model -> model.trigger())
+                .map(trigger -> trigger.shortDisplayName())
+                .filter(name -> name != null && !name.isBlank());
     }
 
     private static String getListenerProtocol(String packageName) {

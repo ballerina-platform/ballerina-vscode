@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com)
+ *  Copyright (c) 2026, WSO2 LLC. (http://www.wso2.com)
  *
  *  WSO2 LLC. licenses this file to you under the Apache License,
  *  Version 2.0 (the "License"); you may not use this file except
@@ -16,9 +16,13 @@
  *  under the License.
  */
 
-package io.ballerina.servicemodelgenerator.extension.model;
+package io.ballerina.modelgenerator.commons.trigger.models;
 
-public record TriggerBasicInfo(int id, String name, String orgName, String packageName, String moduleName,
-                               String version, String type, String displayName, String documentation,
-                               String listenerProtocol, Object icon, String triggerKind) {
+/**
+ * The small artifact-tree projection read from connector-owned L2 metadata.
+ *
+ * @param artifactInfo resolved presentation and identifier metadata
+ * @param triggerKind canonical integration kind, when the L2 value is recognized
+ */
+public record ArtifactMetadata(ArtifactInfo.Resolved artifactInfo, String triggerKind) {
 }

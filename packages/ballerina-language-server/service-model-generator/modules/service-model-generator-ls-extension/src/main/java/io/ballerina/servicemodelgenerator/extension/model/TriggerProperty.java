@@ -37,8 +37,13 @@ import java.util.List;
  * @param keywords    keywords used to search for the trigger in the picker
  * @param triggerName the trigger's unique identifier
  * @param version     the schema-driven trigger's model version, if any
- * @param kind        the schema-driven trigger's kind, if any
+ * @param kind        the schema-driven trigger's legacy kind, if any
+ * @param triggerKind the canonical integration kind in newer metadata, if any
  */
 public record TriggerProperty(String name, String orgName, String packageName, List<String> keywords,
-                              String triggerName, String version, String kind) {
+                              String triggerName, String version, String kind, String triggerKind) {
+
+    public String effectiveTriggerKind() {
+        return triggerKind == null ? kind : triggerKind;
+    }
 }

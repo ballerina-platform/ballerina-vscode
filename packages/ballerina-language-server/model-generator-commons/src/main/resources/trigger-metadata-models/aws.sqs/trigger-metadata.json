@@ -18,7 +18,7 @@
       "doc": "Consumes messages received from the polled SQS queue.",
       "type": { "name": "Service" },
       "concrete": false,
-      "multipleListenersAllowed": false,
+      "multipleListenersAllowed": true,
       "annotations": ["$serviceConfig"],
       "handlers": {
         "backedByConcreteType": false,

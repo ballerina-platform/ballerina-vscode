@@ -40,6 +40,7 @@ public class Service {
     private final String id;
     private final String name;
     private final String type;
+    private final String triggerKind;
     private final String displayName;
     private final String moduleName;
     private final String orgName;
@@ -56,12 +57,14 @@ public class Service {
     // (one entry per handler variant, consumed entries removed). Null for every other service kind.
     private List<Function> schemaFunctions;
 
-    public Service(String id, String name, String type, String displayName, String moduleName, String orgName,
+    public Service(String id, String name, String type, String triggerKind, String displayName, String moduleName,
+                   String orgName,
                    String version, String packageName, String listenerProtocol, String icon, Value documentation,
                    Map<String, Value> properties, Codedata codedata, List<Function> functions) {
         this.id = id;
         this.name = name;
         this.type = type;
+        this.triggerKind = triggerKind;
         this.displayName = displayName;
         this.moduleName = moduleName;
         this.orgName = orgName;
@@ -206,6 +209,10 @@ public class Service {
         return type;
     }
 
+    public String getTriggerKind() {
+        return triggerKind;
+    }
+
     public String getDisplayName() {
         return displayName;
     }
@@ -242,6 +249,7 @@ public class Service {
         private String id;
         private String name;
         private String type;
+        private String triggerKind;
         private String displayName;
         private String moduleName;
         private String orgName;
@@ -271,6 +279,11 @@ public class Service {
 
         public ServiceModelBuilder setType(String type) {
             this.type = type;
+            return this;
+        }
+
+        public ServiceModelBuilder setTriggerKind(String triggerKind) {
+            this.triggerKind = triggerKind;
             return this;
         }
 
@@ -330,7 +343,7 @@ public class Service {
         }
 
         public Service build() {
-            return new Service(id, name, type, displayName, moduleName, orgName, version, packageName,
+            return new Service(id, name, type, triggerKind, displayName, moduleName, orgName, version, packageName,
                     listenerProtocol, icon, documentation, properties, codedata, functions);
         }
     }

@@ -118,6 +118,11 @@ test {
         copyStdlibs
     }
     systemProperty "ballerina.home", balDistribution
+    // Forwards -Dtrigger.parity.*=... from the gradle invocation into the forked test JVM, for the
+    // TriggerParityTest triage/record workflow (-D on the gradle CLI otherwise only reaches the
+    // Gradle process itself, not the test JVM).
+    System.properties.findAll { it.key.toString().startsWith("trigger.parity.") }
+            .each { key, value -> systemProperty key, value }
 
     useTestNG() {
         suites "src/test/resources/testng.xml"

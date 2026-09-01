@@ -304,7 +304,10 @@ public class PropertyType {
 
     public static Value buildRepeatableTemplates(TypeSymbol tSymbol, SemanticModel semanticModel,
                                              ModuleInfo moduleInfo) {
-        Value.ValueBuilder builder = new Value.ValueBuilder();
+        // Editable by definition: this is the template used to add each new list/map entry, not a
+        // rendered field of its own -- typeWithExpression never sets it since ValueBuilder defaults
+        // editable to false.
+        Value.ValueBuilder builder = new Value.ValueBuilder().editable(true);
 
         TypeSymbol rawType = CommonUtil.getRawType(tSymbol);
         if (rawType.typeKind() == TypeDescKind.ARRAY) {

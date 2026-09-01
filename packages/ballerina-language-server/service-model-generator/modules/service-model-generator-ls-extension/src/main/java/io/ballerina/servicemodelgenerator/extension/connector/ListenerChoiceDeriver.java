@@ -29,7 +29,6 @@ import java.util.Optional;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.CD_TYPE_EXISTING_LISTENER;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.CD_TYPE_LISTENER_CONFIG;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.CD_TYPE_LISTENER_TYPE;
-import static io.ballerina.servicemodelgenerator.extension.util.Constants.PROP_KEY_LISTENER;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.PROP_KEY_LISTENER_TYPE;
 
 /**
@@ -65,6 +64,9 @@ public final class ListenerChoiceDeriver {
 
     /**
      * The {@code LISTENER_CONFIG} choice for {@code listeners}, or empty when there are none to describe.
+     * Equivalent to {@link #derive(List, String, boolean, TriggerUISchemaModel.ListenerFormModel)} with
+     * {@code reusable = false} -- the legacy/bundled-fixture derivation path, which has no L1 to read a
+     * reusability signal from.
      *
      * @param listeners                 the connector's declared listeners, in declaration order
      * @param existingListenerFieldType the widget for the use-existing selector; null falls back to
@@ -75,6 +77,25 @@ public final class ListenerChoiceDeriver {
     public static Optional<TriggerUISchemaModel.Property> derive(
             List<TriggerUISchemaModel.ListenerModel> listeners, String existingListenerFieldType,
             TriggerUISchemaModel.ListenerFormModel form) {
+        return derive(listeners, existingListenerFieldType, false, form);
+    }
+
+    /**
+     * As the other overload, with a signal for whether the use-existing branch should be directly
+     * usable by default (an L1 {@code multipleServicesAllowed: true} listener, or several declared
+     * listeners) rather than requiring the connector's L2 to opt it in via {@code useExistingEditable}.
+     *
+     * @param listeners                 the connector's declared listeners, in declaration order
+     * @param existingListenerFieldType the widget for the use-existing selector; null falls back to
+     *                                  {@link #DEFAULT_EXISTING_LISTENER_FIELD_TYPE}
+     * @param reusable                  the use-existing branch's default {@code editable}, absent an
+     *                                  explicit {@code useExistingEditable} override
+     * @param form                      presentation text for the section and the switch; null takes the
+     *                                  generic defaults
+     */
+    public static Optional<TriggerUISchemaModel.Property> derive(
+            List<TriggerUISchemaModel.ListenerModel> listeners, String existingListenerFieldType,
+            boolean reusable, TriggerUISchemaModel.ListenerFormModel form) {
         if (listeners == null || listeners.isEmpty()) {
             return Optional.empty();
         }
@@ -89,17 +110,32 @@ public final class ListenerChoiceDeriver {
         }
 
         Map<String, TriggerUISchemaModel.Property> useExistingProps = new LinkedHashMap<>();
-        useExistingProps.put(PROP_KEY_LISTENER, existingListenerSelector(existingListenerFieldType));
+        // The model's own widget (e.g. a per-listener SINGLE_SELECT_LISTENER) wins over the caller's
+        // default; a single declared listener's own qualified type is the ballerinaType default.
+        String resolvedFieldType = form != null && form.existingListenerWidget() != null
+                ? form.existingListenerWidget() : existingListenerFieldType;
+        String defaultBallerinaType = ordered.size() == 1 ? ordered.get(0).ballerinaType() : null;
+        useExistingProps.put("existingListener",
+                existingListenerSelector(resolvedFieldType, defaultBallerinaType, form));
+
+        boolean useExistingEditable = form != null && form.useExistingEditable() != null
+                ? form.useExistingEditable() : reusable;
 
         TriggerUISchemaModel.Property createNew = formBranch(
-                metadata("Create New Listener", "Create a new listener"), true, true, createNewProps);
+                orDefault(form == null ? null : form.createNew(),
+                "Create New Listener", "Create a new listener"), true, true, createNewProps,
+                hasExtendedForm(form));
         TriggerUISchemaModel.Property useExisting = formBranch(
-                metadata("Use Existing Listener", "Attach to an already-declared listener"), false, false,
-                useExistingProps);
+                orDefault(form == null ? null : form.useExisting(),
+                        "Use Existing Listener", "Attach to an already-declared listener"),
+                form != null && Boolean.TRUE.equals(form.useExistingEnabled()),
+                useExistingEditable,
+                useExistingProps, hasExtendedForm(form));
 
         return Optional.of(new TriggerUISchemaModel.Property(
-                metadata("Listener", "The listener this service attaches to"),
-                true, true, false, false, null, null, List.of(choiceType()), null,
+                orDefault(hasExtendedForm(form) ? form.section() : null,
+                        "Listener", "The listener this service attaches to"),
+                true, true, false, false, null, "createNew", List.of(choiceType()), null,
                 List.of(createNew, useExisting), null, codedata(CD_TYPE_LISTENER_CONFIG), null));
     }
 
@@ -111,7 +147,7 @@ public final class ListenerChoiceDeriver {
         for (int i = 0; i < ordered.size(); i++) {
             TriggerUISchemaModel.ListenerModel listener = ordered.get(i);
             branches.add(formBranch(branchMetadata(listener), i == defaultIndex, true,
-                    branchProperties(listener, form)));
+                    branchProperties(listener, form), hasExtendedForm(form)));
         }
         return new TriggerUISchemaModel.Property(
                 orDefault(form == null ? null : form.typeSelector(),
@@ -122,7 +158,12 @@ public final class ListenerChoiceDeriver {
 
     /**
      * The section that constructs one listener, then any service-level fields it alone gives meaning to.
-     * Those sit outside the section: they configure the service, not the listener.
+     * Those sit outside the section: they configure the service, not the listener. When there is only
+     * one declared listener type, {@link TriggerUIMetadataCompiler} promotes these out of this branch
+     * into the top-level {@code initProperties} -- they must show regardless of whether the user creates
+     * a new listener or reuses an existing one. With several listener types they stay right here, since
+     * a field one type alone gives meaning to (e.g. a base path that only applies to an HTTP-shaped
+     * transport) must not show while a different type is selected.
      */
     private static Map<String, TriggerUISchemaModel.Property> branchProperties(
             TriggerUISchemaModel.ListenerModel listener, TriggerUISchemaModel.ListenerFormModel form) {
@@ -141,10 +182,16 @@ public final class ListenerChoiceDeriver {
         TriggerUISchemaModel.PropertyType type = new TriggerUISchemaModel.PropertyType(
                 "GROUP_SECTION", true, null, null, null, null, null, null);
         return new TriggerUISchemaModel.Property(
-                orDefault(form == null ? null : form.section(),
+                orDefault(form == null ? null
+                                : form.listenerConfig() == null ? form.section() : form.listenerConfig(),
                         "Listener Configuration", "Configure the listener."),
                 true, true, false, false, null, null, List.of(type), null, null,
                 new LinkedHashMap<>(fields), null, null);
+    }
+
+    private static boolean hasExtendedForm(TriggerUISchemaModel.ListenerFormModel form) {
+        return form != null && (form.createNew() != null || form.useExisting() != null
+                || form.listenerConfig() != null);
     }
 
     /** {@code declared} where it states a label, else the generic wording. */
@@ -156,13 +203,19 @@ public final class ListenerChoiceDeriver {
         return declared;
     }
 
-    private static TriggerUISchemaModel.Property existingListenerSelector(String fieldType) {
+    private static TriggerUISchemaModel.Property existingListenerSelector(
+            String fieldType, String defaultBallerinaType, TriggerUISchemaModel.ListenerFormModel form) {
+        TriggerUISchemaModel.Metadata metadata = form == null ? null : form.existingListener();
+        String ballerinaType = form != null && form.existingListenerBallerinaType() != null
+                ? form.existingListenerBallerinaType() : defaultBallerinaType;
+        List<String> items = form == null ? null : form.existingListenerItems();
+        Object value = form == null ? null : form.existingListenerValue();
         TriggerUISchemaModel.PropertyType type = new TriggerUISchemaModel.PropertyType(
                 fieldType == null || fieldType.isBlank() ? DEFAULT_EXISTING_LISTENER_FIELD_TYPE : fieldType,
-                true, null, null, null, null, null, null);
+                true, ballerinaType, null, null, null, null, null);
         return new TriggerUISchemaModel.Property(
-                metadata("Listener", "The existing listener to attach to"),
-                true, true, false, false, null, null, List.of(type), null, null, null,
+                metadata == null ? metadata("Listener", "The existing listener to attach to") : metadata,
+                true, true, false, false, null, null, value, List.of(type), items, null, null,
                 codedata(CD_TYPE_EXISTING_LISTENER), null);
     }
 
@@ -207,8 +260,11 @@ public final class ListenerChoiceDeriver {
 
     private static TriggerUISchemaModel.Property formBranch(TriggerUISchemaModel.Metadata metadata,
                                                            boolean enabled, boolean editable,
-                                                           Map<String, TriggerUISchemaModel.Property> properties) {
-        return new TriggerUISchemaModel.Property(metadata, enabled, editable, false, false, null, null, null,
+                                                           Map<String, TriggerUISchemaModel.Property> properties,
+                                                           boolean includeFormType) {
+        return new TriggerUISchemaModel.Property(metadata, enabled, editable, false, false, null, null,
+                includeFormType ? List.of(new TriggerUISchemaModel.PropertyType(
+                        "FORM", true, null, null, null, null, null, null)) : null,
                 null, null, properties, codedata(null), null);
     }
 

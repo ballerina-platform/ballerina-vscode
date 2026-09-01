@@ -45,7 +45,7 @@
       "doc": "Receives inbound IDocs dispatched from the SAP system to this server.",
       "type": { "name": "IDocService" },
       "concrete": true,
-      "multipleListenersAllowed": true,
+      "multipleListenersAllowed": false,
       "handlers": { "backedByConcreteType": true }
     },
     {
@@ -53,7 +53,7 @@
       "doc": "Receives inbound RFC calls dispatched from the SAP system for registered function modules on this server.",
       "type": { "name": "RfcService" },
       "concrete": true,
-      "multipleListenersAllowed": true,
+      "multipleListenersAllowed": false,
       "handlers": { "backedByConcreteType": true }
     }
   ]

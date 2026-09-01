@@ -34,6 +34,7 @@ import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.modelgenerator.commons.trigger.LibraryMetadataReader;
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerLibraryFacts;
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerMetadataModel;
+import io.ballerina.modelgenerator.commons.trigger.models.TriggerUIMetadataModel;
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerUISchemaModel;
 import io.ballerina.modelgenerator.commons.trigger.models.TypeRef;
 import io.ballerina.modelgenerator.commons.trigger.utils.TriggerLibraryIntrospector;
@@ -55,6 +56,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -82,6 +84,41 @@ public class TriggerModelReader {
             loadBundledTriggerModelRegistry();
 
     private static final int MAX_CACHE_SIZE = 2;
+    /** Sized for the generated tier once it's the default resolution path: every one of the ~30
+     * packaged connectors may be resolved in one designer session, not just one at a time. */
+    private static final int GENERATED_CACHE_SIZE = 32;
+
+    private static final String GENERATION_MODE_PROPERTY = "ballerina.trigger.models";
+    private static final String GENERATION_MODE_GENERATED = "generated";
+
+    /**
+     * Whether the generated (L1 + semantic facts + L2) tier is tried ahead of the bundled/shipped tiers.
+     * Generation is opt-in until the parity corpus is complete; use
+     * {@code -Dballerina.trigger.models=generated} to exercise the new tier. The default keeps the
+     * established bundled/shipped resolution path intact while the generated models are being onboarded.
+     */
+    private static boolean generationEnabled(String moduleName) {
+        return GENERATION_MODE_GENERATED.equalsIgnoreCase(System.getProperty(GENERATION_MODE_PROPERTY))
+                && !GENERATION_NOT_YET_ONBOARDED.contains(moduleName);
+    }
+
+    /**
+     * Modules whose packaged L1 + L2 exist (so {@link #getGeneratedTriggerModel} would happily
+     * synthesize a model for them) but which are deliberately kept off the generated tier for now:
+     * {@code http}/{@code graphql}/{@code grpc}/{@code tcp}/{@code websocket}/{@code websub}/
+     * {@code trigger.google.calendar} were never in {@link #BUNDLED_TRIGGER_MODEL_RESOURCES} and are
+     * not schema-driven today -- {@code ServiceBuilderRouter}/{@code FunctionBuilderRouter} route
+     * {@code http}/{@code graphql}/{@code tcp} to their own dedicated hardcoded builders via
+     * {@code hasSchemaDrivenModel}, and the rest fall through to {@code DefaultServiceBuilder}.
+     * Silently making {@code hasSchemaDrivenModel} true for them would divert that routing decision as
+     * an unintended side effect of packaging their L1+L2 for the parity harness -- precisely what broke
+     * ~55 unrelated tests the last time a packaged metadata model was seeded for a not-yet-schema-driven
+     * module (see the "Follow-ups from the Trigger Construct Spec v1.0 migration" backlog entry).
+     * Onboarding any of these onto the generated tier is a deliberate follow-up, not a side effect of
+     * this set shrinking.
+     */
+    private static final Set<String> GENERATION_NOT_YET_ONBOARDED = Set.of(
+            "http", "graphql", "grpc", "tcp", "websocket", "websub", "trigger.google.calendar");
 
     /**
      * One version-gated variant of a connector's bundled schema.
@@ -168,6 +205,11 @@ public class TriggerModelReader {
             Caffeine.newBuilder().maximumSize(MAX_CACHE_SIZE).build();
     private final Cache<String, Optional<TriggerUISchemaModel>> schemaDrivenTriggerCache =
             Caffeine.newBuilder().maximumSize(MAX_CACHE_SIZE).build();
+    /** Keyed {@code org/module:version} -- unlike {@link #schemaDrivenTriggerCache}, version is part of
+     * the key here because the generated tier's output genuinely varies by version (L2 variant
+     * selection, semantic facts from the resolved package). */
+    private final Cache<String, Optional<TriggerUISchemaModel>> generatedTriggerCache =
+            Caffeine.newBuilder().maximumSize(GENERATED_CACHE_SIZE).build();
 
     private TriggerModelReader() {
     }
@@ -202,8 +244,7 @@ public class TriggerModelReader {
      */
     private static JsonObject withDerivedListenerField(JsonObject root, JsonObject authored) {
         JsonElement listeners = root.get("listeners");
-        if (listeners == null || !listeners.isJsonArray() || listeners.getAsJsonArray().isEmpty()
-                || authored.has(PROP_KEY_LISTENER)) {
+        if (listeners == null || !listeners.isJsonArray() || listeners.getAsJsonArray().isEmpty()) {
             return authored.deepCopy();
         }
         JsonElement derived = null;
@@ -235,29 +276,39 @@ public class TriggerModelReader {
         return initFormJson(parsed).map(json -> gson.fromJson(json, ServiceInitModel.class));
     }
 
-    /** Cheap presence check for a bundled schema, used by the routers at dispatch time. */
+    /**
+     * Cheap presence check for a bundled schema. As of the L1+L2 cutover, {@code trigger-models/} and
+     * {@code bundled_trigger_models.json} live under {@code src/test/resources/} rather than
+     * {@code src/main/resources/}: this tier no longer ships in the jar, and in production this is
+     * always {@code false}. It stays a real code path, not dead code, because the test suite's ~15
+     * fixture-consuming classes (e.g. {@code TriggerSourceGenerationTest}) call it directly as their
+     * golden-JSON source, and {@link TriggerParityTest} reads it as the comparison target the generated
+     * tier is measured against.
+     */
     public boolean hasBundledTriggerModel(String moduleName) {
         return getBundledTriggerModel(moduleName).isPresent();
     }
 
-    /** Reads and caches the newest bundled {@code trigger-ui-schema.json} variant for {@code moduleName}. */
+    /** Reads and caches the newest bundled {@code trigger-ui-schema.json} variant for {@code moduleName},
+     * from the test-fixture tier -- see {@link #hasBundledTriggerModel}. */
     public Optional<TriggerUISchemaModel> getBundledTriggerModel(String moduleName) {
         return getBundledTriggerModel(moduleName, null);
     }
 
-    /** Reads and caches the bundled {@code trigger-ui-schema.json} variant for {@code moduleName}/{@code version}. */
+    /** {@code version}-aware counterpart of {@link #getBundledTriggerModel(String)}. */
     public Optional<TriggerUISchemaModel> getBundledTriggerModel(String moduleName, String version) {
         return resolveResource(moduleName, version).flatMap(resource ->
                 bundledTriggerCache.get(resource, r ->
                         parseBundledResource(r).map(json -> gson.fromJson(json, TriggerUISchemaModel.class))));
     }
 
-    /** Reads and caches the newest bundled model's init form for {@code moduleName}, if any. */
+    /** Reads and caches the newest bundled model's init form for {@code moduleName}, if any, from the
+     * test-fixture tier -- see {@link #hasBundledTriggerModel}. */
     public Optional<ServiceInitModel> getBundledServiceInitModel(String moduleName) {
         return getBundledServiceInitModel(moduleName, null);
     }
 
-    /** Reads the init form of the bundled model variant for {@code moduleName}/{@code version}. */
+    /** {@code version}-aware counterpart of {@link #getBundledServiceInitModel(String)}. */
     public Optional<ServiceInitModel> getBundledServiceInitModel(String moduleName, String version) {
         return resolveResource(moduleName, version)
                 .flatMap(resource -> bundledInitJsonCache.get(resource,
@@ -324,20 +375,57 @@ public class TriggerModelReader {
         if (isLocalRepository) {
             return resolveSchemaDrivenTriggerModelFromLocalRepository(orgName, moduleName, version);
         }
+        if (orgName != null && moduleName != null && generationEnabled(moduleName)) {
+            Optional<TriggerUISchemaModel> generated = getCachedGeneratedTriggerModel(orgName, moduleName, version);
+            if (generated.isPresent()) {
+                return generated;
+            }
+            // Falls through: the packaged L1+L2 corpus doesn't (yet) cover this connector, or its
+            // package isn't resolvable offline. The bundled/shipped/legacy-synthesize tiers below are
+            // the same fallback this method has always had for exactly that case.
+        }
         Optional<TriggerUISchemaModel> bundled = getBundledTriggerModel(moduleName, version);
         if (bundled.isPresent() || orgName == null || moduleName == null) {
             return bundled;
         }
-        String key = orgName + "/" + moduleName;
+        String key = orgName + "/" + moduleName + ":" + (version == null ? "" : version);
         Optional<TriggerUISchemaModel> cached = schemaDrivenTriggerCache.getIfPresent(key);
-        if (cached != null) {
+        if (cached != null && cached.isPresent()) {
             return cached;
         }
-        Resolution resolution = resolveSchemaDrivenTriggerModel(orgName, moduleName);
+        Resolution resolution = resolveSchemaDrivenTriggerModel(orgName, moduleName, version);
         if (resolution.cacheable()) {
             schemaDrivenTriggerCache.put(key, resolution.model());
         }
         return resolution.model();
+    }
+
+    /**
+     * The L1 + semantic facts + L2 generated model, cached by {@code org/module:version}. This is the
+     * default resolution tier as of the L1+L2 cutover -- {@link #getGeneratedTriggerModel} itself stays
+     * uncached and version-precise for the parity harness, which is exactly why this wrapper exists
+     * rather than caching inside it.
+     */
+    private Optional<TriggerUISchemaModel> getCachedGeneratedTriggerModel(String orgName, String moduleName,
+                                                                          String version) {
+        String key = orgName + "/" + moduleName + ":" + (version == null ? "" : version);
+        Optional<TriggerUISchemaModel> cached = generatedTriggerCache.getIfPresent(key);
+        if (cached != null) {
+            return cached;
+        }
+        Optional<TriggerUISchemaModel> generated;
+        try {
+            generated = getGeneratedTriggerModel(orgName, moduleName, version);
+        } catch (Throwable e) {
+            LOGGER.log(Level.FINE, "Generated trigger model resolution failed for " + orgName + "/" + moduleName,
+                    e);
+            generated = Optional.empty();
+        }
+        generatedTriggerCache.put(key, generated);
+        if (generated.isPresent()) {
+            LOGGER.log(Level.FINE, () -> "Resolved " + orgName + "/" + moduleName + " from the generated tier");
+        }
+        return generated;
     }
 
     /**
@@ -380,6 +468,12 @@ public class TriggerModelReader {
                         return initModel;
                     });
         }
+        if (orgName != null && moduleName != null && generationEnabled(moduleName)) {
+            Optional<TriggerUISchemaModel> generated = getCachedGeneratedTriggerModel(orgName, moduleName, version);
+            if (generated.isPresent()) {
+                return generated.flatMap(model -> buildServiceInitModelFromJson(gson.toJsonTree(model)));
+            }
+        }
         Optional<ServiceInitModel> bundled = getBundledServiceInitModel(moduleName, version);
         if (bundled.isPresent() || orgName == null || moduleName == null) {
             return bundled;
@@ -395,12 +489,6 @@ public class TriggerModelReader {
             ModuleInfo moduleInfo = new ModuleInfo(orgName, moduleName, moduleName, version);
             LibraryMetadataReader metadataReader = LibraryMetadataReader.getInstance();
 
-            Optional<TriggerUISchemaModel> shipped = metadataReader
-                    .getTriggerUISchemaModelFromLocalRepository(moduleInfo);
-            if (shipped.isPresent()) {
-                return shipped;
-            }
-
             Optional<TriggerMetadataModel> metadata = metadataReader
                     .getTriggerMetadataModelFromLocalRepository(moduleInfo);
             if (metadata.isEmpty()) {
@@ -410,7 +498,11 @@ public class TriggerModelReader {
             if (pkg.isEmpty()) {
                 return Optional.empty();
             }
-            return synthesizeTriggerModel(metadata.get(), pkg.get(), moduleName);
+            TriggerUIMetadataModel uiMetadata = metadataReader
+                    .getTriggerUIMetadataModelFromLocalRepository(moduleInfo)
+                    .or(() -> metadataReader.getPackagedTriggerUIMetadataModel(moduleInfo))
+                    .orElse(null);
+            return synthesizeTriggerModel(metadata.get(), uiMetadata, pkg.get(), moduleName);
         } catch (Throwable e) {
             LOGGER.log(Level.FINE, "Local-repository trigger model resolution failed for "
                     + orgName + "/" + moduleName, e);
@@ -419,37 +511,84 @@ public class TriggerModelReader {
     }
 
     /** Resolves a {@link TriggerUISchemaModel} for a non-bundled module via {@link LibraryMetadataReader}. */
-    private Resolution resolveSchemaDrivenTriggerModel(String orgName, String moduleName) {
+    private Resolution resolveSchemaDrivenTriggerModel(String orgName, String moduleName, String version) {
         try {
-            return doResolveSchemaDrivenTriggerModel(orgName, moduleName);
+            return doResolveSchemaDrivenTriggerModel(orgName, moduleName, version);
         } catch (Throwable e) {
             return Resolution.UNRESOLVED;
         }
     }
 
-    private Resolution doResolveSchemaDrivenTriggerModel(String orgName, String moduleName) {
-        ModuleInfo moduleInfo = new ModuleInfo(orgName, moduleName, moduleName, null);
+    /**
+     * {@code version} is threaded all the way through -- to the {@link ModuleInfo} used for L1/L2
+     * resolution and to the package resolver -- rather than always resolving "whatever the offline
+     * cache holds as newest". Without a pin, a module with more than one version cached offline (e.g. a
+     * connector pulled at both an older and a newer release) resolves arbitrarily, and an unversioned
+     * {@link PackageUtil#getModulePackageOffline(io.ballerina.projects.BuildProject, String, String)}
+     * lookup can fail to resolve at all in an environment whose local index doesn't already know which
+     * version is "newest" -- silently dropping this tier's model instead of resolving the version the
+     * caller actually meant.
+     */
+    private Resolution doResolveSchemaDrivenTriggerModel(String orgName, String moduleName, String version) {
+        ModuleInfo moduleInfo = new ModuleInfo(orgName, moduleName, moduleName, version);
         LibraryMetadataReader metadataReader = LibraryMetadataReader.getInstance();
 
-        Optional<TriggerUISchemaModel> shipped = metadataReader.getTriggerUISchemaModel(moduleInfo);
-        if (shipped.isPresent()) {
-            return Resolution.of(shipped);
-        }
-
-        Optional<TriggerMetadataModel> metadata = metadataReader.getTriggerMetadataModel(moduleInfo);
+        Optional<TriggerMetadataModel> metadata = metadataReader.getPackagedTriggerMetadataModel(moduleInfo)
+                .or(() -> metadataReader.getTriggerMetadataModel(moduleInfo));
         if (metadata.isEmpty()) {
             return metadataReader.isLocallyResolvable(moduleInfo) ? Resolution.ABSENT : Resolution.UNRESOLVED;
         }
         Optional<Package> pkg = PackageUtil.getModulePackageOffline(PackageUtil.getSampleProject(), orgName,
-                moduleName);
+                moduleName, version);
         if (pkg.isEmpty()) {
             return Resolution.UNRESOLVED;
         }
-        return Resolution.of(synthesizeTriggerModel(metadata.get(), pkg.get(), moduleName));
+        TriggerUIMetadataModel uiMetadata = metadataReader.getPackagedTriggerUIMetadataModel(moduleInfo)
+                .or(() -> metadataReader.getTriggerUIMetadataModel(moduleInfo))
+                .orElse(null);
+        return Resolution.of(synthesizeTriggerModel(metadata.get(), uiMetadata, pkg.get(), moduleName));
+    }
+
+    /**
+     * Builds the L1 + semantic + L2 model for one connector: uncached and version-precise, since the
+     * parity harness ({@code TriggerParityTest}) needs to compare it against a specific pinned bundled
+     * fixture. Production resolution goes through {@link #getCachedGeneratedTriggerModel}, which adds
+     * caching on top of this.
+     */
+    Optional<TriggerUISchemaModel> getGeneratedTriggerModel(String orgName, String moduleName, String version) {
+        if (orgName == null || moduleName == null) {
+            return Optional.empty();
+        }
+        ModuleInfo moduleInfo = new ModuleInfo(orgName, moduleName, moduleName, version);
+        Optional<Package> pkg = PackageUtil.getModulePackageOffline(PackageUtil.getSampleProject(), orgName,
+                moduleName, version);
+        return pkg.flatMap(value -> getGeneratedTriggerModel(moduleInfo, value));
+    }
+
+    /** Package-injected counterpart used by parity tests that load a bala directly from an isolated repository. */
+    Optional<TriggerUISchemaModel> getGeneratedTriggerModel(String orgName, String moduleName, String version,
+                                                             Package pkg) {
+        if (orgName == null || moduleName == null || pkg == null) {
+            return Optional.empty();
+        }
+        return getGeneratedTriggerModel(new ModuleInfo(orgName, moduleName, moduleName, version), pkg);
+    }
+
+    private Optional<TriggerUISchemaModel> getGeneratedTriggerModel(ModuleInfo moduleInfo, Package pkg) {
+        LibraryMetadataReader reader = LibraryMetadataReader.getInstance();
+        Optional<TriggerMetadataModel> metadata = reader.getPackagedTriggerMetadataModel(moduleInfo)
+                .or(() -> reader.getTriggerMetadataModel(moduleInfo));
+        Optional<TriggerUIMetadataModel> uiMetadata = reader.getPackagedTriggerUIMetadataModel(moduleInfo)
+                .or(() -> reader.getTriggerUIMetadataModel(moduleInfo));
+        if (metadata.isEmpty() || uiMetadata.isEmpty()) {
+            return Optional.empty();
+        }
+        return synthesizeTriggerModel(metadata.get(), uiMetadata.get(), pkg, moduleInfo.moduleName());
     }
 
     /** Synthesizes a {@link TriggerUISchemaModel} from a connector's metadata plus semantic introspection. */
-    private Optional<TriggerUISchemaModel> synthesizeTriggerModel(TriggerMetadataModel metadata, Package pkg,
+    private Optional<TriggerUISchemaModel> synthesizeTriggerModel(TriggerMetadataModel metadata,
+                                                                  TriggerUIMetadataModel uiMetadata, Package pkg,
                                                                   String moduleName) {
         SemanticModel semanticModel = PackageUtil.getCompilation(pkg)
                 .getSemanticModel(pkg.getDefaultModule().moduleId());
@@ -469,7 +608,8 @@ public class TriggerModelReader {
         String icon = CommonUtils.generateIcon(resolvedOrg, resolvedPackageName, resolvedVersion);
 
         return TriggerModelSynthesizer.synthesize(metadata, facts, crossModuleFacts, listenerModels, moduleName,
-                displayName, icon, "event", resolvedOrg, resolvedPackageName, moduleName, resolvedVersion);
+                displayName, icon, "event", resolvedOrg, resolvedPackageName, moduleName, resolvedVersion,
+                uiMetadata, semanticModel);
     }
 
     /**

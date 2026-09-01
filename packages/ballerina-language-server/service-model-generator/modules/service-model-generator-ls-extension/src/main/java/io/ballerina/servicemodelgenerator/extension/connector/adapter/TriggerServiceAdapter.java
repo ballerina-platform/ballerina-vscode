@@ -73,6 +73,7 @@ public final class TriggerServiceAdapter {
                 .setId("0")
                 .setName(displayName)
                 .setType(moduleName)
+                .setTriggerKind(effectiveTriggerKind(model))
                 .setDisplayName(displayName)
                 .setModuleName(moduleName)
                 .setOrgName(orgName)
@@ -95,6 +96,14 @@ public final class TriggerServiceAdapter {
         addWireFunctions(service.getSchemaFunctions(), type.schemaFunctions(),
                 orgName, packageName, moduleName, model.version());
         return service;
+    }
+
+    private static String effectiveTriggerKind(TriggerUISchemaModel model) {
+        String value = model.triggerKind() == null ? model.kind() : model.triggerKind();
+        return switch (value == null ? "" : value) {
+            case "event", "mcp", "graphql", "http", "file", "ai" -> value;
+            default -> null;
+        };
     }
 
     /** Falls back to {@code SINGLE_SELECT_LISTENER} when {@code listenerKind} is absent or unrecognized. */
