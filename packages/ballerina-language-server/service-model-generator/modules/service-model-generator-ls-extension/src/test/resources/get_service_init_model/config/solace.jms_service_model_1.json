@@ -14,7 +14,7 @@
       "moduleName": "solace.jms",
       "version": "1.0.0",
       "type": "solace.jms",
-      "icon": "icon.png",
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_solace.jms_1.0.0.png",
       "properties": {
         "listener": {
           "metadata": {

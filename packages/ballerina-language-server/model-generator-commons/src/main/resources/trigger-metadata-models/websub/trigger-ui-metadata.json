@@ -1,0 +1,83 @@
+{
+  "version": "v1.0",
+  "metadata": {
+    "kind": "listener"
+  },
+  "trigger": {
+    "displayName": "WebSub"
+  },
+  "listeners": [
+    {
+      "target": "$listener"
+    }
+  ],
+  "serviceTypes": [
+    {
+      "target": "$service",
+      "handlers": [
+        {
+          "target": "$service.onEventNotification",
+          "parameters": [
+            {
+              "target": "$service.onEventNotification.event"
+            }
+          ],
+          "returnType": {
+            "target": "$service.onEventNotification.returns"
+          }
+        },
+        {
+          "target": "$service.onSubscriptionVerification",
+          "parameters": [
+            {
+              "target": "$service.onSubscriptionVerification.msg"
+            }
+          ],
+          "returnType": {
+            "target": "$service.onSubscriptionVerification.returns"
+          }
+        },
+        {
+          "target": "$service.onUnsubscriptionVerification",
+          "parameters": [
+            {
+              "target": "$service.onUnsubscriptionVerification.msg"
+            }
+          ],
+          "returnType": {
+            "target": "$service.onUnsubscriptionVerification.returns"
+          }
+        },
+        {
+          "target": "$service.onSubscriptionValidationDenied",
+          "parameters": [
+            {
+              "target": "$service.onSubscriptionValidationDenied.msg"
+            }
+          ],
+          "returnType": {
+            "target": "$service.onSubscriptionValidationDenied.returns"
+          }
+        },
+        {
+          "target": "$service.onHubError",
+          "parameters": [
+            {
+              "target": "$service.onHubError.err"
+            }
+          ],
+          "returnType": {
+            "target": "$service.onHubError.returns"
+          }
+        }
+      ]
+    }
+  ],
+  "artifactInfo": {
+    "displayLabel": "WebSub Service",
+    "icon": {
+      "lightPath": "icons/light.svg",
+      "darkPath": "icons/dark.svg"
+    }
+  }
+}

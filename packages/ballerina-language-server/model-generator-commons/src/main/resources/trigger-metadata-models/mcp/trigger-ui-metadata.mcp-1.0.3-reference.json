@@ -1,0 +1,338 @@
+{
+  "version": "v1.0",
+  "metadata": {
+    "kind": "mcp"
+  },
+  "trigger": {
+    "displayName": "MCP Service",
+    "description": "Create a service that exposes tools to MCP clients.",
+    "type": "mcp"
+  },
+  "readOnlyMetadata": [
+    {
+      "key": "basePath",
+      "displayName": "Base Path",
+      "extractor": "SERVICE_BASE_PATH"
+    }
+  ],
+  "initForm": {
+    "fields": [
+      {
+        "target": {
+          "kind": "serviceAnnotationField",
+          "serviceType": "$service",
+          "annotation": "$serviceConfig",
+          "path": "info.name"
+        },
+        "metadata": {
+          "label": "Service Name",
+          "description": "The name of the mcp service."
+        },
+        "source": {
+          "construct": {
+            "kind": "SERVICE_ANNOTATION"
+          },
+          "argument": {
+            "originalName": "ServiceConfig"
+          },
+          "module": {
+            "name": "mcp"
+          },
+          "path": "info.name"
+        },
+        "state": {
+          "enabled": true,
+          "editable": true,
+          "optional": false,
+          "advanced": false
+        },
+        "key": "serviceName",
+        "placeholder": "MCP Service",
+        "default": "\"MCP Service\""
+      },
+      {
+        "target": {
+          "kind": "serviceAnnotationField",
+          "serviceType": "$service",
+          "annotation": "$serviceConfig",
+          "path": "info.version"
+        },
+        "metadata": {
+          "label": "Version",
+          "description": "The version of the mcp service."
+        },
+        "source": {
+          "construct": {
+            "kind": "SERVICE_ANNOTATION"
+          },
+          "argument": {
+            "originalName": "ServiceConfig"
+          },
+          "module": {
+            "name": "mcp"
+          },
+          "path": "info.version"
+        },
+        "state": {
+          "enabled": true,
+          "editable": true,
+          "optional": false,
+          "advanced": false
+        },
+        "key": "version",
+        "placeholder": "1.0.0",
+        "default": "\"1.0.0\""
+      },
+      {
+        "target": {
+          "kind": "recordField",
+          "owner": "trigger.initProperties",
+          "path": "serviceType"
+        },
+        "metadata": {
+          "label": "Service Type",
+          "description": "The MCP service type. mcp 1.0.3 offers only mcp:Service."
+        },
+        "state": {
+          "hidden": true,
+          "editable": false,
+          "enabled": true,
+          "optional": false,
+          "advanced": false
+        },
+        "source": {
+          "construct": {
+            "kind": "SERVICE_TYPE_DESCRIPTOR"
+          }
+        },
+        "key": "serviceType",
+        "default": "Service",
+        "widget": {
+          "widgetKind": "SINGLE_SELECT",
+          "selected": true,
+          "ballerinaType": "mcp:Service",
+          "options": [
+            {
+              "label": "MCP Service",
+              "value": "Service"
+            }
+          ]
+        }
+      },
+      {
+        "target": "$listener2",
+        "metadata": {
+          "label": "Port",
+          "description": "The port on which the MCP service listens."
+        },
+        "state": {
+          "enabled": true,
+          "editable": true,
+          "optional": false,
+          "advanced": false
+        },
+        "key": "listenTo",
+        "placeholder": "8080",
+        "default": "8080",
+        "widget": {
+          "alternatives": [
+            {
+              "widgetKind": "NUMBER",
+              "ballerinaType": "int",
+              "validations": [
+                {
+                  "rule": "common.validate.port",
+                  "severity": "WARNING",
+                  "args": {
+                    "min": 1,
+                    "max": 65535
+                  },
+                  "message": "Port must be between {min} and {max}"
+                }
+              ]
+            },
+            {
+              "widgetKind": "EXPRESSION",
+              "ballerinaType": "int"
+            }
+          ],
+          "selectedIndex": 0
+        },
+        "validations": [
+          {
+            "rule": "common.validate.required"
+          }
+        ],
+        "source": {
+          "argument": {
+            "kind": "LISTENER_PARAM_REQUIRED",
+            "position": 1,
+            "originalName": "listenTo"
+          }
+        }
+      },
+      {
+        "target": "$listener2",
+        "metadata": {
+          "label": "Base Path",
+          "description": "The base path of the MCP service"
+        },
+        "state": {
+          "enabled": true,
+          "editable": true,
+          "optional": false,
+          "advanced": false
+        },
+        "key": "basePath",
+        "placeholder": "/mcp",
+        "default": "/mcp",
+        "widget": {
+          "widgetKind": "SERVICE_PATH",
+          "selected": true,
+          "ballerinaType": "string"
+        },
+        "validations": [
+          {
+            "rule": "common.validate.required"
+          }
+        ],
+        "source": {
+          "construct": {
+            "kind": "SERVICE_BASE_PATH"
+          }
+        }
+      },
+      {
+        "target": "$listener2",
+        "metadata": {
+          "label": "Listener Name",
+          "description": "Provide a name for the listener being created"
+        },
+        "state": {
+          "enabled": true,
+          "editable": true,
+          "optional": false,
+          "advanced": true
+        },
+        "key": "listenerVarName",
+        "default": "mcpListener",
+        "widget": {
+          "widgetKind": "IDENTIFIER",
+          "selected": true,
+          "ballerinaType": "mcp:Listener"
+        },
+        "validations": [
+          {
+            "rule": "common.validate.identifier"
+          },
+          {
+            "rule": "ls.validate.unique.listener.name",
+            "message": "A listener with this name already exists in the project"
+          }
+        ],
+        "source": {
+          "construct": {
+            "kind": "LISTENER_VAR_NAME"
+          }
+        }
+      }
+    ]
+  },
+  "serviceTypes": [
+    {
+      "target": "$service",
+      "metadata": {
+        "label": "MCP Service",
+        "description": "Handles MCP tool calls over the Streamable HTTP transport."
+      },
+      "state": {
+        "editable": false,
+        "enabled": true
+      },
+      "handlers": [
+        {
+          "target": "$service.tool",
+          "metadata": {
+            "label": "Tool",
+            "description": "Define a tool function that MCP clients can discover and call.",
+            "addLabel": "Add Tool"
+          },
+          "parameterSchema": [
+            {
+              "target": {
+                "kind": "recordField",
+                "owner": "newTool.parameterSchema",
+                "path": "parameter"
+              },
+              "metadata": {
+                "label": "Parameter",
+                "description": "A parameter the tool call must (or may) supply."
+              },
+              "state": {
+                "enabled": true,
+                "editable": true,
+                "optional": true
+              }
+            }
+          ],
+          "returnType": {
+            "target": "$service.tool.returns",
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the MCP tool"
+            },
+            "source": {
+              "construct": {
+                "kind": "FUNCTION_RETURN"
+              }
+            },
+            "state": {
+              "enabled": true,
+              "editable": true,
+              "optional": false
+            }
+          },
+          "source": {
+            "construct": {
+              "kind": "FUNCTION"
+            },
+            "module": {
+              "name": "mcp"
+            }
+          },
+          "state": {
+            "enabled": false,
+            "editable": true,
+            "optional": true
+          },
+          "nameEditable": true,
+          "nameMetadata": {
+            "label": "Tool Name",
+            "description": "The name of the MCP tool"
+          },
+          "repeatable": "TRUE",
+          "canAddParameters": true,
+          "documentation": {
+            "metadata": {
+              "label": "Tool Description",
+              "description": "Description of what this MCP tool does"
+            },
+            "placeholder": "Describe what this tool does...",
+            "editable": true
+          }
+        }
+      ],
+      "source": {
+        "construct": {
+          "kind": "SERVICE_TYPE_DESCRIPTOR"
+        },
+        "argument": {
+          "originalName": "Service"
+        },
+        "module": {
+          "name": "mcp"
+        }
+      }
+    }
+  ]
+}

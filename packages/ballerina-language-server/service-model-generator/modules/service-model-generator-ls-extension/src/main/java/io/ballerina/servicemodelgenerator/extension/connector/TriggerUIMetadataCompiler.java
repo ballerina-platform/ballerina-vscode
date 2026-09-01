@@ -839,9 +839,11 @@ final class TriggerUIMetadataCompiler {
         }
         if (overlay.returnType() != null && function.has("returnType")) {
             JsonObject returnType = function.getAsJsonObject("returnType");
-            overlayMetadata(returnType, overlay.returnType().metadata());
-            overlayState(returnType, overlay.returnType().state());
             TriggerUIMetadataModel.Field authored = overlay.returnType().field();
+            overlayMetadata(returnType, overlay.returnType().metadata() != null
+                    ? overlay.returnType().metadata() : authored == null ? null : authored.metadata());
+            overlayState(returnType, overlay.returnType().state() != null
+                    ? overlay.returnType().state() : authored == null ? null : authored.state());
             if (authored != null) {
                 Object value = authored.defaultValue();
                 if (value != null) {
@@ -861,7 +863,7 @@ final class TriggerUIMetadataCompiler {
                     put(returnType, "enabled", authored.state().enabled());
                     put(returnType, "typeEditable", authored.state().typeEditable());
                 }
-                JsonObject codedata = authored.source() == null ? null : json(authored.source().codedata());
+                JsonObject codedata = sourceCodedata(authored.source());
                 if (codedata != null && !codedata.isEmpty()) {
                     returnType.add("codedata", codedata);
                 } else if (!returnType.has("codedata")) {
@@ -945,8 +947,13 @@ final class TriggerUIMetadataCompiler {
         if (!normalizeKind) {
             return;
         }
+        // A flattened parameter overlay with no explicit "field" wrapper has its state promoted into
+        // overlay.field().state() by the authoring parser (see TriggerUIAuthoringParser); overlay.state()
+        // itself only holds a *canonical*, already-nested authoring's own top-level state.
+        TriggerUIMetadataModel.State state = overlay.state() != null ? overlay.state()
+                : overlay.field() == null ? null : overlay.field().state();
         String kind = normalizeParameterKind(string(runtime, "kind"),
-                overlay.state() == null ? null : overlay.state().optional(), isPayloadParameter(runtime));
+                state == null ? null : state.optional(), isPayloadParameter(runtime));
         if (kind != null) {
             runtime.addProperty("kind", kind);
         }
@@ -1089,13 +1096,14 @@ final class TriggerUIMetadataCompiler {
         if (authored.validations() != null) {
             field.add("validations", GSON.toJsonTree(authored.validations()));
         }
-        if (authored.source() != null) {
+        JsonObject authoredCodedata = sourceCodedata(authored.source());
+        if (authoredCodedata != null && !authoredCodedata.isEmpty()) {
             // An explicit L2 source.codedata is authoritative for this field: it replaces whatever the
             // matched template carried rather than being merged on top of it, so a field the template
             // doesn't mention isn't left over from a shape L2 chose not to restate.
             field.remove("codedata");
         }
-        mergeCodedata(field, authored.source() == null ? inheritedCodedata : json(authored.source().codedata()));
+        mergeCodedata(field, authoredCodedata == null ? inheritedCodedata : authoredCodedata);
 
         if (authored.widget() != null && authored.widget().overrides() != null) {
             JsonArray widgets = new JsonArray();
@@ -1111,7 +1119,7 @@ final class TriggerUIMetadataCompiler {
         }
 
         boolean hasWidgetOverride = authored.widget() != null && authored.widget().overrides() != null;
-        if (authored.source() == null && authored.properties() != null && hasWidgetOverride) {
+        if (authoredCodedata == null && authored.properties() != null && hasWidgetOverride) {
             // An explicit widget override plus a properties restructuring means this field is being
             // fully redefined by L2 (e.g. a plain payload type replaced by a COMPLEX_PAYLOAD container),
             // not incrementally decorated -- whatever codedata the matched template carried belonged to
@@ -1119,7 +1127,7 @@ final class TriggerUIMetadataCompiler {
             field.remove("codedata");
         }
         if (authored.choices() != null) {
-            if (authored.source() == null) {
+            if (authoredCodedata == null) {
                 // A CHOICE container's substance comes from its authored choices, not from whatever
                 // leaf-field codedata happened to be on the matched template -- a template is looked
                 // up by bare property name (see the "properties" branch below), so a name that repeats
@@ -1333,7 +1341,16 @@ final class TriggerUIMetadataCompiler {
     }
 
     private static JsonObject source(TriggerUIMetadataModel.TargetedNode node) {
-        return node == null || node.source() == null ? null : json(node.source().codedata());
+        return node == null ? null : sourceCodedata(node.source());
+    }
+
+    /** Returns only an explicit, non-null codedata object; flattened source context is not an override. */
+    private static JsonObject sourceCodedata(TriggerUIMetadataModel.Source source) {
+        if (source == null || source.codedata() == null) {
+            return null;
+        }
+        JsonObject codedata = json(source.codedata());
+        return codedata.isEmpty() ? null : codedata;
     }
 
     private static void mergeCodedata(JsonObject target, JsonObject authored) {
@@ -1461,7 +1478,13 @@ final class TriggerUIMetadataCompiler {
         private List<JsonObject> functions(JsonObject service, TriggerUIMetadataModel.Target target) {
             TriggerMetadataModel.ServiceType.HandlerOption handler =
                     target == null ? null : l1Handlers.get(target.id());
-            String name = handler == null ? target == null ? null : target.name() : handler.name();
+            // A backedByConcreteType service type has no L1 HandlerOption to resolve the id against --
+            // its handlers come from real semantic facts, not authored options -- so a plain L1-id
+            // target (e.g. "$service.onReceive") falls back to the id's own trailing segment as the
+            // handler name, the same convention TargetedNode ids use throughout.
+            String name = handler != null ? handler.name()
+                    : target == null ? null
+                    : target.name() != null ? target.name() : lastSegment(target.id());
             List<JsonObject> matches = new ArrayList<>();
             for (String key : List.of("functions", "schemaFunctions")) {
                 if (!service.has(key)) {
@@ -1501,6 +1524,15 @@ final class TriggerUIMetadataCompiler {
         private static Boolean bool(JsonObject object, String key) {
             JsonElement value = object.get(key);
             return value == null || value.isJsonNull() ? null : value.getAsBoolean();
+        }
+
+        /** The last {@code $service.handler}-style dotted segment of an id, e.g. {@code onReceive}. */
+        private static String lastSegment(String id) {
+            if (id == null) {
+                return null;
+            }
+            int dot = id.lastIndexOf('.');
+            return dot < 0 ? null : id.substring(dot + 1);
         }
 
         private static String simpleName(String value) {

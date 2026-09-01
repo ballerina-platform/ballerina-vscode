@@ -33,7 +33,6 @@ import static io.ballerina.servicemodelgenerator.extension.util.Constants.CD_TYP
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.CD_TYPE_LISTENER_CONFIG;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.CD_TYPE_LISTENER_TYPE;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.CD_TYPE_LISTENER_VAR_NAME;
-import static io.ballerina.servicemodelgenerator.extension.util.Constants.PROP_KEY_LISTENER;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.PROP_KEY_LISTENER_TYPE;
 
 /**
@@ -124,14 +123,16 @@ public class ListenerChoiceDeriverTest {
     @Test
     public void testUseExistingSelectorWidget() {
         TriggerUISchemaModel.Property defaulted = derive(listener("Listener", "ftp:Listener", null, null));
-        TriggerUISchemaModel.Property selector = defaulted.choices().get(1).properties().get(PROP_KEY_LISTENER);
+        TriggerUISchemaModel.Property selector = defaulted.choices().get(1).properties().get("existingListener");
         Assert.assertEquals(selector.codedata().type(), CD_TYPE_EXISTING_LISTENER);
         Assert.assertEquals(selector.types().getFirst().fieldType(), "SINGLE_SELECT_LISTENER",
                 "a model stating no widget attaches to one listener at a time");
+        Assert.assertEquals(selector.types().getFirst().ballerinaType(), "ftp:Listener",
+                "a single declared listener's own qualified type is the default ballerinaType");
 
         Optional<TriggerUISchemaModel.Property> multi = ListenerChoiceDeriver.derive(
                 List.of(listener("Listener", "smb:Listener", null, null)), "MULTI_SELECT_LISTENER", null);
-        Assert.assertEquals(multi.orElseThrow().choices().get(1).properties().get(PROP_KEY_LISTENER)
+        Assert.assertEquals(multi.orElseThrow().choices().get(1).properties().get("existingListener")
                 .types().getFirst().fieldType(), "MULTI_SELECT_LISTENER");
     }
 
@@ -193,6 +194,26 @@ public class ListenerChoiceDeriverTest {
     }
 
     @Test
+    public void testFullListenerFormNamesEachLevelIndependently() {
+        TriggerUISchemaModel.Metadata section = metadata("Configure FTP Listener", "Choose a listener");
+        TriggerUISchemaModel.Metadata selector = metadata("Protocol", "Choose a protocol");
+        TriggerUISchemaModel.Metadata create = metadata("Create new", "Create a listener");
+        TriggerUISchemaModel.Metadata existing = metadata("Use existing", "Reuse a listener");
+        TriggerUISchemaModel.Metadata config = metadata("Listener Configuration", "Configure the listener");
+        TriggerUISchemaModel.ListenerFormModel form = new TriggerUISchemaModel.ListenerFormModel(
+                section, selector, create, existing, config);
+
+        TriggerUISchemaModel.Property listener = ListenerChoiceDeriver.derive(
+                List.of(listener("Listener", "ftp:Listener", null, null)), null, form).orElseThrow();
+        Assert.assertEquals(listener.metadata().label(), "Configure FTP Listener");
+        Assert.assertEquals(listener.choices().get(0).metadata().label(), "Create new");
+        Assert.assertEquals(listener.choices().get(1).metadata().label(), "Use existing");
+        Assert.assertEquals(listener.choices().get(0).types().getFirst().fieldType(), "FORM");
+        Assert.assertEquals(listener.choices().get(0).properties().get(LISTENER_CONFIG_GROUP_KEY)
+                .metadata().label(), "Listener Configuration");
+    }
+
+    @Test
     public void testTheGenericWordingIsUsedWhenTheModelStatesNone() {
         TriggerUISchemaModel.Property listener = derive(
                 listener("StreamableHttpListener", "mcp:StreamableHttpListener", null, null),
@@ -201,6 +222,11 @@ public class ListenerChoiceDeriverTest {
         Assert.assertEquals(selector.metadata().label(), "Listener Type");
         Assert.assertEquals(selector.choices().getFirst().properties().get(LISTENER_CONFIG_GROUP_KEY)
                 .metadata().label(), "Listener Configuration");
+    }
+
+    private static TriggerUISchemaModel.Metadata metadata(String label, String description) {
+        return new TriggerUISchemaModel.Metadata(label, description, null, null, null, null, null, null, null,
+                null);
     }
 
     // ---- helpers -------------------------------------------------------------------------------

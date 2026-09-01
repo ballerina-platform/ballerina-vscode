@@ -1,0 +1,1236 @@
+{
+  "module": "trigger.hubspot",
+  "note": null,
+  "gaps": [
+    {
+      "path": "$.serviceTypes[hubspot:CompanyService].functions[onCompanyCreation].metadata.label",
+      "kind": "VALUE",
+      "detail": "expected \"On Creation\" but found \"On Company Creation\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:CompanyService].functions[onCompanyCreation].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a new Company is created.\" but found \"The `onCompanyCreation` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:CompanyService].functions[onCompanyCreation].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a new Company is created.\" but found \"The `onCompanyCreation` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:CompanyService].functions[onCompanyCreation].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:CompanyService].functions[onCompanyCreation].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:CompanyService].functions[onCompanyCreation].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:CompanyService].functions[onCompanyDeletion].metadata.label",
+      "kind": "VALUE",
+      "detail": "expected \"On Deletion\" but found \"On Company Deletion\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:CompanyService].functions[onCompanyDeletion].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a Company is deleted.\" but found \"The `onCompanyDeletion` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:CompanyService].functions[onCompanyDeletion].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a Company is deleted.\" but found \"The `onCompanyDeletion` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:CompanyService].functions[onCompanyDeletion].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:CompanyService].functions[onCompanyDeletion].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:CompanyService].functions[onCompanyDeletion].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:CompanyService].functions[onCompanyPropertychange].metadata.label",
+      "kind": "VALUE",
+      "detail": "expected \"On Property Change\" but found \"On Company Propertychange\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:CompanyService].functions[onCompanyPropertychange].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a property of a Company changes.\" but found \"The `onCompanyPropertychange` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:CompanyService].functions[onCompanyPropertychange].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a property of a Company changes.\" but found \"The `onCompanyPropertychange` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:CompanyService].functions[onCompanyPropertychange].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:CompanyService].functions[onCompanyPropertychange].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:CompanyService].functions[onCompanyPropertychange].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:CompanyService].functions[onCompanyAssociationchange].metadata.label",
+      "kind": "VALUE",
+      "detail": "expected \"On Association Change\" but found \"On Company Associationchange\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:CompanyService].functions[onCompanyAssociationchange].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when an association of a Company changes.\" but found \"The `onCompanyAssociationchange` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:CompanyService].functions[onCompanyAssociationchange].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when an association of a Company changes.\" but found \"The `onCompanyAssociationchange` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:CompanyService].functions[onCompanyAssociationchange].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:CompanyService].functions[onCompanyAssociationchange].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:CompanyService].functions[onCompanyAssociationchange].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:CompanyService].functions[onCompanyMerge].metadata.label",
+      "kind": "VALUE",
+      "detail": "expected \"On Merge\" but found \"On Company Merge\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:CompanyService].functions[onCompanyMerge].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when two Company records are merged.\" but found \"The `onCompanyMerge` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:CompanyService].functions[onCompanyMerge].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when two Company records are merged.\" but found \"The `onCompanyMerge` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:CompanyService].functions[onCompanyMerge].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:CompanyService].functions[onCompanyMerge].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:CompanyService].functions[onCompanyMerge].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:CompanyService].functions[onCompanyRestore].metadata.label",
+      "kind": "VALUE",
+      "detail": "expected \"On Restore\" but found \"On Company Restore\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:CompanyService].functions[onCompanyRestore].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a deleted Company is restored.\" but found \"The `onCompanyRestore` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:CompanyService].functions[onCompanyRestore].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a deleted Company is restored.\" but found \"The `onCompanyRestore` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:CompanyService].functions[onCompanyRestore].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:CompanyService].functions[onCompanyRestore].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:CompanyService].functions[onCompanyRestore].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ContactService].functions[onContactCreation].metadata.label",
+      "kind": "VALUE",
+      "detail": "expected \"On Creation\" but found \"On Contact Creation\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ContactService].functions[onContactCreation].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a new Contact is created.\" but found \"The `onContactCreation` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ContactService].functions[onContactCreation].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a new Contact is created.\" but found \"The `onContactCreation` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ContactService].functions[onContactCreation].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ContactService].functions[onContactCreation].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ContactService].functions[onContactCreation].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ContactService].functions[onContactDeletion].metadata.label",
+      "kind": "VALUE",
+      "detail": "expected \"On Deletion\" but found \"On Contact Deletion\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ContactService].functions[onContactDeletion].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a Contact is deleted.\" but found \"The `onContactDeletion` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ContactService].functions[onContactDeletion].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a Contact is deleted.\" but found \"The `onContactDeletion` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ContactService].functions[onContactDeletion].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ContactService].functions[onContactDeletion].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ContactService].functions[onContactDeletion].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ContactService].functions[onContactPropertychange].metadata.label",
+      "kind": "VALUE",
+      "detail": "expected \"On Property Change\" but found \"On Contact Propertychange\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ContactService].functions[onContactPropertychange].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a property of a Contact changes.\" but found \"The `onContactPropertychange` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ContactService].functions[onContactPropertychange].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a property of a Contact changes.\" but found \"The `onContactPropertychange` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ContactService].functions[onContactPropertychange].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ContactService].functions[onContactPropertychange].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ContactService].functions[onContactPropertychange].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ContactService].functions[onContactAssociationchange].metadata.label",
+      "kind": "VALUE",
+      "detail": "expected \"On Association Change\" but found \"On Contact Associationchange\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ContactService].functions[onContactAssociationchange].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when an association of a Contact changes.\" but found \"The `onContactAssociationchange` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ContactService].functions[onContactAssociationchange].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when an association of a Contact changes.\" but found \"The `onContactAssociationchange` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ContactService].functions[onContactAssociationchange].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ContactService].functions[onContactAssociationchange].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ContactService].functions[onContactAssociationchange].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ContactService].functions[onContactMerge].metadata.label",
+      "kind": "VALUE",
+      "detail": "expected \"On Merge\" but found \"On Contact Merge\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ContactService].functions[onContactMerge].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when two Contact records are merged.\" but found \"The `onContactMerge` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ContactService].functions[onContactMerge].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when two Contact records are merged.\" but found \"The `onContactMerge` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ContactService].functions[onContactMerge].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ContactService].functions[onContactMerge].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ContactService].functions[onContactMerge].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ContactService].functions[onContactRestore].metadata.label",
+      "kind": "VALUE",
+      "detail": "expected \"On Restore\" but found \"On Contact Restore\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ContactService].functions[onContactRestore].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a deleted Contact is restored.\" but found \"The `onContactRestore` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ContactService].functions[onContactRestore].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a deleted Contact is restored.\" but found \"The `onContactRestore` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ContactService].functions[onContactRestore].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ContactService].functions[onContactRestore].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ContactService].functions[onContactRestore].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ContactService].functions[onContactPrivacydeletion].metadata.label",
+      "kind": "VALUE",
+      "detail": "expected \"On Privacy Deletion\" but found \"On Contact Privacydeletion\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ContactService].functions[onContactPrivacydeletion].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a Contact's data is deleted for privacy compliance (e.g. GDPR).\" but found \"The `onContactPrivacydeletion` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ContactService].functions[onContactPrivacydeletion].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a Contact's data is deleted for privacy compliance (e.g. GDPR).\" but found \"The `onContactPrivacydeletion` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ContactService].functions[onContactPrivacydeletion].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ContactService].functions[onContactPrivacydeletion].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ContactService].functions[onContactPrivacydeletion].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ConversationService].functions[onConversationCreation].metadata.label",
+      "kind": "VALUE",
+      "detail": "expected \"On Creation\" but found \"On Conversation Creation\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ConversationService].functions[onConversationCreation].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a new Conversation is created.\" but found \"The `onConversationCreation` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ConversationService].functions[onConversationCreation].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a new Conversation is created.\" but found \"The `onConversationCreation` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ConversationService].functions[onConversationCreation].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ConversationService].functions[onConversationCreation].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ConversationService].functions[onConversationCreation].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ConversationService].functions[onConversationDeletion].metadata.label",
+      "kind": "VALUE",
+      "detail": "expected \"On Deletion\" but found \"On Conversation Deletion\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ConversationService].functions[onConversationDeletion].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a Conversation is deleted.\" but found \"The `onConversationDeletion` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ConversationService].functions[onConversationDeletion].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a Conversation is deleted.\" but found \"The `onConversationDeletion` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ConversationService].functions[onConversationDeletion].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ConversationService].functions[onConversationDeletion].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ConversationService].functions[onConversationDeletion].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ConversationService].functions[onConversationPropertychange].metadata.label",
+      "kind": "VALUE",
+      "detail": "expected \"On Property Change\" but found \"On Conversation Propertychange\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ConversationService].functions[onConversationPropertychange].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a property of a Conversation changes.\" but found \"The `onConversationPropertychange` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ConversationService].functions[onConversationPropertychange].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a property of a Conversation changes.\" but found \"The `onConversationPropertychange` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ConversationService].functions[onConversationPropertychange].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ConversationService].functions[onConversationPropertychange].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ConversationService].functions[onConversationPropertychange].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ConversationService].functions[onConversationPrivacydeletion].metadata.label",
+      "kind": "VALUE",
+      "detail": "expected \"On Privacy Deletion\" but found \"On Conversation Privacydeletion\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ConversationService].functions[onConversationPrivacydeletion].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a Conversation's data is deleted for privacy compliance (e.g. GDPR).\" but found \"The `onConversationPrivacydeletion` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ConversationService].functions[onConversationPrivacydeletion].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a Conversation's data is deleted for privacy compliance (e.g. GDPR).\" but found \"The `onConversationPrivacydeletion` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ConversationService].functions[onConversationPrivacydeletion].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ConversationService].functions[onConversationPrivacydeletion].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ConversationService].functions[onConversationPrivacydeletion].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ConversationService].functions[onConversationNewmessage].metadata.label",
+      "kind": "VALUE",
+      "detail": "expected \"On New Message\" but found \"On Conversation Newmessage\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ConversationService].functions[onConversationNewmessage].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a new message is received in a conversation.\" but found \"The `onConversationNewmessage` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ConversationService].functions[onConversationNewmessage].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a new message is received in a conversation.\" but found \"The `onConversationNewmessage` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ConversationService].functions[onConversationNewmessage].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ConversationService].functions[onConversationNewmessage].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ConversationService].functions[onConversationNewmessage].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:DealService].functions[onDealCreation].metadata.label",
+      "kind": "VALUE",
+      "detail": "expected \"On Creation\" but found \"On Deal Creation\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:DealService].functions[onDealCreation].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a new Deal is created.\" but found \"The `onDealCreation` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:DealService].functions[onDealCreation].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a new Deal is created.\" but found \"The `onDealCreation` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:DealService].functions[onDealCreation].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:DealService].functions[onDealCreation].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:DealService].functions[onDealCreation].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:DealService].functions[onDealDeletion].metadata.label",
+      "kind": "VALUE",
+      "detail": "expected \"On Deletion\" but found \"On Deal Deletion\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:DealService].functions[onDealDeletion].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a Deal is deleted.\" but found \"The `onDealDeletion` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:DealService].functions[onDealDeletion].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a Deal is deleted.\" but found \"The `onDealDeletion` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:DealService].functions[onDealDeletion].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:DealService].functions[onDealDeletion].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:DealService].functions[onDealDeletion].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:DealService].functions[onDealPropertychange].metadata.label",
+      "kind": "VALUE",
+      "detail": "expected \"On Property Change\" but found \"On Deal Propertychange\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:DealService].functions[onDealPropertychange].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a property of a Deal changes.\" but found \"The `onDealPropertychange` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:DealService].functions[onDealPropertychange].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a property of a Deal changes.\" but found \"The `onDealPropertychange` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:DealService].functions[onDealPropertychange].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:DealService].functions[onDealPropertychange].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:DealService].functions[onDealPropertychange].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:DealService].functions[onDealAssociationchange].metadata.label",
+      "kind": "VALUE",
+      "detail": "expected \"On Association Change\" but found \"On Deal Associationchange\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:DealService].functions[onDealAssociationchange].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when an association of a Deal changes.\" but found \"The `onDealAssociationchange` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:DealService].functions[onDealAssociationchange].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when an association of a Deal changes.\" but found \"The `onDealAssociationchange` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:DealService].functions[onDealAssociationchange].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:DealService].functions[onDealAssociationchange].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:DealService].functions[onDealAssociationchange].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:DealService].functions[onDealMerge].metadata.label",
+      "kind": "VALUE",
+      "detail": "expected \"On Merge\" but found \"On Deal Merge\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:DealService].functions[onDealMerge].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when two Deal records are merged.\" but found \"The `onDealMerge` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:DealService].functions[onDealMerge].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when two Deal records are merged.\" but found \"The `onDealMerge` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:DealService].functions[onDealMerge].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:DealService].functions[onDealMerge].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:DealService].functions[onDealMerge].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:DealService].functions[onDealRestore].metadata.label",
+      "kind": "VALUE",
+      "detail": "expected \"On Restore\" but found \"On Deal Restore\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:DealService].functions[onDealRestore].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a deleted Deal is restored.\" but found \"The `onDealRestore` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:DealService].functions[onDealRestore].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a deleted Deal is restored.\" but found \"The `onDealRestore` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:DealService].functions[onDealRestore].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:DealService].functions[onDealRestore].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:DealService].functions[onDealRestore].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:TicketService].functions[onTicketCreation].metadata.label",
+      "kind": "VALUE",
+      "detail": "expected \"On Creation\" but found \"On Ticket Creation\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:TicketService].functions[onTicketCreation].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a new Ticket is created.\" but found \"The `onTicketCreation` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:TicketService].functions[onTicketCreation].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a new Ticket is created.\" but found \"The `onTicketCreation` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:TicketService].functions[onTicketCreation].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:TicketService].functions[onTicketCreation].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:TicketService].functions[onTicketCreation].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:TicketService].functions[onTicketDeletion].metadata.label",
+      "kind": "VALUE",
+      "detail": "expected \"On Deletion\" but found \"On Ticket Deletion\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:TicketService].functions[onTicketDeletion].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a Ticket is deleted.\" but found \"The `onTicketDeletion` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:TicketService].functions[onTicketDeletion].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a Ticket is deleted.\" but found \"The `onTicketDeletion` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:TicketService].functions[onTicketDeletion].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:TicketService].functions[onTicketDeletion].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:TicketService].functions[onTicketDeletion].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:TicketService].functions[onTicketPropertychange].metadata.label",
+      "kind": "VALUE",
+      "detail": "expected \"On Property Change\" but found \"On Ticket Propertychange\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:TicketService].functions[onTicketPropertychange].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a property of a Ticket changes.\" but found \"The `onTicketPropertychange` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:TicketService].functions[onTicketPropertychange].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a property of a Ticket changes.\" but found \"The `onTicketPropertychange` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:TicketService].functions[onTicketPropertychange].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:TicketService].functions[onTicketPropertychange].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:TicketService].functions[onTicketPropertychange].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:TicketService].functions[onTicketAssociationchange].metadata.label",
+      "kind": "VALUE",
+      "detail": "expected \"On Association Change\" but found \"On Ticket Associationchange\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:TicketService].functions[onTicketAssociationchange].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when an association of a Ticket changes.\" but found \"The `onTicketAssociationchange` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:TicketService].functions[onTicketAssociationchange].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when an association of a Ticket changes.\" but found \"The `onTicketAssociationchange` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:TicketService].functions[onTicketAssociationchange].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:TicketService].functions[onTicketAssociationchange].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:TicketService].functions[onTicketAssociationchange].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:TicketService].functions[onTicketMerge].metadata.label",
+      "kind": "VALUE",
+      "detail": "expected \"On Merge\" but found \"On Ticket Merge\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:TicketService].functions[onTicketMerge].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when two Ticket records are merged.\" but found \"The `onTicketMerge` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:TicketService].functions[onTicketMerge].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when two Ticket records are merged.\" but found \"The `onTicketMerge` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:TicketService].functions[onTicketMerge].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:TicketService].functions[onTicketMerge].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:TicketService].functions[onTicketMerge].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:TicketService].functions[onTicketRestore].metadata.label",
+      "kind": "VALUE",
+      "detail": "expected \"On Restore\" but found \"On Ticket Restore\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:TicketService].functions[onTicketRestore].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a deleted Ticket is restored.\" but found \"The `onTicketRestore` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:TicketService].functions[onTicketRestore].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a deleted Ticket is restored.\" but found \"The `onTicketRestore` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:TicketService].functions[onTicketRestore].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:TicketService].functions[onTicketRestore].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:TicketService].functions[onTicketRestore].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ProductService].functions[onProductCreation].metadata.label",
+      "kind": "VALUE",
+      "detail": "expected \"On Creation\" but found \"On Product Creation\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ProductService].functions[onProductCreation].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a new Product is created.\" but found \"The `onProductCreation` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ProductService].functions[onProductCreation].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a new Product is created.\" but found \"The `onProductCreation` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ProductService].functions[onProductCreation].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ProductService].functions[onProductCreation].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ProductService].functions[onProductCreation].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ProductService].functions[onProductDeletion].metadata.label",
+      "kind": "VALUE",
+      "detail": "expected \"On Deletion\" but found \"On Product Deletion\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ProductService].functions[onProductDeletion].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a Product is deleted.\" but found \"The `onProductDeletion` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ProductService].functions[onProductDeletion].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a Product is deleted.\" but found \"The `onProductDeletion` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ProductService].functions[onProductDeletion].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ProductService].functions[onProductDeletion].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ProductService].functions[onProductDeletion].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ProductService].functions[onProductPropertychange].metadata.label",
+      "kind": "VALUE",
+      "detail": "expected \"On Property Change\" but found \"On Product Propertychange\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ProductService].functions[onProductPropertychange].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a property of a Product changes.\" but found \"The `onProductPropertychange` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ProductService].functions[onProductPropertychange].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a property of a Product changes.\" but found \"The `onProductPropertychange` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ProductService].functions[onProductPropertychange].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ProductService].functions[onProductPropertychange].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ProductService].functions[onProductPropertychange].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ProductService].functions[onProductMerge].metadata.label",
+      "kind": "VALUE",
+      "detail": "expected \"On Merge\" but found \"On Product Merge\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ProductService].functions[onProductMerge].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when two Product records are merged.\" but found \"The `onProductMerge` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ProductService].functions[onProductMerge].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when two Product records are merged.\" but found \"The `onProductMerge` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ProductService].functions[onProductMerge].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ProductService].functions[onProductMerge].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ProductService].functions[onProductMerge].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ProductService].functions[onProductRestore].metadata.label",
+      "kind": "VALUE",
+      "detail": "expected \"On Restore\" but found \"On Product Restore\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ProductService].functions[onProductRestore].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a deleted Product is restored.\" but found \"The `onProductRestore` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ProductService].functions[onProductRestore].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a deleted Product is restored.\" but found \"The `onProductRestore` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ProductService].functions[onProductRestore].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ProductService].functions[onProductRestore].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:ProductService].functions[onProductRestore].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:LineItemService].functions[onLineItemCreation].metadata.label",
+      "kind": "VALUE",
+      "detail": "expected \"On Creation\" but found \"On Line Item Creation\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:LineItemService].functions[onLineItemCreation].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a new Line Item is created.\" but found \"The `onLineItemCreation` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:LineItemService].functions[onLineItemCreation].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a new Line Item is created.\" but found \"The `onLineItemCreation` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:LineItemService].functions[onLineItemCreation].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:LineItemService].functions[onLineItemCreation].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:LineItemService].functions[onLineItemCreation].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:LineItemService].functions[onLineItemDeletion].metadata.label",
+      "kind": "VALUE",
+      "detail": "expected \"On Deletion\" but found \"On Line Item Deletion\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:LineItemService].functions[onLineItemDeletion].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a Line Item is deleted.\" but found \"The `onLineItemDeletion` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:LineItemService].functions[onLineItemDeletion].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a Line Item is deleted.\" but found \"The `onLineItemDeletion` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:LineItemService].functions[onLineItemDeletion].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:LineItemService].functions[onLineItemDeletion].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:LineItemService].functions[onLineItemDeletion].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:LineItemService].functions[onLineItemPropertychange].metadata.label",
+      "kind": "VALUE",
+      "detail": "expected \"On Property Change\" but found \"On Line Item Propertychange\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:LineItemService].functions[onLineItemPropertychange].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a property of a Line Item changes.\" but found \"The `onLineItemPropertychange` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:LineItemService].functions[onLineItemPropertychange].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a property of a Line Item changes.\" but found \"The `onLineItemPropertychange` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:LineItemService].functions[onLineItemPropertychange].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:LineItemService].functions[onLineItemPropertychange].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:LineItemService].functions[onLineItemPropertychange].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:LineItemService].functions[onLineItemAssociationchange].metadata.label",
+      "kind": "VALUE",
+      "detail": "expected \"On Association Change\" but found \"On Line Item Associationchange\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:LineItemService].functions[onLineItemAssociationchange].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when an association of a Line Item changes.\" but found \"The `onLineItemAssociationchange` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:LineItemService].functions[onLineItemAssociationchange].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when an association of a Line Item changes.\" but found \"The `onLineItemAssociationchange` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:LineItemService].functions[onLineItemAssociationchange].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:LineItemService].functions[onLineItemAssociationchange].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:LineItemService].functions[onLineItemAssociationchange].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:LineItemService].functions[onLineItemMerge].metadata.label",
+      "kind": "VALUE",
+      "detail": "expected \"On Merge\" but found \"On Line Item Merge\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:LineItemService].functions[onLineItemMerge].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when two Line Item records are merged.\" but found \"The `onLineItemMerge` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:LineItemService].functions[onLineItemMerge].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when two Line Item records are merged.\" but found \"The `onLineItemMerge` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:LineItemService].functions[onLineItemMerge].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:LineItemService].functions[onLineItemMerge].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:LineItemService].functions[onLineItemMerge].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:LineItemService].functions[onLineItemRestore].metadata.label",
+      "kind": "VALUE",
+      "detail": "expected \"On Restore\" but found \"On Line Item Restore\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:LineItemService].functions[onLineItemRestore].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a deleted Line Item is restored.\" but found \"The `onLineItemRestore` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:LineItemService].functions[onLineItemRestore].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a deleted Line Item is restored.\" but found \"The `onLineItemRestore` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[hubspot:LineItemService].functions[onLineItemRestore].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:LineItemService].functions[onLineItemRestore].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered HubSpot webhook event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[hubspot:LineItemService].functions[onLineItemRestore].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    }
+  ]
+}

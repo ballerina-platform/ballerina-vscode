@@ -1,0 +1,21 @@
+{
+  "note": "The deprecated mcp:Listener (pre-1.2.0 sole listener type), removed from the main trigger-metadata.json listeners[] once mcp_1.0.3 was dropped from the parity corpus. Kept here for reference only -- not read by LibraryMetadataReader.",
+  "listeners": [
+    {
+      "id": "$listener2",
+      "doc": "Renamed to make the transport explicit. Delegates every call to an internal StreamableHttpListener, so it accepts and dispatches the same service types the same way.",
+      "deprecated": "Renamed to make the transport explicit. Use mcp:StreamableHttpListener instead.",
+      "type": {
+        "name": "Listener"
+      },
+      "services": [
+        "$service",
+        "$advancedService",
+        "$streamableHttpService",
+        "$streamableHttpAdvancedService"
+      ],
+      "multipleServicesAllowed": true,
+      "multipleServicesOfSameTypeAllowed": true
+    }
+  ]
+}

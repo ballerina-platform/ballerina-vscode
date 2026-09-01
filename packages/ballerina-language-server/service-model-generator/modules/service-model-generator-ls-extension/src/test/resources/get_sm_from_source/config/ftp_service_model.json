@@ -16,10 +16,10 @@
     "displayName": "FTP Integration",
     "moduleName": "ftp",
     "orgName": "ballerina",
-    "version": "2.20.0",
+    "version": "2.20.1",
     "packageName": "ftp",
     "listenerProtocol": "ftp",
-    "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ftp_2.20.0.png",
+    "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ftp_2.20.1.png",
     "properties": {
       "listener": {
         "metadata": {
@@ -378,7 +378,7 @@
           "orgName": "ballerina",
           "packageName": "ftp",
           "moduleName": "ftp",
-          "version": "2.20.0"
+          "version": "2.20.1"
         },
         "properties": {
           "afterFileProcessing": {
@@ -902,7 +902,7 @@
           "orgName": "ballerina",
           "packageName": "ftp",
           "moduleName": "ftp",
-          "version": "2.20.0"
+          "version": "2.20.1"
         },
         "properties": {
           "afterFileProcessing": {
@@ -1417,7 +1417,7 @@
           "orgName": "ballerina",
           "packageName": "ftp",
           "moduleName": "ftp",
-          "version": "2.20.0"
+          "version": "2.20.1"
         },
         "properties": {
           "afterFileProcessing": {
@@ -1963,7 +1963,7 @@
           "orgName": "ballerina",
           "packageName": "ftp",
           "moduleName": "ftp",
-          "version": "2.20.0"
+          "version": "2.20.1"
         },
         "properties": {
           "afterFileProcessing": {
@@ -2475,7 +2475,7 @@
           "orgName": "ballerina",
           "packageName": "ftp",
           "moduleName": "ftp",
-          "version": "2.20.0"
+          "version": "2.20.1"
         },
         "properties": {
           "afterFileProcessing": {
@@ -2966,7 +2966,7 @@
           "orgName": "ballerina",
           "packageName": "ftp",
           "moduleName": "ftp",
-          "version": "2.20.0"
+          "version": "2.20.1"
         },
         "properties": {},
         "group": "onFileDelete",
@@ -3127,7 +3127,7 @@
           "orgName": "ballerina",
           "packageName": "ftp",
           "moduleName": "ftp",
-          "version": "2.20.0"
+          "version": "2.20.1"
         },
         "properties": {},
         "group": "onError",

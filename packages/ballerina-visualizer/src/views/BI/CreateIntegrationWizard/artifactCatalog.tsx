@@ -30,6 +30,7 @@ import {
 import { isBetaModule } from "../ComponentListView/componentListUtils";
 import { getEntryNodeIcon } from "../ComponentListView/EventIntegrationPanel";
 import { getFileIntegrationIcon } from "../ComponentListView/FileIntegrationPanel";
+import { effectiveTriggerKind } from "../ComponentListView/triggerKind";
 
 /**
  * The Integration Type step's catalog: composes the shared card data and
@@ -73,7 +74,7 @@ export interface ArtifactCategory {
  */
 export function triggersToCards(triggers: TriggerModelsResponse, type: DynamicTriggerType): ArtifactCard[] {
     return triggers.local
-        .filter((trigger) => trigger.type === type)
+        .filter((trigger) => effectiveTriggerKind(trigger) === type)
         .map((trigger) => triggerToCard(trigger, type));
 }
 

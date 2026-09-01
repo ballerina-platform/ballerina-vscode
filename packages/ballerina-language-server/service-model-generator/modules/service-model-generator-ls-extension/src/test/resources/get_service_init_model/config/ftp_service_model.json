@@ -12,9 +12,9 @@
       "orgName": "ballerina",
       "packageName": "ftp",
       "moduleName": "ftp",
-      "version": "2.20.0",
+      "version": "2.20.1",
       "type": "ftp",
-      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ftp_2.20.0.png",
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ftp_2.20.1.png",
       "properties": {
         "listener": {
           "metadata": {
@@ -749,16 +749,11 @@
                 "existingListener": {
                   "metadata": {
                     "label": "Listener",
-                    "description": "Select an existing listener to attach the service to (no new(...) is generated)."
+                    "description": "The existing listener to attach to"
                   },
                   "codedata": {
                     "type": "KEY_EXISTING_LISTENER"
                   },
-                  "value": "ftpListener",
-                  "items": [
-                    "ftpListener",
-                    "sftpListener"
-                  ],
                   "types": [
                     {
                       "fieldType": "SINGLE_SELECT_LISTENER",

@@ -15,335 +15,6 @@
       "type": "mcp",
       "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_mcp_1.2.0.png",
       "properties": {
-        "listener": {
-          "metadata": {
-            "label": "Listener",
-            "description": "The listener this service attaches to"
-          },
-          "codedata": {
-            "type": "LISTENER_CONFIG"
-          },
-          "value": "0",
-          "choices": [
-            {
-              "metadata": {
-                "label": "Create New Listener",
-                "description": "Create a new listener"
-              },
-              "codedata": {},
-              "properties": {
-                "listenerType": {
-                  "metadata": {
-                    "label": "Listener Type",
-                    "description": "The MCP transport this service is served over"
-                  },
-                  "codedata": {
-                    "type": "LISTENER_TYPE"
-                  },
-                  "value": "0",
-                  "choices": [
-                    {
-                      "metadata": {
-                        "label": "Streamable HTTP Listener",
-                        "description": "MCP listener over the Streamable HTTP transport, wrapping an http:Listener and dispatching each tool call to the matching method."
-                      },
-                      "codedata": {},
-                      "properties": {
-                        "listenerConfig": {
-                          "metadata": {
-                            "label": "Listener Configuration",
-                            "description": "The MCP listener this service is exposed on"
-                          },
-                          "properties": {
-                            "listenerVarName": {
-                              "metadata": {
-                                "label": "Listener Name",
-                                "description": "Provide a name for the listener being created"
-                              },
-                              "codedata": {
-                                "type": "LISTENER_VAR_NAME"
-                              },
-                              "value": "mcpListener",
-                              "types": [
-                                {
-                                  "fieldType": "IDENTIFIER",
-                                  "ballerinaType": "mcp:StreamableHttpListener",
-                                  "selected": true
-                                }
-                              ],
-                              "validations": [
-                                {
-                                  "rule": "common.validate.identifier"
-                                },
-                                {
-                                  "rule": "ls.validate.unique.listener.name",
-                                  "message": "A listener with this name already exists in the project"
-                                }
-                              ],
-                              "enabled": true,
-                              "editable": true,
-                              "optional": false,
-                              "advanced": false
-                            },
-                            "listenTo": {
-                              "metadata": {
-                                "label": "Port",
-                                "description": "The port on which the MCP service listens."
-                              },
-                              "codedata": {
-                                "argType": "LISTENER_PARAM_REQUIRED",
-                                "originalName": "listenTo",
-                                "position": 1
-                              },
-                              "placeholder": "8080",
-                              "value": "8080",
-                              "types": [
-                                {
-                                  "fieldType": "NUMBER",
-                                  "ballerinaType": "int",
-                                  "selected": true,
-                                  "validations": [
-                                    {
-                                      "rule": "common.validate.port",
-                                      "args": {
-                                        "min": 1.0,
-                                        "max": 65535.0
-                                      },
-                                      "message": "Port must be between {min} and {max}",
-                                      "severity": "WARNING"
-                                    }
-                                  ]
-                                },
-                                {
-                                  "fieldType": "EXPRESSION",
-                                  "ballerinaType": "int",
-                                  "selected": false
-                                }
-                              ],
-                              "validations": [
-                                {
-                                  "rule": "common.validate.required"
-                                }
-                              ],
-                              "enabled": true,
-                              "editable": true,
-                              "optional": false,
-                              "advanced": false
-                            }
-                          },
-                          "types": [
-                            {
-                              "fieldType": "GROUP_SECTION",
-                              "selected": true
-                            }
-                          ],
-                          "enabled": true,
-                          "editable": true,
-                          "optional": false,
-                          "advanced": false
-                        },
-                        "basePath": {
-                          "metadata": {
-                            "label": "Base Path",
-                            "description": "The base path of the MCP service"
-                          },
-                          "codedata": {
-                            "type": "SERVICE_BASE_PATH"
-                          },
-                          "placeholder": "/mcp",
-                          "value": "/mcp",
-                          "types": [
-                            {
-                              "fieldType": "SERVICE_PATH",
-                              "ballerinaType": "string",
-                              "selected": true
-                            }
-                          ],
-                          "validations": [
-                            {
-                              "rule": "common.validate.required"
-                            }
-                          ],
-                          "enabled": true,
-                          "editable": true,
-                          "optional": false,
-                          "advanced": false
-                        }
-                      },
-                      "enabled": true,
-                      "editable": true,
-                      "optional": false,
-                      "advanced": false
-                    },
-                    {
-                      "metadata": {
-                        "label": "Listener",
-                        "description": "Delegates every call to an internal StreamableHttpListener, so it accepts and dispatches the same service types the same way.",
-                        "notice": "Renamed to make the transport explicit. Use mcp:StreamableHttpListener instead."
-                      },
-                      "codedata": {},
-                      "properties": {
-                        "listenerConfig": {
-                          "metadata": {
-                            "label": "Listener Configuration",
-                            "description": "The MCP listener this service is exposed on"
-                          },
-                          "properties": {
-                            "listenerVarName": {
-                              "metadata": {
-                                "label": "Listener Name",
-                                "description": "Provide a name for the listener being created"
-                              },
-                              "codedata": {
-                                "type": "LISTENER_VAR_NAME"
-                              },
-                              "value": "mcpListener",
-                              "types": [
-                                {
-                                  "fieldType": "IDENTIFIER",
-                                  "ballerinaType": "mcp:Listener",
-                                  "selected": true
-                                }
-                              ],
-                              "validations": [
-                                {
-                                  "rule": "common.validate.identifier"
-                                },
-                                {
-                                  "rule": "ls.validate.unique.listener.name",
-                                  "message": "A listener with this name already exists in the project"
-                                }
-                              ],
-                              "enabled": true,
-                              "editable": true,
-                              "optional": false,
-                              "advanced": false
-                            },
-                            "listenTo": {
-                              "metadata": {
-                                "label": "Port",
-                                "description": "The port on which the MCP service listens."
-                              },
-                              "codedata": {
-                                "argType": "LISTENER_PARAM_REQUIRED",
-                                "originalName": "listenTo",
-                                "position": 1
-                              },
-                              "placeholder": "8080",
-                              "value": "8080",
-                              "types": [
-                                {
-                                  "fieldType": "NUMBER",
-                                  "ballerinaType": "int",
-                                  "selected": true,
-                                  "validations": [
-                                    {
-                                      "rule": "common.validate.port",
-                                      "args": {
-                                        "min": 1.0,
-                                        "max": 65535.0
-                                      },
-                                      "message": "Port must be between {min} and {max}",
-                                      "severity": "WARNING"
-                                    }
-                                  ]
-                                },
-                                {
-                                  "fieldType": "EXPRESSION",
-                                  "ballerinaType": "int",
-                                  "selected": false
-                                }
-                              ],
-                              "validations": [
-                                {
-                                  "rule": "common.validate.required"
-                                }
-                              ],
-                              "enabled": true,
-                              "editable": true,
-                              "optional": false,
-                              "advanced": false
-                            }
-                          },
-                          "types": [
-                            {
-                              "fieldType": "GROUP_SECTION",
-                              "selected": true
-                            }
-                          ],
-                          "enabled": true,
-                          "editable": true,
-                          "optional": false,
-                          "advanced": false
-                        }
-                      },
-                      "enabled": false,
-                      "editable": true,
-                      "optional": false,
-                      "advanced": false
-                    }
-                  ],
-                  "types": [
-                    {
-                      "fieldType": "CHOICE",
-                      "selected": true
-                    }
-                  ],
-                  "enabled": true,
-                  "editable": true,
-                  "optional": false,
-                  "advanced": false
-                }
-              },
-              "enabled": true,
-              "editable": true,
-              "optional": false,
-              "advanced": false
-            },
-            {
-              "metadata": {
-                "label": "Use existing (none available)",
-                "description": "No compatible listener of this type is present in the project."
-              },
-              "codedata": {},
-              "properties": {
-                "listener": {
-                  "metadata": {
-                    "label": "Listener",
-                    "description": "The existing listener to attach to"
-                  },
-                  "codedata": {
-                    "type": "KEY_EXISTING_LISTENER"
-                  },
-                  "types": [
-                    {
-                      "fieldType": "SINGLE_SELECT_LISTENER",
-                      "selected": true
-                    }
-                  ],
-                  "enabled": true,
-                  "editable": true,
-                  "optional": false,
-                  "advanced": false
-                }
-              },
-              "enabled": false,
-              "editable": false,
-              "optional": false,
-              "advanced": false
-            }
-          ],
-          "types": [
-            {
-              "fieldType": "CHOICE",
-              "selected": true
-            }
-          ],
-          "enabled": true,
-          "editable": true,
-          "optional": false,
-          "advanced": false
-        },
         "serviceName": {
           "metadata": {
             "label": "Service Name",
@@ -431,6 +102,108 @@
           "optional": false,
           "advanced": false,
           "hidden": true
+        },
+        "listenTo": {
+          "metadata": {
+            "label": "Port",
+            "description": "The port on which the MCP service listens."
+          },
+          "codedata": {
+            "argType": "LISTENER_PARAM_REQUIRED",
+            "originalName": "listenTo",
+            "position": 1
+          },
+          "placeholder": "8080",
+          "value": "8080",
+          "types": [
+            {
+              "fieldType": "NUMBER",
+              "ballerinaType": "int",
+              "selected": true,
+              "validations": [
+                {
+                  "rule": "common.validate.port",
+                  "args": {
+                    "min": 1.0,
+                    "max": 65535.0
+                  },
+                  "message": "Port must be between {min} and {max}",
+                  "severity": "WARNING"
+                }
+              ]
+            },
+            {
+              "fieldType": "EXPRESSION",
+              "ballerinaType": "int",
+              "selected": false
+            }
+          ],
+          "validations": [
+            {
+              "rule": "common.validate.required"
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": false,
+          "advanced": false
+        },
+        "basePath": {
+          "metadata": {
+            "label": "Base Path",
+            "description": "The base path of the MCP service"
+          },
+          "codedata": {
+            "type": "SERVICE_BASE_PATH"
+          },
+          "placeholder": "/mcp",
+          "value": "/mcp",
+          "types": [
+            {
+              "fieldType": "SERVICE_PATH",
+              "ballerinaType": "string",
+              "selected": true
+            }
+          ],
+          "validations": [
+            {
+              "rule": "common.validate.required"
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": false,
+          "advanced": false
+        },
+        "listenerVarName": {
+          "metadata": {
+            "label": "Listener Name",
+            "description": "Provide a name for the listener being created"
+          },
+          "codedata": {
+            "type": "LISTENER_VAR_NAME"
+          },
+          "value": "mcpListener",
+          "types": [
+            {
+              "fieldType": "IDENTIFIER",
+              "ballerinaType": "mcp:StreamableHttpListener",
+              "selected": true
+            }
+          ],
+          "validations": [
+            {
+              "rule": "common.validate.identifier"
+            },
+            {
+              "rule": "ls.validate.unique.listener.name",
+              "message": "A listener with this name already exists in the project"
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": false,
+          "advanced": true
         }
       }
     }

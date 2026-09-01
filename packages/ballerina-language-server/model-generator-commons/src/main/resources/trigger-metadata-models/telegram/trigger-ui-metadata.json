@@ -1,0 +1,1891 @@
+{
+  "version": "v1.0",
+  "metadata": {
+    "kind": "event"
+  },
+  "trigger": {
+    "displayName": "Telegram",
+    "description": "Create a service to handle Telegram Bot API webhook updates",
+    "type": "telegram"
+  },
+  "listeners": [
+    {
+      "target": "$listener",
+      "form": {
+        "section": {
+          "label": "Listener",
+          "description": "Attach the service to a new or existing Telegram webhook listener."
+        },
+        "createNew": {
+          "label": "Create New Listener",
+          "description": "Define a new Telegram webhook listener in the project."
+        },
+        "listenerConfig": {
+          "label": "Listener Configurations",
+          "description": "Configure the Telegram webhook listener."
+        },
+        "useExisting": {
+          "label": "Use Existing Listener",
+          "description": "Attach to a Telegram listener already declared in the project."
+        },
+        "existingListener": {
+          "label": "Listener(s)",
+          "description": "The existing listener to attach to"
+        }
+      },
+      "formFields": {
+        "listenerVarName": {
+          "key": "listenerVarName",
+          "default": "telegramListener",
+          "validations": [
+            {
+              "rule": "common.validate.identifier"
+            },
+            {
+              "rule": "ls.validate.unique.listener.name",
+              "message": "A listener with this name already exists in the project"
+            }
+          ],
+          "metadata": {
+            "label": "Listener Name",
+            "description": "Provide a name for the listener being created."
+          },
+          "source": {
+            "construct": {
+              "kind": "LISTENER_VAR_NAME"
+            }
+          },
+          "state": {
+            "enabled": true,
+            "editable": true,
+            "optional": false,
+            "advanced": false
+          }
+        },
+        "listenTo": {
+          "key": "listenTo",
+          "placeholder": "8090",
+          "default": "8090",
+          "validations": [
+            {
+              "rule": "common.validate.required"
+            }
+          ],
+          "metadata": {
+            "label": "Port",
+            "description": "A port number to bind a new `http:Listener` to, or an existing `http:Listener`"
+          },
+          "source": {
+            "argument": {
+              "kind": "LISTENER_PARAM_REQUIRED",
+              "originalName": "listenTo",
+              "position": 1
+            }
+          },
+          "state": {
+            "enabled": true,
+            "editable": true,
+            "optional": false,
+            "advanced": false
+          }
+        },
+        "accessToken": {
+          "key": "accessToken",
+          "default": "",
+          "metadata": {
+            "label": "Access Token",
+            "description": "The bot access token issued by @BotFather."
+          },
+          "widget": {
+            "alternatives": [
+              {
+                "widgetKind": "TEXT",
+                "ballerinaType": "string"
+              },
+              {
+                "widgetKind": "EXPRESSION",
+                "ballerinaType": "string"
+              }
+            ],
+            "selectedIndex": 0
+          },
+          "validations": [
+            {
+              "rule": "common.validate.required"
+            }
+          ],
+          "source": {
+            "argument": {
+              "kind": "LISTENER_PARAM_INCLUDED_FIELD"
+            },
+            "path": "accessToken"
+          },
+          "state": {
+            "enabled": true,
+            "editable": true,
+            "optional": false,
+            "advanced": false
+          }
+        },
+        "callbackUrl": {
+          "key": "callbackUrl",
+          "default": "",
+          "metadata": {
+            "label": "Callback URL",
+            "description": "This listener's public HTTPS URL, used to auto-register the webhook when set."
+          },
+          "widget": {
+            "alternatives": [
+              {
+                "widgetKind": "TEXT",
+                "ballerinaType": "string"
+              },
+              {
+                "widgetKind": "EXPRESSION",
+                "ballerinaType": "string"
+              }
+            ],
+            "selectedIndex": 0
+          },
+          "source": {
+            "argument": {
+              "kind": "LISTENER_PARAM_INCLUDED_DEFAULTABLE_FIELD",
+              "originalName": "callbackUrl"
+            },
+            "path": "callbackUrl"
+          },
+          "state": {
+            "enabled": true,
+            "editable": true,
+            "optional": true,
+            "advanced": false
+          }
+        },
+        "serviceUrl": {
+          "key": "serviceUrl",
+          "placeholder": "https://api.telegram.org",
+          "default": "\"https://api.telegram.org\"",
+          "metadata": {
+            "label": "Service URL",
+            "description": "The Telegram Bot API base URL."
+          },
+          "widget": {
+            "alternatives": [
+              {
+                "widgetKind": "TEXT",
+                "ballerinaType": "string"
+              },
+              {
+                "widgetKind": "EXPRESSION",
+                "ballerinaType": "string"
+              }
+            ],
+            "selectedIndex": 0
+          },
+          "source": {
+            "argument": {
+              "kind": "LISTENER_PARAM_INCLUDED_DEFAULTABLE_FIELD",
+              "originalName": "serviceUrl"
+            },
+            "path": "serviceUrl"
+          },
+          "state": {
+            "enabled": true,
+            "editable": true,
+            "optional": true,
+            "advanced": true
+          }
+        }
+      }
+    }
+  ],
+  "serviceTypes": [
+    {
+      "target": "$service",
+      "metadata": {
+        "label": "Telegram Service",
+        "description": "The service object a consumer implements to handle Telegram webhook updates."
+      },
+      "state": {
+        "editable": false,
+        "enabled": true
+      },
+      "handlers": [
+        {
+          "target": "$service.onMessage",
+          "metadata": {
+            "label": "On Message",
+            "description": "A new incoming message."
+          },
+          "parameters": [
+            {
+              "target": "$service.onMessage.message",
+              "metadata": {
+                "label": "Message",
+                "description": "A new incoming message."
+              },
+              "state": {
+                "editable": false,
+                "enabled": true,
+                "optional": false,
+                "advanced": false,
+                "hidden": false
+              },
+              "fields": [
+                {
+                  "target": {
+                    "kind": "recordField",
+                    "owner": "message.parameter",
+                    "path": "type"
+                  },
+                  "metadata": {
+                    "label": "Parameter Type",
+                    "description": "The type of the parameter"
+                  },
+                  "state": {
+                    "editable": false,
+                    "enabled": true,
+                    "optional": true,
+                    "advanced": false
+                  },
+                  "key": "type",
+                  "placeholder": "telegram:Message",
+                  "default": "telegram:Message"
+                },
+                {
+                  "target": {
+                    "kind": "recordField",
+                    "owner": "message.parameter",
+                    "path": "name"
+                  },
+                  "metadata": {
+                    "label": "message",
+                    "description": "A new incoming message."
+                  },
+                  "state": {
+                    "enabled": true,
+                    "editable": true,
+                    "optional": false,
+                    "advanced": false
+                  },
+                  "key": "name",
+                  "placeholder": "message",
+                  "default": "message"
+                }
+              ],
+              "source": {
+                "construct": {
+                  "kind": "FUNCTION_PARAM"
+                }
+              }
+            },
+            {
+              "target": "$service.onMessage.caller",
+              "source": {
+                "construct": {
+                  "kind": "FUNCTION_PARAM"
+                }
+              },
+              "metadata": {
+                "label": "Caller",
+                "description": "Telegram caller used to manually acknowledge updates (required for manual ack when Auto Ack is off)."
+              },
+              "state": {
+                "enabled": false,
+                "editable": true,
+                "optional": true,
+                "advanced": true,
+                "hidden": false
+              },
+              "fields": [
+                {
+                  "target": {
+                    "kind": "recordField",
+                    "owner": "caller.parameter",
+                    "path": "type"
+                  },
+                  "metadata": {
+                    "label": "Include Caller",
+                    "description": "Tick to include the Telegram caller parameter in the handler signature."
+                  },
+                  "state": {
+                    "enabled": true,
+                    "editable": true,
+                    "optional": true,
+                    "advanced": false
+                  },
+                  "key": "type",
+                  "placeholder": "telegram:Caller",
+                  "default": false,
+                  "widget": {
+                    "widgetKind": "FLAG",
+                    "selected": true,
+                    "ballerinaType": "telegram:Caller"
+                  }
+                },
+                {
+                  "target": {
+                    "kind": "recordField",
+                    "owner": "caller.parameter",
+                    "path": "name"
+                  },
+                  "metadata": {
+                    "label": "caller",
+                    "description": "Telegram caller used to manually acknowledge updates."
+                  },
+                  "state": {
+                    "enabled": true,
+                    "editable": false,
+                    "optional": false,
+                    "advanced": false
+                  },
+                  "key": "name",
+                  "placeholder": "caller",
+                  "default": "caller",
+                  "widget": {
+                    "widgetKind": "IDENTIFIER",
+                    "selected": true
+                  }
+                }
+              ]
+            }
+          ],
+          "returnType": {
+            "target": "$service.onMessage.returns",
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "state": {
+              "editable": false,
+              "enabled": true,
+              "optional": true
+            },
+            "source": {
+              "construct": {
+                "kind": "FUNCTION_RETURN"
+              }
+            }
+          },
+          "source": {
+            "construct": {
+              "kind": "FUNCTION"
+            },
+            "argument": {
+              "originalName": "onMessage"
+            },
+            "module": {
+              "name": "telegram"
+            }
+          },
+          "state": {
+            "enabled": false,
+            "editable": true,
+            "optional": true
+          },
+          "nameEditable": false,
+          "repeatable": "FALSE",
+          "canAddParameters": false,
+          "documentation": {
+            "default": "A new incoming message."
+          }
+        },
+        {
+          "target": "$service.onEditedMessage",
+          "metadata": {
+            "label": "On Edited Message",
+            "description": "An edited message."
+          },
+          "parameters": [
+            {
+              "target": "$service.onEditedMessage.editedMessage",
+              "metadata": {
+                "label": "Edited Message",
+                "description": "An edited message."
+              },
+              "state": {
+                "editable": false,
+                "enabled": true,
+                "optional": false,
+                "advanced": false,
+                "hidden": false
+              },
+              "fields": [
+                {
+                  "target": {
+                    "kind": "recordField",
+                    "owner": "editedMessage.parameter",
+                    "path": "type"
+                  },
+                  "metadata": {
+                    "label": "Parameter Type",
+                    "description": "The type of the parameter"
+                  },
+                  "state": {
+                    "editable": false,
+                    "enabled": true,
+                    "optional": true,
+                    "advanced": false
+                  },
+                  "key": "type",
+                  "placeholder": "telegram:Message",
+                  "default": "telegram:Message"
+                },
+                {
+                  "target": {
+                    "kind": "recordField",
+                    "owner": "editedMessage.parameter",
+                    "path": "name"
+                  },
+                  "metadata": {
+                    "label": "editedMessage",
+                    "description": "An edited message."
+                  },
+                  "state": {
+                    "enabled": true,
+                    "editable": true,
+                    "optional": false,
+                    "advanced": false
+                  },
+                  "key": "name",
+                  "placeholder": "editedMessage",
+                  "default": "editedMessage"
+                }
+              ],
+              "source": {
+                "construct": {
+                  "kind": "FUNCTION_PARAM"
+                }
+              }
+            },
+            {
+              "target": "$service.onEditedMessage.caller",
+              "source": {
+                "construct": {
+                  "kind": "FUNCTION_PARAM"
+                }
+              },
+              "metadata": {
+                "label": "Caller",
+                "description": "Telegram caller used to manually acknowledge updates (required for manual ack when Auto Ack is off)."
+              },
+              "state": {
+                "enabled": false,
+                "editable": true,
+                "optional": true,
+                "advanced": true,
+                "hidden": false
+              },
+              "fields": [
+                {
+                  "target": {
+                    "kind": "recordField",
+                    "owner": "caller.parameter",
+                    "path": "type"
+                  },
+                  "metadata": {
+                    "label": "Include Caller",
+                    "description": "Tick to include the Telegram caller parameter in the handler signature."
+                  },
+                  "state": {
+                    "enabled": true,
+                    "editable": true,
+                    "optional": true,
+                    "advanced": false
+                  },
+                  "key": "type",
+                  "placeholder": "telegram:Caller",
+                  "default": false,
+                  "widget": {
+                    "widgetKind": "FLAG",
+                    "selected": true,
+                    "ballerinaType": "telegram:Caller"
+                  }
+                },
+                {
+                  "target": {
+                    "kind": "recordField",
+                    "owner": "caller.parameter",
+                    "path": "name"
+                  },
+                  "metadata": {
+                    "label": "caller",
+                    "description": "Telegram caller used to manually acknowledge updates."
+                  },
+                  "state": {
+                    "enabled": true,
+                    "editable": false,
+                    "optional": false,
+                    "advanced": false
+                  },
+                  "key": "name",
+                  "placeholder": "caller",
+                  "default": "caller",
+                  "widget": {
+                    "widgetKind": "IDENTIFIER",
+                    "selected": true
+                  }
+                }
+              ]
+            }
+          ],
+          "returnType": {
+            "target": "$service.onEditedMessage.returns",
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "state": {
+              "editable": false,
+              "enabled": true,
+              "optional": true
+            },
+            "source": {
+              "construct": {
+                "kind": "FUNCTION_RETURN"
+              }
+            }
+          },
+          "source": {
+            "construct": {
+              "kind": "FUNCTION"
+            },
+            "argument": {
+              "originalName": "onEditedMessage"
+            },
+            "module": {
+              "name": "telegram"
+            }
+          },
+          "state": {
+            "enabled": false,
+            "editable": true,
+            "optional": true
+          },
+          "nameEditable": false,
+          "repeatable": "FALSE",
+          "canAddParameters": false,
+          "documentation": {
+            "default": "An edited message."
+          }
+        },
+        {
+          "target": "$service.onChannelPost",
+          "metadata": {
+            "label": "On Channel Post",
+            "description": "A new channel post."
+          },
+          "parameters": [
+            {
+              "target": "$service.onChannelPost.channelPost",
+              "metadata": {
+                "label": "Channel Post",
+                "description": "A new channel post."
+              },
+              "state": {
+                "editable": false,
+                "enabled": true,
+                "optional": false,
+                "advanced": false,
+                "hidden": false
+              },
+              "fields": [
+                {
+                  "target": {
+                    "kind": "recordField",
+                    "owner": "channelPost.parameter",
+                    "path": "type"
+                  },
+                  "metadata": {
+                    "label": "Parameter Type",
+                    "description": "The type of the parameter"
+                  },
+                  "state": {
+                    "editable": false,
+                    "enabled": true,
+                    "optional": true,
+                    "advanced": false
+                  },
+                  "key": "type",
+                  "placeholder": "telegram:Message",
+                  "default": "telegram:Message"
+                },
+                {
+                  "target": {
+                    "kind": "recordField",
+                    "owner": "channelPost.parameter",
+                    "path": "name"
+                  },
+                  "metadata": {
+                    "label": "channelPost",
+                    "description": "A new channel post."
+                  },
+                  "state": {
+                    "enabled": true,
+                    "editable": true,
+                    "optional": false,
+                    "advanced": false
+                  },
+                  "key": "name",
+                  "placeholder": "channelPost",
+                  "default": "channelPost"
+                }
+              ],
+              "source": {
+                "construct": {
+                  "kind": "FUNCTION_PARAM"
+                }
+              }
+            },
+            {
+              "target": "$service.onChannelPost.caller",
+              "source": {
+                "construct": {
+                  "kind": "FUNCTION_PARAM"
+                }
+              },
+              "metadata": {
+                "label": "Caller",
+                "description": "Telegram caller used to manually acknowledge updates (required for manual ack when Auto Ack is off)."
+              },
+              "state": {
+                "enabled": false,
+                "editable": true,
+                "optional": true,
+                "advanced": true,
+                "hidden": false
+              },
+              "fields": [
+                {
+                  "target": {
+                    "kind": "recordField",
+                    "owner": "caller.parameter",
+                    "path": "type"
+                  },
+                  "metadata": {
+                    "label": "Include Caller",
+                    "description": "Tick to include the Telegram caller parameter in the handler signature."
+                  },
+                  "state": {
+                    "enabled": true,
+                    "editable": true,
+                    "optional": true,
+                    "advanced": false
+                  },
+                  "key": "type",
+                  "placeholder": "telegram:Caller",
+                  "default": false,
+                  "widget": {
+                    "widgetKind": "FLAG",
+                    "selected": true,
+                    "ballerinaType": "telegram:Caller"
+                  }
+                },
+                {
+                  "target": {
+                    "kind": "recordField",
+                    "owner": "caller.parameter",
+                    "path": "name"
+                  },
+                  "metadata": {
+                    "label": "caller",
+                    "description": "Telegram caller used to manually acknowledge updates."
+                  },
+                  "state": {
+                    "enabled": true,
+                    "editable": false,
+                    "optional": false,
+                    "advanced": false
+                  },
+                  "key": "name",
+                  "placeholder": "caller",
+                  "default": "caller",
+                  "widget": {
+                    "widgetKind": "IDENTIFIER",
+                    "selected": true
+                  }
+                }
+              ]
+            }
+          ],
+          "returnType": {
+            "target": "$service.onChannelPost.returns",
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "state": {
+              "editable": false,
+              "enabled": true,
+              "optional": true
+            },
+            "source": {
+              "construct": {
+                "kind": "FUNCTION_RETURN"
+              }
+            }
+          },
+          "source": {
+            "construct": {
+              "kind": "FUNCTION"
+            },
+            "argument": {
+              "originalName": "onChannelPost"
+            },
+            "module": {
+              "name": "telegram"
+            }
+          },
+          "state": {
+            "enabled": false,
+            "editable": true,
+            "optional": true
+          },
+          "nameEditable": false,
+          "repeatable": "FALSE",
+          "canAddParameters": false,
+          "documentation": {
+            "default": "A new channel post."
+          }
+        },
+        {
+          "target": "$service.onEditedChannelPost",
+          "metadata": {
+            "label": "On Edited Channel Post",
+            "description": "An edited channel post."
+          },
+          "parameters": [
+            {
+              "target": "$service.onEditedChannelPost.editedChannelPost",
+              "metadata": {
+                "label": "Edited Channel Post",
+                "description": "An edited channel post."
+              },
+              "state": {
+                "editable": false,
+                "enabled": true,
+                "optional": false,
+                "advanced": false,
+                "hidden": false
+              },
+              "fields": [
+                {
+                  "target": {
+                    "kind": "recordField",
+                    "owner": "editedChannelPost.parameter",
+                    "path": "type"
+                  },
+                  "metadata": {
+                    "label": "Parameter Type",
+                    "description": "The type of the parameter"
+                  },
+                  "state": {
+                    "editable": false,
+                    "enabled": true,
+                    "optional": true,
+                    "advanced": false
+                  },
+                  "key": "type",
+                  "placeholder": "telegram:Message",
+                  "default": "telegram:Message"
+                },
+                {
+                  "target": {
+                    "kind": "recordField",
+                    "owner": "editedChannelPost.parameter",
+                    "path": "name"
+                  },
+                  "metadata": {
+                    "label": "editedChannelPost",
+                    "description": "An edited channel post."
+                  },
+                  "state": {
+                    "enabled": true,
+                    "editable": true,
+                    "optional": false,
+                    "advanced": false
+                  },
+                  "key": "name",
+                  "placeholder": "editedChannelPost",
+                  "default": "editedChannelPost"
+                }
+              ],
+              "source": {
+                "construct": {
+                  "kind": "FUNCTION_PARAM"
+                }
+              }
+            },
+            {
+              "target": "$service.onEditedChannelPost.caller",
+              "source": {
+                "construct": {
+                  "kind": "FUNCTION_PARAM"
+                }
+              },
+              "metadata": {
+                "label": "Caller",
+                "description": "Telegram caller used to manually acknowledge updates (required for manual ack when Auto Ack is off)."
+              },
+              "state": {
+                "enabled": false,
+                "editable": true,
+                "optional": true,
+                "advanced": true,
+                "hidden": false
+              },
+              "fields": [
+                {
+                  "target": {
+                    "kind": "recordField",
+                    "owner": "caller.parameter",
+                    "path": "type"
+                  },
+                  "metadata": {
+                    "label": "Include Caller",
+                    "description": "Tick to include the Telegram caller parameter in the handler signature."
+                  },
+                  "state": {
+                    "enabled": true,
+                    "editable": true,
+                    "optional": true,
+                    "advanced": false
+                  },
+                  "key": "type",
+                  "placeholder": "telegram:Caller",
+                  "default": false,
+                  "widget": {
+                    "widgetKind": "FLAG",
+                    "selected": true,
+                    "ballerinaType": "telegram:Caller"
+                  }
+                },
+                {
+                  "target": {
+                    "kind": "recordField",
+                    "owner": "caller.parameter",
+                    "path": "name"
+                  },
+                  "metadata": {
+                    "label": "caller",
+                    "description": "Telegram caller used to manually acknowledge updates."
+                  },
+                  "state": {
+                    "enabled": true,
+                    "editable": false,
+                    "optional": false,
+                    "advanced": false
+                  },
+                  "key": "name",
+                  "placeholder": "caller",
+                  "default": "caller",
+                  "widget": {
+                    "widgetKind": "IDENTIFIER",
+                    "selected": true
+                  }
+                }
+              ]
+            }
+          ],
+          "returnType": {
+            "target": "$service.onEditedChannelPost.returns",
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "state": {
+              "editable": false,
+              "enabled": true,
+              "optional": true
+            },
+            "source": {
+              "construct": {
+                "kind": "FUNCTION_RETURN"
+              }
+            }
+          },
+          "source": {
+            "construct": {
+              "kind": "FUNCTION"
+            },
+            "argument": {
+              "originalName": "onEditedChannelPost"
+            },
+            "module": {
+              "name": "telegram"
+            }
+          },
+          "state": {
+            "enabled": false,
+            "editable": true,
+            "optional": true
+          },
+          "nameEditable": false,
+          "repeatable": "FALSE",
+          "canAddParameters": false,
+          "documentation": {
+            "default": "An edited channel post."
+          }
+        },
+        {
+          "target": "$service.onCallbackQuery",
+          "metadata": {
+            "label": "On Callback Query",
+            "description": "An inline keyboard button press."
+          },
+          "parameters": [
+            {
+              "target": "$service.onCallbackQuery.callbackQuery",
+              "metadata": {
+                "label": "Callback Query",
+                "description": "An incoming callback query from an inline keyboard button press."
+              },
+              "state": {
+                "editable": false,
+                "enabled": true,
+                "optional": false,
+                "advanced": false,
+                "hidden": false
+              },
+              "fields": [
+                {
+                  "target": {
+                    "kind": "recordField",
+                    "owner": "callbackQuery.parameter",
+                    "path": "type"
+                  },
+                  "metadata": {
+                    "label": "Parameter Type",
+                    "description": "The type of the parameter"
+                  },
+                  "state": {
+                    "editable": false,
+                    "enabled": true,
+                    "optional": true,
+                    "advanced": false
+                  },
+                  "key": "type",
+                  "placeholder": "telegram:CallbackQuery",
+                  "default": "telegram:CallbackQuery"
+                },
+                {
+                  "target": {
+                    "kind": "recordField",
+                    "owner": "callbackQuery.parameter",
+                    "path": "name"
+                  },
+                  "metadata": {
+                    "label": "callbackQuery",
+                    "description": "An incoming callback query from an inline keyboard button press."
+                  },
+                  "state": {
+                    "enabled": true,
+                    "editable": true,
+                    "optional": false,
+                    "advanced": false
+                  },
+                  "key": "name",
+                  "placeholder": "callbackQuery",
+                  "default": "callbackQuery"
+                }
+              ],
+              "source": {
+                "construct": {
+                  "kind": "FUNCTION_PARAM"
+                }
+              }
+            },
+            {
+              "target": "$service.onCallbackQuery.caller",
+              "source": {
+                "construct": {
+                  "kind": "FUNCTION_PARAM"
+                }
+              },
+              "metadata": {
+                "label": "Caller",
+                "description": "Telegram caller used to manually acknowledge updates (required for manual ack when Auto Ack is off)."
+              },
+              "state": {
+                "enabled": false,
+                "editable": true,
+                "optional": true,
+                "advanced": true,
+                "hidden": false
+              },
+              "fields": [
+                {
+                  "target": {
+                    "kind": "recordField",
+                    "owner": "caller.parameter",
+                    "path": "type"
+                  },
+                  "metadata": {
+                    "label": "Include Caller",
+                    "description": "Tick to include the Telegram caller parameter in the handler signature."
+                  },
+                  "state": {
+                    "enabled": true,
+                    "editable": true,
+                    "optional": true,
+                    "advanced": false
+                  },
+                  "key": "type",
+                  "placeholder": "telegram:Caller",
+                  "default": false,
+                  "widget": {
+                    "widgetKind": "FLAG",
+                    "selected": true,
+                    "ballerinaType": "telegram:Caller"
+                  }
+                },
+                {
+                  "target": {
+                    "kind": "recordField",
+                    "owner": "caller.parameter",
+                    "path": "name"
+                  },
+                  "metadata": {
+                    "label": "caller",
+                    "description": "Telegram caller used to manually acknowledge updates."
+                  },
+                  "state": {
+                    "enabled": true,
+                    "editable": false,
+                    "optional": false,
+                    "advanced": false
+                  },
+                  "key": "name",
+                  "placeholder": "caller",
+                  "default": "caller",
+                  "widget": {
+                    "widgetKind": "IDENTIFIER",
+                    "selected": true
+                  }
+                }
+              ]
+            }
+          ],
+          "returnType": {
+            "target": "$service.onCallbackQuery.returns",
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "state": {
+              "editable": false,
+              "enabled": true,
+              "optional": true
+            },
+            "source": {
+              "construct": {
+                "kind": "FUNCTION_RETURN"
+              }
+            }
+          },
+          "source": {
+            "construct": {
+              "kind": "FUNCTION"
+            },
+            "argument": {
+              "originalName": "onCallbackQuery"
+            },
+            "module": {
+              "name": "telegram"
+            }
+          },
+          "state": {
+            "enabled": false,
+            "editable": true,
+            "optional": true
+          },
+          "nameEditable": false,
+          "repeatable": "FALSE",
+          "canAddParameters": false,
+          "documentation": {
+            "default": "An inline keyboard button press."
+          }
+        },
+        {
+          "target": "$service.onInlineQuery",
+          "metadata": {
+            "label": "On Inline Query",
+            "description": "A new inline query."
+          },
+          "parameters": [
+            {
+              "target": "$service.onInlineQuery.inlineQuery",
+              "metadata": {
+                "label": "Inline Query",
+                "description": "An incoming inline query."
+              },
+              "state": {
+                "editable": false,
+                "enabled": true,
+                "optional": false,
+                "advanced": false,
+                "hidden": false
+              },
+              "fields": [
+                {
+                  "target": {
+                    "kind": "recordField",
+                    "owner": "inlineQuery.parameter",
+                    "path": "type"
+                  },
+                  "metadata": {
+                    "label": "Parameter Type",
+                    "description": "The type of the parameter"
+                  },
+                  "state": {
+                    "editable": false,
+                    "enabled": true,
+                    "optional": true,
+                    "advanced": false
+                  },
+                  "key": "type",
+                  "placeholder": "telegram:InlineQuery",
+                  "default": "telegram:InlineQuery"
+                },
+                {
+                  "target": {
+                    "kind": "recordField",
+                    "owner": "inlineQuery.parameter",
+                    "path": "name"
+                  },
+                  "metadata": {
+                    "label": "inlineQuery",
+                    "description": "An incoming inline query."
+                  },
+                  "state": {
+                    "enabled": true,
+                    "editable": true,
+                    "optional": false,
+                    "advanced": false
+                  },
+                  "key": "name",
+                  "placeholder": "inlineQuery",
+                  "default": "inlineQuery"
+                }
+              ],
+              "source": {
+                "construct": {
+                  "kind": "FUNCTION_PARAM"
+                }
+              }
+            },
+            {
+              "target": "$service.onInlineQuery.caller",
+              "source": {
+                "construct": {
+                  "kind": "FUNCTION_PARAM"
+                }
+              },
+              "metadata": {
+                "label": "Caller",
+                "description": "Telegram caller used to manually acknowledge updates (required for manual ack when Auto Ack is off)."
+              },
+              "state": {
+                "enabled": false,
+                "editable": true,
+                "optional": true,
+                "advanced": true,
+                "hidden": false
+              },
+              "fields": [
+                {
+                  "target": {
+                    "kind": "recordField",
+                    "owner": "caller.parameter",
+                    "path": "type"
+                  },
+                  "metadata": {
+                    "label": "Include Caller",
+                    "description": "Tick to include the Telegram caller parameter in the handler signature."
+                  },
+                  "state": {
+                    "enabled": true,
+                    "editable": true,
+                    "optional": true,
+                    "advanced": false
+                  },
+                  "key": "type",
+                  "placeholder": "telegram:Caller",
+                  "default": false,
+                  "widget": {
+                    "widgetKind": "FLAG",
+                    "selected": true,
+                    "ballerinaType": "telegram:Caller"
+                  }
+                },
+                {
+                  "target": {
+                    "kind": "recordField",
+                    "owner": "caller.parameter",
+                    "path": "name"
+                  },
+                  "metadata": {
+                    "label": "caller",
+                    "description": "Telegram caller used to manually acknowledge updates."
+                  },
+                  "state": {
+                    "enabled": true,
+                    "editable": false,
+                    "optional": false,
+                    "advanced": false
+                  },
+                  "key": "name",
+                  "placeholder": "caller",
+                  "default": "caller",
+                  "widget": {
+                    "widgetKind": "IDENTIFIER",
+                    "selected": true
+                  }
+                }
+              ]
+            }
+          ],
+          "returnType": {
+            "target": "$service.onInlineQuery.returns",
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "state": {
+              "editable": false,
+              "enabled": true,
+              "optional": true
+            },
+            "source": {
+              "construct": {
+                "kind": "FUNCTION_RETURN"
+              }
+            }
+          },
+          "source": {
+            "construct": {
+              "kind": "FUNCTION"
+            },
+            "argument": {
+              "originalName": "onInlineQuery"
+            },
+            "module": {
+              "name": "telegram"
+            }
+          },
+          "state": {
+            "enabled": false,
+            "editable": true,
+            "optional": true
+          },
+          "nameEditable": false,
+          "repeatable": "FALSE",
+          "canAddParameters": false,
+          "documentation": {
+            "default": "A new inline query."
+          }
+        },
+        {
+          "target": "$service.onPoll",
+          "metadata": {
+            "label": "On Poll",
+            "description": "A poll's state changed."
+          },
+          "parameters": [
+            {
+              "target": "$service.onPoll.poll",
+              "metadata": {
+                "label": "Poll",
+                "description": "A native poll."
+              },
+              "state": {
+                "editable": false,
+                "enabled": true,
+                "optional": false,
+                "advanced": false,
+                "hidden": false
+              },
+              "fields": [
+                {
+                  "target": {
+                    "kind": "recordField",
+                    "owner": "poll.parameter",
+                    "path": "type"
+                  },
+                  "metadata": {
+                    "label": "Parameter Type",
+                    "description": "The type of the parameter"
+                  },
+                  "state": {
+                    "editable": false,
+                    "enabled": true,
+                    "optional": true,
+                    "advanced": false
+                  },
+                  "key": "type",
+                  "placeholder": "telegram:Poll",
+                  "default": "telegram:Poll"
+                },
+                {
+                  "target": {
+                    "kind": "recordField",
+                    "owner": "poll.parameter",
+                    "path": "name"
+                  },
+                  "metadata": {
+                    "label": "poll",
+                    "description": "A native poll."
+                  },
+                  "state": {
+                    "enabled": true,
+                    "editable": true,
+                    "optional": false,
+                    "advanced": false
+                  },
+                  "key": "name",
+                  "placeholder": "poll",
+                  "default": "poll"
+                }
+              ],
+              "source": {
+                "construct": {
+                  "kind": "FUNCTION_PARAM"
+                }
+              }
+            },
+            {
+              "target": "$service.onPoll.caller",
+              "source": {
+                "construct": {
+                  "kind": "FUNCTION_PARAM"
+                }
+              },
+              "metadata": {
+                "label": "Caller",
+                "description": "Telegram caller used to manually acknowledge updates (required for manual ack when Auto Ack is off)."
+              },
+              "state": {
+                "enabled": false,
+                "editable": true,
+                "optional": true,
+                "advanced": true,
+                "hidden": false
+              },
+              "fields": [
+                {
+                  "target": {
+                    "kind": "recordField",
+                    "owner": "caller.parameter",
+                    "path": "type"
+                  },
+                  "metadata": {
+                    "label": "Include Caller",
+                    "description": "Tick to include the Telegram caller parameter in the handler signature."
+                  },
+                  "state": {
+                    "enabled": true,
+                    "editable": true,
+                    "optional": true,
+                    "advanced": false
+                  },
+                  "key": "type",
+                  "placeholder": "telegram:Caller",
+                  "default": false,
+                  "widget": {
+                    "widgetKind": "FLAG",
+                    "selected": true,
+                    "ballerinaType": "telegram:Caller"
+                  }
+                },
+                {
+                  "target": {
+                    "kind": "recordField",
+                    "owner": "caller.parameter",
+                    "path": "name"
+                  },
+                  "metadata": {
+                    "label": "caller",
+                    "description": "Telegram caller used to manually acknowledge updates."
+                  },
+                  "state": {
+                    "enabled": true,
+                    "editable": false,
+                    "optional": false,
+                    "advanced": false
+                  },
+                  "key": "name",
+                  "placeholder": "caller",
+                  "default": "caller",
+                  "widget": {
+                    "widgetKind": "IDENTIFIER",
+                    "selected": true
+                  }
+                }
+              ]
+            }
+          ],
+          "returnType": {
+            "target": "$service.onPoll.returns",
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "state": {
+              "editable": false,
+              "enabled": true,
+              "optional": true
+            },
+            "source": {
+              "construct": {
+                "kind": "FUNCTION_RETURN"
+              }
+            }
+          },
+          "source": {
+            "construct": {
+              "kind": "FUNCTION"
+            },
+            "argument": {
+              "originalName": "onPoll"
+            },
+            "module": {
+              "name": "telegram"
+            }
+          },
+          "state": {
+            "enabled": false,
+            "editable": true,
+            "optional": true
+          },
+          "nameEditable": false,
+          "repeatable": "FALSE",
+          "canAddParameters": false,
+          "documentation": {
+            "default": "A poll's state changed."
+          }
+        },
+        {
+          "target": "$service.onPreCheckoutQuery",
+          "metadata": {
+            "label": "On Pre-Checkout Query",
+            "description": "A pre-checkout query."
+          },
+          "parameters": [
+            {
+              "target": "$service.onPreCheckoutQuery.preCheckoutQuery",
+              "metadata": {
+                "label": "Pre-Checkout Query",
+                "description": "An incoming pre-checkout query."
+              },
+              "state": {
+                "editable": false,
+                "enabled": true,
+                "optional": false,
+                "advanced": false,
+                "hidden": false
+              },
+              "fields": [
+                {
+                  "target": {
+                    "kind": "recordField",
+                    "owner": "preCheckoutQuery.parameter",
+                    "path": "type"
+                  },
+                  "metadata": {
+                    "label": "Parameter Type",
+                    "description": "The type of the parameter"
+                  },
+                  "state": {
+                    "editable": false,
+                    "enabled": true,
+                    "optional": true,
+                    "advanced": false
+                  },
+                  "key": "type",
+                  "placeholder": "telegram:PreCheckoutQuery",
+                  "default": "telegram:PreCheckoutQuery"
+                },
+                {
+                  "target": {
+                    "kind": "recordField",
+                    "owner": "preCheckoutQuery.parameter",
+                    "path": "name"
+                  },
+                  "metadata": {
+                    "label": "preCheckoutQuery",
+                    "description": "An incoming pre-checkout query."
+                  },
+                  "state": {
+                    "enabled": true,
+                    "editable": true,
+                    "optional": false,
+                    "advanced": false
+                  },
+                  "key": "name",
+                  "placeholder": "preCheckoutQuery",
+                  "default": "preCheckoutQuery"
+                }
+              ],
+              "source": {
+                "construct": {
+                  "kind": "FUNCTION_PARAM"
+                }
+              }
+            },
+            {
+              "target": "$service.onPreCheckoutQuery.caller",
+              "source": {
+                "construct": {
+                  "kind": "FUNCTION_PARAM"
+                }
+              },
+              "metadata": {
+                "label": "Caller",
+                "description": "Telegram caller used to manually acknowledge updates (required for manual ack when Auto Ack is off)."
+              },
+              "state": {
+                "enabled": false,
+                "editable": true,
+                "optional": true,
+                "advanced": true,
+                "hidden": false
+              },
+              "fields": [
+                {
+                  "target": {
+                    "kind": "recordField",
+                    "owner": "caller.parameter",
+                    "path": "type"
+                  },
+                  "metadata": {
+                    "label": "Include Caller",
+                    "description": "Tick to include the Telegram caller parameter in the handler signature."
+                  },
+                  "state": {
+                    "enabled": true,
+                    "editable": true,
+                    "optional": true,
+                    "advanced": false
+                  },
+                  "key": "type",
+                  "placeholder": "telegram:Caller",
+                  "default": false,
+                  "widget": {
+                    "widgetKind": "FLAG",
+                    "selected": true,
+                    "ballerinaType": "telegram:Caller"
+                  }
+                },
+                {
+                  "target": {
+                    "kind": "recordField",
+                    "owner": "caller.parameter",
+                    "path": "name"
+                  },
+                  "metadata": {
+                    "label": "caller",
+                    "description": "Telegram caller used to manually acknowledge updates."
+                  },
+                  "state": {
+                    "enabled": true,
+                    "editable": false,
+                    "optional": false,
+                    "advanced": false
+                  },
+                  "key": "name",
+                  "placeholder": "caller",
+                  "default": "caller",
+                  "widget": {
+                    "widgetKind": "IDENTIFIER",
+                    "selected": true
+                  }
+                }
+              ]
+            }
+          ],
+          "returnType": {
+            "target": "$service.onPreCheckoutQuery.returns",
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "state": {
+              "editable": false,
+              "enabled": true,
+              "optional": true
+            },
+            "source": {
+              "construct": {
+                "kind": "FUNCTION_RETURN"
+              }
+            }
+          },
+          "source": {
+            "construct": {
+              "kind": "FUNCTION"
+            },
+            "argument": {
+              "originalName": "onPreCheckoutQuery"
+            },
+            "module": {
+              "name": "telegram"
+            }
+          },
+          "state": {
+            "enabled": false,
+            "editable": true,
+            "optional": true
+          },
+          "nameEditable": false,
+          "repeatable": "FALSE",
+          "canAddParameters": false,
+          "documentation": {
+            "default": "A pre-checkout query."
+          }
+        },
+        {
+          "target": "$service.onShippingQuery",
+          "metadata": {
+            "label": "On Shipping Query",
+            "description": "A shipping query."
+          },
+          "parameters": [
+            {
+              "target": "$service.onShippingQuery.shippingQuery",
+              "metadata": {
+                "label": "Shipping Query",
+                "description": "An incoming shipping query."
+              },
+              "state": {
+                "editable": false,
+                "enabled": true,
+                "optional": false,
+                "advanced": false,
+                "hidden": false
+              },
+              "fields": [
+                {
+                  "target": {
+                    "kind": "recordField",
+                    "owner": "shippingQuery.parameter",
+                    "path": "type"
+                  },
+                  "metadata": {
+                    "label": "Parameter Type",
+                    "description": "The type of the parameter"
+                  },
+                  "state": {
+                    "editable": false,
+                    "enabled": true,
+                    "optional": true,
+                    "advanced": false
+                  },
+                  "key": "type",
+                  "placeholder": "telegram:ShippingQuery",
+                  "default": "telegram:ShippingQuery"
+                },
+                {
+                  "target": {
+                    "kind": "recordField",
+                    "owner": "shippingQuery.parameter",
+                    "path": "name"
+                  },
+                  "metadata": {
+                    "label": "shippingQuery",
+                    "description": "An incoming shipping query."
+                  },
+                  "state": {
+                    "enabled": true,
+                    "editable": true,
+                    "optional": false,
+                    "advanced": false
+                  },
+                  "key": "name",
+                  "placeholder": "shippingQuery",
+                  "default": "shippingQuery"
+                }
+              ],
+              "source": {
+                "construct": {
+                  "kind": "FUNCTION_PARAM"
+                }
+              }
+            },
+            {
+              "target": "$service.onShippingQuery.caller",
+              "source": {
+                "construct": {
+                  "kind": "FUNCTION_PARAM"
+                }
+              },
+              "metadata": {
+                "label": "Caller",
+                "description": "Telegram caller used to manually acknowledge updates (required for manual ack when Auto Ack is off)."
+              },
+              "state": {
+                "enabled": false,
+                "editable": true,
+                "optional": true,
+                "advanced": true,
+                "hidden": false
+              },
+              "fields": [
+                {
+                  "target": {
+                    "kind": "recordField",
+                    "owner": "caller.parameter",
+                    "path": "type"
+                  },
+                  "metadata": {
+                    "label": "Include Caller",
+                    "description": "Tick to include the Telegram caller parameter in the handler signature."
+                  },
+                  "state": {
+                    "enabled": true,
+                    "editable": true,
+                    "optional": true,
+                    "advanced": false
+                  },
+                  "key": "type",
+                  "placeholder": "telegram:Caller",
+                  "default": false,
+                  "widget": {
+                    "widgetKind": "FLAG",
+                    "selected": true,
+                    "ballerinaType": "telegram:Caller"
+                  }
+                },
+                {
+                  "target": {
+                    "kind": "recordField",
+                    "owner": "caller.parameter",
+                    "path": "name"
+                  },
+                  "metadata": {
+                    "label": "caller",
+                    "description": "Telegram caller used to manually acknowledge updates."
+                  },
+                  "state": {
+                    "enabled": true,
+                    "editable": false,
+                    "optional": false,
+                    "advanced": false
+                  },
+                  "key": "name",
+                  "placeholder": "caller",
+                  "default": "caller",
+                  "widget": {
+                    "widgetKind": "IDENTIFIER",
+                    "selected": true
+                  }
+                }
+              ]
+            }
+          ],
+          "returnType": {
+            "target": "$service.onShippingQuery.returns",
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "state": {
+              "editable": false,
+              "enabled": true,
+              "optional": true
+            },
+            "source": {
+              "construct": {
+                "kind": "FUNCTION_RETURN"
+              }
+            }
+          },
+          "source": {
+            "construct": {
+              "kind": "FUNCTION"
+            },
+            "argument": {
+              "originalName": "onShippingQuery"
+            },
+            "module": {
+              "name": "telegram"
+            }
+          },
+          "state": {
+            "enabled": false,
+            "editable": true,
+            "optional": true
+          },
+          "nameEditable": false,
+          "repeatable": "FALSE",
+          "canAddParameters": false,
+          "documentation": {
+            "default": "A shipping query."
+          }
+        }
+      ],
+      "source": {
+        "construct": {
+          "kind": "SERVICE_TYPE_DESCRIPTOR"
+        },
+        "argument": {
+          "originalName": "TelegramService"
+        },
+        "module": {
+          "name": "telegram"
+        }
+      },
+      "description": "The service object a consumer implements to handle Telegram webhook updates.",
+      "properties": {
+        "serviceConfig": {
+          "key": "serviceConfig",
+          "metadata": {
+            "label": "Service Configuration",
+            "description": "Configuration for a TelegramService's acknowledgement behavior."
+          },
+          "widget": {
+            "widgetKind": "RECORD_MAP_EXPRESSION",
+            "selected": true,
+            "ballerinaType": "telegram:TelegramServiceConfig",
+            "typeMembers": [
+              {
+                "type": "TelegramServiceConfig",
+                "packageInfo": "ballerinax:telegram:0.9.3",
+                "packageName": "telegram",
+                "kind": "RECORD_TYPE",
+                "selected": true
+              }
+            ]
+          },
+          "source": {
+            "construct": {
+              "kind": "SERVICE_ANNOTATION"
+            },
+            "argument": {
+              "originalName": "ServiceConfig"
+            },
+            "module": {
+              "name": "telegram"
+            }
+          },
+          "state": {
+            "enabled": true,
+            "editable": true,
+            "optional": false,
+            "advanced": false
+          }
+        }
+      }
+    }
+  ],
+  "initForm": {
+    "fields": []
+  },
+  "artifactInfo": {
+    "displayLabel": "Telegram Event Integration",
+    "icon": {
+      "lightPath": "icons/light.svg",
+      "darkPath": "icons/dark.svg",
+      "color": "#26A5E4"
+    }
+  }
+}

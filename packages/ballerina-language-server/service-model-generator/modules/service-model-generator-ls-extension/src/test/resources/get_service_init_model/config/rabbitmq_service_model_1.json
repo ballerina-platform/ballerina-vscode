@@ -158,15 +158,11 @@
                 "existingListener": {
                   "metadata": {
                     "label": "Listener",
-                    "description": "Select an existing listener to attach the service to (no new(...) is generated)."
+                    "description": "The existing listener to attach to"
                   },
                   "codedata": {
                     "type": "KEY_EXISTING_LISTENER"
                   },
-                  "value": "rabbitmqListener",
-                  "items": [
-                    "rabbitmqListener"
-                  ],
                   "types": [
                     {
                       "fieldType": "SINGLE_SELECT_LISTENER",

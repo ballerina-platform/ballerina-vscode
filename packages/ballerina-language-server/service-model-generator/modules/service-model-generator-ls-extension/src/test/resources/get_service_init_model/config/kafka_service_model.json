@@ -58,9 +58,6 @@
               "fieldType": "REPEATABLE_LIST",
               "ballerinaType": "string[]",
               "template": {
-                "metadata": {
-                  "label": "Server"
-                },
                 "types": [
                   {
                     "fieldType": "TEXT",
@@ -112,9 +109,6 @@
               "fieldType": "REPEATABLE_LIST",
               "ballerinaType": "string[]",
               "template": {
-                "metadata": {
-                  "label": "Topic"
-                },
                 "types": [
                   {
                     "fieldType": "TEXT",

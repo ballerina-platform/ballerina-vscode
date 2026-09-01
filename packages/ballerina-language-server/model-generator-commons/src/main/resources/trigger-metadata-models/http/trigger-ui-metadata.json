@@ -1,0 +1,62 @@
+{
+  "version": "v1.0",
+  "metadata": {
+    "kind": "http"
+  },
+  "trigger": {
+    "displayName": "HTTP"
+  },
+  "listeners": [
+    {
+      "target": "$listener"
+    }
+  ],
+  "serviceTypes": [
+    {
+      "target": "$service",
+      "handlers": [
+        {
+          "target": "$service.resource",
+          "parameters": [
+            {
+              "target": "$service.resource.caller"
+            },
+            {
+              "target": "$service.resource.request"
+            },
+            {
+              "target": "$service.resource.headers"
+            },
+            {
+              "target": "$service.resource.payload"
+            },
+            {
+              "target": "$service.resource.queryParam"
+            },
+            {
+              "target": "$service.resource.headerParam"
+            }
+          ],
+          "returnType": {
+            "target": "$service.resource.returns"
+          }
+        }
+      ]
+    }
+  ],
+  "artifactInfo": {
+    "displayLabel": "HTTP Service",
+    "icon": {
+      "lightPath": "icons/light.svg",
+      "darkPath": "icons/dark.svg"
+    },
+    "identifier": {
+      "separator": " - ",
+      "resolvers": [
+        {
+          "via": "servicePath"
+        }
+      ]
+    }
+  }
+}

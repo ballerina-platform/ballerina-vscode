@@ -470,6 +470,30 @@ public class TriggerUIMetadataCompilerTest {
     }
 
     @Test
+    public void testFlattenedSourceContextDoesNotEraseInheritedCodedata() {
+        TriggerUIMetadataModel.Source source = new TriggerUIMetadataModel.Source(
+                new TriggerUIMetadataModel.Construct("FUNCTION_RETURN"), null, null, null, null, null);
+        TriggerUIMetadataModel.Field returnField = new TriggerUIMetadataModel.Field(
+                null, null, null, null, null, null, null, null, null, null, null, source, null);
+        TriggerUIMetadataModel.TargetedNode returnOverlay = new TriggerUIMetadataModel.TargetedNode(
+                null, null, null, null, returnField, null, null, null, null, null, null, null, null);
+        TriggerUIMetadataModel.TargetedNode handlerOverlay = new TriggerUIMetadataModel.TargetedNode(
+                handlerTarget("onMessage"), null, null, null, null, null, null, null, null, null, null, null,
+                returnOverlay);
+        TriggerUIMetadataModel.TargetedNode serviceOverlay = new TriggerUIMetadataModel.TargetedNode(
+                l1Target("$service"), null, null, null, null, null, null, null, null,
+                List.of(handlerOverlay), null, null, null);
+        TriggerUIMetadataModel l2 = new TriggerUIMetadataModel(
+                "v1.0", null, null, null, null, List.of(serviceOverlay), null, null);
+
+        TriggerUISchemaModel.ReturnType actual = function(apply(derived(true), true, l2),
+                "triggerfixture:Service", "onMessage").returnType();
+
+        Assert.assertNotNull(actual.codedata());
+        Assert.assertEquals(actual.codedata().type(), "FUNCTION_RETURN");
+    }
+
+    @Test
     public void testExcludedHandlerDoesNotPruneUnmentionedHandlers() {
         TriggerUIMetadataModel.FunctionNode excluded = new TriggerUIMetadataModel.FunctionNode(
                 Boolean.FALSE, null, null, null, null, null, null, null, null, null, null);

@@ -330,7 +330,7 @@ public final class TriggerModelSynthesizer {
                 walkListenerParams(listenerFacts.initParams(), listenerModel, 1, fields, identity, semanticModel);
             }
             models.add(new TriggerUISchemaModel.ListenerModel(
-                    new TriggerUISchemaModel.Metadata(humanize(typeName), listener.doc(),
+                    new TriggerUISchemaModel.Metadata(humanize(typeName), trimmedDoc(listener.doc()),
                             listener.deprecated(), null, null, null, null, null,
                             listener.deprecated() == null ? null : true, null),
                     typeName, ModuleAliasResolver.selfPrefix(listenerModule) + ":" + typeName, null, fields, null,
@@ -470,7 +470,7 @@ public final class TriggerModelSynthesizer {
                                                                          ConnectorIdentity identity,
                                                                          SemanticModel semanticModel) {
         Value.ValueBuilder builder = new Value.ValueBuilder()
-                .metadata(humanize(field.name()), field.doc())
+                .metadata(humanize(field.name()), trimmedDoc(field.doc()))
                 .value("").enabled(true).editable(true).optional(field.optional()).setAdvanced(false);
         ModuleInfo moduleInfo = new ModuleInfo(identity.orgName(), identity.packageName(), identity.moduleName(),
                 identity.version());
@@ -654,7 +654,7 @@ public final class TriggerModelSynthesizer {
             }
         }
 
-        String description = serviceType.doc() == null || serviceType.doc().isBlank() ? null : serviceType.doc();
+        String description = trimmedDoc(serviceType.doc());
         return new TriggerUISchemaModel.ServiceTypeModel(
                 new TriggerUISchemaModel.Metadata(humanize(stripId(serviceType.id())), description,
                         serviceType.deprecated(), null, null, null, null, null,
@@ -706,7 +706,8 @@ public final class TriggerModelSynthesizer {
         }
         TriggerUISchemaModel.ReturnType returnType = withTypeConstraint(buildReturnType(fn.returnType(),
                 fn.returnsError()));
-        String description = fn.doc() == null || fn.doc().isBlank() ? "The `" + fn.name() + "` handler." : fn.doc();
+        String doc = trimmedDoc(fn.doc());
+        String description = doc == null ? "The `" + fn.name() + "` handler." : doc;
         return new TriggerUISchemaModel.FunctionModel(
                 new TriggerUISchemaModel.Metadata(humanize(fn.name()), description, null, null, null, null, null,
                         null, null, null),
@@ -719,9 +720,8 @@ public final class TriggerModelSynthesizer {
         TriggerUISchemaModel.Property typeProperty = lockedTypeProperty(param.type());
         TriggerUISchemaModel.Property nameProperty = identifierProperty(param.name(), false);
         return new TriggerUISchemaModel.Parameter(
-                new TriggerUISchemaModel.Metadata(humanize(param.name()),
-                        param.doc() == null || param.doc().isBlank() ? null : param.doc(), null, null, null, null,
-                        null, null, null, null),
+                new TriggerUISchemaModel.Metadata(humanize(param.name()), trimmedDoc(param.doc()), null, null, null,
+                        null, null, null, null, null),
                 KIND_REQUIRED, typeProperty, nameProperty, null, null, null, null, true, false, param.optional(),
                 false, false, cdType("FUNCTION_PARAM"), null);
     }
@@ -754,8 +754,8 @@ public final class TriggerModelSynthesizer {
 
         String name = many ? "" : option.name();
         String label = many ? "Handler" : option.name();
-        String description = option.doc() == null || option.doc().isBlank()
-                ? "The `" + option.name() + "` handler." : option.doc();
+        String optionDoc = trimmedDoc(option.doc());
+        String description = optionDoc == null ? "The `" + option.name() + "` handler." : optionDoc;
         return new TriggerUISchemaModel.FunctionModel(
                 new TriggerUISchemaModel.Metadata(label, description, option.deprecated(), null, null,
                         many ? "Add Handler" : null, null, null,
@@ -819,7 +819,7 @@ public final class TriggerModelSynthesizer {
         TriggerUISchemaModel.Property nameProperty = identifierProperty(name.isEmpty() ? "value" : name, true);
         String kind = binding != null ? DATA_BINDING : (optional ? DB_KIND_OPTIONAL : KIND_REQUIRED);
         return new TriggerUISchemaModel.Parameter(
-                new TriggerUISchemaModel.Metadata(humanize(name.isEmpty() ? "value" : name), param.doc(),
+                new TriggerUISchemaModel.Metadata(humanize(name.isEmpty() ? "value" : name), trimmedDoc(param.doc()),
                         param.deprecated(), null, null, null, null, null,
                         param.deprecated() == null ? null : true, null),
                 kind, typeProperty, nameProperty, null, null, null, null, true, true,
@@ -1017,8 +1017,8 @@ public final class TriggerModelSynthesizer {
         }
         boolean enabled = type != null && !"()".equals(type);
         return new TriggerUISchemaModel.ReturnType(
-                new TriggerUISchemaModel.Metadata("Return Type", "The return type of the function.", null, null, null,
-                        null, null, null, null, null),
+                new TriggerUISchemaModel.Metadata("Return Type", "The return type of the function.", null, null,
+                        null, null, null, null, null, null),
                 type, false, null, enabled, false, enabled, hasError, "", cdReturn(), null);
     }
 
@@ -1195,6 +1195,15 @@ public final class TriggerModelSynthesizer {
     /** Strips the spec's leading {@code $} from an id used as a user-facing label or map key. */
     private static String stripId(String id) {
         return id != null && id.startsWith("$") ? id.substring(1) : id;
+    }
+
+    /** A raw doc comment's trailing newline/whitespace is an artifact of extraction, not content. */
+    private static String trimmedDoc(String doc) {
+        if (doc == null) {
+            return null;
+        }
+        String trimmed = doc.strip();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 
     /** {@code "bootstrapServers" -> "Bootstrap Servers"}; also splits on {@code _}/{@code -}/{@code .}. */

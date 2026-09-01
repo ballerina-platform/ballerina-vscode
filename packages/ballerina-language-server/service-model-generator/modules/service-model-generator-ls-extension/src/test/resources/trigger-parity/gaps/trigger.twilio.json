@@ -1,0 +1,446 @@
+{
+  "module": "trigger.twilio",
+  "note": null,
+  "gaps": [
+    {
+      "path": "$.initProperties.listenerVarName",
+      "kind": "MISSING",
+      "detail": "expected {\"metadata\":{\"label\":\"Listener Name\",\"description\":\"Provide a name for the listener being created.\"},\"enabled\":true,\"editable\":true,\"optional\":false,\"advanced\":true,\"value\":\"twilioListener\",\"types\":[{\"fieldType\":\"IDENTIFIER\",\"selected\":true,\"ballerinaType\":\"trigger.twilio:Listener\"}],\"codedata\":{\"type\":\"LISTENER_VAR_NAME\"}} but it is absent"
+    },
+    {
+      "path": "$.initProperties.listenOn",
+      "kind": "MISSING",
+      "detail": "expected {\"metadata\":{\"label\":\"Listen On\",\"description\":\"The port to listen on.\"},\"enabled\":true,\"editable\":true,\"optional\":true,\"advanced\":false,\"placeholder\":\"8090\",\"value\":\"8090\",\"types\":[{\"fieldType\":\"NUMBER\",\"selected\":true,\"ballerinaType\":\"int\"},{\"fieldType\":\"EXPRESSION\",\"selected\":false,\"ballerinaType\":\"int|http:Listener\"}],\"codedata\":{\"argType\":\"LISTENER_PARAM_REQUIRED\",\"originalName\":\"listenOn\",\"position\":1}} but it is absent"
+    },
+    {
+      "path": "$.initProperties.listener",
+      "kind": "UNEXPECTED",
+      "detail": "found unexpected {\"metadata\":{\"label\":\"Listener\",\"description\":\"Attach the service to a new or existing Twilio webhook listener.\"},\"enabled\":true,\"editable\":true,\"optional\":false,\"advanced\":false,\"value\":\"createNew\",\"types\":[{\"fieldType\":\"CHOICE\",\"selected\":true}],\"choices\":[{\"metadata\":{\"label\":\"Create New Listener\",\"description\":\"Define a new Twilio webhook listener in the project.\"},\"enabled\":true,\"editable\":true,\"optional\":false,\"advanced\":false,\"types\":[{\"fieldType\":\"FORM\",\"selected\":true}],\"properties\":{\"listenerConfig\":{\"metadata\":{\"label\":\"Listener Configurations\",\"description\":\"Configure the Twilio webhook listener.\"},\"enabled\":true,\"editable\":true,\"optional\":false,\"advanced\":false,\"types\":[{\"fieldType\":\"GROUP_SECTION\",\"selected\":true}],\"properties\":{\"listenerVarName\":{\"metadata\":{\"label\":\"Listener Name\",\"description\":\"Provide a name for the listener being created.\"},\"enabled\":true,\"editable\":true,\"optional\":false,\"advanced\":true,\"value\":\"twilioListener\",\"types\":[{\"fieldType\":\"IDENTIFIER\",\"selected\":true,\"ballerinaType\":\"twilio:Listener\"}],\"codedata\":{\"type\":\"LISTENER_VAR_NAME\"}},\"listenOn\":{\"metadata\":{\"label\":\"Listen On\",\"description\":\"The port to listen on.\"},\"enabled\":true,\"editable\":true,\"optional\":true,\"advanced\":false,\"placeholder\":\"8090\",\"value\":\"8090\",\"types\":[{\"fieldType\":\"NUMBER\",\"selected\":true,\"ballerinaType\":\"int\"},{\"fieldType\":\"EXPRESSION\",\"selected\":false,\"ballerinaType\":\"int|http:Listener\"}],\"codedata\":{\"argType\":\"LISTENER_PARAM_REQUIRED\",\"originalName\":\"listenOn\",\"position\":1}}}}}},{\"metadata\":{\"label\":\"Use Existing Listener\",\"description\":\"Attach to a Twilio listener already declared in the project.\"},\"enabled\":false,\"editable\":true,\"optional\":false,\"advanced\":false,\"types\":[{\"fieldType\":\"FORM\",\"selected\":true}],\"properties\":{\"existingListener\":{\"metadata\":{\"label\":\"Listener(s)\",\"description\":\"The existing listener to attach to\"},\"enabled\":true,\"editable\":true,\"optional\":false,\"advanced\":false,\"types\":[{\"fieldType\":\"SINGLE_SELECT_LISTENER\",\"selected\":true,\"ballerinaType\":\"twilio:Listener\"}],\"codedata\":{\"type\":\"KEY_EXISTING_LISTENER\"}}}}],\"codedata\":{\"type\":\"LISTENER_CONFIG\"}}"
+    },
+    {
+      "path": "$.serviceTypes[twilio:CallStatusService].functions[onQueued].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggers on a call is ready and waiting in line before going out.\" but found \"Triggers on a call is ready and waiting in line before going out.\\n\""
+    },
+    {
+      "path": "$.serviceTypes[twilio:CallStatusService].functions[onQueued].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggers on a call is ready and waiting in line before going out.\" but found \"Triggers on a call is ready and waiting in line before going out.\\n\""
+    },
+    {
+      "path": "$.serviceTypes[twilio:CallStatusService].functions[onQueued].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[twilio:CallStatusService].functions[onQueued].parameters[event].type.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The information about the triggered event.\" but found \"The type of the parameter\""
+    },
+    {
+      "path": "$.serviceTypes[twilio:CallStatusService].functions[onQueued].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[twilio:CallStatusService].functions[onRinging].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggers when the call is currently ringing.\" but found \"Triggers when the call is currently ringing.\\n\""
+    },
+    {
+      "path": "$.serviceTypes[twilio:CallStatusService].functions[onRinging].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggers when the call is currently ringing.\" but found \"Triggers when the call is currently ringing.\\n\""
+    },
+    {
+      "path": "$.serviceTypes[twilio:CallStatusService].functions[onRinging].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[twilio:CallStatusService].functions[onRinging].parameters[event].type.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The information about the triggered event.\" but found \"The type of the parameter\""
+    },
+    {
+      "path": "$.serviceTypes[twilio:CallStatusService].functions[onRinging].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[twilio:CallStatusService].functions[onInProgress].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggers when the call is answered and is actively in progress.\" but found \"Triggers when the call is answered and is actively in progress.\\n\""
+    },
+    {
+      "path": "$.serviceTypes[twilio:CallStatusService].functions[onInProgress].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggers when the call is answered and is actively in progress.\" but found \"Triggers when the call is answered and is actively in progress.\\n\""
+    },
+    {
+      "path": "$.serviceTypes[twilio:CallStatusService].functions[onInProgress].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[twilio:CallStatusService].functions[onInProgress].parameters[event].type.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The information about the triggered event.\" but found \"The type of the parameter\""
+    },
+    {
+      "path": "$.serviceTypes[twilio:CallStatusService].functions[onInProgress].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[twilio:CallStatusService].functions[onCompleted].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggers when the call is answered and has ended normally.\" but found \"Triggers when the call is answered and has ended normally.\\n\""
+    },
+    {
+      "path": "$.serviceTypes[twilio:CallStatusService].functions[onCompleted].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggers when the call is answered and has ended normally.\" but found \"Triggers when the call is answered and has ended normally.\\n\""
+    },
+    {
+      "path": "$.serviceTypes[twilio:CallStatusService].functions[onCompleted].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[twilio:CallStatusService].functions[onCompleted].parameters[event].type.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The information about the triggered event.\" but found \"The type of the parameter\""
+    },
+    {
+      "path": "$.serviceTypes[twilio:CallStatusService].functions[onCompleted].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[twilio:CallStatusService].functions[onBusy].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggers when the caller received a busy signal.\" but found \"Triggers when the caller received a busy singnal.\\n\""
+    },
+    {
+      "path": "$.serviceTypes[twilio:CallStatusService].functions[onBusy].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggers when the caller received a busy signal.\" but found \"Triggers when the caller received a busy singnal.\\n\""
+    },
+    {
+      "path": "$.serviceTypes[twilio:CallStatusService].functions[onBusy].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[twilio:CallStatusService].functions[onBusy].parameters[event].type.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The information about the triggered event.\" but found \"The type of the parameter\""
+    },
+    {
+      "path": "$.serviceTypes[twilio:CallStatusService].functions[onBusy].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[twilio:CallStatusService].functions[onFailed].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggers when the call could not be completed as dialed.\" but found \"Triggers when the call could not be completed as dialed.\\n\""
+    },
+    {
+      "path": "$.serviceTypes[twilio:CallStatusService].functions[onFailed].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggers when the call could not be completed as dialed.\" but found \"Triggers when the call could not be completed as dialed.\\n\""
+    },
+    {
+      "path": "$.serviceTypes[twilio:CallStatusService].functions[onFailed].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[twilio:CallStatusService].functions[onFailed].parameters[event].type.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The information about the triggered event.\" but found \"The type of the parameter\""
+    },
+    {
+      "path": "$.serviceTypes[twilio:CallStatusService].functions[onFailed].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[twilio:CallStatusService].functions[onNoAnswer].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggers when the call ended without being answered.\" but found \"Triggers when the call ended without being answered.\\n\""
+    },
+    {
+      "path": "$.serviceTypes[twilio:CallStatusService].functions[onNoAnswer].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggers when the call ended without being answered.\" but found \"Triggers when the call ended without being answered.\\n\""
+    },
+    {
+      "path": "$.serviceTypes[twilio:CallStatusService].functions[onNoAnswer].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[twilio:CallStatusService].functions[onNoAnswer].parameters[event].type.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The information about the triggered event.\" but found \"The type of the parameter\""
+    },
+    {
+      "path": "$.serviceTypes[twilio:CallStatusService].functions[onNoAnswer].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[twilio:CallStatusService].functions[onCanceled].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggers when the call got cancelled via the REST API while queued or ringing.\" but found \"Triggers when the call got candelled via the REST API while queued or ringing.\\n\""
+    },
+    {
+      "path": "$.serviceTypes[twilio:CallStatusService].functions[onCanceled].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggers when the call got cancelled via the REST API while queued or ringing.\" but found \"Triggers when the call got candelled via the REST API while queued or ringing.\\n\""
+    },
+    {
+      "path": "$.serviceTypes[twilio:CallStatusService].functions[onCanceled].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[twilio:CallStatusService].functions[onCanceled].parameters[event].type.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The information about the triggered event.\" but found \"The type of the parameter\""
+    },
+    {
+      "path": "$.serviceTypes[twilio:CallStatusService].functions[onCanceled].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[twilio:SmsStatusService].functions[onAccepted].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggers when Twilio has received the message request.\" but found \"Triggers when Twilio has received the message request.\\n\""
+    },
+    {
+      "path": "$.serviceTypes[twilio:SmsStatusService].functions[onAccepted].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggers when Twilio has received the message request.\" but found \"Triggers when Twilio has received the message request.\\n\""
+    },
+    {
+      "path": "$.serviceTypes[twilio:SmsStatusService].functions[onAccepted].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[twilio:SmsStatusService].functions[onAccepted].parameters[event].type.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The information about the triggered event.\" but found \"The type of the parameter\""
+    },
+    {
+      "path": "$.serviceTypes[twilio:SmsStatusService].functions[onAccepted].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[twilio:SmsStatusService].functions[onQueued].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggers when the API request to send a message was successful the message is queued to sent out.\" but found \"Triggers when the API request to send a message was successful the message is queued to sent out.\\n\""
+    },
+    {
+      "path": "$.serviceTypes[twilio:SmsStatusService].functions[onQueued].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggers when the API request to send a message was successful the message is queued to sent out.\" but found \"Triggers when the API request to send a message was successful the message is queued to sent out.\\n\""
+    },
+    {
+      "path": "$.serviceTypes[twilio:SmsStatusService].functions[onQueued].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[twilio:SmsStatusService].functions[onQueued].parameters[event].type.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The information about the triggered event.\" but found \"The type of the parameter\""
+    },
+    {
+      "path": "$.serviceTypes[twilio:SmsStatusService].functions[onQueued].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[twilio:SmsStatusService].functions[onSending].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggers when Twilio is in the process of dispatching the message.\" but found \"Triggers when Twilio is in the process of dispatching the message.\\n\""
+    },
+    {
+      "path": "$.serviceTypes[twilio:SmsStatusService].functions[onSending].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggers when Twilio is in the process of dispatching the message.\" but found \"Triggers when Twilio is in the process of dispatching the message.\\n\""
+    },
+    {
+      "path": "$.serviceTypes[twilio:SmsStatusService].functions[onSending].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[twilio:SmsStatusService].functions[onSending].parameters[event].type.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The information about the triggered event.\" but found \"The type of the parameter\""
+    },
+    {
+      "path": "$.serviceTypes[twilio:SmsStatusService].functions[onSending].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[twilio:SmsStatusService].functions[onSent].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggers when the nearest upstream carrier accepted the message.\" but found \"Triggers when the nearest upstream carrier accepted the message.\\n\""
+    },
+    {
+      "path": "$.serviceTypes[twilio:SmsStatusService].functions[onSent].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggers when the nearest upstream carrier accepted the message.\" but found \"Triggers when the nearest upstream carrier accepted the message.\\n\""
+    },
+    {
+      "path": "$.serviceTypes[twilio:SmsStatusService].functions[onSent].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[twilio:SmsStatusService].functions[onSent].parameters[event].type.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The information about the triggered event.\" but found \"The type of the parameter\""
+    },
+    {
+      "path": "$.serviceTypes[twilio:SmsStatusService].functions[onSent].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[twilio:SmsStatusService].functions[onFailed].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggers when the message could not be sent.\" but found \"Triggers when the message could not be sent.\\n\""
+    },
+    {
+      "path": "$.serviceTypes[twilio:SmsStatusService].functions[onFailed].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggers when the message could not be sent.\" but found \"Triggers when the message could not be sent.\\n\""
+    },
+    {
+      "path": "$.serviceTypes[twilio:SmsStatusService].functions[onFailed].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[twilio:SmsStatusService].functions[onFailed].parameters[event].type.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The information about the triggered event.\" but found \"The type of the parameter\""
+    },
+    {
+      "path": "$.serviceTypes[twilio:SmsStatusService].functions[onFailed].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[twilio:SmsStatusService].functions[onDelivered].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggers when Twilio has received the confirmation of message delivery from the upstream carrier.\" but found \"Triggers when Twilio has received the confirmation of message delivery from the upstream carrier..\\n\""
+    },
+    {
+      "path": "$.serviceTypes[twilio:SmsStatusService].functions[onDelivered].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggers when Twilio has received the confirmation of message delivery from the upstream carrier.\" but found \"Triggers when Twilio has received the confirmation of message delivery from the upstream carrier..\\n\""
+    },
+    {
+      "path": "$.serviceTypes[twilio:SmsStatusService].functions[onDelivered].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[twilio:SmsStatusService].functions[onDelivered].parameters[event].type.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The information about the triggered event.\" but found \"The type of the parameter\""
+    },
+    {
+      "path": "$.serviceTypes[twilio:SmsStatusService].functions[onDelivered].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[twilio:SmsStatusService].functions[onUndelivered].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggers when Twilio received a delivery receipt indicating that message was not delivered.\" but found \"Triggers when Twilio received a delivery recipt indicating that mesage was not delivered.\\n\""
+    },
+    {
+      "path": "$.serviceTypes[twilio:SmsStatusService].functions[onUndelivered].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggers when Twilio received a delivery receipt indicating that message was not delivered.\" but found \"Triggers when Twilio received a delivery recipt indicating that mesage was not delivered.\\n\""
+    },
+    {
+      "path": "$.serviceTypes[twilio:SmsStatusService].functions[onUndelivered].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[twilio:SmsStatusService].functions[onUndelivered].parameters[event].type.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The information about the triggered event.\" but found \"The type of the parameter\""
+    },
+    {
+      "path": "$.serviceTypes[twilio:SmsStatusService].functions[onUndelivered].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[twilio:SmsStatusService].functions[onReceiving].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggers when the inbound message has been received by Twilio and is currently being processed.\" but found \"Triggers when the inbound message has been received by Twilio and is currently being processed.\\n\""
+    },
+    {
+      "path": "$.serviceTypes[twilio:SmsStatusService].functions[onReceiving].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggers when the inbound message has been received by Twilio and is currently being processed.\" but found \"Triggers when the inbound message has been received by Twilio and is currently being processed.\\n\""
+    },
+    {
+      "path": "$.serviceTypes[twilio:SmsStatusService].functions[onReceiving].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[twilio:SmsStatusService].functions[onReceiving].parameters[event].type.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The information about the triggered event.\" but found \"The type of the parameter\""
+    },
+    {
+      "path": "$.serviceTypes[twilio:SmsStatusService].functions[onReceiving].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[twilio:SmsStatusService].functions[onReceived].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggers when the inbound message was received by one of your Twilio numbers.\" but found \"Triggers when the inbound message was received by one of your Twilio numbers.\\n\""
+    },
+    {
+      "path": "$.serviceTypes[twilio:SmsStatusService].functions[onReceived].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggers when the inbound message was received by one of your Twilio numbers.\" but found \"Triggers when the inbound message was received by one of your Twilio numbers.\\n\""
+    },
+    {
+      "path": "$.serviceTypes[twilio:SmsStatusService].functions[onReceived].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[twilio:SmsStatusService].functions[onReceived].parameters[event].type.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The information about the triggered event.\" but found \"The type of the parameter\""
+    },
+    {
+      "path": "$.serviceTypes[twilio:SmsStatusService].functions[onReceived].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    }
+  ]
+}

@@ -1,6 +1,19 @@
 /*
- * Copyright (c) 2026, WSO2 LLC. (http://www.wso2.com)
- * Licensed under the Apache License, Version 2.0.
+ *  Copyright (c) 2026, WSO2 LLC. (http://www.wso2.com)
+ *
+ *  WSO2 LLC. licenses this file to you under the Apache License,
+ *  Version 2.0 (the "License"); you may not use this file except
+ *  in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing,
+ *  software distributed under the License is distributed on an
+ *  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ *  KIND, either express or implied.  See the License for the
+ *  specific language governing permissions and limitations
+ *  under the License.
  */
 package io.ballerina.modelgenerator.commons.trigger.utils;
 
@@ -81,19 +94,27 @@ public final class TriggerUIAuthoringParser {
                 "serviceProperties", "enabledByDefault")) {
             move(node, "listener", "form", "formFields", "serviceProperties", "enabledByDefault");
         }
+        if (node.has("listener") && node.get("listener").isJsonObject()) {
+            normalizeNode(node.getAsJsonObject("listener"), "listener");
+        }
         if ("serviceTypes".equals(context) && !node.has("service") && hasAny(node, "name", "description",
                 "properties")) {
             move(node, "service", "name", "description", "properties");
         }
-        if ("handlers".equals(context) && !node.has("function") && hasAny(node, "included", "repeatable",
+        if (node.has("service") && node.get("service").isJsonObject()) {
+            normalizeNode(node.getAsJsonObject("service"), "service");
+        }
+        if ("handlers".equals(context) && !node.has("function") && hasAny(node, "name", "included", "repeatable",
                 "layout", "documentation", "canAddParameters", "nameMetadata")) {
             move(node, "function", "included", "name", "nameEditable", "nameMetadata", "repeatable",
                     "canAddParameters", "variantLabel", "group", "documentation", "layout", "properties");
         }
+        if (node.has("function") && node.get("function").isJsonObject()) {
+            normalizeNode(node.getAsJsonObject("function"), "function");
+        }
         if (!node.has("field") && ("fields".equals(context) || "parameters".equals(context)
                 || "parameterSchema".equals(context) || "returnType".equals(context)
-                || "formFields".equals(context) || "serviceProperties".equals(context)
-                || "properties".equals(context) || "choices".equals(context)) && hasAny(node,
+                || "choices".equals(context)) && hasAny(node,
                 "key", "metadata", "source", "state", "placeholder", "default", "widget", "items", "choices",
                 "properties", "validations", "binding", "literal")) {
             JsonObject field = new JsonObject();
@@ -112,15 +133,13 @@ public final class TriggerUIAuthoringParser {
         normalizeNested(node, "parameterSchema");
         normalizeMap(node, "formFields");
         normalizeMap(node, "serviceProperties");
+        normalizeMap(node, "properties");
         if (node.has("returnType") && node.get("returnType").isJsonObject()) {
             normalizeNode(node.getAsJsonObject("returnType"), "returnType");
         }
         JsonObject field = object(node, "field");
         if (field != null) {
-            normalizeSource(field);
-            normalizeWidget(field);
-            normalizeNested(field, "choices");
-            normalizeMap(field, "properties");
+            normalizeField(field);
         }
         normalizeWidget(node);
     }
@@ -149,7 +168,26 @@ public final class TriggerUIAuthoringParser {
                 if (!child.has("key")) {
                     child.addProperty("key", entry.getKey());
                 }
-                normalizeNode(child, key);
+                normalizeField(child);
+            }
+        }
+    }
+
+    /** Normalizes a field stored as a map value; map values are fields directly, not wrapped nodes. */
+    private static void normalizeField(JsonObject field) {
+        normalizeSource(field);
+        normalizeWidget(field);
+        normalizeNestedFields(field, "choices");
+        normalizeMap(field, "properties");
+    }
+
+    private static void normalizeNestedFields(JsonObject node, String key) {
+        if (!node.has(key) || !node.get(key).isJsonArray()) {
+            return;
+        }
+        for (JsonElement child : node.getAsJsonArray(key)) {
+            if (child.isJsonObject()) {
+                normalizeField(child.getAsJsonObject());
             }
         }
     }

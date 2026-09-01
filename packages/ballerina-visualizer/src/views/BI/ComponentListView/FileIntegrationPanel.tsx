@@ -16,9 +16,8 @@
  * under the License.
  */
 import React, { useMemo } from 'react';
-import { Icon, ImageWithFallback } from '@wso2/ui-toolkit';
 import { useRpcContext } from '@wso2/ballerina-rpc-client';
-import { EVENT_TYPE, MACHINE_VIEW, SCOPE, ServiceModel, TriggerModelsResponse, resolveBrandIcon, resolveKindDefaultIcon } from '@wso2/ballerina-core';
+import { EVENT_TYPE, MACHINE_VIEW, SCOPE, ServiceModel, TriggerModelsResponse } from '@wso2/ballerina-core';
 
 import { CardGrid, PanelViewMore, Title, TitleWrapper } from './styles';
 import { BodyText } from '../../styles';
@@ -26,6 +25,8 @@ import ButtonCard from '../../../components/ButtonCard';
 import { ARTIFACT_CATEGORY_META } from '../components/artifactCards';
 import { cardMatchesSearch, OutOfScopeComponentTooltip } from './componentListUtils';
 import { RelativeLoader } from '../../../components/RelativeLoader';
+import { ArtifactIcon } from '../../../components/ArtifactIcon';
+import { effectiveTriggerKind } from './triggerKind';
 
 interface FileIntegrationPanelProps {
     scope: SCOPE;
@@ -44,7 +45,7 @@ export function FileIntegrationPanel(props: FileIntegrationPanelProps) {
     const isDisabled = props.scope && (props.scope !== SCOPE.FILE_INTEGRATION && props.scope !== SCOPE.ANY);
     const q = props.searchQuery;
     const matched = useMemo(
-        () => props.triggers.local.filter((t) => t.type === "file" && cardMatchesSearch(t.name, q)),
+        () => props.triggers.local.filter((t) => effectiveTriggerKind(t) === "file" && cardMatchesSearch(t.name, q)),
         [props.triggers, q]
     );
 
@@ -97,28 +98,6 @@ export function FileIntegrationPanel(props: FileIntegrationPanelProps) {
     );
 };
 
-// TODO: This should be removed once the new icons are added to the BE API.
 export function getFileIntegrationIcon(item: ServiceModel) {
-    const brandIcon = getCustomFileIntegrationIcon(item.moduleName);
-    if (brandIcon) {
-        return brandIcon;
-    }
-    const kindDefault = resolveKindDefaultIcon(item.type);
-    return (
-        <ImageWithFallback
-            imageUrl={item.icon}
-            fallbackEl={<Icon name={kindDefault.glyph} />}
-            size={38}
-        />
-    );
-}
-
-// INFO: This is a temporary function to get the custom icon for the file integration triggers.
-// TODO: This should be removed once the new icons are added to the BE API.
-export function getCustomFileIntegrationIcon(type: string) {
-    const brand = resolveBrandIcon(type);
-    if (!brand) {
-        return null;
-    }
-    return <Icon name={brand.glyph} sx={brand.color ? { color: brand.color } : undefined} />;
+    return <ArtifactIcon icon={item.icon} kind={effectiveTriggerKind(item)} />;
 }

@@ -258,7 +258,9 @@ public class TriggerModelSynthesizerTest {
 
         Assert.assertEquals(model.serviceTypes().size(), 1);
         TriggerUISchemaModel.ServiceTypeModel serviceType = model.serviceTypes().get(0);
-        Assert.assertEquals(serviceType.name(), "Service");
+        Assert.assertEquals(serviceType.name(), "Service",
+                "a single-type connector's service type is bare; qualification is a selector-disambiguation "
+                        + "concern");
         Assert.assertEquals(serviceType.functions().size(), 2, "backedByConcreteType -> locked from introspection");
         Assert.assertTrue(serviceType.schemaFunctions().isEmpty());
 

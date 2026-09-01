@@ -1,0 +1,141 @@
+{
+  "module": "salesforce",
+  "note": "",
+  "gaps": [
+    {
+      "path": "$.serviceTypes[salesforce:CdcService].description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggers when a new Change Data Capture event is received from Salesforce channels.\\nAvailable actions: onCreate, onUpdate, onDelete, and onRestore\" but found \"Triggers when a new Change Data Capture event is received from Salesforce channels. Available actions: onCreate, onUpdate, onDelete, and onRestore.\""
+    },
+    {
+      "path": "$.serviceTypes[salesforce:CdcService].functions[onCreate].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggers on a new record create event.\" but found \"Triggers on a new record create event.\\n\""
+    },
+    {
+      "path": "$.serviceTypes[salesforce:CdcService].functions[onCreate].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggers on a new record create event.\" but found \"Triggers on a new record create event.\\n\""
+    },
+    {
+      "path": "$.serviceTypes[salesforce:CdcService].functions[onCreate].parameters[payload].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The Change Data Capture event data.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[salesforce:CdcService].functions[onCreate].parameters[payload].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The Change Data Capture event data.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[salesforce:CdcService].functions[onCreate].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[salesforce:CdcService].functions[onUpdate].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggers on a record update event.\" but found \"Triggers on a record update event.\\n\""
+    },
+    {
+      "path": "$.serviceTypes[salesforce:CdcService].functions[onUpdate].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggers on a record update event.\" but found \"Triggers on a record update event.\\n\""
+    },
+    {
+      "path": "$.serviceTypes[salesforce:CdcService].functions[onUpdate].parameters[payload].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The Change Data Capture event data.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[salesforce:CdcService].functions[onUpdate].parameters[payload].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The Change Data Capture event data.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[salesforce:CdcService].functions[onUpdate].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[salesforce:CdcService].functions[onDelete].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggers on a record delete event.\" but found \"Triggers on a record delete event.\\n\""
+    },
+    {
+      "path": "$.serviceTypes[salesforce:CdcService].functions[onDelete].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggers on a record delete event.\" but found \"Triggers on a record delete event.\\n\""
+    },
+    {
+      "path": "$.serviceTypes[salesforce:CdcService].functions[onDelete].parameters[payload].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The Change Data Capture event data.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[salesforce:CdcService].functions[onDelete].parameters[payload].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The Change Data Capture event data.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[salesforce:CdcService].functions[onDelete].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[salesforce:CdcService].functions[onRestore].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggers on a record restore event.\" but found \"Triggers on a record restore event.\\n\""
+    },
+    {
+      "path": "$.serviceTypes[salesforce:CdcService].functions[onRestore].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggers on a record restore event.\" but found \"Triggers on a record restore event.\\n\""
+    },
+    {
+      "path": "$.serviceTypes[salesforce:CdcService].functions[onRestore].parameters[payload].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The Change Data Capture event data.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[salesforce:CdcService].functions[onRestore].parameters[payload].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The Change Data Capture event data.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[salesforce:CdcService].functions[onRestore].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[salesforce:PlatformEventsService].description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggers when a new Platform Event is received from Salesforce channels.\\nAvailable action: onMessage\" but found \"Triggers when a new Platform Event is received from Salesforce channels. Available action: onMessage.\""
+    },
+    {
+      "path": "$.serviceTypes[salesforce:PlatformEventsService].functions[onMessage].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggers when a Platform Event is published on the subscribed channel.\" but found \"Triggers when a Platform Event is published on the subscribed channel.\\n\""
+    },
+    {
+      "path": "$.serviceTypes[salesforce:PlatformEventsService].functions[onMessage].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggers when a Platform Event is published on the subscribed channel.\" but found \"Triggers when a Platform Event is published on the subscribed channel.\\n\""
+    },
+    {
+      "path": "$.serviceTypes[salesforce:PlatformEventsService].functions[onMessage].parameters[message].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The published Platform Event message.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[salesforce:PlatformEventsService].functions[onMessage].parameters[message].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The published Platform Event message.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[salesforce:PlatformEventsService].functions[onMessage].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    }
+  ]
+}

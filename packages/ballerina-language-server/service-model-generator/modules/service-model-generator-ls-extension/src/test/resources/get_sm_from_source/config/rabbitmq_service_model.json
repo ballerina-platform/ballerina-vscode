@@ -320,7 +320,7 @@
             "label": "Return Type",
             "description": "The return type of the function."
           },
-          "placeholder": "rabbitmq:Error?|error?",
+          "placeholder": "error?",
           "value": "error?",
           "types": [
             {

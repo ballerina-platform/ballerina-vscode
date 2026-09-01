@@ -1,0 +1,1196 @@
+{
+  "module": "trigger.github",
+  "note": "",
+  "gaps": [
+    {
+      "path": "$.initProperties.listener.choices[1].properties.existingListener.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Select an existing listener to attach the service to.\" but found \"The existing listener to attach to\""
+    },
+    {
+      "path": "$.initProperties.listener.choices[1].properties.existingListener.value",
+      "kind": "MISSING",
+      "detail": "expected \"githubListener\" but it is absent"
+    },
+    {
+      "path": "$.initProperties.listener.choices[1].properties.existingListener.items",
+      "kind": "MISSING",
+      "detail": "expected [\"githubListener\"] but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:IssuesService].functions[onOpened].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when an issue is opened.\" but found \"The `onOpened` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:IssuesService].functions[onOpened].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when an issue is opened.\" but found \"The `onOpened` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:IssuesService].functions[onOpened].parameters[payload].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:IssuesService].functions[onOpened].parameters[payload].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:IssuesService].functions[onOpened].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[github:IssuesService].functions[onClosed].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when an issue is closed.\" but found \"The `onClosed` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:IssuesService].functions[onClosed].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when an issue is closed.\" but found \"The `onClosed` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:IssuesService].functions[onClosed].parameters[payload].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:IssuesService].functions[onClosed].parameters[payload].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:IssuesService].functions[onClosed].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[github:IssuesService].functions[onReopened].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when an issue is reopened.\" but found \"The `onReopened` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:IssuesService].functions[onReopened].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when an issue is reopened.\" but found \"The `onReopened` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:IssuesService].functions[onReopened].parameters[payload].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:IssuesService].functions[onReopened].parameters[payload].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:IssuesService].functions[onReopened].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[github:IssuesService].functions[onAssigned].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when an issue is assigned to someone.\" but found \"The `onAssigned` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:IssuesService].functions[onAssigned].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when an issue is assigned to someone.\" but found \"The `onAssigned` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:IssuesService].functions[onAssigned].parameters[payload].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:IssuesService].functions[onAssigned].parameters[payload].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:IssuesService].functions[onAssigned].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[github:IssuesService].functions[onUnassigned].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when an issue is unassigned.\" but found \"The `onUnassigned` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:IssuesService].functions[onUnassigned].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when an issue is unassigned.\" but found \"The `onUnassigned` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:IssuesService].functions[onUnassigned].parameters[payload].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:IssuesService].functions[onUnassigned].parameters[payload].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:IssuesService].functions[onUnassigned].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[github:IssuesService].functions[onLabeled].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when an issue is labeled.\" but found \"The `onLabeled` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:IssuesService].functions[onLabeled].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when an issue is labeled.\" but found \"The `onLabeled` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:IssuesService].functions[onLabeled].parameters[payload].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:IssuesService].functions[onLabeled].parameters[payload].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:IssuesService].functions[onLabeled].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[github:IssuesService].functions[onUnlabeled].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when an issue is unlabeled.\" but found \"The `onUnlabeled` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:IssuesService].functions[onUnlabeled].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when an issue is unlabeled.\" but found \"The `onUnlabeled` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:IssuesService].functions[onUnlabeled].parameters[payload].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:IssuesService].functions[onUnlabeled].parameters[payload].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:IssuesService].functions[onUnlabeled].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[github:IssueCommentService].functions[onCreated].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when an issue comment is created.\" but found \"The `onCreated` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:IssueCommentService].functions[onCreated].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when an issue comment is created.\" but found \"The `onCreated` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:IssueCommentService].functions[onCreated].parameters[payload].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:IssueCommentService].functions[onCreated].parameters[payload].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:IssueCommentService].functions[onCreated].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[github:IssueCommentService].functions[onEdited].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when an issue comment is edited.\" but found \"The `onEdited` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:IssueCommentService].functions[onEdited].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when an issue comment is edited.\" but found \"The `onEdited` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:IssueCommentService].functions[onEdited].parameters[payload].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:IssueCommentService].functions[onEdited].parameters[payload].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:IssueCommentService].functions[onEdited].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[github:IssueCommentService].functions[onDeleted].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when an issue comment is deleted.\" but found \"The `onDeleted` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:IssueCommentService].functions[onDeleted].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when an issue comment is deleted.\" but found \"The `onDeleted` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:IssueCommentService].functions[onDeleted].parameters[payload].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:IssueCommentService].functions[onDeleted].parameters[payload].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:IssueCommentService].functions[onDeleted].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestService].functions[onOpened].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a pull request is opened.\" but found \"The `onOpened` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestService].functions[onOpened].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a pull request is opened.\" but found \"The `onOpened` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestService].functions[onOpened].parameters[payload].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestService].functions[onOpened].parameters[payload].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestService].functions[onOpened].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestService].functions[onClosed].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a pull request is closed.\" but found \"The `onClosed` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestService].functions[onClosed].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a pull request is closed.\" but found \"The `onClosed` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestService].functions[onClosed].parameters[payload].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestService].functions[onClosed].parameters[payload].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestService].functions[onClosed].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestService].functions[onReopened].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a pull request is reopened.\" but found \"The `onReopened` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestService].functions[onReopened].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a pull request is reopened.\" but found \"The `onReopened` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestService].functions[onReopened].parameters[payload].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestService].functions[onReopened].parameters[payload].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestService].functions[onReopened].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestService].functions[onAssigned].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a pull request is assigned to someone.\" but found \"The `onAssigned` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestService].functions[onAssigned].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a pull request is assigned to someone.\" but found \"The `onAssigned` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestService].functions[onAssigned].parameters[payload].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestService].functions[onAssigned].parameters[payload].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestService].functions[onAssigned].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestService].functions[onUnassigned].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a pull request is unassigned.\" but found \"The `onUnassigned` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestService].functions[onUnassigned].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a pull request is unassigned.\" but found \"The `onUnassigned` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestService].functions[onUnassigned].parameters[payload].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestService].functions[onUnassigned].parameters[payload].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestService].functions[onUnassigned].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestService].functions[onReviewRequested].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a pull request review is requested.\" but found \"The `onReviewRequested` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestService].functions[onReviewRequested].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a pull request review is requested.\" but found \"The `onReviewRequested` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestService].functions[onReviewRequested].parameters[payload].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestService].functions[onReviewRequested].parameters[payload].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestService].functions[onReviewRequested].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestService].functions[onReviewRequestRemoved].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a pull request review request is removed.\" but found \"The `onReviewRequestRemoved` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestService].functions[onReviewRequestRemoved].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a pull request review request is removed.\" but found \"The `onReviewRequestRemoved` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestService].functions[onReviewRequestRemoved].parameters[payload].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestService].functions[onReviewRequestRemoved].parameters[payload].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestService].functions[onReviewRequestRemoved].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestService].functions[onLabeled].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a pull request is labeled.\" but found \"The `onLabeled` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestService].functions[onLabeled].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a pull request is labeled.\" but found \"The `onLabeled` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestService].functions[onLabeled].parameters[payload].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestService].functions[onLabeled].parameters[payload].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestService].functions[onLabeled].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestService].functions[onUnlabeled].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a pull request is unlabeled.\" but found \"The `onUnlabeled` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestService].functions[onUnlabeled].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a pull request is unlabeled.\" but found \"The `onUnlabeled` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestService].functions[onUnlabeled].parameters[payload].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestService].functions[onUnlabeled].parameters[payload].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestService].functions[onUnlabeled].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestService].functions[onEdited].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a pull request is edited.\" but found \"The `onEdited` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestService].functions[onEdited].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a pull request is edited.\" but found \"The `onEdited` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestService].functions[onEdited].parameters[payload].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestService].functions[onEdited].parameters[payload].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestService].functions[onEdited].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestReviewService].functions[onSubmitted].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a pull request review is submitted.\" but found \"The `onSubmitted` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestReviewService].functions[onSubmitted].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a pull request review is submitted.\" but found \"The `onSubmitted` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestReviewService].functions[onSubmitted].parameters[payload].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestReviewService].functions[onSubmitted].parameters[payload].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestReviewService].functions[onSubmitted].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestReviewService].functions[onEdited].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a pull request review is edited.\" but found \"The `onEdited` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestReviewService].functions[onEdited].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a pull request review is edited.\" but found \"The `onEdited` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestReviewService].functions[onEdited].parameters[payload].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestReviewService].functions[onEdited].parameters[payload].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestReviewService].functions[onEdited].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestReviewService].functions[onDismissed].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a pull request review is dismissed.\" but found \"The `onDismissed` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestReviewService].functions[onDismissed].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a pull request review is dismissed.\" but found \"The `onDismissed` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestReviewService].functions[onDismissed].parameters[payload].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestReviewService].functions[onDismissed].parameters[payload].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestReviewService].functions[onDismissed].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestReviewCommentService].functions[onCreated].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a pull request review comment is created.\" but found \"The `onCreated` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestReviewCommentService].functions[onCreated].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a pull request review comment is created.\" but found \"The `onCreated` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestReviewCommentService].functions[onCreated].parameters[payload].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestReviewCommentService].functions[onCreated].parameters[payload].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestReviewCommentService].functions[onCreated].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestReviewCommentService].functions[onEdited].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a pull request review comment is edited.\" but found \"The `onEdited` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestReviewCommentService].functions[onEdited].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a pull request review comment is edited.\" but found \"The `onEdited` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestReviewCommentService].functions[onEdited].parameters[payload].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestReviewCommentService].functions[onEdited].parameters[payload].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestReviewCommentService].functions[onEdited].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestReviewCommentService].functions[onDeleted].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a pull request review comment is deleted.\" but found \"The `onDeleted` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestReviewCommentService].functions[onDeleted].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a pull request review comment is deleted.\" but found \"The `onDeleted` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestReviewCommentService].functions[onDeleted].parameters[payload].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestReviewCommentService].functions[onDeleted].parameters[payload].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:PullRequestReviewCommentService].functions[onDeleted].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[github:ReleaseService].functions[onPublished].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a release is published.\" but found \"The `onPublished` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:ReleaseService].functions[onPublished].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a release is published.\" but found \"The `onPublished` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:ReleaseService].functions[onPublished].parameters[payload].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:ReleaseService].functions[onPublished].parameters[payload].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:ReleaseService].functions[onPublished].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[github:ReleaseService].functions[onUnpublished].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a release is unpublished.\" but found \"The `onUnpublished` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:ReleaseService].functions[onUnpublished].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a release is unpublished.\" but found \"The `onUnpublished` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:ReleaseService].functions[onUnpublished].parameters[payload].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:ReleaseService].functions[onUnpublished].parameters[payload].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:ReleaseService].functions[onUnpublished].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[github:ReleaseService].functions[onCreated].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a release is created.\" but found \"The `onCreated` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:ReleaseService].functions[onCreated].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a release is created.\" but found \"The `onCreated` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:ReleaseService].functions[onCreated].parameters[payload].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:ReleaseService].functions[onCreated].parameters[payload].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:ReleaseService].functions[onCreated].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[github:ReleaseService].functions[onEdited].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a release is edited.\" but found \"The `onEdited` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:ReleaseService].functions[onEdited].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a release is edited.\" but found \"The `onEdited` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:ReleaseService].functions[onEdited].parameters[payload].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:ReleaseService].functions[onEdited].parameters[payload].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:ReleaseService].functions[onEdited].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[github:ReleaseService].functions[onDeleted].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a release is deleted.\" but found \"The `onDeleted` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:ReleaseService].functions[onDeleted].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a release is deleted.\" but found \"The `onDeleted` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:ReleaseService].functions[onDeleted].parameters[payload].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:ReleaseService].functions[onDeleted].parameters[payload].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:ReleaseService].functions[onDeleted].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[github:ReleaseService].functions[onPreReleased].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a release is pre-released.\" but found \"The `onPreReleased` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:ReleaseService].functions[onPreReleased].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a release is pre-released.\" but found \"The `onPreReleased` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:ReleaseService].functions[onPreReleased].parameters[payload].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:ReleaseService].functions[onPreReleased].parameters[payload].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:ReleaseService].functions[onPreReleased].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[github:ReleaseService].functions[onReleased].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a release is released.\" but found \"The `onReleased` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:ReleaseService].functions[onReleased].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a release is released.\" but found \"The `onReleased` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:ReleaseService].functions[onReleased].parameters[payload].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:ReleaseService].functions[onReleased].parameters[payload].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:ReleaseService].functions[onReleased].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[github:LabelService].functions[onCreated].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a label is created.\" but found \"The `onCreated` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:LabelService].functions[onCreated].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a label is created.\" but found \"The `onCreated` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:LabelService].functions[onCreated].parameters[payload].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:LabelService].functions[onCreated].parameters[payload].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:LabelService].functions[onCreated].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[github:LabelService].functions[onEdited].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a label is edited.\" but found \"The `onEdited` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:LabelService].functions[onEdited].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a label is edited.\" but found \"The `onEdited` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:LabelService].functions[onEdited].parameters[payload].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:LabelService].functions[onEdited].parameters[payload].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:LabelService].functions[onEdited].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[github:LabelService].functions[onDeleted].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a label is deleted.\" but found \"The `onDeleted` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:LabelService].functions[onDeleted].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a label is deleted.\" but found \"The `onDeleted` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:LabelService].functions[onDeleted].parameters[payload].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:LabelService].functions[onDeleted].parameters[payload].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:LabelService].functions[onDeleted].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[github:MilestoneService].functions[onCreated].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a milestone is created.\" but found \"The `onCreated` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:MilestoneService].functions[onCreated].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a milestone is created.\" but found \"The `onCreated` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:MilestoneService].functions[onCreated].parameters[payload].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:MilestoneService].functions[onCreated].parameters[payload].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:MilestoneService].functions[onCreated].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[github:MilestoneService].functions[onEdited].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a milestone is edited.\" but found \"The `onEdited` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:MilestoneService].functions[onEdited].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a milestone is edited.\" but found \"The `onEdited` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:MilestoneService].functions[onEdited].parameters[payload].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:MilestoneService].functions[onEdited].parameters[payload].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:MilestoneService].functions[onEdited].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[github:MilestoneService].functions[onDeleted].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a milestone is deleted.\" but found \"The `onDeleted` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:MilestoneService].functions[onDeleted].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a milestone is deleted.\" but found \"The `onDeleted` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:MilestoneService].functions[onDeleted].parameters[payload].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:MilestoneService].functions[onDeleted].parameters[payload].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:MilestoneService].functions[onDeleted].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[github:MilestoneService].functions[onClosed].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a milestone is closed.\" but found \"The `onClosed` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:MilestoneService].functions[onClosed].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a milestone is closed.\" but found \"The `onClosed` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:MilestoneService].functions[onClosed].parameters[payload].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:MilestoneService].functions[onClosed].parameters[payload].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:MilestoneService].functions[onClosed].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[github:MilestoneService].functions[onOpened].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a milestone is opened.\" but found \"The `onOpened` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:MilestoneService].functions[onOpened].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a milestone is opened.\" but found \"The `onOpened` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:MilestoneService].functions[onOpened].parameters[payload].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:MilestoneService].functions[onOpened].parameters[payload].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:MilestoneService].functions[onOpened].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[github:PushService].functions[onPush].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a commit is pushed to the repository.\" but found \"The `onPush` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:PushService].functions[onPush].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a commit is pushed to the repository.\" but found \"The `onPush` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:PushService].functions[onPush].parameters[payload].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:PushService].functions[onPush].parameters[payload].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:PushService].functions[onPush].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[github:ProjectCardService].functions[onCreated].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a project card is created.\" but found \"The `onCreated` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:ProjectCardService].functions[onCreated].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a project card is created.\" but found \"The `onCreated` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:ProjectCardService].functions[onCreated].parameters[payload].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:ProjectCardService].functions[onCreated].parameters[payload].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:ProjectCardService].functions[onCreated].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[github:ProjectCardService].functions[onEdited].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a project card is edited.\" but found \"The `onEdited` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:ProjectCardService].functions[onEdited].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a project card is edited.\" but found \"The `onEdited` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:ProjectCardService].functions[onEdited].parameters[payload].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:ProjectCardService].functions[onEdited].parameters[payload].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:ProjectCardService].functions[onEdited].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[github:ProjectCardService].functions[onMoved].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a project card is moved.\" but found \"The `onMoved` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:ProjectCardService].functions[onMoved].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a project card is moved.\" but found \"The `onMoved` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:ProjectCardService].functions[onMoved].parameters[payload].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:ProjectCardService].functions[onMoved].parameters[payload].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:ProjectCardService].functions[onMoved].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[github:ProjectCardService].functions[onConverted].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a project card is converted to an issue.\" but found \"The `onConverted` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:ProjectCardService].functions[onConverted].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a project card is converted to an issue.\" but found \"The `onConverted` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:ProjectCardService].functions[onConverted].parameters[payload].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:ProjectCardService].functions[onConverted].parameters[payload].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:ProjectCardService].functions[onConverted].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[github:ProjectCardService].functions[onDeleted].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a project card is deleted.\" but found \"The `onDeleted` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:ProjectCardService].functions[onDeleted].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a project card is deleted.\" but found \"The `onDeleted` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[github:ProjectCardService].functions[onDeleted].parameters[payload].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:ProjectCardService].functions[onDeleted].parameters[payload].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The information about the triggered event.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[github:ProjectCardService].functions[onDeleted].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    }
+  ]
+}

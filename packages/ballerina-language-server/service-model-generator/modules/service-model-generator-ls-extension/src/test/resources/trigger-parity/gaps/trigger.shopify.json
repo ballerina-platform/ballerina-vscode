@@ -1,0 +1,381 @@
+{
+  "module": "trigger.shopify",
+  "note": null,
+  "gaps": [
+    {
+      "path": "$.serviceTypes[shopify:OrdersService].functions[onOrdersCreate].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when an order is created.\" but found \"The `onOrdersCreate` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[shopify:OrdersService].functions[onOrdersCreate].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when an order is created.\" but found \"The `onOrdersCreate` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[shopify:OrdersService].functions[onOrdersCreate].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The Shopify order event payload.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[shopify:OrdersService].functions[onOrdersCreate].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The Shopify order event payload.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[shopify:OrdersService].functions[onOrdersCreate].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[shopify:OrdersService].functions[onOrdersCancelled].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when an order is cancelled.\" but found \"The `onOrdersCancelled` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[shopify:OrdersService].functions[onOrdersCancelled].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when an order is cancelled.\" but found \"The `onOrdersCancelled` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[shopify:OrdersService].functions[onOrdersCancelled].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The Shopify order event payload.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[shopify:OrdersService].functions[onOrdersCancelled].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The Shopify order event payload.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[shopify:OrdersService].functions[onOrdersCancelled].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[shopify:OrdersService].functions[onOrdersFulfilled].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when an order is fulfilled.\" but found \"The `onOrdersFulfilled` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[shopify:OrdersService].functions[onOrdersFulfilled].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when an order is fulfilled.\" but found \"The `onOrdersFulfilled` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[shopify:OrdersService].functions[onOrdersFulfilled].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The Shopify order event payload.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[shopify:OrdersService].functions[onOrdersFulfilled].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The Shopify order event payload.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[shopify:OrdersService].functions[onOrdersFulfilled].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[shopify:OrdersService].functions[onOrdersPaid].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when an order is paid.\" but found \"The `onOrdersPaid` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[shopify:OrdersService].functions[onOrdersPaid].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when an order is paid.\" but found \"The `onOrdersPaid` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[shopify:OrdersService].functions[onOrdersPaid].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The Shopify order event payload.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[shopify:OrdersService].functions[onOrdersPaid].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The Shopify order event payload.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[shopify:OrdersService].functions[onOrdersPaid].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[shopify:OrdersService].functions[onOrdersPartiallyFulfilled].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when an order is partially fulfilled.\" but found \"The `onOrdersPartiallyFulfilled` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[shopify:OrdersService].functions[onOrdersPartiallyFulfilled].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when an order is partially fulfilled.\" but found \"The `onOrdersPartiallyFulfilled` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[shopify:OrdersService].functions[onOrdersPartiallyFulfilled].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The Shopify order event payload.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[shopify:OrdersService].functions[onOrdersPartiallyFulfilled].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The Shopify order event payload.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[shopify:OrdersService].functions[onOrdersPartiallyFulfilled].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[shopify:OrdersService].functions[onOrdersUpdated].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when an order is updated.\" but found \"The `onOrdersUpdated` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[shopify:OrdersService].functions[onOrdersUpdated].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when an order is updated.\" but found \"The `onOrdersUpdated` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[shopify:OrdersService].functions[onOrdersUpdated].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The Shopify order event payload.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[shopify:OrdersService].functions[onOrdersUpdated].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The Shopify order event payload.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[shopify:OrdersService].functions[onOrdersUpdated].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[shopify:CustomersService].functions[onCustomersCreate].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a customer is created.\" but found \"The `onCustomersCreate` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[shopify:CustomersService].functions[onCustomersCreate].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a customer is created.\" but found \"The `onCustomersCreate` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[shopify:CustomersService].functions[onCustomersCreate].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The Shopify customer event payload.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[shopify:CustomersService].functions[onCustomersCreate].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The Shopify customer event payload.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[shopify:CustomersService].functions[onCustomersCreate].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[shopify:CustomersService].functions[onCustomersDisable].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a customer is disabled.\" but found \"The `onCustomersDisable` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[shopify:CustomersService].functions[onCustomersDisable].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a customer is disabled.\" but found \"The `onCustomersDisable` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[shopify:CustomersService].functions[onCustomersDisable].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The Shopify customer event payload.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[shopify:CustomersService].functions[onCustomersDisable].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The Shopify customer event payload.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[shopify:CustomersService].functions[onCustomersDisable].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[shopify:CustomersService].functions[onCustomersEnable].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a customer is enabled.\" but found \"The `onCustomersEnable` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[shopify:CustomersService].functions[onCustomersEnable].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a customer is enabled.\" but found \"The `onCustomersEnable` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[shopify:CustomersService].functions[onCustomersEnable].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The Shopify customer event payload.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[shopify:CustomersService].functions[onCustomersEnable].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The Shopify customer event payload.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[shopify:CustomersService].functions[onCustomersEnable].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[shopify:CustomersService].functions[onCustomersUpdate].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a customer is updated.\" but found \"The `onCustomersUpdate` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[shopify:CustomersService].functions[onCustomersUpdate].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a customer is updated.\" but found \"The `onCustomersUpdate` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[shopify:CustomersService].functions[onCustomersUpdate].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The Shopify customer event payload.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[shopify:CustomersService].functions[onCustomersUpdate].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The Shopify customer event payload.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[shopify:CustomersService].functions[onCustomersUpdate].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[shopify:CustomersService].functions[onCustomersMarketingConsentUpdate].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a customer's marketing consent is updated.\" but found \"The `onCustomersMarketingConsentUpdate` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[shopify:CustomersService].functions[onCustomersMarketingConsentUpdate].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a customer's marketing consent is updated.\" but found \"The `onCustomersMarketingConsentUpdate` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[shopify:CustomersService].functions[onCustomersMarketingConsentUpdate].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The Shopify customer event payload.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[shopify:CustomersService].functions[onCustomersMarketingConsentUpdate].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The Shopify customer event payload.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[shopify:CustomersService].functions[onCustomersMarketingConsentUpdate].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[shopify:ProductsService].functions[onProductsCreate].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a product is created.\" but found \"The `onProductsCreate` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[shopify:ProductsService].functions[onProductsCreate].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a product is created.\" but found \"The `onProductsCreate` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[shopify:ProductsService].functions[onProductsCreate].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The Shopify product event payload.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[shopify:ProductsService].functions[onProductsCreate].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The Shopify product event payload.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[shopify:ProductsService].functions[onProductsCreate].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[shopify:ProductsService].functions[onProductsUpdate].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a product is updated.\" but found \"The `onProductsUpdate` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[shopify:ProductsService].functions[onProductsUpdate].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a product is updated.\" but found \"The `onProductsUpdate` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[shopify:ProductsService].functions[onProductsUpdate].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The Shopify product event payload.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[shopify:ProductsService].functions[onProductsUpdate].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The Shopify product event payload.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[shopify:ProductsService].functions[onProductsUpdate].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[shopify:FulfillmentsService].functions[onFulfillmentsCreate].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a fulfillment is created.\" but found \"The `onFulfillmentsCreate` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[shopify:FulfillmentsService].functions[onFulfillmentsCreate].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a fulfillment is created.\" but found \"The `onFulfillmentsCreate` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[shopify:FulfillmentsService].functions[onFulfillmentsCreate].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The Shopify fulfillment event payload.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[shopify:FulfillmentsService].functions[onFulfillmentsCreate].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The Shopify fulfillment event payload.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[shopify:FulfillmentsService].functions[onFulfillmentsCreate].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    },
+    {
+      "path": "$.serviceTypes[shopify:FulfillmentsService].functions[onFulfillmentsUpdate].metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a fulfillment is updated.\" but found \"The `onFulfillmentsUpdate` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[shopify:FulfillmentsService].functions[onFulfillmentsUpdate].documentation",
+      "kind": "VALUE",
+      "detail": "expected \"Triggered when a fulfillment is updated.\" but found \"The `onFulfillmentsUpdate` handler.\""
+    },
+    {
+      "path": "$.serviceTypes[shopify:FulfillmentsService].functions[onFulfillmentsUpdate].parameters[event].metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The Shopify fulfillment event payload.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[shopify:FulfillmentsService].functions[onFulfillmentsUpdate].parameters[event].name.metadata.description",
+      "kind": "MISSING",
+      "detail": "expected \"The Shopify fulfillment event payload.\" but it is absent"
+    },
+    {
+      "path": "$.serviceTypes[shopify:FulfillmentsService].functions[onFulfillmentsUpdate].returnType.metadata.description",
+      "kind": "VALUE",
+      "detail": "expected \"The return type of the function; `error?` to signal a processing error.\" but found \"The return type of the function.\""
+    }
+  ]
+}

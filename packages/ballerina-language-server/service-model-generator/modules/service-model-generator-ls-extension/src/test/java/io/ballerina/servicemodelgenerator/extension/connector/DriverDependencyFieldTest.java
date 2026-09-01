@@ -38,11 +38,11 @@ import java.util.Optional;
 
 /**
  * Verifies the SAP JCo driver-JAR fields (product-integrator#2020): both {@code sapIdocDriverPath}
- * and {@code sapJcoDriverPath} are hidden from the init form once their own
- * {@code [[platform.java21.dependency]]} is already declared in Ballerina.toml (so a second
- * listener/service in the same project isn't asked again), a filled field is turned into a
- * Ballerina.toml edit when the source is generated, and the listener edit view shows a declared
- * path read-only while still asking for one that isn't configured yet.
+ * and {@code sapJcoDriverPath} stay visible and enabled in the init form even once their own
+ * {@code [[platform.java21.dependency]]} is already declared in Ballerina.toml, but become
+ * read-only (the discovered path is shown, not re-asked for) -- a filled, still-editable field is
+ * turned into a Ballerina.toml edit when the source is generated, and the listener edit view shows
+ * a declared path read-only while still asking for one that isn't configured yet.
  */
 public class DriverDependencyFieldTest {
 
@@ -60,7 +60,7 @@ public class DriverDependencyFieldTest {
     }
 
     @Test
-    public void testOnlyTheDeclaredFieldIsHidden() throws URISyntaxException {
+    public void testOnlyTheDeclaredFieldIsReadOnly() throws URISyntaxException {
         ServiceInitModel initModel = loadSapJcoInitModel();
         Project project = load("platform_dependency/already_declared");
 
@@ -68,14 +68,16 @@ public class DriverDependencyFieldTest {
 
         Map<String, Value> driverFields = PlatformDependencyEditUtil
                 .findDriverDependencyFields(initModel.getProperties());
-        Assert.assertFalse(driverFields.get("sapJcoDriverPath").isEnabled(),
-                "the already-declared jco driver must be hidden");
-        Assert.assertTrue(driverFields.get("sapIdocDriverPath").isEnabled(),
-                "the idoc driver isn't declared yet and must still be asked for");
+        Value jco = driverFields.get("sapJcoDriverPath");
+        Assert.assertTrue(jco.isEnabled(), "a declared driver stays visible in the init form");
+        Assert.assertFalse(jco.isEditable(), "the already-declared jco driver path is shown read-only");
+        Value idoc = driverFields.get("sapIdocDriverPath");
+        Assert.assertTrue(idoc.isEnabled(), "the idoc driver isn't declared yet and must still be asked for");
+        Assert.assertTrue(idoc.isEditable(), "the idoc driver isn't declared yet and must still be editable");
     }
 
     @Test
-    public void testGroupIsCollapsedWhenEveryDriverIsAlreadyDeclared() throws URISyntaxException {
+    public void testGroupStaysVisibleWhenEveryDriverIsAlreadyDeclared() throws URISyntaxException {
         ServiceInitModel initModel = loadSapJcoInitModel();
         Project project = load("platform_dependency/both_declared");
 
@@ -83,12 +85,14 @@ public class DriverDependencyFieldTest {
 
         Map<String, Value> driverFields = PlatformDependencyEditUtil
                 .findDriverDependencyFields(initModel.getProperties());
-        driverFields.values().forEach(field -> Assert.assertFalse(field.isEnabled(),
-                "every declared driver must be hidden"));
+        driverFields.values().forEach(field -> {
+            Assert.assertTrue(field.isEnabled(), "a declared driver stays visible in the init form");
+            Assert.assertFalse(field.isEditable(), "a declared driver path is shown read-only");
+        });
         Value group = initModel.getProperties().get("driverDependencies");
         Assert.assertNotNull(group, "sap.jco must ship the driver fields inside a group");
-        Assert.assertFalse(group.isEnabled(),
-                "a group left with nothing but hidden drivers must not render as an empty section");
+        Assert.assertTrue(group.isEnabled(),
+                "the group stays visible even once every driver in it is already declared");
     }
 
     @Test

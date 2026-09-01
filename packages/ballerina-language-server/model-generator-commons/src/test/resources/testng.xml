@@ -25,6 +25,7 @@ under the License.
             <class name="io.ballerina.modelgenerator.commons.trigger.PackagedTriggerModelsTest"/>
             <class name="io.ballerina.modelgenerator.commons.trigger.BundledTriggerMetadataTest"/>
             <class name="io.ballerina.modelgenerator.commons.trigger.TypeRefResolverTest"/>
+            <class name="io.ballerina.modelgenerator.commons.trigger.TriggerUIAuthoringParserTest"/>
         </classes>
     </test>
 </suite>

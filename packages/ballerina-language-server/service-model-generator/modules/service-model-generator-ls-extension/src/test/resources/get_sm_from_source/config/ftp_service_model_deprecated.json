@@ -16,10 +16,10 @@
     "displayName": "FTP Integration",
     "moduleName": "ftp",
     "orgName": "ballerina",
-    "version": "2.20.0",
+    "version": "2.20.1",
     "packageName": "ftp",
     "listenerProtocol": "ftp",
-    "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ftp_2.20.0.png",
+    "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ftp_2.20.1.png",
     "properties": {
       "listener": {
         "metadata": {
@@ -161,7 +161,8 @@
       {
         "metadata": {
           "label": "On File Change",
-          "description": "Invoked once per polling cycle with the full set of file-system changes (added and deleted files). Deprecated in favor of the format-specific handlers (On Create variants) and On Delete."
+          "description": "Invoked once per polling cycle with the full set of file-system changes (added and deleted files). Deprecated in favor of the format-specific handlers (On Create variants) and On Delete.",
+          "notice": "Superseded by the typed content handlers. onFileChange only reports which files changed, leaving the read and the parse to the handler, whereas onFileText, onFileJson, onFileXml, onFileCsv and onFile deliver the file body already bound to a declared type."
         },
         "kind": "REMOTE",
         "name": {
@@ -321,7 +322,7 @@
           "orgName": "ballerina",
           "packageName": "ftp",
           "moduleName": "ftp",
-          "version": "2.20.0"
+          "version": "2.20.1"
         },
         "properties": {},
         "group": "onFileChange",
