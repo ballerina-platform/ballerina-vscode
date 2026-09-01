@@ -62,6 +62,50 @@ const POST_FAILURE_CLEANUP_TIMEOUT_MS = Number(process.env.BI_E2E_POST_FAILURE_C
  * Race `operation` against a timer. If the timer wins, throw with the provided
  * message so the caller can fall back to a recovery path instead of hanging.
  */
+const ELECTRON_EXIT_WAIT_MS = Number(process.env.BI_E2E_ELECTRON_EXIT_WAIT_MS ?? 5000);
+
+/**
+ * Kills the VS Code Electron process and clears the module-level handles, so the
+ * next `initTest` takes the fresh-launch branch. Extracted from test.list.ts's
+ * afterAll, which was the only caller until Windows needed it mid-run too — see
+ * `initTest` for why. Never throws: a failure here must not mask the test result.
+ */
+export async function terminateVSCode(): Promise<void> {
+    if (!vscode) {
+        return;
+    }
+    console.log('🛑 Terminating VS Code Electron app...');
+    try {
+        const electronProcess = vscode.process?.();
+        if (electronProcess && !electronProcess.killed) {
+            await new Promise<void>((resolve) => {
+                let settled = false;
+                const done = () => {
+                    if (settled) return;
+                    settled = true;
+                    clearTimeout(timer);
+                    resolve();
+                };
+                const timer = setTimeout(done, ELECTRON_EXIT_WAIT_MS);
+                electronProcess.once('exit', done);
+                try {
+                    electronProcess.kill('SIGKILL');
+                } catch {
+                    // already gone — resolve immediately
+                    done();
+                }
+            });
+            console.log('✅ VS Code Electron app terminated');
+        } else {
+            console.log('ℹ️  No live Electron process to terminate');
+        }
+    } catch (err) {
+        console.warn(`⚠️  Failed to terminate Electron: ${(err as Error).message}`);
+    }
+    vscode = undefined;
+    page = undefined as unknown as ExtendedPage;
+}
+
 async function withTimeout<T>(operation: Promise<T>, timeoutMs: number, timeoutMessage: string): Promise<T> {
     let timeoutHandle: NodeJS.Timeout | undefined;
     try {
@@ -519,6 +563,17 @@ export function initTest(newProject: boolean = true, skipProjectCreation: boolea
             // Read/write/execute for all files and folders in the data folder
             fs.mkdirSync(dataFolder, { recursive: true, mode: 0o777 });
         };
+
+        // Windows cannot delete a directory that a running process holds open, so the
+        // reuse branch below — which wipes dataFolder while VS Code still has the
+        // workspace open — fails with `EBUSY: resource busy or locked, rmdir`. Linux
+        // unlinks open files happily, which is why this only shows up on Windows.
+        // Closing VS Code first costs a relaunch (~2 min) but is the branch that
+        // already passes there; the reuse optimisation is kept for Linux.
+        if (process.platform === 'win32' && vscode) {
+            console.log('  🪟 Windows: closing VS Code before wiping the data folder');
+            await terminateVSCode();
+        }
 
         if (!vscode || !page) {
             wipeAndRecreateDataFolder();
