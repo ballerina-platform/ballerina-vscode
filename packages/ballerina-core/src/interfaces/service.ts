@@ -36,7 +36,9 @@ export type ListenerModel = {
 };
 
 
-export type AgentTriggerKind = "CHAT" | "EVENT";
+export type AgentTriggerKind = "CHAT" | "EVENT" | "HTTP";
+
+export type AgentTriggerDeletionScope = "ENTRY_POINT" | "SERVICE";
 
 /**
  * For schema-driven triggers (unified TriggerModel), `functions` and `schemaFunctions` split the
@@ -60,6 +62,7 @@ export interface ServiceModel {
     functions?: FunctionModel[];
     schemaFunctions?: FunctionModel[];
     agentTriggerKind?: AgentTriggerKind;
+    deletionScope?: AgentTriggerDeletionScope;
     codedata?: CodeData;
 }
 
@@ -346,5 +349,6 @@ export interface ServiceInitModel {
     icon: string;
     properties: { [key: string]: PropertyModel };
     isLocalRepository?: boolean;
+    resource?: FunctionModel;
 }
 

@@ -106,19 +106,7 @@ public class AiChatChannel implements AgentTriggerChannel {
     @Override
     public String serviceBlock(AgentTriggerContext context) {
         return context.fill(SERVICE_BLOCK)
-                .replace("{{basePath}}", escapePath(basePath(context)))
+                .replace("{{basePath}}", context.servicePath(BASE_PATH, DEFAULT_BASE_PATH))
                 .replace("{{agentRun}}", context.agentRun("request.message", "request.sessionId"));
-    }
-
-    private static String basePath(AgentTriggerContext context) {
-        String path = context.formValue(BASE_PATH).strip();
-        if (path.isEmpty()) {
-            return DEFAULT_BASE_PATH;
-        }
-        return path.startsWith("/") ? path : "/" + path;
-    }
-
-    private static String escapePath(String path) {
-        return path.replace("-", "\\-");
     }
 }

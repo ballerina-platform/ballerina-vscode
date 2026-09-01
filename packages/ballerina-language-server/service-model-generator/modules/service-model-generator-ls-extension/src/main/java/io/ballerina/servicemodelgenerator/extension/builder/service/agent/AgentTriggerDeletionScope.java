@@ -18,11 +18,7 @@
 
 package io.ballerina.servicemodelgenerator.extension.builder.service.agent;
 
-public enum AgentTriggerKind {
-
-    CHAT,
-
-    EVENT,
-
-    HTTP
+public enum AgentTriggerDeletionScope {
+    ENTRY_POINT,
+    SERVICE
 }

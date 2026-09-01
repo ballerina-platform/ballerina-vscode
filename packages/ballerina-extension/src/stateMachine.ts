@@ -690,6 +690,7 @@ const stateMachine = createMachine<MachineContext>(
                                 location: {
                                     view: MACHINE_VIEW.PackageOverview,
                                     documentUri: context.documentUri,
+                                    projectPath: context.projectPath,
                                     org: orgName || context.org,
                                     package: packageName || context.package,
                                 }
@@ -700,6 +701,7 @@ const stateMachine = createMachine<MachineContext>(
                     const view = await getView(context.documentUri, context.position, context?.projectPath);
                     view.location.package = packageName || context.package;
                     view.location.package = packageName || context.package;
+                    view.location.projectPath = view.location.projectPath ?? context.projectPath;
                     history.push(view);
                     return resolve();
                 } else {
@@ -707,6 +709,7 @@ const stateMachine = createMachine<MachineContext>(
                         location: {
                             view: context.view,
                             documentUri: context.documentUri,
+                            projectPath: context.projectPath,
                             position: context.position,
                             identifier: context.identifier,
                             parentIdentifier: context.parentIdentifier,

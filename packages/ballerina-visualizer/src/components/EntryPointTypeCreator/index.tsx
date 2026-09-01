@@ -20,7 +20,7 @@ import React, { useEffect, useState } from "react";
 import { Type, TypeNodeKind, Member, PayloadContext, Imports } from "@wso2/ballerina-core";
 import { ThemeColors } from "@wso2/ui-toolkit";
 import styled from "@emotion/styled";
-import DynamicModal from "../../components/Modal";
+import DynamicModal, { MODAL_BACKDROP } from "../../components/Modal";
 
 import { EditorContext, StackItem } from "@wso2/type-editor";
 import { BreadcrumbContainer, BreadcrumbItem, BreadcrumbSeparator } from "../../views/BI/Forms/FlowNodeForm";
@@ -73,7 +73,6 @@ interface TypeEditorState {
     newTypeName: string | undefined;
     editingType: Type;
 }
-
 
 export function EntryPointTypeCreator(props: EntryPointTypeCreatorProps) {
     const { modalTitle, initialTypeName, modalWidth, modalHeight, payloadContext, isOpen, onClose, onTypeCreate, defaultTab, note } = props;
@@ -291,6 +290,7 @@ export function EntryPointTypeCreator(props: EntryPointTypeCreatorProps) {
                 title={modalTitle}
                 openState={typeEditorState.isTypeCreatorOpen}
                 setOpenState={onTypeEditorClosed}
+                sx={{ backgroundColor: MODAL_BACKDROP }}
             >
                 <div style={{ height: '525px', overflow: 'auto' }}>
                     <FormTypeEditor

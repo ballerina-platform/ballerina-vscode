@@ -22,6 +22,8 @@ import io.ballerina.modelgenerator.commons.trigger.models.TriggerUISchemaModel;
 import io.ballerina.servicemodelgenerator.extension.connector.SchemaDrivenSourceGenerator;
 import io.ballerina.servicemodelgenerator.extension.model.ServiceInitModel;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -35,13 +37,23 @@ import java.util.Map;
  * @param formValues      the filled creation form, flattened to leaf key -> value
  * @param initForm        the filled creation form itself
  * @param triggerModel    the connector's schema
+ * @param auxiliaryTypes   type definitions the channel produced, destined for {@code types.bal}
+ * @param auxiliaryImports imports those definitions need, keyed by module name
  * @since 1.9.0
  */
 public record AgentTriggerContext(String emitAlias, String listenerVarName, String agentVarName,
                                   String agentOrgName, Map<String, String> formValues,
-                                  ServiceInitModel initForm, TriggerUISchemaModel triggerModel) {
+                                  ServiceInitModel initForm, TriggerUISchemaModel triggerModel,
+                                  List<String> auxiliaryTypes, Map<String, String> auxiliaryImports) {
 
     private static final String BALLERINA_ORG = "ballerina";
+
+    public AgentTriggerContext(String emitAlias, String listenerVarName, String agentVarName, String agentOrgName,
+                               Map<String, String> formValues, ServiceInitModel initForm,
+                               TriggerUISchemaModel triggerModel) {
+        this(emitAlias, listenerVarName, agentVarName, agentOrgName, formValues, initForm, triggerModel,
+                new ArrayList<>(), new LinkedHashMap<>());
+    }
 
     public String agentRun(String queryExpr, String sessionExpr) {
         return "%s(%s, sessionId = %s)".formatted(runTarget(), queryExpr, sessionExpr);
@@ -75,6 +87,15 @@ public record AgentTriggerContext(String emitAlias, String listenerVarName, Stri
     /** The service base path, or empty when the channel ships no base-path field. */
     public String basePath() {
         return SchemaDrivenSourceGenerator.resolveBasePath(initForm);
+    }
+
+    public String servicePath(String key, String fallback) {
+        String path = formValue(key).strip();
+        if (path.isEmpty()) {
+            path = fallback;
+        }
+        String absolute = path.startsWith("/") ? path : "/" + path;
+        return absolute.replace("\\", "").replace("-", "\\-").replace(".", "\\.");
     }
 
     public List<String> serviceAnnotations() {

@@ -33,6 +33,7 @@ export interface AgentNodeActions {
     onChatWithAgent?: (node: FlowNode) => void;
     onAddTrigger?: (node: FlowNode) => void;
     onDeleteTrigger?: (usage: AgentUsage, node: FlowNode) => void;
+    onTryTrigger?: (usage: AgentUsage, node: FlowNode) => void;
     onAddActivity?: (node: FlowNode) => void;
     onAddHumanTask?: (node: FlowNode) => void;
     onAddEvent?: (node: FlowNode) => void;

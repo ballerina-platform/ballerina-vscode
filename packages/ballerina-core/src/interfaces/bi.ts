@@ -169,6 +169,18 @@ export type AgentUsage = {
     documentUri: string;
     position: NodePosition;
     trigger?: AgentUsageTrigger;
+    tryIt?: AgentUsageTryIt;
+};
+
+export type AgentUsageTryIt = {
+    basePath: string;
+    listener: string;
+    resource?: AgentUsageTryItResource;
+};
+
+export type AgentUsageTryItResource = {
+    method: string;
+    path: string;
 };
 
 export type AgentUsageTrigger = {
@@ -176,6 +188,14 @@ export type AgentUsageTrigger = {
     documentUri: string;
     position: NodePosition;
     listeners: AgentUsageTriggerListener[];
+    entryPoint?: AgentUsageTriggerEntryPoint;
+    orphansService?: boolean;
+};
+
+export type AgentUsageTriggerEntryPoint = {
+    label: string;
+    documentUri: string;
+    position: NodePosition;
 };
 
 export type AgentUsageTriggerListener = {

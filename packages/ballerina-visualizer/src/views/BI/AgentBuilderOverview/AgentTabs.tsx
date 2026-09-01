@@ -29,7 +29,7 @@ const Strip = styled.div`
     align-items: stretch;
     flex-shrink: 0;
     min-width: 0;
-    background-color: var(--vscode-editorWidget-background);
+    background-color: var(--vscode-sideBar-background, var(--vscode-panel-background));
     border-bottom: 1px solid ${ThemeColors.OUTLINE_VARIANT};
 `;
 

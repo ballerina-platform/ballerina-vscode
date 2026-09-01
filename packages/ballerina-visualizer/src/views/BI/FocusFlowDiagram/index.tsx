@@ -54,7 +54,16 @@ import { AgentEditorPanelContent, getAgentEditorPanelTitle } from "../AIChatAgen
 import { AgentEditorView, useAgentEditorController } from "../AIChatAgent/useAgentEditorController";
 import { goToAgent, goToAgentDefinitionFromInstance, resolveAgentDefinitionLocation, startAddAgentTrigger, startAgentChat } from "../AIChatAgent/utils";
 import { buildAgentRenderNode, withAgentUsages } from "./agent";
-import { findAgentUsages, findListenerPosition, getAgentTriggerProtocols, getCachedUsages, setCachedUsages, usageCacheKey } from "./agentUsages";
+import {
+    agentCallerProtocols,
+    findAgentUsages,
+    findListenerPosition,
+    getAgentTriggerScopes,
+    getCachedUsages,
+    resolveTriggerScopes,
+    setCachedUsages,
+    usageCacheKey,
+} from "./agentUsages";
 
 const sameUsages = (a: AgentUsage[], b: AgentUsage[]) =>
     a.length === b.length &&
@@ -295,9 +304,9 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
             const contentAtStart = usagesContentRef.current;
             try {
                 const location = await rpcClient.getVisualizerLocation();
-                const [response, triggerProtocols] = await Promise.all([
+                const [response, localScopes] = await Promise.all([
                     rpcClient.getBIDiagramRpcClient().getDesignModel({ projectPath: location?.projectPath }),
-                    getAgentTriggerProtocols(rpcClient),
+                    getAgentTriggerScopes(rpcClient),
                 ]);
                 if (requestId !== usageRequestIdRef.current || usagesContentRef.current !== contentAtStart) {
                     return;
@@ -307,13 +316,19 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                     setUsagesLoading(false);
                     return;
                 }
-                const usages = findAgentUsages(response.designModel, {
+                const agentRef = {
                     filePath,
                     startLine: pos.startLine,
                     symbol: typeof renderNode.properties?.variable?.value === "string"
                         ? renderNode.properties.variable.value.trim()
                         : undefined,
-                }, triggerProtocols);
+                };
+                const triggerScopes = await resolveTriggerScopes(
+                    rpcClient, localScopes, agentCallerProtocols(response.designModel, agentRef));
+                if (requestId !== usageRequestIdRef.current || usagesContentRef.current !== contentAtStart) {
+                    return;
+                }
+                const usages = findAgentUsages(response.designModel, agentRef, triggerScopes);
                 usagesDirtyRef.current = false;
                 const previous = getCachedUsages(key);
                 setCachedUsages(key, usages);
@@ -336,20 +351,66 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
 
     useEffect(() => () => clearTimeout(usageFetchTimerRef.current), []);
 
+    const confirmTriggerDeletion = async (usage: AgentUsage): Promise<"endpoint" | "service" | undefined> => {
+        const trigger = usage.trigger;
+        const listenerNames = trigger.listeners.map((listener) => listener.symbol);
+
+        if (!trigger.entryPoint) {
+            const confirmed = await rpcClient.getCommonRpcClient().showInformationModal({
+                message: `Delete the ${usage.typeLabel ?? "trigger"} ${trigger.serviceName}?`,
+                detail: listenerNames.length > 0
+                    ? `Its listener ${listenerNames.join(", ")} will be removed too — nothing else uses it.`
+                    : "The service owns everything it needs to call the agent, so that goes with it.",
+                items: ["Delete"],
+            });
+            return confirmed === "Delete" ? "service" : undefined;
+        }
+
+        const endpointOnly = "Delete Endpoint";
+        const withService = "Delete Endpoint and Service";
+        const service = `${usage.typeLabel ?? "the service"} ${trigger.serviceName}`;
+        const listenerNote = listenerNames.length > 0
+            ? ` and its listener ${listenerNames.join(", ")} goes with it — nothing else uses it`
+            : "";
+
+        const choice = await rpcClient.getCommonRpcClient().showInformationModal({
+            message: `Delete ${trigger.entryPoint.label}?`,
+            detail: trigger.orphansService
+                ? `It is the only endpoint on ${service}. Delete the service too${listenerNote}.`
+                : `Only this endpoint is removed. ${service} stays.`,
+            items: trigger.orphansService ? [endpointOnly, withService] : [endpointOnly],
+        });
+        if (choice === endpointOnly) {
+            return "endpoint";
+        }
+        return choice === withService ? "service" : undefined;
+    };
+
+    const tryAgentTrigger = async (usage: AgentUsage) => {
+        const tryIt = usage.tryIt;
+        if (!tryIt) {
+            return;
+        }
+        const resource = tryIt.resource
+            ? { methodValue: tryIt.resource.method, pathValue: tryIt.resource.path }
+            : undefined;
+        try {
+            await rpcClient.getCommonRpcClient().executeCommand({
+                commands: ["ballerina.tryIt", false, resource, { basePath: tryIt.basePath, listener: tryIt.listener }],
+            });
+        } catch (error) {
+            console.error(">>> agent focus: failed to open try it", error);
+            rpcClient.getCommonRpcClient().showErrorMessage({ message: "Failed to open Try It." });
+        }
+    };
+
     const deleteAgentTrigger = async (usage: AgentUsage) => {
         const trigger = usage.trigger;
         if (!trigger) {
             return;
         }
-        const listenerNames = trigger.listeners.map((listener) => listener.symbol);
-        const confirmed = await rpcClient.getCommonRpcClient().showInformationModal({
-            message: `Delete the ${usage.typeLabel ?? "trigger"} ${trigger.serviceName}?`,
-            detail: listenerNames.length > 0
-                ? `Its listener ${listenerNames.join(", ")} will be removed too — nothing else uses it.`
-                : "The service owns everything it needs to call the agent, so that goes with it.",
-            items: ["Delete"],
-        });
-        if (confirmed !== "Delete") {
+        const scope = await confirmTriggerDeletion(usage);
+        if (!scope) {
             return;
         }
         setShowProgressIndicator(true);
@@ -367,17 +428,23 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                     },
                 });
 
-            await deleteComponent(trigger.serviceName, trigger.documentUri, trigger.position);
-            for (const listener of trigger.listeners) {
-                const location = await rpcClient.getVisualizerLocation();
-                const response = await rpcClient
-                    .getBIDiagramRpcClient()
-                    .getDesignModel({ projectPath: location?.projectPath });
-                const position = findListenerPosition(response?.designModel, listener.symbol, listener.documentUri);
-                if (!position) {
-                    continue;
+            if (scope === "endpoint") {
+                const entryPoint = trigger.entryPoint;
+                await deleteComponent(entryPoint.label, entryPoint.documentUri, entryPoint.position);
+            } else {
+                await deleteComponent(trigger.serviceName, trigger.documentUri, trigger.position);
+                for (const listener of trigger.listeners) {
+                    const location = await rpcClient.getVisualizerLocation();
+                    const response = await rpcClient
+                        .getBIDiagramRpcClient()
+                        .getDesignModel({ projectPath: location?.projectPath });
+                    const position = findListenerPosition(
+                        response?.designModel, listener.symbol, listener.documentUri);
+                    if (!position) {
+                        continue;
+                    }
+                    await deleteComponent(listener.symbol, listener.documentUri, position);
                 }
-                await deleteComponent(listener.symbol, listener.documentUri, position);
             }
             await rpcClient.getAIAgentRpcClient().fixMissingImports();
             usagesDirtyRef.current = true;
@@ -385,7 +452,8 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
         } catch (error) {
             console.error(">>> agent focus: failed to delete trigger", error);
             rpcClient.getCommonRpcClient().showErrorMessage({
-                message: "Failed to delete the trigger. The deletion may be partially applied.",
+                message: `Failed to delete the ${scope === "endpoint" ? "endpoint" : "trigger"}. `
+                    + "The deletion may be partially applied.",
             });
         } finally {
             setShowProgressIndicator(false);
@@ -1013,6 +1081,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
         onChat: (node) => startAgentChat(node, filePath, rpcClient),
         onAddTrigger: (node) => startAddAgentTrigger(node, rpcClient),
         onDeleteTrigger: (usage) => void deleteAgentTrigger(usage),
+        onTryTrigger: (usage) => void tryAgentTrigger(usage),
     });
 
     const isAgentPanelOpen = agentPanel !== "NONE" || showConnectionPanel || agentEditor.view !== "NONE";

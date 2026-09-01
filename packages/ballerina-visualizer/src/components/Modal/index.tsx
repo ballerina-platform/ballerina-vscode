@@ -22,6 +22,9 @@ import styled from "@emotion/styled";
 import { Icon, Divider, ThemeColors, Typography, Tooltip, Button } from "@wso2/ui-toolkit";
 import { useVisualizerContext } from "../../Context";
 
+export const MODAL_BACKDROP =
+    "color-mix(in srgb, var(--vscode-editor-inactiveSelectionBackground) 40%, transparent)";
+
 export type DynamicModalProps = {
     children: ReactNode;
     onClose?: () => void;

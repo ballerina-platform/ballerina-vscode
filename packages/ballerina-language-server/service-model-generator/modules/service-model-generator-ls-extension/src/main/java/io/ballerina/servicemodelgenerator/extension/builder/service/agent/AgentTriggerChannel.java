@@ -21,13 +21,18 @@ package io.ballerina.servicemodelgenerator.extension.builder.service.agent;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerUISchemaModel;
 import io.ballerina.servicemodelgenerator.extension.connector.SchemaDrivenSourceGenerator;
+import io.ballerina.servicemodelgenerator.extension.model.PropertyType;
 import io.ballerina.servicemodelgenerator.extension.model.ServiceInitModel;
+import io.ballerina.servicemodelgenerator.extension.model.ValidationRule;
 import io.ballerina.servicemodelgenerator.extension.model.Value;
 import io.ballerina.servicemodelgenerator.extension.model.context.GetServiceInitModelContext;
+import org.eclipse.lsp4j.TextEdit;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+
+import static io.ballerina.servicemodelgenerator.extension.util.Constants.NEW_LINE;
 
 /**
  * The per-channel knowledge an agent trigger needs.
@@ -37,6 +42,10 @@ import java.util.Optional;
 public interface AgentTriggerChannel {
 
     AgentTriggerKind kind();
+
+    default AgentTriggerDeletionScope deletionScope() {
+        return AgentTriggerDeletionScope.SERVICE;
+    }
 
     default Map<String, Value> additionalProperties() {
         return Map.of();
@@ -58,6 +67,11 @@ public interface AgentTriggerChannel {
         return Optional.empty();
     }
 
+    default Optional<SchemaDrivenSourceGenerator.ResolvedListener> listener(ModulePartNode rootNode, String alias,
+                                                                           Map<String, String> formValues) {
+        return listener(rootNode, alias);
+    }
+
     default void customizeInitModel(ServiceInitModel initModel, TriggerUISchemaModel triggerModel) {
     }
 
@@ -70,4 +84,28 @@ public interface AgentTriggerChannel {
     }
 
     String serviceBlock(AgentTriggerContext context);
+
+    default Optional<List<TextEdit>> appendToExistingService(ModulePartNode rootNode,
+                                                             AgentTriggerContext context) {
+        return Optional.empty();
+    }
+
+    String INSTRUCTIONS = "instructions";
+    String INDENT = "    ";
+
+    static Value instructionsField(String description, String defaultValue) {
+        return new Value.ValueBuilder()
+                .metadata("Instructions", description)
+                .types(List.of(PropertyType.types(Value.FieldType.DOC_TEXT, "string")))
+                .enabled(true)
+                .editable(true)
+                .optional(false)
+                .value(defaultValue)
+                .setValidations(List.of(new ValidationRule("common.validate.required")))
+                .build();
+    }
+
+    static String indent(String source) {
+        return INDENT + source.replace(NEW_LINE, NEW_LINE + INDENT);
+    }
 }

@@ -46,6 +46,7 @@ export interface AgentEditorHost {
     onChat?(node: FlowNode): void;
     onAddTrigger?(node: FlowNode): void;
     onDeleteTrigger?(usage: AgentUsage, node: FlowNode): void;
+    onTryTrigger?(usage: AgentUsage, node: FlowNode): void;
     onAgentCreated?(): void;
     resolveAgentNode?(node: FlowNode): FlowNode;
 }
@@ -320,6 +321,7 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
         onChatWithAgent: host.onChat && ((node) => host.onChat(resolve(node))),
         onAddTrigger: host.onAddTrigger && ((node) => host.onAddTrigger(resolve(node))),
         onDeleteTrigger: host.onDeleteTrigger && ((usage, node) => host.onDeleteTrigger(usage, resolve(node))),
+        onTryTrigger: host.onTryTrigger && ((usage, node) => host.onTryTrigger(usage, resolve(node))),
     }), [activate, deleteMemory, deleteTool, host, openTool, resolve, selectMemory]);
 
     const setBackHandler = useCallback(

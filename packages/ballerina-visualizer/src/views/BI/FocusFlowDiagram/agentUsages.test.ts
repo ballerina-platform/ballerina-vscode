@@ -16,8 +16,14 @@
  * under the License.
  */
 
-import { CDModel } from "@wso2/ballerina-core";
-import { findAgentUsages, findListenerPosition } from "./agentUsages";
+import { CDFunction, CDModel } from "@wso2/ballerina-core";
+import {
+    AgentTriggerScopes,
+    agentCallerProtocols,
+    findAgentUsages,
+    findListenerPosition,
+    resolveTriggerScopes,
+} from "./agentUsages";
 
 const AGENT_UUID = "c371fce0-2d2e-4e47-2f32-13911cf544a8";
 const MODEL_UUID = "56125554-ece7-d97c-cf7c-f67f55d014fe";
@@ -283,7 +289,10 @@ const triggerModel = {
     ],
 } as unknown as CDModel;
 
-const CHANNELS = new Set(["whatsapp", "telegram"]);
+const CHANNELS: AgentTriggerScopes = new Map([
+    ["whatsapp", "SERVICE"],
+    ["telegram", "SERVICE"],
+]);
 
 describe("findAgentUsages trigger payload", () => {
     const usagesOf = (label: string) =>
@@ -393,6 +402,131 @@ describe("findAgentUsages trigger payload", () => {
     });
 });
 
+const HTTP_BAL = "/proj/http_trigger.bal";
+const SUPPORT_API_UUID = "support-api-service";
+const HTTP_CHANNELS: AgentTriggerScopes = new Map([["http", "ENTRY_POINT"]]);
+
+const supportApi = {
+    location: { filePath: HTTP_BAL, ...range(5) },
+    attachedListeners: ["http-listener"],
+    connections: [AGENT_UUID],
+    functions: [] as CDFunction[],
+    remoteFunctions: [] as CDFunction[],
+    resourceFunctions: [
+        {
+            accessor: "post",
+            path: "products/[string productId]/questions",
+            location: { filePath: HTTP_BAL, ...range(6) },
+            connections: [AGENT_UUID],
+        },
+    ],
+    absolutePath: "/support\\-api",
+    type: "http:Service",
+    icon: "http.png",
+    uuid: SUPPORT_API_UUID,
+    enableFlowModel: true,
+    sortText: "http_trigger.bal5",
+};
+
+const httpRows = (service: unknown) =>
+    findAgentUsages(
+        {
+            ...model,
+            listeners: [
+                {
+                    symbol: "httpListener",
+                    location: { filePath: HTTP_BAL, ...range(3) },
+                    attachedServices: [SUPPORT_API_UUID],
+                    uuid: "http-listener",
+                },
+            ],
+            services: [service],
+        } as unknown as CDModel,
+        { filePath: AGENTS_BAL, startLine: 4 },
+        HTTP_CHANNELS
+    ).filter((usage) => usage.type === "http:Service");
+
+describe("http endpoint rows", () => {
+    it("aims the row's deletion at the entry point, not the whole service", () => {
+        const row = httpRows(supportApi)[0];
+
+        expect(row.label).toBe("POST /products/[string productId]/questions");
+        expect(row.trigger?.entryPoint).toEqual({
+            label: "POST /products/[string productId]/questions",
+            documentUri: HTTP_BAL,
+            position: { startLine: 6, startColumn: 0, endLine: 7, endColumn: 1 },
+        });
+        expect(row.trigger).toMatchObject({ serviceName: "/support-api", position: { startLine: 5 } });
+    });
+
+    it("offers the service and its listener when the endpoint is all the service holds", () => {
+        const trigger = httpRows(supportApi)[0].trigger;
+
+        expect(trigger?.orphansService).toBe(true);
+        expect(trigger?.listeners.map((listener) => listener.symbol)).toEqual(["httpListener"]);
+    });
+
+    it("keeps the service when another endpoint would be left behind", () => {
+        const rows = httpRows({
+            ...supportApi,
+            resourceFunctions: [
+                ...supportApi.resourceFunctions,
+                { accessor: "get", path: "health", location: { filePath: HTTP_BAL, ...range(20) },
+                    connections: [] },
+            ],
+        });
+
+        expect(rows.map((row) => row.label)).toEqual(["POST /products/[string productId]/questions"]);
+        expect(rows[0].trigger?.orphansService).toBe(false);
+    });
+
+    it("keeps the service when it holds members the endpoint does not own", () => {
+        const rows = httpRows({
+            ...supportApi,
+            functions: [{ name: "init", location: { filePath: HTTP_BAL, ...range(8) }, connections: [] }],
+        });
+
+        expect(rows[0].trigger?.orphansService).toBe(false);
+    });
+
+    it("gives each endpoint its own entry point to delete", () => {
+        const rows = httpRows({
+            ...supportApi,
+            resourceFunctions: [
+                ...supportApi.resourceFunctions,
+                { accessor: "get", path: "summary", location: { filePath: HTTP_BAL, ...range(20) },
+                    connections: [AGENT_UUID] },
+            ],
+        });
+
+        expect(rows.map((row) => row.trigger?.entryPoint?.label)).toEqual([
+            "POST /products/[string productId]/questions",
+            "GET /summary",
+        ]);
+        expect(rows.every((row) => row.trigger?.orphansService === false)).toBe(true);
+    });
+
+    it("leaves a service reached only through a private helper alone", () => {
+        const rows = httpRows({
+            ...supportApi,
+            resourceFunctions: [{ ...supportApi.resourceFunctions[0], connections: [] }],
+            functions: [{ name: "askAgent", location: { filePath: HTTP_BAL, ...range(9) },
+                connections: [AGENT_UUID] }],
+        });
+
+        expect(rows).toHaveLength(1);
+        expect(rows[0].trigger).toBeUndefined();
+    });
+
+    it("still takes a chat channel down as a whole service", () => {
+        const trigger = findAgentUsages(triggerModel, { filePath: AGENTS_BAL, startLine: 4 }, CHANNELS)
+            .find((usage) => usage.label === "onMessages")?.trigger;
+
+        expect(trigger?.entryPoint).toBeUndefined();
+        expect(trigger?.orphansService).toBeUndefined();
+    });
+});
+
 const scatteredChannels = {
     ...model,
     services: [
@@ -439,5 +573,169 @@ describe("rail ordering", () => {
             .map((usage) => usage.label);
 
         expect(labels).toEqual(["onAssigned", "onReopened", "Agent Chat", "main"]);
+    });
+});
+
+describe("try it on a rail row", () => {
+    it("carries the base path and listener the tryIt command matches on", () => {
+        expect(httpRows(supportApi)[0].tryIt).toEqual({
+            basePath: "/support\\-api",
+            listener: "httpListener",
+            resource: { method: "post", path: "products/[string productId]/questions" },
+        });
+    });
+
+    it("drops an attached listener the model carries no declaration for", () => {
+        const row = httpRows({ ...supportApi, attachedListeners: ["http-listener", "gone"] })[0];
+
+        expect(row.tryIt?.listener).toBe("httpListener");
+    });
+
+    it("aims each endpoint of one service at its own resource", () => {
+        const rows = httpRows({
+            ...supportApi,
+            resourceFunctions: [
+                ...supportApi.resourceFunctions,
+                { accessor: "get", path: "orders", location: { filePath: HTTP_BAL, ...range(20) },
+                    connections: [AGENT_UUID] },
+            ],
+        });
+
+        expect(rows.map((row) => row.tryIt?.resource)).toEqual([
+            { method: "post", path: "products/[string productId]/questions" },
+            { method: "get", path: "orders" },
+        ]);
+    });
+
+    it("offers try it on an entry point the user wrote themselves", () => {
+        const rows = findAgentUsages(
+            { ...model, listeners: [], services: [supportApi] } as unknown as CDModel,
+            { filePath: AGENTS_BAL, startLine: 4 }
+        );
+
+        expect(rows[0].trigger).toBeUndefined();
+        expect(rows[0].tryIt).toMatchObject({ basePath: "/support\\-api", listener: "" });
+    });
+
+    it("sends no resource for a protocol with no OpenAPI spec to resolve it against", () => {
+        const chatService = { ...supportApi, absolutePath: "/agent\\-chat", type: "ai:Service", uuid: "chat-service" };
+        const rows = findAgentUsages(
+            {
+                ...model,
+                listeners: [{
+                    symbol: "agentChatListener",
+                    location: { filePath: HTTP_BAL, ...range(3) },
+                    attachedServices: ["chat-service"],
+                    uuid: "http-listener",
+                }],
+                services: [chatService],
+            } as unknown as CDModel,
+            { filePath: AGENTS_BAL, startLine: 4 }
+        );
+
+        expect(rows[0].label).toBe("Agent Chat");
+        expect(rows[0].tryIt).toEqual({ basePath: "/agent\\-chat", listener: "agentChatListener" });
+    });
+
+    it("offers nothing to try on a protocol the tryIt command does not handle", () => {
+        const rows = findAgentUsages(triggerModel, { filePath: AGENTS_BAL, startLine: 4 }, CHANNELS);
+
+        expect(rows.find((usage) => usage.label === "onMessages")?.tryIt).toBeUndefined();
+        expect(rows.find((usage) => usage.label === "automation")?.tryIt).toBeUndefined();
+    });
+});
+
+describe("triggers that only Ballerina Central knows about", () => {
+    const SLACK_UUID = "slack-service";
+    const SLACK_BAL = "/proj/slack.bal";
+
+    const slackModel = {
+        ...model,
+        listeners: [{
+            symbol: "salesAssistantSlackListener",
+            location: { filePath: SLACK_BAL, ...range(1) },
+            attachedServices: [SLACK_UUID],
+            uuid: "slack-listener",
+        }],
+        services: [{
+            location: { filePath: SLACK_BAL, ...range(3) },
+            attachedListeners: ["slack-listener"],
+            connections: [AGENT_UUID],
+            functions: [],
+            resourceFunctions: [],
+            remoteFunctions: [
+                { name: "onMessage", location: { filePath: SLACK_BAL, ...range(5) }, connections: [AGENT_UUID] },
+            ],
+            absolutePath: "",
+            type: "slack:MessageService",
+            icon: "slack.png",
+            uuid: SLACK_UUID,
+            enableFlowModel: true,
+            sortText: "slack.bal3",
+        }],
+    } as unknown as CDModel;
+
+    const agent = { filePath: AGENTS_BAL, startLine: 4 };
+
+    const clientReturning = (results: unknown[]) => {
+        const searchTriggers = jest.fn().mockResolvedValue({ local: results });
+        return { client: { getServiceDesignerRpcClient: () => ({ searchTriggers }) } as never, searchTriggers };
+    };
+
+    it("asks only about the protocols that actually call this agent", () => {
+        expect(agentCallerProtocols(slackModel, agent)).toEqual(["slack"]);
+    });
+
+    it("says nothing when the agent is not in the model", () => {
+        expect(agentCallerProtocols(slackModel, { filePath: AGENTS_BAL, startLine: 99 })).toEqual([]);
+    });
+
+    it("deletes a Central trigger as a whole service", async () => {
+        const { client, searchTriggers } = clientReturning([
+            { listenerProtocol: "slack", agentTriggerKind: "EVENT", deletionScope: "SERVICE" },
+        ]);
+
+        const scopes = await resolveTriggerScopes(client, new Map(), agentCallerProtocols(slackModel, agent));
+        const row = findAgentUsages(slackModel, agent, scopes).find((usage) => usage.label === "onMessage");
+
+        expect(scopes.get("slack")).toBe("SERVICE");
+        expect(searchTriggers).toHaveBeenCalledWith({ query: "slack", includeLocalRepository: true });
+        expect(row?.trigger).toMatchObject({ documentUri: SLACK_BAL, position: { startLine: 3 } });
+        expect(row?.trigger?.listeners.map((l) => l.symbol)).toEqual(["salesAssistantSlackListener"]);
+        expect(row?.trigger?.entryPoint).toBeUndefined();
+    });
+
+    it("leaves a protocol Central does not answer for alone", async () => {
+        const { client } = clientReturning([{ listenerProtocol: "somethingelse" }]);
+
+        expect((await resolveTriggerScopes(client, new Map(), ["mystery"])).has("mystery")).toBe(false);
+    });
+
+    it("treats a failed lookup as a miss rather than breaking the rail", async () => {
+        const searchTriggers = jest.fn().mockRejectedValue(new Error("offline"));
+        const client = { getServiceDesignerRpcClient: () => ({ searchTriggers }) } as never;
+
+        await expect(resolveTriggerScopes(client, new Map(), ["unreachable"])).resolves.toEqual(new Map());
+    });
+
+    it("never asks twice about the same protocol", async () => {
+        const { client, searchTriggers } = clientReturning([
+            { listenerProtocol: "repeated", agentTriggerKind: "EVENT", deletionScope: "SERVICE" },
+        ]);
+
+        await resolveTriggerScopes(client, new Map(), ["repeated"]);
+        const second = await resolveTriggerScopes(client, new Map(), ["repeated"]);
+
+        expect(searchTriggers).toHaveBeenCalledTimes(1);
+        expect(second.get("repeated")).toBe("SERVICE");
+    });
+
+    it("keeps the local scope for a protocol the local index already has", async () => {
+        const { client, searchTriggers } = clientReturning([]);
+
+        const scopes = await resolveTriggerScopes(client, new Map([["http", "ENTRY_POINT"]]), ["http"]);
+
+        expect(searchTriggers).not.toHaveBeenCalled();
+        expect(scopes.get("http")).toBe("ENTRY_POINT");
     });
 });

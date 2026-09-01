@@ -100,6 +100,7 @@ interface BreadcrumbDisplayItem {
      * Holds a documentUri from the package so we can open its PackageOverview.
      */
     virtualPackageUri?: string;
+    virtualPackageProjectPath?: string;
 }
 
 interface TopNavigationBarProps {
@@ -181,11 +182,12 @@ export function TopNavigationBar(props: TopNavigationBarProps) {
         }
 
         // Synthetic workspace package item: navigate directly to that package's overview.
-        if (item.virtualPackageUri) {
+        if (item.virtualPackageProjectPath || item.virtualPackageUri) {
             rpcClient.getVisualizerRpcClient().openView({
                 type: EVENT_TYPE.OPEN_VIEW,
                 location: {
                     view: MACHINE_VIEW.PackageOverview,
+                    projectPath: item.virtualPackageProjectPath,
                     documentUri: item.virtualPackageUri,
                 },
                 resetHistory: true,
@@ -407,6 +409,7 @@ function buildBreadcrumbItems(
                     label: pkg,
                     historyIndex: null,
                     virtualPackageUri: firstWithPkg.location.documentUri,
+                    virtualPackageProjectPath: firstWithPkg.location.projectPath,
                 });
                 seenLabels.add(pkg);
             }

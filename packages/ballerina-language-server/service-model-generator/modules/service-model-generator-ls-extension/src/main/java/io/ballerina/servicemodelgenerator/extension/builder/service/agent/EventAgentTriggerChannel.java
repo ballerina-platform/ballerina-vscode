@@ -25,7 +25,6 @@ import io.ballerina.servicemodelgenerator.extension.model.Codedata;
 import io.ballerina.servicemodelgenerator.extension.model.Option;
 import io.ballerina.servicemodelgenerator.extension.model.PropertyType;
 import io.ballerina.servicemodelgenerator.extension.model.ServiceInitModel;
-import io.ballerina.servicemodelgenerator.extension.model.ValidationRule;
 import io.ballerina.servicemodelgenerator.extension.model.Value;
 
 import java.util.ArrayList;
@@ -51,30 +50,24 @@ import static io.ballerina.servicemodelgenerator.extension.util.Constants.TWO_NE
  */
 public class EventAgentTriggerChannel implements AgentTriggerChannel {
 
-    static final String INSTRUCTIONS = "instructions";
     static final String HANDLER = "agentEventHandler";
     private static final String DEFAULT_INSTRUCTIONS =
             "Review this event and summarize what happened and what should be done next.";
     private static final String REPLY_METHOD_PREFIX = "runAgent";
-    private static final String INDENT = "    ";
-    private static final String XML_TYPE = "xml";
-    private static final String STRING_TYPE = "string";
+    private static final String SOLE_PAYLOAD_LABEL = "Event payload";
 
     private static final Map<String, String> PREFERRED_HANDLER = Map.of("cdc:Service", "onCreate");
 
     private static final String REPLY_METHOD = """
-                function {{method}}({{params}}) {
-                    string prompt = string `{{instructions}}
-
-            {{event}}`;
-                    string|error result = {{agentRun}};
-                    if result is error {
-                        log:printError("Agent run failed", result);
-                        return;
-                    }
-                    // TODO: replace this with what should happen with the agent's answer
-                    log:printInfo("Agent result", result = result);
-                }""";
+            function {{method}}({{params}}) {
+                string|error result = {{agentRun}};
+                if result is error {
+                    log:printError("Agent run failed", result);
+                    return;
+                }
+                // TODO: replace this with what should happen with the agent's answer
+                log:printInfo("Agent result", result = result);
+            }""";
 
     private final String moduleName;
 
@@ -89,16 +82,9 @@ public class EventAgentTriggerChannel implements AgentTriggerChannel {
 
     @Override
     public Map<String, Value> additionalProperties() {
-        return Map.of(INSTRUCTIONS, new Value.ValueBuilder()
-                .metadata("Instructions", "What the agent should do with each event. The event itself is "
-                        + "passed along automatically, so describe the task rather than the data.")
-                .types(List.of(PropertyType.types(Value.FieldType.DOC_TEXT, "string")))
-                .enabled(true)
-                .editable(true)
-                .optional(false)
-                .value(DEFAULT_INSTRUCTIONS)
-                .setValidations(List.of(new ValidationRule("common.validate.required")))
-                .build());
+        return Map.of(INSTRUCTIONS, AgentTriggerChannel.instructionsField(
+                "What the agent should do with each event. The event itself is passed along "
+                        + "automatically, so describe the task rather than the data.", DEFAULT_INSTRUCTIONS));
     }
 
     @Override
@@ -259,50 +245,20 @@ public class EventAgentTriggerChannel implements AgentTriggerChannel {
             source = source.substring(0, source.lastIndexOf(CLOSE_BRACE))
                     + INDENT + body + NEW_LINE + CLOSE_BRACE;
         }
-        return INDENT + source.replace(NEW_LINE, NEW_LINE + INDENT);
+        return AgentTriggerChannel.indent(source);
     }
 
     private String replyMethod(AgentTriggerContext context, String methodName, List<HandlerParameter> parameters) {
-        return REPLY_METHOD
+        String promptExpression = AgentPromptBuilder.promptExpression(context.formValue(INSTRUCTIONS),
+                DEFAULT_INSTRUCTIONS, SOLE_PAYLOAD_LABEL, parameters);
+        return AgentTriggerChannel.indent(REPLY_METHOD)
                 .replace("{{method}}", methodName)
                 .replace("{{params}}", parameters.stream()
                         .map(parameter -> parameter.type() + SPACE + parameter.name())
                         .collect(Collectors.joining(", ")))
-                .replace("{{instructions}}", escapeTemplate(context.formValue(INSTRUCTIONS)))
-                .replace("{{event}}", eventSection(parameters))
-                .replace("{{agentRun}}", context.agentRun("prompt"));
+                .replace("{{agentRun}}", context.agentRun(promptExpression));
     }
 
-    private static String eventSection(List<HandlerParameter> parameters) {
-        List<HandlerParameter> carried = parameters.stream().filter(HandlerParameter::carries).toList();
-        if (carried.isEmpty()) {
-            return "";
-        }
-        if (carried.size() == 1) {
-            return "Event payload:" + NEW_LINE + interpolate(carried.getFirst());
-        }
-        return carried.stream()
-                .map(parameter -> parameter.name() + ":" + NEW_LINE + interpolate(parameter))
-                .collect(Collectors.joining(NEW_LINE + NEW_LINE));
-    }
-
-    private static String interpolate(HandlerParameter parameter) {
-        String type = parameter.type().strip();
-        if (STRING_TYPE.equals(type)) {
-            return "${" + parameter.name() + "}";
-        }
-        String conversion = XML_TYPE.equals(type) || type.startsWith(XML_TYPE + "<") ? ".toString()"
-                : ".toJsonString()";
-        return "${" + parameter.name() + conversion + "}";
-    }
-
-    private static String escapeTemplate(String instructions) {
-        String text = instructions == null || instructions.isBlank() ? DEFAULT_INSTRUCTIONS : instructions.strip();
-        // A string template has no backslash escape, so both are escaped as interpolations of
-        // themselves, as AiUtils.replaceBackticksForStringTemplate does. "${" goes first: the
-        // backtick replacement introduces one.
-        return text.replace("${", "${\"$\"}{").replace("`", "${\"`\"}");
-    }
 
     private static TriggerUISchemaModel.FunctionModel selectHandler(
             List<TriggerUISchemaModel.FunctionModel> handlers, String selected, String serviceTypeName) {
