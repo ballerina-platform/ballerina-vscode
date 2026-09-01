@@ -274,6 +274,7 @@ namespace S {
         align-items: center;
         width: 100%;
         padding: 4px 12px;
+        margin: 0 -12px;
         border-radius: 5px;
         cursor: pointer;
         transition: all 0.2s ease;
@@ -359,7 +360,7 @@ namespace S {
 
 // Subcategories rendered as chevron-collapsible sections that start collapsed,
 // in addition to the generic "More" section.
-const COLLAPSED_SUBCATEGORIES = ["Workflow Functions", "Child Workflows"];
+const COLLAPSED_SUBCATEGORIES = ["Child Workflows"];
 
 interface NodeListProps {
     categories: Category[];
