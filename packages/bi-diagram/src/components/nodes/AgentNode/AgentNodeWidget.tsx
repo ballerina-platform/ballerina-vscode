@@ -52,6 +52,7 @@ import {
     resolveBrandIcon,
     resolveEntryTypeGlyph,
     resolveKindDefaultIcon,
+    triggerScopeNoun,
 } from "@wso2/ballerina-core";
 import ReactMarkdown from "react-markdown";
 
@@ -492,28 +493,32 @@ function UsageIcon(props: { usage: AgentUsage; codedata?: FlowNode["codedata"] }
 
 function EdgeAddButton(props: {
     anchorX: number; y: number; side: "left" | "right"; label: string; title: string; testId: string;
-    animationDelay?: number; onClick: () => void;
+    animationDelay?: number; onClick: () => void; readOnly?: boolean;
 }) {
-    const { anchorX, y, side, label, title, testId, animationDelay, onClick } = props;
+    const { anchorX, y, side, label, title, testId, animationDelay, onClick, readOnly } = props;
     const dir = side === "right" ? 1 : -1;
     const plusCx = dir * EDGE_ADD_PLUS_CX;
     const labelX = dir * (EDGE_ADD_PLUS_CX + EDGE_ADD_PLUS_R + EDGE_ADD_LABEL_GAP);
+    const strokeColor = readOnly ? ThemeColors.OUTLINE_VARIANT : ThemeColors.ON_SURFACE;
+    const labelColor = readOnly ? ThemeColors.ON_SURFACE_VARIANT : ADD_TILE_LABEL_COLOR;
     return (
         <g
             data-testid={testId}
             transform={`translate(${anchorX}, ${y})`}
             onClick={onClick}
             css={css`
-                cursor: pointer;
+                cursor: ${readOnly ? "not-allowed" : "pointer"};
                 > g {
                     ${animationDelay === undefined ? "" : usageFadeIn(animationDelay)}
                 }
-                &:hover .edge-add-stroke {
-                    stroke: ${ThemeColors.SECONDARY};
-                }
-                &:hover text {
-                    fill: ${ThemeColors.SECONDARY};
-                }
+                ${readOnly ? "" : css`
+                    &:hover .edge-add-stroke {
+                        stroke: ${ThemeColors.SECONDARY};
+                    }
+                    &:hover text {
+                        fill: ${ThemeColors.SECONDARY};
+                    }
+                `}
             `}
         >
             <g>
@@ -531,7 +536,7 @@ function EdgeAddButton(props: {
                     cy="0"
                     r={EDGE_ADD_DOT_R}
                     fill={ThemeColors.SURFACE_DIM}
-                    stroke={ThemeColors.ON_SURFACE}
+                    stroke={strokeColor}
                     strokeWidth={1.5}
                 />
                 <line
@@ -540,7 +545,7 @@ function EdgeAddButton(props: {
                     y1="0"
                     x2={dir * EDGE_ADD_LINE_END}
                     y2="0"
-                    stroke={ThemeColors.ON_SURFACE}
+                    stroke={strokeColor}
                     strokeWidth={1.5}
                 />
                 <circle
@@ -549,18 +554,18 @@ function EdgeAddButton(props: {
                     cy="0"
                     r={EDGE_ADD_PLUS_R}
                     fill={ThemeColors.SURFACE_DIM}
-                    stroke={ThemeColors.ON_SURFACE}
+                    stroke={strokeColor}
                     strokeWidth={1.5}
                 />
                 <line className="edge-add-stroke" x1={plusCx - 4} y1="0" x2={plusCx + 4} y2="0"
-                    stroke={ThemeColors.ON_SURFACE} strokeWidth={1.5} strokeLinecap="round" />
+                    stroke={strokeColor} strokeWidth={1.5} strokeLinecap="round" />
                 <line className="edge-add-stroke" x1={plusCx} y1="-4" x2={plusCx} y2="4"
-                    stroke={ThemeColors.ON_SURFACE} strokeWidth={1.5} strokeLinecap="round" />
+                    stroke={strokeColor} strokeWidth={1.5} strokeLinecap="round" />
                 <text
                     x={labelX}
                     y="0"
                     textAnchor={side === "right" ? "start" : "end"}
-                    fill={ADD_TILE_LABEL_COLOR}
+                    fill={labelColor}
                     fontSize="13px"
                     fontFamily="GilmerMedium"
                     dominantBaseline="middle"
@@ -887,7 +892,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
     const hasUsageMenu = (usage: AgentUsage) => canTryTrigger(usage) || canDeleteTrigger(usage);
 
     const deleteTriggerLabel = (usage: AgentUsage) =>
-        usage.trigger?.scope === "ENTRY_POINT" ? "Delete Endpoint" : "Delete Trigger";
+        `Delete ${triggerScopeNoun(usage.trigger?.scope)}`;
 
     const tryTriggerLabel = (usage: AgentUsage) =>
         (usage.type?.split(":")[0] ?? usage.type) === "ai" ? "Chat" : "Try It";
@@ -1113,6 +1118,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                     <NodeStyles.MenuButton
                                         appearance="icon"
                                         onClick={(e) => handleUsageMenuClick(e, usage)}
+                                        buttonSx={readOnly ? { cursor: "not-allowed" } : {}}
                                         css={css`
                                         padding: 2px;
                                         height: ${USAGE_MENU_SIZE}px;
@@ -1187,6 +1193,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                         title="Connect this agent to a chat channel or event source that will call it"
                         animationDelay={animateUsages ? addTileRow * 70 : undefined}
                         onClick={onAddTriggerClick}
+                        readOnly={readOnly}
                     />
                 )}
 

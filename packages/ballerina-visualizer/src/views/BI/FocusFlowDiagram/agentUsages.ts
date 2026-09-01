@@ -22,8 +22,10 @@ import {
     AgentUsageTrigger,
     AgentUsageTriggerListener,
     AgentUsageTryIt,
+    CDFunction,
     CDLocation,
     CDModel,
+    CDResourceFunction,
     CDService,
     FlowNode,
     NodePosition,
@@ -129,11 +131,12 @@ function entryPointTrigger(
     location: CDLocation
 ): AgentUsageTrigger {
     const entryPoints = [...(service.resourceFunctions ?? []), ...(service.remoteFunctions ?? [])];
+    const wired = entryPoints.filter((fn) => (fn.connections?.length ?? 0) > 0 || (fn.workflows?.length ?? 0) > 0);
     return {
         ...trigger,
         entryPoint: { label, documentUri: location.filePath, position: toPosition(location) },
         orphansService: scope === "ENTRY_POINT_BODY"
-            ? entryPoints.filter((fn) => fn.connections?.includes(uuid)).length === 1
+            ? wired.length === 1 && Boolean(wired[0].connections?.includes(uuid))
             : entryPoints.length === 1 && (service.functions?.length ?? 0) === 0,
         scope,
         helpers: scope === "ENTRY_POINT_BODY" ? agentHelpers(service, uuid) : undefined,
@@ -376,12 +379,16 @@ export function startLineOf(node: FlowNode): number {
     return node.codedata?.lineRange?.startLine?.line ?? 0;
 }
 
+function escapeRegExp(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 export function namesHelper(node: FlowNode, helper: string): boolean {
     const expression = node.properties?.expression?.value;
     if (typeof expression !== "string") {
         return false;
     }
-    return new RegExp(`(^|[^\\w.])(self\\.)?${helper}\\s*\\(`).test(expression);
+    return new RegExp(`(^|[^\\w.])(self\\.)?${escapeRegExp(helper)}\\s*\\(`).test(expression);
 }
 
 export function findServiceHelperPosition(
@@ -428,6 +435,39 @@ export async function deleteEachResolved(
     }
 }
 
+async function otherEntryPoints(
+    rpcClient: BallerinaRpcClient,
+    trigger: AgentUsageTrigger
+): Promise<(CDResourceFunction | CDFunction)[]> {
+    const location = await rpcClient.getVisualizerLocation();
+    const model = (await rpcClient.getBIDiagramRpcClient()
+        .getDesignModel({ projectPath: location?.projectPath }))?.designModel;
+    const service = (model?.services ?? []).find((candidate) => serviceName(candidate) === trigger.serviceName);
+    return [...(service?.resourceFunctions ?? []), ...(service?.remoteFunctions ?? [])].filter(
+        (fn) =>
+            !samePath(fn.location.filePath, trigger.entryPoint.documentUri) ||
+            fn.location.startLine.line !== trigger.entryPoint.position.startLine
+    );
+}
+
+async function isHelperCalledElsewhere(
+    rpcClient: BallerinaRpcClient,
+    siblings: (CDResourceFunction | CDFunction)[],
+    helperSymbol: string
+): Promise<boolean> {
+    for (const sibling of siblings) {
+        const response = await rpcClient.getBIDiagramRpcClient().getFlowModel({
+            filePath: sibling.location.filePath,
+            startLine: sibling.location.startLine,
+            endLine: sibling.location.endLine,
+        });
+        if ((response?.flowModel?.nodes ?? []).some((node) => namesHelper(node, helperSymbol))) {
+            return true;
+        }
+    }
+    return false;
+}
+
 export async function clearAgentCallFromHandler(
     rpcClient: BallerinaRpcClient,
     trigger: AgentUsageTrigger
@@ -446,12 +486,21 @@ export async function clearAgentCallFromHandler(
         throw new Error(`no agent call found in ${entryPoint.label}`);
     }
 
+    const referencedHelpers = helpers.filter((helper) => calls.some((node) => namesHelper(node, helper.symbol)));
+    const siblings = trigger.orphansService ? [] : await otherEntryPoints(rpcClient, trigger);
+    const deletableHelpers: AgentUsageTriggerListener[] = [];
+    for (const helper of referencedHelpers) {
+        if (!(await isHelperCalledElsewhere(rpcClient, siblings, helper.symbol))) {
+            deletableHelpers.push(helper);
+        }
+    }
+
     for (const node of calls) {
         await rpcClient.getBIDiagramRpcClient().deleteFlowNode({ filePath: entryPoint.documentUri, flowNode: node });
     }
 
     await deleteEachResolved(
         rpcClient,
-        helpers.filter((helper) => calls.some((node) => namesHelper(node, helper.symbol))),
+        deletableHelpers,
         (model, helper) => findServiceHelperPosition(model, trigger.serviceName, helper.symbol, helper.documentUri));
 }

@@ -16,10 +16,11 @@
  * under the License.
  */
 
-import { CDFunction, CDModel, CDResourceFunction } from "@wso2/ballerina-core";
+import { AgentUsageTrigger, CDFunction, CDModel, CDResourceFunction } from "@wso2/ballerina-core";
 import {
     AgentTriggerScopes,
     agentCallerProtocols,
+    clearAgentCallFromHandler,
     deleteEachResolved,
     findAgentUsages,
     findListenerPosition,
@@ -611,6 +612,12 @@ describe("try it on a rail row", () => {
         });
     });
 
+    it("drops an attached listener the model carries no declaration for", () => {
+        const row = httpRows({ ...supportApi, attachedListeners: ["http-listener", "gone"] })[0];
+
+        expect(row.tryIt?.listener).toBe("httpListener");
+    });
+
     it("aims each endpoint of one service at its own resource", () => {
         const rows = httpRows({
             ...supportApi,
@@ -702,7 +709,7 @@ describe("triggers that only Ballerina Central knows about", () => {
         return { client: { getServiceDesignerRpcClient: () => ({ searchTriggers }) } as never, searchTriggers };
     };
 
-    it("asks only about the protocols that actually call this agent", () => {
+    it("asks only about the protocols that actually call this agent, and says nothing when the agent is not in the model", () => {
         expect(agentCallerProtocols(slackModel, agent)).toEqual(["slack"]);
         expect(agentCallerProtocols(slackModel, { filePath: AGENTS_BAL, startLine: 99 })).toEqual([]);
     });
@@ -827,6 +834,23 @@ describe("event handler rows", () => {
         expect(rows[0].trigger?.orphansService).toBe(true);
     });
 
+    it("does not orphan the service when a sibling handler reaches a different agent", () => {
+        const service = issuesService(["onOpened"], ["runAgentOnOpened"]);
+        const crossAgentService = {
+            ...service,
+            remoteFunctions: [
+                service.remoteFunctions[0],
+                { ...service.remoteFunctions[1], connections: [SUPPORT_AGENT_UUID] },
+                service.remoteFunctions[2],
+            ],
+        };
+
+        const rows = eventRows(crossAgentService);
+
+        expect(rows.map((row) => row.label)).toEqual(["onOpened"]);
+        expect(rows[0].trigger?.orphansService).toBe(false);
+    });
+
     it("names the helpers that reach the agent so the offload target can be resolved", () => {
         const rows = eventRows(issuesService(["onOpened"], ["runAgentOnOpened", "init"]));
 
@@ -854,6 +878,12 @@ describe("finding the agent call inside a handler", () => {
         expect(namesHelper(node("start self.rerunAgentOnOpened(payload)"), "runAgentOnOpened")).toBe(false);
         expect(namesHelper(node("log:printInfo(\"hi\")"), "runAgentOnOpened")).toBe(false);
         expect(namesHelper({ properties: {} } as never, "runAgentOnOpened")).toBe(false);
+    });
+
+    it("treats regex metacharacters in the helper name literally", () => {
+        expect(() => namesHelper(node("start self.foo(payload)"), "foo(")).not.toThrow();
+        expect(namesHelper(node("start self.processAddd(payload)"), "processAdd+")).toBe(false);
+        expect(namesHelper(node("start self.processAdd(payload)"), "processAdd+")).toBe(false);
     });
 
     it("reads the line an edit has to be ordered by", () => {
@@ -930,5 +960,98 @@ describe("deleting components whose positions have moved", () => {
         await deleteEachResolved(client, listeners, locate);
 
         expect(deleteByComponentInfo.mock.calls.map((call) => call[0].component.name)).toEqual(["sharedListener"]);
+    });
+});
+
+describe("clearing an agent call from a handler", () => {
+    const flowNode = (expression: string, line: number) => ({
+        properties: { expression: { value: expression } },
+        codedata: { lineRange: { startLine: { line } } },
+    });
+
+    const trigger = (orphansService: boolean): AgentUsageTrigger => ({
+        serviceName: "/github",
+        documentUri: GITHUB_BAL,
+        position: { startLine: 5, startColumn: 0, endLine: 6, endColumn: 1 },
+        listeners: [],
+        entryPoint: {
+            label: "onOpened",
+            documentUri: GITHUB_BAL,
+            position: { startLine: 10, startColumn: 0, endLine: 11, endColumn: 1 },
+        },
+        scope: "ENTRY_POINT_BODY",
+        orphansService,
+        helpers: [{ symbol: "runAgent", documentUri: GITHUB_BAL, position: { startLine: 40, startColumn: 0, endLine: 41, endColumn: 1 } }],
+    });
+
+    const clientSeeing = (siblingCallsHelper: boolean) => {
+        const designModel = {
+            services: [{
+                absolutePath: "/github",
+                resourceFunctions: [],
+                remoteFunctions: [
+                    { name: "onOpened", location: { filePath: GITHUB_BAL, ...range(10) } },
+                    { name: "onClosed", location: { filePath: GITHUB_BAL, ...range(15) } },
+                ],
+                functions: [{ name: "runAgent", location: { filePath: GITHUB_BAL, ...range(40) } }],
+            }],
+        } as unknown as CDModel;
+
+        const getFlowModel = jest.fn().mockImplementation(({ startLine }) => {
+            if (startLine.line === 10) {
+                return Promise.resolve({ flowModel: { nodes: [flowNode("start self.runAgent(payload)", 11)] } });
+            }
+            if (startLine.line === 15) {
+                return Promise.resolve({
+                    flowModel: { nodes: siblingCallsHelper ? [flowNode("start self.runAgent(payload)", 16)] : [] },
+                });
+            }
+            return Promise.resolve({ flowModel: { nodes: [] } });
+        });
+        const deleteFlowNode = jest.fn().mockResolvedValue({});
+        const getDesignModel = jest.fn().mockResolvedValue({ designModel });
+        const deleteByComponentInfo = jest.fn().mockResolvedValue({});
+
+        return {
+            client: {
+                getVisualizerLocation: jest.fn().mockResolvedValue({ projectPath: "/proj" }),
+                getBIDiagramRpcClient: () => ({ getFlowModel, deleteFlowNode, getDesignModel, deleteByComponentInfo }),
+            } as never,
+            deleteFlowNode,
+            deleteByComponentInfo,
+            getDesignModel,
+        };
+    };
+
+    it("deletes the call and the helper when no sibling reaches the agent at all", async () => {
+        const { client, deleteFlowNode, deleteByComponentInfo, getDesignModel } = clientSeeing(false);
+
+        await clearAgentCallFromHandler(client, trigger(true));
+
+        expect(deleteFlowNode).toHaveBeenCalledTimes(1);
+        expect(getDesignModel).toHaveBeenCalledTimes(1);
+        expect(deleteByComponentInfo).toHaveBeenCalledWith(
+            expect.objectContaining({ component: expect.objectContaining({ name: "runAgent" }) })
+        );
+    });
+
+    it("deletes the helper even when a sibling reaches a different agent, as long as it does not call this helper", async () => {
+        const { client, deleteFlowNode, deleteByComponentInfo } = clientSeeing(false);
+
+        await clearAgentCallFromHandler(client, trigger(false));
+
+        expect(deleteFlowNode).toHaveBeenCalledTimes(1);
+        expect(deleteByComponentInfo).toHaveBeenCalledWith(
+            expect.objectContaining({ component: expect.objectContaining({ name: "runAgent" }) })
+        );
+    });
+
+    it("keeps the helper a sibling still calls by name", async () => {
+        const { client, deleteFlowNode, deleteByComponentInfo } = clientSeeing(true);
+
+        await clearAgentCallFromHandler(client, trigger(false));
+
+        expect(deleteFlowNode).toHaveBeenCalledTimes(1);
+        expect(deleteByComponentInfo).not.toHaveBeenCalled();
     });
 });

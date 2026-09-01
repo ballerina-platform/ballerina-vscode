@@ -46,7 +46,8 @@ import {
     AgentUsage,
     AgentUsageTrigger,
     FOCUS_FLOW_DIAGRAM_VIEW,
-    FocusFlowDiagramView
+    FocusFlowDiagramView,
+    triggerScopeNoun
 } from "@wso2/ballerina-core";
 import { PanelContainer } from "@wso2/ballerina-side-panel";
 import { ConnectionConfig, ConnectionCreator, ConnectionSelectionList } from "../../../components/ConnectionSelector";
@@ -135,6 +136,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
     const usageRequestIdRef = useRef(0);
     const usagesDirtyRef = useRef(true);
     const usagesContentRef = useRef(0);
+    const deletingTriggerRef = useRef(false);
     const [agentFormKey, setAgentFormKey] = useState(0);
     const [agentTypeFormMode, setAgentTypeFormMode] = useState<"ALL" | "MODEL">("ALL");
 
@@ -184,6 +186,9 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
     useEffect(() => {
         const unsubscribeContentUpdated = rpcClient.onProjectContentUpdated((state: boolean) => {
             console.log(">>> on project content updated", state);
+            if (deletingTriggerRef.current) {
+                return;
+            }
             usagesDirtyRef.current = true;
             usagesContentRef.current++;
             if (isAgent) {
@@ -378,7 +383,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
         }
 
         const isEndpoint = trigger.scope === "ENTRY_POINT";
-        const label = isEndpoint ? "Endpoint" : "Trigger";
+        const label = triggerScopeNoun(trigger.scope);
         const only = `Delete ${label}`;
         const withService = `Delete ${label} and Service`;
         const consequence = isEndpoint
@@ -428,6 +433,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
             return;
         }
         setShowProgressIndicator(true);
+        deletingTriggerRef.current = true;
         try {
             if (scope === "endpoint" && trigger.scope === "ENTRY_POINT_BODY") {
                 await clearAgentCallFromHandler(rpcClient, trigger);
@@ -444,6 +450,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
             await rpcClient.getAIAgentRpcClient().fixMissingImports();
             usagesDirtyRef.current = true;
             usagesContentRef.current++;
+            debouncedGetAgentModel();
         } catch (error) {
             console.error(">>> agent focus: failed to delete trigger", error);
             rpcClient.getCommonRpcClient().showErrorMessage({
@@ -451,6 +458,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                     + "Some changes may have been applied. Review the source before retrying.",
             });
         } finally {
+            deletingTriggerRef.current = false;
             setShowProgressIndicator(false);
         }
     };
