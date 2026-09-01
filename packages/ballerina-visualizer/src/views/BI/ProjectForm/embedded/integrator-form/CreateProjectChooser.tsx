@@ -21,15 +21,21 @@ import debounce from "lodash/debounce";
 import styled from "@emotion/styled";
 import { Button, DirectorySelector, Icon, TextField } from "@wso2/ui-toolkit";
 import { useVisualizerContext } from "./context/WsClientContext";
+import { useBrowsePick } from "./useBrowsePick";
+import { useCloudContext } from "./providers";
 import {
     joinPath,
     splitPath,
     sanitizePackageName,
+    sanitizeOrgHandle,
     validateComponentName,
+    validateOrgName,
+    validatePackageName,
     validateProjectName,
 } from "./utils";
+import { AdvancedConfigurationSection } from "./components";
 import { useRealtimeProjectPathValidation } from "./useRealtimeProjectPathValidation";
-import { FieldGroup, ProjectSectionContainer } from "./styles";
+import { FieldGroup, ProjectSectionContainer, SectionDivider } from "./styles";
 import { DEFAULT_INTEGRATION_NAME, DEFAULT_PROJECT_NAME } from "./types";
 import { CreateFlowShell } from "./shared/CreateFlowShell";
 import { FormFooter } from "./shared/FormPageLayout";
@@ -43,7 +49,6 @@ import {
 } from "../../hooks/resolveAvailableDirectoryName";
 import { LibraryCreationView } from "./LibraryCreationView";
 import { ProjectTypeSelector } from "../../components";
-import { CreatingIntegrationView } from "../../../CreateIntegrationWizard/components/CreatingIntegrationView";
 import { ProjectContext } from "../../../CreateIntegrationWizard/types";
 import { BiWsClient } from "../../../wsManager/WsClient";
 
@@ -154,21 +159,6 @@ const FormError = styled.div`
     color: var(--vscode-errorForeground);
 `;
 
-/** Gives the create-in-progress screen room to centre itself inside the scrolling form body. */
-const CreatingSlot = styled.div`
-    display: flex;
-    min-height: 320px;
-`;
-
-/**
- * Which screen of the Create flow is showing. The integration route no longer has
- * a screen of its own: the 3-step integration wizard (Name → Type → Configure) is
- * bypassed for now, and the chooser collects the integration name inline and
- * creates an empty integration directly. Restore the `"integration"` screen (and
- * the `CreateIntegrationWizard` render behind it) to bring the wizard back.
- */
-type Screen = "chooser" | "library";
-
 interface CreateProjectChooserProps {
     /** The wizard client (native BI WS) used by the integration route. */
     biWsClient: BiWsClient;
@@ -199,8 +189,11 @@ export function CreateProjectChooser({
     onBack,
 }: CreateProjectChooserProps) {
     const { wsClient } = useVisualizerContext();
+    const { authState } = useCloudContext();
+    const organizations = (authState?.userInfo?.organizations as Array<{ id?: any; handle: string; name: string }> | undefined);
     const firstFieldRef = useRef<HTMLInputElement>(null);
     const defaultPathInitialized = useRef(false);
+    const orgNameInitialized = useRef(false);
     const projectNameTouchedRef = useRef(false);
     // Set the moment the user edits the integration name, so the async default-name
     // indexing below never clobbers what they typed.
@@ -209,11 +202,14 @@ export function CreateProjectChooser({
     // skip a path it has already listed (and re-list whenever the project retargets).
     const takenNamesPathRef = useRef<string | null>(null);
 
-    const [screen, setScreen] = useState<Screen>("chooser");
     const [isLibrary, setIsLibrary] = useState(false);
 
     const [integrationName, setIntegrationName] = useState(DEFAULT_INTEGRATION_NAME);
     const [integrationNameError, setIntegrationNameError] = useState<string | null>(null);
+    const [packageName, setPackageName] = useState("");
+    const [orgName, setOrgName] = useState("");
+    const [version, setVersion] = useState("");
+    const [isPackageInfoExpanded, setIsPackageInfoExpanded] = useState(false);
     // Folders/titles already used in the target project, for live collision flagging.
     const [takenNames, setTakenNames] = useState<TakenNames>(emptyTakenNames());
     // Submit-time re-check of the collision list, before anything is created.
@@ -234,6 +230,23 @@ export function CreateProjectChooser({
      *  re-run the preselect below. */
     const [preselectRequestId, setPreselectRequestId] = useState(0);
 
+    // Owns the Browse interaction and the name/folder memory that makes a pick reversible.
+    const browsePick = useBrowsePick({
+        wsClient,
+        dirCoupling,
+        projectName,
+        setProjectName,
+        projectNameTouchedRef,
+        setEditablePath,
+        setPathTouched,
+        setPathError,
+        startPath: editablePath || defaultPath,
+        // This screen's name field labels the project the integration lands in, so it shows
+        // an existing project's own title rather than a name to create.
+        adoptProjectName: true,
+        selectFailedMessage: "Failed to select the project folder. Please try again.",
+    });
+
     const debouncedSetProjectNameError = useMemo(
         () => debounce((error: string) => setProjectNameError(error), 300),
         []
@@ -253,11 +266,27 @@ export function CreateProjectChooser({
     // editable path field here, since the location is already resolved above.
     const effectiveIntegrationName = integrationName.trim() || DEFAULT_INTEGRATION_NAME;
     const integrationPackageName = sanitizePackageName(effectiveIntegrationName) || "untitled";
+    const effectivePackageName = packageName || integrationPackageName;
     // Resolved synchronously — the displayed diagnostic is debounced, so gating Create on
     // the error state alone would leave it clickable for a beat after a bad edit.
     const integrationNameIssue =
         validateComponentName(integrationName) ||
         resolveNameCollisionMessage(integrationName, takenNames, sanitizePackageName);
+    const packageNameError = validatePackageName(effectivePackageName, effectiveIntegrationName);
+    const orgNameError = validateOrgName(orgName);
+
+    // Initialize org name independently of workspace readiness — mirrors the library route.
+    useEffect(() => {
+        if (orgNameInitialized.current) return;
+        orgNameInitialized.current = true;
+        if (organizations && organizations.length > 0) {
+            setOrgName(organizations[0].handle);
+        } else {
+            wsClient.getDefaultOrgName()
+                .then(({ orgName: defaultOrgName }) => setOrgName(defaultOrgName))
+                .catch((error) => console.error("Failed to fetch default org name:", error));
+        }
+    }, [organizations, wsClient]);
 
     // Seed the Default project location once (`<defaultLocation>/default`). The
     // realtime validation then reports whether it already exists (add into it) or
@@ -267,10 +296,15 @@ export function CreateProjectChooser({
         (async () => {
             if (defaultPathInitialized.current) return;
             try {
+                // Re-checked before EVERY write below, not just once: this seed spans
+                // several round-trips, and a Browse that lands mid-flight has already
+                // retargeted the form — applying any part of a reading taken for the
+                // default location would drag it back, which is the very bug being fixed.
+                const superseded = () => !mounted || browsePick.pathPickedRef.current;
                 const { path: workspacePath } = await wsClient.getWorkspaceRoot();
-                if (!mounted) return;
+                if (superseded()) return;
                 const dp = workspacePath || (await wsClient.getDefaultCreationPath()).path;
-                if (!mounted) return;
+                if (superseded()) return;
                 defaultPathInitialized.current = true;
                 setDefaultPath(dp);
                 setEditablePath(dp);
@@ -280,10 +314,14 @@ export function CreateProjectChooser({
                 // Browse does. The folder stays "default"; only the display name changes.
                 const defaultProjectPath = joinPath(dp, directoryName);
                 const info = await wsClient.getExistingProjectInfo({ projectPath: defaultProjectPath });
-                if (!mounted) return;
+                if (superseded()) return;
                 if (info?.isProject && info.name && !projectNameTouchedRef.current) {
                     setProjectName(info.name);
                     dirCoupling.setDirTouched(true);
+                    // Same memory a Browse pick records: this name and folder are the
+                    // seeded project's, so browsing elsewhere restores the placeholder
+                    // instead of carrying them to the new location.
+                    browsePick.recordSeededAdoption({ name: DEFAULT_PROJECT_NAME, touched: false }, directoryName);
                     // This swap lands after the initial preselect has already run and
                     // silently collapses its selection, so ask for another one.
                     setPreselectRequestId((id) => id + 1);
@@ -302,7 +340,7 @@ export function CreateProjectChooser({
     // `vscode-text-field`'s shadow root and may not be attached yet, hence the bounded
     // per-frame retry. The guards below keep it from ever fighting the user.
     useEffect(() => {
-        if (screen !== "chooser") return;
+        if (isLibrary) return;
 
         let frameId = 0;
         let framesWaited = 0;
@@ -339,7 +377,7 @@ export function CreateProjectChooser({
 
         frameId = requestAnimationFrame(focusFirstField);
         return () => cancelAnimationFrame(frameId);
-    }, [screen, preselectRequestId]);
+    }, [isLibrary, preselectRequestId]);
 
     useEffect(() => {
         const error = validateProjectName(projectName);
@@ -427,6 +465,9 @@ export function CreateProjectChooser({
         // Editing the name (re)couples the folder to it — so renaming a browsed
         // existing project retargets to a NEW project at <parent>/<derived-name>.
         dirCoupling.handleDisplayNameChange(value, { recouple: true });
+        // Both the name and (via the recouple) the folder are the user's now, so a later
+        // Browse has nothing of the previous pick's left to undo.
+        browsePick.releaseName();
     };
 
     const handlePathChange = (value: string) => {
@@ -434,28 +475,23 @@ export function CreateProjectChooser({
         setPathTouched(true);
         setEditablePath(base);
         dirCoupling.handleDirectoryNameEdit(name, autoDirectoryName);
+        // Only an edit to the SEGMENT claims it from a pick — retyping the parent portion
+        // leaves the pinned folder exactly as the pick left it. Any adopted NAME is still
+        // the pick's either way, so that memory stands.
+        browsePick.releaseFolderIfSegmentEdited(name);
     };
 
     /**
-     * Browse: the picked folder is the parent LOCATION, not the project folder. The
-     * project keeps the name the user gave it and is targeted at `<picked>/<name>` —
-     * whether something already lives there is reported live by the path validation
-     * above, so nothing here needs to inspect the folder.
+     * Browse: the picked folder is normally the parent LOCATION, with the project targeted
+     * at `<picked>/<name-derived folder>`. Picking a folder that is ITSELF a project is the
+     * exception — appending a folder inside it would target `<project>/default`, which is
+     * neither the project the user pointed at nor a valid place for a new one (a project
+     * inside a project). The pick is taken as the project itself instead: its real name
+     * fills the name field and its own folder becomes the path's last segment, which is
+     * exactly what typing that same path into the field already does. Whether the resolved
+     * target exists is reported live by the path validation above.
      */
-    const handlePathSelection = async () => {
-        try {
-            const result = await wsClient.selectFileOrDirPath({ startPath: editablePath || defaultPath });
-            if (!result.path) return;
-            setEditablePath(result.path);
-            setPathTouched(true);
-            // Pin the name: the one-shot default-project lookup can still be in flight,
-            // and its result no longer describes the location just picked.
-            projectNameTouchedRef.current = true;
-        } catch (error) {
-            console.error("Failed to select path:", error);
-            setPathError("Failed to select the project folder. Please try again.");
-        }
-    };
+    const handlePathSelection = browsePick.selectPath;
 
     const startingPointNoun = isLibrary ? "library" : "integration";
 
@@ -468,17 +504,13 @@ export function CreateProjectChooser({
 
     const canProceed =
         !projectNameError && !pathError && !!projectName.trim() && !!editablePath && !!effectiveDirectoryName;
-    /** The integration route submits from this screen, so its name must be valid too. */
-    const canCreateIntegration = canProceed && !integrationNameIssue;
+    /** The integration route submits from this screen, so its name and Advanced
+     *  Configurations (package name / org) must be valid too. */
+    const canCreateIntegration = canProceed && !integrationNameIssue && !packageNameError && !orgNameError;
 
     const handleIntegrationNameChange = (value: string) => {
         integrationNameTouchedRef.current = true;
         setIntegrationName(value);
-    };
-
-    const handleNext = () => {
-        if (!canProceed || workspaceSupportPending) return;
-        setScreen("library");
     };
 
     /**
@@ -523,14 +555,18 @@ export function CreateProjectChooser({
             }
 
             setIsCreating(true);
+            const orgHandle = organizations?.find(o => o.handle === orgName)?.handle || sanitizeOrgHandle(orgName);
             await biWsClient.createIntegration({
                 project: {
                     integrationName: effectiveIntegrationName,
-                    packageName: integrationPackageName,
+                    packageName: effectivePackageName,
                     projectPath: resolvedPath,
                     directoryName: integrationPackageName,
                     newProject: projectContext.isNewProject,
                     workspaceName: projectContext.workspaceName,
+                    orgName: orgName || undefined,
+                    orgHandle,
+                    version: version || undefined,
                 },
             });
         } catch (error) {
@@ -545,33 +581,6 @@ export function CreateProjectChooser({
             setIsValidating(false);
         }
     };
-
-    if (isCreating) {
-        return (
-            <CreateFlowShell title="Create">
-                <CreatingSlot>
-                    <CreatingIntegrationView
-                        variant="create"
-                        integrationName={effectiveIntegrationName}
-                        projectName={projectContext.workspaceName}
-                        isNewProject={projectContext.isNewProject}
-                    />
-                </CreatingSlot>
-            </CreateFlowShell>
-        );
-    }
-
-    if (screen === "library") {
-        return (
-            <CreateFlowShell
-                title="New Library"
-                subtitle={`In project ${projectName.trim() || DEFAULT_PROJECT_NAME}`}
-                onBack={() => setScreen("chooser")}
-            >
-                <LibraryCreationView embedded projectContext={projectContext} ballerinaUnavailable={ballerinaUnavailable} />
-            </CreateFlowShell>
-        );
-    }
 
     return (
         <CreateFlowShell
@@ -641,55 +650,76 @@ export function CreateProjectChooser({
                 />
             </Section>
 
-            {/* The integration is named here rather than on a step of its own — the
-                wizard is bypassed, so this screen submits. The library route keeps its
-                own form, which already collects a name alongside its package details. */}
-            {!isLibrary && (
+            {isLibrary ? (
                 <Section>
-                    <FieldGroup>
-                        <TextField
-                            onTextChange={handleIntegrationNameChange}
-                            value={integrationName}
-                            label="Integration name"
-                            placeholder="Enter an integration name"
-                            required={true}
-                            errorMsg={integrationNameError || ""}
-                        />
-                    </FieldGroup>
+                    <LibraryCreationView
+                        embedded
+                        projectContext={projectContext}
+                        ballerinaUnavailable={ballerinaUnavailable}
+                        isCreateDisabled={!canProceed || workspaceSupportPending}
+                    />
                 </Section>
-            )}
+            ) : (
+                <>
+                    <Section>
+                        <FieldGroup>
+                            <TextField
+                                onTextChange={handleIntegrationNameChange}
+                                value={integrationName}
+                                label="Integration name"
+                                placeholder="Enter an integration name"
+                                required={true}
+                                errorMsg={integrationNameError || ""}
+                            />
+                        </FieldGroup>
 
-            {createError && (
-                <FormError>
-                    <Icon name="error" isCodicon sx={{ marginTop: "1px" }} />
-                    <span>{createError}</span>
-                </FormError>
-            )}
+                        <SectionDivider />
 
-            <FormFooter>
-                <span
-                    title={
-                        ballerinaUnavailable
-                            ? "Ballerina distribution is not set up. Use Configure to set it up."
-                            : workspaceSupportPending
-                                ? "Finishing start-up…"
-                                : undefined
-                    }
-                >
-                    <Button
-                        disabled={
-                            ballerinaUnavailable ||
-                            workspaceSupportPending ||
-                            isValidating ||
-                            (isLibrary ? !canProceed : !canCreateIntegration)
-                        }
-                        onClick={isLibrary ? handleNext : handleCreateIntegration}
-                        appearance="primary"
-                    >
-                        {isLibrary ? "Next" : isValidating ? "Validating..." : "Create Integration"}
-                    </Button>
-                </span>
-            </FormFooter>
+                        <AdvancedConfigurationSection
+                            isExpanded={isPackageInfoExpanded}
+                            onToggle={() => setIsPackageInfoExpanded(!isPackageInfoExpanded)}
+                            data={{ packageName: effectivePackageName, orgName, version }}
+                            onChange={(data) => {
+                                if (data.packageName !== undefined) setPackageName(data.packageName);
+                                if (data.orgName !== undefined) setOrgName(data.orgName);
+                                if (data.version !== undefined) setVersion(data.version);
+                            }}
+                            isLibrary={false}
+                            packageNameError={packageNameError}
+                            orgNameError={orgNameError}
+                            organizations={organizations}
+                            hasError={!!(packageNameError || orgNameError)}
+                        />
+                    </Section>
+
+                    {createError && (
+                        <FormError>
+                            <Icon name="error" isCodicon sx={{ marginTop: "1px" }} />
+                            <span>{createError}</span>
+                        </FormError>
+                    )}
+
+                    <FormFooter>
+                        <span
+                            title={
+                                ballerinaUnavailable
+                                    ? "Ballerina distribution is not set up. Use Configure to set it up."
+                                    : workspaceSupportPending
+                                        ? "Finishing start-up…"
+                                        : undefined
+                            }
+                        >
+                            <Button
+                                disabled={ballerinaUnavailable || workspaceSupportPending || isValidating || !canCreateIntegration}
+                                onClick={handleCreateIntegration}
+                                appearance="primary"
+                            >
+                                {isCreating ? "Creating..." : isValidating ? "Validating..." : "Create Integration"}
+                            </Button>
+                        </span>
+                    </FormFooter>
+                </>
+            )}
         </CreateFlowShell>
     );
 }

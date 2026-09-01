@@ -53,25 +53,25 @@
       },
       "name": {
         "metadata": {
-          "label": "Tool Name"
+          "label": "Activity Name"
         },
         "valueType": "TEXT",
         "value": "",
         "optional": true,
         "editable": true,
-        "advanced": false,
-        "hidden": true
+        "advanced": true,
+        "hidden": false
       },
       "description": {
         "metadata": {
-          "label": "Description"
+          "label": "Activity Description"
         },
         "valueType": "DOC_TEXT",
         "value": "",
         "optional": true,
         "editable": true,
-        "advanced": false,
-        "hidden": true
+        "advanced": true,
+        "hidden": false
       },
       "requiresApproval": {
         "metadata": {

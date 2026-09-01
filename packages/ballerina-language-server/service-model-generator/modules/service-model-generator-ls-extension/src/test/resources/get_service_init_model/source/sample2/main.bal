@@ -1,6 +1,6 @@
 import ballerina/mqtt;
 import ballerinax/rabbitmq;
-// import ballerinax/salesforce;
+// import ballerinax/salesforce; // fails to load from BIR: wso2/product-integrator#1920
 import ballerinax/sap.jco;
 import ballerinax/solace;
 import ballerinax/solace.jms;

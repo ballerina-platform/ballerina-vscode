@@ -1,0 +1,222 @@
+{
+  "version": "v1.0",
+
+  "listeners": [
+    {
+      "id": "$listener",
+      "doc": "Webhook listener that dispatches each inbound Telegram bot update to the attached service.",
+      "type": { "name": "Listener" },
+      "services": ["$service"],
+      "multipleServicesAllowed": true,
+      "multipleServicesOfSameTypeAllowed": true
+    }
+  ],
+
+  "serviceTypes": [
+    {
+      "id": "$service",
+      "doc": "Receives Telegram bot updates: messages, channel posts, callback and inline queries, polls, and payment queries.",
+      "type": { "name": "TelegramService" },
+      "concrete": false,
+      "multipleListenersAllowed": true,
+      "identifier": { "presence": "optional", "form": ["basePath"] },
+      "handlers": {
+        "backedByConcreteType": false,
+        "options": [
+          {
+            "id": "$service.onMessage",
+            "name": "onMessage",
+            "kind": "remote",
+            "doc": "Invoked with a new incoming message.",
+            "presence": "optional",
+            "params": [
+              {
+                "id": "$service.onMessage.message",
+                "name": "message",
+                "doc": "The received message.",
+                "type": { "name": "Message" },
+                "presence": "required"
+              }
+            ],
+            "returns": { "id": "$service.onMessage.returns", "type": [{ "name": "error", "builtin": true }, { "name": "()", "builtin": true }] }
+          },
+          {
+            "id": "$service.onEditedMessage",
+            "name": "onEditedMessage",
+            "kind": "remote",
+            "doc": "Invoked when a previously sent message is edited.",
+            "presence": "optional",
+            "params": [
+              {
+                "id": "$service.onEditedMessage.editedMessage",
+                "name": "editedMessage",
+                "doc": "The message after the edit.",
+                "type": { "name": "Message" },
+                "presence": "required"
+              }
+            ],
+            "returns": {
+              "id": "$service.onEditedMessage.returns",
+              "type": [{ "name": "error", "builtin": true }, { "name": "()", "builtin": true }]
+            }
+          },
+          {
+            "id": "$service.onChannelPost",
+            "name": "onChannelPost",
+            "kind": "remote",
+            "doc": "Invoked with a new post in a channel the bot is administering.",
+            "presence": "optional",
+            "params": [
+              {
+                "id": "$service.onChannelPost.channelPost",
+                "name": "channelPost",
+                "doc": "The channel post.",
+                "type": { "name": "Message" },
+                "presence": "required"
+              }
+            ],
+            "returns": {
+              "id": "$service.onChannelPost.returns",
+              "type": [{ "name": "error", "builtin": true }, { "name": "()", "builtin": true }]
+            }
+          },
+          {
+            "id": "$service.onEditedChannelPost",
+            "name": "onEditedChannelPost",
+            "kind": "remote",
+            "doc": "Invoked when a previously sent channel post is edited.",
+            "presence": "optional",
+            "params": [
+              {
+                "id": "$service.onEditedChannelPost.editedChannelPost",
+                "name": "editedChannelPost",
+                "doc": "The channel post after the edit.",
+                "type": { "name": "Message" },
+                "presence": "required"
+              }
+            ],
+            "returns": {
+              "id": "$service.onEditedChannelPost.returns",
+              "type": [{ "name": "error", "builtin": true }, { "name": "()", "builtin": true }]
+            }
+          },
+          {
+            "id": "$service.onCallbackQuery",
+            "name": "onCallbackQuery",
+            "kind": "remote",
+            "doc": "Invoked when the user presses an inline keyboard button.",
+            "presence": "optional",
+            "params": [
+              {
+                "id": "$service.onCallbackQuery.callbackQuery",
+                "name": "callbackQuery",
+                "doc": "The callback query raised by the button press.",
+                "type": { "name": "CallbackQuery" },
+                "presence": "required"
+              }
+            ],
+            "returns": {
+              "id": "$service.onCallbackQuery.returns",
+              "type": [{ "name": "error", "builtin": true }, { "name": "()", "builtin": true }]
+            }
+          },
+          {
+            "id": "$service.onInlineQuery",
+            "name": "onInlineQuery",
+            "kind": "remote",
+            "doc": "Invoked with a new inline query, sent when the user types the bot's @username followed by text in any chat.",
+            "presence": "optional",
+            "params": [
+              {
+                "id": "$service.onInlineQuery.inlineQuery",
+                "name": "inlineQuery",
+                "doc": "The inline query.",
+                "type": { "name": "InlineQuery" },
+                "presence": "required"
+              }
+            ],
+            "returns": {
+              "id": "$service.onInlineQuery.returns",
+              "type": [{ "name": "error", "builtin": true }, { "name": "()", "builtin": true }]
+            }
+          },
+          {
+            "id": "$service.onPoll",
+            "name": "onPoll",
+            "kind": "remote",
+            "doc": "Invoked when the state of a poll the bot is tracking changes, such as a new vote or the poll closing.",
+            "presence": "optional",
+            "params": [
+              {
+                "id": "$service.onPoll.poll",
+                "name": "poll",
+                "doc": "The poll's new state.",
+                "type": { "name": "Poll" },
+                "presence": "required"
+              }
+            ],
+            "returns": { "id": "$service.onPoll.returns", "type": [{ "name": "error", "builtin": true }, { "name": "()", "builtin": true }] }
+          },
+          {
+            "id": "$service.onPreCheckoutQuery",
+            "name": "onPreCheckoutQuery",
+            "kind": "remote",
+            "doc": "Invoked with a pre-checkout query, sent when the user confirms payment details before the final charge.",
+            "presence": "optional",
+            "params": [
+              {
+                "id": "$service.onPreCheckoutQuery.preCheckoutQuery",
+                "name": "preCheckoutQuery",
+                "doc": "The pre-checkout query.",
+                "type": { "name": "PreCheckoutQuery" },
+                "presence": "required"
+              }
+            ],
+            "returns": {
+              "id": "$service.onPreCheckoutQuery.returns",
+              "type": [{ "name": "error", "builtin": true }, { "name": "()", "builtin": true }]
+            }
+          },
+          {
+            "id": "$service.onShippingQuery",
+            "name": "onShippingQuery",
+            "kind": "remote",
+            "doc": "Invoked with a shipping query, sent for an invoice that requires a shipping address.",
+            "presence": "optional",
+            "params": [
+              {
+                "id": "$service.onShippingQuery.shippingQuery",
+                "name": "shippingQuery",
+                "doc": "The shipping query.",
+                "type": { "name": "ShippingQuery" },
+                "presence": "required"
+              }
+            ],
+            "returns": {
+              "id": "$service.onShippingQuery.returns",
+              "type": [{ "name": "error", "builtin": true }, { "name": "()", "builtin": true }]
+            }
+          }
+        ]
+      },
+      "rules": [
+        {
+          "id": "$atLeastOneHandler",
+          "rule": "structure.atLeastOne",
+          "message": "A TelegramService needs at least one of the nine update handlers; one with none of them receives nothing and does nothing.",
+          "subjects": [
+            { "kind": "handler", "id": "$service.onMessage" },
+            { "kind": "handler", "id": "$service.onEditedMessage" },
+            { "kind": "handler", "id": "$service.onChannelPost" },
+            { "kind": "handler", "id": "$service.onEditedChannelPost" },
+            { "kind": "handler", "id": "$service.onCallbackQuery" },
+            { "kind": "handler", "id": "$service.onInlineQuery" },
+            { "kind": "handler", "id": "$service.onPoll" },
+            { "kind": "handler", "id": "$service.onPreCheckoutQuery" },
+            { "kind": "handler", "id": "$service.onShippingQuery" }
+          ]
+        }
+      ]
+    }
+  ]
+}

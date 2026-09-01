@@ -155,7 +155,7 @@ public class TriggerModelReaderTest {
         Assert.assertEquals(model.listenerKind(), "SINGLE_SELECT_LISTENER");
         Assert.assertEquals(listenerFieldType(model), "CHOICE");
 
-        // The monitored path is a service-level annotation field surfaced in the init form.
+        // The watched path is the service's attach point, not a `files:ServiceConfig` field.
         Property path = model.initProperties().get("path");
         Assert.assertNotNull(path, "path should be present under initProperties");
         Assert.assertEquals(path.codedata().type(), "SERVICE_BASE_PATH");

@@ -19,6 +19,7 @@
 package io.ballerina.servicemodelgenerator.extension;
 
 import io.ballerina.servicemodelgenerator.extension.model.Codedata;
+import io.ballerina.servicemodelgenerator.extension.model.DriverDependency;
 import io.ballerina.servicemodelgenerator.extension.model.Function;
 import io.ballerina.servicemodelgenerator.extension.model.HttpResponse;
 import io.ballerina.servicemodelgenerator.extension.model.Listener;
@@ -60,7 +61,9 @@ import org.testng.annotations.Test;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -405,6 +408,58 @@ public class ServiceModelAPITests {
                 new DidCloseTextDocumentParams(new TextDocumentIdentifier(filePath.toUri().toString())));
     }
 
+    /**
+     * Regression for the create-new-listener driver-dependency flow (product-integrator#2020):
+     * {@code addListener} must turn a filled {@code driverDependency} field (e.g. a SAP JCo JAR the
+     * user picked) into a {@code [[platform.java21.dependency]]} Ballerina.toml edit, alongside the
+     * listener declaration edit.
+     */
+    @Test
+    public void testAddListenerWritesDriverDependencyEdit() throws ExecutionException, InterruptedException {
+        Path filePath = resDir.resolve("sample1/main.bal");
+
+        Codedata driverCodedata = new Codedata();
+        driverCodedata.setDriverDependency(new DriverDependency("com.sap", "com.sap.conn.jco", "3.1.*",
+                "provided"));
+        Value sapJcoDriverPath = new Value.ValueBuilder()
+                .value("libs/sapjco3.jar")
+                .enabled(true)
+                .editable(true)
+                .setCodedata(driverCodedata)
+                .build();
+        Value listenerType = new Value.ValueBuilder().value("Listener").enabled(true).editable(true).build();
+
+        Map<String, Value> properties = new LinkedHashMap<>();
+        properties.put(Constants.PROP_KEY_LISTENER_TYPE, listenerType);
+        properties.put("sapJcoDriverPath", sapJcoDriverPath);
+
+        Listener listener = new Listener.ListenerBuilder()
+                .setModuleName("sap.jco")
+                .setOrgName("ballerinax")
+                .setVersion("2.0.1")
+                .setListenerProtocol("sapJco")
+                .setProperties(properties)
+                .build();
+
+        ListenerSourceRequest genRequest = new ListenerSourceRequest(filePath.toAbsolutePath().toString(), listener);
+        CompletableFuture<?> genResult = serviceEndpoint.request("serviceDesign/addListener", genRequest);
+        CommonSourceResponse genResponse = (CommonSourceResponse) genResult.get();
+        Assert.assertTrue(Objects.nonNull(genResponse.textEdits()));
+
+        boolean tomlEditPresent = genResponse.textEdits().values().stream()
+                .flatMap(List::stream)
+                .anyMatch(edit -> edit.getNewText().contains("[[platform.java21.dependency]]")
+                        && edit.getNewText().contains("path = \"libs/sapjco3.jar\"")
+                        && edit.getNewText().contains("groupId = \"com.sap\"")
+                        && edit.getNewText().contains("artifactId = \"com.sap.conn.jco\"")
+                        && edit.getNewText().contains("scope = \"provided\""));
+        Assert.assertTrue(tomlEditPresent,
+                "addListener must write the [[platform.java21.dependency]] edit for a driver-dependency "
+                        + "field the user filled in");
+        serviceEndpoint.notify("textDocument/didClose",
+                new DidCloseTextDocumentParams(new TextDocumentIdentifier(filePath.toUri().toString())));
+    }
+
     @Test(enabled = false)
     public void testGetTriggerServiceFromSource() throws ExecutionException, InterruptedException {
         Path filePath = resDir.resolve("sample4/main.bal");
@@ -500,6 +555,56 @@ public class ServiceModelAPITests {
         CommonSourceResponse updateResponse = (CommonSourceResponse) updateResult.get();
         Assert.assertTrue(Objects.nonNull(updateResponse.textEdits()));
         Assert.assertFalse(updateResponse.textEdits().isEmpty());
+        serviceEndpoint.notify("textDocument/didClose",
+                new DidCloseTextDocumentParams(new TextDocumentIdentifier(filePath.toUri().toString())));
+    }
+
+    /**
+     * Regression for {@code updateListener}'s driver-dependency wiring (product-integrator#2020):
+     * a filled {@code driverDependency} field on the edited listener's properties must still turn
+     * into a {@code [[platform.java21.dependency]]} Ballerina.toml edit, alongside the listener's own
+     * declaration edit.
+     */
+    @Test
+    public void testUpdateListenerWritesDriverDependencyEdit() throws ExecutionException, InterruptedException {
+        Path filePath = resDir.resolve("sample3/main.bal");
+        Codedata codedata = new Codedata(LineRange.from("main.bal", LinePosition.from(5, 0),
+                LinePosition.from(5, 56)));
+        CommonModelFromSourceRequest sourceRequest = new CommonModelFromSourceRequest(
+                filePath.toAbsolutePath().toString(), codedata);
+        CompletableFuture<?> sourceResult = serviceEndpoint.request("serviceDesign/getListenerFromSource",
+                sourceRequest);
+        ListenerFromSourceResponse sourceResponse = (ListenerFromSourceResponse) sourceResult.get();
+        Listener listener = sourceResponse.listener();
+        Assert.assertTrue(Objects.nonNull(listener));
+
+        Codedata driverCodedata = new Codedata();
+        driverCodedata.setDriverDependency(new DriverDependency("com.sap", "com.sap.conn.jco", "3.1.*",
+                "provided"));
+        Value sapJcoDriverPath = new Value.ValueBuilder()
+                .value("libs/sapjco3.jar")
+                .enabled(true)
+                .editable(true)
+                .setCodedata(driverCodedata)
+                .build();
+        listener.getProperties().put("sapJcoDriverPath", sapJcoDriverPath);
+
+        ListenerModifierRequest updateRequest = new ListenerModifierRequest(filePath.toAbsolutePath().toString(),
+                listener);
+        CompletableFuture<?> updateResult = serviceEndpoint.request("serviceDesign/updateListener", updateRequest);
+        CommonSourceResponse updateResponse = (CommonSourceResponse) updateResult.get();
+        Assert.assertTrue(Objects.nonNull(updateResponse.textEdits()));
+
+        boolean tomlEditPresent = updateResponse.textEdits().values().stream()
+                .flatMap(List::stream)
+                .anyMatch(edit -> edit.getNewText().contains("[[platform.java21.dependency]]")
+                        && edit.getNewText().contains("path = \"libs/sapjco3.jar\"")
+                        && edit.getNewText().contains("groupId = \"com.sap\"")
+                        && edit.getNewText().contains("artifactId = \"com.sap.conn.jco\"")
+                        && edit.getNewText().contains("scope = \"provided\""));
+        Assert.assertTrue(tomlEditPresent,
+                "updateListener must write the [[platform.java21.dependency]] edit for a driver-dependency "
+                        + "field the user filled in");
         serviceEndpoint.notify("textDocument/didClose",
                 new DidCloseTextDocumentParams(new TextDocumentIdentifier(filePath.toUri().toString())));
     }

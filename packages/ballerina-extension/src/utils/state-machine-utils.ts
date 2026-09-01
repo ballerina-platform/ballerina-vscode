@@ -28,6 +28,73 @@ import { getConstructBodyString } from "./history/util";
 import { extension } from "../BalExtensionContext";
 import path from "path";
 
+/** The package a create landed on, held until the next navigation resolves. */
+let createLanding: string | undefined;
+
+/**
+ * Marks a package as the view a create just landed on.
+ *
+ * The project explorer issues its own Open Overview once its tree finishes loading, which can
+ * be after a create has landed, and would replace the new integration with the workspace
+ * overview. Claim AFTER navigating: {@link resolveCreateLandingOverride} spends the claim on the
+ * next workspace-overview navigation, and the landing must not spend its own.
+ */
+export function claimCreateLanding(projectPath: string): void {
+    createLanding = projectPath;
+}
+
+/** Drops the claim — for a caller that means the workspace overview literally, i.e. Home. */
+export function releaseCreateLanding(): void {
+    createLanding = undefined;
+}
+
+/**
+ * Redirects a workspace-overview navigation after a create back to the package it landed on.
+ *
+ * Startup issues more than one navigation, and their order relative to the create varies run to
+ * run: a bare "show the visualizer" arrives either side of the landing, and the workspace
+ * overview follows it. Spending the claim on the first navigation of any kind therefore made the
+ * fix intermittent — the bare one would spend it, leaving the workspace overview to win.
+ *
+ * So only the navigation the claim exists for spends it. A bare navigation resolves against the
+ * context, which the landing has already pointed at the new package, so letting it pass changes
+ * nothing. A navigation naming some other view is the user moving on, and releases the claim so
+ * it cannot affect a workspace overview they ask for later.
+ */
+export function resolveCreateLandingOverride(
+    viewLocation: VisualizerLocation,
+    deliverable: boolean,
+    contextProjectPath?: string
+): VisualizerLocation | undefined {
+    // `OPEN_VIEW` is handled only in `extensionReady` and `viewActive.viewReady`, so a navigation
+    // sent mid-load is dropped. Spending the claim on one that never happens would leave the next
+    // workspace overview unopposed, so a navigation that will not be delivered is not an event
+    // this claim has any business reacting to.
+    if (!createLanding || !deliverable) {
+        return undefined;
+    }
+    if (viewLocation.view === MACHINE_VIEW.WorkspaceOverview) {
+        const claimed = createLanding;
+        createLanding = undefined;
+        return { view: MACHINE_VIEW.PackageOverview, projectPath: claimed };
+    }
+    // Only the claimed package's own overview leaves the claim standing. Any other view — including
+    // a different package's overview, reachable from the config generator, Try It, the doc command
+    // and the BI diagram manager — is the user somewhere else, and must not leave a claim behind to
+    // redirect them back here.
+    // Compared against the path `openView` will actually resolve, not just the one named here: a
+    // package overview carrying no path falls back to the context's, which is frequently a
+    // different package (several commands navigate that way).
+    const resolvedProjectPath = viewLocation.projectPath || contextProjectPath;
+    const staysOnClaimedPackage =
+        viewLocation.view === MACHINE_VIEW.PackageOverview &&
+        (!resolvedProjectPath || isSamePath(resolvedProjectPath, createLanding));
+    if (viewLocation.view && !staysOnClaimedPackage) {
+        createLanding = undefined;
+    }
+    return undefined;
+}
+
 /**
  * The single integration a workspace holds, or undefined when it holds anything else.
  *

@@ -6,12 +6,11 @@
   "orgName": "ballerinax",
   "packageName": "whatsapp.business",
   "moduleName": "whatsapp.business",
-  "version": "2.0.2",
+  "version": "2.1.0",
   "type": "whatsapp",
-  "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_whatsapp.business_2.0.2.png",
+  "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_whatsapp.business_2.1.0.png",
   "kind": "event",
   "listenerKind": "MULTIPLE_SELECT_LISTENER",
-  "importPrefix": "whatsapp",
   "initProperties": {
     "listener": {
       "metadata": {
@@ -254,16 +253,49 @@
       "editable": false,
       "codedata": {
         "type": "SERVICE_TYPE_DESCRIPTOR",
-        "moduleName": "whatsapp",
+        "moduleName": "business",
         "originalName": "WhatsAppService"
       },
-      "properties": {},
+      "properties": {
+        "serviceConfig": {
+          "metadata": {
+            "label": "Service Configuration",
+            "description": "Configuration for a WhatsAppService's acknowledgement behavior."
+          },
+          "types": [
+            {
+              "fieldType": "RECORD_MAP_EXPRESSION",
+              "ballerinaType": "business:WhatsAppServiceConfig",
+              "typeMembers": [
+                {
+                  "type": "WhatsAppServiceConfig",
+                  "packageInfo": "ballerinax:whatsapp.business:2.1.0",
+                  "packageName": "whatsapp.business",
+                  "kind": "RECORD_TYPE",
+                  "selected": true
+                }
+              ],
+              "selected": true
+            }
+          ],
+          "value": "",
+          "enabled": true,
+          "editable": true,
+          "optional": false,
+          "advanced": false,
+          "codedata": {
+            "type": "SERVICE_ANNOTATION",
+            "originalName": "ServiceConfig",
+            "moduleName": "business"
+          }
+        }
+      },
       "functions": [],
       "schemaFunctions": [
         {
           "metadata": {
             "label": "On Messages",
-            "description": "Inbound messages or status updates; see MessagesNotification for narrowing."
+            "description": "Inbound messages or status updates."
           },
           "name": "onMessages",
           "nameEditable": false,
@@ -277,11 +309,11 @@
           "optional": true,
           "canAddParameters": false,
           "repeatable": "FALSE",
-          "documentation": "Inbound messages or status updates; see MessagesNotification for narrowing.",
+          "documentation": "Inbound messages or status updates.",
           "codedata": {
             "type": "FUNCTION",
             "originalName": "onMessages",
-            "moduleName": "whatsapp"
+            "moduleName": "business"
           },
           "parameters": [
             {
@@ -295,8 +327,8 @@
                   "label": "Parameter Type",
                   "description": "The type of the parameter"
                 },
-                "placeholder": "whatsapp:MessagesNotification",
-                "value": "whatsapp:MessagesNotification",
+                "placeholder": "business:MessagesNotification",
+                "value": "business:MessagesNotification",
                 "types": [
                   {
                     "fieldType": "TYPE",
@@ -330,6 +362,58 @@
               "editable": false,
               "optional": false,
               "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            },
+            {
+              "metadata": {
+                "label": "Caller",
+                "description": "WhatsApp caller used to manually acknowledge notifications (required for manual ack when Auto Ack is off)."
+              },
+              "kind": "OPTIONAL",
+              "type": {
+                "metadata": {
+                  "label": "Include Caller",
+                  "description": "Tick to include the WhatsApp caller parameter in the handler signature."
+                },
+                "placeholder": "business:Caller",
+                "value": false,
+                "types": [
+                  {
+                    "fieldType": "FLAG",
+                    "selected": true,
+                    "ballerinaType": "business:Caller"
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "caller",
+                  "description": "WhatsApp caller used to manually acknowledge notifications."
+                },
+                "placeholder": "caller",
+                "value": "caller",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": false,
+              "editable": true,
+              "optional": true,
+              "advanced": true,
               "hidden": false,
               "codedata": {
                 "type": "FUNCTION_PARAM"
@@ -374,7 +458,7 @@
           "codedata": {
             "type": "FUNCTION",
             "originalName": "onAccountReviewUpdate",
-            "moduleName": "whatsapp"
+            "moduleName": "business"
           },
           "parameters": [
             {
@@ -388,8 +472,8 @@
                   "label": "Parameter Type",
                   "description": "The type of the parameter"
                 },
-                "placeholder": "whatsapp:AccountReviewUpdate",
-                "value": "whatsapp:AccountReviewUpdate",
+                "placeholder": "business:AccountReviewUpdate",
+                "value": "business:AccountReviewUpdate",
                 "types": [
                   {
                     "fieldType": "TYPE",
@@ -423,6 +507,58 @@
               "editable": false,
               "optional": false,
               "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            },
+            {
+              "metadata": {
+                "label": "Caller",
+                "description": "WhatsApp caller used to manually acknowledge notifications (required for manual ack when Auto Ack is off)."
+              },
+              "kind": "OPTIONAL",
+              "type": {
+                "metadata": {
+                  "label": "Include Caller",
+                  "description": "Tick to include the WhatsApp caller parameter in the handler signature."
+                },
+                "placeholder": "business:Caller",
+                "value": false,
+                "types": [
+                  {
+                    "fieldType": "FLAG",
+                    "selected": true,
+                    "ballerinaType": "business:Caller"
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "caller",
+                  "description": "WhatsApp caller used to manually acknowledge notifications."
+                },
+                "placeholder": "caller",
+                "value": "caller",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": false,
+              "editable": true,
+              "optional": true,
+              "advanced": true,
               "hidden": false,
               "codedata": {
                 "type": "FUNCTION_PARAM"
@@ -467,7 +603,7 @@
           "codedata": {
             "type": "FUNCTION",
             "originalName": "onAccountUpdate",
-            "moduleName": "whatsapp"
+            "moduleName": "business"
           },
           "parameters": [
             {
@@ -481,8 +617,8 @@
                   "label": "Parameter Type",
                   "description": "The type of the parameter"
                 },
-                "placeholder": "whatsapp:AccountUpdate",
-                "value": "whatsapp:AccountUpdate",
+                "placeholder": "business:AccountUpdate",
+                "value": "business:AccountUpdate",
                 "types": [
                   {
                     "fieldType": "TYPE",
@@ -516,6 +652,58 @@
               "editable": false,
               "optional": false,
               "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            },
+            {
+              "metadata": {
+                "label": "Caller",
+                "description": "WhatsApp caller used to manually acknowledge notifications (required for manual ack when Auto Ack is off)."
+              },
+              "kind": "OPTIONAL",
+              "type": {
+                "metadata": {
+                  "label": "Include Caller",
+                  "description": "Tick to include the WhatsApp caller parameter in the handler signature."
+                },
+                "placeholder": "business:Caller",
+                "value": false,
+                "types": [
+                  {
+                    "fieldType": "FLAG",
+                    "selected": true,
+                    "ballerinaType": "business:Caller"
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "caller",
+                  "description": "WhatsApp caller used to manually acknowledge notifications."
+                },
+                "placeholder": "caller",
+                "value": "caller",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": false,
+              "editable": true,
+              "optional": true,
+              "advanced": true,
               "hidden": false,
               "codedata": {
                 "type": "FUNCTION_PARAM"
@@ -560,7 +748,7 @@
           "codedata": {
             "type": "FUNCTION",
             "originalName": "onBusinessCapabilityUpdate",
-            "moduleName": "whatsapp"
+            "moduleName": "business"
           },
           "parameters": [
             {
@@ -574,8 +762,8 @@
                   "label": "Parameter Type",
                   "description": "The type of the parameter"
                 },
-                "placeholder": "whatsapp:BusinessCapabilityUpdate",
-                "value": "whatsapp:BusinessCapabilityUpdate",
+                "placeholder": "business:BusinessCapabilityUpdate",
+                "value": "business:BusinessCapabilityUpdate",
                 "types": [
                   {
                     "fieldType": "TYPE",
@@ -609,6 +797,58 @@
               "editable": false,
               "optional": false,
               "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            },
+            {
+              "metadata": {
+                "label": "Caller",
+                "description": "WhatsApp caller used to manually acknowledge notifications (required for manual ack when Auto Ack is off)."
+              },
+              "kind": "OPTIONAL",
+              "type": {
+                "metadata": {
+                  "label": "Include Caller",
+                  "description": "Tick to include the WhatsApp caller parameter in the handler signature."
+                },
+                "placeholder": "business:Caller",
+                "value": false,
+                "types": [
+                  {
+                    "fieldType": "FLAG",
+                    "selected": true,
+                    "ballerinaType": "business:Caller"
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "caller",
+                  "description": "WhatsApp caller used to manually acknowledge notifications."
+                },
+                "placeholder": "caller",
+                "value": "caller",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": false,
+              "editable": true,
+              "optional": true,
+              "advanced": true,
               "hidden": false,
               "codedata": {
                 "type": "FUNCTION_PARAM"
@@ -653,7 +893,7 @@
           "codedata": {
             "type": "FUNCTION",
             "originalName": "onMessageTemplateQualityUpdate",
-            "moduleName": "whatsapp"
+            "moduleName": "business"
           },
           "parameters": [
             {
@@ -667,8 +907,8 @@
                   "label": "Parameter Type",
                   "description": "The type of the parameter"
                 },
-                "placeholder": "whatsapp:MessageTemplateQualityUpdate",
-                "value": "whatsapp:MessageTemplateQualityUpdate",
+                "placeholder": "business:MessageTemplateQualityUpdate",
+                "value": "business:MessageTemplateQualityUpdate",
                 "types": [
                   {
                     "fieldType": "TYPE",
@@ -702,6 +942,58 @@
               "editable": false,
               "optional": false,
               "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            },
+            {
+              "metadata": {
+                "label": "Caller",
+                "description": "WhatsApp caller used to manually acknowledge notifications (required for manual ack when Auto Ack is off)."
+              },
+              "kind": "OPTIONAL",
+              "type": {
+                "metadata": {
+                  "label": "Include Caller",
+                  "description": "Tick to include the WhatsApp caller parameter in the handler signature."
+                },
+                "placeholder": "business:Caller",
+                "value": false,
+                "types": [
+                  {
+                    "fieldType": "FLAG",
+                    "selected": true,
+                    "ballerinaType": "business:Caller"
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "caller",
+                  "description": "WhatsApp caller used to manually acknowledge notifications."
+                },
+                "placeholder": "caller",
+                "value": "caller",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": false,
+              "editable": true,
+              "optional": true,
+              "advanced": true,
               "hidden": false,
               "codedata": {
                 "type": "FUNCTION_PARAM"
@@ -746,7 +1038,7 @@
           "codedata": {
             "type": "FUNCTION",
             "originalName": "onMessageTemplateStatusUpdate",
-            "moduleName": "whatsapp"
+            "moduleName": "business"
           },
           "parameters": [
             {
@@ -760,8 +1052,8 @@
                   "label": "Parameter Type",
                   "description": "The type of the parameter"
                 },
-                "placeholder": "whatsapp:MessageTemplateStatusUpdate",
-                "value": "whatsapp:MessageTemplateStatusUpdate",
+                "placeholder": "business:MessageTemplateStatusUpdate",
+                "value": "business:MessageTemplateStatusUpdate",
                 "types": [
                   {
                     "fieldType": "TYPE",
@@ -795,6 +1087,58 @@
               "editable": false,
               "optional": false,
               "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            },
+            {
+              "metadata": {
+                "label": "Caller",
+                "description": "WhatsApp caller used to manually acknowledge notifications (required for manual ack when Auto Ack is off)."
+              },
+              "kind": "OPTIONAL",
+              "type": {
+                "metadata": {
+                  "label": "Include Caller",
+                  "description": "Tick to include the WhatsApp caller parameter in the handler signature."
+                },
+                "placeholder": "business:Caller",
+                "value": false,
+                "types": [
+                  {
+                    "fieldType": "FLAG",
+                    "selected": true,
+                    "ballerinaType": "business:Caller"
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "caller",
+                  "description": "WhatsApp caller used to manually acknowledge notifications."
+                },
+                "placeholder": "caller",
+                "value": "caller",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": false,
+              "editable": true,
+              "optional": true,
+              "advanced": true,
               "hidden": false,
               "codedata": {
                 "type": "FUNCTION_PARAM"
@@ -839,7 +1183,7 @@
           "codedata": {
             "type": "FUNCTION",
             "originalName": "onPhoneNumberNameUpdate",
-            "moduleName": "whatsapp"
+            "moduleName": "business"
           },
           "parameters": [
             {
@@ -853,8 +1197,8 @@
                   "label": "Parameter Type",
                   "description": "The type of the parameter"
                 },
-                "placeholder": "whatsapp:PhoneNumberNameUpdate",
-                "value": "whatsapp:PhoneNumberNameUpdate",
+                "placeholder": "business:PhoneNumberNameUpdate",
+                "value": "business:PhoneNumberNameUpdate",
                 "types": [
                   {
                     "fieldType": "TYPE",
@@ -888,6 +1232,58 @@
               "editable": false,
               "optional": false,
               "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            },
+            {
+              "metadata": {
+                "label": "Caller",
+                "description": "WhatsApp caller used to manually acknowledge notifications (required for manual ack when Auto Ack is off)."
+              },
+              "kind": "OPTIONAL",
+              "type": {
+                "metadata": {
+                  "label": "Include Caller",
+                  "description": "Tick to include the WhatsApp caller parameter in the handler signature."
+                },
+                "placeholder": "business:Caller",
+                "value": false,
+                "types": [
+                  {
+                    "fieldType": "FLAG",
+                    "selected": true,
+                    "ballerinaType": "business:Caller"
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "caller",
+                  "description": "WhatsApp caller used to manually acknowledge notifications."
+                },
+                "placeholder": "caller",
+                "value": "caller",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": false,
+              "editable": true,
+              "optional": true,
+              "advanced": true,
               "hidden": false,
               "codedata": {
                 "type": "FUNCTION_PARAM"
@@ -932,7 +1328,7 @@
           "codedata": {
             "type": "FUNCTION",
             "originalName": "onPhoneNumberQualityUpdate",
-            "moduleName": "whatsapp"
+            "moduleName": "business"
           },
           "parameters": [
             {
@@ -946,8 +1342,8 @@
                   "label": "Parameter Type",
                   "description": "The type of the parameter"
                 },
-                "placeholder": "whatsapp:PhoneNumberQualityUpdate",
-                "value": "whatsapp:PhoneNumberQualityUpdate",
+                "placeholder": "business:PhoneNumberQualityUpdate",
+                "value": "business:PhoneNumberQualityUpdate",
                 "types": [
                   {
                     "fieldType": "TYPE",
@@ -981,6 +1377,58 @@
               "editable": false,
               "optional": false,
               "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            },
+            {
+              "metadata": {
+                "label": "Caller",
+                "description": "WhatsApp caller used to manually acknowledge notifications (required for manual ack when Auto Ack is off)."
+              },
+              "kind": "OPTIONAL",
+              "type": {
+                "metadata": {
+                  "label": "Include Caller",
+                  "description": "Tick to include the WhatsApp caller parameter in the handler signature."
+                },
+                "placeholder": "business:Caller",
+                "value": false,
+                "types": [
+                  {
+                    "fieldType": "FLAG",
+                    "selected": true,
+                    "ballerinaType": "business:Caller"
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "caller",
+                  "description": "WhatsApp caller used to manually acknowledge notifications."
+                },
+                "placeholder": "caller",
+                "value": "caller",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": false,
+              "editable": true,
+              "optional": true,
+              "advanced": true,
               "hidden": false,
               "codedata": {
                 "type": "FUNCTION_PARAM"
@@ -1025,7 +1473,7 @@
           "codedata": {
             "type": "FUNCTION",
             "originalName": "onSecurity",
-            "moduleName": "whatsapp"
+            "moduleName": "business"
           },
           "parameters": [
             {
@@ -1039,8 +1487,8 @@
                   "label": "Parameter Type",
                   "description": "The type of the parameter"
                 },
-                "placeholder": "whatsapp:Security",
-                "value": "whatsapp:Security",
+                "placeholder": "business:Security",
+                "value": "business:Security",
                 "types": [
                   {
                     "fieldType": "TYPE",
@@ -1074,6 +1522,58 @@
               "editable": false,
               "optional": false,
               "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            },
+            {
+              "metadata": {
+                "label": "Caller",
+                "description": "WhatsApp caller used to manually acknowledge notifications (required for manual ack when Auto Ack is off)."
+              },
+              "kind": "OPTIONAL",
+              "type": {
+                "metadata": {
+                  "label": "Include Caller",
+                  "description": "Tick to include the WhatsApp caller parameter in the handler signature."
+                },
+                "placeholder": "business:Caller",
+                "value": false,
+                "types": [
+                  {
+                    "fieldType": "FLAG",
+                    "selected": true,
+                    "ballerinaType": "business:Caller"
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "caller",
+                  "description": "WhatsApp caller used to manually acknowledge notifications."
+                },
+                "placeholder": "caller",
+                "value": "caller",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": false,
+              "editable": true,
+              "optional": true,
+              "advanced": true,
               "hidden": false,
               "codedata": {
                 "type": "FUNCTION_PARAM"
@@ -1118,7 +1618,7 @@
           "codedata": {
             "type": "FUNCTION",
             "originalName": "onTemplateCategoryUpdate",
-            "moduleName": "whatsapp"
+            "moduleName": "business"
           },
           "parameters": [
             {
@@ -1132,8 +1632,8 @@
                   "label": "Parameter Type",
                   "description": "The type of the parameter"
                 },
-                "placeholder": "whatsapp:TemplateCategoryUpdate",
-                "value": "whatsapp:TemplateCategoryUpdate",
+                "placeholder": "business:TemplateCategoryUpdate",
+                "value": "business:TemplateCategoryUpdate",
                 "types": [
                   {
                     "fieldType": "TYPE",
@@ -1167,6 +1667,58 @@
               "editable": false,
               "optional": false,
               "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            },
+            {
+              "metadata": {
+                "label": "Caller",
+                "description": "WhatsApp caller used to manually acknowledge notifications (required for manual ack when Auto Ack is off)."
+              },
+              "kind": "OPTIONAL",
+              "type": {
+                "metadata": {
+                  "label": "Include Caller",
+                  "description": "Tick to include the WhatsApp caller parameter in the handler signature."
+                },
+                "placeholder": "business:Caller",
+                "value": false,
+                "types": [
+                  {
+                    "fieldType": "FLAG",
+                    "selected": true,
+                    "ballerinaType": "business:Caller"
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "caller",
+                  "description": "WhatsApp caller used to manually acknowledge notifications."
+                },
+                "placeholder": "caller",
+                "value": "caller",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": false,
+              "editable": true,
+              "optional": true,
+              "advanced": true,
               "hidden": false,
               "codedata": {
                 "type": "FUNCTION_PARAM"
@@ -1211,7 +1763,7 @@
           "codedata": {
             "type": "FUNCTION",
             "originalName": "onError",
-            "moduleName": "whatsapp"
+            "moduleName": "business"
           },
           "parameters": [
             {
@@ -1225,8 +1777,8 @@
                   "label": "Parameter Type",
                   "description": "The type of the parameter"
                 },
-                "placeholder": "whatsapp:HandlerError",
-                "value": "whatsapp:HandlerError",
+                "placeholder": "business:HandlerError",
+                "value": "business:HandlerError",
                 "types": [
                   {
                     "fieldType": "TYPE",
@@ -1260,6 +1812,58 @@
               "editable": false,
               "optional": false,
               "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            },
+            {
+              "metadata": {
+                "label": "Caller",
+                "description": "WhatsApp caller used to manually acknowledge notifications (required for manual ack when Auto Ack is off)."
+              },
+              "kind": "OPTIONAL",
+              "type": {
+                "metadata": {
+                  "label": "Include Caller",
+                  "description": "Tick to include the WhatsApp caller parameter in the handler signature."
+                },
+                "placeholder": "business:Caller",
+                "value": false,
+                "types": [
+                  {
+                    "fieldType": "FLAG",
+                    "selected": true,
+                    "ballerinaType": "business:Caller"
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "caller",
+                  "description": "WhatsApp caller used to manually acknowledge notifications."
+                },
+                "placeholder": "caller",
+                "value": "caller",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": false,
+              "editable": true,
+              "optional": true,
+              "advanced": true,
               "hidden": false,
               "codedata": {
                 "type": "FUNCTION_PARAM"

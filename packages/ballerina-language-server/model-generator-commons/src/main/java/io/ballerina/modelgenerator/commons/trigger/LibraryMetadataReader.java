@@ -49,6 +49,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Pattern;
 
 /**
  * Connector-agnostic entry point for reading the trigger model family, shared by every LS extension.
@@ -61,7 +62,15 @@ public final class LibraryMetadataReader {
     private static final String TRIGGER_UI_SCHEMA_RESOURCE_PATH = "resources/trigger-ui-schema.json";
     private static final String PACKAGED_TRIGGER_METADATA_ROOT = "trigger-metadata-models";
     private static final String PACKAGED_TRIGGER_METADATA_FILE = "trigger-metadata.json";
+    /** Sized for the designer, which resolves one connector at a time. */
     private static final int MAX_CACHE_SIZE = 2;
+
+    /**
+     * Sized for the Copilot, which walks every library in one request. At the designer's bound of 2, the
+     * corpus's 14 bundled documents evicted each other and nearly every request re-parsed the same JSON.
+     */
+    private static final int PACKAGED_METADATA_CACHE_SIZE = 20;
+    private static final Pattern SUPPORTED_VERSION = Pattern.compile("^v1\\.\\d+$");
 
     private static final Duration PACKAGE_ROOT_CACHE_TTL = Duration.ofSeconds(60);
 
@@ -70,7 +79,7 @@ public final class LibraryMetadataReader {
     private final Cache<String, Optional<Path>> packageRootCache =
             Caffeine.newBuilder().maximumSize(MAX_CACHE_SIZE).expireAfterWrite(PACKAGE_ROOT_CACHE_TTL).build();
     private final Cache<String, Optional<TriggerMetadataModel>> packagedMetadataCache =
-            Caffeine.newBuilder().maximumSize(MAX_CACHE_SIZE).build();
+            Caffeine.newBuilder().maximumSize(PACKAGED_METADATA_CACHE_SIZE).build();
 
     private final Gson plainGson = new Gson();
 
@@ -186,20 +195,37 @@ public final class LibraryMetadataReader {
                 return Optional.empty();
             }
             String json = new String(is.readAllBytes(), StandardCharsets.UTF_8);
-            return Optional.ofNullable(TriggerMetadataGson.instance().fromJson(json, TriggerMetadataModel.class));
+            TriggerMetadataModel model = TriggerMetadataGson.instance().fromJson(json, TriggerMetadataModel.class);
+            return requireSupportedVersion(model, resourcePath);
         } catch (IOException | JsonParseException e) {
+            // A bundled document is this repo's own, so a failure here is a build defect. Logged all the
+            // same: silence is what made the shipped-document equivalent undiagnosable.
+            LOGGER.warning("Ignoring bundled " + resourcePath + ": " + e);
             return Optional.empty();
         }
     }
 
-    private Optional<TriggerMetadataModel> readTriggerMetadataModel(Path packageRoot) {
+    // Package-private rather than private: both public reads funnel through here, so the tests
+    // exercise the shared tail directly instead of once per entry point.
+    Optional<TriggerMetadataModel> readTriggerMetadataModel(Path packageRoot) {
         return readResourceFile(packageRoot, TRIGGER_METADATA_RESOURCE_PATH).flatMap(json -> {
             try {
-                return Optional.ofNullable(TriggerMetadataGson.instance().fromJson(json, TriggerMetadataModel.class));
+                TriggerMetadataModel model = TriggerMetadataGson.instance().fromJson(json, TriggerMetadataModel.class);
+                return requireSupportedVersion(model, packageRoot.resolve(TRIGGER_METADATA_RESOURCE_PATH).toString());
             } catch (JsonParseException e) {
                 return Optional.empty();
             }
         });
+    }
+
+    /** Refuses a {@code null}/absent/unsupported-major version, logging why. */
+    private Optional<TriggerMetadataModel> requireSupportedVersion(TriggerMetadataModel model, String source) {
+        if (model != null && model.version() != null && SUPPORTED_VERSION.matcher(model.version()).matches()) {
+            return Optional.of(model);
+        }
+        LOGGER.log(Level.WARNING, "Unsupported trigger-metadata.json version \""
+                + (model == null ? null : model.version()) + "\" in " + source + "; expected v1.x");
+        return Optional.empty();
     }
 
     private Optional<TriggerUISchemaModel> readTriggerUISchemaModel(Path packageRoot) {

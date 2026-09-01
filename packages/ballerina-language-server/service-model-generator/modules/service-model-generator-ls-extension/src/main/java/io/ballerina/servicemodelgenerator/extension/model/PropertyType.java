@@ -74,6 +74,7 @@ public class PropertyType {
     // Not a constructor param so the existing callers stay untouched; set via the Builder and
     // deserialized directly by Gson from the connector model.
     private List<ValidationRule> validations;
+    private List<String> extensions;
 
     public PropertyType(Value.FieldType fieldType, String ballerinaType, List<Option> options,
                         List<PropertyTypeMemberInfo> typeMembers, Value template, boolean selected, Integer minItems,
@@ -611,6 +612,14 @@ public class PropertyType {
         this.validations = validations;
     }
 
+    public List<String> extensions() {
+        return extensions;
+    }
+
+    public void setExtensions(List<String> extensions) {
+        this.extensions = extensions;
+    }
+
     public Value template() {
         return template;
     }
@@ -627,6 +636,7 @@ public class PropertyType {
         private String pattern;
         private String patternErrorMessage;
         private List<ValidationRule> validations;
+        private List<String> extensions;
 
         public Builder() {
         }
@@ -697,10 +707,16 @@ public class PropertyType {
             return this;
         }
 
+        public Builder extensions(List<String> extensions) {
+            this.extensions = extensions;
+            return this;
+        }
+
         public PropertyType build() {
             PropertyType propertyType = new PropertyType(fieldType, ballerinaType, options, typeMembers, template,
                     selected, minItems, defaultItems, pattern, patternErrorMessage);
             propertyType.setValidations(validations);
+            propertyType.setExtensions(extensions);
             return propertyType;
         }
     }

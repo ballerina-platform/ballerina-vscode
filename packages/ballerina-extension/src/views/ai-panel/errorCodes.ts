@@ -20,7 +20,7 @@ import { ErrorCode } from "@wso2/ballerina-core";
 
 export const NOT_LOGGED_IN: ErrorCode = {
     code: 1,
-    message: "You need to be logged in to use WSO2 Integrator Copilot Features. Please login and try again."
+    message: "You need to be logged in to use WSO2 Integration Intelligence Features. Please login and try again."
 };
 
 export const TIMEOUT: ErrorCode = {
@@ -35,7 +35,7 @@ export const PARSING_ERROR: ErrorCode = {
 
 export const UNKNOWN_ERROR: ErrorCode = {
     code: 4,
-    message: "An unknown error occurred while generating code. Try login again to copilot"
+    message: "An unknown error occurred while generating code. Try login again to WSO2 Integration Intelligence"
 };
 
 export const MODIFIYING_ERROR: ErrorCode = {

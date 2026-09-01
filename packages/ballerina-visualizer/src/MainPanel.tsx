@@ -18,6 +18,7 @@
 
 import React, { createRef, useCallback, useEffect, useRef, useState } from "react";
 import {
+    PRODUCT_INTEGRATOR_ISSUES_URL,
     KeyboardNavigationManager,
     MachineStateValue,
     STModification,
@@ -212,8 +213,6 @@ const MainPanel = () => {
 
     useSuppressAgentStatusOrb(viewHidesAgentStatusOrb(activeView) || !!viewError);
 
-    const gitIssueUrl = "https://github.com/wso2/product-integrator/issues";
-
     // Leading edge so an ordinary navigation fetches immediately; trailing kept for bursts.
     const debounceFetchContext = useCallback(
         debounce(() => {
@@ -305,7 +304,7 @@ const MainPanel = () => {
 
             try {
                 if (isStaleNavigation()) return;
-                const navTarget = `${value?.view ?? ''}-${value?.identifier ?? ''}-${value?.documentUri ?? ''}-${value?.projectPath ?? ''}`;
+                const navTarget = `${value?.view ?? ''}-${value?.identifier ?? ''}-${value?.documentUri ?? ''}-${value?.projectPath ?? ''}-${value?.reviewData?.generationId ?? ''}`;
                 if (navTarget !== previousNavTargetRef.current) {
                     remountKeyRef.current += 1;
                     previousNavTargetRef.current = navTarget;
@@ -824,6 +823,25 @@ const MainPanel = () => {
                             );
                             break;
                         }
+                        case MACHINE_VIEW.BIActivityForm: {
+                            const { FunctionForm } = await import("./views/BI/FunctionForm");
+                            // Editing resolves the activity from the file that declares it
+                            // (`getDefaultFunctionsFile` returns `value.documentUri` when the
+                            // caller set it); creating one falls back to the default functions
+                            // file, same as the workflow and function forms.
+                            const activityFile = await getDefaultFunctionsFile();
+                            if (isStaleNavigation()) return;
+                            setViewComponent(
+                                <FunctionForm
+                                    key={remountKey}
+                                    projectPath={value.projectPath}
+                                    filePath={activityFile}
+                                    functionName={value?.identifier}
+                                    isActivity={true}
+                                />
+                            );
+                            break;
+                        }
                         case MACHINE_VIEW.BITestFunctionForm: {
                             const { TestFunctionForm } = await import("./views/BI/TestFunctionForm");
                             if (isStaleNavigation()) return;
@@ -921,7 +939,7 @@ const MainPanel = () => {
                         case MACHINE_VIEW.ReviewMode: {
                             const { ReviewMode } = await import("./views/ReviewMode");
                             if (isStaleNavigation()) return;
-                            setViewComponent(<ReviewMode />);
+                            setViewComponent(<ReviewMode key={remountKey} />);
                             break;
                         }
                         case MACHINE_VIEW.EvalsetViewer: {
@@ -1033,7 +1051,7 @@ const MainPanel = () => {
         <>
             <Global styles={globalStyles} />
             <VisualizerContainer id="visualizer-container">
-                <ErrorBoundary goHome={handleNavigateToOverview} errorMsg="An error occurred in the visualizer" issueUrl={gitIssueUrl} ref={errorBoundaryRef} resetKeys={[viewComponent]}>
+                <ErrorBoundary goHome={handleNavigateToOverview} errorMsg="An error occurred in the visualizer" issueUrl={PRODUCT_INTEGRATOR_ISSUES_URL} ref={errorBoundaryRef} resetKeys={[viewComponent]}>
                     {/* {navActive && <NavigationBar showHome={showHome} />} */}
                     {showNavProgress && <ProgressIndicator id="visualizer-nav-progress" />}
                     {(showOverlay || modalStack.length > 0) && <Overlay />}

@@ -78,11 +78,13 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Stream;
 
 import static io.ballerina.modelgenerator.commons.FunctionData.Kind.isAiClassKind;
@@ -1061,42 +1063,110 @@ public class FunctionDataBuilder {
         return parameters;
     }
 
+    /**
+     * Collects every leaf type reachable from a type, flattening unions, arrays, maps, tables, streams,
+     * intersections and inline records into {@code typeMap}.
+     *
+     * <p><b>Bounded, because the type graph is not a tree.</b> An anonymous structural type can reach itself
+     * — {@code ballerinax/sap.jco} pairs an inline union with an inline record that contains it. Unbounded
+     * recursion there is a {@link StackOverflowError}, which being an {@code Error} escapes every
+     * {@code catch (RuntimeException)} on the way out and takes down the whole request.
+     *
+     * <p>Two independent guards, because either alone is insufficient:
+     * <ul>
+     *   <li><b>Depth.</b> A hard cap terminates regardless of the graph's shape and needs nothing from the
+     *       symbol API. {@value #MAX_MEMBER_DEPTH} is far past any hand-written type.</li>
+     *   <li><b>Repeat expansion.</b> A type already expanded contributes no new leaves the second time, so
+     *       skipping it keeps the common diamond-shaped graph from being walked exponentially. Keyed by
+     *       signature rather than identity, because the compiler API hands back a fresh symbol instance per
+     *       traversal.</li>
+     * </ul>
+     * The depth cap is what guarantees termination; the signature set is what keeps the walk cheap. A
+     * signature that cannot be computed degrades to depth-only rather than aborting.
+     *
+     * @param typeMap    collects the reachable leaf types, keyed by name
+     * @param typeSymbol the type to walk
+     */
     public static void allMembers(Map<String, TypeSymbol> typeMap, TypeSymbol typeSymbol) {
+        allMembers(typeMap, typeSymbol, new HashSet<>(), 0);
+    }
 
+    /** The deepest structural nesting {@link #allMembers} will walk before treating a type as a leaf. */
+    private static final int MAX_MEMBER_DEPTH = 64;
+
+    private static void allMembers(Map<String, TypeSymbol> typeMap, TypeSymbol typeSymbol,
+                                   Set<String> expanded, int depth) {
+        if (typeSymbol == null) {
+            return;
+        }
+        if (depth >= MAX_MEMBER_DEPTH) {
+            // Record what was reached rather than dropping it: a truncated leaf is still a real type.
+            typeMap.put(typeSymbol.getName().orElse(""), typeSymbol);
+            return;
+        }
         switch (typeSymbol.typeKind()) {
             case UNION -> {
+                if (alreadyExpanded(typeSymbol, expanded)) {
+                    return;
+                }
                 UnionTypeSymbol unionTypeSymbol = (UnionTypeSymbol) typeSymbol;
-                unionTypeSymbol.memberTypeDescriptors().forEach(memberType -> allMembers(typeMap, memberType));
+                unionTypeSymbol.memberTypeDescriptors()
+                        .forEach(memberType -> allMembers(typeMap, memberType, expanded, depth + 1));
             }
             case INTERSECTION -> {
+                if (alreadyExpanded(typeSymbol, expanded)) {
+                    return;
+                }
                 IntersectionTypeSymbol intersectionTypeSymbol = (IntersectionTypeSymbol) typeSymbol;
-                intersectionTypeSymbol.memberTypeDescriptors().forEach(memberType -> allMembers(typeMap, memberType));
+                intersectionTypeSymbol.memberTypeDescriptors()
+                        .forEach(memberType -> allMembers(typeMap, memberType, expanded, depth + 1));
             }
             case STREAM -> {
                 StreamTypeSymbol streamTypeSymbol = (StreamTypeSymbol) typeSymbol;
-                allMembers(typeMap, streamTypeSymbol.typeParameter());
-                allMembers(typeMap, streamTypeSymbol.completionValueTypeParameter());
+                allMembers(typeMap, streamTypeSymbol.typeParameter(), expanded, depth + 1);
+                allMembers(typeMap, streamTypeSymbol.completionValueTypeParameter(), expanded, depth + 1);
             }
             case ARRAY -> {
                 ArrayTypeSymbol arrayTypeSymbol = (ArrayTypeSymbol) typeSymbol;
-                allMembers(typeMap, arrayTypeSymbol.memberTypeDescriptor());
+                allMembers(typeMap, arrayTypeSymbol.memberTypeDescriptor(), expanded, depth + 1);
             }
             case MAP -> {
                 MapTypeSymbol mapTypeSymbol = (MapTypeSymbol) typeSymbol;
-                allMembers(typeMap, mapTypeSymbol.typeParam());
+                allMembers(typeMap, mapTypeSymbol.typeParam(), expanded, depth + 1);
             }
             case TABLE -> {
                 TableTypeSymbol tableTypeSymbol = (TableTypeSymbol) typeSymbol;
-                allMembers(typeMap, tableTypeSymbol.rowTypeParameter());
-                tableTypeSymbol.keyConstraintTypeParameter().ifPresent(keyType -> allMembers(typeMap, keyType));
+                allMembers(typeMap, tableTypeSymbol.rowTypeParameter(), expanded, depth + 1);
+                tableTypeSymbol.keyConstraintTypeParameter()
+                        .ifPresent(keyType -> allMembers(typeMap, keyType, expanded, depth + 1));
             }
             case RECORD -> {
+                if (alreadyExpanded(typeSymbol, expanded)) {
+                    return;
+                }
                 RecordTypeSymbol recordTypeSymbol = (RecordTypeSymbol) typeSymbol;
                 recordTypeSymbol.fieldDescriptors()
-                        .forEach((key, value) -> allMembers(typeMap, value.typeDescriptor()));
-                recordTypeSymbol.restTypeDescriptor().ifPresent(restType -> allMembers(typeMap, restType));
+                        .forEach((key, value) -> allMembers(typeMap, value.typeDescriptor(), expanded,
+                                depth + 1));
+                recordTypeSymbol.restTypeDescriptor()
+                        .ifPresent(restType -> allMembers(typeMap, restType, expanded, depth + 1));
             }
             default -> typeMap.put(typeSymbol.getName().orElse(""), typeSymbol);
+        }
+    }
+
+    /**
+     * Whether this composite type has been expanded already in this walk, recording it when it has not.
+     *
+     * <p>A signature that cannot be computed returns {@code false}, which means "expand it": the depth cap
+     * still bounds the walk, so degrading to depth-only is safe, whereas refusing to expand would silently
+     * drop the type's members.
+     */
+    private static boolean alreadyExpanded(TypeSymbol typeSymbol, Set<String> expanded) {
+        try {
+            return !expanded.add(typeSymbol.signature());
+        } catch (RuntimeException | StackOverflowError e) {
+            return false;
         }
     }
 

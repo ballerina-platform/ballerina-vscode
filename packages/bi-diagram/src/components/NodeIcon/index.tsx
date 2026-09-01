@@ -62,7 +62,19 @@ export const CHART_COLORS = {
 // Node types grouped by color
 const NODE_COLOR_GROUPS = {
     // Control flow group - blue variants
-    BLUE_GROUP: ["IF", "WHILE", "FOREACH", "MATCH", "RETURN"],
+    BLUE_GROUP: [
+        "IF",
+        "WHILE",
+        "FOREACH",
+        "MATCH",
+        "RETURN",
+        // Running or calling another workflow hands the flow to it, so these read as control flow.
+        "WORKFLOW_RUN",
+        "CHILD_WORKFLOW_RUN",
+        "CHILD_WORKFLOW_CALL",
+        "CHILD_WORKFLOW_WAIT",
+        "CHILD_WORKFLOW_SEND_DATA",
+    ],
     
     // Break/continue - cyan variants
     CYAN_CONTROL_GROUP: ["BREAK", "CONTINUE"],
@@ -74,7 +86,16 @@ const NODE_COLOR_GROUPS = {
         "DATA_MAPPER_CALL",
         "REMOTE_ACTION_CALL", 
         "RESOURCE_ACTION_CALL",
-        "METHOD_CALL"
+        "METHOD_CALL",
+        // An activity is the unit of work a workflow executes — a call, like the ones above.
+        "ACTIVITY_CALL",
+        "CONNECTION_ACTIVITY_CALL",
+        // The workflow accessors are plain function calls on the context, and they render the
+        // function glyph, so they share the function colour.
+        "WORKFLOW_CURRENT_TIME",
+        "WORKFLOW_IS_REPLAYING",
+        "WORKFLOW_GET_ID",
+        "WORKFLOW_GET_TYPE"
     ],
     
     // AI/NP function group - cyan variants
@@ -102,7 +123,15 @@ const NODE_COLOR_GROUPS = {
         "SHORT_TERM_MEMORY_STORE"
     ],
     // Data related - magenta variants
-    MAGENTA_DATA_GROUP: ["VARIABLE", "NEW_DATA", "UPDATE_DATA", "ASSIGN"],
+    MAGENTA_DATA_GROUP: [
+        "VARIABLE",
+        "NEW_DATA",
+        "UPDATE_DATA",
+        "ASSIGN",
+        // Data events carry data in and out of a running workflow, so they belong with the data.
+        "SEND_DATA",
+        "WAIT_DATA",
+    ],
     
     // Comments, concurrency and transactions - magenta variants
     MAGENTA_MISC_GROUP: [
@@ -117,6 +146,10 @@ const NODE_COLOR_GROUPS = {
     
     // Error handling - yellow variants
     YELLOW_GROUP: ["ERROR_HANDLER", "PANIC", "FAIL", "RETRY"],
+
+    // Suspension - the workflow stops and waits on something it does not control: a person acting,
+    // or a deadline passing. Yellow reads as "pending", which is exactly what these nodes are.
+    YELLOW_SUSPEND_GROUP: ["HUMAN_TASK", "SLEEP"],
 };
 
 // Get current theme type (light or dark)
@@ -183,6 +216,11 @@ export const getNodeChartColor = (nodeType: NodeKind): string => {
 
     // Error handling - yellow variants
     if (NODE_COLOR_GROUPS.YELLOW_GROUP.includes(nodeType)) {
+        return dark ? CHART_COLORS.BRIGHT_YELLOW : CHART_COLORS.YELLOW;
+    }
+
+    // Suspended-on-the-outside-world nodes - yellow variants
+    if (NODE_COLOR_GROUPS.YELLOW_SUSPEND_GROUP.includes(nodeType)) {
         return dark ? CHART_COLORS.BRIGHT_YELLOW : CHART_COLORS.YELLOW;
     }
 

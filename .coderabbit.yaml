@@ -77,9 +77,6 @@ reviews:
     - '!.rush/**'
     - '!**/.gradle/**'
     - '!**/extractedDistribution/**'
-    # Build-time copy of packages/ballerina-grammar/syntaxes/.
-    - '!packages/ballerina-extension/grammar/ballerina-grammar/**'
-
     # Separate repo. Git tracks it as one gitlink with no trailing path, so both
     # forms are needed.
     - '!submodules'
@@ -97,6 +94,9 @@ reviews:
     - '!packages/ballerina-extension/ui-test/data/**'
     - '!**/*.sqlite'
     - '!packages/ballerina-grammar/test/resources/snapshots/**'
+    # Plist built from packages/ballerina-grammar/syntaxes/ballerina.YAML-tmLanguage
+    # by that package's build-tm, then copied in by copyGrammar.
+    - '!packages/ballerina-extension/syntaxes/ballerina.tmLanguage'
     # Emitted by packages/syntax-tree/generator/src/generators.ts.
     - '!packages/syntax-tree/src/syntax-tree-interfaces.ts'
     - '!packages/syntax-tree/src/check-kind-util.ts'

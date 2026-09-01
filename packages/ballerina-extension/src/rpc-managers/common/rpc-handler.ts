@@ -22,6 +22,7 @@ import {
     ClearWebviewCache,
     CommandsRequest,
     FileOrDirRequest,
+    ProjectFileRequest,
     GoToSourceRequest,
     OpenExternalUrlRequest,
     RestoreWebviewCache,
@@ -52,6 +53,7 @@ import {
     runBackgroundTerminalCommand,
     SampleDownloadRequest,
     selectFileOrDirPath,
+    selectProjectRelativeFile,
     selectFileOrFolderPath,
     setPreferredTryItOption,
     showErrorMessage,
@@ -73,6 +75,7 @@ export function registerCommonRpcHandlers(messenger: Messenger) {
     messenger.onRequest(runBackgroundTerminalCommand, (args: RunExternalCommandRequest) => rpcManger.runBackgroundTerminalCommand(args));
     messenger.onNotification(openExternalUrl, (args: OpenExternalUrlRequest) => rpcManger.openExternalUrl(args));
     messenger.onRequest(selectFileOrDirPath, (args: FileOrDirRequest) => rpcManger.selectFileOrDirPath(args));
+    messenger.onRequest(selectProjectRelativeFile, (args: ProjectFileRequest) => rpcManger.selectProjectRelativeFile(args));
     messenger.onRequest(selectFileOrFolderPath, () => rpcManger.selectFileOrFolderPath());
     messenger.onRequest(experimentalEnabled, () => rpcManger.experimentalEnabled());
     messenger.onRequest(additionalTriggerSearchEnabled, () => rpcManger.additionalTriggerSearchEnabled());

@@ -29,9 +29,11 @@ import io.ballerina.compiler.syntax.tree.FunctionArgumentNode;
 import io.ballerina.compiler.syntax.tree.FunctionCallExpressionNode;
 import io.ballerina.compiler.syntax.tree.IfElseStatementNode;
 import io.ballerina.compiler.syntax.tree.NameReferenceNode;
+import io.ballerina.compiler.syntax.tree.NamedArgumentNode;
 import io.ballerina.compiler.syntax.tree.Node;
 import io.ballerina.compiler.syntax.tree.NodeVisitor;
 import io.ballerina.compiler.syntax.tree.RemoteMethodCallActionNode;
+import io.ballerina.compiler.syntax.tree.RestArgumentNode;
 import io.ballerina.compiler.syntax.tree.ReturnStatementNode;
 import io.ballerina.compiler.syntax.tree.SeparatedNodeList;
 import io.ballerina.compiler.syntax.tree.StatementNode;
@@ -100,14 +102,16 @@ public class ParticipantBodyAnalyzer extends NodeVisitor {
         resourceAccessActionNode.arguments().ifPresent(arguments -> {
             nodeBuilder.property(Interaction.PARAMS_LABEL, getParamList(arguments.arguments()));
         });
-        resourceAccessActionNode.methodName().ifPresent(name -> {
-            nodeBuilder.property(Interaction.NAME_LABEL, Expression.Factory.createStringType(name));
-        });
+        // The resource method name is optional in the syntax, and it defaults to `get` when not specified.
+        resourceAccessActionNode.methodName().ifPresentOrElse(
+                name -> nodeBuilder.property(Interaction.NAME_LABEL, Expression.Factory.createStringType(name)),
+                () -> nodeBuilder.property(Interaction.NAME_LABEL,
+                        Expression.Factory.createStringType(Constants.DEFAULT_RESOURCE_METHOD)));
 
         SeparatedNodeList<Node> nodes = resourceAccessActionNode.resourceAccessPath();
         String resourcePath = nodes.stream()
                 .map(Node::toSourceCode)
-                .collect(Collectors.joining("/"));
+                .collect(Collectors.joining("/", "/", ""));
         nodeBuilder.property(Interaction.RESOURCE_PATH, resourcePath);
 
         nodeBuilder
@@ -156,8 +160,23 @@ public class ParticipantBodyAnalyzer extends NodeVisitor {
 
     private List<Expression> getParamList(SeparatedNodeList<FunctionArgumentNode> arguments) {
         return arguments.stream()
-                .map(argument -> Expression.Factory.create(semanticModel, argument))
+                .map(argument -> Expression.Factory.create(semanticModel, getArgTypeNode(argument), argument))
                 .toList();
+    }
+
+    /**
+     * Returns the node to derive the argument type from. The semantic model cannot resolve the type of named and rest
+     * argument nodes, hence the inner expression is used while the whole argument is retained as the value.
+     *
+     * @param argument the function argument node
+     * @return the node to resolve the type from
+     */
+    private static Node getArgTypeNode(FunctionArgumentNode argument) {
+        return switch (argument.kind()) {
+            case NAMED_ARG -> ((NamedArgumentNode) argument).expression();
+            case REST_ARG -> ((RestArgumentNode) argument).expression();
+            default -> argument;
+        };
     }
 
     @Override

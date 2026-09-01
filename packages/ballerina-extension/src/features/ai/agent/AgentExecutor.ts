@@ -1063,6 +1063,7 @@ Generation stopped by user. The last in-progress task was not saved. Any complet
             const reviewData: ReviewModeData = {
                 views: [],
                 currentIndex: 0,
+                generationId: context.messageId,
                 semanticDiffs,
                 loadDesignDiagrams,
                 affectedPackages,

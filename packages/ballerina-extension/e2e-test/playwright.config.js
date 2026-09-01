@@ -9,7 +9,7 @@ exports.default = (0, test_1.defineConfig)({
     retries: process.env.BI_E2E_RETRIES ? Number(process.env.BI_E2E_RETRIES) : 2,
     maxFailures: 10,
     workers: 1,
-    reporter: 'html',
+    reporter: [['html'], ['json', { outputFile: '../e2e-reports/e2e-results.json' }]],
     use: {
         trace: 'on-first-retry',
     },

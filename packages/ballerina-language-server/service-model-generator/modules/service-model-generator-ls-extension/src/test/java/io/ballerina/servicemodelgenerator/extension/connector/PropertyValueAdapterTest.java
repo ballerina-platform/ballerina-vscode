@@ -127,6 +127,6 @@ public class PropertyValueAdapterTest {
     private static TriggerUISchemaModel.Codedata codedata(String type, boolean nameEditable) {
         return new TriggerUISchemaModel.Codedata(type, null, null, null, null, null, null, null, null, null,
                 null, null, null, null, null, null, null, null, null, null, null, null, null, null,
-                nameEditable);
+                nameEditable, null);
     }
 }

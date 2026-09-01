@@ -22,9 +22,8 @@ import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { SHARED_COMMANDS, AgentRunStatus } from "@wso2/ballerina-core";
 import { Codicon, Icon } from "@wso2/ui-toolkit";
 import { ShaderOrb } from "./ShaderOrb";
+import { useOrbColors } from "./orbTheme";
 import {
-    BRAND_ORANGE,
-    ORB_COLORS,
     ORB_ENERGY,
     Sphere,
     Gloss,
@@ -110,8 +109,8 @@ const SendButton = styled.button`
     border-radius: 9px;
     padding: 0;
     font-size: 16px;
-    color: #ffffff;
-    background: linear-gradient(135deg, #6b5ce8, ${BRAND_ORANGE});
+    color: var(--vscode-button-foreground);
+    background: var(--vscode-button-background);
     cursor: pointer;
     transition: filter 0.15s ease, transform 0.15s ease;
     &:hover {
@@ -146,7 +145,7 @@ export function CopilotHeroBox({ placeholder }: { placeholder: string }) {
     // point, just in its idle prompt form.
     const state = status?.state ?? "idle";
     const active = state !== "idle";
-    const colors = ORB_COLORS[state];
+    const colors = useOrbColors(state);
     const label = active && status ? activeStateLabel(status) : null;
 
     const openCopilot = () => {
@@ -178,7 +177,7 @@ export function CopilotHeroBox({ placeholder }: { placeholder: string }) {
                         openCopilot();
                     }
                 }}
-                aria-label={label ? `WSO2 Integrator Copilot: ${label}. Open the Copilot chat.` : undefined}
+                aria-label={label ? `WSO2 Integration Intelligence: ${label}. Open the WSO2 Integration Intelligence chat.` : undefined}
             >
                 <OrbHolder>
                     {webglFailed ? (
@@ -196,7 +195,7 @@ export function CopilotHeroBox({ placeholder }: { placeholder: string }) {
                         <Icon
                             name="bi-ai-chat"
                             sx={{ width: 20, height: 20 }}
-                            iconSx={{ fontSize: "20px", color: "#ffffff", cursor: "inherit" }}
+                            iconSx={{ fontSize: "20px", color: "var(--vscode-button-foreground)", cursor: "inherit" }}
                         />
                     </IconOverlay>
                 </OrbHolder>
@@ -204,7 +203,7 @@ export function CopilotHeroBox({ placeholder }: { placeholder: string }) {
                     <>
                         <StatusText>{label}</StatusText>
                         <OpenHint>
-                            Open Copilot <Codicon name="arrow-right" />
+                            Open WSO2 Integration Intelligence <Codicon name="arrow-right" />
                         </OpenHint>
                     </>
                 ) : (
@@ -219,11 +218,11 @@ export function CopilotHeroBox({ placeholder }: { placeholder: string }) {
                                 }
                             }}
                             placeholder={placeholder}
-                            aria-label="Message WSO2 Integrator Copilot"
+                            aria-label="Message WSO2 Integration Intelligence"
                         />
                         <SendButton
-                            title="Send to WSO2 Integrator Copilot"
-                            aria-label="Send to WSO2 Integrator Copilot"
+                            title="Send to WSO2 Integration Intelligence"
+                            aria-label="Send to WSO2 Integration Intelligence"
                             onClick={(event) => {
                                 event.stopPropagation();
                                 submit();

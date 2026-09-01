@@ -1,0 +1,109 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`comment-only branches — layout graph error handler: comment-only body is placeheld and wired 1`] = `
+"nodes:
+  start
+  eh1-startContainer
+  eh1-startContainer
+  eh1
+  eh1-Body
+  eh1-lastNode
+links:
+  eh1-startContainer -> eh1-Body  [no-add-button]
+  eh1-Body -> eh1  [no-add-button]
+  eh1 -> eh1-lastNode
+comment chips:
+  start <- c1"
+`;
+
+exports[`comment-only branches — layout graph if: comment-only then branch is placeheld and wired 1`] = `
+"nodes:
+  start
+  if1
+  if1-endif
+  if1-Then
+  if1-Else
+  if1-lastNode
+links:
+  start -> if1
+  if1 -> if1-Then  [label=Then, no-add-button]
+  if1-Then -> if1-endif  [broken, no-add-button]
+  if1 -> if1-Else  [broken, no-add-button]
+  if1-Else -> if1-endif  [broken, no-add-button]
+  if1-endif -> if1-lastNode
+comment chips:
+  if1 <- c1"
+`;
+
+exports[`comment-only branches — layout graph match: comment-only case branch is placeheld and wired 1`] = `
+"nodes:
+  start
+  match1
+  match1-endif
+  match1-1
+  match1-_
+  match1-lastNode
+links:
+  start -> match1
+  match1 -> match1-1  [label=1, no-add-button]
+  match1-1 -> match1-endif  [broken, no-add-button]
+  match1 -> match1-_  [broken, no-add-button]
+  match1-_ -> match1-endif  [broken, no-add-button]
+  match1-endif -> match1-lastNode
+comment chips:
+  match1 <- c1"
+`;
+
+exports[`comment-only branches — layout graph while: comment-only body is placeheld and wired 1`] = `
+"nodes:
+  start
+  while1
+  while1-endContainer
+  while1-Body
+  while1-lastNode
+links:
+  start -> while1
+  while1 -> while1-Body  [no-add-button]
+  while1-Body -> while1-endContainer  [no-add-button]
+  while1-endContainer -> while1-lastNode
+comment chips:
+  while1 <- c1"
+`;
+
+exports[`comments alongside real nodes — layout graph if: branch with a comment and a real node links to the real node 1`] = `
+"nodes:
+  start
+  if3
+  stmt
+  if3-endif
+  if3-Else
+  if3-lastNode
+links:
+  start -> if3
+  if3 -> stmt  [label=Then]
+  stmt -> if3-endif
+  if3 -> if3-Else  [broken, no-add-button]
+  if3-Else -> if3-endif  [broken, no-add-button]
+  if3-endif -> if3-lastNode
+comment chips:
+  stmt <- c1"
+`;
+
+exports[`comments alongside real nodes — layout graph if: trailing comment does not mask a returning last statement 1`] = `
+"nodes:
+  start
+  if2
+  ret
+  if2-endif
+  if2-Else
+  if2-lastNode
+links:
+  start -> if2
+  if2 -> ret  [label=Then]
+  ret -> if2-endif  [broken, no-add-button]
+  if2 -> if2-Else  [broken, no-add-button]
+  if2-Else -> if2-endif  [broken, no-add-button]
+  if2-endif -> if2-lastNode
+comment chips:
+  ret <- c1"
+`;

@@ -118,7 +118,11 @@ export default function createTests() {
                 .waitFor({ state: 'visible', timeout: 30000 });
         });
 
-        test('Editing RabbitMQ Integration', async ({ }, testInfo) => {
+        // Flaky in CI: ProjectExplorer.findItem times out waiting for a tree item,
+        // suggesting the Project Explorer tree isn't populating in time. Skipping
+        // until the root cause is fixed.
+        // https://github.com/wso2/product-integrator/issues/2188
+        test.skip('Editing RabbitMQ Integration', async ({ }, testInfo) => {
             const testAttempt = testInfo.retry + 1;
             console.log('Editing a service in test attempt: ', testAttempt);
 

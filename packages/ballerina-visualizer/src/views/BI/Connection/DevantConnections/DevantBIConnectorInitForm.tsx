@@ -28,8 +28,13 @@ import { useMutation } from "@tanstack/react-query";
 import { DevantTempConfig } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
 import { ConnectionConfigurationForm, ConnectionConfigurationFormProps } from "../ConnectionConfigurationPopup";
 import { DIRECTORY_MAP } from "@wso2/ballerina-core";
-import { DevantConnectionFlow, generateInitialConnectionName, isValidDevantConnName } from "./utils";
-import { getInitialVisibility, getPossibleVisibilities } from "./DevantConnectorCreateForm";
+import {
+    DevantConnectionFlow,
+    generateInitialConnectionName,
+    getInitialVisibility,
+    getPossibleVisibilities,
+    isValidDevantConnName,
+} from "./utils";
 
 interface Props extends Omit<ConnectionConfigurationFormProps, "devantConfigs"> {
     importedConnection?: ConnectionListItem;

@@ -31,6 +31,8 @@ import {
     WorkspaceFileRequest,
     WorkspacesFileResponse,
     FileOrDirRequest,
+    ProjectFileRequest,
+    ProjectFileResponse,
     WorkspaceRootResponse,
     ShowErrorMessageRequest,
     WorkspaceTypeResponse,
@@ -53,6 +55,7 @@ export interface CommonRPCAPI {
     runBackgroundTerminalCommand: (params: RunExternalCommandRequest) => Promise<RunExternalCommandResponse>;
     openExternalUrl: (params: OpenExternalUrlRequest) => void;
     selectFileOrDirPath: (params: FileOrDirRequest) => Promise<FileOrDirResponse>;
+    selectProjectRelativeFile: (params: ProjectFileRequest) => Promise<ProjectFileResponse>;
     selectFileOrFolderPath: () => Promise<FileOrDirResponse>;
     experimentalEnabled: () => Promise<boolean>;
     additionalTriggerSearchEnabled: () => Promise<boolean>;

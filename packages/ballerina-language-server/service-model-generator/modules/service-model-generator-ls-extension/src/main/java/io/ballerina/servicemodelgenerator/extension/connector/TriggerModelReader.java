@@ -35,6 +35,7 @@ import io.ballerina.modelgenerator.commons.trigger.LibraryMetadataReader;
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerLibraryFacts;
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerMetadataModel;
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerUISchemaModel;
+import io.ballerina.modelgenerator.commons.trigger.models.TypeRef;
 import io.ballerina.modelgenerator.commons.trigger.utils.TriggerLibraryIntrospector;
 import io.ballerina.projects.Package;
 import io.ballerina.projects.PackageDescriptor;
@@ -418,6 +419,8 @@ public class TriggerModelReader {
         String resolvedPackageName = descriptor.name().value();
         String resolvedVersion = descriptor.version().value().toString();
         TriggerLibraryFacts facts = TriggerLibraryIntrospector.introspect(semanticModel, null);
+        Map<String, TriggerLibraryFacts> crossModuleFacts =
+                resolveCrossModuleFacts(metadata, resolvedOrg, resolvedPackageName);
 
         Listener listenerModel = resolveListenerModel(metadata, semanticModel, resolvedOrg,
                 resolvedPackageName, moduleName, resolvedVersion);
@@ -425,8 +428,53 @@ public class TriggerModelReader {
         String displayName = TriggerModelSynthesizer.humanize(moduleName);
         String icon = CommonUtils.generateIcon(resolvedOrg, resolvedPackageName, resolvedVersion);
 
-        return TriggerModelSynthesizer.synthesize(metadata, facts, listenerModel, moduleName, displayName,
-                icon, "event", resolvedOrg, resolvedPackageName, moduleName, resolvedVersion);
+        return TriggerModelSynthesizer.synthesize(metadata, facts, crossModuleFacts, listenerModel, moduleName,
+                displayName, icon, "event", resolvedOrg, resolvedPackageName, moduleName, resolvedVersion);
+    }
+
+    /**
+     * Introspects every distinct package a cross-module annotation is declared in (e.g. CDC's shared
+     * {@code ballerinax/cdc}), so its real backing record type can be resolved. Best-effort: a package
+     * that fails to resolve/compile is silently skipped.
+     */
+    private Map<String, TriggerLibraryFacts> resolveCrossModuleFacts(TriggerMetadataModel metadata, String ownOrg,
+                                                                     String ownPackageName) {
+        if (metadata.annotations() == null) {
+            return Map.of();
+        }
+        Map<String, TriggerLibraryFacts> crossModuleFacts = new LinkedHashMap<>();
+        for (TriggerMetadataModel.Annotation annotation : metadata.annotations()) {
+            TypeRef.PackageInfo packageInfo = annotation.type() == null ? null : annotation.type().packageInfo();
+            if (packageInfo == null || packageInfo.org() == null || packageInfo.packageName() == null
+                    || (packageInfo.org().equals(ownOrg) && packageInfo.packageName().equals(ownPackageName))) {
+                continue;
+            }
+            String key = TriggerModelSynthesizer.crossModuleFactsKey(packageInfo);
+            if (crossModuleFacts.containsKey(key)) {
+                continue;
+            }
+            introspectCrossModulePackage(packageInfo).ifPresent(facts -> crossModuleFacts.put(key, facts));
+        }
+        return crossModuleFacts;
+    }
+
+    private Optional<TriggerLibraryFacts> introspectCrossModulePackage(TypeRef.PackageInfo packageInfo) {
+        try {
+            String targetModule = packageInfo.moduleName() != null && !packageInfo.moduleName().isBlank()
+                    ? packageInfo.moduleName() : packageInfo.packageName();
+            Optional<Package> pkg = PackageUtil.getModulePackageOffline(PackageUtil.getSampleProject(),
+                    packageInfo.org(), targetModule);
+            if (pkg.isEmpty()) {
+                return Optional.empty();
+            }
+            SemanticModel semanticModel = PackageUtil.getCompilation(pkg.get())
+                    .getSemanticModel(pkg.get().getDefaultModule().moduleId());
+            return Optional.of(TriggerLibraryIntrospector.introspect(semanticModel, null));
+        } catch (Throwable e) {
+            LOGGER.log(Level.FINE, "Cross-module introspection failed for "
+                    + packageInfo.org() + "/" + packageInfo.packageName(), e);
+            return Optional.empty();
+        }
     }
 
     /** Resolves the listener init-form template via {@link ListenerUtil#getListenerModelFromConnectorPackage}. */

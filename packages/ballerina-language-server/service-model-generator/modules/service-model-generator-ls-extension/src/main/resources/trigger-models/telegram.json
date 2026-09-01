@@ -6,9 +6,9 @@
   "orgName": "ballerinax",
   "packageName": "telegram",
   "moduleName": "telegram",
-  "version": "0.9.2",
+  "version": "0.9.3",
   "type": "telegram",
-  "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_telegram_0.9.2.png",
+  "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_telegram_0.9.3.png",
   "kind": "event",
   "listenerKind": "MULTIPLE_SELECT_LISTENER",
   "initProperties": {
@@ -128,185 +128,94 @@
                     }
                   ]
                 },
-                "authentication": {
+                "accessToken": {
                   "metadata": {
-                    "label": "Authentication",
-                    "description": "Provide exactly one of `secretToken` or `token`."
+                    "label": "Access Token",
+                    "description": "The bot access token issued by @BotFather."
                   },
-                  "types": [
-                    {
-                      "fieldType": "CHOICE",
-                      "selected": true
-                    }
-                  ],
                   "value": "",
                   "enabled": true,
                   "editable": true,
                   "optional": false,
                   "advanced": false,
-                  "choices": [
+                  "codedata": {
+                    "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                    "path": "accessToken"
+                  },
+                  "types": [
                     {
-                      "metadata": {
-                        "label": "Bot Token",
-                        "description": "The bot token to derive the secret token from."
-                      },
-                      "types": [
-                        {
-                          "fieldType": "FORM",
-                          "selected": true
-                        }
-                      ],
-                      "value": "true",
-                      "enabled": true,
-                      "editable": true,
-                      "optional": false,
-                      "advanced": false,
-                      "properties": {
-                        "token": {
-                          "metadata": {
-                            "label": "Bot Token",
-                            "description": "The bot token to derive the secret token from."
-                          },
-                          "value": "",
-                          "enabled": true,
-                          "editable": true,
-                          "optional": false,
-                          "advanced": false,
-                          "codedata": {
-                            "argType": "LISTENER_PARAM_INCLUDED_DEFAULTABLE_FIELD",
-                            "originalName": "token",
-                            "path": "token"
-                          },
-                          "types": [
-                            {
-                              "fieldType": "TEXT",
-                              "ballerinaType": "string",
-                              "selected": true
-                            },
-                            {
-                              "fieldType": "EXPRESSION",
-                              "ballerinaType": "string",
-                              "selected": false
-                            }
-                          ],
-                          "validations": [
-                            {
-                              "rule": "common.validate.required"
-                            }
-                          ]
-                        },
-                        "publicUrl": {
-                          "metadata": {
-                            "label": "Public URL",
-                            "description": "This listener's public HTTPS URL, used to auto-register the webhook."
-                          },
-                          "value": "",
-                          "enabled": true,
-                          "editable": true,
-                          "optional": true,
-                          "advanced": false,
-                          "codedata": {
-                            "argType": "LISTENER_PARAM_INCLUDED_DEFAULTABLE_FIELD",
-                            "originalName": "publicUrl",
-                            "path": "publicUrl"
-                          },
-                          "types": [
-                            {
-                              "fieldType": "TEXT",
-                              "ballerinaType": "string",
-                              "selected": true
-                            },
-                            {
-                              "fieldType": "EXPRESSION",
-                              "ballerinaType": "string",
-                              "selected": false
-                            }
-                          ]
-                        },
-                        "serviceUrl": {
-                          "metadata": {
-                            "label": "Service URL",
-                            "description": "The Telegram Bot API base URL."
-                          },
-                          "value": "\"https://api.telegram.org\"",
-                          "enabled": true,
-                          "editable": true,
-                          "optional": true,
-                          "advanced": true,
-                          "codedata": {
-                            "argType": "LISTENER_PARAM_INCLUDED_DEFAULTABLE_FIELD",
-                            "originalName": "serviceUrl",
-                            "path": "serviceUrl"
-                          },
-                          "types": [
-                            {
-                              "fieldType": "TEXT",
-                              "ballerinaType": "string",
-                              "selected": true
-                            },
-                            {
-                              "fieldType": "EXPRESSION",
-                              "ballerinaType": "string",
-                              "selected": false
-                            }
-                          ],
-                          "placeholder": "https://api.telegram.org"
-                        }
-                      }
+                      "fieldType": "TEXT",
+                      "ballerinaType": "string",
+                      "selected": true
                     },
                     {
-                      "metadata": {
-                        "label": "Secret Token",
-                        "description": "The secret token to authenticate inbound updates against."
-                      },
-                      "types": [
-                        {
-                          "fieldType": "FORM",
-                          "selected": true
-                        }
-                      ],
-                      "value": "true",
-                      "enabled": false,
-                      "editable": true,
-                      "optional": false,
-                      "advanced": false,
-                      "properties": {
-                        "secretToken": {
-                          "metadata": {
-                            "label": "Secret Token",
-                            "description": "The secret token to authenticate inbound updates against."
-                          },
-                          "value": "",
-                          "enabled": true,
-                          "editable": true,
-                          "optional": false,
-                          "advanced": false,
-                          "codedata": {
-                            "argType": "LISTENER_PARAM_INCLUDED_DEFAULTABLE_FIELD",
-                            "originalName": "secretToken",
-                            "path": "secretToken"
-                          },
-                          "types": [
-                            {
-                              "fieldType": "TEXT",
-                              "ballerinaType": "string",
-                              "selected": true
-                            },
-                            {
-                              "fieldType": "EXPRESSION",
-                              "ballerinaType": "string",
-                              "selected": false
-                            }
-                          ],
-                          "validations": [
-                            {
-                              "rule": "common.validate.required"
-                            }
-                          ]
-                        }
-                      }
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "string",
+                      "selected": false
+                    }
+                  ],
+                  "validations": [
+                    {
+                      "rule": "common.validate.required"
                     }
                   ]
+                },
+                "callbackUrl": {
+                  "metadata": {
+                    "label": "Callback URL",
+                    "description": "This listener's public HTTPS URL, used to auto-register the webhook when set."
+                  },
+                  "value": "",
+                  "enabled": true,
+                  "editable": true,
+                  "optional": true,
+                  "advanced": false,
+                  "codedata": {
+                    "argType": "LISTENER_PARAM_INCLUDED_DEFAULTABLE_FIELD",
+                    "originalName": "callbackUrl",
+                    "path": "callbackUrl"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "TEXT",
+                      "ballerinaType": "string",
+                      "selected": true
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "string",
+                      "selected": false
+                    }
+                  ]
+                },
+                "serviceUrl": {
+                  "metadata": {
+                    "label": "Service URL",
+                    "description": "The Telegram Bot API base URL."
+                  },
+                  "value": "\"https://api.telegram.org\"",
+                  "enabled": true,
+                  "editable": true,
+                  "optional": true,
+                  "advanced": true,
+                  "codedata": {
+                    "argType": "LISTENER_PARAM_INCLUDED_DEFAULTABLE_FIELD",
+                    "originalName": "serviceUrl",
+                    "path": "serviceUrl"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "TEXT",
+                      "ballerinaType": "string",
+                      "selected": true
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "string",
+                      "selected": false
+                    }
+                  ],
+                  "placeholder": "https://api.telegram.org"
                 }
               }
             }
@@ -370,7 +279,40 @@
         "moduleName": "telegram",
         "originalName": "TelegramService"
       },
-      "properties": {},
+      "properties": {
+        "serviceConfig": {
+          "metadata": {
+            "label": "Service Configuration",
+            "description": "Configuration for a TelegramService's acknowledgement behavior."
+          },
+          "types": [
+            {
+              "fieldType": "RECORD_MAP_EXPRESSION",
+              "ballerinaType": "telegram:TelegramServiceConfig",
+              "typeMembers": [
+                {
+                  "type": "TelegramServiceConfig",
+                  "packageInfo": "ballerinax:telegram:0.9.3",
+                  "packageName": "telegram",
+                  "kind": "RECORD_TYPE",
+                  "selected": true
+                }
+              ],
+              "selected": true
+            }
+          ],
+          "value": "",
+          "enabled": true,
+          "editable": true,
+          "optional": false,
+          "advanced": false,
+          "codedata": {
+            "type": "SERVICE_ANNOTATION",
+            "originalName": "ServiceConfig",
+            "moduleName": "telegram"
+          }
+        }
+      },
       "functions": [],
       "schemaFunctions": [
         {
@@ -443,6 +385,58 @@
               "editable": false,
               "optional": false,
               "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            },
+            {
+              "metadata": {
+                "label": "Caller",
+                "description": "Telegram caller used to manually acknowledge updates (required for manual ack when Auto Ack is off)."
+              },
+              "kind": "OPTIONAL",
+              "type": {
+                "metadata": {
+                  "label": "Include Caller",
+                  "description": "Tick to include the Telegram caller parameter in the handler signature."
+                },
+                "placeholder": "telegram:Caller",
+                "value": false,
+                "types": [
+                  {
+                    "fieldType": "FLAG",
+                    "selected": true,
+                    "ballerinaType": "telegram:Caller"
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "caller",
+                  "description": "Telegram caller used to manually acknowledge updates."
+                },
+                "placeholder": "caller",
+                "value": "caller",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": false,
+              "editable": true,
+              "optional": true,
+              "advanced": true,
               "hidden": false,
               "codedata": {
                 "type": "FUNCTION_PARAM"
@@ -540,6 +534,58 @@
               "codedata": {
                 "type": "FUNCTION_PARAM"
               }
+            },
+            {
+              "metadata": {
+                "label": "Caller",
+                "description": "Telegram caller used to manually acknowledge updates (required for manual ack when Auto Ack is off)."
+              },
+              "kind": "OPTIONAL",
+              "type": {
+                "metadata": {
+                  "label": "Include Caller",
+                  "description": "Tick to include the Telegram caller parameter in the handler signature."
+                },
+                "placeholder": "telegram:Caller",
+                "value": false,
+                "types": [
+                  {
+                    "fieldType": "FLAG",
+                    "selected": true,
+                    "ballerinaType": "telegram:Caller"
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "caller",
+                  "description": "Telegram caller used to manually acknowledge updates."
+                },
+                "placeholder": "caller",
+                "value": "caller",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": false,
+              "editable": true,
+              "optional": true,
+              "advanced": true,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
             }
           ],
           "returnType": {
@@ -629,6 +675,58 @@
               "editable": false,
               "optional": false,
               "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            },
+            {
+              "metadata": {
+                "label": "Caller",
+                "description": "Telegram caller used to manually acknowledge updates (required for manual ack when Auto Ack is off)."
+              },
+              "kind": "OPTIONAL",
+              "type": {
+                "metadata": {
+                  "label": "Include Caller",
+                  "description": "Tick to include the Telegram caller parameter in the handler signature."
+                },
+                "placeholder": "telegram:Caller",
+                "value": false,
+                "types": [
+                  {
+                    "fieldType": "FLAG",
+                    "selected": true,
+                    "ballerinaType": "telegram:Caller"
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "caller",
+                  "description": "Telegram caller used to manually acknowledge updates."
+                },
+                "placeholder": "caller",
+                "value": "caller",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": false,
+              "editable": true,
+              "optional": true,
+              "advanced": true,
               "hidden": false,
               "codedata": {
                 "type": "FUNCTION_PARAM"
@@ -726,6 +824,58 @@
               "codedata": {
                 "type": "FUNCTION_PARAM"
               }
+            },
+            {
+              "metadata": {
+                "label": "Caller",
+                "description": "Telegram caller used to manually acknowledge updates (required for manual ack when Auto Ack is off)."
+              },
+              "kind": "OPTIONAL",
+              "type": {
+                "metadata": {
+                  "label": "Include Caller",
+                  "description": "Tick to include the Telegram caller parameter in the handler signature."
+                },
+                "placeholder": "telegram:Caller",
+                "value": false,
+                "types": [
+                  {
+                    "fieldType": "FLAG",
+                    "selected": true,
+                    "ballerinaType": "telegram:Caller"
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "caller",
+                  "description": "Telegram caller used to manually acknowledge updates."
+                },
+                "placeholder": "caller",
+                "value": "caller",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": false,
+              "editable": true,
+              "optional": true,
+              "advanced": true,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
             }
           ],
           "returnType": {
@@ -815,6 +965,58 @@
               "editable": false,
               "optional": false,
               "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            },
+            {
+              "metadata": {
+                "label": "Caller",
+                "description": "Telegram caller used to manually acknowledge updates (required for manual ack when Auto Ack is off)."
+              },
+              "kind": "OPTIONAL",
+              "type": {
+                "metadata": {
+                  "label": "Include Caller",
+                  "description": "Tick to include the Telegram caller parameter in the handler signature."
+                },
+                "placeholder": "telegram:Caller",
+                "value": false,
+                "types": [
+                  {
+                    "fieldType": "FLAG",
+                    "selected": true,
+                    "ballerinaType": "telegram:Caller"
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "caller",
+                  "description": "Telegram caller used to manually acknowledge updates."
+                },
+                "placeholder": "caller",
+                "value": "caller",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": false,
+              "editable": true,
+              "optional": true,
+              "advanced": true,
               "hidden": false,
               "codedata": {
                 "type": "FUNCTION_PARAM"
@@ -912,6 +1114,58 @@
               "codedata": {
                 "type": "FUNCTION_PARAM"
               }
+            },
+            {
+              "metadata": {
+                "label": "Caller",
+                "description": "Telegram caller used to manually acknowledge updates (required for manual ack when Auto Ack is off)."
+              },
+              "kind": "OPTIONAL",
+              "type": {
+                "metadata": {
+                  "label": "Include Caller",
+                  "description": "Tick to include the Telegram caller parameter in the handler signature."
+                },
+                "placeholder": "telegram:Caller",
+                "value": false,
+                "types": [
+                  {
+                    "fieldType": "FLAG",
+                    "selected": true,
+                    "ballerinaType": "telegram:Caller"
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "caller",
+                  "description": "Telegram caller used to manually acknowledge updates."
+                },
+                "placeholder": "caller",
+                "value": "caller",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": false,
+              "editable": true,
+              "optional": true,
+              "advanced": true,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
             }
           ],
           "returnType": {
@@ -1001,6 +1255,58 @@
               "editable": false,
               "optional": false,
               "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            },
+            {
+              "metadata": {
+                "label": "Caller",
+                "description": "Telegram caller used to manually acknowledge updates (required for manual ack when Auto Ack is off)."
+              },
+              "kind": "OPTIONAL",
+              "type": {
+                "metadata": {
+                  "label": "Include Caller",
+                  "description": "Tick to include the Telegram caller parameter in the handler signature."
+                },
+                "placeholder": "telegram:Caller",
+                "value": false,
+                "types": [
+                  {
+                    "fieldType": "FLAG",
+                    "selected": true,
+                    "ballerinaType": "telegram:Caller"
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "caller",
+                  "description": "Telegram caller used to manually acknowledge updates."
+                },
+                "placeholder": "caller",
+                "value": "caller",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": false,
+              "editable": true,
+              "optional": true,
+              "advanced": true,
               "hidden": false,
               "codedata": {
                 "type": "FUNCTION_PARAM"
@@ -1098,6 +1404,58 @@
               "codedata": {
                 "type": "FUNCTION_PARAM"
               }
+            },
+            {
+              "metadata": {
+                "label": "Caller",
+                "description": "Telegram caller used to manually acknowledge updates (required for manual ack when Auto Ack is off)."
+              },
+              "kind": "OPTIONAL",
+              "type": {
+                "metadata": {
+                  "label": "Include Caller",
+                  "description": "Tick to include the Telegram caller parameter in the handler signature."
+                },
+                "placeholder": "telegram:Caller",
+                "value": false,
+                "types": [
+                  {
+                    "fieldType": "FLAG",
+                    "selected": true,
+                    "ballerinaType": "telegram:Caller"
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "caller",
+                  "description": "Telegram caller used to manually acknowledge updates."
+                },
+                "placeholder": "caller",
+                "value": "caller",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": false,
+              "editable": true,
+              "optional": true,
+              "advanced": true,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
             }
           ],
           "returnType": {
@@ -1187,6 +1545,58 @@
               "editable": false,
               "optional": false,
               "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            },
+            {
+              "metadata": {
+                "label": "Caller",
+                "description": "Telegram caller used to manually acknowledge updates (required for manual ack when Auto Ack is off)."
+              },
+              "kind": "OPTIONAL",
+              "type": {
+                "metadata": {
+                  "label": "Include Caller",
+                  "description": "Tick to include the Telegram caller parameter in the handler signature."
+                },
+                "placeholder": "telegram:Caller",
+                "value": false,
+                "types": [
+                  {
+                    "fieldType": "FLAG",
+                    "selected": true,
+                    "ballerinaType": "telegram:Caller"
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "caller",
+                  "description": "Telegram caller used to manually acknowledge updates."
+                },
+                "placeholder": "caller",
+                "value": "caller",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": false,
+              "editable": true,
+              "optional": true,
+              "advanced": true,
               "hidden": false,
               "codedata": {
                 "type": "FUNCTION_PARAM"

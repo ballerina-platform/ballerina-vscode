@@ -79,6 +79,7 @@ export type AgentToolData = Record<string, CodeDataValue> & (
         agentVarName: string;
         includeContext: boolean;
         description: string;
+        returnType?: string;
         node?: never;
         connection?: never;
     }
@@ -137,6 +138,9 @@ export type ToolData = {
     description?: string;
     path?: string;
     type?: string;
+    // True when the tool's @ai:AgentTool annotation gates it for human-in-the-loop approval
+    // (requiresApproval: true, or a predicate function). Surfaced by the language server.
+    requiresApproval?: boolean;
 };
 
 export type AgentData = {
@@ -185,6 +189,7 @@ export type FormFieldInputType = "TEXT" |
     "PARAM_MANAGER" |
     "STRING" |
     "FILE_SELECT" |
+    "PROJECT_FILE_SELECT" |
     "ACTION_OR_EXPRESSION" |
     "MULTIPLE_SELECT_LISTENER" |
     "SINGLE_SELECT_LISTENER" |
@@ -233,6 +238,7 @@ export interface BaseType {
     pattern?: string; // regex pattern for validation (e.g., for TEXT fields)
     patternErrorMessage?: string; // custom error message when pattern validation fails
     validations?: ValidationRule[]; // connector-shipped rules scoped to this type member (generalises pattern/patternErrorMessage)
+    extensions?: string[];
 }
 
 export interface EnumOptions {

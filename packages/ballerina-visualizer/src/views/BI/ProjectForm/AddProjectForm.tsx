@@ -33,16 +33,6 @@ import { FormSection } from "./styles";
 import { useDirectoryNameCoupling } from "./hooks/useDirectoryNameCoupling";
 import { useDefaultOrgName } from "./hooks/useDefaultOrgName";
 
-/**
- * Which screen of the Add-to-project flow is showing. The integration route has no screen
- * of its own: the three-step Create Integration wizard (Name → Type → Configure) is
- * bypassed, and the chooser collects the integration name inline and adds an empty
- * integration directly — matching the welcome-view Create flow, which skips it the same
- * way. Restore an `"integration"` screen mounting `CreateIntegrationWizard` to bring the
- * wizard back here.
- */
-type Screen = "chooser" | "library";
-
 /** Holds the panel's body height while initialization settles, so it does not collapse. */
 const ShellLoader = styled.div`
     display: flex;
@@ -75,9 +65,6 @@ export function AddProjectForm() {
     // into the new project.
     const [currentIntegrationDirName, setCurrentIntegrationDirName] = useState<string>("");
     const [addNewAfterConvert, setAddNewAfterConvert] = useState<boolean>(false);
-    // chooser = project + starting point, and the integration's name when that is the
-    // starting point; library = name + package details.
-    const [screen, setScreen] = useState<Screen>("chooser");
     const [targetPath, setTargetPath] = useState<string>("");
     // Whether initialization — workspace discovery and the suggested defaults — has settled.
     // Gates two things. The body is not rendered until then, because `isInProject` defaults
@@ -100,11 +87,6 @@ export function AddProjectForm() {
     const isConvertAndAdd = isConvert && addNewAfterConvert;
     // Whether a starting point (integration/library) is being added (vs a plain convert).
     const isAddingComponent = isInProject || addNewAfterConvert;
-    // An integration is named on this screen and submits from here, like the welcome-view
-    // Create flow. Only the library still has a screen of its own behind "Next"; a plain
-    // convert has nothing further to collect and also submits from here.
-    const isAddingIntegration = isAddingComponent && !formData.isLibrary;
-    const routeToNextScreen = isAddingComponent && formData.isLibrary;
 
     // The name-derived default for the destination folder segment.
     const autoConvertDirName = formData.projectHandle?.trim()
@@ -122,36 +104,32 @@ export function AddProjectForm() {
         setPathValidationError(null);
         setPackageNameValidationError(null);
         setProjectNameValidationError(null);
-        setComponentNameValidationError(null);
-        // Switching starting point swaps which field owns the name, and the outgoing one
-        // unmounts without reporting. Clear so a stale diagnostic cannot block the other's
-        // submit; whichever field mounts next reports its own on the first render.
+        // Switching starting point re-validates the name under the other kind's rules.
+        // Clear so a stale diagnostic cannot block submit; the field reports its own
+        // again on the next render.
         if (data.isLibrary !== undefined) {
             setComponentNameError(null);
         }
     }, []);
 
-    // Owned here: a plain convert never reaches the library screen but still writes the
+    // Owned here: a plain convert collects no starting point at all but still writes the
     // org into the new project's context file.
     const handleOrgResolved = useCallback((orgName: string) => setFormData(prev => ({ ...prev, orgName })), []);
     const { organizations, isOrgLocked, isOrgDataLoaded, markOrgTouched } =
         useDefaultOrgName(isInProject, handleOrgResolved);
 
-    // Owned here so a manually edited package name survives a remount of the library screen.
+    // Owned here so a manually edited package name survives a remount of the fields.
     const [packageNameTouched, setPackageNameTouched] = useState<boolean>(false);
     const markPackageNameTouched = useCallback(() => setPackageNameTouched(true), []);
 
-    // Same reasoning for the display name: once typed, remounting the library screen
-    // must not let the collision-indexed default silently rename it.
+    // Same reasoning for the display name: once typed, a remount must not let the
+    // collision-indexed default silently rename it.
     const [nameTouched, setNameTouched] = useState<boolean>(false);
     const markNameTouched = useCallback(() => setNameTouched(true), []);
 
-    // Live name diagnostic from whichever field owns the starting point's name (format +
-    // collision with an existing integration/library in the target project). Blocks submit.
+    // Live name diagnostic for the starting point's name (format + collision with an
+    // existing integration/library in the target project). Blocks submit.
     const [componentNameError, setComponentNameError] = useState<string | null>(null);
-    // Submit-time name rejection for the integration route, which has no package field to
-    // hang it off. Cleared on the next edit by `handleFormDataChange`.
-    const [componentNameValidationError, setComponentNameValidationError] = useState<string | null>(null);
 
     // Adapter so the shared realtime path-validation hook can call the native RPC client.
     const pathValidationClient = useMemo(
@@ -241,8 +219,8 @@ export function AddProjectForm() {
     const componentTargetPath = isInProject ? targetPath : convertFullPath;
 
     // Convert-flow "Next" is disabled until the project name + a valid location are set;
-    // the add-from-workspace flow has no project fields, so it is always enabled.
-    const nextDisabled =
+    // the add-from-workspace flow has no project fields, so it never blocks on them.
+    const projectFieldsInvalid =
         isLoading ||
         (isConvert &&
             (!formData.workspaceName?.trim() ||
@@ -250,27 +228,6 @@ export function AddProjectForm() {
                 !effectiveConvertDirName ||
                 !!convertPathError ||
                 !!projectNameValidationError));
-
-    /** Chooser → the library form. In the convert flow the project name + location are
-     *  captured (and validated) here first; the library screen then owns naming and
-     *  configuring it, and the convert-and-add on submit. The integration route has no
-     *  next screen — it is named on the chooser and submits from there. */
-    const handleNext = () => {
-        if (isConvert) {
-            if (!formData.workspaceName?.trim()) {
-                setProjectNameValidationError("Project name is required");
-                return;
-            }
-            if (!convertBaseDir.trim() || !effectiveConvertDirName) {
-                setConvertPathError("Please select a location for your project");
-                return;
-            }
-            if (convertPathError) {
-                return;
-            }
-        }
-        setScreen("library");
-    };
 
     const handleAddProject = async () => {
         setIsLoading(true);
@@ -302,34 +259,26 @@ export function AddProjectForm() {
             });
 
             if (!validationResult.isValid) {
-                // Convert-flow fields live on the chooser, so those errors return there.
                 if (validationResult.errorField === ValidateProjectFormErrorField.PATH) {
                     if (isInProject) {
                         // The path is `<project>/<packageName>`, so this is almost always a
-                        // name collision — show it on the library screen.
+                        // name collision.
                         setPathValidationError(validationResult.errorMessage || `Invalid ${resourceTypeLabel.toLowerCase()} path`);
                     } else {
                         setConvertPathError(validationResult.errorMessage || "Invalid project path");
-                        setScreen("chooser");
                     }
                 } else if (validationResult.errorField === ValidateProjectFormErrorField.NAME) {
                     if (isInProject) {
-                        // The library screen edits the package name under Advanced
-                        // Configurations, which is where its submit came from. The
-                        // integration route has no package field — its name is the only
-                        // thing that produced this, so report it there.
-                        const message =
-                            validationResult.errorMessage || `Invalid ${resourceTypeLabel.toLowerCase()} name`;
-                        if (formData.isLibrary) {
-                            setPackageNameValidationError(message);
-                        } else {
-                            setComponentNameValidationError(message);
-                        }
+                        // The name validated above is the package name, which both routes
+                        // now edit under Advanced Configurations — reporting it there also
+                        // auto-expands the section.
+                        setPackageNameValidationError(
+                            validationResult.errorMessage || `Invalid ${resourceTypeLabel.toLowerCase()} name`
+                        );
                     } else {
                         setProjectNameValidationError(
                             validationResult.errorMessage || "Invalid project name"
                         );
-                        setScreen("chooser");
                     }
                 }
                 setIsLoading(false);
@@ -364,8 +313,6 @@ export function AddProjectForm() {
                 setPathValidationError(message);
             } else {
                 setConvertPathError(message);
-                // The Project Location field this reports on lives on the chooser.
-                setScreen("chooser");
             }
             setIsLoading(false);
         }
@@ -374,10 +321,6 @@ export function AddProjectForm() {
     const goBack = () => {
         rpcClient.getVisualizerRpcClient().goBack();
     };
-
-    const startingPointSubtitle = isInProject
-        ? undefined
-        : `In project ${formData.workspaceName?.trim() || "your new project"}`;
 
     // `isInProject` is false until workspace discovery resolves, and false is the convert
     // variant — so rendering straight away shows "Convert to Project" with the project
@@ -391,61 +334,6 @@ export function AddProjectForm() {
                 <ShellLoader>
                     <ProgressRing color={ThemeColors.PRIMARY} />
                 </ShellLoader>
-            </CreateFlowShell>
-        );
-    }
-
-    if (screen === "library") {
-        return (
-            <CreateFlowShell
-                title="New Library"
-                subtitle={startingPointSubtitle}
-                onBack={() => setScreen("chooser")}
-                fill
-            >
-                {/* The project listing used for the name-collision check is only
-                    exposed on the WS bridge, the same seam the integration name field
-                    on the chooser uses. */}
-                <BiWsClientProvider onBack={() => setScreen("chooser")}>
-                    <AddComponentFields
-                        formData={formData}
-                        onFormDataChange={handleFormDataChange}
-                        projectPath={componentTargetPath}
-                        reservedFolders={currentIntegrationDirName ? [currentIntegrationDirName] : undefined}
-                        organizations={organizations}
-                        isOrgLocked={isOrgLocked}
-                        isOrgDataLoaded={isOrgDataLoaded}
-                        onOrgTouched={markOrgTouched}
-                        packageNameTouched={packageNameTouched}
-                        onPackageNameTouched={markPackageNameTouched}
-                        nameTouched={nameTouched}
-                        onNameTouched={markNameTouched}
-                        packageNameValidationError={packageNameValidationError || undefined}
-                        onNameErrorChange={setComponentNameError}
-                    />
-                </BiWsClientProvider>
-
-                <FormFooter>
-                    {pathValidationError && <SubmitError>{pathValidationError}</SubmitError>}
-                    <Button
-                        disabled={
-                            !!componentNameError ||
-                            !isFormValidAddProject(formData, isInProject, addNewAfterConvert) ||
-                            isLoading ||
-                            (isConvert && !!convertPathError)
-                        }
-                        onClick={handleAddProject}
-                        appearance="primary"
-                    >
-                        {isLoading ? (
-                            <Typography variant="progress">
-                                {isConvertAndAdd ? "Converting & Adding..." : "Adding..."}
-                            </Typography>
-                        ) : (
-                            isConvertAndAdd ? "Convert & Add Library" : "Add Library"
-                        )}
-                    </Button>
-                </FormFooter>
             </CreateFlowShell>
         );
     }
@@ -474,11 +362,10 @@ export function AddProjectForm() {
                 convertPathError={convertPathError || undefined}
             />
 
-            {/* The integration is named here rather than on a step of its own — the wizard
-                is bypassed, so this screen submits. The library route keeps its own form,
-                which collects a name alongside the package details omitted here. The WS
-                bridge is what exposes the project listing behind the collision check. */}
-            {isAddingIntegration && (
+            {/* Both starting points are named and configured here rather than on a step of
+                their own — the wizard is bypassed, so this screen submits. The WS bridge is
+                what exposes the project listing behind the collision check. */}
+            {isAddingComponent && (
                 <FormSection>
                     <BiWsClientProvider onBack={goBack}>
                         <AddComponentFields
@@ -487,9 +374,15 @@ export function AddProjectForm() {
                             defaultsReady={defaultsReady}
                             projectPath={componentTargetPath}
                             reservedFolders={currentIntegrationDirName ? [currentIntegrationDirName] : undefined}
+                            organizations={organizations}
+                            isOrgLocked={isOrgLocked}
+                            isOrgDataLoaded={isOrgDataLoaded}
+                            onOrgTouched={markOrgTouched}
+                            packageNameTouched={packageNameTouched}
+                            onPackageNameTouched={markPackageNameTouched}
                             nameTouched={nameTouched}
                             onNameTouched={markNameTouched}
-                            nameValidationError={componentNameValidationError || undefined}
+                            packageNameValidationError={packageNameValidationError || undefined}
                             onNameErrorChange={setComponentNameError}
                         />
                     </BiWsClientProvider>
@@ -497,54 +390,31 @@ export function AddProjectForm() {
             )}
 
             <FormFooter>
-                {routeToNextScreen ? (
-                    <Button disabled={nextDisabled} onClick={handleNext} appearance="primary">
-                        Next
-                    </Button>
-                ) : isAddingIntegration ? (
-                    <>
-                        {pathValidationError && <SubmitError>{pathValidationError}</SubmitError>}
-                        <Button
-                            disabled={
-                                nextDisabled ||
-                                !!componentNameError ||
-                                // The organization is not shown, not editable and not
-                                // reportable on this route, so it is not gated on either —
-                                // it is resolved for us and can arrive late, reserved, or
-                                // never, each of which would otherwise disable this button
-                                // with nothing on screen to explain it.
-                                !isFormValidAddProject(formData, isInProject, addNewAfterConvert, {
-                                    requireOrgName: false,
-                                }) ||
-                                isLoading ||
-                                (isConvert && !!convertPathError)
-                            }
-                            onClick={handleAddProject}
-                            appearance="primary"
-                        >
-                            {isLoading ? (
-                                <Typography variant="progress">
-                                    {isConvertAndAdd ? "Converting & Adding..." : "Adding..."}
-                                </Typography>
-                            ) : (
-                                isConvertAndAdd ? "Convert & Add Integration" : "Add Integration"
-                            )}
-                        </Button>
-                    </>
-                ) : (
-                    // Plain convert: nothing further to collect, so submit from here.
-                    <Button
-                        disabled={!isFormValidAddProject(formData, isInProject, addNewAfterConvert) || isLoading || (isConvert && !!convertPathError)}
-                        onClick={handleAddProject}
-                        appearance="primary"
-                    >
-                        {isLoading ? (
-                            <Typography variant="progress">Converting...</Typography>
-                        ) : (
-                            "Convert to Project"
-                        )}
-                    </Button>
-                )}
+                {pathValidationError && <SubmitError>{pathValidationError}</SubmitError>}
+                <Button
+                    disabled={
+                        projectFieldsInvalid ||
+                        (isAddingComponent && !!componentNameError) ||
+                        !isFormValidAddProject(formData, isInProject, addNewAfterConvert) ||
+                        isLoading ||
+                        (isConvert && !!convertPathError)
+                    }
+                    onClick={handleAddProject}
+                    appearance="primary"
+                >
+                    {isLoading ? (
+                        <Typography variant="progress">
+                            {!isAddingComponent
+                                ? "Converting..."
+                                : isConvertAndAdd ? "Converting & Adding..." : "Adding..."}
+                        </Typography>
+                    ) : !isAddingComponent ? (
+                        // Plain convert: nothing further to collect.
+                        "Convert to Project"
+                    ) : (
+                        `${isConvertAndAdd ? "Convert & Add" : "Add"} ${resourceTypeLabel}`
+                    )}
+                </Button>
             </FormFooter>
         </CreateFlowShell>
     );

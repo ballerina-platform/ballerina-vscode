@@ -678,6 +678,7 @@
         "group": "onCreate",
         "variantLabel": "JSON",
         "addLabel": "Add On Create Handler (JSON)",
+        "addDescription": "Invoked when a file is created in the monitored directory.",
         "repeatable": "ONE_EACH_PER_GROUP",
         "nameEditable": false
       },
@@ -1201,6 +1202,7 @@
         "group": "onCreate",
         "variantLabel": "XML",
         "addLabel": "Add On Create Handler (XML)",
+        "addDescription": "Invoked when a file is created in the monitored directory.",
         "repeatable": "ONE_EACH_PER_GROUP",
         "nameEditable": false
       }
@@ -1738,8 +1740,20 @@
         "group": "onCreate",
         "variantLabel": "CSV",
         "addLabel": "Add On Create Handler (CSV)",
+        "addDescription": "Invoked when a file is created in the monitored directory.",
         "repeatable": "ONE_EACH_PER_GROUP",
-        "nameEditable": false
+        "nameEditable": false,
+        "layout": [
+          {
+            "fields": [
+              "$variant",
+              "$description",
+              "content",
+              "stream",
+              "*rest"
+            ]
+          }
+        ]
       },
       {
         "metadata": {
@@ -2249,6 +2263,7 @@
         "group": "onCreate",
         "variantLabel": "Text",
         "addLabel": "Add On Create Handler (Text)",
+        "addDescription": "Invoked when a file is created in the monitored directory.",
         "repeatable": "ONE_EACH_PER_GROUP",
         "nameEditable": false
       },
@@ -2783,8 +2798,20 @@
         "group": "onCreate",
         "variantLabel": "Raw Bytes",
         "addLabel": "Add On Create Handler (Raw Bytes)",
+        "addDescription": "Invoked when a file is created in the monitored directory.",
         "repeatable": "ONE_EACH_PER_GROUP",
-        "nameEditable": false
+        "nameEditable": false,
+        "layout": [
+          {
+            "fields": [
+              "$variant",
+              "$description",
+              "content",
+              "stream",
+              "*rest"
+            ]
+          }
+        ]
       },
       {
         "metadata": {
@@ -3002,8 +3029,8 @@
                 "label": "FTP Error",
                 "description": "The error that occurred while processing the file."
               },
-              "placeholder": "ftpError",
-              "value": "ftpError",
+              "placeholder": "err",
+              "value": "err",
               "types": [
                 {
                   "fieldType": "IDENTIFIER",

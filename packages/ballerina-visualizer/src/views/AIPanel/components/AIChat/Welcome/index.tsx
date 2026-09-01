@@ -21,10 +21,10 @@ import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Icon, Typography } from "@wso2/ui-toolkit";
 import React, { useCallback, useState } from "react";
 import { ShaderOrb } from "../../../../../components/AgentStatusOrb/ShaderOrb";
+import { useOrbColors } from "../../../../../components/AgentStatusOrb/orbTheme";
 import {
     Gloss,
     IconOverlay,
-    ORB_COLORS,
     ORB_ENERGY,
     Sphere,
 } from "../../../../../components/AgentStatusOrb/shared";
@@ -71,7 +71,11 @@ const WelcomeOrbHalo = styled.div`
         position: absolute;
         inset: -14px;
         border-radius: 50%;
-        background: radial-gradient(circle, rgba(107, 92, 232, 0.28), rgba(241, 78, 35, 0.12) 42%, transparent 70%);
+        background: radial-gradient(
+            circle,
+            color-mix(in srgb, var(--vscode-button-background) 28%, transparent),
+            transparent 70%
+        );
         filter: blur(8px);
         pointer-events: none;
     }
@@ -88,6 +92,10 @@ const WelcomeOrb = styled.div`
     width: ${WELCOME_ORB_SIZE}px;
     height: ${WELCOME_ORB_SIZE}px;
     flex: none;
+`;
+
+const SerifI = styled.span`
+    font-family: Georgia, "Times New Roman", serif;
 `;
 
 const GuideChip = styled.div`
@@ -127,18 +135,19 @@ const WelcomeMessage: React.FC<WelcomeMessageProps> = ({ isOnboarding = false })
     const { rpcClient } = useRpcContext();
     const [webglFailed, setWebglFailed] = useState(false);
     const handleWebglFailed = useCallback(() => setWebglFailed(true), []);
+    const idleColors = useOrbColors("idle");
 
     return (
         <PanelWrapper>
             <TopSpacer />
             <Content>
                 <WelcomeOrbHalo>
-                    <WelcomeOrb role="img" aria-label="WSO2 Integrator Copilot">
+                    <WelcomeOrb role="img" aria-label="WSO2 Integration Intelligence">
                         {webglFailed ? (
-                            <Sphere colors={ORB_COLORS.idle} energy={ORB_ENERGY.idle} />
+                            <Sphere colors={idleColors} energy={ORB_ENERGY.idle} />
                         ) : (
                             <ShaderOrb
-                                colors={ORB_COLORS.idle}
+                                colors={idleColors}
                                 energy={ORB_ENERGY.idle}
                                 size={WELCOME_ORB_SIZE}
                                 onContextFailed={handleWebglFailed}
@@ -149,7 +158,7 @@ const WelcomeMessage: React.FC<WelcomeMessageProps> = ({ isOnboarding = false })
                             <Icon
                                 name="bi-ai-chat"
                                 sx={{ width: 24, height: 24 }}
-                                iconSx={{ fontSize: "24px", color: "#ffffff", cursor: "default" }}
+                                iconSx={{ fontSize: "24px", color: "var(--vscode-button-foreground)", cursor: "default" }}
                             />
                         </IconOverlay>
                     </WelcomeOrb>
@@ -162,7 +171,7 @@ const WelcomeMessage: React.FC<WelcomeMessageProps> = ({ isOnboarding = false })
                         margin: "12px 0",
                     }}
                 >
-                    WSO2 Integrator Copilot
+                    WSO2 Integration Intelligence
                 </Typography>
                 <Typography
                     variant="body1"
@@ -173,7 +182,7 @@ const WelcomeMessage: React.FC<WelcomeMessageProps> = ({ isOnboarding = false })
                         marginTop: "16px",
                     }}
                 >
-                    I can help you build, update, and understand your integration. Tell me what you’d like to do.
+                    Hi, this is WSO2 Integration Intelligence (<SerifI>WII</SerifI>). You can call me Wii. I’m built to be an expert in integration. Let’s do integration together.
                 </Typography>
                 <Typography
                     variant="body1"
