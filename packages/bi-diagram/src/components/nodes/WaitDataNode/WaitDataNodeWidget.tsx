@@ -90,7 +90,10 @@ export namespace NodeStyles {
     export const Node = styled.div<{ readOnly: boolean }>`
         display: flex;
         flex-direction: row;
-        align-items: center;
+        /* Flush the circle (and its ports) to the top, like every other node's outer row
+           (ApiCallNode, SendDataNode, CallActivityNode) — centering it inside the taller
+           source-arrow SVG would recess the ports and stretch the links connecting here. */
+        align-items: flex-start;
         color: ${NODE_TEXT_COLOR};
         cursor: ${(props: { readOnly: boolean }) => (props.readOnly ? "default" : "pointer")};
     `;
@@ -325,7 +328,9 @@ export function WaitDataNodeWidget(props: WaitDataNodeWidgetProps) {
         ? Math.max(model.node.viewState.lw - NODE_WIDTH / 2, SOURCE_BOX_SIZE + NODE_GAP_X)
         : SOURCE_BOX_SIZE + NODE_GAP_X;
     const svgHeight = NODE_HEIGHT + LABEL_HEIGHT;
-    const svgMidY = (NODE_HEIGHT + LABEL_HEIGHT) / 2;
+    // The circle now sits flush at the top of the row (see NodeStyles.Node), so the arrow and
+    // source box must aim at the circle's own center, not the taller SVG's center.
+    const svgMidY = NODE_HEIGHT / 2;
     // The roles read into the person they name, so they take the strip the sizing visitor reserved
     // at the far left and the source box starts after it. Clamped, so a stale view state shrinks
     // the strip rather than pushing the box out of the node.

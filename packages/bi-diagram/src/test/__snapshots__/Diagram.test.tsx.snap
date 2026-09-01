@@ -1664,7 +1664,9 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
 .css-56 {font-size: 12px; max-width: 230px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: monospace;}
 .css-63 {display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; width: 100%; cursor: pointer; z-index: 2;}
 .css-52 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: flex-start; -webkit-box-align: flex-start; -ms-flex-align: flex-start; align-items: flex-start; width: 100%; position: absolute; padding: 8px; left: 52px;}
+.css-80 {position: fixed; width: 290px; height: 360px; top: 2015.6px; left: -275px; border: 2px dashed var(--vscode-foreground); border-radius: 10px; background-color: transparent; z-index: -1; display: flex; -webkit-align-items: flex-end; -webkit-box-align: flex-end; -ms-flex-align: flex-end; align-items: flex-end; pointer-events: none;}
 .css-75 {margin-bottom: -2px; z-index: 2;}
+.css-83 {position: fixed; width: 710px; height: 738px; top: 2717.2px; left: -355px; border: 2px dashed var(--vscode-foreground); border-radius: 10px; background-color: transparent; z-index: -1; display: flex; -webkit-align-items: flex-end; -webkit-box-align: flex-end; -ms-flex-align: flex-end; align-items: flex-end; pointer-events: none;}
 .css-90 {display: none; -webkit-animation: animation-1l5m1tj 0.2s ease-out forwards; animation: animation-1l5m1tj 0.2s ease-out forwards; cursor: pointer;}
 .css-78 {height: 24px; width: 24px; cursor: pointer; font-size: 24px; color: var(--vscode-terminal-ansiMagenta);}
 .css-74 {-webkit-flex: 1; -ms-flex: 1; flex: 1; min-width: 0; color: var(--vscode-foreground); opacity: 0.7; font-family: monospace; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;}
@@ -1680,9 +1682,7 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
 .css-29 {font-size: 14px; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: "GilmerMedium";}
 .css-62 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: start; -ms-flex-pack: start; -webkit-justify-content: flex-start; justify-content: flex-start; -webkit-align-items: flex-start; -webkit-box-align: flex-start; -ms-flex-align: flex-start; align-items: flex-start; gap: 8px; width: 100%; height: 100%; overflow: hidden;}
 .css-32 {position: relative; display: inline-block; cursor: pointer; pointer-events: auto;}
-.css-57 {position: fixed; width: 370px; height: 208px; top: 1110px; left: -775px; border: 2px dashed var(--vscode-foreground); border-radius: 10px; background-color: transparent; z-index: -1; display: flex; -webkit-align-items: flex-end; -webkit-box-align: flex-end; -ms-flex-align: flex-end; align-items: flex-end; pointer-events: none;}
 .css-9 {cursor: pointer;}
-.css-83 {position: fixed; width: 710px; height: 738px; top: 2797.2px; left: -355px; border: 2px dashed var(--vscode-foreground); border-radius: 10px; background-color: transparent; z-index: -1; display: flex; -webkit-align-items: flex-end; -webkit-box-align: flex-end; -ms-flex-align: flex-end; align-items: flex-end; pointer-events: none;}
 .css-10 {cursor: not-allowed; visibility: hidden;}
 .css-27 svg {fill: var(--vscode-terminal-ansiGreen);}
 .css-84 {display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; width: 16px; height: 16px; cursor: pointer;}
@@ -1690,6 +1690,7 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
 .css-35 {position: relative; display: inline-block; cursor: default; pointer-events: auto;}
 .css-23 {border-radius: 5px;}
 .css-37 svg {fill: var(--vscode-terminal-ansiMagenta);}
+.css-57 {position: fixed; width: 370px; height: 208px; top: 1050px; left: -775px; border: 2px dashed var(--vscode-foreground); border-radius: 10px; background-color: transparent; z-index: -1; display: flex; -webkit-align-items: flex-end; -webkit-box-align: flex-end; -ms-flex-align: flex-end; align-items: flex-end; pointer-events: none;}
 .css-53 {font-size: 14px; max-width: 230px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: "GilmerMedium";}
 .css-73 {position: relative; width: 100%; display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 6px; margin: 8px 0; padding: 6px 6px 6px 10px; border-radius: 6px; cursor: default; -webkit-transition: background-color 0.15s ease; transition: background-color 0.15s ease;}
 .css-73::before {content: ""; position: absolute; top: -8px; left: 0; right: 0; border-top: 1px dashed var(--vscode-dropdown-border);}
@@ -1699,14 +1700,14 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
 .css-16 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; border: 1.8px; border-style: solid; border-color: var(--vscode-dropdown-border); border-radius: 8px; background-color: var(--vscode-menu-background); width: 52px; height: 52px; box-shadow: none; -webkit-transition: box-shadow 0.1s ease,background-color 0.1s ease,border-color 0.1s ease; transition: box-shadow 0.1s ease,background-color 0.1s ease,border-color 0.1s ease;}
 .css-15 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center;}
 .css-17 {margin-top: -3px;}
+.css-79 {position: fixed; width: 490px; height: 648.6px; top: 1871px; left: -275px; border: 2px dashed var(--vscode-foreground); border-radius: 10px; background-color: transparent; z-index: -1; display: flex; -webkit-align-items: flex-end; -webkit-box-align: flex-end; -ms-flex-align: flex-end; align-items: flex-end; pointer-events: none;}
 .css-60 {position: absolute; top: -1px; left: -1px; right: -1px; bottom: -1px; border-radius: 10px; border: 2px solid var(--vscode-terminal-ansiCyan); opacity: 0; -webkit-transition: opacity 0.4s ease-out; transition: opacity 0.4s ease-out; -webkit-animation: animation-1knexeq 1.5s ease-in-out infinite alternate; animation: animation-1knexeq 1.5s ease-in-out infinite alternate; pointer-events: none; z-index: 1;}
 .css-25 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; width: 280px; min-height: 50px; padding: 0 8px; background-color: var(--vscode-menu-background); color: var(--vscode-foreground); opacity: 1; border: 1.8px; border-style: solid; border-color: var(--vscode-foreground); border-radius: 10px; cursor: pointer; box-shadow: none; -webkit-transition: box-shadow 0.1s ease,background-color 0.1s ease,border-color 0.1s ease; transition: box-shadow 0.1s ease,background-color 0.1s ease,border-color 0.1s ease;}
-.css-82 {position: fixed; width: 230px; height: 208px; top: 2169.6px; left: -245px; border: 2px dashed var(--vscode-foreground); border-radius: 10px; background-color: transparent; z-index: -1; display: flex; -webkit-align-items: flex-end; -webkit-box-align: flex-end; -ms-flex-align: flex-end; align-items: flex-end; pointer-events: none;}
 .css-67 {position: absolute; bottom: -5px; right: -5px; display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; border-radius: 50%;}
 .css-40 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; width: 280px; min-height: 50px; padding: 0 8px; opacity: 1; border: 1.8px; border-style: solid; border-color: var(--vscode-dropdown-border); border-radius: 10px; background-color: var(--vscode-menu-background); color: var(--vscode-foreground); cursor: pointer; box-shadow: none; -webkit-transition: box-shadow 0.1s ease,background-color 0.1s ease,border-color 0.1s ease; transition: box-shadow 0.1s ease,background-color 0.1s ease,border-color 0.1s ease;}
+.css-82 {position: fixed; width: 230px; height: 208px; top: 2109.6px; left: -245px; border: 2px dashed var(--vscode-foreground); border-radius: 10px; background-color: transparent; z-index: -1; display: flex; -webkit-align-items: flex-end; -webkit-box-align: flex-end; -ms-flex-align: flex-end; align-items: flex-end; pointer-events: none;}
 .css-92 {display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; width: 20px; height: 20px;}
 .css-5 {position: relative; cursor: move; overflow: unset; height: unset !important;}
-.css-79 {position: fixed; width: 490px; height: 648.6px; top: 1931px; left: -275px; border: 2px dashed var(--vscode-foreground); border-radius: 10px; background-color: transparent; z-index: -1; display: flex; -webkit-align-items: flex-end; -webkit-box-align: flex-end; -ms-flex-align: flex-end; align-items: flex-end; pointer-events: none;}
 .css-50 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; border: 1.8px; border-style: solid; border-color: var(--vscode-dropdown-border); border-radius: 8px; background-color: var(--vscode-menu-background); width: 52px; height: 52px; cursor: pointer; box-shadow: none; -webkit-transition: box-shadow 0.1s ease,background-color 0.1s ease,border-color 0.1s ease; transition: box-shadow 0.1s ease,background-color 0.1s ease,border-color 0.1s ease;}
 .css-46 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: flex-start; -webkit-box-align: flex-start; -ms-flex-align: flex-start; align-items: flex-start; width: 100%; padding: 8px;}
 .css-2 {height: 16px; width: 16px; cursor: pointer; font-size: 16px;}
@@ -1738,7 +1739,6 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
 .css-77 {pointer-events: none; opacity: 0; -webkit-transition: opacity 0.4s ease-out; transition: opacity 0.4s ease-out; -webkit-animation: animation-zkuskm 1s linear infinite; animation: animation-zkuskm 1s linear infinite;}
 .css-18 svg {fill: var(--vscode-terminal-ansiYellow);}
 .css-47 {font-size: 14px; max-width: 230px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: "GilmerMedium"; color: var(--vscode-foreground);}
-.css-80 {position: fixed; width: 290px; height: 360px; top: 2075.6px; left: -275px; border: 2px dashed var(--vscode-foreground); border-radius: 10px; background-color: transparent; z-index: -1; display: flex; -webkit-align-items: flex-end; -webkit-box-align: flex-end; -ms-flex-align: flex-end; align-items: flex-end; pointer-events: none;}
 .css-13 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; color: var(--vscode-foreground); cursor: pointer;}
 .css-66 {height: 24px; width: 24px; cursor: pointer; font-size: 24px; color: var(--vscode-terminal-ansiCyan);}
 
@@ -5927,7 +5927,7 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
       >
         <div
           class="node css-12"
-          style="top: 3585.2px; left: -26px;"
+          style="top: 3505.2px; left: -26px;"
         >
           <div
             class="css-13"
@@ -6136,7 +6136,7 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
         </div>
         <div
           class="node css-12"
-          style="top: 410.20000000000005px; left: -140px;"
+          style="top: 390.20000000000005px; left: -140px;"
         >
           <div
             class="css-25"
@@ -6232,7 +6232,7 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
         </div>
         <div
           class="node css-12"
-          style="top: 533.8000000000001px; left: -140px;"
+          style="top: 513.8000000000001px; left: -140px;"
         >
           <div
             class="css-25"
@@ -6320,7 +6320,7 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
         </div>
         <div
           class="node css-12"
-          style="top: 657.4000000000001px; left: -140px;"
+          style="top: 617.4000000000001px; left: -140px;"
         >
           <div
             class="css-25"
@@ -6384,7 +6384,7 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
                           class="css-33"
                         >
                           <i
-                            class="fw-bi-function-flow"
+                            class="fw-bi-open-in"
                             style="font-size: 16px;"
                           />
                         </div>
@@ -6428,7 +6428,7 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
         </div>
         <div
           class="node css-12"
-          style="top: 781.0000000000001px; left: -140px;"
+          style="top: 721.0000000000001px; left: -140px;"
         >
           <div
             class="css-39"
@@ -6576,7 +6576,7 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
         </div>
         <div
           class="node css-12"
-          style="top: 901.0000000000001px; left: -32.5px;"
+          style="top: 841.0000000000001px; left: -32.5px;"
         >
           <div
             class="css-44"
@@ -6675,7 +6675,7 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
         </div>
         <div
           class="node css-12"
-          style="top: 1066px; left: -616px;"
+          style="top: 1006.0000000000001px; left: -616px;"
         >
           <div
             class="css-49"
@@ -6767,7 +6767,7 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
         </div>
         <div
           class="node css-12"
-          style="top: 1168px; left: -730px;"
+          style="top: 1108px; left: -730px;"
         >
           <div
             class="css-25"
@@ -6876,7 +6876,7 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
         </div>
         <div
           class="node css-12"
-          style="top: 1066px; left: 52.5px;"
+          style="top: 1006.0000000000001px; left: 52.5px;"
         >
           <div
             class="css-44"
@@ -6976,7 +6976,7 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
         </div>
         <div
           class="node css-12"
-          style="top: 1231px; left: -360px;"
+          style="top: 1171px; left: -360px;"
         >
           <div
             class="css-25"
@@ -7062,7 +7062,7 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
         </div>
         <div
           class="node css-12"
-          style="top: 1231px; left: -20px;"
+          style="top: 1171px; left: -20px;"
         >
           <div
             class="css-25"
@@ -7150,7 +7150,7 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
         </div>
         <div
           class="node css-12"
-          style="top: 1431px; left: -140px;"
+          style="top: 1371px; left: -140px;"
         >
           <div
             class="css-39"
@@ -7402,7 +7402,7 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
         </div>
         <div
           class="node css-12"
-          style="top: 1659px; left: -140px;"
+          style="top: 1599px; left: -140px;"
         >
           <div
             class="css-39"
@@ -7654,7 +7654,7 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
         </div>
         <div
           class="node css-12"
-          style="top: 1887px; left: -26px;"
+          style="top: 1827px; left: -26px;"
         >
           <div
             class="css-49"
@@ -7741,7 +7741,7 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
         </div>
         <div
           class="node css-12"
-          style="top: 2427.6px; left: -156px;"
+          style="top: 2367.6px; left: -156px;"
         >
           <div
             class="css-13"
@@ -7817,7 +7817,7 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
         </div>
         <div
           class="node css-12"
-          style="top: 2125.6px; left: -156px;"
+          style="top: 2065.6px; left: -156px;"
         >
           <div
             class="css-81"
@@ -7906,7 +7906,7 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
         </div>
         <div
           class="node css-12"
-          style="top: 2629.6px; left: -140px;"
+          style="top: 2569.6px; left: -140px;"
         >
           <div
             class="css-25"
@@ -7991,7 +7991,7 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
         </div>
         <div
           class="node css-12"
-          style="top: 2753.2px; left: -26px;"
+          style="top: 2673.2px; left: -26px;"
         >
           <div
             class="css-49"
@@ -8093,7 +8093,7 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
         </div>
         <div
           class="node css-12"
-          style="top: 2855.2px; left: -32.5px;"
+          style="top: 2775.2px; left: -32.5px;"
         >
           <div
             class="css-44"
@@ -8192,7 +8192,7 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
         </div>
         <div
           class="node css-12"
-          style="top: 3020.2px; left: -310px;"
+          style="top: 2940.2px; left: -310px;"
         >
           <div
             class="css-25"
@@ -8278,7 +8278,7 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
         </div>
         <div
           class="node css-12"
-          style="top: 3020.2px; left: 30px;"
+          style="top: 2940.2px; left: 30px;"
         >
           <div
             class="css-25"
@@ -8364,7 +8364,7 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
         </div>
         <div
           class="node css-12"
-          style="top: 3195.2px; left: -32.5px;"
+          style="top: 3115.2px; left: -32.5px;"
         >
           <div
             class="css-44"
@@ -8463,7 +8463,7 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
         </div>
         <div
           class="node css-12"
-          style="top: 3360.2px; left: -275px;"
+          style="top: 3280.2px; left: -275px;"
         >
           <div
             class="css-25"
@@ -8570,7 +8570,7 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
         </div>
         <div
           class="node css-12"
-          style="top: 1310px; left: -598px;"
+          style="top: 1250px; left: -598px;"
         >
           <div
             class="css-84"
@@ -8591,7 +8591,7 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
         </div>
         <div
           class="node css-12"
-          style="top: 1348px; left: 77px;"
+          style="top: 1288px; left: 77px;"
         >
           <div
             class="css-84"
@@ -8612,7 +8612,7 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
         </div>
         <div
           class="node css-12"
-          style="top: 1231px; left: 380px;"
+          style="top: 1171px; left: 380px;"
         >
           <div
             class="css-84"
@@ -8688,7 +8688,7 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
         </div>
         <div
           class="node css-12"
-          style="top: 1373px; left: -8px;"
+          style="top: 1313px; left: -8px;"
         >
           <div
             class="css-84"
@@ -8709,7 +8709,7 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
         </div>
         <div
           class="node css-12"
-          style="top: 1066px; left: 580px;"
+          style="top: 1006.0000000000001px; left: 580px;"
         >
           <div
             class="css-84"
@@ -8785,7 +8785,7 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
         </div>
         <div
           class="node css-12"
-          style="top: 1989px; left: -176.5px;"
+          style="top: 1929px; left: -176.5px;"
         >
           <div
             class="css-34"
@@ -8812,7 +8812,7 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
         </div>
         <div
           class="node css-12"
-          style="top: 2067.6px; left: -138px;"
+          style="top: 2007.6px; left: -138px;"
         >
           <div
             class="css-84"
@@ -8833,7 +8833,7 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
         </div>
         <div
           class="node css-12"
-          style="top: 2369.6px; left: -138px;"
+          style="top: 2309.6px; left: -138px;"
         >
           <div
             class="css-84"
@@ -8854,7 +8854,7 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
         </div>
         <div
           class="node css-12"
-          style="top: 2227.6px; left: -138px;"
+          style="top: 2167.6px; left: -138px;"
         >
           <div
             class="css-84"
@@ -8930,7 +8930,7 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
         </div>
         <div
           class="node css-12"
-          style="top: 2529.6px; left: -140px;"
+          style="top: 2469.6px; left: -140px;"
         >
           <div
             class="css-92"
@@ -8947,7 +8947,7 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
         </div>
         <div
           class="node css-12"
-          style="top: 1989px; left: 83.5px;"
+          style="top: 1929px; left: 83.5px;"
         >
           <div
             class="css-34"
@@ -8974,7 +8974,7 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
         </div>
         <div
           class="node css-12"
-          style="top: 2075.6px; left: 120px;"
+          style="top: 2015.6px; left: 120px;"
         >
           <div
             class="css-92"
@@ -8991,7 +8991,7 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
         </div>
         <div
           class="node css-12"
-          style="top: 2571.6px; left: -8px;"
+          style="top: 2511.6px; left: -8px;"
         >
           <div
             class="css-84"
@@ -9012,7 +9012,7 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
         </div>
         <div
           class="node css-12"
-          style="top: 3137.2px; left: -8px;"
+          style="top: 3057.2px; left: -8px;"
         >
           <div
             class="css-84"
@@ -9033,7 +9033,7 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
         </div>
         <div
           class="node css-12"
-          style="top: 3477.2px; left: -8px;"
+          style="top: 3397.2px; left: -8px;"
         >
           <div
             class="css-84"
@@ -9054,7 +9054,7 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
         </div>
         <div
           class="node css-12"
-          style="top: 3360.2px; left: 125px;"
+          style="top: 3280.2px; left: 125px;"
         >
           <div
             class="css-84"
@@ -9075,7 +9075,7 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
         </div>
         <div
           class="node css-12"
-          style="top: 3527.2px; left: -8px;"
+          style="top: 3447.2px; left: -8px;"
         >
           <div
             class="css-84"
@@ -9096,7 +9096,7 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
         </div>
         <div
           class="node css-12"
-          style="top: 3687.2px; left: -10px;"
+          style="top: 3607.2px; left: -10px;"
         >
           <div
             class="css-92"
