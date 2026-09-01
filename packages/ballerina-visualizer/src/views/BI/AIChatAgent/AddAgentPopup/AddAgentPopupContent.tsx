@@ -17,9 +17,9 @@
  */
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Button, Codicon, Icon } from "@wso2/ui-toolkit";
+import { Button, Codicon, Icon, ProgressRing, ThemeColors } from "@wso2/ui-toolkit";
 import { ConnectorIcon } from "@wso2/bi-diagram";
-import { AvailableNode, EVENT_TYPE, FlowNode, LineRange, isDefaultModelProviderExpr } from "@wso2/ballerina-core";
+import { AvailableNode, BISearchResponse, EVENT_TYPE, FlowNode, LineRange, isDefaultModelProviderExpr } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { cloneDeep, debounce } from "lodash";
 import ButtonCard from "../../../../components/ButtonCard";
@@ -28,6 +28,7 @@ import { FlowNodeForm } from "../../Forms/FlowNodeForm";
 import { fetchAgentNodeTemplate, getEndOfFileLineRange, getNodeTemplate } from "../utils";
 import { AgentDefinitionForm } from "../AgentDefinitionForm";
 import { AgentInfoCard } from "./AgentInfoCard";
+import { PackageAgentsView } from "./PackageAgentsView";
 import {
     AgentDefinitionFormContainer,
     AgentOptionCard,
@@ -36,6 +37,7 @@ import {
     AgentOptionIcon,
     AgentOptionTitle,
     AgentsGrid,
+    AgentsLoadingCard,
     ArrowIcon,
     EmptyState,
     FilterButton,
@@ -54,7 +56,7 @@ import {
 const AGENT_FILE_NAME = "agents.bal";
 
 type AgentFilter = "All" | "Project" | "Organization";
-export type AddAgentView = "gallery" | "configure" | "create" | "createDefinition";
+export type AddAgentView = "gallery" | "package" | "configure" | "create" | "createDefinition";
 
 export interface AddAgentPopupContentProps {
     projectPath: string;
@@ -70,6 +72,12 @@ export interface AddAgentPopupContentProps {
     onAgentSelectedForDependency?: (agent: AvailableNode) => void;
     onGenericAgentSelected?: () => void;
 }
+
+const toAgents = (model: BISearchResponse): AvailableNode[] =>
+    (model.categories ?? []).flatMap((category) => (category.items ?? []) as AvailableNode[]);
+
+const moduleId = (agent: AvailableNode): string =>
+    `${agent.codedata.org}/${agent.codedata.module}:${agent.codedata.version}`;
 
 const FILTER_TO_SOURCE: Record<AgentFilter, string> = {
     All: "all",
@@ -96,7 +104,10 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
     const [searchText, setSearchText] = useState("");
     const [filterType, setFilterType] = useState<AgentFilter>("All");
     const [agents, setAgents] = useState<AvailableNode[]>([]);
+    const [packageAgents, setPackageAgents] = useState<AvailableNode[]>([]);
+    const [isExpanding, setIsExpanding] = useState(false);
     const [isSearching, setIsSearching] = useState(false);
+    const [isLoadingOrgAgents, setIsLoadingOrgAgents] = useState(false);
     const [isWorkspace, setIsWorkspace] = useState(false);
     const searchRequestRef = useRef(0);
     const previousFilterRef = useRef<AgentFilter | undefined>(undefined);
@@ -180,6 +191,33 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
         };
     }, [view, pendingAgent, rpcClient, projectPath, loadAttempt]);
 
+    // Org packages need a Central round trip, so they are merged in after the offline results render.
+    const loadOrganizationAgents = (request: number) => {
+        setIsLoadingOrgAgents(true);
+        rpcClient
+            .getBIDiagramRpcClient()
+            .search({
+                filePath: projectPath,
+                queryMap: { limit: 60, source: FILTER_TO_SOURCE.Organization },
+                searchKind: "AGENT",
+            })
+            .then((model) => {
+                if (request !== searchRequestRef.current) {
+                    return;
+                }
+                const orgAgents = toAgents(model);
+                setAgents((current) => {
+                    const seen = new Set(current.map(moduleId));
+                    return [...current, ...orgAgents.filter((agent) => !seen.has(moduleId(agent)))];
+                });
+            })
+            .finally(() => {
+                if (request === searchRequestRef.current) {
+                    setIsLoadingOrgAgents(false);
+                }
+            });
+    };
+
     const runSearch = (text: string, filter: AgentFilter) => {
         const request = ++searchRequestRef.current;
         setIsSearching(true);
@@ -196,7 +234,10 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
             })
             .then((model) => {
                 if (request === searchRequestRef.current) {
-                    setAgents((model.categories ?? []).flatMap((category) => (category.items ?? []) as AvailableNode[]));
+                    setAgents(toAgents(model));
+                    if (!text && filter === "All") {
+                        loadOrganizationAgents(request);
+                    }
                 }
             })
             .finally(() => {
@@ -215,6 +256,7 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
         }
         const filterChanged = previousFilterRef.current !== filterType;
         previousFilterRef.current = filterType;
+        setIsLoadingOrgAgents(false);
         if (!searchText || filterChanged) {
             runSearch(searchText, filterType);
             return;
@@ -291,13 +333,45 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
         </LoaderWrapper>
     );
 
+    const openAgent = (agent: AvailableNode) => {
+        onPendingAgentChange(agent);
+        onViewChange("configure");
+    };
+
+    // Central results name a package; expand it so the user picks which definition to instantiate.
+    // Resolve before navigating: a single-definition package should go straight to its form.
+    const expandPackage = async (agent: AvailableNode) => {
+        const { org, module, version } = agent.codedata;
+        setIsExpanding(true);
+        try {
+            const model = await rpcClient.getBIDiagramRpcClient().search({
+                filePath: projectPath,
+                queryMap: { package: `${org}/${module}:${version}` },
+                searchKind: "AGENT",
+            });
+            const found = toAgents(model);
+            if (found.length === 1) {
+                openAgent(found[0]);
+                return;
+            }
+            setPackageAgents(found);
+            onPendingAgentChange(agent);
+            onViewChange("package");
+        } finally {
+            setIsExpanding(false);
+        }
+    };
+
     const handleSelectAgent = (agent: AvailableNode) => {
         if (dependencyMode) {
             onAgentSelectedForDependency?.(agent);
             return;
         }
-        onPendingAgentChange(agent);
-        onViewChange("configure");
+        if (!agent.codedata.object) {
+            expandPackage(agent);
+            return;
+        }
+        openAgent(agent);
     };
 
     if (view === "createDefinition") {
@@ -347,6 +421,17 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
                     </LoaderWrapper>
                 )}
             </FormContainer>
+        );
+    }
+
+    if (view === "package" && pendingAgent) {
+        return (
+            <PackageAgentsView
+                packageNode={pendingAgent}
+                agents={packageAgents}
+                isLoading={isExpanding}
+                onSelect={openAgent}
+            />
         );
     }
 
@@ -436,7 +521,7 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
                         </FilterButton>
                     </FilterButtons>
                 </SectionHeader>
-                {isSearching && agents.length === 0 ? (
+                {isExpanding || ((isSearching || isLoadingOrgAgents) && agents.length === 0) ? (
                     <LoaderWrapper>
                         <RelativeLoader />
                     </LoaderWrapper>
@@ -474,6 +559,11 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
                                 />
                             );
                         })}
+                        {isLoadingOrgAgents && (
+                            <AgentsLoadingCard>
+                                <ProgressRing color={ThemeColors.PRIMARY} sx={{ width: 16, height: 16 }} />
+                            </AgentsLoadingCard>
+                        )}
                     </AgentsGrid>
                 )}
             </ResultsSection>
