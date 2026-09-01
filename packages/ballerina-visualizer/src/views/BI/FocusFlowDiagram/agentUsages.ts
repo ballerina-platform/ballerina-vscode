@@ -20,10 +20,14 @@ import {
     AgentTriggerDeletionScope,
     AgentUsage,
     AgentUsageTrigger,
+    AgentUsageTriggerListener,
     AgentUsageTryIt,
+    CDFunction,
     CDLocation,
     CDModel,
+    CDResourceFunction,
     CDService,
+    FlowNode,
     NodePosition,
 } from "@wso2/ballerina-core";
 import { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
@@ -112,18 +116,30 @@ function triggerFor(model: CDModel, service: CDService): AgentUsageTrigger {
     };
 }
 
+function agentHelpers(service: CDService, uuid: string): AgentUsageTriggerListener[] {
+    return (service.functions ?? [])
+        .filter((fn) => fn.connections?.includes(uuid))
+        .map((fn) => ({ symbol: fn.name, documentUri: fn.location.filePath, position: toPosition(fn.location) }));
+}
+
 function entryPointTrigger(
     service: CDService,
     trigger: AgentUsageTrigger,
+    uuid: string,
+    scope: AgentTriggerDeletionScope,
     label: string,
     location: CDLocation
 ): AgentUsageTrigger {
+    const entryPoints = [...(service.resourceFunctions ?? []), ...(service.remoteFunctions ?? [])];
+    const wired = entryPoints.filter((fn) => (fn.connections?.length ?? 0) > 0 || (fn.workflows?.length ?? 0) > 0);
     return {
         ...trigger,
         entryPoint: { label, documentUri: location.filePath, position: toPosition(location) },
-        orphansService:
-            (service.resourceFunctions?.length ?? 0) + (service.remoteFunctions?.length ?? 0) === 1 &&
-            (service.functions?.length ?? 0) === 0,
+        orphansService: scope === "ENTRY_POINT_BODY"
+            ? wired.length === 1 && Boolean(wired[0].connections?.includes(uuid))
+            : entryPoints.length === 1 && (service.functions?.length ?? 0) === 0,
+        scope,
+        helpers: scope === "ENTRY_POINT_BODY" ? agentHelpers(service, uuid) : undefined,
     };
 }
 
@@ -158,9 +174,10 @@ function usagesForService(
     const name = serviceName(service);
     const isAgentChat = modulePrefix(service.type) === "ai";
     const trigger = scope ? triggerFor(model, service) : undefined;
-    const serviceTrigger = scope === "ENTRY_POINT" ? undefined : trigger;
+    const memberScoped = scope === "ENTRY_POINT" || scope === "ENTRY_POINT_BODY";
+    const serviceTrigger = memberScoped ? undefined : trigger;
     const scopedTrigger = (rowLabel: string, location: CDLocation) =>
-        scope === "ENTRY_POINT" ? entryPointTrigger(service, trigger, rowLabel, location) : trigger;
+        memberScoped ? entryPointTrigger(service, trigger, uuid, scope, rowLabel, location) : trigger;
     const tryIt = tryItFor(model, service);
     const isHttp = modulePrefix(service.type) === "http";
     const usages: AgentUsage[] = [];
@@ -247,14 +264,10 @@ function isGeneratedChatService(filePath?: string): boolean {
 }
 
 function groupByChannel(services: CDService[]): CDService[] {
-    const order = new Map<string, number>();
-    services.forEach((service) => {
-        const channel = modulePrefix(service.type);
-        if (!order.has(channel)) {
-            order.set(channel, order.size);
-        }
-    });
-    return [...services].sort((a, b) => order.get(modulePrefix(a.type)) - order.get(modulePrefix(b.type)));
+    return [...services].sort((a, b) =>
+        modulePrefix(a.type).localeCompare(modulePrefix(b.type)) ||
+        (a.location?.filePath ?? "").localeCompare(b.location?.filePath ?? "") ||
+        (a.location?.startLine?.line ?? 0) - (b.location?.startLine?.line ?? 0));
 }
 
 export function findAgentUsages(
@@ -290,8 +303,8 @@ export function findAgentUsages(
 
 const usageCache = new Map<string, AgentUsage[]>();
 
-export function usageCacheKey(projectPath: string, filePath: string, startLine: number): string {
-    return `${projectPath}::${filePath}::${startLine}`;
+export function usageCacheKey(projectPath: string, filePath: string, agentName: string): string {
+    return `${projectPath}::${filePath}::${agentName}`;
 }
 
 export function getCachedUsages(key: string): AgentUsage[] | undefined {
@@ -360,4 +373,134 @@ export async function resolveTriggerScopes(
         }
     }
     return resolved;
+}
+
+export function startLineOf(node: FlowNode): number {
+    return node.codedata?.lineRange?.startLine?.line ?? 0;
+}
+
+function escapeRegExp(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+export function namesHelper(node: FlowNode, helper: string): boolean {
+    const expression = node.properties?.expression?.value;
+    if (typeof expression !== "string") {
+        return false;
+    }
+    return new RegExp(`(^|[^\\w.])(self\\.)?${escapeRegExp(helper)}\\s*\\(`).test(expression);
+}
+
+export function findServiceHelperPosition(
+    model: CDModel,
+    service: string,
+    helper: string,
+    filePath: string
+): NodePosition | undefined {
+    const owner = (model?.services ?? []).find((candidate) => serviceName(candidate) === service);
+    const fn = (owner?.functions ?? []).find(
+        (candidate) => candidate.name === helper && samePath(candidate.location?.filePath ?? "", filePath));
+    return fn ? toPosition(fn.location) : undefined;
+}
+
+export function deleteComponentAt(
+    rpcClient: BallerinaRpcClient,
+    name: string,
+    documentUri: string,
+    position: NodePosition
+): Promise<unknown> {
+    return rpcClient.getBIDiagramRpcClient().deleteByComponentInfo({
+        filePath: documentUri,
+        component: {
+            name, filePath: documentUri,
+            startLine: position.startLine, startColumn: position.startColumn,
+            endLine: position.endLine, endColumn: position.endColumn,
+        },
+    });
+}
+
+export async function deleteEachResolved(
+    rpcClient: BallerinaRpcClient,
+    targets: AgentUsageTriggerListener[],
+    locate: (model: CDModel, target: AgentUsageTriggerListener) => NodePosition | undefined
+): Promise<void> {
+    for (const target of targets) {
+        const location = await rpcClient.getVisualizerLocation();
+        const model = await rpcClient.getBIDiagramRpcClient()
+            .getDesignModel({ projectPath: location?.projectPath });
+        const position = locate(model?.designModel, target);
+        if (position) {
+            await deleteComponentAt(rpcClient, target.symbol, target.documentUri, position);
+        }
+    }
+}
+
+async function otherEntryPoints(
+    rpcClient: BallerinaRpcClient,
+    trigger: AgentUsageTrigger
+): Promise<(CDResourceFunction | CDFunction)[]> {
+    const location = await rpcClient.getVisualizerLocation();
+    const model = (await rpcClient.getBIDiagramRpcClient()
+        .getDesignModel({ projectPath: location?.projectPath }))?.designModel;
+    const service = (model?.services ?? []).find((candidate) => serviceName(candidate) === trigger.serviceName);
+    return [...(service?.resourceFunctions ?? []), ...(service?.remoteFunctions ?? [])].filter(
+        (fn) =>
+            !samePath(fn.location.filePath, trigger.entryPoint.documentUri) ||
+            fn.location.startLine.line !== trigger.entryPoint.position.startLine
+    );
+}
+
+async function isHelperCalledElsewhere(
+    rpcClient: BallerinaRpcClient,
+    siblings: (CDResourceFunction | CDFunction)[],
+    helperSymbol: string
+): Promise<boolean> {
+    for (const sibling of siblings) {
+        const response = await rpcClient.getBIDiagramRpcClient().getFlowModel({
+            filePath: sibling.location.filePath,
+            startLine: sibling.location.startLine,
+            endLine: sibling.location.endLine,
+        });
+        if ((response?.flowModel?.nodes ?? []).some((node) => namesHelper(node, helperSymbol))) {
+            return true;
+        }
+    }
+    return false;
+}
+
+export async function clearAgentCallFromHandler(
+    rpcClient: BallerinaRpcClient,
+    trigger: AgentUsageTrigger
+): Promise<void> {
+    const entryPoint = trigger.entryPoint;
+    const helpers = trigger.helpers ?? [];
+    const response = await rpcClient.getBIDiagramRpcClient().getFlowModel({
+        filePath: entryPoint.documentUri,
+        startLine: { line: entryPoint.position.startLine, offset: entryPoint.position.startColumn },
+        endLine: { line: entryPoint.position.endLine, offset: entryPoint.position.endColumn },
+    });
+    const calls = (response?.flowModel?.nodes ?? [])
+        .filter((node) => helpers.some((helper) => namesHelper(node, helper.symbol)))
+        .sort((a, b) => startLineOf(b) - startLineOf(a));
+    if (calls.length === 0) {
+        throw new Error(`no agent call found in ${entryPoint.label}`);
+    }
+
+    const referencedHelpers = helpers.filter((helper) => calls.some((node) => namesHelper(node, helper.symbol)));
+    const siblings = trigger.orphansService ? [] : await otherEntryPoints(rpcClient, trigger);
+    const deletableHelpers: AgentUsageTriggerListener[] = [];
+    for (const helper of referencedHelpers) {
+        if (!(await isHelperCalledElsewhere(rpcClient, siblings, helper.symbol))) {
+            deletableHelpers.push(helper);
+        }
+    }
+
+    for (const node of calls) {
+        await rpcClient.getBIDiagramRpcClient().deleteFlowNode({ filePath: entryPoint.documentUri, flowNode: node });
+    }
+
+    await deleteEachResolved(
+        rpcClient,
+        deletableHelpers,
+        (model, helper) => findServiceHelperPosition(model, trigger.serviceName, helper.symbol, helper.documentUri));
 }

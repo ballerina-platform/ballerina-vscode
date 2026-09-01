@@ -212,6 +212,8 @@ const MainPanel = () => {
     const navKeyRef = useRef<number>(0);
     const remountKeyRef = useRef<number>(0);
     const previousNavTargetRef = useRef<string | undefined>(undefined);
+    const agentFocusTargetRef = useRef<string | undefined>(undefined);
+    const agentFocusIdRef = useRef<number>(0);
 
     useSuppressAgentStatusOrb(viewHidesAgentStatusOrb(activeView) || !!viewError);
     useTraceAnimationBridge();
@@ -349,8 +351,15 @@ const MainPanel = () => {
                             if ((await fetchProductMode(rpcClient)) === ProductMode.AGENT_BUILDER) {
                                 const { AgentBuilderOverview } = await import("./views/BI/AgentBuilderOverview");
                                 if (isStaleNavigation()) return;
-                                const agentFocus = value.documentUri && value.position
-                                    ? { path: value.documentUri, startLine: value.position.startLine, requestId: navKey }
+                                const agentFocusTarget = value.documentUri && value.position
+                                    ? `${value.documentUri}::${value.position.startLine}`
+                                    : undefined;
+                                if (agentFocusTarget !== agentFocusTargetRef.current) {
+                                    agentFocusTargetRef.current = agentFocusTarget;
+                                    agentFocusIdRef.current += 1;
+                                }
+                                const agentFocus = agentFocusTarget
+                                    ? { path: value.documentUri, startLine: value.position.startLine, requestId: agentFocusIdRef.current }
                                     : undefined;
                                 setViewComponent(
                                     <AgentBuilderOverview projectPath={value.projectPath} agentFocus={agentFocus} />

@@ -1206,15 +1206,44 @@ public class AgentTriggerGenerationTest {
     }
 
     @Test
+    public void testAFileTriggerReachesTheAgentThroughTheSameGenericChannel() {
+        String src = generateForEvent("ftp", "watcherAgent", "Service", "onFileJson", true);
+
+        Assert.assertTrue(src.contains("service ftp:Service on"),
+                "a file connector with a single service type should still name it: " + src);
+        Assert.assertTrue(src.contains("remote function onFileJson(json content)"),
+                "the content payload is composed from the schema's binding template, just as an event's is: "
+                        + src);
+        Assert.assertTrue(src.contains("_ = start self.runAgentOnFileJson(content);"),
+                "the handler should offload rather than block the listener: " + src);
+        Assert.assertTrue(src.contains("function runAgentOnFileJson(json content)"),
+                "the reply method should take the handler's own parameters: " + src);
+        Assert.assertFalse(src.contains("ftp:FileInfo") || src.contains("ftp:Caller"),
+                "fileInfo/caller are opt-in flags, off by default, same mechanism as solace's caller: " + src);
+    }
+
+    @Test
+    public void testAFileTriggerIsOfferedToAnAgentAsItsOwnKind() {
+        Assert.assertEquals(AgentTriggerChannels.kindOf("ballerina", "ftp", "file"), "FILE",
+                "file integration reuses the same generic channel as event sources, distinguished only by kind");
+        Assert.assertEquals(AgentTriggerChannels.kindOf("ballerina", "smb", "file"), "FILE");
+        Assert.assertEquals(AgentTriggerChannels.kindOf("ballerina", "file", "file"), "FILE");
+        Assert.assertEquals(AgentTriggerChannels.kindOf("ballerinax", "azure.storage.files", "file"), "FILE");
+    }
+
+    @Test
     public void testOnlyAnHttpEndpointIsDeletableOnItsOwn() {
         Assert.assertEquals(stamped("ballerina", "http", "agent-http").deletionScope(), "ENTRY_POINT",
                 "an http resource returns the answer inline, so it owns no reply method to orphan");
         Assert.assertEquals(stamped("ballerinax", "telegram", "event").deletionScope(), "SERVICE",
                 "a chat channel's handler offloads to a reply method and a client field in the same service");
-        Assert.assertEquals(stamped("ballerinax", "kafka", "event").deletionScope(), "SERVICE",
-                "an event handler offloads the same way, and it is not registered anywhere");
-        Assert.assertNull(stamped("ballerina", "ftp", "file").deletionScope(),
-                "a trigger that cannot call an agent carries no scope to act on");
+        Assert.assertEquals(stamped("ballerinax", "kafka", "event").deletionScope(), "ENTRY_POINT_BODY",
+                "an event handler is required by its service type, so removing the agent empties it instead");
+        Assert.assertEquals(stamped("ballerinax", "trigger.github", "event").deletionScope(), "ENTRY_POINT_BODY",
+                "one wired handler among required siblings must not take the whole service with it");
+        Assert.assertEquals(stamped("ballerina", "ftp", "file").deletionScope(), "ENTRY_POINT_BODY",
+                "a file trigger is handled the same way an event source is: the handler is required by its "
+                        + "service type, so removing the agent empties it instead");
     }
 
     private static TriggerBasicInfo stamped(String orgName, String moduleName, String type) {
@@ -1223,10 +1252,10 @@ public class AgentTriggerGenerationTest {
     }
 
     @Test
-    public void testAConnectorThatIsNotAnEventSourceIsNotOffered() {
-        Assert.assertNull(AgentTriggerChannels.kindOf("ballerina", "ftp", "file"),
-                "file integration is a separate surface and has not been taken on");
-        Assert.assertTrue(AgentTriggerChannels.forModule("ballerina", "ftp").isEmpty(),
+    public void testAConnectorThatIsNeitherAnEventNorFileSourceIsNotOffered() {
+        Assert.assertNull(AgentTriggerChannels.kindOf("ballerina", "mcp", "mcp"),
+                "an MCP service is consumed by agents, not a caller of one, and has not been taken on");
+        Assert.assertTrue(AgentTriggerChannels.forModule("ballerina", "mcp").isEmpty(),
                 "the listing and the builder must agree on what is offerable");
     }
 

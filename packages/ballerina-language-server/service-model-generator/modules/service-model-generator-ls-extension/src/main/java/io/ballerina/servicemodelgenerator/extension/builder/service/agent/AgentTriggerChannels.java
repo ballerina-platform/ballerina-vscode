@@ -22,6 +22,7 @@ import io.ballerina.servicemodelgenerator.extension.connector.TriggerModelReader
 import io.ballerina.servicemodelgenerator.extension.model.TriggerBasicInfo;
 
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -32,6 +33,7 @@ import java.util.Optional;
 public final class AgentTriggerChannels {
 
     private static final String EVENT_TRIGGER_KIND = "event";
+    private static final String FILE_TRIGGER_KIND = "file";
 
     private static final Map<String, AgentTriggerChannel> BESPOKE = Map.of(
             key(AiChatChannel.ORG_NAME, AiChatChannel.MODULE_NAME), new AiChatChannel(),
@@ -57,8 +59,9 @@ public final class AgentTriggerChannels {
         }
         return TriggerModelReader.getInstance()
                 .getSchemaDrivenTriggerModel(orgName, moduleName, version, isLocalRepository)
-                .filter(model -> EVENT_TRIGGER_KIND.equals(model.kind()))
-                .map(model -> new EventAgentTriggerChannel(moduleName));
+                .map(model -> schemaAgentKind(model.kind()))
+                .filter(Objects::nonNull)
+                .map(kind -> new EventAgentTriggerChannel(moduleName, kind));
     }
 
     /** Stamps a listed trigger with how it calls an agent, from the scalars the row already holds. */
@@ -78,11 +81,23 @@ public final class AgentTriggerChannels {
         if (bespoke != null) {
             return bespoke;
         }
-        return EVENT_TRIGGER_KIND.equals(triggerKind) ? new EventAgentTriggerChannel(moduleName) : null;
+        AgentTriggerKind kind = schemaAgentKind(triggerKind);
+        return kind == null ? null : new EventAgentTriggerChannel(moduleName, kind);
     }
 
     private static AgentTriggerChannel bespoke(String orgName, String moduleName) {
         return orgName == null || moduleName == null ? null : BESPOKE.get(key(orgName, moduleName));
+    }
+
+    /** Every schema-driven trigger is a caller; only its own {@code kind} says how it calls the agent. */
+    private static AgentTriggerKind schemaAgentKind(String triggerKind) {
+        if (EVENT_TRIGGER_KIND.equals(triggerKind)) {
+            return AgentTriggerKind.EVENT;
+        }
+        if (FILE_TRIGGER_KIND.equals(triggerKind)) {
+            return AgentTriggerKind.FILE;
+        }
+        return null;
     }
 
     private static String key(String orgName, String moduleName) {

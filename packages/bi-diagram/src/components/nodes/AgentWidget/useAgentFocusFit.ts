@@ -103,13 +103,12 @@ export function useAgentFocusFit(diagramEngine: DiagramEngine, isAgentFocusView:
             }
             const agentNode = findAgentFocusNode(nodes);
             positionAgentFocusNode(agentNode);
-            // Measured after paint: before it, the node still reports its previous size.
-            requestAnimationFrame(() => {
+            requestAnimationFrame(() => requestAnimationFrame(() => {
                 fitToContainer(false);
                 diagramEngine.repaintCanvas();
                 setCanvasVisible(true);
                 watchNodeSize(agentNode);
-            });
+            }));
         },
         [isAgentFocusView, fitToContainer, diagramEngine, watchNodeSize]
     );

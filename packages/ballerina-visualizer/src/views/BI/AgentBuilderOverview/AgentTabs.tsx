@@ -213,7 +213,7 @@ const GLYPH_ICON_SX = { fontSize: ICON_SIZE, color: "inherit" };
 const ACTION_ICON_SX = { fontSize: 16, color: "inherit" };
 
 export function agentKey(agent: ProjectStructureArtifactResponse): string {
-    return `${agent.path}::${agent.position?.startLine ?? 0}`;
+    return `${agent.path}::${agent.name}`;
 }
 
 function AgentGlyph() {
