@@ -665,12 +665,17 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
     ];
 
     // Row 0 is the model circle on the right (and the first left item, if any).
+    // Must match SizingVisitor.endVisitDurableAgentRun's formula exactly — this is the
+    // viewBox height for the side-connector SVGs, and the box's actual rendered height comes
+    // from viewState.ch (set by that visitor). Any mismatch stretches/offsets the SVG
+    // coordinate space, misaligning the connector lines with the box edge.
     const numberOfRows = Math.max(leftItems.length, rightItems.length + 1);
     const containerHeight =
         NODE_HEIGHT +
         AGENT_NODE_TOOL_SECTION_GAP +
         AGENT_NODE_TOOL_GAP * 2 +
-        (numberOfRows - 1) * (NODE_HEIGHT + AGENT_NODE_TOOL_GAP);
+        (numberOfRows - 1) * (NODE_HEIGHT + AGENT_NODE_TOOL_GAP) +
+        AGENT_BOX_BOTTOM_AFFORDANCE_GAP;
 
     // Vertical offset of a capability row; row 0 aligns with the model circle.
     const rowOffsetY = (row: number) =>
