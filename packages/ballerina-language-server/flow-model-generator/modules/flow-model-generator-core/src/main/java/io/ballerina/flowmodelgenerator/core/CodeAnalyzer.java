@@ -2189,45 +2189,55 @@ public class CodeAnalyzer extends NodeVisitor {
     private void addNormalizedRetryPolicyProperties(String rawValue) {
         String dropdownValue = ActivityCallBuilder.NO_RETRY_VALUE;
         String maxRetries = "", retryDelay = "", retryBackoff = "", maxRetryDelay = "";
-        String retryUserRoles = "";
+        ActivityCallBuilder.ReviewFormValues review = ActivityCallBuilder.ReviewFormValues.empty();
 
         if (rawValue != null && !rawValue.isBlank()) {
             String trimmed = rawValue.trim();
             if (trimmed.startsWith("{")) {
-                dropdownValue = ActivityCallBuilder.AUTO_RETRY_VALUE;
+                // Both policies are records; `userRoles` is what only a review has — the same
+                // rule the compiler plugin and the runtime apply.
                 Map<String, String> fields = parseSimpleRecord(rawValue);
-                maxRetries = fields.getOrDefault(ActivityCallBuilder.MAX_RETRIES_KEY, "");
-                retryDelay = fields.getOrDefault(ActivityCallBuilder.RETRY_DELAY_KEY, "");
-                retryBackoff = fields.getOrDefault(ActivityCallBuilder.RETRY_BACKOFF_KEY, "");
-                maxRetryDelay = fields.getOrDefault(ActivityCallBuilder.MAX_RETRY_DELAY_KEY, "");
+                if (fields.containsKey(USER_ROLES_FIELD)) {
+                    dropdownValue = ActivityCallBuilder.MANUAL_RETRY_VALUE;
+                    review = new ActivityCallBuilder.ReviewFormValues(
+                            fields.getOrDefault(USER_ROLES_FIELD, ""),
+                            unquoted(fields.get("taskName")),
+                            unquoted(fields.get("title")),
+                            unquoted(fields.get("description")),
+                            fields.getOrDefault("timeout", ""));
+                } else {
+                    dropdownValue = ActivityCallBuilder.AUTO_RETRY_VALUE;
+                    maxRetries = fields.getOrDefault(ActivityCallBuilder.MAX_RETRIES_KEY, "");
+                    retryDelay = fields.getOrDefault(ActivityCallBuilder.RETRY_DELAY_KEY, "");
+                    retryBackoff = fields.getOrDefault(ActivityCallBuilder.RETRY_BACKOFF_KEY, "");
+                    maxRetryDelay = fields.getOrDefault(ActivityCallBuilder.MAX_RETRY_DELAY_KEY, "");
+                }
             } else if (trimmed.equals("()") || trimmed.contains("NoRetry")
                     || trimmed.contains("NoAutomaticRetry")) {
                 dropdownValue = ActivityCallBuilder.NO_RETRY_VALUE;
-            } else if (trimmed.contains("ManualRetry") || trimmed.contains("HumanReview")
-                    || trimmed.equals("[]")) {
-                // The sentinel forms of Human Review with no roles attached: any role may decide.
-                dropdownValue = ActivityCallBuilder.MANUAL_RETRY_VALUE;
-            } else if (isRoleLiteral(trimmed)) {
-                // Human Review scoped to reviewer role(s): a string or a list of strings.
-                dropdownValue = ActivityCallBuilder.MANUAL_RETRY_VALUE;
-                retryUserRoles = trimmed;
             } else {
                 // Any other expression — a const, variable or call producing the policy — is not a
                 // shape the form can edit. Carry it as the dropdown value so it round-trips
-                // verbatim instead of being read as reviewer roles and re-emitted as a string.
+                // verbatim instead of being reinterpreted and re-emitted as something else.
                 dropdownValue = trimmed;
             }
         }
 
         ActivityCallBuilder.addRetryPolicyFormProperties(nodeBuilder, dropdownValue,
-                maxRetries, retryDelay, retryBackoff, maxRetryDelay, retryUserRoles);
+                maxRetries, retryDelay, retryBackoff, maxRetryDelay, review);
     }
 
-    // Whether the retryPolicy source is a literal reviewer role (a string) or role list, the two
-    // shapes the Human Review form field edits.
-    private static boolean isRoleLiteral(String expression) {
-        return (expression.startsWith("\"") && expression.endsWith("\""))
-                || (expression.startsWith("[") && expression.endsWith("]"));
+    /** The field that tells a HumanReview from an AutoRetry. */
+    private static final String USER_ROLES_FIELD = "userRoles";
+
+    /** A string literal as the form shows it — the quotes belong to the source, not the value. */
+    private static String unquoted(String literal) {
+        if (literal == null) {
+            return "";
+        }
+        String value = literal.trim();
+        return value.length() >= 2 && value.startsWith("\"") && value.endsWith("\"")
+                ? value.substring(1, value.length() - 1) : value;
     }
 
     /** Parses a simple Ballerina record literal {@code {key: value, ...}} into a string map. */
