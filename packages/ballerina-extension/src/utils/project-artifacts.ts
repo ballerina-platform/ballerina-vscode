@@ -766,8 +766,15 @@ async function populateLocalConnectors(projectDir: string, response: ProjectStru
  * tree (glyph -> kind default) against the shared brand-icon registry in @wso2/ballerina-core (the
  * single source shared with the Add-Artifact gallery and the component diagram): the LS-declared
  * `icon.glyph`, then the registry brand glyph keyed by module, then the `kind` default.
+ *
+ * A real theme-aware SVG pair (both `icon.light` and `icon.dark` present) is left to render via
+ * `iconLight`/`iconDark` instead: falling through to the kind-default glyph here would give the
+ * consumer a non-empty `icon` it prefers over the colored SVG, silently discarding it.
  */
-function resolveEntryGlyph(icon: IconDescriptor | undefined, module: string | undefined): string {
+function resolveEntryGlyph(icon: IconDescriptor | undefined, module: string | undefined): string | undefined {
+    if (icon?.light && icon?.dark) {
+        return icon?.glyph;
+    }
     return icon?.glyph
         ?? (icon?.source === "trigger-ui-metadata" ? undefined : resolveBrandIcon(module)?.glyph)
         ?? resolveKindDefaultIcon(icon?.kind).glyph;

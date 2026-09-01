@@ -27,7 +27,6 @@ import io.ballerina.centralconnector.response.FunctionsResponse;
 import io.ballerina.centralconnector.response.Listeners;
 import io.ballerina.centralconnector.response.PackageResponse;
 import io.ballerina.centralconnector.response.SymbolResponse;
-import io.ballerina.modelgenerator.commons.trigger.models.ArtifactIcon;
 import io.ballerina.servicemodelgenerator.extension.model.TriggerBasicInfo;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -106,12 +105,8 @@ public class TriggerSearchUtilTest {
         Assert.assertEquals(mqtt.packageName(), "mqtt");
         Assert.assertEquals(mqtt.type(), "event", "results render under Event Integration");
         Assert.assertEquals(mqtt.triggerKind(), "event", "search responses expose the canonical category");
-        Assert.assertTrue(mqtt.icon() instanceof ArtifactIcon);
-        ArtifactIcon icon = (ArtifactIcon) mqtt.icon();
-        Assert.assertEquals(icon.url(), "mqtt-icon");
-        Assert.assertEquals(icon.color(), "#606");
-        Assert.assertEquals(icon.source(), "trigger-ui-metadata");
-        Assert.assertTrue(icon.light().contains("<svg"));
+        Assert.assertEquals(mqtt.icon(), "mqtt-icon",
+                "the trigger list always uses the plain Central icon URL, never bundled SVG");
         Assert.assertEquals(mqtt.listenerProtocol(), "mqtt");
     }
 

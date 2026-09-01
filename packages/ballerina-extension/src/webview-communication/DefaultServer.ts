@@ -293,6 +293,13 @@ export class DefaultServer {
             await waitForLangClientReady();
             return serviceDesigner.getServiceInitModel(p);
         });
+        this.register("getConnectorUpgradeAdvice", async (p) => {
+            await waitForLangClientReady();
+            return serviceDesigner.getConnectorUpgradeAdvice(p);
+        });
+        this.register("pullConnectorUpgrade", async (p) => {
+            return serviceDesigner.pullConnectorUpgrade(p);
+        });
         this.register("getNodeTemplate", async (p) => {
             await waitForLangClientReady();
             return biDiagram.getNodeTemplate(p);

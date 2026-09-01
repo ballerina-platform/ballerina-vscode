@@ -18,9 +18,6 @@
 
 package io.ballerina.servicemodelgenerator.extension.core;
 
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
-import com.google.gson.stream.JsonReader;
 import io.ballerina.centralconnector.RemoteCentral;
 import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.syntax.tree.ClassDefinitionNode;
@@ -38,8 +35,6 @@ import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.modelgenerator.commons.ServiceDatabaseManager;
 import io.ballerina.modelgenerator.commons.ServiceDeclaration;
-import io.ballerina.modelgenerator.commons.trigger.LibraryMetadataReader;
-import io.ballerina.modelgenerator.commons.trigger.models.ArtifactIcon;
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerUISchemaModel;
 import io.ballerina.projects.Document;
 import io.ballerina.projects.Module;
@@ -49,14 +44,18 @@ import io.ballerina.projects.Package;
 import io.ballerina.projects.Project;
 import io.ballerina.servicemodelgenerator.extension.builder.FunctionBuilderRouter;
 import io.ballerina.servicemodelgenerator.extension.builder.ServiceBuilderRouter;
+import io.ballerina.servicemodelgenerator.extension.connector.ConnectorUpgradeAdvisor;
+import io.ballerina.servicemodelgenerator.extension.connector.ConnectorVersionResolver;
 import io.ballerina.servicemodelgenerator.extension.connector.PlatformDependencyEditUtil;
 import io.ballerina.servicemodelgenerator.extension.connector.TriggerModelReader;
+import io.ballerina.servicemodelgenerator.extension.connector.TriggerPropertiesRegistry;
 import io.ballerina.servicemodelgenerator.extension.model.Codedata;
 import io.ballerina.servicemodelgenerator.extension.model.Function;
 import io.ballerina.servicemodelgenerator.extension.model.Listener;
 import io.ballerina.servicemodelgenerator.extension.model.Option;
 import io.ballerina.servicemodelgenerator.extension.model.Service;
 import io.ballerina.servicemodelgenerator.extension.model.ServiceClass;
+import io.ballerina.servicemodelgenerator.extension.model.ServiceInitModel;
 import io.ballerina.servicemodelgenerator.extension.model.TriggerBasicInfo;
 import io.ballerina.servicemodelgenerator.extension.model.TriggerProperty;
 import io.ballerina.servicemodelgenerator.extension.model.Value;
@@ -64,6 +63,7 @@ import io.ballerina.servicemodelgenerator.extension.model.request.AddFieldReques
 import io.ballerina.servicemodelgenerator.extension.model.request.ClassFieldModifierRequest;
 import io.ballerina.servicemodelgenerator.extension.model.request.ClassModelFromSourceRequest;
 import io.ballerina.servicemodelgenerator.extension.model.request.CommonModelFromSourceRequest;
+import io.ballerina.servicemodelgenerator.extension.model.request.ConnectorUpgradeAdviceRequest;
 import io.ballerina.servicemodelgenerator.extension.model.request.CreateClassDependencyRequest;
 import io.ballerina.servicemodelgenerator.extension.model.request.FunctionModelRequest;
 import io.ballerina.servicemodelgenerator.extension.model.request.FunctionModifierRequest;
@@ -84,11 +84,13 @@ import io.ballerina.servicemodelgenerator.extension.model.request.TypesRequest;
 import io.ballerina.servicemodelgenerator.extension.model.request.ValidatePropertyRequest;
 import io.ballerina.servicemodelgenerator.extension.model.response.AddOrGetDefaultListenerResponse;
 import io.ballerina.servicemodelgenerator.extension.model.response.CommonSourceResponse;
+import io.ballerina.servicemodelgenerator.extension.model.response.ConnectorUpgradeAdviceResponse;
 import io.ballerina.servicemodelgenerator.extension.model.response.FunctionFromSourceResponse;
 import io.ballerina.servicemodelgenerator.extension.model.response.FunctionModelResponse;
 import io.ballerina.servicemodelgenerator.extension.model.response.ListenerDiscoveryResponse;
 import io.ballerina.servicemodelgenerator.extension.model.response.ListenerFromSourceResponse;
 import io.ballerina.servicemodelgenerator.extension.model.response.ListenerModelResponse;
+import io.ballerina.servicemodelgenerator.extension.model.response.ModelResolutionIssue;
 import io.ballerina.servicemodelgenerator.extension.model.response.ServiceClassModelResponse;
 import io.ballerina.servicemodelgenerator.extension.model.response.ServiceFromSourceResponse;
 import io.ballerina.servicemodelgenerator.extension.model.response.ServiceInitModelResponse;
@@ -124,11 +126,6 @@ import org.eclipse.lsp4j.jsonrpc.services.JsonRequest;
 import org.eclipse.lsp4j.jsonrpc.services.JsonSegment;
 import org.eclipse.lsp4j.services.LanguageServer;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.lang.reflect.Type;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -167,27 +164,12 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
     // debounce where rebuilding both catalogs per call is pure waste.
     private static final ValidationEngine LIVE_VALIDATION_ENGINE = ValidationEngine.withAllRules();
 
-    private static final Type propertyMapType = new TypeToken<Map<String, TriggerProperty>>() {
-    }.getType();
     private final Map<String, TriggerProperty> triggerProperties;
     private LSClientLogger lsClientLogger;
     private WorkspaceManager workspaceManager;
 
     public ServiceModelGeneratorService() {
-        InputStream newPropertiesStream = getClass().getClassLoader()
-                .getResourceAsStream("trigger_properties.json");
-        Map<String, TriggerProperty> newTriggerProperties = Map.of();
-        if (newPropertiesStream != null) {
-            try (JsonReader reader = new JsonReader(new InputStreamReader(newPropertiesStream,
-                    StandardCharsets.UTF_8))) {
-                newTriggerProperties = new Gson().fromJson(reader, propertyMapType);
-                reader.close();
-                newPropertiesStream.close();
-            } catch (IOException e) {
-                // Ignore
-            }
-        }
-        this.triggerProperties = newTriggerProperties;
+        this.triggerProperties = TriggerPropertiesRegistry.getInstance().byId();
     }
 
     private static NonTerminalNode findNonTerminalNode(Codedata codedata, Document document) {
@@ -279,7 +261,11 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                                     request.codedata().getVersion(), project);
                             return new ListenerModelResponse(listenerModel);
                         })
-                        .orElseGet(ListenerModelResponse::new);
+                        .orElseGet(() -> ConnectorUpgradeAdvisor.checkResolvedVersion(
+                                        request.codedata().getOrgName(), request.codedata().getModuleName(),
+                                        request.codedata().getVersion())
+                                .<ListenerModelResponse>map(ListenerModelResponse::new)
+                                .orElseGet(ListenerModelResponse::new));
             } catch (Throwable e) {
                 return new ListenerModelResponse(e);
             }
@@ -483,6 +469,34 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                     ? TriggerSearchUtil.searchLocalRepository(localKeys)
                     : List.of();
             return new TriggerListResponse(centralTriggers, localRepositoryTriggers);
+        });
+    }
+
+    /**
+     * The connectors this project uses as a {@code service ... on <module>:Listener} whose resolved
+     * version predates schema-driven trigger support (its {@code resources/trigger-metadata.json}/
+     * {@code trigger-ui-metadata.json} were only ever bundled with the language server, not shipped in
+     * the connector's own {@code .bala}). Empty when nothing is affected.
+     *
+     * @param request Connector upgrade advice request
+     * @return {@link ConnectorUpgradeAdviceResponse} of the affected connectors, if any
+     */
+    @JsonRequest
+    public CompletableFuture<ConnectorUpgradeAdviceResponse> getConnectorUpgradeAdvice(
+            ConnectorUpgradeAdviceRequest request) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                Path filePath = Path.of(request.filePath());
+                Project project = workspaceManager.loadProject(filePath);
+                Optional<SemanticModel> semanticModel = workspaceManager.semanticModel(filePath);
+                if (semanticModel.isEmpty()) {
+                    return new ConnectorUpgradeAdviceResponse(List.of());
+                }
+                return new ConnectorUpgradeAdviceResponse(
+                        ConnectorUpgradeAdvisor.analyze(project, semanticModel.get()));
+            } catch (Throwable e) {
+                return new ConnectorUpgradeAdviceResponse(e);
+            }
         });
     }
 
@@ -1143,10 +1157,27 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                 if (document.isEmpty() || semanticModel.isEmpty()) {
                     throw new IllegalStateException("Failed to load the document or semantic model");
                 }
-                Utils.resolveModule(request.orgName(), request.pkgName(), request.moduleName(),
-                        request.version(), request.isLocalRepository(), lsClientLogger);
-                return new ServiceInitModelResponse(ServiceBuilderRouter.getServiceInitModel(request,
-                        project, semanticModel.get(), document.get()));
+                String existingVersion = request.isLocalRepository() ? null
+                        : ConnectorVersionResolver.resolve(project, request.orgName(), request.moduleName(), null);
+
+                ServiceModelRequest effectiveRequest = existingVersion == null && !request.isLocalRepository()
+                        ? new ServiceModelRequest(request.filePath(), request.orgName(), request.pkgName(),
+                                request.moduleName(), request.listenerName(), null, false)
+                        : request;
+
+                Utils.resolveModule(effectiveRequest.orgName(), effectiveRequest.pkgName(),
+                        effectiveRequest.moduleName(), effectiveRequest.version(),
+                        effectiveRequest.isLocalRepository(), lsClientLogger);
+                ServiceInitModel serviceInitModel = ServiceBuilderRouter.getServiceInitModel(effectiveRequest,
+                        project, semanticModel.get(), document.get());
+                if (serviceInitModel == null && existingVersion != null) {
+                    Optional<ModelResolutionIssue> issue = ConnectorUpgradeAdvisor.checkResolvedVersion(
+                            request.orgName(), request.moduleName(), existingVersion);
+                    if (issue.isPresent()) {
+                        return new ServiceInitModelResponse(issue.get());
+                    }
+                }
+                return new ServiceInitModelResponse(serviceInitModel);
             } catch (Throwable e) {
                 return new ServiceInitModelResponse(e);
             }
@@ -1271,11 +1302,9 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
     TriggerBasicInfo toTriggerBasicInfo(TriggerUISchemaModel model) {
         String protocol = getProtocol(model.moduleName());
         String label = model.displayName();
-        String fallbackIcon = (model.icon() == null || model.icon().isBlank())
+        String icon = (model.icon() == null || model.icon().isBlank())
                 ? CommonUtils.generateIcon(model.orgName(), model.packageName(), model.version())
                 : model.icon();
-        Object icon = resolveArtifactIcon(new ModuleInfo(model.orgName(), model.packageName(), model.moduleName(),
-                model.version()), fallbackIcon, effectiveTriggerKind(model.triggerKind(), model.kind()));
         // TriggerUISchemaModel.id is a String catalog id and is inconsistently populated across real models
         // (null / numeric / a slug), so it can't be reused as TriggerBasicInfo's int id. Nothing
         // downstream looks a trigger up by this id (the frontend only uses it as a list key, and
@@ -1341,11 +1370,8 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
         String label = triggerProperty.triggerName() != null ? triggerProperty.triggerName() : triggerProperty.name();
         String protocol = getProtocol(triggerProperty.name());
         int id = triggerProperty.name().hashCode();
-        String fallbackIcon = CommonUtils.generateIcon(triggerProperty.orgName(), triggerProperty.packageName(),
+        String icon = CommonUtils.generateIcon(triggerProperty.orgName(), triggerProperty.packageName(),
                 triggerProperty.version());
-        Object icon = resolveArtifactIcon(new ModuleInfo(triggerProperty.orgName(), triggerProperty.packageName(),
-                triggerProperty.name(), triggerProperty.version()), fallbackIcon,
-                effectiveTriggerKind(triggerProperty.triggerKind(), triggerProperty.kind()));
         return new TriggerBasicInfo(id, label, triggerProperty.orgName(), triggerProperty.packageName(),
                 triggerProperty.name(), triggerProperty.version(), triggerProperty.kind(), label, "",
                 protocol, icon, effectiveTriggerKind(triggerProperty.triggerKind(), triggerProperty.kind()));
@@ -1357,13 +1383,5 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
             case "event", "mcp", "graphql", "http", "file", "ai" -> value;
             default -> null;
         };
-    }
-
-    private Object resolveArtifactIcon(ModuleInfo moduleInfo, String fallbackUrl, String kind) {
-        LibraryMetadataReader reader = LibraryMetadataReader.getInstance();
-        return reader.getPackagedArtifactInfo(moduleInfo)
-                .or(() -> reader.getArtifactInfo(moduleInfo))
-                .<Object>map(info -> ArtifactIcon.from(fallbackUrl, kind, info))
-                .orElse(fallbackUrl);
     }
 }

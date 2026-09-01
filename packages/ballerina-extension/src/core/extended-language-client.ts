@@ -272,6 +272,8 @@ import {
     GetMigrationToolsResponse,
     ServiceModelInitResponse,
     ServiceInitSourceRequest,
+    ConnectorUpgradeAdviceRequest,
+    ConnectorUpgradeAdviceResponse,
     ValidatePropertyRequest,
     ValidatePropertyResponse,
     DeleteSubMappingRequest,
@@ -456,6 +458,7 @@ enum EXTENDED_APIS {
     BI_SERVICE_GET_LISTENER_SOURCE = 'serviceDesign/getListenerFromSource',
     BI_SERVICE_GET_SERVICE = 'serviceDesign/getServiceModel',
     BI_SERVICE_GET_SERVICE_INIT = 'serviceDesign/getServiceInitModel',
+    BI_SERVICE_GET_CONNECTOR_UPGRADE_ADVICE = 'serviceDesign/getConnectorUpgradeAdvice',
     BI_SERVICE_CREATE_SERVICE_AND_LISTENER = 'serviceDesign/addServiceAndListener',
     BI_SERVICE_VALIDATE_PROPERTY = 'serviceDesign/validateProperty',
     BI_SERVICE_GET_FUNCTION = 'serviceDesign/getFunctionModel',
@@ -1373,6 +1376,11 @@ export class ExtendedLangClient extends LanguageClient implements ExtendedLangCl
 
     async getServiceInitModel(params: ServiceModelRequest): Promise<ServiceModelInitResponse> {
         return this.sendRequest<ServiceModelInitResponse>(EXTENDED_APIS.BI_SERVICE_GET_SERVICE_INIT, params);
+    }
+
+    async getConnectorUpgradeAdvice(params: ConnectorUpgradeAdviceRequest): Promise<ConnectorUpgradeAdviceResponse> {
+        return this.sendRequest<ConnectorUpgradeAdviceResponse>(
+            EXTENDED_APIS.BI_SERVICE_GET_CONNECTOR_UPGRADE_ADVICE, params);
     }
 
     async createServiceAndListener(params: ServiceInitSourceRequest): Promise<SourceEditResponse> {

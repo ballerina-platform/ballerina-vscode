@@ -39,9 +39,19 @@ import java.util.List;
  * @param version     the schema-driven trigger's model version, if any
  * @param kind        the schema-driven trigger's legacy kind, if any
  * @param triggerKind the canonical integration kind in newer metadata, if any
+ * @param minSupportedVersion the lowest published version of this connector that ships its own
+ *                            {@code resources/trigger-metadata.json}/{@code trigger-ui-metadata.json}
+ *                            (schema-driven trigger data moved from the LS jar into the connector
+ *                            package itself). {@code null} for a trigger that either never needed this
+ *                            (still hardcoded, e.g. http/graphql/tcp/ai) or has no published fix yet.
+ *                            Deliberately a distinct field from {@code version} above, which records a
+ *                            different, unrelated scalar (the model version at onboarding time) --
+ *                            overloading it would silently change icon-URL derivation and the picker
+ *                            list that already consume it.
  */
 public record TriggerProperty(String name, String orgName, String packageName, List<String> keywords,
-                              String triggerName, String version, String kind, String triggerKind) {
+                              String triggerName, String version, String kind, String triggerKind,
+                              String minSupportedVersion) {
 
     public String effectiveTriggerKind() {
         return triggerKind == null ? kind : triggerKind;

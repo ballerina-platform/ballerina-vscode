@@ -500,7 +500,6 @@ public class TriggerModelReader {
             }
             TriggerUIMetadataModel uiMetadata = metadataReader
                     .getTriggerUIMetadataModelFromLocalRepository(moduleInfo)
-                    .or(() -> metadataReader.getPackagedTriggerUIMetadataModel(moduleInfo))
                     .orElse(null);
             return synthesizeTriggerModel(metadata.get(), uiMetadata, pkg.get(), moduleName);
         } catch (Throwable e) {
@@ -533,8 +532,7 @@ public class TriggerModelReader {
         ModuleInfo moduleInfo = new ModuleInfo(orgName, moduleName, moduleName, version);
         LibraryMetadataReader metadataReader = LibraryMetadataReader.getInstance();
 
-        Optional<TriggerMetadataModel> metadata = metadataReader.getPackagedTriggerMetadataModel(moduleInfo)
-                .or(() -> metadataReader.getTriggerMetadataModel(moduleInfo));
+        Optional<TriggerMetadataModel> metadata = metadataReader.getTriggerMetadataModel(moduleInfo);
         if (metadata.isEmpty()) {
             return metadataReader.isLocallyResolvable(moduleInfo) ? Resolution.ABSENT : Resolution.UNRESOLVED;
         }
@@ -543,8 +541,7 @@ public class TriggerModelReader {
         if (pkg.isEmpty()) {
             return Resolution.UNRESOLVED;
         }
-        TriggerUIMetadataModel uiMetadata = metadataReader.getPackagedTriggerUIMetadataModel(moduleInfo)
-                .or(() -> metadataReader.getTriggerUIMetadataModel(moduleInfo))
+        TriggerUIMetadataModel uiMetadata = metadataReader.getTriggerUIMetadataModel(moduleInfo)
                 .orElse(null);
         return Resolution.of(synthesizeTriggerModel(metadata.get(), uiMetadata, pkg.get(), moduleName));
     }
@@ -576,10 +573,8 @@ public class TriggerModelReader {
 
     private Optional<TriggerUISchemaModel> getGeneratedTriggerModel(ModuleInfo moduleInfo, Package pkg) {
         LibraryMetadataReader reader = LibraryMetadataReader.getInstance();
-        Optional<TriggerMetadataModel> metadata = reader.getPackagedTriggerMetadataModel(moduleInfo)
-                .or(() -> reader.getTriggerMetadataModel(moduleInfo));
-        Optional<TriggerUIMetadataModel> uiMetadata = reader.getPackagedTriggerUIMetadataModel(moduleInfo)
-                .or(() -> reader.getTriggerUIMetadataModel(moduleInfo));
+        Optional<TriggerMetadataModel> metadata = reader.getTriggerMetadataModel(moduleInfo);
+        Optional<TriggerUIMetadataModel> uiMetadata = reader.getTriggerUIMetadataModel(moduleInfo);
         if (metadata.isEmpty() || uiMetadata.isEmpty()) {
             return Optional.empty();
         }

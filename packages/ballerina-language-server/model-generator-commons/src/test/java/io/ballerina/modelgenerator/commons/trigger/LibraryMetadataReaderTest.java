@@ -35,55 +35,14 @@ import java.util.Optional;
 /**
  * Tests {@link LibraryMetadataReader}'s public L1 and L2 reads: {@link LibraryMetadataReader#getTriggerMetadataModel}
  * and {@link LibraryMetadataReader#getTriggerUIMetadataModel} (connector-owned metadata resolved from its
- * {@code .bala}) and
- * {@link LibraryMetadataReader#getPackagedTriggerMetadataModel} (the LS's own bundled classpath
- * resource) -- three independent reads, none silently falling back to another. Most go through
- * {@link ModuleInfo}-keyed calls, mirroring how a caller (e.g. {@code TriggerModelReader}) uses it;
- * the shipped-document cases go through the package-private {@code readTriggerMetadataModel(Path)}
- * seam both reads funnel into, since no released connector ships a document to resolve by name yet.
+ * {@code .bala}). Most go through {@link ModuleInfo}-keyed calls, mirroring how a caller (e.g.
+ * {@code TriggerModelReader}) uses it; the shipped-document cases go through the package-private
+ * {@code readTriggerMetadataModel(Path)} seam both reads funnel into, since no released connector ships
+ * a document to resolve by name yet.
  */
 public class LibraryMetadataReaderTest {
 
     private static final LibraryMetadataReader READER = LibraryMetadataReader.getInstance();
-
-    @Test
-    public void testGetPackagedTriggerMetadataModelHit() {
-        // kafka is bundled under trigger-metadata-models/kafka/trigger-metadata.json -- resolved purely
-        // off the classpath, no package resolution needed.
-        ModuleInfo moduleInfo = new ModuleInfo("ballerinax", "kafka", "kafka", "1.0.0");
-        TriggerMetadataModel model = READER.getPackagedTriggerMetadataModel(moduleInfo).orElseThrow();
-        Assert.assertFalse(model.listeners().isEmpty());
-        Assert.assertFalse(model.serviceTypes().isEmpty());
-    }
-
-    @Test
-    public void testGetPackagedTriggerMetadataModelMiss() {
-        ModuleInfo moduleInfo = new ModuleInfo("ballerinax", "no-such-module", "no-such-module", "1.0.0");
-        Assert.assertTrue(READER.getPackagedTriggerMetadataModel(moduleInfo).isEmpty());
-    }
-
-    @Test
-    public void testGetPackagedTriggerMetadataModelNullModuleInfo() {
-        Assert.assertTrue(READER.getPackagedTriggerMetadataModel(null).isEmpty());
-    }
-
-    @Test
-    public void testGetPackagedTriggerMetadataModelRefusesUnsupportedMajorVersion() {
-        ModuleInfo moduleInfo = new ModuleInfo("ballerinax", "version-v2", "version-v2", "1.0.0");
-        Assert.assertTrue(READER.getPackagedTriggerMetadataModel(moduleInfo).isEmpty());
-    }
-
-    @Test
-    public void testGetPackagedTriggerMetadataModelAcceptsNewerMinorVersion() {
-        ModuleInfo moduleInfo = new ModuleInfo("ballerinax", "version-v19", "version-v19", "1.0.0");
-        Assert.assertTrue(READER.getPackagedTriggerMetadataModel(moduleInfo).isPresent());
-    }
-
-    @Test
-    public void testGetPackagedTriggerMetadataModelRefusesMissingVersion() {
-        ModuleInfo moduleInfo = new ModuleInfo("ballerinax", "version-none", "version-none", "1.0.0");
-        Assert.assertTrue(READER.getPackagedTriggerMetadataModel(moduleInfo).isEmpty());
-    }
 
     @Test
     public void testGetTriggerMetadataModelNullModuleInfo() {
@@ -110,9 +69,7 @@ public class LibraryMetadataReaderTest {
     @Test
     public void testGetTriggerMetadataModelUnresolvableModuleGracefullyEmpty() {
         // Not a real Central package -- must resolve to empty, not throw (the version-less
-        // PackageUtil.getModulePackage overload throws on an unknown org/module). Also confirms
-        // getTriggerMetadataModel does NOT fall back to the packaged tier: kafka's presence there
-        // (see testGetPackagedTriggerMetadataModelHit) must not leak into this connector-owned read.
+        // PackageUtil.getModulePackage overload throws on an unknown org/module).
         ModuleInfo moduleInfo = new ModuleInfo("no-such-org", "no-such-module", "no-such-module", null);
         Assert.assertTrue(READER.getTriggerMetadataModel(moduleInfo).isEmpty());
     }
@@ -322,59 +279,6 @@ public class LibraryMetadataReaderTest {
                 } }
                 """);
         Assert.assertTrue(READER.readArtifactInfo(root, null).isEmpty());
-    }
-
-    // ---- the packaged L2 `variants` envelope (getPackagedTriggerUIMetadataModel) -----------
-
-    @Test
-    public void testPackagedUiVariantsEmptyArrayFallsThroughToRootAndIsRefused() {
-        // No variant to select and the envelope object itself carries no "version" -> refused, same as
-        // a document with a missing version.
-        ModuleInfo moduleInfo = new ModuleInfo("ballerinax", "ui-variants-empty", "ui-variants-empty", "1.0.0");
-        Assert.assertTrue(READER.getPackagedTriggerUIMetadataModel(moduleInfo).isEmpty());
-    }
-
-    @Test
-    public void testPackagedUiVariantsWithNoModelKeyIsSkipped() {
-        // The one declared variant has a minVersion but no "model" -- it contributes nothing, so
-        // resolution falls back to the (version-less, and therefore refused) envelope root.
-        ModuleInfo moduleInfo = new ModuleInfo("ballerinax", "ui-variants-no-model", "ui-variants-no-model",
-                "5.0.0");
-        Assert.assertTrue(READER.getPackagedTriggerUIMetadataModel(moduleInfo).isEmpty());
-    }
-
-    @Test
-    public void testPackagedUiVariantsSelectByMinVersionBoundary() {
-        String module = "ui-variants-boundary";
-        Assert.assertEquals(displayNameAt(module, "1.2.0"), "Newer", "exactly at minVersion -> the newer variant");
-        Assert.assertEquals(displayNameAt(module, "1.2.1"), "Newer", "above minVersion -> the newer variant");
-        Assert.assertEquals(displayNameAt(module, "1.1.9"), "Older",
-                "below minVersion -> falls through to the unversioned fallback variant");
-        Assert.assertEquals(displayNameAt(module, null), "Newer",
-                "no version to compare against -> the first (newest) variant, not the fallback");
-        Assert.assertEquals(displayNameAt(module, "garbage"), "Newer",
-                "an unparsable version can't be proven older, so it doesn't disqualify the newer variant");
-    }
-
-    private static String displayNameAt(String module, String version) {
-        ModuleInfo moduleInfo = new ModuleInfo("ballerinax", module, module, version);
-        return READER.getPackagedTriggerUIMetadataModel(moduleInfo).orElseThrow().trigger().displayName();
-    }
-
-    @Test
-    public void testPackagedUiVariantCacheDoesNotAliasAcrossVersions() {
-        // getPackagedTriggerUIMetadataModel keys its cache on "moduleName:version" -- mcp's two real
-        // packaged variants (1.2.0 current, 1.0.3 legacy) must not bleed into each other regardless of
-        // lookup order.
-        ModuleInfo current = new ModuleInfo("ballerina", "mcp", "mcp", "1.2.0");
-        ModuleInfo legacy = new ModuleInfo("ballerina", "mcp", "mcp", "1.0.3");
-
-        Assert.assertEquals(READER.getPackagedTriggerUIMetadataModel(current).orElseThrow().listeners().size(), 2);
-        Assert.assertEquals(READER.getPackagedTriggerUIMetadataModel(legacy).orElseThrow().listeners().size(), 1);
-
-        // Reversed lookup order -- same two answers, not the first one memoized for both keys.
-        Assert.assertEquals(READER.getPackagedTriggerUIMetadataModel(legacy).orElseThrow().listeners().size(), 1);
-        Assert.assertEquals(READER.getPackagedTriggerUIMetadataModel(current).orElseThrow().listeners().size(), 2);
     }
 
     /** A package root shipping the given {@code resources/trigger-metadata.json}. */

@@ -50,6 +50,7 @@ import { activateDevantFeatures } from './features/devant/activator';
 import { buildProjectsStructure } from './utils/project-artifacts';
 import { runCommandWithOutput } from './utils/runCommand';
 import { buildOutputChannel } from './utils/logger';
+import { checkAndPromptConnectorUpgrades } from './features/project/connector-upgrade';
 import { closeOrphanWebviewTabs } from './views/closeOrphanWebviewTabs';
 import { getEnclosingProjectStatus } from './utils/bi';
 
@@ -67,6 +68,7 @@ interface MachineContext extends VisualizerLocation {
     isBISupported: boolean;
     errorCode: string | null;
     dependenciesResolved?: boolean;
+    connectorUpgradesCheckedPaths?: string[];
     isInDevant: boolean;
     isViewUpdateTransition?: boolean;
 }
@@ -92,6 +94,7 @@ const stateMachine = createMachine<MachineContext>(
             isBISupported: false,
             view: MACHINE_VIEW.PackageOverview,
             dependenciesResolved: false,
+            connectorUpgradesCheckedPaths: [],
             isInDevant: isInDevant()
         },
         on: {
@@ -385,6 +388,10 @@ const stateMachine = createMachine<MachineContext>(
                                     cond: (context) => !context.dependenciesResolved
                                 },
                                 {
+                                    target: "checkConnectorUpgrades",
+                                    cond: (context) => !context.connectorUpgradesCheckedPaths?.includes(context.projectPath)
+                                },
+                                {
                                     target: "webViewLoading"
                                 }
                             ]
@@ -394,9 +401,22 @@ const stateMachine = createMachine<MachineContext>(
                         invoke: {
                             src: 'resolveMissingDependencies',
                             onDone: {
-                                target: "webViewLoading",
+                                target: "checkConnectorUpgrades",
                                 actions: assign({
                                     dependenciesResolved: true
+                                })
+                            }
+                        }
+                    },
+                    checkConnectorUpgrades: {
+                        invoke: {
+                            src: 'checkConnectorUpgrades',
+                            onDone: {
+                                target: "webViewLoading",
+                                actions: assign({
+                                    connectorUpgradesCheckedPaths: (context) => context.projectPath
+                                        ? [...(context.connectorUpgradesCheckedPaths ?? []), context.projectPath]
+                                        : context.connectorUpgradesCheckedPaths
                                 })
                             }
                         }
@@ -669,6 +689,18 @@ const stateMachine = createMachine<MachineContext>(
                     }
                 }
 
+                resolve(true);
+            });
+        },
+        checkConnectorUpgrades: (context, event) => {
+            return new Promise(async (resolve) => {
+                try {
+                    if (context?.projectPath) {
+                        await checkAndPromptConnectorUpgrades(context.projectPath);
+                    }
+                } catch (error) {
+                    console.error('>>> Error checking connector upgrades', error);
+                }
                 resolve(true);
             });
         },

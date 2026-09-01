@@ -18,8 +18,13 @@
  * THIS FILE INCLUDES AUTO GENERATED CODE
  */
 import {
+    ConnectorUpgradeAdvice,
+    ConnectorUpgradeAdviceRequest,
+    ConnectorUpgradeAdviceResponse,
     DIRECTORY_MAP,
     ExportOASRequest,
+    PullConnectorUpgradeRequest,
+    PullConnectorUpgradeResult,
     ExportOASResponse,
     GetOASSpecRequest,
     GetOASSpecResponse,
@@ -65,6 +70,7 @@ import * as path from 'path';
 import { window, workspace } from "vscode";
 import { extension } from "../../BalExtensionContext";
 import { StateMachine } from "../../stateMachine";
+import { pullAndBumpConnectors } from "../../features/project/connector-upgrade";
 import { writeBallerinaFileDidOpen } from "../../utils/modification";
 import { updateSourceCode } from "../../utils/source-utils";
 import { generateExamplePayload } from "../../features/ai/payload-generator/payload_json";
@@ -452,6 +458,38 @@ export class ServiceDesignerRpcManager implements ServiceDesignerAPI {
                 reject(error);
             }
         });
+    }
+
+    async getConnectorUpgradeAdvice(params: ConnectorUpgradeAdviceRequest): Promise<ConnectorUpgradeAdviceResponse> {
+        return new Promise(async (resolve, reject) => {
+            const context = StateMachine.context();
+            try {
+                const projectDir = path.join(StateMachine.context().projectPath);
+                const targetFile = path.join(projectDir, `main.bal`);
+                await this.ensureFileExists(targetFile);
+                params.filePath = targetFile;
+                const res: ConnectorUpgradeAdviceResponse = await context.langClient.getConnectorUpgradeAdvice(params);
+                resolve(res);
+            } catch (error) {
+                console.log(error);
+                reject(error);
+            }
+        });
+    }
+
+    async pullConnectorUpgrade(params: PullConnectorUpgradeRequest): Promise<PullConnectorUpgradeResult> {
+        const projectPath = StateMachine.context().projectPath;
+        const advice: ConnectorUpgradeAdvice = {
+            orgName: params.orgName,
+            moduleName: params.moduleName,
+            packageName: params.packageName,
+            currentVersion: "",
+            minSupportedVersion: params.targetVersion,
+            breaking: false,
+            explicitlyPinned: true,
+        };
+        const { succeeded } = await pullAndBumpConnectors([advice], projectPath);
+        return { success: succeeded.length > 0 };
     }
 
     async createServiceAndListener(params: ServiceInitSourceRequest): Promise<UpdatedArtifactsResponse> {

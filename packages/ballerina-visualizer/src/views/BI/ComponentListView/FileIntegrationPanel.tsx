@@ -16,8 +16,9 @@
  * under the License.
  */
 import React, { useMemo } from 'react';
+import { Icon, ImageWithFallback } from '@wso2/ui-toolkit';
 import { useRpcContext } from '@wso2/ballerina-rpc-client';
-import { EVENT_TYPE, MACHINE_VIEW, SCOPE, ServiceModel, TriggerModelsResponse } from '@wso2/ballerina-core';
+import { EVENT_TYPE, MACHINE_VIEW, SCOPE, ServiceModel, TriggerModelsResponse, resolveBrandIcon, resolveKindDefaultIcon, toIconDescriptor } from '@wso2/ballerina-core';
 
 import { CardGrid, PanelViewMore, Title, TitleWrapper } from './styles';
 import { BodyText } from '../../styles';
@@ -25,7 +26,6 @@ import ButtonCard from '../../../components/ButtonCard';
 import { ARTIFACT_CATEGORY_META } from '../components/artifactCards';
 import { cardMatchesSearch, OutOfScopeComponentTooltip } from './componentListUtils';
 import { RelativeLoader } from '../../../components/RelativeLoader';
-import { ArtifactIcon } from '../../../components/ArtifactIcon';
 import { effectiveTriggerKind } from './triggerKind';
 
 interface FileIntegrationPanelProps {
@@ -99,5 +99,24 @@ export function FileIntegrationPanel(props: FileIntegrationPanelProps) {
 };
 
 export function getFileIntegrationIcon(item: ServiceModel) {
-    return <ArtifactIcon icon={item.icon} kind={effectiveTriggerKind(item)} />;
+    const brandIcon = getCustomFileIntegrationIcon(item.moduleName);
+    if (brandIcon) {
+        return brandIcon;
+    }
+    const kindDefault = resolveKindDefaultIcon(item.type);
+    return (
+        <ImageWithFallback
+            imageUrl={toIconDescriptor(item.icon)?.url ?? ""}
+            fallbackEl={<Icon name={kindDefault.glyph} />}
+            size={38}
+        />
+    );
+}
+
+export function getCustomFileIntegrationIcon(type: string) {
+    const brand = resolveBrandIcon(type);
+    if (!brand) {
+        return null;
+    }
+    return <Icon name={brand.glyph} sx={brand.color ? { color: brand.color } : undefined} />;
 }

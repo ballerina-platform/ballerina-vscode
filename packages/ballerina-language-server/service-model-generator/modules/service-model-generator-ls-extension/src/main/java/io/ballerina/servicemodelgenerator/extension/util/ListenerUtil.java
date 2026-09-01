@@ -45,7 +45,6 @@ import io.ballerina.modelgenerator.commons.FunctionDataBuilder;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.ParameterData;
 import io.ballerina.modelgenerator.commons.ServiceDatabaseManager;
-import io.ballerina.modelgenerator.commons.trigger.LibraryMetadataReader;
 import io.ballerina.projects.Document;
 import io.ballerina.projects.DocumentId;
 import io.ballerina.projects.Project;
@@ -300,8 +299,7 @@ public class ListenerUtil {
      */
     public static Listener createBaseListenerModel(FunctionData functionData) {
         Map<String, Value> properties = new LinkedHashMap<>();
-        String formattedModuleName = bundledShortDisplayName(functionData.packageName())
-                .orElseGet(() -> upperCaseFirstLetter(functionData.packageName()));
+        String formattedModuleName = upperCaseFirstLetter(functionData.packageName());
         String icon = CommonUtils.generateIcon(functionData.org(), functionData.packageName(),
                 functionData.version());
 
@@ -323,22 +321,6 @@ public class ListenerUtil {
         properties.put(PROP_KEY_VARIABLE_NAME, nameProperty());
         properties.put(PROP_KEY_LISTENER_TYPE, listenerTypeProperty());
         return listenerBuilder.build();
-    }
-
-    /**
-     * The compact display name the connector's packaged L2 UI metadata declares (e.g. {@code Azure
-     * Files} for {@code azure.storage.files}), for connectors whose package name would otherwise render
-     * awkwardly. A classpath-only read: no package compile, so it stays cheap on this hot path.
-     *
-     * @param packageName the connector's package name
-     * @return the L2 model's {@code trigger.shortDisplayName}, or empty when none declares one
-     */
-    private static Optional<String> bundledShortDisplayName(String packageName) {
-        ModuleInfo moduleInfo = new ModuleInfo(null, packageName, packageName, null);
-        return LibraryMetadataReader.getInstance().getPackagedTriggerUIMetadataModel(moduleInfo)
-                .map(model -> model.trigger())
-                .map(trigger -> trigger.shortDisplayName())
-                .filter(name -> name != null && !name.isBlank());
     }
 
     private static String getListenerProtocol(String packageName) {

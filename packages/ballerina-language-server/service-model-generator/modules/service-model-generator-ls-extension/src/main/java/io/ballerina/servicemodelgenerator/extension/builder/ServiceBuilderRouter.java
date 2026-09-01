@@ -65,13 +65,6 @@ import static io.ballerina.servicemodelgenerator.extension.util.Constants.TCP;
  * @since 1.2.0
  */
 public class ServiceBuilderRouter {
-
-    // RABBITMQ/KAFKA/MSSQL/POSTGRESQL/MYSQL/FTP/TRIGGER_GITHUB/TRIGGER_SHOPIFY/MCP/SOLACE (and ASB,
-    // never registered here) are deliberately absent: each now ships a bundled TriggerUISchemaModel
-    // schema (see TriggerModelReader.BUNDLED_TRIGGER_MODEL_RESOURCES), so useSchemaDrivenPath
-    // always routes them to SchemaDrivenServiceBuilder before this map is consulted — a hardcoded
-    // entry here would be dead code. HTTP/AI/TCP/GRAPHQL are not (yet) schema-driven and keep their
-    // dedicated builders.
     private static final Map<String, Supplier<? extends ServiceNodeBuilder>> CONSTRUCTOR_MAP = new HashMap<>() {{
         put(HTTP, HttpServiceBuilder::new);
         put(AI, AiChatServiceBuilder::new);
@@ -81,7 +74,7 @@ public class ServiceBuilderRouter {
 
     /** Protocols with dedicated, mature builders that must never fall through to the schema-driven
      * path, regardless of what {@link TriggerModelReader} resolves for them now or in the future. */
-    private static final Set<String> NEVER_SCHEMA_DRIVEN = Set.of(HTTP, GRAPHQL, TCP);
+    private static final Set<String> NEVER_SCHEMA_DRIVEN = Set.of(HTTP, GRAPHQL, TCP, AI);
 
     public static ServiceNodeBuilder getServiceBuilder(String protocol) {
         return CONSTRUCTOR_MAP.getOrDefault(protocol, DefaultServiceBuilder::new).get();

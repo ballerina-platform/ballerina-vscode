@@ -29,10 +29,15 @@ public abstract class AbstractServiceModelResponse {
 
     private String errorMsg;
     private String stacktrace;
+    private ModelResolutionIssue issue;
 
     public void setError(Throwable e) {
         this.errorMsg = e.getLocalizedMessage();
         this.stacktrace = Arrays.toString(e.getStackTrace());
+    }
+
+    public void setIssue(ModelResolutionIssue issue) {
+        this.issue = issue;
     }
 
     public String errorMsg() {
@@ -41,5 +46,9 @@ public abstract class AbstractServiceModelResponse {
 
     public String getStackTrace() {
         return stacktrace;
+    }
+
+    public ModelResolutionIssue issue() {
+        return issue;
     }
 }

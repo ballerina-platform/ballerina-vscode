@@ -293,16 +293,9 @@ public record Artifact(String id, LineRange location, String type, String name, 
             ModuleID moduleId = moduleSymbol.get().id();
             ModuleInfo moduleInfo = ModuleInfo.from(moduleId);
             LibraryMetadataReader reader = LibraryMetadataReader.getInstance();
-            ArtifactMetadata packagedMetadata = reader.getPackagedArtifactMetadata(moduleInfo).orElse(null);
-            ArtifactMetadata connectorMetadata = packagedMetadata == null || packagedMetadata.artifactInfo() == null
-                    || packagedMetadata.triggerKind() == null
-                    ? reader.getArtifactMetadata(moduleInfo).orElse(null) : null;
-            this.artifactInfo = packagedMetadata != null && packagedMetadata.artifactInfo() != null
-                    ? packagedMetadata.artifactInfo()
-                    : connectorMetadata == null ? null : connectorMetadata.artifactInfo();
-            this.triggerKind = packagedMetadata != null && packagedMetadata.triggerKind() != null
-                    ? packagedMetadata.triggerKind()
-                    : connectorMetadata == null ? null : connectorMetadata.triggerKind();
+            ArtifactMetadata connectorMetadata = reader.getArtifactMetadata(moduleInfo).orElse(null);
+            this.artifactInfo = connectorMetadata == null ? null : connectorMetadata.artifactInfo();
+            this.triggerKind = connectorMetadata == null ? null : connectorMetadata.triggerKind();
             this.icon = ArtifactIcon.from(CommonUtils.generateIcon(moduleId), triggerKind, artifactInfo);
             this.module = moduleId.moduleName();
             return this;

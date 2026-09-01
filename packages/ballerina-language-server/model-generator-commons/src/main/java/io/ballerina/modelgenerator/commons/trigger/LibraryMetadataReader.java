@@ -47,8 +47,6 @@ import io.ballerina.projects.environment.ResolutionRequest;
 import io.ballerina.projects.internal.environment.BallerinaUserHome;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -75,18 +73,8 @@ public final class LibraryMetadataReader {
 
     private static final String TRIGGER_METADATA_RESOURCE_PATH = "resources/trigger-metadata.json";
     private static final String TRIGGER_UI_METADATA_RESOURCE_PATH = "resources/trigger-ui-metadata.json";
-    private static final String PACKAGED_TRIGGER_METADATA_ROOT = "trigger-metadata-models";
-    private static final String PACKAGED_TRIGGER_METADATA_FILE = "trigger-metadata.json";
-    private static final String PACKAGED_TRIGGER_UI_METADATA_FILE = "trigger-ui-metadata.json";
     /** Sized for the designer, which resolves one connector at a time. */
     private static final int MAX_CACHE_SIZE = 2;
-
-    /**
-     * Sized for the Copilot, which walks every library in one request. At the designer's bound of 2, the
-     * corpus's 14 bundled documents evicted each other and nearly every request re-parsed the same JSON.
-     */
-    private static final int PACKAGED_METADATA_CACHE_SIZE = 20;
-    private static final int ARTIFACT_INFO_CACHE_SIZE = 40;
     private static final Pattern SUPPORTED_VERSION = Pattern.compile("^v1\\.\\d+$");
     private static final Set<String> TRIGGER_KINDS = Set.of("event", "mcp", "graphql", "http", "file", "ai");
 
@@ -96,12 +84,6 @@ public final class LibraryMetadataReader {
 
     private final Cache<String, Optional<Path>> packageRootCache =
             Caffeine.newBuilder().maximumSize(MAX_CACHE_SIZE).expireAfterWrite(PACKAGE_ROOT_CACHE_TTL).build();
-    private final Cache<String, Optional<TriggerMetadataModel>> packagedMetadataCache =
-            Caffeine.newBuilder().maximumSize(PACKAGED_METADATA_CACHE_SIZE).build();
-    private final Cache<String, Optional<TriggerUIMetadataModel>> packagedUIMetadataCache =
-            Caffeine.newBuilder().maximumSize(PACKAGED_METADATA_CACHE_SIZE).build();
-    private final Cache<String, Optional<ArtifactMetadata>> packagedArtifactMetadataCache =
-            Caffeine.newBuilder().maximumSize(ARTIFACT_INFO_CACHE_SIZE).build();
 
     private final Gson plainGson = new Gson();
 
@@ -137,46 +119,6 @@ public final class LibraryMetadataReader {
     /** Whether the connector's {@code .bala} is present in the local repository. */
     public boolean isLocallyResolvable(ModuleInfo moduleInfo) {
         return packageRoot(moduleInfo).isPresent();
-    }
-
-    /**
-     * The LS's bundled {@code trigger-metadata-models/<moduleName>/trigger-metadata.json} classpath
-     * resource, if any.
-     */
-    public Optional<TriggerMetadataModel> getPackagedTriggerMetadataModel(ModuleInfo moduleInfo) {
-        if (moduleInfo == null || moduleInfo.moduleName() == null) {
-            return Optional.empty();
-        }
-        return packagedMetadataCache.get(moduleInfo.moduleName(), this::readPackagedMetadata);
-    }
-
-    /**
-     * The LS's bundled {@code trigger-metadata-models/<moduleName>/trigger-ui-metadata.json} L2 overlay,
-     * selecting the matching version variant when the resource contains a {@code variants} bundle.
-     */
-    public Optional<TriggerUIMetadataModel> getPackagedTriggerUIMetadataModel(ModuleInfo moduleInfo) {
-        if (moduleInfo == null || moduleInfo.moduleName() == null) {
-            return Optional.empty();
-        }
-        String key = moduleInfo.moduleName() + ":" + String.valueOf(moduleInfo.version());
-        return packagedUIMetadataCache.get(key,
-                ignored -> readPackagedUIMetadata(moduleInfo.moduleName(), moduleInfo.version()));
-    }
-
-    /** Artifact-tree counterpart of {@link #getPackagedTriggerUIMetadataModel(ModuleInfo)}. */
-    public Optional<ArtifactMetadata> getPackagedArtifactMetadata(ModuleInfo moduleInfo) {
-        if (moduleInfo == null || moduleInfo.moduleName() == null) {
-            return Optional.empty();
-        }
-        String key = moduleInfo.moduleName() + ":" + String.valueOf(moduleInfo.version());
-        return packagedArtifactMetadataCache.get(key,
-                ignored -> readPackagedArtifactMetadata(moduleInfo.moduleName(), moduleInfo.version()));
-    }
-
-    /** Compatibility accessor for callers interested only in presentation metadata. */
-    public Optional<ArtifactInfo.Resolved> getPackagedArtifactInfo(ModuleInfo moduleInfo) {
-        return getPackagedArtifactMetadata(moduleInfo)
-                .flatMap(metadata -> Optional.ofNullable(metadata.artifactInfo()));
     }
 
     /**
@@ -261,55 +203,6 @@ public final class LibraryMetadataReader {
     private static final class LocalRepositoryHolder {
         private static final PackageRepository INSTANCE = BallerinaUserHome.from(
                 PackageUtil.getSampleProject().projectEnvironmentContext().environment()).localPackageRepository();
-    }
-
-    private Optional<TriggerMetadataModel> readPackagedMetadata(String moduleName) {
-        String resourcePath = PACKAGED_TRIGGER_METADATA_ROOT + "/" + moduleName + "/"
-                + PACKAGED_TRIGGER_METADATA_FILE;
-        try (InputStream is = getClass().getClassLoader().getResourceAsStream(resourcePath)) {
-            if (is == null) {
-                return Optional.empty();
-            }
-            String json = new String(is.readAllBytes(), StandardCharsets.UTF_8);
-            TriggerMetadataModel model = TriggerMetadataGson.instance().fromJson(json, TriggerMetadataModel.class);
-            return requireSupportedVersion(model, resourcePath);
-        } catch (IOException | JsonParseException e) {
-            // A bundled document is this repo's own, so a failure here is a build defect. Logged all the
-            // same: silence is what made the shipped-document equivalent undiagnosable.
-            LOGGER.warning("Ignoring bundled " + resourcePath + ": " + e);
-            return Optional.empty();
-        }
-    }
-
-    private Optional<TriggerUIMetadataModel> readPackagedUIMetadata(String moduleName, String version) {
-        String resourcePath = PACKAGED_TRIGGER_METADATA_ROOT + "/" + moduleName + "/"
-                + PACKAGED_TRIGGER_UI_METADATA_FILE;
-        try (InputStream is = getClass().getClassLoader().getResourceAsStream(resourcePath)) {
-            if (is == null) {
-                return Optional.empty();
-            }
-            String json = new String(is.readAllBytes(), StandardCharsets.UTF_8);
-            return parseTriggerUIMetadata(json, version, resourcePath);
-        } catch (IOException | JsonParseException e) {
-            LOGGER.warning("Ignoring bundled " + resourcePath + ": " + e);
-            return Optional.empty();
-        }
-    }
-
-    private Optional<ArtifactMetadata> readPackagedArtifactMetadata(String moduleName, String version) {
-        String resourcePath = PACKAGED_TRIGGER_METADATA_ROOT + "/" + moduleName + "/"
-                + PACKAGED_TRIGGER_UI_METADATA_FILE;
-        try (InputStream is = getClass().getClassLoader().getResourceAsStream(resourcePath)) {
-            if (is == null) {
-                return Optional.empty();
-            }
-            String base = resourcePath.substring(0, resourcePath.lastIndexOf('/') + 1);
-            return parseArtifactMetadata(new InputStreamReader(is, StandardCharsets.UTF_8), version, resourcePath,
-                    relative -> readClasspathAsset(base, relative));
-        } catch (IOException | JsonParseException | IllegalStateException e) {
-            LOGGER.warning("Ignoring bundled artifactInfo in " + resourcePath + ": " + e);
-            return Optional.empty();
-        }
     }
 
     // Package-private rather than private: both public reads funnel through here, so the tests
@@ -457,19 +350,6 @@ public final class LibraryMetadataReader {
             }
         }
         return fallback;
-    }
-
-    private Optional<String> readClasspathAsset(String base, String relative) {
-        if (!isSafeRelativePath(relative)) {
-            return Optional.empty();
-        }
-        String path = base + relative;
-        try (InputStream is = getClass().getClassLoader().getResourceAsStream(path)) {
-            return is == null ? Optional.empty()
-                    : Optional.of(new String(is.readAllBytes(), StandardCharsets.UTF_8));
-        } catch (IOException e) {
-            return Optional.empty();
-        }
     }
 
     private Optional<String> readRelativeAsset(Path root, String relative) {

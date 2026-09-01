@@ -916,8 +916,7 @@ public class CodeAnalyzer extends NodeVisitor {
             ModuleInfo moduleInfo = ModuleInfo.from(module.id());
             String fallback = CommonUtils.generateIcon(module.id());
             LibraryMetadataReader reader = LibraryMetadataReader.getInstance();
-            return reader.getPackagedArtifactInfo(moduleInfo)
-                    .or(() -> reader.getArtifactInfo(moduleInfo))
+            return reader.getArtifactInfo(moduleInfo)
                     .<Object>map(info -> ArtifactIcon.from(fallback, null, info))
                     .orElse(fallback);
         }).orElse("");

@@ -173,13 +173,13 @@ public final class PlatformDependencyEditUtil {
         if (listener == null || project == null) {
             return;
         }
-        // This runs on every getListenerModel call, so resolve no further than the packaged L1
-        // classpath tier -- a classpath-only read, no package compile. Without this gate, a connector
-        // whose packaged L1 declares no platformDependencies (http, grpc, ...) would fall through to
-        // getSchemaDrivenServiceInitModel for a template that can never carry one — and for a connector
-        // not yet in the local repository that resolution is deliberately not memoized
-        // (TriggerModelReader.Resolution), so it would re-run on every fetch.
-        if (!packagedModuleDeclaresDriverDependencies(moduleName)) {
+        // This runs on every getListenerModel call, so gate on a cheap L1 presence check before
+        // building the full template. Without this gate, a connector whose shipped L1 declares no
+        // platformDependencies (http, grpc, ...) would fall through to getSchemaDrivenServiceInitModel
+        // for a template that can never carry one — and for a connector not yet in the local
+        // repository that resolution is deliberately not memoized (TriggerModelReader.Resolution), so
+        // it would re-run on every fetch.
+        if (!moduleDeclaresDriverDependencies(orgName, moduleName)) {
             return;
         }
         Optional<ServiceInitModel> template = TriggerModelReader.getInstance()
@@ -206,14 +206,13 @@ public final class PlatformDependencyEditUtil {
     }
 
     /**
-     * Whether the module's packaged L1 declares a driver dependency on any listener -- a
-     * classpath-only presence check, precise enough to replace the old bundled-registry gate (which
-     * was only ever a proxy for "this connector needs a jar the user must supply") without becoming a
-     * package compile.
+     * Whether the module's shipped L1 declares a driver dependency on any listener -- a presence
+     * check, precise enough to replace the old bundled-registry gate (which was only ever a proxy for
+     * "this connector needs a jar the user must supply") without becoming a package compile.
      */
-    private static boolean packagedModuleDeclaresDriverDependencies(String moduleName) {
-        ModuleInfo moduleInfo = new ModuleInfo(null, moduleName, moduleName, null);
-        return LibraryMetadataReader.getInstance().getPackagedTriggerMetadataModel(moduleInfo)
+    private static boolean moduleDeclaresDriverDependencies(String orgName, String moduleName) {
+        ModuleInfo moduleInfo = new ModuleInfo(orgName, moduleName, moduleName, null);
+        return LibraryMetadataReader.getInstance().getTriggerMetadataModel(moduleInfo)
                 .map(TriggerMetadataModel::listeners)
                 .map(listeners -> listeners.stream().anyMatch(
                         listener -> listener.platformDependencies() != null

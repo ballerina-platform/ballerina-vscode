@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com)
+ *  Copyright (c) 2026, WSO2 LLC. (http://www.wso2.com)
  *
  *  WSO2 LLC. licenses this file to you under the Apache License,
  *  Version 2.0 (the "License"); you may not use this file except
@@ -18,26 +18,19 @@
 
 package io.ballerina.servicemodelgenerator.extension.model.response;
 
-import io.ballerina.servicemodelgenerator.extension.model.Listener;
+import io.ballerina.servicemodelgenerator.extension.connector.ConnectorUpgradeAdvisor.ConnectorUpgradeAdvice;
 
 import java.util.Arrays;
+import java.util.List;
 
-public record ListenerModelResponse(Listener listener, String errorMsg, String stacktrace,
-                                     ModelResolutionIssue issue) {
+public record ConnectorUpgradeAdviceResponse(List<ConnectorUpgradeAdvice> advice, String errorMsg,
+                                             String stacktrace) {
 
-    public ListenerModelResponse() {
-        this(null, null, null, null);
+    public ConnectorUpgradeAdviceResponse(List<ConnectorUpgradeAdvice> advice) {
+        this(advice, null, null);
     }
 
-    public ListenerModelResponse(Listener listener) {
-        this(listener, null, null, null);
-    }
-
-    public ListenerModelResponse(Throwable e) {
-        this(null, e.toString(), Arrays.toString(e.getStackTrace()), null);
-    }
-
-    public ListenerModelResponse(ModelResolutionIssue issue) {
-        this(null, null, null, issue);
+    public ConnectorUpgradeAdviceResponse(Throwable e) {
+        this(List.of(), e.toString(), Arrays.toString(e.getStackTrace()));
     }
 }

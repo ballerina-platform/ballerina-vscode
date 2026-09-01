@@ -23,7 +23,7 @@ import { TitleBar } from "../../../components/TitleBar";
 import { isBetaModule } from "../ComponentListView/componentListUtils";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { FormField, FormImports, FormValues } from "@wso2/ballerina-side-panel";
-import { EVENT_TYPE, hasBlockingValidationErrors, LineRange, RecordTypeField, ServiceInitModel, ValidationResult } from "@wso2/ballerina-core";
+import { EVENT_TYPE, hasBlockingValidationErrors, LineRange, ModelResolutionIssue, RecordTypeField, ServiceInitModel, ValidationResult } from "@wso2/ballerina-core";
 import { FormHeader } from "../../../components/FormHeader";
 import ArtifactForm from "../Forms/ArtifactForm";
 import styled from "@emotion/styled";
@@ -103,6 +103,8 @@ enum PullingStatus {
     PULLING = "pulling",
     SUCCESS = "success",
     ERROR = "error",
+    UNSUPPORTED_VERSION = "unsupported_version",
+    UPDATING = "updating",
 }
 
 export function ServiceCreationView(props: ServiceCreationViewProps) {
@@ -115,6 +117,7 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
     const [formFields, setFormFields] = useState<FormField[]>([]);
 
     const [pullingStatus, setPullingStatus] = useState<PullingStatus>(PullingStatus.FETCHING);
+    const [upgradeIssue, setUpgradeIssue] = useState<ModelResolutionIssue | undefined>(undefined);
     const [filePath, setFilePath] = useState<string>("");
     const [targetLineRange, setTargetLineRange] = useState<LineRange>();
     const [isSaving, setIsSaving] = useState<boolean>(false);
@@ -188,6 +191,10 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
                 setServiceInitModel(res.serviceInitModel);
                 setFormFields(mapPropertiesToFormFields(res.serviceInitModel.properties));
                 setPullingStatus(undefined);
+            } else if (res?.issue?.code === "UNSUPPORTED_CONNECTOR_VERSION") {
+                setUpgradeIssue(res.issue);
+                setPullingStatus(PullingStatus.UNSUPPORTED_VERSION);
+                return;
             } else {
                 // The call resolved but came back with no model to show — treat it the same as a
                 // failure rather than leaving the loading UI stuck with nothing to display.
@@ -241,6 +248,35 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
             setRecordTypeFields(collectRecordTypeFields(model.properties));
         }
     }, [model]);
+
+    const handleUpdateNow = async () => {
+        if (!upgradeIssue) {
+            return;
+        }
+        setPullingStatus(PullingStatus.UPDATING);
+        try {
+            const result = await rpcClient.getServiceDesignerRpcClient().pullConnectorUpgrade({
+                orgName: upgradeIssue.orgName,
+                moduleName: upgradeIssue.moduleName,
+                packageName: packageName,
+                targetVersion: upgradeIssue.requiredVersion,
+            });
+            if (!isMountedRef.current) {
+                return;
+            }
+            if (result.success) {
+                setUpgradeIssue(undefined);
+                fetchData();
+            } else {
+                setPullingStatus(PullingStatus.UNSUPPORTED_VERSION);
+            }
+        } catch (error) {
+            console.error(">>> Error updating connector", error);
+            if (isMountedRef.current) {
+                setPullingStatus(PullingStatus.UNSUPPORTED_VERSION);
+            }
+        }
+    };
 
     const handleOnChange = (fieldKey: string, value: any) => {
         // Try to update the CHOICE field in the model (recursively)
@@ -324,6 +360,24 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
                                     : "Failed to pull the package. Please try again."}
                             </StatusText>
                             <Button appearance="secondary" onClick={fetchData}>Retry</Button>
+                        </StatusCard>
+                    )}
+                    {pullingStatus === PullingStatus.UNSUPPORTED_VERSION && upgradeIssue && (
+                        <StatusCard>
+                            <Icon name="bi-error" sx={{ color: ThemeColors.ERROR, fontSize: "18px" }} />
+                            <StatusText variant="body2">
+                                {`${packageName} ${upgradeIssue.currentVersion ?? ""} doesn't support the Service `
+                                    + `Designer. Update to ${upgradeIssue.requiredVersion} to continue.`}
+                            </StatusText>
+                            <Button appearance="primary" onClick={handleUpdateNow}>Update Now</Button>
+                        </StatusCard>
+                    )}
+                    {pullingStatus === PullingStatus.UPDATING && (
+                        <StatusCard>
+                            <Icon name="bi-spinner" sx={{ color: ThemeColors.ON_SURFACE, fontSize: "18px" }} />
+                            <StatusText variant="body2">
+                                {`Updating ${packageName}...`}
+                            </StatusText>
                         </StatusCard>
                     )}
                 </StatusContainer>
