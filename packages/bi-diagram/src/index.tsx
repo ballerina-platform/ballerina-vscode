@@ -20,7 +20,7 @@ export { Diagram } from "./components/Diagram";
 export { MemoizedDiagram } from "./components/Diagram";
 
 // components
-export { NodeIcon } from "./components/NodeIcon";
+export { NodeIcon, getWorkflowFunctionIconName } from "./components/NodeIcon";
 export { ConnectorIcon } from "./components/ConnectorIcon";
 export { AIModelIcon } from "./components/AIModelIcon";
 

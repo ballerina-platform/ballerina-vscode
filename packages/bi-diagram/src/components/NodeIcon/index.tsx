@@ -167,6 +167,26 @@ const NODE_COLOR_GROUPS = {
     ORANGE_GROUP: ["DURABLE_AGENT_RESULT", "DURABLE_AGENT_DATA_RESULT"],
 };
 
+// Workflow accessor/utility functions (`workflow:currentTime`, `workflow:sleep`, ...) all currently
+// arrive from the language server as the same generic statement kind, so — like their colour and
+// title — the icon has to be keyed on the function symbol rather than the node kind. SLEEP is the one
+// exception with its own dedicated node kind (see NODE_ICONS below), but it is included here too so
+// this map is the single source of truth if the language server ever starts sending it this way.
+const WORKFLOW_MODULE_FUNCTION_ICONS: Record<string, string> = {
+    currentTime: "bi-timeline",
+    isReplaying: "bi-redo",
+    getWorkflowId: "bi-key",
+    getWorkflowType: "bi-type",
+    sleep: "bi-clock",
+};
+
+// Exported so callers building their own icon (e.g. the side panel, which picks an icon before
+// NodeIcon ever renders when the language server already sent one) can give a workflow accessor
+// function priority over that generic icon instead of NodeIcon's own fallback ordering.
+export function getWorkflowFunctionIconName(org?: string, module?: string, symbol?: string): string | undefined {
+    return org === "ballerina" && module === "workflow" && symbol ? WORKFLOW_MODULE_FUNCTION_ICONS[symbol] : undefined;
+}
+
 // The prebuilt activities (Call REST API, Call SOAP API, Send Email) all arrive as one node kind and
 // differ only by the function they call, so their colour is keyed on that instead: the two API calls
 // read as the work-doing green of the activity family, and the email send takes the blue of the other
@@ -316,10 +336,13 @@ const NODE_ICONS: Record<NodeKind, React.FC<{ size: number; color: string; isDBC
     CHILD_WORKFLOW_CALL: ({ size, color }) => <Icon name="bi-flowchart" sx={{ fontSize: size, width: size, height: size, color }} />,
     CHILD_WORKFLOW_WAIT: ({ size, color }) => <Icon name="bi-flowchart" sx={{ fontSize: size, width: size, height: size, color }} />,
     CHILD_WORKFLOW_SEND_DATA: ({ size, color }) => <Icon name="bi-flowchart" sx={{ fontSize: size, width: size, height: size, color }} />,
-    WORKFLOW_CURRENT_TIME: ({ size, color }) => <FunctionIcon />,
-    WORKFLOW_IS_REPLAYING: ({ size, color }) => <FunctionIcon />,
-    WORKFLOW_GET_ID: ({ size, color }) => <FunctionIcon />,
-    WORKFLOW_GET_TYPE: ({ size, color }) => <FunctionIcon />,
+    // The side panel's available-node list sends these as their own dedicated kinds (unlike a placed
+    // FlowNode, which arrives as a generic statement with the symbol carrying the distinction — see
+    // getWorkflowFunctionIconName), so they need their icons here too, keyed by kind.
+    WORKFLOW_CURRENT_TIME: ({ size, color }) => <Icon name="bi-timeline" sx={{ fontSize: size, width: size, height: size, color }} />,
+    WORKFLOW_IS_REPLAYING: ({ size, color }) => <Icon name="bi-redo" sx={{ fontSize: size, width: size, height: size, color }} />,
+    WORKFLOW_GET_ID: ({ size, color }) => <Icon name="bi-key" sx={{ fontSize: size, width: size, height: size, color }} />,
+    WORKFLOW_GET_TYPE: ({ size, color }) => <Icon name="bi-type" sx={{ fontSize: size, width: size, height: size, color }} />,
     ACTIVITY_CALL: ({ size, color }) => <Icon name="bi-task" sx={{ fontSize: size, width: size, height: size, color }} />,
     CONNECTION_ACTIVITY_CALL: ({ size, color }) => <Icon name="bi-task" sx={{ fontSize: size, width: size, height: size, color }} />,
     // Sending a data event into a workflow: the send icon, matching the receive-side bi-import.
@@ -395,12 +418,17 @@ interface NodeIconProps {
     size?: number;
     color?: string; // Optional override color
     isDBConnection?: boolean;
-    // The function a node calls, where the kind alone does not identify it (the prebuilt activities).
+    // The function a node calls, where the kind alone does not identify it (the prebuilt activities,
+    // the workflow accessor functions).
     symbol?: string;
+    // Scopes the symbol-keyed workflow accessor icon lookup to ballerina/workflow calls, so an
+    // unrelated function that happens to be named "sleep" does not pick up the clock glyph.
+    org?: string;
+    module?: string;
 }
 
 export function NodeIcon(props: NodeIconProps) {
-    const { type, size = 16, color, isDBConnection, symbol } = props;
+    const { type, size = 16, color, isDBConnection, symbol, org, module } = props;
     const [themeAwareColor, setThemeAwareColor] = useState<string>(color || getNodeChartColor(type, symbol));
 
     // Update color when theme changes
@@ -418,8 +446,14 @@ export function NodeIcon(props: NodeIconProps) {
         }
     }, [color, type, symbol]);
 
+    const workflowFunctionIcon = getWorkflowFunctionIconName(org, module, symbol);
+
     // Get icon renderer from the mapping or use CodeIcon as default
-    const IconRenderer = NODE_ICONS[type] || (({ size, color }: { size: number; color: string; isDBConnection?: boolean }) => <CodeIcon />);
+    const IconRenderer = workflowFunctionIcon
+        ? ({ size, color }: { size: number; color: string }) => (
+              <Icon name={workflowFunctionIcon} sx={{ fontSize: size, width: size, height: size, color }} />
+          )
+        : NODE_ICONS[type] || (({ size, color }: { size: number; color: string; isDBConnection?: boolean }) => <CodeIcon />);
     
     return (
         <>

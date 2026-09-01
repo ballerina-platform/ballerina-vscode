@@ -32,7 +32,7 @@ import {
     getItemKind,
     normalizeFunctionSearchCategories,
 } from "./function-category";
-import { AddNodeVisitor, RemoveNodeVisitor, NodeIcon, traverseFlow, ConnectorIcon, AIModelIcon } from "@wso2/bi-diagram";
+import { AddNodeVisitor, RemoveNodeVisitor, NodeIcon, traverseFlow, ConnectorIcon, AIModelIcon, getWorkflowFunctionIconName } from "@wso2/bi-diagram";
 import {
     Category,
     AvailableNode,
@@ -111,6 +111,11 @@ function convertAvailableNodeToPanelNode(
     }
 
     const isDBConnection = connectorType === "persist" || connectorType === "Database";
+    const workflowFunctionIconName = getWorkflowFunctionIconName(
+        node.codedata.org,
+        node.codedata.module,
+        node.codedata.symbol
+    );
 
     // Return common panel node structure
     return {
@@ -119,7 +124,11 @@ function convertAvailableNodeToPanelNode(
         description: node.metadata.description,
         enabled: node.enabled,
         metadata: node,
-        icon: node.metadata.icon?.startsWith("bi-") ? (
+        // A workflow accessor function (currentTime, sleep, ...) gets its own icon ahead of whatever
+        // generic icon the language server sent for the shared node kind — see getWorkflowFunctionIconName.
+        icon: workflowFunctionIconName ? (
+            <Icon name={workflowFunctionIconName} sx={{ fontSize: "16px", width: "16px", height: "16px" }} />
+        ) : node.metadata.icon?.startsWith("bi-") ? (
             // A codicon-style icon name distinguishes items sharing a node kind (e.g. durable
             // agentic workflows in the same startable list as workflow functions).
             <Icon name={node.metadata.icon} sx={{ fontSize: "16px", width: "16px", height: "16px" }} />
@@ -141,9 +150,11 @@ function convertAvailableNodeToPanelNode(
                 type={functionType === FUNCTION_TYPE.EXPRESSION_BODIED ? "DATA_MAPPER_CALL" : node.codedata.node}
                 size={16}
                 isDBConnection={isDBConnection}
-                // The prebuilt activities share one node kind, so the function they call is what tells
-                // them apart for colouring.
+                // The prebuilt activities and workflow accessor functions share one node kind, so the
+                // function they call is what tells them apart for colouring and, for the latter, icon.
                 symbol={node.codedata.symbol}
+                org={node.codedata.org}
+                module={node.codedata.module}
             />
         ),
     };
