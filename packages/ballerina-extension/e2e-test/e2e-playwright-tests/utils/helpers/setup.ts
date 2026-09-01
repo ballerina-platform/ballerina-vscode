@@ -66,12 +66,17 @@ const ELECTRON_EXIT_WAIT_MS = Number(process.env.BI_E2E_ELECTRON_EXIT_WAIT_MS ??
 const TASKKILL_TIMEOUT_MS = Number(process.env.BI_E2E_TASKKILL_TIMEOUT_MS ?? 15000);
 
 /**
- * Windows only, diagnostics only: lists Code.exe still running after a tree kill. A
- * surviving process is what holds the handle that makes the next rmdir fail, so naming
- * it here beats inferring it from an EBUSY two log lines later. Never throws.
+ * Windows only, diagnostics only: lists VS Code and language-server processes still
+ * running after a kill. A survivor is what holds the handle that makes the next rmdir
+ * fail, so naming it here beats inferring it from an EBUSY two log lines later.
+ *
+ * Off by default — set BI_E2E_LOG_SURVIVORS=true to enable. Survivors are currently
+ * always present, so left on it spawns three `tasklist` processes per teardown and warns
+ * on every run about a condition nobody is acting on. Turn it on when an EBUSY needs
+ * attributing. Never throws.
  */
 function logSurvivingVSCodeProcesses(): void {
-    if (process.platform !== 'win32') {
+    if (process.platform !== 'win32' || process.env.BI_E2E_LOG_SURVIVORS !== 'true') {
         return;
     }
     // Not just Code.exe: the extension starts the language server through bal.bat, which
@@ -125,7 +130,12 @@ export async function terminateVSCode(): Promise<void> {
                         // process Playwright holds obeys in ~10ms while the renderer,
                         // GPU, utility and language-server processes it spawned keep
                         // running — and keep handles on the project folder, so the next
-                        // rmdir fails with EBUSY. /T takes the descendants too.
+                        // rmdir fails with EBUSY. /T is load-bearing, not belt-and-braces:
+                        // reverting just this line to SIGKILL, with the rmSync retries in
+                        // initTest left in place, took EBUSY failures from 2 back to 12 and
+                        // cost 18 passing tests. Both variants leave a similar count of
+                        // unrelated Code.exe alive, so survivor count is not the signal —
+                        // /T kills the descendants that actually hold the workspace.
                         execFileSync('taskkill', ['/PID', String(electronProcess.pid), '/T', '/F'], {
                             stdio: 'pipe',
                             timeout: TASKKILL_TIMEOUT_MS,
@@ -308,9 +318,10 @@ async function prepareExtensionsForLaunch(profileName: string): Promise<string> 
  * `bal pull` is idempotent - a package that's already cached prints "Package already exists."
  * and exits 0 - so this is a fast no-op on a warm developer cache.
  */
-// `bal` resolves via PATH on Linux/macOS; on Windows the installer puts `bal.bat` there,
-// and CreateProcess only launches real executables, so the extension resolves the same way
-// (see src/core/extension.ts, which appends `.bat` on win32).
+// Named explicitly rather than relying on cmd.exe's PATHEXT lookup to turn `bal` into
+// `bal.bat`. Functionally either works now that the call goes through a shell; this
+// matches how the extension itself resolves it (src/core/extension.ts appends `.bat` on
+// win32) and keeps the platform difference visible at the call site.
 const BAL_COMMAND = process.platform === 'win32' ? 'bal.bat' : 'bal';
 
 export function executeBallPullCommand(modules: string[] = ['ballerina/task:2.7.0']): void {
