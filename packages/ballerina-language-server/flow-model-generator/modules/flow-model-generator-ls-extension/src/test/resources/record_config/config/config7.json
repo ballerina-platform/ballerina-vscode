@@ -1,0 +1,39 @@
+{
+  "filePath": "proj",
+  "description": "a readonly & record type definition is collapsed at the root",
+  "codedata": {
+    "org": "org",
+    "module": "source",
+    "packageName": "source",
+    "version": "0.3.0"
+  },
+  "typeConstraint": "ReadonlyRoot",
+  "output": {
+    "fields": [
+      {
+        "name": "id",
+        "typeName": "string",
+        "optional": false,
+        "defaultable": false,
+        "documentation": "",
+        "isRestType": false,
+        "selected": false
+      },
+      {
+        "name": "count",
+        "typeName": "int",
+        "optional": false,
+        "defaultable": false,
+        "documentation": "",
+        "isRestType": false,
+        "selected": false
+      }
+    ],
+    "hasRestType": false,
+    "typeName": "record",
+    "optional": false,
+    "defaultable": false,
+    "isRestType": false,
+    "selected": false
+  }
+}

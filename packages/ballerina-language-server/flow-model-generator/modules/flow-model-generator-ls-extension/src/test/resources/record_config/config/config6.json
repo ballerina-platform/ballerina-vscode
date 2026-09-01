@@ -1,0 +1,91 @@
+{
+  "filePath": "proj",
+  "description": "readonly & X record fields are collapsed to the type carrying the shape",
+  "codedata": {
+    "org": "org",
+    "module": "source",
+    "packageName": "source",
+    "version": "0.3.0"
+  },
+  "typeConstraint": "ReadonlyHolder",
+  "output": {
+    "fields": [
+      {
+        "fields": [
+          {
+            "name": "enabled",
+            "typeName": "boolean",
+            "optional": false,
+            "defaultable": true,
+            "documentation": "",
+            "isRestType": false,
+            "selected": false
+          },
+          {
+            "name": "maxAge",
+            "typeName": "int",
+            "optional": false,
+            "defaultable": true,
+            "documentation": "",
+            "isRestType": false,
+            "selected": false
+          },
+          {
+            "name": "maxSize",
+            "typeName": "int",
+            "optional": false,
+            "defaultable": true,
+            "documentation": "",
+            "isRestType": false,
+            "selected": false
+          }
+        ],
+        "hasRestType": false,
+        "name": "cacheConfig",
+        "typeName": "record",
+        "optional": false,
+        "typeInfo": {
+          "name": "ServerCacheConfig",
+          "orgName": "org",
+          "moduleName": "source",
+          "version": "0.3.0"
+        },
+        "defaultable": false,
+        "documentation": "",
+        "isRestType": false,
+        "selected": false
+      },
+      {
+        "memberType": {
+          "typeName": "string",
+          "optional": false,
+          "defaultable": false,
+          "isRestType": false,
+          "selected": false
+        },
+        "name": "tags",
+        "typeName": "array",
+        "optional": false,
+        "defaultable": false,
+        "documentation": "",
+        "isRestType": false,
+        "selected": false
+      },
+      {
+        "name": "name",
+        "typeName": "string",
+        "optional": false,
+        "defaultable": false,
+        "documentation": "",
+        "isRestType": false,
+        "selected": false
+      }
+    ],
+    "hasRestType": false,
+    "typeName": "record",
+    "optional": false,
+    "defaultable": false,
+    "isRestType": false,
+    "selected": false
+  }
+}

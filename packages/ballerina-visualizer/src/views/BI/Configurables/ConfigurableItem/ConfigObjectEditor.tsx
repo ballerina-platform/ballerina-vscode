@@ -22,7 +22,7 @@ import { VSCodeTextField, VSCodeButton, VSCodeCheckbox } from "@vscode/webview-u
 import { GetRecordConfigRequest, Property, TypeField, RecordSourceGenRequest, RecordSourceGenResponse, getPrimaryInputType } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Codicon, Typography } from "@wso2/ui-toolkit";
-import { unwrapIntersectionRecord } from "../../HelperPaneNew/Components/RecordConstructView/utils/intersection";
+import { normalizeIntersections } from "../../HelperPaneNew/Components/RecordConstructView/utils/intersection";
 import { getTomlPlaceholder, validateTomlValue } from "./utils";
 
 const EditorContainer = styled.div`
@@ -600,7 +600,7 @@ export function ConfigObjectEditor(props: ObjectEditorProps) {
             if (response.recordConfig) {
                 const configWithName: TypeField = {
                     name: typeValue.value as string,
-                    ...unwrapIntersectionRecord(response.recordConfig)
+                    ...normalizeIntersections(response.recordConfig)
                 };
                 // Set all fields and nested fields' selected to true recursively
                 function setAllValuesTrue(field: TypeField) {

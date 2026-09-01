@@ -18,34 +18,141 @@
 
 import { TypeField } from "@wso2/ballerina-core";
 
-// `readonly & record { ... }` arrives from the language server as an
-// `intersection` whose members are a `readonly` marker and the inner record.
-// The record editor only knows how to render `record`, so we unwrap the
-// inner record before handing it to the form. The send path uses that same
-// inner record directly — `typeInfo` carries the `readonly & record` identity,
-// and the LS rejects `intersection` typeName when generating a record literal.
+// `readonly & T` arrives from the language server as an `intersection` whose members are a
+// `readonly` marker and the type that actually carries the shape. The record editor dispatches
+// on `typeName` and has no `intersection` renderer, so such a node falls through to the leaf
+// renderer labelled "intersection", and the LS's value generator falls through to the literal
+// string `"intersection"`. Collapse the wrapper to the member carrying the shape before the
+// model reaches the form — `typeInfo` keeps the original `readonly & T` identity, and the same
+// collapsed node is what goes back out on the generateValue request.
+//
+// The language server collapses these itself (`IntersectionNormalizer`), so on a matching LS this
+// pass finds nothing and returns its input by identity. It stays because the LS can be an older
+// one: `ballerina.useDistributionLanguageServer` (on by default below Ballerina 2201.12.3) and
+// `ballerina.langServerPath` both let an arbitrary language server serve these endpoints.
 
-export function isIntersectionRecord(tf: TypeField | null | undefined): boolean {
+/** The only member that constrains mutability without carrying a shape of its own. */
+const READONLY_TYPE_NAME = "readonly";
+
+/**
+ * The single member of an intersection that carries its shape, or undefined when there is no
+ * unambiguous one — `Foo & Bar` has no single member to render in the intersection's place.
+ */
+function shapeMember(tf: TypeField | null | undefined): TypeField | undefined {
     if (!tf || tf.typeName !== "intersection" || !Array.isArray(tf.members)) {
-        return false;
+        return undefined;
     }
-    return tf.members.some(m => m?.typeName === "record");
+    // A member with no typeName names no shape, and the editor would have nothing to dispatch on if it
+    // stood in for the intersection. The language server's `IntersectionNormalizer` skips it the same way.
+    const shapeMembers = tf.members.filter(
+        (member) => member?.typeName && member.typeName !== READONLY_TYPE_NAME
+    );
+    return shapeMembers.length === 1 ? shapeMembers[0] : undefined;
 }
 
-export function unwrapIntersectionRecord(tf: TypeField): TypeField {
-    if (!isIntersectionRecord(tf)) {
-        return tf;
+export function isUnwrappableIntersection(tf: TypeField | null | undefined): boolean {
+    return shapeMember(tf) !== undefined;
+}
+
+/** Merge the wrapper's identity onto the member that replaces it. */
+function mergeWrapper(wrapper: TypeField, member: TypeField): TypeField {
+    const merged: TypeField = { ...member };
+    // The wrapper is the field: its name and position in the record win.
+    if (wrapper.name !== undefined) {
+        merged.name = wrapper.name;
     }
-    const record = tf.members!.find(m => m?.typeName === "record")!;
-    const merged: TypeField = { ...record };
-    if (tf.name !== undefined) merged.name = tf.name;
-    if (tf.typeInfo !== undefined) merged.typeInfo = tf.typeInfo;
-    if (tf.documentation !== undefined && record.documentation === undefined) {
-        merged.documentation = tf.documentation;
+    if (wrapper.typeInfo !== undefined) {
+        merged.typeInfo = wrapper.typeInfo;
     }
-    if (tf.optional !== undefined) merged.optional = tf.optional;
-    if (tf.defaultable !== undefined) merged.defaultable = tf.defaultable;
-    if (tf.selected !== undefined) merged.selected = tf.selected;
+    if (wrapper.optional !== undefined) {
+        merged.optional = wrapper.optional;
+    }
+    if (wrapper.defaultable !== undefined) {
+        merged.defaultable = wrapper.defaultable;
+    }
+    if (wrapper.selected !== undefined) {
+        merged.selected = wrapper.selected;
+    }
+    // The member describes the shape, so anything it states about the value stands.
+    if (member.documentation === undefined && wrapper.documentation !== undefined) {
+        merged.documentation = wrapper.documentation;
+    }
+    if (member.value === undefined && wrapper.value !== undefined) {
+        merged.value = wrapper.value;
+    }
+    if (member.defaultValue === undefined && wrapper.defaultValue !== undefined) {
+        merged.defaultValue = wrapper.defaultValue;
+    }
     return merged;
 }
 
+/**
+ * Collapse one node's intersection wrappers. Returns the input by identity when there is nothing
+ * to collapse. Repeats to a fixpoint so `readonly & (readonly & T)` unwraps all the way to T.
+ */
+export function unwrapIntersection(tf: TypeField): TypeField {
+    let current = tf;
+    let member = shapeMember(current);
+    while (member) {
+        current = mergeWrapper(current, member);
+        member = shapeMember(current);
+    }
+    return current;
+}
+
+function normalizeList(list: TypeField[] | undefined): TypeField[] | undefined {
+    if (!Array.isArray(list)) {
+        return list;
+    }
+    const normalized = list.map((child) => (child ? normalizeIntersections(child) : child));
+    return normalized.some((child, index) => child !== list[index]) ? normalized : list;
+}
+
+function normalizeChild(child: TypeField | undefined): TypeField | undefined {
+    return child ? normalizeIntersections(child) : child;
+}
+
+/**
+ * Collapse every intersection wrapper in the tree — a `readonly & record` field is as common as a
+ * `readonly & record` root. Never mutates the input and shares every untouched subtree, so it must
+ * run once when the model arrives (the form mutates the returned nodes in place afterwards).
+ */
+export function normalizeIntersections(tf: TypeField): TypeField {
+    if (!tf) {
+        return tf;
+    }
+    const node = unwrapIntersection(tf);
+
+    const fields = normalizeList(node.fields);
+    const members = normalizeList(node.members);
+    const elements = normalizeList(node.elements);
+    const memberType = normalizeChild(node.memberType);
+    const inclusionType = normalizeChild(node.inclusionType);
+    const restType = normalizeChild(node.restType);
+
+    if (node === tf && fields === node.fields && members === node.members && elements === node.elements &&
+        memberType === node.memberType && inclusionType === node.inclusionType && restType === node.restType) {
+        return tf;
+    }
+
+    const normalized: TypeField = { ...node };
+    if (fields !== node.fields) {
+        normalized.fields = fields;
+    }
+    if (members !== node.members) {
+        normalized.members = members;
+    }
+    if (elements !== node.elements) {
+        normalized.elements = elements;
+    }
+    if (memberType !== node.memberType) {
+        normalized.memberType = memberType;
+    }
+    if (inclusionType !== node.inclusionType) {
+        normalized.inclusionType = inclusionType;
+    }
+    if (restType !== node.restType) {
+        normalized.restType = restType;
+    }
+    return normalized;
+}

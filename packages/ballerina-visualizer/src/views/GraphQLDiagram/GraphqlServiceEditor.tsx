@@ -193,9 +193,17 @@ export function GraphqlServiceEditor(props: GraphqlServiceEditorProps) {
         subscription: undefined,
     });
 
+    // Depend on the range's values, not the object: the parent builds `lineRange` inline, so a new
+    // object arrives on every one of its renders and would refetch the model each time.
     useEffect(() => {
         fetchServiceModel();
-    }, [lineRange]);
+    }, [
+        filePath,
+        lineRange?.startLine?.line,
+        lineRange?.startLine?.offset,
+        lineRange?.endLine?.line,
+        lineRange?.endLine?.offset,
+    ]);
 
     useEffect(() => {
         // Fetch all templates on mount
@@ -241,33 +249,39 @@ export function GraphqlServiceEditor(props: GraphqlServiceEditorProps) {
 
         const reqFilePath = newFilePath ? newFilePath : filePath;
 
-        rpcClient
-            .getServiceDesignerRpcClient()
-            .getServiceModelFromCode({
+        try {
+            const res = await rpcClient.getServiceDesignerRpcClient().getServiceModelFromCode({
                 filePath: reqFilePath,
                 codedata: {
                     lineRange: reqLineRange,
                 },
-            })
-            .then((res) => {
-                console.log("Service Model: ", res.service);
-                setServiceModel(res.service);
             });
-        getProjectListeners();
+            console.log("Service Model: ", res.service);
+            if (res.service) {
+                setServiceModel(res.service);
+            }
+        } catch (error) {
+            // A range recorded before an edit no longer resolves against the edited document, and
+            // the request fails. Keep the model we have rather than rejecting into nothing.
+            console.error("Error fetching the service model:", error);
+        }
+        await getProjectListeners();
     };
 
-    const getProjectListeners = () => {
-        rpcClient.getVisualizerLocation().then((location) => {
-            const projectPath = location.projectPath;
-            rpcClient.getBIDiagramRpcClient().getProjectStructure().then((res) => {
-                const project = res.projects.find(project => isSamePath(project.projectPath, projectPath));
-                const listeners = project?.directoryMap[DIRECTORY_MAP.LISTENER];
-                if (listeners.length > 0) {
-                    setProjectListeners(listeners);
-                }
-            });
-        });
+    const getProjectListeners = async () => {
+        try {
+            const location = await rpcClient.getVisualizerLocation();
+            const res = await rpcClient.getBIDiagramRpcClient().getProjectStructure();
+            const project = res.projects.find(project => isSamePath(project.projectPath, location.projectPath));
+            const listeners = project?.directoryMap[DIRECTORY_MAP.LISTENER];
+            if (listeners?.length > 0) {
+                setProjectListeners(listeners);
+            }
+        } catch (error) {
+            console.error("Error fetching the project listeners:", error);
+        }
     };
+
 
     const handleServiceEdit = async () => {
         await rpcClient.getVisualizerRpcClient().openView({
@@ -383,8 +397,17 @@ export function GraphqlServiceEditor(props: GraphqlServiceEditorProps) {
             endColumn: model?.codedata?.lineRange?.endLine?.offset,
         };
         const deleteAction: STModification = removeStatement(targetPosition);
-        await applyModifications(rpcClient, [deleteAction]);
-        fetchServiceModel();
+        try {
+            await applyModifications(rpcClient, [deleteAction], filePath);
+            // The deletion shortened the service, so the range this panel holds now ends past where
+            // the service does. The language server resolves that back to the service that starts on
+            // the same line, so refreshing with it is safe.
+            await fetchServiceModel();
+        } catch (error) {
+            // Nothing awaits this handler: the confirmation popup calls it and moves on, so an
+            // error escaping here surfaces as an unhandled rejection instead of a message.
+            console.error("Error deleting the operation:", error);
+        }
     };
 
     const onFunctionImplement = async (func: FunctionModel) => {
