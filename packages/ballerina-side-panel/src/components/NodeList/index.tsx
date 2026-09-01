@@ -259,11 +259,12 @@ namespace S {
         margin-top: 20px;
     `;
 
-    export const AdvancedSubcategoryContainer = styled.div`
+    export const AdvancedSubcategoryContainer = styled.div<{ isLast?: boolean }>`
         display: flex;
         flex-direction: column;
         width: 100%;
         margin-top: 8px;
+        ${({ isLast }) => isLast && "padding-bottom: 12px;"}
     `;
 
     export const AdvancedSubcategoryHeader = styled.div`
@@ -651,9 +652,10 @@ export function NodeList(props: NodeListProps) {
                         const isExpanded = searchText?.length > 0
                             ? !searchCollapsedMoreSections[sectionKey]
                             : expandedMoreSections[sectionKey];
+                        const isLastSubcategory = index === subcategories.length - 1;
 
                         return (
-                            <S.AdvancedSubcategoryContainer key={subcategory.title + index}>
+                            <S.AdvancedSubcategoryContainer key={subcategory.title + index} isLast={isLastSubcategory}>
                                 <S.AdvancedSubcategoryHeader onClick={() => toggleMoreSection(sectionKey)}>
                                     <S.AdvancedSubTitle muted={subcategory.title === "More"}>{subcategory.title}</S.AdvancedSubTitle>
                                     <Button
