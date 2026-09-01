@@ -74,15 +74,21 @@ function logSurvivingVSCodeProcesses(): void {
     if (process.platform !== 'win32') {
         return;
     }
+    // Not just Code.exe: the extension starts the language server through bal.bat, which
+    // is a JVM, so a java.exe can hold the project folder too and would be invisible here
+    // if we only asked about the editor.
+    const IMAGES = ['Code.exe', 'java.exe', 'bal.exe'];
     try {
-        const out = execFileSync('tasklist', ['/FI', 'IMAGENAME eq Code.exe', '/NH'], {
-            stdio: 'pipe',
-            timeout: TASKKILL_TIMEOUT_MS,
-        }).toString();
-        const survivors = out.split('\n').filter((l) => /Code\.exe/i.test(l));
-        if (survivors.length) {
-            console.warn(`  ⚠️  ${survivors.length} Code.exe process(es) survived the kill:`);
-            survivors.forEach((l) => console.warn(`     ${l.trim()}`));
+        for (const image of IMAGES) {
+            const out = execFileSync('tasklist', ['/FI', `IMAGENAME eq ${image}`, '/NH'], {
+                stdio: 'pipe',
+                timeout: TASKKILL_TIMEOUT_MS,
+            }).toString();
+            const survivors = out.split('\n').filter((l) => l.toLowerCase().includes(image.toLowerCase()));
+            if (survivors.length) {
+                console.warn(`  ⚠️  ${survivors.length} ${image} process(es) survived the kill:`);
+                survivors.forEach((l) => console.warn(`     ${l.trim()}`));
+            }
         }
     } catch {
         // diagnostics only — never fail a test over this
@@ -302,11 +308,27 @@ async function prepareExtensionsForLaunch(profileName: string): Promise<string> 
  * `bal pull` is idempotent - a package that's already cached prints "Package already exists."
  * and exits 0 - so this is a fast no-op on a warm developer cache.
  */
+// `bal` resolves via PATH on Linux/macOS; on Windows the installer puts `bal.bat` there,
+// and CreateProcess only launches real executables, so the extension resolves the same way
+// (see src/core/extension.ts, which appends `.bat` on win32).
+const BAL_COMMAND = process.platform === 'win32' ? 'bal.bat' : 'bal';
+
 export function executeBallPullCommand(modules: string[] = ['ballerina/task:2.7.0']): void {
     for (const module of modules) {
         console.log(`Executing bal pull ${module}...`);
         try {
-            execFileSync('bal', ['pull', module], { stdio: 'pipe', timeout: 180000 });
+            // Windows ships `bal.bat`, and Node refuses to spawn .bat/.cmd without
+            // `shell: true` (the CVE-2024-27980 fix, in every Node since 18.20.2) — so
+            // the bare name gives ENOENT and the explicit `bal.bat` gives EINVAL. Both
+            // land in the catch below as a warning, leaving the Central cache cold and
+            // the language server slow to resolve the packages this call exists to warm.
+            // `module` is a literal from the caller, never external input, so routing
+            // through a shell here does not widen anything.
+            execFileSync(BAL_COMMAND, ['pull', module], {
+                stdio: 'pipe',
+                timeout: 180000,
+                shell: process.platform === 'win32',
+            });
             console.log(`✓ Successfully executed bal pull ${module}`);
         } catch (err) {
             const details = err as { stdout?: unknown; stderr?: unknown; message?: string };
