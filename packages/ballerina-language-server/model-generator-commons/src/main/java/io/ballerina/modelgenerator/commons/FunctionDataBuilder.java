@@ -168,12 +168,23 @@ public class FunctionDataBuilder {
         if (resolvedPackage == null) {
             return this;
         }
-        if (semanticModel == null) {
-            semanticModel(PackageUtil.getCompilation(resolvedPackage)
-                    .getSemanticModel(getTargetModuleId(resolvedPackage)));
-        }
         this.resolvedPackage = resolvedPackage;
         return this;
+    }
+
+    /**
+     * Derives the semantic model from an explicitly resolved package, keeping any model the caller already supplied.
+     * <p>
+     * This is deliberately deferred to build time rather than done in {@code resolvedPackage(Package)}: the module to
+     * compile against comes from {@code moduleInfo}, which callers are free to set after the package. Deriving it
+     * eagerly in the setter would silently pin the default module for those callers.
+     */
+    private void deriveSemanticModelFromPackage() {
+        if (semanticModel != null || resolvedPackage == null) {
+            return;
+        }
+        semanticModel(PackageUtil.getCompilation(resolvedPackage)
+                .getSemanticModel(getTargetModuleId(resolvedPackage)));
     }
 
     /**
@@ -389,6 +400,9 @@ public class FunctionDataBuilder {
 
         // Ensure moduleInfo is updated with resolvedPackage version before any usage
         updateModuleInfo();
+
+        // Compile the resolved package now that both the package and the target module name are known
+        deriveSemanticModelFromPackage();
 
         // Check if this is a local symbol
         isCurrentModule = userModuleInfo != null && (!moduleInfo.isComplete() || userModuleInfo.equals(moduleInfo));
@@ -749,6 +763,7 @@ public class FunctionDataBuilder {
 
         // Ensure moduleInfo is updated with resolved package version before any usage
         updateModuleInfo();
+        deriveSemanticModelFromPackage();
         checkLocalModule();
 
         // Derive if the semantic model is not provided

@@ -33,9 +33,8 @@ import java.util.Optional;
  * Verifies that {@link FunctionDataBuilder} resolves a function against the module named by its
  * {@code moduleInfo} rather than against the package's default module.
  * <p>
- * For a package resolved from Ballerina Central, {@code resolvedPackage(Package)} used to derive its semantic model
- * from {@code resolvedPackage.getDefaultModule()}, so a submodule symbol was either not found or silently shadowed
- * by a same-named root function.
+ * For a package resolved from Ballerina Central, the semantic model used to be derived from the package's default
+ * module, so a submodule symbol was either not found or silently shadowed by a same-named root function.
  * <p>
  * {@code ballerinax/edifact.d03a.supplychain} is the fixture because its root module and every {@code m<MSG>}
  * submodule export {@code fromEdiString}, and the two overloads differ in both arity and return type — a
@@ -127,22 +126,20 @@ public class FunctionDataBuilderModuleResolutionTest {
     }
 
     /**
-     * {@code resolvedPackage(Package)} reads {@code moduleInfo} to pick the module, so a caller that sets the
-     * package first gets the default module regardless of the module name supplied afterwards. Pinning the
-     * ordering requirement here keeps a future refactor from reintroducing the root-module shadowing through the
-     * back door.
+     * The target module is picked at build time, not when the package is set, so the two setters may be called in
+     * either order. Without that, a caller supplying the package first would silently get the default module.
      */
     @Test
-    public void testPackageSetBeforeModuleInfoFallsBackToDefaultModule() {
+    public void testSetterOrderDoesNotAffectModuleResolution() {
         FunctionData functionData = new FunctionDataBuilder()
                 .name(FUNCTION_NAME)
                 .resolvedPackage(resolvedPackage)
                 .moduleInfo(new ModuleInfo(ORG, PACKAGE_NAME, SUBMODULE, VERSION))
                 .build();
 
-        Assert.assertEquals(functionData.parameters().size(), 2,
-                "resolvedPackage() consumes moduleInfo, so setting it first must be documented as required "
-                        + "ordering; this assertion records the consequence of getting it wrong.");
+        Assert.assertEquals(functionData.parameters().size(), 1,
+                "Setting resolvedPackage() before moduleInfo() must still resolve the mORDERS overload; two "
+                        + "parameters means the module was chosen before the module name was known.");
     }
 
     private FunctionData buildFunction(String moduleName, String functionName) {
