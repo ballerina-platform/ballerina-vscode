@@ -637,7 +637,12 @@ public class WorkflowUtil {
                     + filePath, e);
             return events;
         }
-        Module module = project.currentPackage().getDefaultModule();
+        // The agent is declared in the module the send statement is generated into, which is not
+        // necessarily the default one: scanning only the default module left a send node in a
+        // non-default module unable to find its channel, so the send came out one-way even when
+        // the channel declares a response.
+        Module module = workspaceManager.module(filePath)
+                .orElseGet(() -> project.currentPackage().getDefaultModule());
         for (DocumentId documentId : module.documentIds()) {
             Document document = module.document(documentId);
             ModulePartNode root = document.syntaxTree().rootNode();

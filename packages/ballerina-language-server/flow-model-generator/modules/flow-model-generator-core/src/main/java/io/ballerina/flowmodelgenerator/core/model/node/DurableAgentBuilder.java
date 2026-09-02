@@ -245,16 +245,13 @@ public class DurableAgentBuilder extends FunctionDefinitionBuilder {
     // none, which makes the caller fall back to the WSO2 default.
     private static String resolveExistingModelProvider(SourceBuilder sourceBuilder) {
         try {
-            Package currentPackage = PackageUtil
-                    .loadProject(sourceBuilder.workspaceManager, sourceBuilder.filePath).currentPackage();
-            PackageUtil.getCompilation(currentPackage);
-            for (Module module : currentPackage.modules()) {
-                List<Option> options = DurableAgentRunBuilder.modelProviderOptions(
-                        module.getCompilation().getSemanticModel());
-                if (!options.isEmpty()) {
-                    return options.get(0).value();
-                }
+            Module module = declaringModule(sourceBuilder);
+            if (module == null) {
+                return null;
             }
+            List<Option> options = DurableAgentRunBuilder.modelProviderOptions(
+                    module.getCompilation().getSemanticModel());
+            return options.isEmpty() ? null : options.get(0).value();
         } catch (RuntimeException e) {
             // Project resolution can fail before the module is pulled; omit the model.
         }
@@ -266,24 +263,42 @@ public class DurableAgentBuilder extends FunctionDefinitionBuilder {
     // OpenAI provider variable would silently run the agent on a model the user did not choose.
     private static String resolveWso2ModelProvider(SourceBuilder sourceBuilder) {
         try {
-            Package currentPackage = PackageUtil
-                    .loadProject(sourceBuilder.workspaceManager, sourceBuilder.filePath).currentPackage();
-            PackageUtil.getCompilation(currentPackage);
-            for (Module module : currentPackage.modules()) {
-                for (Symbol symbol : module.getCompilation().getSemanticModel().moduleSymbols()) {
-                    if (symbol.kind() != SymbolKind.VARIABLE) {
-                        continue;
-                    }
-                    VariableSymbol variable = (VariableSymbol) symbol;
-                    if (isWso2ModelProviderType(variable.typeDescriptor()) && variable.getName().isPresent()) {
-                        return variable.getName().get();
-                    }
+            Module module = declaringModule(sourceBuilder);
+            if (module == null) {
+                return null;
+            }
+            for (Symbol symbol : module.getCompilation().getSemanticModel().moduleSymbols()) {
+                if (symbol.kind() != SymbolKind.VARIABLE) {
+                    continue;
+                }
+                VariableSymbol variable = (VariableSymbol) symbol;
+                if (isWso2ModelProviderType(variable.typeDescriptor()) && variable.getName().isPresent()) {
+                    return variable.getName().get();
                 }
             }
         } catch (RuntimeException e) {
             // Project resolution can fail before the module is pulled; declare the provider instead.
         }
         return null;
+    }
+
+    /**
+     * The module the agent declaration is generated into.
+     *
+     * <p>Both provider lookups are scoped to it because they answer with a bare variable name, and a
+     * bare name only resolves within its own module: a provider picked out of a sibling module would
+     * be written into the declaration as an identifier that does not compile there (and need not even
+     * be public). A package whose provider lives elsewhere therefore reads as having none, and the
+     * WSO2 default is declared alongside the agent instead.
+     *
+     * @param sourceBuilder the source builder holding the target file
+     * @return the module owning the target file, or null when it cannot be resolved
+     */
+    private static Module declaringModule(SourceBuilder sourceBuilder) {
+        Package currentPackage = PackageUtil
+                .loadProject(sourceBuilder.workspaceManager, sourceBuilder.filePath).currentPackage();
+        PackageUtil.getCompilation(currentPackage);
+        return sourceBuilder.workspaceManager.module(sourceBuilder.filePath).orElse(null);
     }
 
     private static boolean isWso2ModelProviderType(TypeSymbol typeSymbol) {

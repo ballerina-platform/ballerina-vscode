@@ -29,13 +29,20 @@ interface ApprovalBadgeProps {
      */
     x?: number | string;
     y?: number | string;
+    /**
+     * What the circle underneath does on click, forwarded so the badge does not become a dead spot.
+     * The badge is a sibling `foreignObject` painted over that circle and it has to keep pointer
+     * events for its tooltip, so it swallows clicks unless the host hands its handler down. Omit it
+     * where the circle underneath is not clickable.
+     */
+    onClick?: () => void;
 }
 
 /**
  * A shield badge on the tool's top-right corner shown when the tool's
  * @ai:AgentTool annotation gates it for human-in-the-loop approval.
  */
-export function ApprovalBadge({ background, x = "88.5", y = "-0.5" }: ApprovalBadgeProps) {
+export function ApprovalBadge({ background, x = "88.5", y = "-0.5", onClick }: ApprovalBadgeProps) {
     return (
         // Positioned on the 45° point of the tool circle (cx=80 cy=24 r=22, shared by
         // AgentNodeWidget, AgentCallNodeWidget and the durable agent's capability circles). If that
@@ -43,6 +50,7 @@ export function ApprovalBadge({ background, x = "88.5", y = "-0.5" }: ApprovalBa
         <foreignObject x={x} y={y} width="17" height="17" style={{ overflow: "visible" }}>
             <Tooltip content="Requires Approval" containerSx={{ display: "flex" }}>
                 <div
+                    onClick={onClick}
                     css={css`
                         display: flex;
                         align-items: center;
@@ -54,6 +62,7 @@ export function ApprovalBadge({ background, x = "88.5", y = "-0.5" }: ApprovalBa
                         background: ${background};
                         border: 1.5px solid ${ThemeColors.SECONDARY};
                         color: ${ThemeColors.SECONDARY};
+                        cursor: ${onClick ? "pointer" : "default"};
                     `}
                 >
                     <Icon name="user-fill" sx={{ fontSize: 11, width: 11, height: 11 }} iconSx={{ fontSize: "11px" }} />

@@ -1207,7 +1207,12 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
                                 circle's bottom-right rather than its top-right, because the remove
                                 button already owns that corner here. */}
                             {item.kind === "activity" && isApprovalGated(item) && (
-                                <ApprovalBadge background={NODE_BG_COLOR} x="88.5" y="31.5" />
+                                <ApprovalBadge
+                                    background={NODE_BG_COLOR}
+                                    x="88.5"
+                                    y="31.5"
+                                    onClick={() => onCapabilityClick(item)}
+                                />
                             )}
 
                             {!isAgentReference && <g

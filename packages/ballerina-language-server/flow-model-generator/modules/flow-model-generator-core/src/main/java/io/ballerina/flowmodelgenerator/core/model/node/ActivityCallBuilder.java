@@ -759,7 +759,10 @@ public class ActivityCallBuilder extends CallBuilder {
                                     .stepOut())
                 .value("")
                 .editable(true)
-                .optional(false)
+                // Optional on purpose: an empty role list is the documented "any role may decide"
+                // configuration, which retryPolicyExpression writes out as `[]`. Marking the field
+                // required would make the form refuse to save that.
+                .optional(true)
                 .build();
     }
 
