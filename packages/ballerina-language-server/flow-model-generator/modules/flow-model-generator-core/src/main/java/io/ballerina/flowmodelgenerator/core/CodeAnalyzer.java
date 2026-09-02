@@ -2226,7 +2226,7 @@ public class CodeAnalyzer extends NodeVisitor {
                 maxRetries, retryDelay, retryBackoff, maxRetryDelay, review);
     }
 
-    /** The field that tells a HumanReview from an AutoRetry. */
+    /** The field that tells a ReviewTaskDefinition from an AutoRetry. */
     private static final String USER_ROLES_FIELD = "userRoles";
 
     /** A string literal as the form shows it — the quotes belong to the source, not the value. */

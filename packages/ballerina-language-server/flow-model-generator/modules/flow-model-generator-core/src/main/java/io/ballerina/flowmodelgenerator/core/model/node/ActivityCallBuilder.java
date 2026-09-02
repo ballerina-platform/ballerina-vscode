@@ -101,7 +101,7 @@ public class ActivityCallBuilder extends CallBuilder {
     public static final String AUTO_RETRY_VALUE = "AutoRetry";
     public static final String MANUAL_RETRY_VALUE = "ManualRetry";
     public static final String RETRY_USER_ROLES_KEY = "retryUserRoles";
-    // The rest of the HumanReview record. A review is declared exactly as a human task is,
+    // The rest of the ReviewTaskDefinition record. A review is declared exactly as a human task is,
     // so the form offers the same fields — each optional, each falling back to what the
     // reviewed activity implies when left empty.
     public static final String RETRY_TITLE_KEY = "retryTitle";
@@ -371,7 +371,7 @@ public class ActivityCallBuilder extends CallBuilder {
      * {@link io.ballerina.flowmodelgenerator.core.model.node.builtin.RestActivityStrategy}.
      */
     /**
-     * What a {@code HumanReview} declares, as the form holds it. Every field but the roles is
+     * What a {@code ReviewTaskDefinition} declares, as the form holds it. Every field but the roles is
      * optional in the record and empty here when the source left it out — the runtime then
      * derives it from the activity being reviewed, which is why the form must not invent a
      * value for it.
@@ -449,7 +449,7 @@ public class ActivityCallBuilder extends CallBuilder {
         Map<String, Map<String, Property>> dynamicFields = new LinkedHashMap<>();
         dynamicFields.put(NO_RETRY_VALUE, Map.of());
         dynamicFields.put(AUTO_RETRY_VALUE, autoRetryFields);
-        // Human Review renders the HumanReview record — the same shape a human task is
+        // Human Review renders the ReviewTaskDefinition record — the same shape a human task is
         // declared with. Only the roles are required; the rest default to wording derived
         // from the activity being reviewed, which is why each says so in its description.
         Map<String, Property> manualRetryFields = new LinkedHashMap<>();
@@ -618,7 +618,7 @@ public class ActivityCallBuilder extends CallBuilder {
         Set<String> excludedKeys = Set.of(Property.VARIABLE_KEY, Property.TYPE_KEY,
                 CHECK_ERROR_KEY, ADVANCED_PARAM_KEY, RETRY_POLICY_PARAM,
                 MAX_RETRIES_KEY, RETRY_DELAY_KEY, RETRY_BACKOFF_KEY, MAX_RETRY_DELAY_KEY, RETRY_USER_ROLES_KEY,
-                // The rest of the HumanReview record: form storage, never activity arguments.
+                // The rest of the ReviewTaskDefinition record: form storage, never activity arguments.
                 RETRY_TITLE_KEY, RETRY_DESCRIPTION_KEY, RETRY_TIMEOUT_KEY);
         populateActivityCallArg(sourceBuilder, properties, excludedKeys);
         populateRetryPolicyArg(sourceBuilder, properties);
@@ -865,7 +865,7 @@ public class ActivityCallBuilder extends CallBuilder {
     }
 
     /**
-     * The {@code HumanReview} record a review declares. Only what the form actually holds is
+     * The {@code ReviewTaskDefinition} record a review declares. Only what the form actually holds is
      * written: an omitted field is not the same as an empty one — the runtime derives the
      * review's name and wording from the activity, and emitting {@code title: ""} would
      * replace that derivation with nothing.
