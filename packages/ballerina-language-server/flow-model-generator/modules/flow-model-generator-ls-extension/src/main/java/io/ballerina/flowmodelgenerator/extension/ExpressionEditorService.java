@@ -21,6 +21,7 @@ package io.ballerina.flowmodelgenerator.extension;
 import com.google.gson.JsonArray;
 import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.syntax.tree.ExpressionNode;
+import io.ballerina.compiler.syntax.tree.ModulePartNode;
 import io.ballerina.compiler.syntax.tree.NodeParser;
 import io.ballerina.flowmodelgenerator.core.TypesGenerator;
 import io.ballerina.flowmodelgenerator.core.VisibleVariableTypesGenerator;
@@ -45,6 +46,8 @@ import io.ballerina.flowmodelgenerator.extension.response.FunctionCallTemplateRe
 import io.ballerina.flowmodelgenerator.extension.response.ImportModuleResponse;
 import io.ballerina.flowmodelgenerator.extension.response.VisibleVariableTypesResponse;
 import io.ballerina.modelgenerator.commons.CommonUtils;
+import io.ballerina.modelgenerator.commons.ImportPrefixReader;
+import io.ballerina.modelgenerator.commons.ModuleAliasResolver;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.projects.Document;
@@ -195,16 +198,19 @@ public class ExpressionEditorService implements ExtendedLanguageServerService {
                 Codedata codedata = request.codedata();
                 String template;
                 switch (request.kind()) {
+                    // A symbol of the current module needs no qualifier, and its codedata names no module.
                     case CURRENT -> template = codedata.symbol();
                     case IMPORTED -> {
-                        response.setPrefix(codedata.getModulePrefix());
+                        String prefix = boundPrefix(request.filePath(), codedata);
+                        response.setPrefix(prefix);
                         response.setModuleId(codedata.getModuleId());
-                        template = codedata.getModulePrefix() + ":" + codedata.symbol();
+                        template = prefix + ":" + codedata.symbol();
                     }
                     case AVAILABLE -> {
-                        template = codedata.getModulePrefix() + ":" + codedata.symbol();
+                        String prefix = boundPrefix(request.filePath(), codedata);
+                        template = prefix + ":" + codedata.symbol();
                         applyModuleImport(request.filePath(), codedata.getModuleId(), codedata.getImportSignature(),
-                                response);
+                                prefix, response);
                     }
                     default -> {
                         response.setError(new IllegalArgumentException("Invalid kind: " + request.kind() +
@@ -281,6 +287,23 @@ public class ExpressionEditorService implements ExtendedLanguageServerService {
 
     private void applyModuleImport(String filePathString, String moduleId, String importStatement,
                                    ImportModuleResponse response) {
+        applyModuleImport(filePathString, moduleId, importStatement, null, response);
+    }
+
+    /**
+     * Adds the module's import and reports the prefix the inserted reference must use.
+     *
+     * @param prefix the prefix resolved against the target file, or null to keep the module's natural one. An
+     *               {@code as} clause is written only where the two differ, so a module whose natural prefix is
+     *               free is imported exactly as before
+     */
+    private void applyModuleImport(String filePathString, String moduleId, String importStatement, String prefix,
+                                   ImportModuleResponse response) {
+        String naturalPrefix = CommonUtils.getPackageName(importStatement);
+        boolean aliased = prefix != null && !prefix.isBlank() && !prefix.equals(naturalPrefix);
+        if (aliased) {
+            importStatement = importStatement + " as " + prefix;
+        }
         // Generate the module import and apply it
         String fileUri = CommonUtils.getExprUri(filePathString);
         Path filePath = Path.of(filePathString);
@@ -292,7 +315,39 @@ public class ExpressionEditorService implements ExtendedLanguageServerService {
         Optional<TextEdit> importTextEdit = expressionEditorContext.getImport(importStatement);
         importTextEdit.ifPresent(textEdit ->
                 PackageUtil.pullModuleAndNotify(lsClientLogger, ModuleInfo.from(moduleId)));
-        response.setPrefix(CommonUtils.getPackageName(importStatement));
+        response.setPrefix(aliased ? prefix : naturalPrefix);
         response.setModuleId(moduleId);
+    }
+
+    /**
+     * The prefix {@code filePath} binds the codedata's module to: the alias of an import it already has, otherwise a
+     * prefix that does not collide with any the file already uses.
+     *
+     * <p>
+     * The prefix the target file binds is what an inserted reference has to use, rather than the module name's last
+     * segment: {@code ballerinax/github} and {@code ballerinax/trigger.github} both end in {@code github}, so the
+     * derived prefix cannot tell them apart and the reference would name whichever the file already imports.
+     * </p>
+     */
+    private String boundPrefix(String filePathString, Codedata codedata) {
+        if (codedata.module() == null || codedata.module().isEmpty()) {
+            // Codedata.getModulePrefix would dereference the very module missing here.
+            return "";
+        }
+        try {
+            Path filePath = Path.of(filePathString);
+            this.workspaceManagerProxy.get().loadProject(filePath);
+            Optional<Document> document = this.workspaceManagerProxy.get().document(filePath);
+            if (document.isEmpty()
+                    || !(document.get().syntaxTree().rootNode() instanceof ModulePartNode rootNode)) {
+                return codedata.getModulePrefix();
+            }
+            return ImportPrefixReader.existingImportPrefix(rootNode, codedata.org(), codedata.module())
+                    .orElseGet(() -> ModuleAliasResolver.allocatePrefix(codedata.module(),
+                            ImportPrefixReader.importedPrefixes(rootNode)));
+        } catch (Exception e) {
+            // Without a file to read, the module's natural prefix is the only available answer.
+            return codedata.getModulePrefix();
+        }
     }
 }
