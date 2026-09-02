@@ -17,17 +17,18 @@
  */
 
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { HelperPaneCompletionItem, HelperPaneFunctionInfo, InputMode } from "@wso2/ballerina-side-panel";
+import { HelperPaneCompletionItem, InputMode } from "@wso2/ballerina-side-panel";
 import { debounce } from "lodash";
 import { useRef, useState, useCallback, RefObject, useEffect } from "react";
-import { convertToHelperPaneFunction, extractFunctionInsertText } from "../../../../utils/bi";
+import { extractFunctionInsertText } from "../../../../utils/bi";
+import { useFunctionPagination } from "../../../../utils/useFunctionPagination";
 import { CompletionInsertText, FunctionKind, LineRange } from "@wso2/ballerina-core";
 import { useMutation } from "@tanstack/react-query";
 import { ExpandableList } from "../Components/ExpandableList";
 import { CompletionItem, HelperPaneCustom } from "@wso2/ui-toolkit/lib/components/ExpressionEditor";
 import { EmptyItemsPlaceHolder } from "../Components/EmptyItemsPlaceHolder";
 import styled from "@emotion/styled";
-import { Divider, SearchBox } from "@wso2/ui-toolkit";
+import { Divider, ProgressRing, SearchBox } from "@wso2/ui-toolkit";
 import { LibraryBrowser } from "../../HelperPane/LibraryBrowser";
 import { ScrollableContainer } from "../Components/ScrollableContainer";
 import FooterButtons from "../Components/FooterButtons";
@@ -67,9 +68,14 @@ export const FunctionsPage = ({
     const [searchValue, setSearchValue] = useState<string>('');
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [showContent, setShowContent] = useState<boolean>(false);
-    const [functionInfo, setFunctionInfo] = useState<HelperPaneFunctionInfo | undefined>(undefined);
-    const [libraryBrowserInfo, setLibraryBrowserInfo] = useState<HelperPaneFunctionInfo | undefined>(undefined);
     const [projectPath, setProjectPath] = useState<string>('');
+
+    const {
+        info: functionInfo,
+        isFetchingMore,
+        loadFirstPage,
+        handleScroll
+    } = useFunctionPagination({ fileName, targetLineRange });
 
     const { addModal, closeModal } = useModalStack();
 
@@ -77,7 +83,7 @@ export const FunctionsPage = ({
     let defaultFunctionsFile = Utils.joinPath(URI.file(projectPath), 'functions.bal').fsPath;
 
     const debounceFetchFunctionInfo = useCallback(
-        debounce((searchText: string, includeAvailableFunctions?: string) => {
+        debounce((searchText: string) => {
             setIsLoading(true);
 
             // Only apply minimum loading time if we don't have any function info yet
@@ -85,43 +91,21 @@ export const FunctionsPage = ({
             const minLoadingTime = shouldShowMinLoader ? new Promise(resolve => setTimeout(resolve, 500)) : Promise.resolve();
 
             Promise.all([
-                rpcClient
-                    .getBIDiagramRpcClient()
-                    .search({
-                        position: targetLineRange,
-                        filePath: fileName,
-                        queryMap: {
-                            q: searchText.trim(),
-                            limit: 12,
-                            offset: 0,
-                            ...(!!includeAvailableFunctions && { includeAvailableFunctions })
-                        },
-                        searchKind: "FUNCTION"
-                    })
-                    .then((response) => {
-                        if (response.categories?.length) {
-                            if (!!includeAvailableFunctions) {
-                                setLibraryBrowserInfo(convertToHelperPaneFunction(response.categories));
-                            } else {
-                                setFunctionInfo(convertToHelperPaneFunction(response.categories));
-                            }
-                        }
-                        console.log(response);
-                    }),
+                loadFirstPage(searchText),
                 minLoadingTime
             ]).finally(() => {
                 setIsLoading(false);
                 setShowContent(true);
             });
         }, 150),
-        [rpcClient, fileName, targetLineRange, functionInfo, showContent]
+        [loadFirstPage, functionInfo, showContent]
     );
 
     const fetchFunctionInfo = useCallback(
-        (searchText: string, includeAvailableFunctions?: string) => {
-            debounceFetchFunctionInfo(searchText, includeAvailableFunctions);
+        (searchText: string) => {
+            debounceFetchFunctionInfo(searchText);
         },
-        [debounceFetchFunctionInfo, searchValue]
+        [debounceFetchFunctionInfo]
     );
 
     const { mutateAsync: addFunction } = useMutation({
@@ -222,7 +206,7 @@ export const FunctionsPage = ({
                 <SearchBox sx={{ width: "100%" }} placeholder='Search' value={searchValue} onChange={handleFunctionSearch} />
             </div>
 
-            <ScrollableContainer style={{ margin: '8px 0px' }}>
+            <ScrollableContainer style={{ margin: '8px 0px' }} onScroll={handleScroll}>
                 {
 
                     isLoading || !showContent ? (
@@ -308,6 +292,11 @@ export const FunctionsPage = ({
                         </>
                     )
                 }
+                {isFetchingMore && (
+                    <div style={{ display: "flex", justifyContent: "center", padding: "8px" }}>
+                        <ProgressRing sx={{ height: "16px", width: "16px" }} />
+                    </div>
+                )}
             </ScrollableContainer>
             <Divider sx={{ margin: '0px' }} />
             <div style={{ margin: '4px 0' }}>

@@ -154,6 +154,51 @@ const AI_COMPONENT_PICKER_VIEWS: SidePanelView[] = [
     SidePanelView.CHUNKERS,
 ];
 
+const FUNCTION_PAGE_SIZE = 60;
+
+// Counts the leaf function nodes (items with an `id`) across a panel category tree, used to decide whether
+// another page exists.
+const countFunctionLeafNodes = (categories: PanelCategory[] = []): number =>
+    categories.reduce((total, category) => {
+        const items = (category?.items ?? []) as any[];
+        return total + items.reduce((sum, item) => sum + ("id" in item ? 1 : countFunctionLeafNodes([item])), 0);
+    }, 0);
+
+// Merges panel items, matching nested subcategories by title and de-duplicating leaf nodes by id.
+const mergePanelItems = (prev: any[] = [], next: any[] = []): any[] => {
+    const result = [...prev];
+    for (const item of next) {
+        if ("id" in item) {
+            if (!result.some((existing) => "id" in existing && existing.id === item.id)) {
+                result.push(item);
+            }
+        } else {
+            const existing = result.find((r) => !("id" in r) && r.title === item.title);
+            if (existing) {
+                existing.items = mergePanelItems(existing.items ?? [], item.items ?? []);
+            } else {
+                result.push(item);
+            }
+        }
+    }
+    return result;
+};
+
+// Merges a newly fetched page of panel categories into the accumulated categories, matching categories and
+// nested subcategories by title and de-duplicating leaf nodes by id.
+const mergePanelCategories = (prev: PanelCategory[] = [], next: PanelCategory[] = []): PanelCategory[] => {
+    const merged: PanelCategory[] = prev.map((category) => ({ ...category, items: [...(category.items ?? [])] }));
+    for (const incoming of next) {
+        const existing = merged.find((category) => category.title === incoming.title);
+        if (existing) {
+            existing.items = mergePanelItems(existing.items ?? [], incoming.items ?? []);
+        } else {
+            merged.push({ ...incoming, items: [...(incoming.items ?? [])] });
+        }
+    }
+    return merged;
+};
+
 export function BIFlowDiagram(props: BIFlowDiagramProps) {
     const { projectPath, breakpointState, syntaxTree, onUpdate, onReady, onSave, hideAgentConfiguration } = props;
     const { rpcClient } = useRpcContext();
@@ -165,6 +210,15 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     const [sidePanelView, setSidePanelView] = useState<SidePanelView>(SidePanelView.NODE_LIST);
     const [categories, setCategories] = useState<PanelCategory[]>([]); //
     const [searchText, setSearchText] = useState<string>("");
+    // Scroll pagination for the function list. Refs hold the control flags so load-more never fires from a
+    // re-render, and the query/offset used for the initial page is reused for subsequent pages.
+    const [hasMoreFunctions, setHasMoreFunctions] = useState<boolean>(false);
+    const [isLoadingMoreFunctions, setIsLoadingMoreFunctions] = useState<boolean>(false);
+    const functionSearchOffsetRef = useRef<number>(0);
+    const functionSearchHasMoreRef = useRef<boolean>(false);
+    const functionSearchQueryRef = useRef<string>("");
+    const functionSearchTypeRef = useRef<FUNCTION_TYPE>(FUNCTION_TYPE.REGULAR);
+    const isFetchingMoreFunctionsRef = useRef<boolean>(false);
     // Kept here so an expanded AI package group survives switching to a form and back.
     const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
     const [fetchingAiSuggestions, setFetchingAiSuggestions] = useState(false);
@@ -1411,6 +1465,21 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         }
     };
 
+    // Seeds function-list scroll pagination for a freshly loaded first page.
+    const seedFunctionPagination = useCallback(
+        (cats: PanelCategory[], query: string, type: FUNCTION_TYPE) => {
+            functionSearchOffsetRef.current = 0;
+            functionSearchQueryRef.current = query;
+            functionSearchTypeRef.current = type;
+            const hasMore = countFunctionLeafNodes(cats) >= FUNCTION_PAGE_SIZE;
+            functionSearchHasMoreRef.current = hasMore;
+            setHasMoreFunctions(hasMore);
+            setIsLoadingMoreFunctions(false);
+            isFetchingMoreFunctionsRef.current = false;
+        },
+        []
+    );
+
     const handleSearch = useCallback(async (searchText: string, functionType: FUNCTION_TYPE, searchKind: SearchKind) => {
         const searchEpoch = panelNavEpochRef.current;
         // An unfiltered activity list is owned by the post-creation refresh while it runs.
@@ -1513,6 +1582,10 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                         return;
                     }
                     setCategories(currentCategories);
+
+                    if (searchKind === "FUNCTION") {
+                        seedFunctionPagination(currentCategories, searchText, functionType);
+                    }
                 }
 
                 // Set the appropriate side panel view based on search kind and function type
@@ -1569,6 +1642,51 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             setCategories(initialCategoriesRef.current);
         } finally {
             setShowProgressIndicator(false);
+        }
+    }, [rpcClient, model?.fileName]);
+
+    const loadMoreFunctions = useCallback(async () => {
+        if (isFetchingMoreFunctionsRef.current || !functionSearchHasMoreRef.current
+            || !targetRef.current || !model?.fileName) {
+            return;
+        }
+        isFetchingMoreFunctionsRef.current = true;
+        setIsLoadingMoreFunctions(true);
+        const nextOffset = functionSearchOffsetRef.current + FUNCTION_PAGE_SIZE;
+        const request: BISearchRequest = {
+            position: {
+                startLine: targetRef.current.startLine,
+                endLine: targetRef.current.endLine,
+            },
+            filePath: model.fileName,
+            queryMap: {
+                q: functionSearchQueryRef.current.trim(),
+                limit: FUNCTION_PAGE_SIZE,
+                offset: nextOffset,
+                includeAvailableFunctions: "true",
+            },
+            searchKind: "FUNCTION",
+        };
+        try {
+            const response = await rpcClient.getBIDiagramRpcClient().search(request);
+            if (response.categories) {
+                const pageCategories = convertFunctionCategoriesToSidePanelCategories(
+                    [...response.categories] as Category[],
+                    functionSearchTypeRef.current
+                );
+                const pageLeafCount = countFunctionLeafNodes(pageCategories);
+                functionSearchOffsetRef.current = nextOffset;
+                functionSearchHasMoreRef.current = pageLeafCount >= FUNCTION_PAGE_SIZE;
+                setHasMoreFunctions(functionSearchHasMoreRef.current);
+                if (pageLeafCount > 0) {
+                    setCategories((prev) => mergePanelCategories(prev, pageCategories));
+                }
+            }
+        } catch (error) {
+            console.error(">>> Error loading more functions", error);
+        } finally {
+            isFetchingMoreFunctionsRef.current = false;
+            setIsLoadingMoreFunctions(false);
         }
     }, [rpcClient, model?.fileName]);
 
@@ -1787,16 +1905,17 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                     .search({
                         position: { startLine: targetRef.current.startLine, endLine: targetRef.current.endLine },
                         filePath: model?.fileName || fileName,
-                        queryMap: undefined,
+                        // Explicit first page so scroll pagination stays aligned with FUNCTION_PAGE_SIZE.
+                        queryMap: { q: "", limit: FUNCTION_PAGE_SIZE, offset: 0, includeAvailableFunctions: "true" },
                         searchKind: "FUNCTION",
                     })
                     .then((response) => {
-                        setCategories(
-                            convertFunctionCategoriesToSidePanelCategories(
-                                response.categories as Category[],
-                                FUNCTION_TYPE.REGULAR
-                            )
+                        const currentCategories = convertFunctionCategoriesToSidePanelCategories(
+                            response.categories as Category[],
+                            FUNCTION_TYPE.REGULAR
                         );
+                        setCategories(currentCategories);
+                        seedFunctionPagination(currentCategories, "", FUNCTION_TYPE.REGULAR);
                         setSidePanelView(SidePanelView.FUNCTION_LIST);
                         setShowSidePanel(true);
                     })
@@ -4216,6 +4335,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 onUpdateExpressionField={handleUpdateExpressionField}
                 onResetUpdatedExpressionField={handleResetUpdatedExpressionField}
                 onSearchFunction={handleSearchFunction}
+                onLoadMoreFunctions={loadMoreFunctions}
+                hasMoreFunctions={hasMoreFunctions}
+                isLoadingMoreFunctions={isLoadingMoreFunctions}
                 onSearchWorkflow={handleSearchWorkflow}
                 onSearchActivity={handleSearchActivity}
                 onSearchNpFunction={handleSearchNpFunction}

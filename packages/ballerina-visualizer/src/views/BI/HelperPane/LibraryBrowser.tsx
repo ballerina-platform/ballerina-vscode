@@ -20,6 +20,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import {
     SearchBox,
     Typography,
+    ProgressRing,
     BrowserContainer,
     BrowserSearchContainer,
     BrowserContentArea,
@@ -29,13 +30,12 @@ import {
     BrowserItemLabel,
     BrowserEmptyMessage
 } from '@wso2/ui-toolkit';
-import { HelperPaneCompletionItem, HelperPaneFunctionInfo } from '@wso2/ballerina-side-panel';
+import { HelperPaneCompletionItem } from '@wso2/ballerina-side-panel';
 import { CompletionInsertText } from '@wso2/ballerina-core';
 import { HelperPaneIconType, getHelperPaneIcon } from '../HelperPaneNew/utils/iconUtils';
-import { useRpcContext } from '@wso2/ballerina-rpc-client';
-import { convertToHelperPaneFunction } from '../../../utils/bi';
 import { debounce } from 'lodash';
 import { LineRange } from '@wso2/ballerina-core';
+import { useFunctionPagination } from '../../../utils/useFunctionPagination';
 
 type LibraryBrowserProps = {
     fileName: string;
@@ -52,52 +52,32 @@ export const LibraryBrowser = ({
     onChange,
     onFunctionItemSelect
 }: LibraryBrowserProps) => {
-    const { rpcClient } = useRpcContext();
     const firstRender = useRef<boolean>(true);
     const [searchValue, setSearchValue] = useState<string>('');
-    const [libraryBrowserInfo, setLibraryBrowserInfo] = useState<HelperPaneFunctionInfo | undefined>(undefined);
+    const {
+        info: libraryBrowserInfo,
+        isFetchingMore,
+        loadFirstPage,
+        handleScroll
+    } = useFunctionPagination({ fileName, targetLineRange, includeAvailableFunctions: true });
 
     const debounceFetchLibraryInfo = useCallback(
         debounce((searchText: string) => {
-            rpcClient
-                .getBIDiagramRpcClient()
-                .search({
-                    position: targetLineRange,
-                    filePath: fileName,
-                    queryMap: {
-                        q: searchText.trim(),
-                        limit: 12,
-                        offset: 0,
-                        includeAvailableFunctions: 'true'
-                    },
-                    searchKind: "FUNCTION"
-                })
-                .then((response) => {
-                    if (response.categories?.length) {
-                        setLibraryBrowserInfo(convertToHelperPaneFunction(response.categories));
-                    }
-                })
+            loadFirstPage(searchText);
         }, 150),
-        [rpcClient, fileName, targetLineRange]
-    );
-
-    const fetchLibraryInfo = useCallback(
-        (searchText: string) => {
-            debounceFetchLibraryInfo(searchText);
-        },
-        [debounceFetchLibraryInfo]
+        [loadFirstPage]
     );
 
     useEffect(() => {
         if (firstRender.current) {
             firstRender.current = false;
-            fetchLibraryInfo('');
+            debounceFetchLibraryInfo('');
         }
-    }, [fetchLibraryInfo]);
+    }, [debounceFetchLibraryInfo]);
 
     const handleSearch = (searchText: string) => {
         setSearchValue(searchText);
-        fetchLibraryInfo(searchText);
+        debounceFetchLibraryInfo(searchText);
     };
 
     const handleFunctionItemSelect = async (item: HelperPaneCompletionItem) => {
@@ -113,7 +93,7 @@ export const LibraryBrowser = ({
             <BrowserSearchContainer>
                 <SearchBox id="library-browser-search" placeholder="Search" value={searchValue} onChange={handleSearch} />
             </BrowserSearchContainer>
-            <BrowserContentArea>
+            <BrowserContentArea onScroll={handleScroll}>
                 {libraryBrowserInfo?.category
                     .filter((category) => 
                         (category.items && category.items.length > 0) || 
@@ -169,6 +149,11 @@ export const LibraryBrowser = ({
                         </BrowserSectionBody>
                     </BrowserSectionContainer>
                 ))}
+                {isFetchingMore && (
+                    <div style={{ display: 'flex', justifyContent: 'center', padding: '8px' }}>
+                        <ProgressRing sx={{ height: '16px', width: '16px' }} />
+                    </div>
+                )}
             </BrowserContentArea>
         </BrowserContainer>
     );

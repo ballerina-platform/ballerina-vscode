@@ -35,8 +35,10 @@ import io.ballerina.projects.Project;
 import io.ballerina.tools.text.LineRange;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Represents a command to search for functions available to a module. This class extends SearchCommand and provides
@@ -67,6 +69,8 @@ class FunctionSearchCommand extends SearchCommand {
             "io", List.of("print", "println", "fileWriteString", "fileWriteJson", "fileReadString", "fileReadJson")
     );
     private static final String FETCH_KEY = "functions";
+    private static final Set<String> ALLOWED_ORGANIZATIONS = Set.of("ballerina", "ballerinax", "wso2");
+    private static final String STANDARD_LIBRARY_ORG = "ballerina";
     private final List<String> moduleNames;
     private final Document functionsDoc;
 
@@ -90,12 +94,26 @@ class FunctionSearchCommand extends SearchCommand {
 
     @Override
     protected List<Item> defaultView() {
-        WorkspaceFunctionNodeBuilder.buildSubmoduleWorkspaceNodes(rootBuilder, project, position, query, functionsDoc);
         List<SearchResult> searchResults = new ArrayList<>();
-        if (!moduleNames.isEmpty()) {
-            searchResults.addAll(dbManager.searchFunctionsByPackages(moduleNames, List.of(), limit, offset));
+
+        if (offset == 0) {
+            WorkspaceFunctionNodeBuilder.buildSubmoduleWorkspaceNodes(
+                    rootBuilder, project, position, query, functionsDoc);
+            if (!moduleNames.isEmpty()) {
+                searchResults.addAll(
+                        dbManager.searchFunctionsByPackages(moduleNames, List.of(), Integer.MAX_VALUE, 0));
+            }
         }
-        searchResults.addAll(defaultViewHolder.get(this).getOrDefault(FETCH_KEY, List.of()));
+
+        CentralSearchUtil centralSearch = new CentralSearchUtil(RemoteCentral.getInstance());
+        List<SearchResult> availableFunctions =
+                centralSearch.searchFunctionsByOrg(query, limit, offset, STANDARD_LIBRARY_ORG);
+        if (availableFunctions == null) {
+            availableFunctions = offset == 0
+                    ? defaultViewHolder.get(this).getOrDefault(FETCH_KEY, List.of())
+                    : List.of();
+        }
+        searchResults.addAll(availableFunctions);
 
         buildLibraryNodes(searchResults);
         return rootBuilder.build().items();
@@ -104,7 +122,20 @@ class FunctionSearchCommand extends SearchCommand {
     @Override
     protected List<Item> search() {
         WorkspaceFunctionNodeBuilder.buildSubmoduleWorkspaceNodes(rootBuilder, project, position, query, functionsDoc);
-        List<SearchResult> functionSearchList = dbManager.searchFunctions(query, limit, offset);
+
+        // Search functions from Ballerina Central, falling back to the local index on failure or timeout. Querying
+        // Central live ensures functions published after the bundled index was built are still discoverable.
+        String currentOrg = project.currentPackage().packageOrg().value();
+        Set<String> allowedOrgs = new HashSet<>(ALLOWED_ORGANIZATIONS);
+        if (currentOrg != null && !currentOrg.isEmpty()) {
+            allowedOrgs.add(currentOrg);
+        }
+
+        CentralSearchUtil centralSearch = new CentralSearchUtil(RemoteCentral.getInstance());
+        List<SearchResult> functionSearchList = centralSearch.searchFunctions(query, limit, offset, allowedOrgs);
+        if (functionSearchList == null) {
+            functionSearchList = dbManager.searchFunctions(query, limit, offset);
+        }
         buildLibraryNodes(functionSearchList);
         return rootBuilder.build().items();
     }

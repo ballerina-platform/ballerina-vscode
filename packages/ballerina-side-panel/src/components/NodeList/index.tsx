@@ -21,6 +21,7 @@ import ReactMarkdown from "react-markdown";
 import {
     Button,
     Codicon,
+    ProgressRing,
     SearchBox,
     SidePanelBody,
     Switch,
@@ -384,6 +385,9 @@ interface NodeListProps {
     alwaysCollapsedCategories?: string[];
     alwaysExpandedCategories?: string[];
     loading?: boolean;
+    onLoadMore?: () => void;
+    hasMore?: boolean;
+    isLoadingMore?: boolean;
 }
 
 export function NodeList(props: NodeListProps) {
@@ -409,7 +413,10 @@ export function NodeList(props: NodeListProps) {
         panelBodySx,
         alwaysCollapsedCategories,
         alwaysExpandedCategories,
-        loading
+        loading,
+        onLoadMore,
+        hasMore,
+        isLoadingMore
     } = props;
 
     const [searchText, setSearchText] = useState<string>("");
@@ -537,6 +544,17 @@ export function NodeList(props: NodeListProps) {
             return;
         }
         setExpandedCategories(newExpandedState);
+    };
+
+    const handleListScroll = (e: React.UIEvent<HTMLDivElement>) => {
+        if (!onLoadMore || !hasMore || isLoadingMore || searchText) {
+            return;
+        }
+        const el = e.currentTarget;
+        const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 40;
+        if (nearBottom) {
+            onLoadMore();
+        }
     };
 
     const handleAddNode = (node: Node, category?: string) => {
@@ -1027,7 +1045,7 @@ export function NodeList(props: NodeListProps) {
                 </S.PanelBody>
             )}
             {!showGeneratePanel && !isSearching && !loading && (
-                <S.PanelBody style={{ ...props.panelBodySx }}>
+                <S.PanelBody style={{ ...props.panelBodySx }} onScroll={handleListScroll}>
                     {getCategoryContainer(filteredCategories)}
                     {/* Show More Functions button - moved outside Logging category */}
                     {callFunctionNode && !searchText && (
@@ -1047,6 +1065,11 @@ export function NodeList(props: NodeListProps) {
                                 </Button>
                             </S.AdvancedSubcategoryHeader>
                         </S.AdvancedSubcategoryContainer>
+                    )}
+                    {isLoadingMore && (
+                        <div style={{ display: "flex", justifyContent: "center", padding: "8px" }}>
+                            <ProgressRing sx={{ height: "16px", width: "16px" }} />
+                        </div>
                     )}
                 </S.PanelBody>
             )}

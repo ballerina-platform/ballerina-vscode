@@ -547,6 +547,134 @@
             },
             {
               "metadata": {
+                "label": "createReadableChannel",
+                "description": "Creates an in-memory channel, which will be a reference stream of bytes.\n```ballerina\nvar byteChannel = io:createReadableChannel(content);\n```\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "io",
+                "packageName": "io",
+                "symbol": "createReadableChannel",
+                "version": "1.8.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "openReadableCsvFile",
+                "description": "Retrieves a readable CSV channel from a given file path.\n```ballerina\nio:ReadableCSVChannel rCsvChannel = check io:openReadableCsvFile(srcFileName);\n```\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "io",
+                "packageName": "io",
+                "symbol": "openReadableCsvFile",
+                "version": "1.8.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "openWritableCsvFile",
+                "description": "Retrieves a writable CSV channel from a given file path.\n```ballerina\nio:WritableCSVChannel wCsvChannel = check io:openWritableCsvFile(srcFileName);\n```\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "io",
+                "packageName": "io",
+                "symbol": "openWritableCsvFile",
+                "version": "1.8.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "print",
+                "description": "Prints `any`, `error`, or string templates (such as `The respective int value is ${val}`) value(s) to the `STDOUT`.\n```ballerina\nio:print(\"Start processing the CSV file from \", srcFileName);\n```\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "io",
+                "packageName": "io",
+                "symbol": "print",
+                "version": "1.8.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "println",
+                "description": "Prints `any`, `error` or string templates(such as `The respective int value is ${val}`) value(s) to the STDOUT\nfollowed by a new line.\n```ballerina\nio:println(\"Start processing the CSV file from \", srcFileName);\n```\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "io",
+                "packageName": "io",
+                "symbol": "println",
+                "version": "1.8.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "fprint",
+                "description": "Prints `any`, `error`, or string templates(such as `The respective int value is ${val}`) value(s) to\na given stream(STDOUT or STDERR).\n```ballerina\nio:fprint(io:stderr, \"Unexpected error occurred\");\n```",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "io",
+                "packageName": "io",
+                "symbol": "fprint",
+                "version": "1.8.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "fprintln",
+                "description": "Prints `any`, `error`, or string templates(such as `The respective int value is ${val}`) value(s) to\na given stream(STDOUT or STDERR) followed by a new line.\n```ballerina\nio:fprintln(io:stderr, \"Unexpected error occurred\");\n```",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "io",
+                "packageName": "io",
+                "symbol": "fprintln",
+                "version": "1.8.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "readln",
+                "description": "Retrieves the input read from the STDIN.\n```ballerina\nstring choice = io:readln(\"Enter choice 1 - 5: \");\nstring choice = io:readln();\n```\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "io",
+                "packageName": "io",
+                "symbol": "readln",
+                "version": "1.8.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
                 "label": "fileReadJson",
                 "description": "Reads file content as a JSON.\n```ballerina\njson|io:Error content = io:fileReadJson(\"./resources/myfile.json\");\n```",
                 "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.0.png"
@@ -652,6 +780,294 @@
           "items": [
             {
               "metadata": {
+                "label": "utcNow",
+                "description": "Returns the UTC representing the current time (current instant of the system clock in seconds from the epoch of `1970-01-01T00:00:00`).\n```ballerina\ntime:Utc utc = time:utcNow();\n```",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.8.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "time",
+                "packageName": "time",
+                "symbol": "utcNow",
+                "version": "2.8.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "monotonicNow",
+                "description": "Returns no of seconds from unspecified epoch.\nThis API guarantees consistent value increase in subsequent calls with nanoseconds precision.\n```ballerina\ndecimal seconds = time:monotonicNow();\n```",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.8.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "time",
+                "packageName": "time",
+                "symbol": "monotonicNow",
+                "version": "2.8.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "utcFromString",
+                "description": "Converts from RFC 3339 timestamp (e.g., `2007-12-03T10:15:30.00Z`) to Utc.\n```ballerina\ntime:Utc|time:Error utc = time:utcFromString(\"2007-12-03T10:15:30.00Z\");\n```",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.8.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "time",
+                "packageName": "time",
+                "symbol": "utcFromString",
+                "version": "2.8.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "utcToString",
+                "description": "Converts a given `time:Utc` time to a RFC 3339 timestamp (e.g., `2007-12-03T10:15:30.00Z`).\n```ballerina\nstring utcString = time:utcToString(time:utcNow());\n```",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.8.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "time",
+                "packageName": "time",
+                "symbol": "utcToString",
+                "version": "2.8.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "utcAddSeconds",
+                "description": "Returns UTC time that occurs seconds after `utc`. This assumes that all days have 86400 seconds except when utc\nrepresents a time during a positive leap second, in which case the corresponding day will be assumed to have 86401 seconds.\n```ballerina\ntime:Utc utc = time:utcAddSeconds(time:utcNow(), 20.900);\n```",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.8.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "time",
+                "packageName": "time",
+                "symbol": "utcAddSeconds",
+                "version": "2.8.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "utcDiffSeconds",
+                "description": "Returns difference in seconds between two UTC times.\nThis will be positive if `utc1` occurs after `utc2`\n```ballerina\ntime:Utc utc1 = time:utcNow();\ntime:Utc utc2 = check time:utcFromString(\"2021-04-12T23:20:50.520Z\");\ntime:Seconds seconds = time:utcDiffSeconds(utc1, utc2);\n```",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.8.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "time",
+                "packageName": "time",
+                "symbol": "utcDiffSeconds",
+                "version": "2.8.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "dateValidate",
+                "description": "Check that days and months are within range as per Gregorian calendar rules.\n```ballerina\ntime:Date date = {year: 1994, month: 11, day: 7};\ntime:Error? isValid = time:dateValidate(date);\n```",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.8.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "time",
+                "packageName": "time",
+                "symbol": "dateValidate",
+                "version": "2.8.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "dayOfWeek",
+                "description": "Get the day of week for a specified date.\n```ballerina\ntime:Date date = {year: 1994, month: 11, day: 7};\ntime:DayOfWeek day = time:dayOfWeek(date);\n```",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.8.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "time",
+                "packageName": "time",
+                "symbol": "dayOfWeek",
+                "version": "2.8.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "utcToCivil",
+                "description": "Converts a given `time:Utc` timestamp to a `time:Civil` value.\n```ballerina\ntime:Utc utc = time:utcNow();\ntime:Civil civil = time:utcToCivil(utc);\n```",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.8.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "time",
+                "packageName": "time",
+                "symbol": "utcToCivil",
+                "version": "2.8.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "utcFromCivil",
+                "description": "Converts a given `time:Civil` value to an `time:Utc` timestamp.\n```ballerina\ntime:Civil civil = time:utcToCivil(time:utcNow());\ntime:Utc utc = time:utcFromCivil(civil);\n```",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.8.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "time",
+                "packageName": "time",
+                "symbol": "utcFromCivil",
+                "version": "2.8.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "civilFromString",
+                "description": "Converts a given RFC 3339 timestamp(e.g., `2007-12-03T10:15:30.00Z`) to `time:Civil`.\n```ballerina\ntime:Civil|time:Error civil1 = time:civilFromString(\"2021-04-12T23:20:50.520+05:30[Asia/Colombo]\");\ntime:Civil|time:Error civil2 = time:civilFromString(\"2007-12-03T10:15:30.00Z\");\n```",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.8.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "time",
+                "packageName": "time",
+                "symbol": "civilFromString",
+                "version": "2.8.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "civilToString",
+                "description": "Obtain a RFC 3339 timestamp (e.g., `2021-03-05T00:33:28.839564+05:30`) from a given `time:Civil`.\n```ballerina\ntime:Civil civil = check time:civilFromString(\"2007-12-03T10:15:30.00Z\");\nstring|time:Error civilString = time:civilToString(civil);\n```",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.8.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "time",
+                "packageName": "time",
+                "symbol": "civilToString",
+                "version": "2.8.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "utcToEmailString",
+                "description": "Converts a given UTC to an email formatted string (e.g `Mon, 3 Dec 2007 10:15:30 GMT`).\n```ballerina\ntime:Utc utc = time:utcNow();\nstring emailFormattedString = time:utcToEmailString(utc);\n```",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.8.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "time",
+                "packageName": "time",
+                "symbol": "utcToEmailString",
+                "version": "2.8.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "civilFromEmailString",
+                "description": "Converts a given RFC 5322 formatted (e.g `Wed, 10 Mar 2021 19:51:55 -0800 (PST)`) string to a civil record.\n```ballerina\ntime:Civil|time:Error emailDateTime = time:civilFromEmailString(\"Wed, 10 Mar 2021 19:51:55 -0820\");\n```",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.8.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "time",
+                "packageName": "time",
+                "symbol": "civilFromEmailString",
+                "version": "2.8.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "civilToEmailString",
+                "description": "Converts a given `time:Civil` record to RFC 5322 format (e.g `Wed, 10 Mar 2021 19:51:55 -0800 (PST)`).\n```ballerina\ntime:Civil civil = check time:civilFromString(\"2021-04-12T23:20:50.520+05:30[Asia/Colombo]\");\nstring|time:Error emailDateTime = time:civilToEmailString(civil, time:PREFER_ZONE_OFFSET);\n```",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.8.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "time",
+                "packageName": "time",
+                "symbol": "civilToEmailString",
+                "version": "2.8.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "civilAddDuration",
+                "description": "Adds the given time duration to the specified civil date-time. This is a time zone-agnostic operation and assumes that\nall days have exactly 86,400 seconds.\n```ballerina\ntime:Civil civil = check time:civilFromString(\"2025-04-25T10:15:30.00Z\");\ntime:Civil|time:Error updatedCivil = time:civilAddDuration(civil, {years: 1, days: 3, hours: 4, seconds: 6});\n```",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.8.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "time",
+                "packageName": "time",
+                "symbol": "civilAddDuration",
+                "version": "2.8.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "loadSystemZone",
+                "description": "Load the default time zone of the system.\n```ballerina\ntime:Zone|time:Error zone = time:loadSystemZone();\n```",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.8.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "time",
+                "packageName": "time",
+                "symbol": "loadSystemZone",
+                "version": "2.8.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "getZone",
+                "description": "Return the time zone object of a given zone ID.\n```ballerina\ntime:Zone? zone = time:getZone(\"Asia/Colombo\");\n```",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.8.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "time",
+                "packageName": "time",
+                "symbol": "getZone",
+                "version": "2.8.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
                 "label": "utcFromString",
                 "description": "Converts from RFC 3339 timestamp (e.g., `2007-12-03T10:15:30.00Z`) to Utc.\n```ballerina\ntime:Utc|time:Error utc = time:utcFromString(\"2007-12-03T10:15:30.00Z\");\n```",
                 "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.8.0.png"
@@ -679,6 +1095,497 @@
                 "packageName": "time",
                 "symbol": "utcNow",
                 "version": "2.8.0"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "data.jsondata",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "parseAsType",
+                "description": "Convert value of type `json` to subtype of `anydata`.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_data.jsondata_1.1.3.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "data.jsondata",
+                "packageName": "data.jsondata",
+                "symbol": "parseAsType",
+                "version": "1.1.3"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "parseString",
+                "description": "Converts JSON string to subtype of anydata.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_data.jsondata_1.1.3.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "data.jsondata",
+                "packageName": "data.jsondata",
+                "symbol": "parseString",
+                "version": "1.1.3"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "parseBytes",
+                "description": "Converts JSON byte[] to subtype of anydata.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_data.jsondata_1.1.3.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "data.jsondata",
+                "packageName": "data.jsondata",
+                "symbol": "parseBytes",
+                "version": "1.1.3"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "parseStream",
+                "description": "Converts JSON byte-block-stream to subtype of anydata.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_data.jsondata_1.1.3.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "data.jsondata",
+                "packageName": "data.jsondata",
+                "symbol": "parseStream",
+                "version": "1.1.3"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "toJson",
+                "description": "Converts a value of type `anydata` to `json`.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_data.jsondata_1.1.3.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "data.jsondata",
+                "packageName": "data.jsondata",
+                "symbol": "toJson",
+                "version": "1.1.3"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "prettify",
+                "description": "Prettifies a `json` value to print it.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_data.jsondata_1.1.3.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "data.jsondata",
+                "packageName": "data.jsondata",
+                "symbol": "prettify",
+                "version": "1.1.3"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "read",
+                "description": "Extract details from the given JSON value using the provided query template expression.\n\n```ballerina\nread({id: 1, \"name\": \"John Doe\"}, `$.name`) => \"John Doe\"\n```\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_data.jsondata_1.1.3.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "data.jsondata",
+                "packageName": "data.jsondata",
+                "symbol": "read",
+                "version": "1.1.3"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "ai",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "getTools",
+                "description": "Get the tools registered with the agent.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "ai",
+                "packageName": "ai",
+                "symbol": "getTools",
+                "version": "1.11.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "chunkDocumentRecursively",
+                "description": "Provides functionality to recursively chunk a text document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "ai",
+                "packageName": "ai",
+                "symbol": "chunkDocumentRecursively",
+                "version": "1.11.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "chunkMarkdownDocument",
+                "description": "Provides functionality to recursively chunk a markdown document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "ai",
+                "packageName": "ai",
+                "symbol": "chunkMarkdownDocument",
+                "version": "1.11.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "chunkHtmlDocument",
+                "description": "Provides functionality to recursively chunk a HTML document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "ai",
+                "packageName": "ai",
+                "symbol": "chunkHtmlDocument",
+                "version": "1.11.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "extractToolsFromOpenApiSpecFile",
+                "description": "Extracts the Http tools from the given OpenAPI specification file.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "ai",
+                "packageName": "ai",
+                "symbol": "extractToolsFromOpenApiSpecFile",
+                "version": "1.11.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "extractToolsFromOpenApiJsonSpec",
+                "description": "Extracts the Http tools from the given OpenAPI specification as a JSON \n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "ai",
+                "packageName": "ai",
+                "symbol": "extractToolsFromOpenApiJsonSpec",
+                "version": "1.11.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "parseOpenApiSpec",
+                "description": "Parses the given OpenAPI specification as a JSON to a OpenApiSpec object.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "ai",
+                "packageName": "ai",
+                "symbol": "parseOpenApiSpec",
+                "version": "1.11.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "getDefaultModelProvider",
+                "description": "Creates a default model provider based on the provided `wso2ProviderConfig`.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "ai",
+                "packageName": "ai",
+                "symbol": "getDefaultModelProvider",
+                "version": "1.11.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "getDefaultEmbeddingProvider",
+                "description": "Creates a default embedding provider based on the provided `wso2ProviderConfig`.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "ai",
+                "packageName": "ai",
+                "symbol": "getDefaultEmbeddingProvider",
+                "version": "1.11.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "augmentUserQuery",
+                "description": "Augments the user's query with relevant context.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "ai",
+                "packageName": "ai",
+                "symbol": "augmentUserQuery",
+                "version": "1.11.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "loadConversationThreads",
+                "description": "Loads conversation threads from a evaluation dataset JSON file.\n\nParses an evaluation set JSON file containing conversation threads with agent traces.\nThe JSON must contain a root object with an array of threads, where each thread represents\na conversation thread with multiple traces of agent executions.\n\nExpected structure: `{ \"id\": \"...\", \"name\": \"...\", \"description\": \"...\", \"threads\": [...] }`\nwhere each thread in the array has `id`, `description`, and `traces` fields.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "ai",
+                "packageName": "ai",
+                "symbol": "loadConversationThreads",
+                "version": "1.11.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "getUserQuery",
+                "description": "Extracts the user query from a conversation trace.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "ai",
+                "packageName": "ai",
+                "symbol": "getUserQuery",
+                "version": "1.11.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "executeTool",
+                "description": "Executes an AgentTool.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "ai",
+                "packageName": "ai",
+                "symbol": "executeTool",
+                "version": "1.11.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "getToolConfigs",
+                "description": "Generates a array of `ToolConfig` from the given list of function pointers.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "ai",
+                "packageName": "ai",
+                "symbol": "getToolConfigs",
+                "version": "1.11.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "getPermittedMcpToolConfigs",
+                "description": "Constructs the list of permitted MCP tool configurations by querying the MCP server.\n\nThis function initializes the MCP client using the provided implementation information\nand retrieves the list of tools permitted for use. Each permitted tool is then associated\nwith a corresponding MCP function tool dispatcher.\n\nA tool dispatcher is a function with the following signature:\n```ballerina\n@ai:AgentTool\nisolated function (mcp:CallToolParams) returns mcp:CallToolResult|error;\n```\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "ai",
+                "packageName": "ai",
+                "symbol": "getPermittedMcpToolConfigs",
+                "version": "1.11.1"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "http",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "authenticateResource",
+                "description": "Uses for declarative auth design, where the authentication/authorization decision is taken\nby reading the auth annotations provided in service/resource and the `Authorization` header of request.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "authenticateResource",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "createHttpCachingClient",
+                "description": "Creates an HTTP client capable of caching HTTP responses.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "createHttpCachingClient",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "parseHeader",
+                "description": "Parses the header value which contains multiple values or parameters.\n```ballerina\n http:HeaderValue[] values = check http:parseHeader(\"text/plain;level=1;q=0.6, application/xml;level=2\");\n```\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "parseHeader",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "getHeaderMap",
+                "description": "Converts the headers represented as a map of `anydata` to a map of `string` or `string` array. The `value:toString`\nmethod will be used to convert the values to `string`. Additionally if the header name is specified by the\n`http:Header` annotation, then it will be used as the header name.\n```ballerina\ntype Headers record {\n  @http:Header {name: \"X-API-VERSION\"}\n  string apiVersion;\n  int id;\n};\nHeaders headers = {apiVersion: \"v1\", id: 1};\nmap<string|string[]> headersMap = http:getHeaderMap(headers); // { \"X-API-VERSION\": \"v1\", \"id\": \"1\" }\n```\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "getHeaderMap",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "getQueryMap",
+                "description": "If the query name is specified by the `http:Query` annotation, then this function will return the queries map\nwith the specified query name. Otherwise, it will return the map as it is.\n```ballerina\ntype Queries record {\n  @http:Query {name: \"filter_ids\"}\n  string[] ids;\n};\nQueries queries = {ids: [\"1\", \"2\"]};\nmap<anydata> queriesMap = http:getQueryMap(queries); // { \"filter_ids\": [\"1\", \"2\"] }\n```\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "getQueryMap",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "getDefaultListener",
+                "description": "Returns the default HTTP listener. If the default listener is not already created, a new\nlistener will be created with the port and configuration. An error will be returned if\nthe listener creation fails.\n\nThe default listener configuration can be changed in the `Config.toml` file. Example:\n```toml\n[ballerina.http]\ndefaultListenerPort = 8080\n[ballerina.http.defaultListenerConfig]\nhttpVersion = \"1.1\"\n[ballerina.http.defaultListenerConfig.secureSocket.key]\npath = \"resources/certs/key.pem\"\npassword = \"password\"\n```\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "getDefaultListener",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "createHttpSecureClient",
+                "description": "Creates an HTTP client capable of securing HTTP requests with authentication.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "createHttpSecureClient",
+                "version": "2.16.2"
               },
               "enabled": true
             }
