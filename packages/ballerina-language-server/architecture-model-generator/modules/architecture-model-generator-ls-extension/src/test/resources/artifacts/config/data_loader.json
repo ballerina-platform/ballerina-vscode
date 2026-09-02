@@ -1,0 +1,30 @@
+{
+  "description": "Artifacts generation for an AI DataLoader connection",
+  "source": "data_loader.bal",
+  "packageName": ".",
+  "output": {
+    "Connections": {
+      "textLoader": {
+        "id": "textLoader",
+        "location": {
+          "fileName": "data_loader.bal",
+          "startLine": {
+            "line": 2,
+            "offset": 0
+          },
+          "endLine": {
+            "line": 2,
+            "offset": 61
+          }
+        },
+        "type": "CONNECTION",
+        "name": "textLoader",
+        "scope": "Global",
+        "visibility": "module",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png",
+        "module": "ai",
+        "children": {}
+      }
+    }
+  }
+}
