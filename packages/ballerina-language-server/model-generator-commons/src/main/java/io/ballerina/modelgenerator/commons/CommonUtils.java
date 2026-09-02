@@ -183,25 +183,40 @@ public class CommonUtils {
      */
     public static String getTypeSignature(SemanticModel semanticModel, TypeSymbol typeSymbol, boolean ignoreError,
                                           ModuleInfo moduleInfo) {
+        return getTypeSignature(semanticModel, typeSymbol, ignoreError, moduleInfo, null);
+    }
+
+    /**
+     * Retrieves the type signature, rendering every module qualifier through {@code allocator} so that each one
+     * names exactly one module. The allocator spans the whole signature, union members and type parameters
+     * included, since a qualifier is only unambiguous relative to the entire text it appears in.
+     *
+     * @param allocator the qualifier allocator, or null to render each module under its own natural segment as
+     *                  before, which is ambiguous when two modules share one
+     * @see TypeQualifierAllocator
+     */
+    public static String getTypeSignature(SemanticModel semanticModel, TypeSymbol typeSymbol, boolean ignoreError,
+                                          ModuleInfo moduleInfo, TypeQualifierAllocator allocator) {
         return switch (typeSymbol.typeKind()) {
             case COMPILATION_ERROR -> UNKNOWN_TYPE;
             case UNION -> {
                 UnionTypeSymbol unionTypeSymbol = (UnionTypeSymbol) typeSymbol;
                 yield unionTypeSymbol.memberTypeDescriptors().stream()
                         .filter(memberType -> !ignoreError || !memberType.subtypeOf(semanticModel.types().ERROR))
-                        .map(type -> getTypeSignature(semanticModel, type, ignoreError, moduleInfo))
+                        .map(type -> getTypeSignature(semanticModel, type, ignoreError, moduleInfo, allocator))
                         .reduce((s1, s2) -> s1 + "|" + s2)
-                        .orElse(getTypeSignature(unionTypeSymbol, moduleInfo));
+                        .orElse(getTypeSignature(unionTypeSymbol, moduleInfo, allocator));
             }
             // TODO: This only address how type descriptors work with dependent types. Need to extend this to improve
             //  on handling cases where functions take type descriptors as parameters.
             case TYPEDESC -> {
                 TypeDescTypeSymbol typeDescTypeSymbol = (TypeDescTypeSymbol) typeSymbol;
                 yield typeDescTypeSymbol.typeParameter()
-                        .map(typeParameter -> getTypeSignature(semanticModel, typeParameter, ignoreError, null))
-                        .orElse(getTypeSignature(typeDescTypeSymbol, moduleInfo));
+                        .map(typeParameter ->
+                                getTypeSignature(semanticModel, typeParameter, ignoreError, null, allocator))
+                        .orElse(getTypeSignature(typeDescTypeSymbol, moduleInfo, allocator));
             }
-            default -> getTypeSignature(typeSymbol, moduleInfo);
+            default -> getTypeSignature(typeSymbol, moduleInfo, allocator);
         };
     }
 
@@ -227,6 +242,21 @@ public class CommonUtils {
      * @return the processed type signature
      */
     public static String getTypeSignature(TypeSymbol typeSymbol, ModuleInfo moduleInfo) {
+        return getTypeSignature(typeSymbol, moduleInfo, null);
+    }
+
+    /**
+     * Returns the processed type signature of the type symbol, rendering each module qualifier through
+     * {@code allocator} when one is given. See {@link TypeQualifierAllocator} for why the natural segment alone is
+     * not a usable qualifier.
+     *
+     * @param typeSymbol the type symbol
+     * @param moduleInfo the default module name descriptor
+     * @param allocator  the qualifier allocator, or null for the natural segment
+     * @return the processed type signature
+     */
+    public static String getTypeSignature(TypeSymbol typeSymbol, ModuleInfo moduleInfo,
+                                          TypeQualifierAllocator allocator) {
         String text = typeSymbol.signature();
         StringBuilder newText = new StringBuilder();
         Matcher matcher = FULLY_QUALIFIED_MODULE_ID_PATTERN.matcher(text);
@@ -235,7 +265,9 @@ public class CommonUtils {
             // Append up-to start of the match
             newText.append(text, nextStart, matcher.start(1));
 
-            String modPart = matcher.group(2);
+            String orgPart = matcher.group(1);
+            String fullModulePart = matcher.group(2);
+            String modPart = fullModulePart;
             int last = modPart.lastIndexOf(".");
             if (last != -1) {
                 modPart = modPart.substring(last + 1);
@@ -244,7 +276,10 @@ public class CommonUtils {
             String typeName = matcher.group(4);
 
             if (moduleInfo == null || !modPart.equals(moduleInfo.packageName())) {
-                newText.append(modPart);
+                // The allocator may hand back something other than the natural segment, which is what keeps two
+                // modules ending in the same segment from rendering under one qualifier.
+                newText.append(allocator == null ? modPart
+                        : allocator.qualifierFor(orgPart, fullModulePart, moduleInfo));
                 newText.append(":");
             }
             newText.append(typeName);
