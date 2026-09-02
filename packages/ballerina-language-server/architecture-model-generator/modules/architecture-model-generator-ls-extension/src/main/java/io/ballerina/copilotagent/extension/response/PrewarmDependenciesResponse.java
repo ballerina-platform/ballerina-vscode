@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com)
+ *  Copyright (c) 2026, WSO2 LLC. (http://www.wso2.com)
  *
  *  WSO2 LLC. licenses this file to you under the Apache License,
  *  Version 2.0 (the "License"); you may not use this file except
@@ -16,24 +16,23 @@
  *  under the License.
  */
 
-package io.ballerina.copilotagent.core.models;
+package io.ballerina.copilotagent.extension.response;
+
+import io.ballerina.designmodelgenerator.extension.response.AbstractResponse;
 
 /**
- * Enum to represent different kinds of nodes.
+ * Response for the prewarmDependencies request.
  *
  * @since 1.5.0
  */
-public enum NodeKind {
-    MODULE_FUNCTION,
-    OBJECT_FUNCTION,
-    TYPE_DEFINITION,
-    DATA_MAPPING_FUNCTION,
-    // The kinds below have no diagram representation; the review UI renders them as
-    // source-level changes. Only append new constants — the wire format is the ordinal.
-    MODULE_VARIABLE,
-    CONSTANT,
-    LISTENER,
-    CLASS_DEFINITION,
-    ENUM_DECLARATION,
-    IMPORT_DECLARATION
+public class PrewarmDependenciesResponse extends AbstractResponse {
+    private int warmedDependencyCount;
+
+    public int getWarmedDependencyCount() {
+        return warmedDependencyCount;
+    }
+
+    public void setWarmedDependencyCount(int warmedDependencyCount) {
+        this.warmedDependencyCount = warmedDependencyCount;
+    }
 }

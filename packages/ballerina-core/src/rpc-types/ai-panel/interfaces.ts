@@ -29,7 +29,7 @@ import { DataMapperMetadata } from "../../interfaces/shared-types";
 // ==================================
 export type AIPanelPrompt =
     | { type: 'command-template'; command: Command; templateId: TemplateId; text?: string; params?: Record<string, string>; metadata?: Record<string, any>; hiddenContext?: string }
-    | { type: 'text'; text: string; planMode: boolean; codeContext?: CodeContext; autoSubmit?: boolean; hiddenContext?: string; suggestedCommandTemplates?: AIPanelPrompt[];    inputPlaceholder?:string; }
+    | { type: 'text'; text: string; planMode: boolean; codeContext?: CodeContext; autoSubmit?: boolean; hiddenContext?: string; suggestedCommandTemplates?: AIPanelPrompt[];    inputPlaceholder?:string; attachments?: Attachment[]; newThread?: boolean; }
     | { type: 'skill'; skillId: string; skillName: string; args?: string; tagParams?: Record<string, string>; autoSubmit?: boolean; hiddenContext?: string }
     | undefined;
 
@@ -393,6 +393,43 @@ export interface SemanticDiffRequest {
     projectPath: string;
 }
 
+/** One file's frozen baseline content, relative to the package root. */
+export interface AiBaselineFile {
+    filePath: string;
+    content: string;
+}
+
+/**
+ * Request to (re)establish a package's ai:// frozen baseline from explicit file contents.
+ * Unlike the didOpen/didChange notification protocol, the LS applies everything before
+ * responding, so callers can await the baseline being in place.
+ */
+export interface EnsureAiBaselineRequest {
+    projectPath: string;
+    files: AiBaselineFile[];
+}
+
+export interface EnsureAiBaselineResponse {
+    seededFileCount: number;
+    /** Files whose baseline content could not be applied; the rest are in place. */
+    failedFiles?: string[];
+    errorMsg?: string;
+}
+
+/**
+ * Request to warm the LS module-package caches for a package's direct dependencies,
+ * so the first review-diff flow-model fetch does not pay the one-time dependency
+ * resolution/compilation cost interactively. Fired in the background at run start.
+ */
+export interface PrewarmDependenciesRequest {
+    projectPath: string;
+}
+
+export interface PrewarmDependenciesResponse {
+    warmedDependencyCount?: number;
+    errorMsg?: string;
+}
+
 // Numeric enum values from the API
 export enum ChangeTypeEnum {
     ADDITION = 0,
@@ -401,10 +438,34 @@ export enum ChangeTypeEnum {
 
 }
 
+/**
+ * Mirrors the LS NodeKind wire ordinals
+ * (io.ballerina.copilotagent.core.models.NodeKind) — the single TS copy.
+ */
+export enum NodeKindEnum {
+    MODULE_FUNCTION = 0,
+    OBJECT_FUNCTION = 1,
+    TYPE_DEFINITION = 2,
+    DATA_MAPPING_FUNCTION = 3,
+    MODULE_VARIABLE = 4,
+    CONSTANT = 5,
+    LISTENER = 6,
+    CLASS_DEFINITION = 7,
+    ENUM_DECLARATION = 8,
+    IMPORT_DECLARATION = 9,
+}
+
 export type ChangeType = "ADDITION" | "MODIFICATION" | "DELETION";
 
 export interface IdentifierMetadata {
     name: string;
+    /**
+     * Before/after source text, present on construct kinds the review UI renders as
+     * source blocks (module vars, constants, listeners, classes, enums, imports).
+     * Either side is absent for a pure addition/deletion.
+     */
+    oldSource?: string;
+    newSource?: string;
 }
 
 export interface ResourceMetadata {
@@ -425,6 +486,14 @@ export interface SemanticDiff {
 export interface SemanticDiffResponse {
     loadDesignDiagrams: boolean;
     semanticDiffs: SemanticDiff[];
+    /** Set when diff computation failed entirely; semanticDiffs is absent in that case. */
+    errorMsg?: string;
+    /**
+     * Set when the syntax-level diffs succeeded but the package failed to compile
+     * (design-model comparison). The diffs are still usable, but flow diagrams
+     * will likely be unavailable for the same reason.
+     */
+    compilationError?: string;
 }
 
 export interface RevertGenerationRequest {
