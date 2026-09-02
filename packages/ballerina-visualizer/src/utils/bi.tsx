@@ -95,8 +95,6 @@ import { handleRepeatableProperty } from "./node-property-utils";
 export { updateNodeProperties } from "./node-property-utils";
 hljs.registerLanguage("ballerina", ballerina);
 
-export const BALLERINA_INTEGRATOR_ISSUES_URL = "https://github.com/wso2/product-ballerina-integrator/issues";
-
 function convertAvailableNodeToPanelNode(
     node: AvailableNode,
     functionType?: FUNCTION_TYPE,

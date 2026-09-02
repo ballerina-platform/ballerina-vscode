@@ -732,38 +732,38 @@
     },
     {
       "name": "edifact.d03a.finance",
-      "version": "0.9.0",
-      "description": "EDI Library"
+      "version": "1.0.1",
+      "description": "UN/EDIFACT D03A Finance group EDI parser: reads and writes the 32 messages covering payment orders and multiple payment orders, credit and debit advices, direct debits, financial statements and balances, banking status, balance-of-payments reporting, invoicing, VAT and tax control, and insurance premium payment."
     },
     {
       "name": "edifact.d03a.logistics",
-      "version": "0.9.0",
-      "description": "EDI Library"
+      "version": "1.0.1",
+      "description": "UN/EDIFACT D03A Logistics group EDI parser: reads and writes the 28 messages covering forwarding and multimodal transport instructions, bookings and status reports, freight cost and rate information, dangerous goods notifications, cargo handling and movement, vessel call and tank status, passenger lists, and worker registration and insurance history."
     },
     {
       "name": "edifact.d03a.manufacturing",
-      "version": "0.9.0",
-      "description": "EDI Library"
+      "version": "1.0.1",
+      "description": "UN/EDIFACT D03A Manufacturing group EDI parser: reads and writes the 17 messages covering product service and project task planning, quality and safety/hazard data, utilities master data and time series, metered services consumption, repair calls, in-transit reports, and accounting entries and statements of account."
     },
     {
       "name": "edifact.d03a.retail",
-      "version": "0.9.0",
-      "description": "EDI Library"
+      "version": "1.0.1",
+      "description": "UN/EDIFACT D03A Retail group EDI parser: reads and writes the 23 messages covering product data, exchange reconciliation and inquiries, requests for quote and for document, pricing history, returns announcements and instructions, reservations, generic and statistical messages, and insurance policy administration and reinsurance messages."
     },
     {
       "name": "edifact.d03a.services",
-      "version": "0.9.0",
-      "description": "EDI Library"
+      "version": "1.0.1",
+      "description": "UN/EDIFACT D03A Services group EDI parser: reads and writes the 29 messages covering insurance premiums, claims assessment and inspections, job orders and applications, payroll deductions, medical prescriptions, reports and resource usage, life reinsurance, berth management and stowage instructions, sales reports and forecasts, and social administration and work grants."
     },
     {
       "name": "edifact.d03a.shipping",
-      "version": "0.9.0",
-      "description": "EDI Library"
+      "version": "1.0.1",
+      "description": "UN/EDIFACT D03A Shipping group EDI parser: reads and writes the 34 messages covering container announcement, release, gate-in/gate-out, discharge/loading and stuffing/stripping messages, bayplan and stowage plans, equipment stock and special handling orders, customs declarations, cargo reports and responses, and contract tendering and valuation messages."
     },
     {
       "name": "edifact.d03a.supplychain",
-      "version": "0.9.0",
-      "description": "EDI Library"
+      "version": "1.0.1",
+      "description": "UN/EDIFACT D03A Supply Chain group EDI parser: reads and writes the 29 messages covering purchase orders, changes and responses, delivery schedules and just-in-time calls, despatch and receiving advices, inventory and order status reports, party information, documentary credit messages, cargo insurance claims, and superannuation messages."
     },
     {
       "name": "edocs",
@@ -1186,11 +1186,6 @@
       "description": "The H2 driver provides a reliable and high-performance connectivity to H2 databases. It enables efficient execution of SQL queries, updates, and other database operations. The driver is designed to provide a seamless experience for interacting with H2, supporting various data types and advanced features of the database."
     },
     {
-      "name": "health",
-      "version": "3.2.1",
-      "description": "This project contains an extension implementation for Ballerina CLI that generates"
-    },
-    {
       "name": "health.base",
       "version": "1.1.1",
       "description": "Package containing some common capabilities used in other health packages"
@@ -1238,7 +1233,7 @@
     {
       "name": "health.dicom.dicomservice",
       "version": "0.1.0",
-      "description": "The `dicomservice` module provides a custom Ballerina service type for building DICOMweb APIs. It wraps a standard HTTP listener with DICOM-specific request processing \u2014 including header validation, query parameter pre/post processing, and a `DicomContext` object to enrich resource function handlers."
+      "description": "The `dicomservice` module provides a custom Ballerina service type for building DICOMweb APIs. It wraps a standard HTTP listener with DICOM-specific request processing — including header validation, query parameter pre/post processing, and a `DicomContext` object to enrich resource function handlers."
     },
     {
       "name": "health.dicom.dicomweb",
@@ -3031,16 +3026,6 @@
       "description": "Connects to [Thinkific API](https://developers.thinkific.com/api/using-the-api) from Ballerina."
     },
     {
-      "name": "tool_consolidate_packages",
-      "version": "1.1.0",
-      "description": "Ballerina inherently supports microservices-style deployments, which are well-suited for microservice orchestration platforms like Kubernetes."
-    },
-    {
-      "name": "tool_mi",
-      "version": "0.1.2",
-      "description": "Ballerina connector for WSO2 Micro Integrator"
-    },
-    {
       "name": "transformer",
       "version": "0.1.0",
       "description": "A data transformation function is a general-purpose API to apply a function to a set of data points. The output may contain data points generated by adding, removing, or altering some. The Ballerina transformer is also a set of such tools that provide the following capabilities."
@@ -3593,19 +3578,9 @@
       "description": "This module provides APIs to create new Java array instances, get elements from arrays, set elements, etc. "
     },
     {
-      "name": "tool_scan",
-      "version": "0.11.0",
-      "description": "Static Code Analysis (SCA) uses tools to examine code without executing the code. They are used for identifying potential issues like bugs, vulnerabilities, and style violations. SCA improves software quality by detecting issues early, ensuring better maintainability, and providing enhanced security. Ballerina supports SCA using the Ballerina scan tool."
-    },
-    {
       "name": "soap",
       "version": "2.3.1",
       "description": "This module offers a set of APIs that facilitate the transmission of XML requests to a SOAP backend. It excels in managing security policies within SOAP requests, ensuring the transmission of secured SOAP envelopes. Moreover, it possesses the capability to efficiently extract data from security-applied SOAP responses."
-    },
-    {
-      "name": "tool.persist",
-      "version": "1.9.2",
-      "description": "The bal persist feature allows you to store data in different data stores and retrieve them when needed. A data store can be a database or an in-memory cache. The bal persist feature currently supports in-memory tables, SQL databases, Google Sheets, and Redis as data stores. As you can use the same syntax to access data in all these data stores, you do not need to learn different syntaxes to access data in different data stores."
     },
     {
       "name": "ldap",
@@ -3618,19 +3593,14 @@
       "description": "This module provides an API to transform XML content to another XML/HTML/plain text format using XSL transformations."
     },
     {
-      "name": "tool.openapi",
-      "version": "2.4.1",
-      "description": ""
-    },
-    {
       "name": "workflow",
       "version": "0.8.3",
-      "description": "The `ballerina/workflow` library provides durable, fault-tolerant workflow orchestration for Ballerina applications. It lets you define long-running business processes \u2014 spanning minutes, hours, or days \u2014 that automatically recover from crashes and process restarts without losing progress."
+      "description": "The `ballerina/workflow` library provides durable, fault-tolerant workflow orchestration for Ballerina applications. It lets you define long-running business processes — spanning minutes, hours, or days — that automatically recover from crashes and process restarts without losing progress."
     },
     {
       "name": "edi",
-      "version": "1.5.3",
-      "description": ""
+      "version": "1.6.0",
+      "description": "Electronic Data Interchange (EDI) is a standard for exchanging business documents — purchase orders, invoices, shipping notices — between trading partners in a structured, machine-readable format. The two most widely used standards are **X12** (North America) and **EDIFACT** (international)."
     },
     {
       "name": "smb",
@@ -3641,11 +3611,6 @@
       "name": "toml",
       "version": "0.8.0",
       "description": "This module provides APIs to convert a TOML configuration file to `map<json>`, and vice-versa."
-    },
-    {
-      "name": "tool.grpc",
-      "version": "1.0.0",
-      "description": "Ballerina Protoc-Tools"
     },
     {
       "name": "np",
@@ -3663,29 +3628,9 @@
       "description": "This is the library module for natural programming - specifically the compile-time code generation component of natural programming. This module also generates JSON schema corresponding to types used with natural expressions."
     },
     {
-      "name": "wsdltool",
-      "version": "1.3.0",
-      "description": "`WSDL` (Web Services Description Language) is an XML-based language for describing the functionalities of a web service that uses SOAP as the underlying protocol for data transfer.  "
-    },
-    {
-      "name": "editoolspackage",
-      "version": "2.1.0",
-      "description": "Ballerina EDI tool"
-    },
-    {
-      "name": "xsdtool",
-      "version": "1.4.0",
-      "description": "`XSD` (XML Schema Definition) is an approach to define the structure, elements, and constraints of XML documents. It is widely used for validating the content and structure of XML files."
-    },
-    {
       "name": "pdf",
       "version": "0.9.1",
-      "description": "The `ballerina/pdf` module provides functionality to convert HTML content to PDF documents and read data from existing PDFs. It processes HTML strings \u2014 including full documents, fragments, and messy real-world markup \u2014 and produces PDF byte arrays suitable for writing to files or sending over the network."
-    },
-    {
-      "name": "tool_mcp",
-      "version": "1.0.0",
-      "description": "Model Context Protocol (MCP) is a standard way to expose application capabilities as tools that AI assistants can safely discover and invoke."
+      "description": "The `ballerina/pdf` module provides functionality to convert HTML content to PDF documents and read data from existing PDFs. It processes HTML strings — including full documents, fragments, and messy real-world markup — and produces PDF byte arrays suitable for writing to files or sending over the network."
     },
     {
       "name": "data.yaml",
@@ -3696,21 +3641,6 @@
       "name": "etl",
       "version": "0.8.0",
       "description": "This package provides a collection of APIs designed for data processing and manipulation, enabling seamless ETL workflows and supporting a variety of use cases."
-    },
-    {
-      "name": "copybook",
-      "version": "1.1.1",
-      "description": "The copybook tool simplifies the process of transforming copybook definitions into Ballerina code."
-    },
-    {
-      "name": "tool.graphql",
-      "version": "0.14.0",
-      "description": ""
-    },
-    {
-      "name": "tool.asyncapi",
-      "version": "0.12.0",
-      "description": "The AsyncAPI contract is a specification that creates an event-driven architecture based contract for APIs by detailing all of its resources and channels in a human and machine-readable format for easy development, discovery, and integration. The Ballerina AsyncAPI tool makes it easy for the users to start the development of an event API documented in an AsyncAPI contract in Ballerina by generating a Ballerina service and listener skeletons."
     },
     {
       "name": "test",

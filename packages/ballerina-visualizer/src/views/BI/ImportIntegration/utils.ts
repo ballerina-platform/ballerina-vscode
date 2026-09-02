@@ -16,11 +16,55 @@
  * under the License.
  */
 
-import { ImportIntegrationResponse, ProjectMigrationResult } from "@wso2/ballerina-core";
+import { ImportIntegrationResponse, MigrationTool, ProjectMigrationResult } from "@wso2/ballerina-core";
 import { CoverageLevel, MigrationDisplayState } from "./types";
 import { BiWsClient } from "../wsManager/WsClient";
 
 export const SELECTION_TEXT = "To begin, choose a source platform from the options above.";
+
+/**
+ * Parameter key the language server reads to decide whether the source path holds a
+ * single project or a directory of them. `ProjectService`, `MuleImporter` and
+ * `TibcoImporter` all read exactly this key.
+ */
+export const MULTI_ROOT_PARAM_KEY = "multiRoot";
+
+/**
+ * The parameter the "Source Layout" choice writes.
+ *
+ * Resolved by KEY, deliberately not by position. The migration tools declare more than
+ * one boolean (`multiRoot`, `keepStructure`, …) and only `multiRoot` decides the layout,
+ * so picking "the first boolean" binds the choice to whichever boolean the installed tool
+ * happens to list first. That is how choosing "Multiple Projects" came to send
+ * `keepStructure=true` while leaving `multiRoot=false`, making the tool treat a
+ * multi-project codebase as one project.
+ *
+ * The positional lookup survives only as a fallback for older tools that predate the
+ * `multiRoot` key, and applies only when no such parameter is declared.
+ */
+export const resolveSourceLayoutParam = (
+    tool: MigrationTool | null | undefined
+): MigrationTool["parameters"][number] | null => {
+    const parameters = tool?.parameters ?? [];
+    return (
+        parameters.find((param) => param.key === MULTI_ROOT_PARAM_KEY) ??
+        parameters.find((param) => param.valueType === "boolean") ??
+        null
+    );
+};
+
+/** Whether the given parameter values select the multi-project source layout. */
+export const isMultiRootSelected = (
+    tool: MigrationTool | null | undefined,
+    parameters: Record<string, any> | undefined
+): boolean => {
+    const param = resolveSourceLayoutParam(tool);
+    if (!param) {
+        return false;
+    }
+    const value = parameters?.[param.key];
+    return typeof value === "string" ? value === "true" : value === true;
+};
 
 export const sanitizeProjectName = (name: string): string => {
     return name.replace(/[^a-z0-9]/gi, "_").toLowerCase();

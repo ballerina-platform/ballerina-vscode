@@ -5,6 +5,26 @@
     "loadDesignDiagrams": true,
     "semanticDiffs": [
       {
+        "changeType": "ADDITION",
+        "nodeKind": "LISTENER",
+        "uri": "ai:///main.bal",
+        "lineRange": {
+          "fileName": "main.bal",
+          "startLine": {
+            "line": 4,
+            "offset": 0
+          },
+          "endLine": {
+            "line": 4,
+            "offset": 51
+          }
+        },
+        "metadata": {
+          "name": "unusedListener",
+          "newSource": "listener http:Listener unusedListener = new (8080);"
+        }
+      },
+      {
         "changeType": "DELETION",
         "nodeKind": "OBJECT_FUNCTION",
         "uri": "ai:///main.bal",
@@ -186,6 +206,86 @@
         },
         "metadata": {
           "name": "ErrorResponse"
+        }
+      },
+      {
+        "changeType": "ADDITION",
+        "nodeKind": "MODULE_VARIABLE",
+        "uri": "ai:///connections.bal",
+        "lineRange": {
+          "fileName": "connections.bal",
+          "startLine": {
+            "line": 3,
+            "offset": 0
+          },
+          "endLine": {
+            "line": 3,
+            "offset": 70
+          }
+        },
+        "metadata": {
+          "name": "petStoreApiUrl",
+          "newSource": "// HTTP client configuration for external API calls\nconfigurable string petStoreApiUrl = \"https://petstore.swagger.io/v2\";"
+        }
+      },
+      {
+        "changeType": "ADDITION",
+        "nodeKind": "MODULE_VARIABLE",
+        "uri": "ai:///connections.bal",
+        "lineRange": {
+          "fileName": "connections.bal",
+          "startLine": {
+            "line": 6,
+            "offset": 0
+          },
+          "endLine": {
+            "line": 6,
+            "offset": 69
+          }
+        },
+        "metadata": {
+          "name": "petStoreClient",
+          "newSource": "// HTTP client for making external API calls\npublic final http:Client petStoreClient = check new (petStoreApiUrl);"
+        }
+      },
+      {
+        "changeType": "ADDITION",
+        "nodeKind": "IMPORT_DECLARATION",
+        "uri": "ai:///main.bal",
+        "lineRange": {
+          "fileName": "main.bal",
+          "startLine": {
+            "line": 1,
+            "offset": 0
+          },
+          "endLine": {
+            "line": 1,
+            "offset": 22
+          }
+        },
+        "metadata": {
+          "name": "ballerina/uuid",
+          "newSource": "import ballerina/uuid;"
+        }
+      },
+      {
+        "changeType": "ADDITION",
+        "nodeKind": "IMPORT_DECLARATION",
+        "uri": "ai:///main.bal",
+        "lineRange": {
+          "fileName": "main.bal",
+          "startLine": {
+            "line": 2,
+            "offset": 0
+          },
+          "endLine": {
+            "line": 2,
+            "offset": 21
+          }
+        },
+        "metadata": {
+          "name": "ballerina/log",
+          "newSource": "import ballerina/log;"
         }
       }
     ]

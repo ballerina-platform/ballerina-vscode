@@ -1,5 +1,5 @@
 import { DiagnosticEntry, Diagnostics } from '@wso2/ballerina-core';
-import { checkProjectDiagnostics, isModuleNotFoundDiagsExist as resolveModuleNotFoundDiagnostics } from '../../../../rpc-managers/ai-panel/repair-utils';
+import { checkProjectDiagnostics, isModuleNotFoundDiagsExist as resolveModuleNotFoundDiagnostics, PACKAGE_COMPILATION_FAILED_PREFIX } from '../../../../rpc-managers/ai-panel/repair-utils';
 import { StateMachine } from '../../../../stateMachine';
 import * as path from 'path';
 import { Uri } from 'vscode';
@@ -162,12 +162,25 @@ export async function checkCompilationErrors(
         };
     } catch (error) {
         console.error("[DiagnosticsUtils] Error checking compilation errors:", error);
+        const reason = error instanceof Error ? error.message : 'Unknown error';
+        if (reason.startsWith(PACKAGE_COMPILATION_FAILED_PREFIX)) {
+            // The package itself cannot compile (e.g. an unresolvable dependency mix from a
+            // stale sticky Dependencies.toml) — distinct from an LS malfunction. Tell the
+            // agent the real cause so it can inform the user instead of silently finishing.
+            return {
+                diagnostics: [{ message: reason }],
+                message: `<CRITICAL_ERROR> The Ballerina package failed to compile, so diagnostics could not be produced.
+Reason: ${reason}
+This is an environment/dependency problem, not something to fix with code edits. Do not attempt further code changes for it. Inform the user that the project currently fails to compile with the reason above, and suggest running 'bal build' in the project to refresh its dependency resolution (Dependencies.toml) if the reason mentions a module or dependency.
+</CRITICAL_ERROR>`,
+            };
+        }
         return {
             diagnostics: [{
                 message: "Internal error occurred while checking compilation errors."
             }],
             message: `<CRITICAL_ERROR> Failed to check compilation errors due to an internal error. Avoid try to resolve this with code changes. Acknowledge the failure, consider the task is done.
-Reason: ${error instanceof Error ? error.message : 'Unknown error'}
+Reason: ${reason}
 </CRITICAL_ERROR>`,
         };
     }

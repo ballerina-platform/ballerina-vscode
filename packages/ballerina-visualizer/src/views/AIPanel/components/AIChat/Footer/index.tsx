@@ -245,6 +245,7 @@ type FooterProps = {
     runningServicesPanel?: RunningServicesPanel;
     skills?: SkillEntry[];
     ambientState?: AgentRunState;
+    hidden?: boolean;
 };
 
 const Footer: React.FC<FooterProps> = ({
@@ -273,11 +274,12 @@ const Footer: React.FC<FooterProps> = ({
     runningServicesPanel,
     skills,
     ambientState,
+    hidden,
 }) => {
     const footerSuggestedCommandTemplates = suggestedCommandTemplates ?? defaultSuggestedCommandTemplates;
 
     return (
-        <FooterContainer>
+        <FooterContainer style={hidden ? { display: "none" } : undefined}>
             {showSuggestedCommands && (
                 <SuggestedCommandsWrapper>
                     {footerSuggestedCommandTemplates.map((item, index) => renderPrompt(item, index, aiChatInputRef))}

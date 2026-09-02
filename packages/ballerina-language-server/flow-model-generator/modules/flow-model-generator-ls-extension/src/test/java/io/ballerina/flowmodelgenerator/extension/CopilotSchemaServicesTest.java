@@ -412,7 +412,7 @@ public class CopilotSchemaServicesTest {
 
         // First union member is the codegen default for the CSV content type.
         JsonObject onFileCsv = methodNamed(service, "onFileCsv");
-        Assert.assertEquals(paramNamed(onFileCsv, "contents").getAsJsonObject("type")
+        Assert.assertEquals(paramNamed(onFileCsv, "content").getAsJsonObject("type")
                 .get("name").getAsString(), "string[][]");
         Assert.assertTrue(paramNamed(onFileCsv, "caller").get("optional").getAsBoolean());
     }
@@ -634,7 +634,7 @@ public class CopilotSchemaServicesTest {
                 "onFileCsv", "onFile", "onFileDelete", "onError"));
 
         JsonObject onFileJson = methodNamed(service, "onFileJson");
-        Assert.assertEquals(paramNames(onFileJson), List.of("content", "caller", "fileInfo"));
+        Assert.assertEquals(paramNames(onFileJson), List.of("content", "fileInfo", "caller"));
         Assert.assertTrue(paramNamed(onFileJson, "caller").get("optional").getAsBoolean());
         assertInternalLink(paramNamed(onFileJson, "fileInfo"), "FileInfo");
         // The spec: smb's handlers are marker-type, so the document authors their descriptions.
@@ -820,7 +820,7 @@ public class CopilotSchemaServicesTest {
         JsonObject onFileCsv = methodNamed(schemaService, "onFileCsv");
         Assert.assertTrue(onFileCsv.has("optional"),
                 "the schema path states whether a handler must be implemented; the index does not");
-        Assert.assertTrue(paramNamed(onFileCsv, "contents").has("binding"),
+        Assert.assertTrue(paramNamed(onFileCsv, "content").has("binding"),
                 "the schema path carries the spec binding rule; the index has no equivalent");
     }
 

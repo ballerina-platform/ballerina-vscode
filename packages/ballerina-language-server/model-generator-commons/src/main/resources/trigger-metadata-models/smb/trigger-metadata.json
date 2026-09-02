@@ -20,7 +20,6 @@
       "concrete": false,
       "multipleListenersAllowed": true,
       "annotations": ["$serviceConfig"],
-      "identifier": { "presence": "optional", "form": ["basePath"] },
       "handlers": {
         "backedByConcreteType": false,
         "options": [
@@ -40,18 +39,18 @@
                 "presence": "required"
               },
               {
-                "id": "$service.onFileText.caller",
-                "name": "caller",
-                "doc": "The share connection, for reading or writing other files while this one is being processed.",
-                "type": { "name": "Caller" },
-                "presence": "optional"
-              },
-              {
                 "id": "$service.onFileText.fileInfo",
                 "name": "fileInfo",
                 "doc": "The file's name, path, size, timestamps, and attributes.",
                 "type": { "name": "FileInfo" },
                 "presence": "required"
+              },
+              {
+                "id": "$service.onFileText.caller",
+                "name": "caller",
+                "doc": "The share connection, for reading or writing other files while this one is being processed.",
+                "type": { "name": "Caller" },
+                "presence": "optional"
               }
             ],
             "returns": { "id": "$service.onFileText.returns", "type": [{ "name": "error", "builtin": true }, { "name": "()", "builtin": true }] }
@@ -78,18 +77,18 @@
                 }
               },
               {
-                "id": "$service.onFileJson.caller",
-                "name": "caller",
-                "doc": "The share connection, for reading or writing other files while this one is being processed.",
-                "type": { "name": "Caller" },
-                "presence": "optional"
-              },
-              {
                 "id": "$service.onFileJson.fileInfo",
                 "name": "fileInfo",
                 "doc": "The file's name, path, size, timestamps, and attributes.",
                 "type": { "name": "FileInfo" },
                 "presence": "required"
+              },
+              {
+                "id": "$service.onFileJson.caller",
+                "name": "caller",
+                "doc": "The share connection, for reading or writing other files while this one is being processed.",
+                "type": { "name": "Caller" },
+                "presence": "optional"
               }
             ],
             "returns": { "id": "$service.onFileJson.returns", "type": [{ "name": "error", "builtin": true }, { "name": "()", "builtin": true }] }
@@ -116,18 +115,18 @@
                 }
               },
               {
-                "id": "$service.onFileXml.caller",
-                "name": "caller",
-                "doc": "The share connection, for reading or writing other files while this one is being processed.",
-                "type": { "name": "Caller" },
-                "presence": "optional"
-              },
-              {
                 "id": "$service.onFileXml.fileInfo",
                 "name": "fileInfo",
                 "doc": "The file's name, path, size, timestamps, and attributes.",
                 "type": { "name": "FileInfo" },
                 "presence": "required"
+              },
+              {
+                "id": "$service.onFileXml.caller",
+                "name": "caller",
+                "doc": "The share connection, for reading or writing other files while this one is being processed.",
+                "type": { "name": "Caller" },
+                "presence": "optional"
               }
             ],
             "returns": { "id": "$service.onFileXml.returns", "type": [{ "name": "error", "builtin": true }, { "name": "()", "builtin": true }] }
@@ -179,18 +178,18 @@
                 }
               },
               {
-                "id": "$service.onFileCsv.caller",
-                "name": "caller",
-                "doc": "The share connection, for reading or writing other files while this one is being processed.",
-                "type": { "name": "Caller" },
-                "presence": "optional"
-              },
-              {
                 "id": "$service.onFileCsv.fileInfo",
                 "name": "fileInfo",
                 "doc": "The file's name, path, size, timestamps, and attributes.",
                 "type": { "name": "FileInfo" },
                 "presence": "required"
+              },
+              {
+                "id": "$service.onFileCsv.caller",
+                "name": "caller",
+                "doc": "The share connection, for reading or writing other files while this one is being processed.",
+                "type": { "name": "Caller" },
+                "presence": "optional"
               }
             ],
             "returns": { "id": "$service.onFileCsv.returns", "type": [{ "name": "error", "builtin": true }, { "name": "()", "builtin": true }] }
@@ -218,18 +217,18 @@
                 "presence": "required"
               },
               {
-                "id": "$service.onFile.caller",
-                "name": "caller",
-                "doc": "The share connection, for reading or writing other files while this one is being processed.",
-                "type": { "name": "Caller" },
-                "presence": "optional"
-              },
-              {
                 "id": "$service.onFile.fileInfo",
                 "name": "fileInfo",
                 "doc": "The file's name, path, size, timestamps, and attributes.",
                 "type": { "name": "FileInfo" },
                 "presence": "required"
+              },
+              {
+                "id": "$service.onFile.caller",
+                "name": "caller",
+                "doc": "The share connection, for reading or writing other files while this one is being processed.",
+                "type": { "name": "Caller" },
+                "presence": "optional"
               }
             ],
             "returns": { "id": "$service.onFile.returns", "type": [{ "name": "error", "builtin": true }, { "name": "()", "builtin": true }] }
@@ -243,8 +242,8 @@
             "annotations": ["$functionConfig"],
             "params": [
               {
-                "id": "$service.onFileDelete.path",
-                "name": "path",
+                "id": "$service.onFileDelete.deletedFile",
+                "name": "deletedFile",
                 "doc": "Path of the file that was deleted.",
                 "type": { "name": "string", "builtin": true },
                 "presence": "required"
@@ -268,6 +267,7 @@
             "kind": "remote",
             "doc": "Invoked when the listener fails to poll, read, or bind a file, and when a handler itself returns an error. Without it, failures are logged and polling continues.",
             "presence": "optional",
+            "annotations": ["$functionConfig"],
             "params": [
               {
                 "id": "$service.onError.err",
@@ -301,16 +301,6 @@
             { "kind": "handler", "id": "$service.onFile" },
             { "kind": "handler", "id": "$service.onFileDelete" }
           ]
-        },
-        {
-          "id": "$pathSource",
-          "rule": "structure.exactlyOne",
-          "message": "An SMB service needs its watched path from exactly one source: @smb:ServiceConfig { path } or the service identifier.",
-          "subjects": [
-            { "kind": "annotationField", "annotation": "$serviceConfig", "path": ["path"], "role": "fromAnnotation" },
-            { "kind": "identifier" }
-          ],
-          "prefer": "fromAnnotation"
         }
       ]
     }
@@ -318,6 +308,6 @@
 
   "annotations": [
     { "id": "$serviceConfig", "type": { "name": "ServiceConfig" }, "attachPoint": "service", "presence": "required" },
-    { "id": "$functionConfig", "type": { "name": "FunctionConfig" }, "attachPoint": "function", "presence": "required" }
+    { "id": "$functionConfig", "type": { "name": "FunctionConfig" }, "attachPoint": "function", "presence": "optional" }
   ]
 }

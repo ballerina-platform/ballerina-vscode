@@ -208,6 +208,23 @@
                     "default": false,
                     "description": "Enable experimental features."
                 },
+                "ballerina.copilot.orbTheme": {
+                    "type": "string",
+                    "enum": [
+                        "animated",
+                        "simple"
+                    ],
+                    "enumItemLabels": [
+                        "Animated",
+                        "Simple"
+                    ],
+                    "enumDescriptions": [
+                        "Animated orb with a glowing ring. Uses the simple orb when it cannot render.",
+                        "Simple gradient orb without a ring."
+                    ],
+                    "default": "animated",
+                    "description": "WSO2 Integration Intelligence orb style."
+                },
                 "ballerina.enableNotebookDebug": {
                     "type": "boolean",
                     "default": false,
@@ -1140,7 +1157,7 @@
                 {
                     "command": "ballerina.open.ai.panel",
                     "group": "navigation@1",
-                    "when": "resourceLangId == ballerina || isBallerinaDiagram || (isBalVisualizerActive && isBIProject)",
+                    "when": "resourceLangId == ballerina || isBallerinaDiagram || (isBalVisualizerActive && isBIProject && !ballerina.copilotAmbientPresent)",
                     "title": "Open WSO2 Integration Intelligence"
                 },
                 {

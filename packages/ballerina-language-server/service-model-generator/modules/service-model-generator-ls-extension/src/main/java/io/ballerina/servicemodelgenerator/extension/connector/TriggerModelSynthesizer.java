@@ -556,7 +556,8 @@ public final class TriggerModelSynthesizer {
                 new TriggerUISchemaModel.Metadata(fn.name(), description, null, null, null, null, null, null,
                         null, null),
                 fn.name(), false, null, fn.kind(), null, fn.qualifiers(), null, null, true, false, false, false,
-                null, null, null, parameters, null, Map.of(), returnType, cdFunction(fn.name(), moduleName), null);
+                null, null, null, parameters, null, Map.of(), returnType, null,
+                cdFunction(fn.name(), moduleName), null);
     }
 
     private static TriggerUISchemaModel.Parameter buildParameterFromFacts(TriggerLibraryFacts.Param param) {
@@ -605,7 +606,7 @@ public final class TriggerModelSynthesizer {
                         many ? "Add Handler" : null, null, null, option.deprecated() != null, null),
                 name, many, null, option.kind() == null ? null : option.kind().toUpperCase(Locale.ROOT),
                 null, option.kind() == null ? null : List.of(option.kind()), null, null, false, true, !required,
-                false, null, null, null, parameters, null, properties, returnType,
+                false, null, null, null, parameters, null, properties, returnType, null,
                 cdFunction(option.name(), moduleName), null);
     }
 

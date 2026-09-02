@@ -35,7 +35,6 @@ import io.ballerina.projects.PackageVersion;
 import io.ballerina.projects.environment.PackageRepository;
 import io.ballerina.projects.environment.ResolutionOptions;
 import io.ballerina.projects.environment.ResolutionRequest;
-import io.ballerina.projects.internal.environment.BallerinaUserHome;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -177,14 +176,15 @@ public final class LibraryMetadataReader {
         return getCompiledPackageFromLocalRepository(moduleInfo).map(pkg -> pkg.project().sourceRoot());
     }
 
-    /** The Ballerina local repository handle, resolved once and cached. */
+    /**
+     * The Ballerina local repository handle for the calling thread. Delegates to
+     * {@link PackageUtil#localPackageRepository()} rather than caching a single instance here: the
+     * repository is backed by a sample-project environment whose package cache is not thread-safe,
+     * so reading through a shared instance concurrently would corrupt that cache. Keeping it
+     * per-thread is the same fix applied to the sample project itself (wso2/product-integrator#2193).
+     */
     private PackageRepository localRepository() {
-        return LocalRepositoryHolder.INSTANCE;
-    }
-
-    private static final class LocalRepositoryHolder {
-        private static final PackageRepository INSTANCE = BallerinaUserHome.from(
-                PackageUtil.getSampleProject().projectEnvironmentContext().environment()).localPackageRepository();
+        return PackageUtil.localPackageRepository();
     }
 
     private Optional<TriggerMetadataModel> readPackagedMetadata(String moduleName) {
@@ -257,7 +257,7 @@ public final class LibraryMetadataReader {
 
     private Optional<Path> resolvePackageRoot(ModuleInfo moduleInfo) {
         try {
-            Optional<Package> pkg = PackageUtil.getModulePackageOffline(PackageUtil.getSampleProject(),
+            Optional<Package> pkg = PackageUtil.getModulePackageOffline(
                     moduleInfo.org(), moduleInfo.moduleName());
             return pkg.map(aPackage -> aPackage.project().sourceRoot());
         } catch (Throwable e) {

@@ -20,7 +20,7 @@ import * as os from 'os';
 import { NodePosition } from "@wso2/syntax-tree";
 import { StateMachine } from "../../stateMachine";
 import { Position, Progress, Range, Uri, ViewColumn, window, workspace, WorkspaceEdit } from "vscode";
-import { isSamePath, PROJECT_KIND, ProjectInfo, TextEdit, WorkspaceTypeResponse } from "@wso2/ballerina-core";
+import { isPathInside, isSamePath, PROJECT_KIND, ProjectInfo, TextEdit, WorkspaceTypeResponse } from "@wso2/ballerina-core";
 import axios from 'axios';
 import fs from 'fs';
 import * as path from 'path';
@@ -28,13 +28,13 @@ import * as path from 'path';
 import {
     checkIsBallerinaPackage,
     checkIsBallerinaWorkspace,
+    findBallerinaPackageRoot,
     getBallerinaPackages,
     hasMultipleBallerinaPackages
 } from '../../utils';
 import { readOrWriteReadmeContent, resolveReadmePath } from '../bi-diagram/utils';
 import { README_FILE } from '../../utils/bi';
 
-export const BALLERINA_INTEGRATOR_ISSUES_URL = "https://github.com/wso2/product-ballerina-integrator/issues";
 const PACKAGE_FILE = "PACKAGE.md";
 
 interface ProgressMessage {
@@ -114,7 +114,113 @@ export async function askFileOrFolderPath() {
     });
 }
 
-export async function applyBallerinaTomlEdit(tomlPath: Uri, textEdit: TextEdit) {
+/**
+ * The Ballerina package (integration) the user is currently working in — the same notion of
+ * "current integration" the visualizer state machine tracks. Falls back to walking up from the
+ * state machine's project path in case it is nested inside a package root, then to walking down
+ * in case it is instead a multi-package workspace folder with exactly one package underneath;
+ * either fallback returns `undefined` if it doesn't resolve to a single package.
+ */
+export async function resolveIntegrationRoot(): Promise<string | undefined> {
+    const projectPath = StateMachine.context()?.projectPath;
+    if (!projectPath) {
+        return undefined;
+    }
+    if (await checkIsBallerinaPackage(Uri.file(projectPath))) {
+        return projectPath;
+    }
+    const ancestorRoot = await findBallerinaPackageRoot(projectPath);
+    if (ancestorRoot) {
+        return ancestorRoot;
+    }
+    const packages = await getBallerinaPackages(Uri.file(projectPath));
+    return packages.length === 1 ? packages[0] : undefined;
+}
+
+/** `abs`, relative to `root`, `/`-separated and `./`-prefixed (e.g. `./resources/x.jar`). */
+export function toIntegrationRelative(root: string, abs: string): string {
+    const rel = path.relative(path.normalize(root), path.normalize(abs)).replace(/\\/g, "/");
+    return rel.startsWith(".") ? rel : `./${rel}`;
+}
+
+/** First of `filePath`, `<name>-1.<ext>`, `<name>-2.<ext>`, ... that does not already exist. */
+export function nextAvailablePath(filePath: string): string {
+    let counter = 1;
+    let candidate = filePath;
+    while (fs.existsSync(candidate)) {
+        const parsedPath = path.parse(filePath);
+        candidate = path.join(parsedPath.dir, `${parsedPath.name}-${counter}${parsedPath.ext}`);
+        counter++;
+    }
+    return candidate;
+}
+
+/**
+ * Copies `src` into `<root>/<targetDir>` (creating it if needed) and returns the destination path,
+ * or `undefined` if the user cancelled a same-name collision prompt or the copy failed.
+ *
+ * A file already at the destination with the same name is not assumed to be identical — the user
+ * is asked how to resolve it, since two dependencies could otherwise silently point at unrelated
+ * files with the same name.
+ */
+export async function copyIntoIntegration(root: string, src: string, targetDir: string): Promise<string | undefined> {
+    const destDir = path.resolve(path.join(root, targetDir));
+    if (!isPathInside(root, destDir)) {
+        window.showErrorMessage(`Invalid target directory: ${targetDir}`);
+        return undefined;
+    }
+    try {
+        fs.mkdirSync(destDir, { recursive: true });
+    } catch (error) {
+        window.showErrorMessage(`Failed to create ${targetDir}/: ${error}`);
+        return undefined;
+    }
+
+    const fileName = path.basename(src);
+    const destPath = path.join(destDir, fileName);
+
+    if (fs.existsSync(destPath)) {
+        const choice = await window.showInformationMessage(
+            `${fileName} already exists in ${targetDir}/.`,
+            { modal: true, detail: "Choose how to handle the existing file." },
+            "Use Existing", "Replace", "Keep Both"
+        );
+        if (!choice) {
+            return undefined;
+        }
+        if (choice === "Use Existing") {
+            return destPath;
+        }
+        if (choice === "Keep Both") {
+            const finalPath = nextAvailablePath(destPath);
+            try {
+                fs.copyFileSync(src, finalPath);
+                return finalPath;
+            } catch (error) {
+                window.showErrorMessage(`Failed to copy ${fileName}: ${error}`);
+                return undefined;
+            }
+        }
+    }
+
+    try {
+        fs.copyFileSync(src, destPath);
+        return destPath;
+    } catch (error) {
+        window.showErrorMessage(`Failed to copy ${fileName}: ${error}`);
+        return undefined;
+    }
+}
+
+/**
+ * Applies one `Ballerina.toml` edit and resolves only once it has landed.
+ *
+ * Callers apply edits in an `await` loop, and a single operation can now emit several inserts at
+ * the same computed position (a local `[[dependency]]` plus one `[[platform.java21.dependency]]`
+ * per driver JAR). Returning the `applyEdit` promise is what makes that loop sequential — without
+ * it the edits race against each other on the same document version.
+ */
+export async function applyBallerinaTomlEdit(tomlPath: Uri, textEdit: TextEdit): Promise<boolean> {
     const workspaceEdit = new WorkspaceEdit();
 
     const range = new Range(new Position(textEdit.range.start.line, textEdit.range.start.character),
@@ -124,11 +230,11 @@ export async function applyBallerinaTomlEdit(tomlPath: Uri, textEdit: TextEdit) 
     workspaceEdit.replace(tomlPath, range, textEdit.newText);
 
     // Apply the edit
-    workspace.applyEdit(workspaceEdit).then(success => {
-        if (success) {
-        } else {
-        }
-    });
+    const success = await workspace.applyEdit(workspaceEdit);
+    if (!success) {
+        console.error(`>>> Failed to apply Ballerina.toml edit at ${tomlPath.fsPath}`);
+    }
+    return success;
 }
 
 export async function selectSampleDownloadPath(): Promise<string> {

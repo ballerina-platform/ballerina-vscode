@@ -189,6 +189,7 @@ export type FormFieldInputType = "TEXT" |
     "PARAM_MANAGER" |
     "STRING" |
     "FILE_SELECT" |
+    "PROJECT_FILE_SELECT" |
     "ACTION_OR_EXPRESSION" |
     "MULTIPLE_SELECT_LISTENER" |
     "SINGLE_SELECT_LISTENER" |
@@ -237,6 +238,7 @@ export interface BaseType {
     pattern?: string; // regex pattern for validation (e.g., for TEXT fields)
     patternErrorMessage?: string; // custom error message when pattern validation fails
     validations?: ValidationRule[]; // connector-shipped rules scoped to this type member (generalises pattern/patternErrorMessage)
+    extensions?: string[];
 }
 
 export interface EnumOptions {

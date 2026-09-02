@@ -16,10 +16,10 @@
     "displayName": "Microsoft SQL Server CDC",
     "moduleName": "mssql",
     "orgName": "ballerinax",
-    "version": "1.18.1",
+    "version": "1.19.0",
     "packageName": "mssql",
     "listenerProtocol": "mssql",
-    "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_mssql_1.18.1.png",
+    "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_mssql_1.19.0.png",
     "properties": {
       "listener": {
         "metadata": {
@@ -331,7 +331,7 @@
           "orgName": "ballerinax",
           "packageName": "mssql",
           "moduleName": "mssql",
-          "version": "1.18.1"
+          "version": "1.19.0"
         },
         "properties": {},
         "group": "onRead",
@@ -568,7 +568,7 @@
           "orgName": "ballerinax",
           "packageName": "mssql",
           "moduleName": "mssql",
-          "version": "1.18.1"
+          "version": "1.19.0"
         },
         "properties": {},
         "group": "onUpdate",
@@ -737,7 +737,7 @@
           "orgName": "ballerinax",
           "packageName": "mssql",
           "moduleName": "mssql",
-          "version": "1.18.1"
+          "version": "1.19.0"
         },
         "properties": {},
         "group": "onCreate",
@@ -904,7 +904,7 @@
           "orgName": "ballerinax",
           "packageName": "mssql",
           "moduleName": "mssql",
-          "version": "1.18.1"
+          "version": "1.19.0"
         },
         "properties": {},
         "group": "onDelete",
@@ -1014,7 +1014,7 @@
           "orgName": "ballerinax",
           "packageName": "mssql",
           "moduleName": "mssql",
-          "version": "1.18.1"
+          "version": "1.19.0"
         },
         "properties": {},
         "group": "onError",
