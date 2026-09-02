@@ -931,17 +931,19 @@ public class CommonUtils {
                         importStatement.substring(separator + 1));
                 continue;
             }
-            // A version tail is dropped: the model's imports map has never carried one.
+            // The entry is kept verbatim, version and all: a value may carry one -- the client echoes back the
+            // module id it was given -- and the pull path reads it to resolve the package without asking Central
+            // which version is latest. Only the prefix is derived here, and that derivation ignores the tail.
             String signature = importStatement.split(":")[0];
             String module = signature.contains("/")
                     ? signature.substring(signature.indexOf('/') + 1) : signature;
             if (module.isEmpty()) {
                 continue;
             }
-            if (imports.containsValue(signature)) {
+            if (imports.containsValue(importStatement)) {
                 continue;
             }
-            imports.put(ModuleAliasResolver.allocatePrefix(module, imports.keySet()), signature);
+            imports.put(ModuleAliasResolver.allocatePrefix(module, imports.keySet()), importStatement);
         }
         return imports;
     }
