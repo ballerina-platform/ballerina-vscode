@@ -21,7 +21,7 @@ import {
     keywords,
 } from "@wso2/ballerina-core";
 
-export { getOptionalityLabel } from "./optionality";
+export { getOptionalityLabel, isOptionalParam } from "./optionality";
 
 
 export function isRequiredParam(param: FormField): boolean {

@@ -17,7 +17,7 @@
  */
 
 import { FormField } from "@wso2/ballerina-core";
-import { getOptionalityLabel } from "./optionality";
+import { getOptionalityLabel, isOptionalParam } from "./optionality";
 
 const field = (overrides: Partial<FormField>): FormField =>
     ({ typeName: "string", optional: false, defaultable: false, selected: false, ...overrides } as FormField);
@@ -37,5 +37,23 @@ describe("getOptionalityLabel", () => {
 
     it("labels a field that is both optional and defaultable as optional", () => {
         expect(getOptionalityLabel(field({ name: "port", optional: true, defaultable: true }))).toBe(" (Optional)");
+    });
+});
+
+describe("isOptionalParam", () => {
+    it("keeps required fields in the main list", () => {
+        expect(isOptionalParam(field({ name: "database" }))).toBe(false);
+    });
+
+    it("groups optional fields under the optional section", () => {
+        expect(isOptionalParam(field({ name: "password", optional: true }))).toBe(true);
+    });
+
+    it("keeps defaultable fields in the main list instead of the optional section", () => {
+        expect(isOptionalParam(field({ name: "host", defaultable: true }))).toBe(false);
+    });
+
+    it("groups a field that is both optional and defaultable under the optional section", () => {
+        expect(isOptionalParam(field({ name: "port", optional: true, defaultable: true }))).toBe(true);
     });
 });

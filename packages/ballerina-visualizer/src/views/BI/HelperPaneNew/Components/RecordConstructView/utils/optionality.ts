@@ -23,3 +23,9 @@ import { FormField } from "@wso2/ballerina-core";
 export function getOptionalityLabel(param: FormField): string {
     return param.optional ? " (Optional)" : "";
 }
+
+// Grouping mirrors the label: only `field?` belongs under the collapsible "Optional fields" section. A
+// defaultable field is an ordinary field with a fallback, so it stays in the main list.
+export function isOptionalParam(param: FormField): boolean {
+    return !!param.optional;
+}
