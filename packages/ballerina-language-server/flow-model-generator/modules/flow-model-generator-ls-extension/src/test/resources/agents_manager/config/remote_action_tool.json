@@ -134,17 +134,6 @@
       "module": "http",
       "object": "Client",
       "symbol": "get",
-      "lineRange": {
-        "fileName": "main.bal",
-        "startLine": {
-          "line": 33,
-          "offset": 16
-        },
-        "endLine": {
-          "line": 33,
-          "offset": 97
-        }
-      },
       "isNew": true,
       "sourceCode": "// action call - http get call\n                json response = check currencyClient->get(\"/latest?base=\" + 'from + \"&to=\" + to);"
     },

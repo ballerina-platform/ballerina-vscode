@@ -1,0 +1,87 @@
+{
+  "source": "agent_15/agents.bal",
+  "description": "Add a function call node inside an empty AgentTool function body (requires new import)",
+  "diagram": {
+    "id": "31",
+    "metadata": {
+      "label": "utcNow",
+      "description": "Returns the UTC representing the current time.",
+      "icon": ""
+    },
+    "codedata": {
+      "node": "FUNCTION_CALL",
+      "org": "ballerina",
+      "module": "time",
+      "packageName": "time",
+      "symbol": "utcNow",
+      "isNew": true,
+      "lineRange": {
+        "fileName": "agents.bal",
+        "startLine": {
+          "line": 3,
+          "offset": 30
+        },
+        "endLine": {
+          "line": 3,
+          "offset": 30
+        }
+      }
+    },
+    "returning": false,
+    "properties": {
+      "type": {
+        "metadata": {
+          "label": "Result Type",
+          "description": "Type of the variable"
+        },
+        "value": "time:Utc",
+        "placeholder": "var",
+        "optional": false,
+        "editable": false,
+        "advanced": false,
+        "codedata": {}
+      },
+      "variable": {
+        "metadata": {
+          "label": "Result",
+          "description": "Name of the result variable"
+        },
+        "value": "timeUtc",
+        "optional": false,
+        "editable": true,
+        "advanced": false
+      }
+    },
+    "flags": 0
+  },
+  "output": {
+    "agent_15/agents.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "import ballerina/time;"
+      },
+      {
+        "range": {
+          "start": {
+            "line": 3,
+            "character": 30
+          },
+          "end": {
+            "line": 3,
+            "character": 30
+          }
+        },
+        "newText": "\ntime:Utc timeUtc = time:utcNow();"
+      }
+    ]
+  }
+}
