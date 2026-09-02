@@ -898,7 +898,17 @@ public class CommonUtils {
             return null;
         }
         return imports.entrySet().stream()
-                .map(entry -> entry.getKey() + IMPORT_QUALIFIER_SEPARATOR + entry.getValue())
+                .map(entry -> {
+                    // Only a renamed qualifier is written out. One that is the module's own last dot-segment is
+                    // what a reader derives anyway, so leaving it implicit keeps every entry that names no
+                    // colliding module in the shape it has always had -- the index included.
+                    String signature = entry.getValue().split(":")[0];
+                    String module = signature.contains("/")
+                            ? signature.substring(signature.indexOf('/') + 1) : signature;
+                    return entry.getKey().equals(ModuleAliasResolver.selfPrefix(module))
+                            ? entry.getValue()
+                            : entry.getKey() + IMPORT_QUALIFIER_SEPARATOR + entry.getValue();
+                })
                 .collect(Collectors.joining(","));
     }
 
