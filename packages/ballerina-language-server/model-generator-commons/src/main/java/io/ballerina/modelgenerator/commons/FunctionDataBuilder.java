@@ -60,6 +60,7 @@ import io.ballerina.compiler.api.symbols.resourcepath.ResourcePath;
 import io.ballerina.compiler.api.values.ConstantValue;
 import io.ballerina.projects.Document;
 import io.ballerina.projects.Module;
+import io.ballerina.projects.ModuleId;
 import io.ballerina.projects.ModuleName;
 import io.ballerina.projects.Package;
 import io.ballerina.projects.PackageDescriptor;
@@ -168,11 +169,33 @@ public class FunctionDataBuilder {
             return this;
         }
         if (semanticModel == null) {
-            semanticModel(PackageUtil.getCompilation(resolvedPackage).getSemanticModel(
-                    resolvedPackage.getDefaultModule().moduleId()));
+            semanticModel(PackageUtil.getCompilation(resolvedPackage)
+                    .getSemanticModel(getTargetModuleId(resolvedPackage)));
         }
         this.resolvedPackage = resolvedPackage;
         return this;
+    }
+
+    /**
+     * Picks the module of the resolved package that the request targets.
+     * <p>
+     * Defaulting to {@code getDefaultModule()} makes every submodule symbol resolve against the package root, so a
+     * submodule function is either not found or silently shadowed by a same-named root function (e.g. every
+     * {@code m<MSG>} submodule of an EDI library re-exports {@code fromEdiString}).
+     *
+     * @param resolvedPackage the package the function was resolved from
+     * @return the module id matching {@code moduleInfo}, or the default module when there is no match
+     */
+    private ModuleId getTargetModuleId(Package resolvedPackage) {
+        String targetModuleName = moduleInfo == null ? null : moduleInfo.moduleName();
+        if (targetModuleName != null && !targetModuleName.isEmpty()) {
+            for (Module module : resolvedPackage.modules()) {
+                if (module.moduleName().toString().equals(targetModuleName)) {
+                    return module.moduleId();
+                }
+            }
+        }
+        return resolvedPackage.getDefaultModule().moduleId();
     }
 
     public FunctionDataBuilder name(String name) {

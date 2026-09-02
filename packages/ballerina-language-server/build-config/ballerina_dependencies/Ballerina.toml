@@ -302,6 +302,15 @@ org = "ballerinax"
 name = "asb"
 version = "3.10.0"
 
+# A multi-module (libgen) EDI library: a root module plus 30 m<MSG> submodules, where
+# root and submodule both export fromEdiString/toEdiString with different signatures.
+# That collision is what makes it the fixture for the Central-submodule resolution
+# tests — see node_template/config/*central-submodule*.
+[[dependency]]
+org = "ballerinax"
+name = "edifact.d03a.supplychain"
+version = "0.9.0"
+
 # ballerinax/ibm.ibmmq declares the IBM MQ client jar with 'provided' scope, so it
 # is not bundled and must be supplied by the consuming project. Declaring it here
 # (available on Maven Central) lets `bal build` resolve ibm.ibmmq and cache it for

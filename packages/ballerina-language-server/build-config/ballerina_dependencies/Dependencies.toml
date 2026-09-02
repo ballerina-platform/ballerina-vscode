@@ -142,6 +142,16 @@ dependencies = [
 
 [[package]]
 org = "ballerina"
+name = "edi"
+version = "1.0.6"
+dependencies = [
+	{org = "ballerina", name = "io"},
+	{org = "ballerina", name = "log"},
+	{org = "ballerina", name = "regex"}
+]
+
+[[package]]
+org = "ballerina"
 name = "email"
 version = "2.14.0"
 dependencies = [
@@ -1153,6 +1163,47 @@ modules = [
 
 [[package]]
 org = "ballerinax"
+name = "edifact.d03a.supplychain"
+version = "0.9.0"
+dependencies = [
+	{org = "ballerina", name = "edi"},
+	{org = "ballerina", name = "http"}
+]
+modules = [
+	{org = "ballerinax", packageName = "edifact.d03a.supplychain", moduleName = "edifact.d03a.supplychain"},
+	{org = "ballerinax", packageName = "edifact.d03a.supplychain", moduleName = "edifact.d03a.supplychain.mAPERAK"},
+	{org = "ballerinax", packageName = "edifact.d03a.supplychain", moduleName = "edifact.d03a.supplychain.mDELFOR"},
+	{org = "ballerinax", packageName = "edifact.d03a.supplychain", moduleName = "edifact.d03a.supplychain.mDELJIT"},
+	{org = "ballerinax", packageName = "edifact.d03a.supplychain", moduleName = "edifact.d03a.supplychain.mDESADV"},
+	{org = "ballerinax", packageName = "edifact.d03a.supplychain", moduleName = "edifact.d03a.supplychain.mDESTIM"},
+	{org = "ballerinax", packageName = "edifact.d03a.supplychain", moduleName = "edifact.d03a.supplychain.mDMSTAT"},
+	{org = "ballerinax", packageName = "edifact.d03a.supplychain", moduleName = "edifact.d03a.supplychain.mDOCADV"},
+	{org = "ballerinax", packageName = "edifact.d03a.supplychain", moduleName = "edifact.d03a.supplychain.mDOCAMA"},
+	{org = "ballerinax", packageName = "edifact.d03a.supplychain", moduleName = "edifact.d03a.supplychain.mDOCAMI"},
+	{org = "ballerinax", packageName = "edifact.d03a.supplychain", moduleName = "edifact.d03a.supplychain.mDOCAMR"},
+	{org = "ballerinax", packageName = "edifact.d03a.supplychain", moduleName = "edifact.d03a.supplychain.mDOCAPP"},
+	{org = "ballerinax", packageName = "edifact.d03a.supplychain", moduleName = "edifact.d03a.supplychain.mDOCARE"},
+	{org = "ballerinax", packageName = "edifact.d03a.supplychain", moduleName = "edifact.d03a.supplychain.mDOCINF"},
+	{org = "ballerinax", packageName = "edifact.d03a.supplychain", moduleName = "edifact.d03a.supplychain.mICSOLI"},
+	{org = "ballerinax", packageName = "edifact.d03a.supplychain", moduleName = "edifact.d03a.supplychain.mIFTICL"},
+	{org = "ballerinax", packageName = "edifact.d03a.supplychain", moduleName = "edifact.d03a.supplychain.mIFTSTQ"},
+	{org = "ballerinax", packageName = "edifact.d03a.supplychain", moduleName = "edifact.d03a.supplychain.mINVRPT"},
+	{org = "ballerinax", packageName = "edifact.d03a.supplychain", moduleName = "edifact.d03a.supplychain.mORDCHG"},
+	{org = "ballerinax", packageName = "edifact.d03a.supplychain", moduleName = "edifact.d03a.supplychain.mORDERS"},
+	{org = "ballerinax", packageName = "edifact.d03a.supplychain", moduleName = "edifact.d03a.supplychain.mORDRSP"},
+	{org = "ballerinax", packageName = "edifact.d03a.supplychain", moduleName = "edifact.d03a.supplychain.mOSTENQ"},
+	{org = "ballerinax", packageName = "edifact.d03a.supplychain", moduleName = "edifact.d03a.supplychain.mOSTRPT"},
+	{org = "ballerinax", packageName = "edifact.d03a.supplychain", moduleName = "edifact.d03a.supplychain.mPARTIN"},
+	{org = "ballerinax", packageName = "edifact.d03a.supplychain", moduleName = "edifact.d03a.supplychain.mRECADV"},
+	{org = "ballerinax", packageName = "edifact.d03a.supplychain", moduleName = "edifact.d03a.supplychain.mRECECO"},
+	{org = "ballerinax", packageName = "edifact.d03a.supplychain", moduleName = "edifact.d03a.supplychain.mSTLRPT"},
+	{org = "ballerinax", packageName = "edifact.d03a.supplychain", moduleName = "edifact.d03a.supplychain.mSUPCOT"},
+	{org = "ballerinax", packageName = "edifact.d03a.supplychain", moduleName = "edifact.d03a.supplychain.mSUPMAN"},
+	{org = "ballerinax", packageName = "edifact.d03a.supplychain", moduleName = "edifact.d03a.supplychain.mSUPRES"}
+]
+
+[[package]]
+org = "ballerinax"
 name = "github"
 version = "5.1.0"
 dependencies = [
@@ -1653,6 +1704,7 @@ dependencies = [
 	{org = "ballerinax", name = "covid19"},
 	{org = "ballerinax", name = "docusign.dsadmin"},
 	{org = "ballerinax", name = "docusign.dsesign"},
+	{org = "ballerinax", name = "edifact.d03a.supplychain"},
 	{org = "ballerinax", name = "github"},
 	{org = "ballerinax", name = "ibm.ibmmq"},
 	{org = "ballerinax", name = "kafka"},

@@ -1,0 +1,117 @@
+{
+  "source": "data_mapper/main.bal",
+  "position": {
+    "line": 14,
+    "offset": 0
+  },
+  "description": "A submodule-only function from a second Central package, one whose name has no dots.",
+  "codedata": {
+    "node": "FUNCTION_CALL",
+    "org": "ballerina",
+    "module": "workflow.management",
+    "packageName": "workflow",
+    "symbol": "getWorkflowInfo",
+    "version": "0.8.3"
+  },
+  "output": {
+    "id": "31",
+    "metadata": {
+      "label": "getWorkflowInfo",
+      "description": "Gets current execution info for a workflow without waiting for it to finish.\nReturns the status, workflow type, and ID.\n\n```ballerina\nimport ballerina/workflow.management;\nWorkflowExecutionInfo info = check management:getWorkflowInfo(workflowId);\n```\n",
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.8.3.png"
+    },
+    "codedata": {
+      "node": "FUNCTION_CALL",
+      "org": "ballerina",
+      "module": "workflow.management",
+      "packageName": "workflow",
+      "symbol": "getWorkflowInfo",
+      "version": "0.8.3",
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "workflowId": {
+        "metadata": {
+          "label": "Workflow Id",
+          "description": "The workflow ID"
+        },
+        "types": [
+          {
+            "fieldType": "TEXT",
+            "ballerinaType": "string",
+            "selected": false
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string",
+            "selected": false
+          }
+        ],
+        "placeholder": "\"\"",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED",
+          "originalName": "workflowId"
+        }
+      },
+      "type": {
+        "metadata": {
+          "label": "Result Type",
+          "description": "Type of the variable"
+        },
+        "types": [
+          {
+            "fieldType": "TYPE",
+            "selected": true
+          }
+        ],
+        "value": "management:WorkflowExecutionInfo",
+        "placeholder": "var",
+        "optional": false,
+        "editable": false,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {}
+      },
+      "variable": {
+        "metadata": {
+          "label": "Result",
+          "description": "Name of the result variable"
+        },
+        "types": [
+          {
+            "fieldType": "IDENTIFIER",
+            "selected": true
+          }
+        ],
+        "value": "managementWorkflowexecutioninfo",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "checkError": {
+        "metadata": {
+          "label": "Check Error",
+          "description": "Trigger error flow"
+        },
+        "types": [
+          {
+            "fieldType": "FLAG",
+            "selected": true
+          }
+        ],
+        "value": true,
+        "optional": false,
+        "editable": true,
+        "advanced": true,
+        "hidden": true
+      }
+    },
+    "flags": 0
+  }
+}
