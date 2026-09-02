@@ -69,8 +69,11 @@ public final class ImportPrefixReader {
             if (!module.equals(moduleName)) {
                 continue;
             }
-            if (anyOrg || (importDeclarationNode.orgName().isPresent()
-                    && org.equals(importDeclarationNode.orgName().get().orgName().text()))) {
+            // An import written without an organization is a module of the file's own package, and its module name
+            // identifies it within the file on its own. The model records such a module with the organization, so
+            // matching strictly on it would miss the very import that already binds the prefix.
+            if (anyOrg || importDeclarationNode.orgName().isEmpty()
+                    || org.equals(importDeclarationNode.orgName().get().orgName().text())) {
                 return Optional.of(importPrefixOf(importDeclarationNode, moduleName));
             }
         }

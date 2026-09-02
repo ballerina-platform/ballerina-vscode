@@ -479,6 +479,12 @@ public class SourceBuilder {
                 && (Boolean.TRUE.equals(codedata.isNew()) || codedata.lineRange() == null);
     }
 
+    /** The bare module name of an {@code org/module[:version]} entry, as a project's module ids are named. */
+    private static String moduleNameOf(String importSignature) {
+        String withoutVersion = importSignature.split(":")[0];
+        return withoutVersion.substring(withoutVersion.indexOf('/') + 1);
+    }
+
     /**
      * The prefix ledger for {@link #filePath}, seeded with the prefixes that file already binds. Built on first use
      * rather than in the constructor, since resolving a prefix needs the target document and the constructor is
@@ -517,6 +523,12 @@ public class SourceBuilder {
         return typeModel.name();
     }
 
+    /**
+     * Resolves {@code typeName} and returns an expression that produces a value of it.
+     *
+     * @param typeName the type text as the model authored it, qualified by the keys of {@code imports}
+     * @param imports  the property's imports map, qualifier -> {@code org/module}
+     */
     public Optional<String> getExpressionBodyText(String typeName, Map<String, String> imports) {
         Project project = PackageUtil.loadProject(workspaceManager, filePath);
         Document document = FileSystemUtils.getDocument(workspaceManager, filePath);
@@ -534,14 +546,17 @@ public class SourceBuilder {
             subModuleIdMap.put(subModuleId, moduleId);
         });
 
-        // Obtain the symbols of the imports
+        // Obtain the symbols of the imports, keyed by the qualifier the type text actually uses. That is the
+        // map's own key, not a prefix re-derived from the package: where two of this property's modules end in
+        // the same segment one of them was recorded under a different key, and re-deriving would look up a
+        // qualifier the text never spells.
         Map<String, BLangPackage> packageMap = new HashMap<>();
         if (imports != null) {
-            imports.values().forEach(moduleId -> {
+            imports.forEach((qualifier, moduleId) -> {
                 ModuleInfo moduleInfo = ModuleInfo.from(moduleId);
                 if (!subModuleIds.contains(moduleInfo.packageName())) {
                     PackageUtil.pullModuleAndNotify(lsClientLogger, moduleInfo).ifPresent(pkg ->
-                            packageMap.put(CommonUtils.getDefaultModulePrefix(pkg.packageName().value()),
+                            packageMap.put(qualifier,
                                     PackageUtil.getCompilation(pkg).defaultModuleBLangPackage())
                     );
                 }
@@ -563,7 +578,13 @@ public class SourceBuilder {
                 return Optional.empty();
             }
 
-            String fullModuleName = packageName + "." + typeNameParts[0];
+            // The qualifier names a module only through the imports map; taken literally it is the submodule's
+            // name only while nothing forced it to be renamed.
+            String qualifier = typeNameParts[0];
+            String importedModule = imports == null ? null : imports.get(qualifier);
+            String fullModuleName = importedModule == null
+                    ? packageName + "." + qualifier
+                    : moduleNameOf(importedModule);
             ModuleId moduleId = subModuleIdMap.get(fullModuleName);
             if (moduleId == null) {
                 return Optional.empty();
