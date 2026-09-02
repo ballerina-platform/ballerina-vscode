@@ -56,7 +56,9 @@ import io.ballerina.flowmodelgenerator.core.utils.SourceCodeGenerator;
 import io.ballerina.flowmodelgenerator.core.utils.TypeTransformer;
 import io.ballerina.flowmodelgenerator.core.utils.TypeUtils;
 import io.ballerina.modelgenerator.commons.CommonUtils;
+import io.ballerina.modelgenerator.commons.ModuleAliasResolver;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
+import io.ballerina.modelgenerator.commons.ModulePrefixContext;
 import io.ballerina.projects.Document;
 import io.ballerina.projects.Module;
 import io.ballerina.projects.Project;
@@ -1010,6 +1012,7 @@ public class TypesManager {
      */
     private static void addImportsToTextEdits(Map<String, String> imports, ModulePartNode rootNode,
                                               List<TextEdit> textEdits, Module module) {
+        ModulePrefixContext prefixes = ModulePrefixContext.from(rootNode);
         ModuleInfo currentModuleInfo = ModuleInfo.from(module.descriptor());
         String currentOrg = currentModuleInfo.org();
         // packageName() is the root-only name; moduleName() is the full dotted path (root or root.sub)
@@ -1042,11 +1045,21 @@ public class TypesManager {
                     return;
                 }
             }
-            // External package — import with org prefix
+            // External package — import with org prefix, aliased when its natural prefix is taken
+            String prefix = prefixes.prefixFor(orgName, fullModulePart);
             if (!CommonUtils.importExists(rootNode, orgName, fullModulePart)) {
-                importStmts.add(getImportStmt(orgName, fullModulePart));
+                importStmts.add(getImportStmt(orgName, fullModulePart, prefix, prefixes));
             }
         });
+
+        // Rewrite the generated snippets onto the prefixes decided above. This has to happen for every module that
+        // got an alias: an aliased import whose references still name the natural prefix would bind them to
+        // whichever module kept it, which is worse than not aliasing at all. requalify leaves an ambiguous natural
+        // prefix alone, and isNaturalAmbiguous is what stops such a module from being aliased in the first place.
+        if (prefixes.hasAliases()) {
+            textEdits.replaceAll(textEdit ->
+                    new TextEdit(textEdit.getRange(), prefixes.requalify(textEdit.getNewText())));
+        }
 
         if (!importStmts.isEmpty()) {
             String importsStmts = String.join(System.lineSeparator(), importStmts);
@@ -1054,8 +1067,17 @@ public class TypesManager {
         }
     }
 
-    private static String getImportStmt(String org, String module) {
-        return String.format("%nimport %s/%s;%n", org, module);
+    /**
+     * The import statement for {@code org/module}, carrying an {@code as <prefix>} clause only where the prefix is a
+     * genuine rename that the references can actually be rewritten onto.
+     */
+    private static String getImportStmt(String org, String module, String prefix, ModulePrefixContext prefixes) {
+        String natural = ModuleAliasResolver.selfPrefix(module);
+        if (prefix == null || prefix.isBlank() || prefix.equals(natural)
+                || prefixes.isNaturalAmbiguous(natural)) {
+            return String.format("%nimport %s/%s;%n", org, module);
+        }
+        return String.format("%nimport %s/%s as %s;%n", org, module, prefix);
     }
 
     private static String getImportStmt(String module) {

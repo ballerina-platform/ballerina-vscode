@@ -27,6 +27,7 @@ import io.ballerina.compiler.syntax.tree.SpecificFieldNode;
 import io.ballerina.compiler.syntax.tree.SyntaxTree;
 import io.ballerina.flowmodelgenerator.core.model.Codedata;
 import io.ballerina.modelgenerator.commons.CommonUtils;
+import io.ballerina.modelgenerator.commons.ImportPrefixReader;
 import io.ballerina.projects.Document;
 import io.ballerina.projects.ModuleDescriptor;
 import io.ballerina.projects.Project;
@@ -275,7 +276,7 @@ public final class AmbiguousTypeCastResolver {
                 if (isInOwnModule(document, orgName, moduleName)) {
                     return typeName;
                 }
-                return CommonUtils.getDefaultModulePrefix(moduleName) + ":" + typeName;
+                return boundPrefix(document, orgName, moduleName) + ":" + typeName;
             }
             return typeName == null ? "" : typeName;
         }
@@ -342,9 +343,26 @@ public final class AmbiguousTypeCastResolver {
         }
         if (codedata != null && codedata.module() != null && !codedata.module().isEmpty()) {
             return isInOwnModule(document, codedata.org(), codedata.module())
-                    ? recordName : CommonUtils.getClassType(codedata.module(), recordName);
+                    ? recordName
+                    : boundPrefix(document, codedata.org(), codedata.module()) + ":" + recordName;
         }
         return recordName;
+    }
+
+    /**
+     * The prefix the document binds {@code org/moduleName} to, falling back to the module's natural prefix when the
+     * document does not import it.
+     *
+     * <p>
+     * The probe is compiled against the real document, so a reference in it must use the prefix that document
+     * actually binds. Deriving it from the module name instead names the wrong module whenever the import carries an
+     * {@code as} clause, and the cast decision is then made from a compilation of the wrong type.
+     * </p>
+     */
+    private static String boundPrefix(Document document, String org, String moduleName) {
+        return ImportPrefixReader
+                .existingImportPrefix(document.syntaxTree().rootNode(), org, moduleName)
+                .orElseGet(() -> CommonUtils.getDefaultModulePrefix(moduleName));
     }
 
     /**

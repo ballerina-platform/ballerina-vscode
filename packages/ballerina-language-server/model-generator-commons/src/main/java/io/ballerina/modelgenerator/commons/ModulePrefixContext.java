@@ -194,6 +194,23 @@ public final class ModulePrefixContext {
         return ModuleAliasResolver.requalify(text, byAuthored);
     }
 
+    /**
+     * Whether a natural prefix is claimed by more than one registered module, making it unusable as an identity in
+     * text authored against it.
+     *
+     * <p>
+     * A caller that both emits an import and rewrites references must consult this. Aliasing a module whose natural
+     * prefix is ambiguous, without being able to rewrite the references that use it, binds those references to
+     * whichever module kept the natural prefix -- turning a redeclared-symbol error into a silent mis-binding.
+     * </p>
+     *
+     * @param naturalPrefix the last dot-segment of a module name
+     * @return true when two registered modules share this natural prefix
+     */
+    public boolean isNaturalAmbiguous(String naturalPrefix) {
+        return ambiguousNaturals.contains(naturalPrefix);
+    }
+
     /** The modules that still need an import statement, as {@code org/module} -> resolved prefix. */
     public Map<String, String> pendingImports() {
         return Map.copyOf(pendingImports);
