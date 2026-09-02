@@ -133,6 +133,28 @@ public final class ModuleAliasResolver {
     }
 
     /**
+     * An import statement carrying an {@code as <prefix>} clause, but only where the prefix is a genuine rename. A
+     * module whose natural segment is already taken -- {@code ai.google.drive} in a file that imports
+     * {@code googleapis.drive} -- is imported {@code as aiGoogleDrive}, while a module whose segment is free keeps
+     * the plain import it has always had.
+     *
+     * @param importSignature {@code org/module}, or a bare module for the current package
+     * @param prefix          the prefix the module is bound to; null or blank adds no clause
+     * @return the import statement to emit
+     */
+    public static String withAliasClause(String importSignature, String prefix) {
+        if (prefix == null || prefix.isBlank()) {
+            return importSignature;
+        }
+        int lastSlash = importSignature.lastIndexOf('/');
+        String module = lastSlash < 0 ? importSignature : importSignature.substring(lastSlash + 1);
+        if (prefix.equals(selfPrefix(module))) {
+            return importSignature;
+        }
+        return importSignature + " as " + prefix;
+    }
+
+    /**
      * Re-qualifies a standalone module qualifier ({@code prefix:Type}) from {@code selfPrefix} to
      * {@code emitAlias} (e.g. {@code twilio:Foo} &rarr; {@code triggerTwilio:Foo}), without touching
      * other modules, longer identifiers, or dotted paths. No-op when no aliasing is in effect.

@@ -29,6 +29,8 @@ import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.PropertyType;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
 import io.ballerina.modelgenerator.commons.CommonUtils;
+import io.ballerina.modelgenerator.commons.ModuleAliasResolver;
+import io.ballerina.modelgenerator.commons.ModulePrefixContext;
 import io.ballerina.projects.Document;
 import io.ballerina.projects.Module;
 import io.ballerina.projects.ModuleDescriptor;
@@ -209,21 +211,26 @@ public class ExpressionEditorContext {
         int lineOffset = 0;
 
         if (property != null) {
-            // Append the type if exists
-            String ballerinaType = property.propertyType().ballerinaType();
+            // The statement is compiled against this document, so the type has to name its modules by the prefixes
+            // this document binds -- not by the qualifiers the model authored it with. Two dependent modules whose
+            // names end in the same segment, ballerinax/github and ballerinax/trigger.github, are both authored as
+            // `github:`; imported verbatim they redeclare that prefix and every diagnostic reported from this
+            // statement is an artefact of the probe rather than of the user's expression.
+            ModulePrefixContext prefixes = ModulePrefixContext.from(documentContext.document()
+                    .syntaxTree().rootNode());
+            String ballerinaType = prefixes.requalifyAuthored(property.propertyType().ballerinaType(),
+                    property.importStatements());
             if (ballerinaType != null) {
                 prefix = String.format("%s __reserved__ = ", ballerinaType);
             }
 
-            // Add the import statements of the dependent types
-            Map<String, String> imports = property.importStatements();
-            if (imports != null && !imports.isEmpty()) {
-                for (String importStmt : imports.values()) {
-                    Optional<TextEdit> textEdit = getImport(importStmt.split(":")[0]);
-                    if (textEdit.isPresent()) {
-                        textEdits.add(textEdit.get());
-                        lineOffset++;
-                    }
+            // Add the import statements of the dependent types, each under the prefix resolved above.
+            for (Map.Entry<String, String> pending : prefixes.pendingImports().entrySet()) {
+                Optional<TextEdit> textEdit = getImport(
+                        ModuleAliasResolver.withAliasClause(pending.getKey(), pending.getValue()));
+                if (textEdit.isPresent()) {
+                    textEdits.add(textEdit.get());
+                    lineOffset++;
                 }
             }
         }

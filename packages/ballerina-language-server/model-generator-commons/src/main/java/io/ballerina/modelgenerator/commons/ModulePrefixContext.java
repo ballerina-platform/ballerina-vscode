@@ -154,6 +154,46 @@ public final class ModulePrefixContext {
         return naturalToEmitted.getOrDefault(naturalPrefix, naturalPrefix);
     }
 
+    /**
+     * Resolves the qualifiers a text was authored with onto the prefixes this file binds, and rewrites the text to
+     * match.
+     *
+     * <p>
+     * The qualifiers in model-authored text say which module each name belongs to, by way of the accompanying map,
+     * but not what that module may be called here: the file may already import it under an alias, may already bind
+     * that qualifier to something else, and two texts in one operation may have been authored against the same
+     * qualifier for different modules. Each module is therefore registered and its emitted prefix substituted, so
+     * the text and the imports this context yields cannot disagree.
+     * </p>
+     *
+     * @param text              the authored text, returned unchanged when it carries no qualifier
+     * @param importsByAuthored authored qualifier -> {@code org/module}, as a property's imports map is shaped
+     * @return the text with each qualifier replaced by the prefix its module is bound to
+     */
+    public String requalifyAuthored(String text, Map<String, String> importsByAuthored) {
+        if (importsByAuthored == null || importsByAuthored.isEmpty()) {
+            return text;
+        }
+        // Every module is registered whether or not the text names it, since a caller emitting this context's
+        // pending imports needs the same set it would have imported before -- the text is only one of the places
+        // a dependent module is used.
+        Map<String, String> byAuthored = new LinkedHashMap<>();
+        for (Map.Entry<String, String> entry : importsByAuthored.entrySet()) {
+            // A version tail is dropped, and an entry with no organization is a module of the current package.
+            String[] parts = entry.getValue().split(":")[0].split("/", 2);
+            String org = parts.length == 2 ? parts[0] : "";
+            String module = parts.length == 2 ? parts[1] : parts[0];
+            if (module.isEmpty()) {
+                continue;
+            }
+            byAuthored.put(entry.getKey(), prefixFor(org, module));
+        }
+        if (text == null || text.isEmpty() || text.indexOf(':') < 0) {
+            return text;
+        }
+        return ModuleAliasResolver.requalify(text, byAuthored);
+    }
+
     /** The modules that still need an import statement, as {@code org/module} -> resolved prefix. */
     public Map<String, String> pendingImports() {
         return Map.copyOf(pendingImports);

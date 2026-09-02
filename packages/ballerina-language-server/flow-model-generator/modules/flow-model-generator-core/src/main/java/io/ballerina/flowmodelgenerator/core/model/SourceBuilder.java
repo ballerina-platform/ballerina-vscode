@@ -437,23 +437,7 @@ public class SourceBuilder {
      * @return the type text to write
      */
     public String requalifiedType(Property type) {
-        String text = type.toSourceCode();
-        Map<String, String> propImports = type.imports();
-        if (text == null || text.isEmpty() || propImports == null || propImports.isEmpty()
-                || text.indexOf(':') < 0) {
-            return text;
-        }
-        Map<String, String> byQualifier = new LinkedHashMap<>();
-        for (Map.Entry<String, String> entry : propImports.entrySet()) {
-            String[] parts = entry.getValue().split(":")[0].split("/", 2);
-            String org = parts.length == 2 ? parts[0] : "";
-            String module = parts.length == 2 ? parts[1] : parts[0];
-            if (module.isEmpty()) {
-                continue;
-            }
-            byQualifier.put(entry.getKey(), prefixes().prefixFor(org, module));
-        }
-        return ModuleAliasResolver.requalify(text, byQualifier);
+        return prefixes().requalifyAuthored(type.toSourceCode(), type.imports());
     }
 
     /**
@@ -955,28 +939,10 @@ public class SourceBuilder {
         for (Map.Entry<String, String> moduleImport : imports.entrySet()) {
             tokenBuilder
                     .keyword(SyntaxKind.IMPORT_KEYWORD)
-                    .name(withAliasClause(moduleImport.getKey(), moduleImport.getValue()))
+                    .name(ModuleAliasResolver.withAliasClause(moduleImport.getKey(), moduleImport.getValue()))
                     .endOfStatement();
             textEdit(SourceKind.IMPORT, filePath, startLineRange);
         }
-    }
-
-    /**
-     * Appends an {@code as <prefix>} clause when the resolved prefix is a genuine rename. A module whose natural
-     * prefix is already taken -- {@code ai.google.drive} in a file that imports {@code googleapis.drive} -- is thus
-     * imported as {@code ... as aiGoogleDrive}, while a module whose natural prefix is free keeps the plain import
-     * it has always had.
-     */
-    private static String withAliasClause(String importSignature, String prefix) {
-        if (prefix == null || prefix.isBlank()) {
-            return importSignature;
-        }
-        int lastSlash = importSignature.lastIndexOf('/');
-        String module = lastSlash < 0 ? importSignature : importSignature.substring(lastSlash + 1);
-        if (prefix.equals(ModuleAliasResolver.selfPrefix(module))) {
-            return importSignature;
-        }
-        return importSignature + " as " + prefix;
     }
 
     private void addTypes() {
