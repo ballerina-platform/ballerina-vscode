@@ -113,6 +113,55 @@ export function deriveModulePrefix(libraryName: string): string {
     return parts[parts.length - 1];
 }
 
+/**
+ * CamelCase join of a dotted module's segments, used as a fallback prefix when the natural one is already
+ * taken. e.g. "ballerinax/googleapis.drive" -> "googleapisDrive".
+ */
+function deriveCamelCasePrefix(libraryName: string): string {
+    const moduleName = libraryName.slice(libraryName.indexOf("/") + 1);
+    const segments = moduleName.split(".").filter(Boolean);
+    if (segments.length < 2) {
+        return deriveModulePrefix(libraryName);
+    }
+    return segments[0] + segments.slice(1)
+        .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+        .join("");
+}
+
+/**
+ * Gives every distinct library its own prefix.
+ *
+ * Ballerina derives an unaliased import's prefix from the module name's last dot-segment, so two libraries
+ * whose names end in the same segment - "ballerinax/googleapis.drive" and "x/ai.google.drive" - both derive
+ * `drive`. Rendering both records as `drive:Name` names one module twice and would not compile. Distinct
+ * libraries therefore fall back to the camelCase alias and then to a numbered suffix, matching what the
+ * language server emits for a colliding import.
+ *
+ * A library keeps its natural prefix whenever nothing else has claimed it, so single-library output is
+ * unchanged.
+ */
+function assignModulePrefixes(links: { recordName: string; libraryName: string }[]): ExternalLinkInfo[] {
+    const prefixByLibrary = new Map<string, string>();
+    const taken = new Set<string>();
+    for (const { libraryName } of links) {
+        if (prefixByLibrary.has(libraryName)) {
+            continue;
+        }
+        let prefix = deriveModulePrefix(libraryName);
+        if (taken.has(prefix)) {
+            const camelCase = deriveCamelCasePrefix(libraryName);
+            prefix = camelCase;
+            let suffix = 2;
+            while (taken.has(prefix)) {
+                prefix = `${camelCase}${suffix++}`;
+            }
+        }
+        taken.add(prefix);
+        prefixByLibrary.set(libraryName, prefix);
+    }
+    return links.map((link) => ({ ...link, modulePrefix: prefixByLibrary.get(link.libraryName)! }));
+}
+
 interface ExternalLinkInfo {
     recordName: string;
     libraryName: string;
@@ -126,15 +175,13 @@ function collectExternalLinks(type: Type): ExternalLinkInfo[] {
     if (!type.links) {
         return [];
     }
-    return type.links
-        .filter((link): link is Link & { libraryName: string } =>
-            link.category === "external" && !!link.libraryName
-        )
-        .map((link) => ({
-            recordName: link.recordName,
-            libraryName: link.libraryName,
-            modulePrefix: deriveModulePrefix(link.libraryName),
-        }));
+    return assignModulePrefixes(
+        type.links
+            .filter((link): link is Link & { libraryName: string } =>
+                link.category === "external" && !!link.libraryName
+            )
+            .map((link) => ({ recordName: link.recordName, libraryName: link.libraryName }))
+    );
 }
 
 /**
@@ -441,7 +488,7 @@ function collectFunctionExternalLinks(params: Parameter[], returnType?: Type): E
     }
     // Deduplicate by recordName + libraryName
     const seen = new Set<string>();
-    return links.filter((l) => {
+    const distinct = links.filter((l) => {
         const key = `${l.recordName}::${l.libraryName}`;
         if (seen.has(key)) {
             return false;
@@ -449,6 +496,9 @@ function collectFunctionExternalLinks(params: Parameter[], returnType?: Type): E
         seen.add(key);
         return true;
     });
+    // Reassign across the merged set: the per-type passes above cannot see each other, so two libraries
+    // sharing a natural prefix would each have kept it.
+    return assignModulePrefixes(distinct);
 }
 
 /**
