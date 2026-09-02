@@ -45,6 +45,7 @@ import io.ballerina.flowmodelgenerator.core.DiagnosticHandler;
 import io.ballerina.flowmodelgenerator.core.TypeParameterReplacer;
 import io.ballerina.flowmodelgenerator.core.model.node.WaitBuilder;
 import io.ballerina.modelgenerator.commons.CommonUtils;
+import io.ballerina.modelgenerator.commons.ModuleAliasResolver;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.ParameterMemberTypeData;
 import org.ballerinalang.langserver.common.utils.CommonUtil;
@@ -55,6 +56,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
@@ -549,31 +551,32 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
         }
 
         // TODO: Need to improve the index to obtain this structured information
+        /**
+         * Records the modules this property's type text names, keyed by the qualifier the text uses.
+         * <p>
+         * The key comes from the encoded statement when it carries one, since a qualifier is not derivable from a
+         * module name — two modules ending in the same dot-segment share a natural one, and only the renderer knows
+         * which of them got it. See {@link CommonUtils#parseImportStatements}.
+         * </p>
+         */
         public Builder<T> imports(String importStatements) {
-            if (importStatements == null) {
+            Map<String, String> parsed = CommonUtils.parseImportStatements(importStatements);
+            if (parsed.isEmpty()) {
                 return this;
             }
             if (this.imports == null) {
-                this.imports = new HashMap<>();
+                this.imports = new LinkedHashMap<>();
             }
-            String[] importList = importStatements.split(",");
-            for (String importStatement : importList) {
-                if (importStatement.trim().isEmpty()) {
+            for (Map.Entry<String, String> entry : parsed.entrySet()) {
+                String existing = this.imports.get(entry.getKey());
+                if (Objects.equals(existing, entry.getValue()) || this.imports.containsValue(entry.getValue())) {
                     continue;
                 }
-                String[] parts = importStatement.split(":");
-                if (parts.length < 1) {
-                    continue;
-                }
-                String packagePath = parts[0];
-                if (packagePath.contains("/")) {
-                    String[] pathParts = packagePath.split("/");
-                    if (pathParts.length < 2) {
-                        continue;
-                    }
-                    String packageName = pathParts[1];
-                    this.imports.put(CommonUtils.getDefaultModulePrefix(packageName), importStatement);
-                }
+                // A key already standing for a different module gets a free one rather than displacing it, which
+                // would drop that module's import.
+                this.imports.put(existing == null ? entry.getKey()
+                        : ModuleAliasResolver.allocatePrefix(entry.getKey(), this.imports.keySet()),
+                        entry.getValue());
             }
             return this;
         }

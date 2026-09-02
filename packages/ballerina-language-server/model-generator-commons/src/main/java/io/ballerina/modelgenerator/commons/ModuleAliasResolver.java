@@ -151,7 +151,7 @@ public final class ModuleAliasResolver {
      * mapping a prefix to itself is a no-op. Shared by {@link #rewriteSelfPrefix} (one prefix) and
      * {@code ModulePrefixContext} (every aliased module registered in one operation).
      */
-    static String requalify(String text, Map<String, String> naturalToEmitted) {
+    public static String requalify(String text, Map<String, String> naturalToEmitted) {
         if (text == null || text.isEmpty() || naturalToEmitted.isEmpty()) {
             return text == null ? "" : text;
         }
