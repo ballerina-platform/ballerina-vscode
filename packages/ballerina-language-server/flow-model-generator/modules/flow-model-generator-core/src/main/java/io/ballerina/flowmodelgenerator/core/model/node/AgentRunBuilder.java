@@ -204,7 +204,7 @@ public class AgentRunBuilder extends CallBuilder {
         }
 
         Property type = optionalType.get();
-        String typeName = type.value().toString();
+        String typeName = sourceBuilder.requalifiedType(type);
 
         if (flowNode.codedata().inferredReturnType() != null) {
             Optional<Property> inferredParam = flowNode.properties().values().stream()

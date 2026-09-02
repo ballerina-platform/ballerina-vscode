@@ -399,14 +399,20 @@ public class SourceBuilder {
     }
 
     private String importPrefix(String org, String module, boolean defaultNamespace) {
-        if (org == null || module == null || org.equals(CommonUtil.BALLERINA_ORG_NAME) &&
-                CommonUtil.PRE_DECLARED_LANG_LIBS.contains(module)) {
+        if (org == null || module == null) {
             return "";
+        }
+        if (org.equals(CommonUtil.BALLERINA_ORG_NAME) && CommonUtil.PRE_DECLARED_LANG_LIBS.contains(module)) {
+            // A pre-declared lang lib is bound without an import, so it needs no import statement but a reference
+            // to it is still qualified -- `string:length(s)`.
+            return ModuleAliasResolver.selfPrefix(module);
         }
         try {
             this.workspaceManager.loadProject(filePath);
         } catch (WorkspaceDocumentException | EventSyncException e) {
-            return "";
+            // Without a project the file's bindings are unknown; the natural prefix is the only answer, and is the
+            // one the module would be imported under anyway.
+            return ModuleAliasResolver.selfPrefix(module);
         }
 
         // Generate the import signature
