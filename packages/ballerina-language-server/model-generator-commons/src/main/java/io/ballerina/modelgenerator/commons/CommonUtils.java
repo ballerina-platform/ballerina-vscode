@@ -117,6 +117,8 @@ public class CommonUtils {
     private static final String CENTRAL_ICON_URL = "https://bcentral-packageicons.azureedge.net/images/%s_%s_%s.png";
     private static final Pattern FULLY_QUALIFIED_MODULE_ID_PATTERN =
             Pattern.compile("(\\w+)/([\\w.]+):([^:]+):(\\w+)[|]?");
+    /** Separates a qualifier from its module in an encoded {@code importStatements} entry. */
+    public static final String IMPORT_QUALIFIER_SEPARATOR = "=";
     private static final String KNOWLEDGE_BASE_TYPE_NAME = "KnowledgeBase";
     private static final String EMBEDDING_PROVIDER_TYPE_NAME = "EmbeddingProvider";
     private static final String MODEL_PROVIDER_TYPE_NAME = "ModelProvider";
@@ -205,7 +207,9 @@ public class CommonUtils {
                         .filter(memberType -> !ignoreError || !memberType.subtypeOf(semanticModel.types().ERROR))
                         .map(type -> getTypeSignature(semanticModel, type, ignoreError, moduleInfo, allocator))
                         .reduce((s1, s2) -> s1 + "|" + s2)
-                        .orElse(getTypeSignature(unionTypeSymbol, moduleInfo, allocator));
+                        // orElseGet, not orElse: the fallback renders the whole union, error members included, and
+                        // would otherwise record every module in it against a text that never used them.
+                        .orElseGet(() -> getTypeSignature(unionTypeSymbol, moduleInfo, allocator));
             }
             // TODO: This only address how type descriptors work with dependent types. Need to extend this to improve
             //  on handling cases where functions take type descriptors as parameters.
@@ -214,7 +218,7 @@ public class CommonUtils {
                 yield typeDescTypeSymbol.typeParameter()
                         .map(typeParameter ->
                                 getTypeSignature(semanticModel, typeParameter, ignoreError, null, allocator))
-                        .orElse(getTypeSignature(typeDescTypeSymbol, moduleInfo, allocator));
+                        .orElseGet(() -> getTypeSignature(typeDescTypeSymbol, moduleInfo, allocator));
             }
             default -> getTypeSignature(typeSymbol, moduleInfo, allocator);
         };
@@ -873,6 +877,73 @@ public class CommonUtils {
 
     private static boolean isAnnotationLangLib(String orgName, String packageName) {
         return orgName.equals(CommonUtil.BALLERINA_ORG_NAME) && packageName.equals("lang.annotations");
+    }
+
+    /**
+     * Renders an imports map back into the {@code importStatements} string carried by {@link FunctionData} and
+     * {@link ParameterData}, as {@code prefix=org/module} entries.
+     *
+     * <p>
+     * The qualifier is written out with the module because it is not derivable from it: two modules ending in the
+     * same dot-segment share a natural qualifier, so the one a signature was actually rendered under has to be
+     * stated. An entry without a qualifier still parses — see {@link #parseImportStatements} — which is what lets
+     * index-generated strings keep working unchanged.
+     * </p>
+     *
+     * @param imports qualifier -> {@code org/module}
+     * @return the encoded string, or null when there is nothing to import
+     */
+    public static String encodeImportStatements(Map<String, String> imports) {
+        if (imports == null || imports.isEmpty()) {
+            return null;
+        }
+        return imports.entrySet().stream()
+                .map(entry -> entry.getKey() + IMPORT_QUALIFIER_SEPARATOR + entry.getValue())
+                .collect(Collectors.joining(","));
+    }
+
+    /**
+     * Parses an {@code importStatements} string into the {@code prefix -> org/module} map the model carries.
+     *
+     * <p>
+     * Accepts both shapes. A {@code prefix=org/module} entry keeps the qualifier the type text was rendered under,
+     * so the two agree. A bare {@code org/module} entry — everything the index holds today — falls back to the
+     * module's natural dot-segment, and to an allocated one if that is already claimed by another module in the same
+     * string, which keeps the second module from displacing the first and losing its import.
+     * </p>
+     *
+     * @param importStatements the encoded imports, may be null
+     * @return qualifier -> {@code org/module}, never null
+     */
+    public static Map<String, String> parseImportStatements(String importStatements) {
+        Map<String, String> imports = new LinkedHashMap<>();
+        if (importStatements == null || importStatements.isBlank()) {
+            return imports;
+        }
+        for (String entry : importStatements.split(",")) {
+            String importStatement = entry.trim();
+            if (importStatement.isEmpty()) {
+                continue;
+            }
+            int separator = importStatement.indexOf(IMPORT_QUALIFIER_SEPARATOR);
+            if (separator > 0) {
+                imports.put(importStatement.substring(0, separator),
+                        importStatement.substring(separator + 1));
+                continue;
+            }
+            // A version tail is dropped: the model's imports map has never carried one.
+            String signature = importStatement.split(":")[0];
+            String module = signature.contains("/")
+                    ? signature.substring(signature.indexOf('/') + 1) : signature;
+            if (module.isEmpty()) {
+                continue;
+            }
+            if (imports.containsValue(signature)) {
+                continue;
+            }
+            imports.put(ModuleAliasResolver.allocatePrefix(module, imports.keySet()), signature);
+        }
+        return imports;
     }
 
     /**

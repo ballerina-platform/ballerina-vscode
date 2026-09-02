@@ -92,6 +92,20 @@ public final class TypeQualifierAllocator {
         return Map.copyOf(importByQualifier);
     }
 
+    /**
+     * The qualifier each module was rendered under, keyed by its import signature, for a caller that decides on
+     * other grounds which of them are importable. The allocator reads a signature's text and so sees every
+     * qualified name in it, including ones whose symbol names no importable module -- a dependent type's
+     * {@code array:Type}, say -- so it is not itself the authority on what has to be imported.
+     *
+     * @return {@code org/module} -> qualifier
+     */
+    public Map<String, String> qualifierBySignature() {
+        Map<String, String> bySignature = new LinkedHashMap<>();
+        importByQualifier.forEach((qualifier, signature) -> bySignature.putIfAbsent(signature, qualifier));
+        return bySignature;
+    }
+
     /** Whether any module was allocated a qualifier other than its own natural segment. */
     public boolean hasReallocation() {
         return importByQualifier.keySet().stream()
