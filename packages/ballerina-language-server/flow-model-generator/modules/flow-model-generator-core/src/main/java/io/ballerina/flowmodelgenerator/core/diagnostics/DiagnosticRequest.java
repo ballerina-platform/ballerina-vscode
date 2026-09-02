@@ -101,6 +101,13 @@ public class DiagnosticRequest implements Callable<JsonElement> {
         // the durable agent's declaration does not produce: its edit is a list entry or a record
         // field, and read on its own it parses as a broken variable declaration. Reporting that
         // would describe the reader, not the edit, so these kinds carry no diagnostics.
+        //
+        // TODO: this suppresses EVERY diagnostic for these kinds, not just the bogus parse error, so
+        // real problems reach source unreported — a Reviewer Roles value naming an undefined
+        // variable, a requiresApproval predicate pointing at a function that does not exist, an
+        // undefined type in Register Data Event's responseType. The narrow fix is to keep the
+        // analysis and read the edit back in its actual syntactic position (list entry / record
+        // field) instead of as a statement.
         if (WorkflowUtil.editsAgentDeclaration(flowNodeObj.codedata().node())) {
             return null;
         }

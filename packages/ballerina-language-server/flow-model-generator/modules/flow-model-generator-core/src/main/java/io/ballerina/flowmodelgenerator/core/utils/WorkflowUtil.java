@@ -610,12 +610,27 @@ public class WorkflowUtil {
     public static Optional<String> declaredAgentEventResponseType(
             org.ballerinalang.langserver.commons.workspace.WorkspaceManager workspaceManager, Path filePath,
             String targetAgent, String eventName) {
-        String response = declaredAgentEvents(workspaceManager, filePath, targetAgent).get(eventName);
+        java.util.LinkedHashMap<String, String> events =
+                declaredAgentEvents(workspaceManager, filePath, targetAgent);
+        if (!events.containsKey(eventName)) {
+            // Unknown channel: the declaration could not be read, the agent did not match, or the
+            // name was hand-typed. Answering "one-way" here would drop a declared response and emit
+            // a call that does not compile, so fall back to the turn token the send always returns.
+            return Optional.of(UNRESOLVED_RESPONSE_TYPE);
+        }
+        String response = events.get(eventName);
         if (response == null || response.isBlank() || NIL_RESPONSE_TYPE.equals(response)) {
             return Optional.empty();
         }
         return Optional.of(response);
     }
+
+    /**
+     * What a send binds when the channel cannot be resolved. Only a channel read as declaring no
+     * {@code response} is treated as one-way; everything else keeps the previous {@code string}
+     * binding, which is wrong only in the harmless direction — naming a value that does arrive.
+     */
+    private static final String UNRESOLVED_RESPONSE_TYPE = "string";
 
     /** The `response` value that means "this channel answers nothing"; also the field's default. */
     private static final String NIL_RESPONSE_TYPE = "()";
@@ -637,31 +652,32 @@ public class WorkflowUtil {
                     + filePath, e);
             return events;
         }
-        // The agent is declared in the module the send statement is generated into, which is not
-        // necessarily the default one: scanning only the default module left a send node in a
-        // non-default module unable to find its channel, so the send came out one-way even when
-        // the channel declares a response.
-        Module module = workspaceManager.module(filePath)
-                .orElseGet(() -> project.currentPackage().getDefaultModule());
-        for (DocumentId documentId : module.documentIds()) {
-            Document document = module.document(documentId);
-            ModulePartNode root = document.syntaxTree().rootNode();
-            for (ModuleMemberDeclarationNode member : root.members()) {
-                if (!(member instanceof ModuleVariableDeclarationNode varDecl) || varDecl.initializer().isEmpty()) {
-                    continue;
+        // Every module, matching the set durableAgentOptions offers agents from: scoping this
+        // narrower than the Agent dropdown means picking an agent the dropdown offered can leave the
+        // Data Event dropdown empty, and eventName then fails requireValue on save. Only channel
+        // metadata is read here, never a bare name that would have to resolve from somewhere.
+        for (Module module : project.currentPackage().modules()) {
+            for (DocumentId documentId : module.documentIds()) {
+                Document document = module.document(documentId);
+                ModulePartNode root = document.syntaxTree().rootNode();
+                for (ModuleMemberDeclarationNode member : root.members()) {
+                    if (!(member instanceof ModuleVariableDeclarationNode varDecl)
+                            || varDecl.initializer().isEmpty()) {
+                        continue;
+                    }
+                    String typeText = varDecl.typedBindingPattern().typeDescriptor().toSourceCode().trim();
+                    if (!typeText.equals(Constants.Workflow.DURABLE_AGENT_OBJECT_CLASS_NAME)
+                            && !typeText.endsWith(":" + Constants.Workflow.DURABLE_AGENT_OBJECT_CLASS_NAME)) {
+                        continue;
+                    }
+                    if (targetAgent != null && !targetAgent.isBlank()
+                            && (!(varDecl.typedBindingPattern().bindingPattern()
+                                    instanceof CaptureBindingPatternNode capture)
+                                || !targetAgent.equals(capture.variableName().text()))) {
+                        continue;
+                    }
+                    agentConfigLiteral(varDecl).ifPresent(config -> collectDeclaredEvents(config, events));
                 }
-                String typeText = varDecl.typedBindingPattern().typeDescriptor().toSourceCode().trim();
-                if (!typeText.equals(Constants.Workflow.DURABLE_AGENT_OBJECT_CLASS_NAME)
-                        && !typeText.endsWith(":" + Constants.Workflow.DURABLE_AGENT_OBJECT_CLASS_NAME)) {
-                    continue;
-                }
-                if (targetAgent != null && !targetAgent.isBlank()
-                        && (!(varDecl.typedBindingPattern().bindingPattern()
-                                instanceof CaptureBindingPatternNode capture)
-                            || !targetAgent.equals(capture.variableName().text()))) {
-                    continue;
-                }
-                agentConfigLiteral(varDecl).ifPresent(config -> collectDeclaredEvents(config, events));
             }
         }
         return events;
@@ -702,7 +718,10 @@ public class WorkflowUtil {
                     }
                 }
                 if (!name.isEmpty()) {
-                    events.put(name, response);
+                    // First-wins, matching the LinkedHashSet this replaced: targetAgent is null at
+                    // template time, so two agents declaring the same channel name must not collapse
+                    // onto the later one's response type.
+                    events.putIfAbsent(name, response);
                 }
             }
         }
@@ -835,7 +854,9 @@ public class WorkflowUtil {
      * @return whether the node's source belongs to the agent declaration
      */
     public static boolean editsAgentDeclaration(NodeKind nodeKind) {
-        return AGENT_DECLARATION_NODES.contains(nodeKind);
+        // Set.of() throws on a null probe, and Gson leaves node() null whenever the client sends a
+        // codedata.node this LS does not know (version skew), so the guard is load-bearing.
+        return nodeKind != null && AGENT_DECLARATION_NODES.contains(nodeKind);
     }
 
     // A role field edits one role, a list of them, or an expression yielding either.
@@ -874,9 +895,11 @@ public class WorkflowUtil {
     /**
      * The role value as Ballerina source. The field is multi-mode, so the raw value is a string in
      * expression mode, a string template in text mode, and a list of entries in list mode; going
-     * through {@link Property#toSourceCode()} renders each of those, and {@link #quoteIfBareRole}
-     * then quotes a bare word that arrived without a template wrapper (a value read back from
-     * source, say) while leaving a list or a reference alone.
+     * through {@link Property#toSourceCode()} renders each of those. A value entered in expression
+     * mode is written through untouched; otherwise {@link #quoteIfBareRole} quotes a bare word that
+     * arrived without a template wrapper (a value read back from source, say) while leaving a list
+     * or a qualified/called reference alone — note it does not recognise a bare identifier as a
+     * reference, which is why the mode is checked first.
      *
      * @param property the role property, or {@code null}
      * @return the role expression, or an empty string when nothing was entered
@@ -886,7 +909,22 @@ public class WorkflowUtil {
             return "";
         }
         String source = property.toSourceCode().trim();
-        return source.isEmpty() ? "" : quoteIfBareRole(source);
+        if (source.isEmpty()) {
+            return "";
+        }
+        // In expression mode the value IS the expression: a bare `financeRoles` names a module-level
+        // variable, and quoting it would rewrite that reference into a role literal of the same
+        // spelling. Only a value that arrived without an expression mode selected can be a bare role
+        // name needing quotes.
+        if (isExpressionModeSelected(property)) {
+            return source;
+        }
+        return quoteIfBareRole(source);
+    }
+
+    private static boolean isExpressionModeSelected(Property property) {
+        return property.types() != null && property.types().stream()
+                .anyMatch(type -> type.fieldType() == Property.ValueType.EXPRESSION && type.selected());
     }
 
     /**

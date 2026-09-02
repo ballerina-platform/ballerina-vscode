@@ -1205,13 +1205,16 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
 
                             {/* The same shield the chat agent puts on a gated tool. It sits at the
                                 circle's bottom-right rather than its top-right, because the remove
-                                button already owns that corner here. */}
-                            {item.kind === "activity" && isApprovalGated(item) && (
+                                button already owns that corner here. Keyed on the declared
+                                `requiresApproval` rather than the capability kind, because a
+                                registered tool carries it too and used to render as ungated. The
+                                click mirrors the circle underneath, which a tool does not have. */}
+                            {isApprovalGated(item) && (
                                 <ApprovalBadge
                                     background={NODE_BG_COLOR}
                                     x="88.5"
                                     y="31.5"
-                                    onClick={() => onCapabilityClick(item)}
+                                    onClick={item.kind === "tool" ? undefined : () => onCapabilityClick(item)}
                                 />
                             )}
 

@@ -61,6 +61,29 @@ const customSqlHighlightStyle = HighlightStyle.define([
     }
 ]);
 
+/**
+ * Whether the value is ONE complete string literal, so text mode can edit it by stripping the outer
+ * quotes. Leading `"` plus trailing `"` is not enough: `"Hello " + name + "!"` passes that and text
+ * mode would show `Hello " + name + "!` as literal text, then re-quote it on save and silently
+ * rewrite the expression. An unescaped quote before the last character means the literal ends early
+ * and the rest is expression syntax.
+ */
+function isSingleStringLiteral(value: string): boolean {
+    if (value.length < 2 || !value.startsWith('"') || !value.endsWith('"')) {
+        return false;
+    }
+    for (let i = 1; i < value.length - 1; i++) {
+        if (value[i] === "\\") {
+            i++;
+            continue;
+        }
+        if (value[i] === '"') {
+            return false;
+        }
+    }
+    return true;
+}
+
 export class StringTemplateEditorConfig extends ChipExpressionEditorDefaultConfiguration {
     getHelperValue(value: string, token?: ParsedToken): string {
         if (token?.type === TokenType.FUNCTION) return value;
@@ -108,9 +131,10 @@ export class StringTemplateEditorConfig extends ChipExpressionEditorDefaultConfi
         if (!expValue) return true;
         const suffix = this.getSerializationSuffix();
         const prefix = this.getSerializationPrefix();
+        const trimmed = expValue.trim();
         return (
-            (expValue.trim().startsWith(prefix) && expValue.trim().endsWith(suffix)) ||
-            (expValue.trim().startsWith('"') && expValue.trim().endsWith('"')) 
+            (trimmed.startsWith(prefix) && trimmed.endsWith(suffix)) ||
+            isSingleStringLiteral(trimmed)
         )
     }
 
