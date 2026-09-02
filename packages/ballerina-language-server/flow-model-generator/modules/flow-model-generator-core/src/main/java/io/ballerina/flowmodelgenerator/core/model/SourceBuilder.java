@@ -441,6 +441,39 @@ public class SourceBuilder {
     }
 
     /**
+     * A property's value with its module qualifiers rewritten onto the prefixes the target file binds, for a node
+     * being created.
+     *
+     * <p>
+     * A new node's values are the model's own text, authored against the qualifiers its imports map records, so
+     * they need the same resolution a type does: two of its parameters may name modules whose names end in the same
+     * segment, and only one of them can keep that segment in this file.
+     * </p>
+     *
+     * <p>
+     * A node read back from source is left alone. Its values were copied out of the file and so already use whatever
+     * that file binds, while its imports map is rebuilt from the model -- so the map's qualifiers and the value's
+     * qualifiers are not the same vocabulary, and rewriting by them would corrupt text that is already correct.
+     * </p>
+     *
+     * @param property the property whose value is being written
+     * @return the value to write
+     */
+    public String requalifiedValue(Property property) {
+        if (!isNewNode()) {
+            return property.toSourceCode();
+        }
+        return prefixes().requalifyAuthored(property.toSourceCode(), property.imports());
+    }
+
+    /** Whether the node is being created rather than edited, i.e. whether its values are the model's own text. */
+    private boolean isNewNode() {
+        Codedata codedata = flowNode.codedata();
+        return codedata != null
+                && (Boolean.TRUE.equals(codedata.isNew()) || codedata.lineRange() == null);
+    }
+
+    /**
      * The prefix ledger for {@link #filePath}, seeded with the prefixes that file already binds. Built on first use
      * rather than in the constructor, since resolving a prefix needs the target document and the constructor is
      * where {@link #filePath} is still being decided.
@@ -1044,7 +1077,7 @@ public class SourceBuilder {
         }
 
         public TokenBuilder expression(Property property) {
-            sb.append(property.toSourceCode());
+            sb.append(valueOf(property));
             return this;
         }
 
@@ -1056,8 +1089,17 @@ public class SourceBuilder {
         public TokenBuilder namedArg(Property property) {
             sb.append(CommonUtils.escapeIdentifierFromFormField(property.codedata().originalName())).append(WHITE_SPACE)
                     .append(SyntaxKind.EQUAL_TOKEN.stringValue()).append(WHITE_SPACE)
-                    .append(property.toSourceCode());
+                    .append(valueOf(property));
             return this;
+        }
+
+        /**
+         * The value to write for a property, requalified when this builder belongs to a SourceBuilder. A standalone
+         * TokenBuilder has no target file to resolve against and writes the value as it stands.
+         */
+        private String valueOf(Property property) {
+            SourceBuilder sourceBuilder = stepOut();
+            return sourceBuilder == null ? property.toSourceCode() : sourceBuilder.requalifiedValue(property);
         }
 
         public TokenBuilder expression(String exprAsStr) {
