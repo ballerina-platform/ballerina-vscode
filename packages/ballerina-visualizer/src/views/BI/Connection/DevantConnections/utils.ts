@@ -29,6 +29,7 @@ export const ProgressWrap = styled.div`
 
 // Devant tags knowledge base services with this tag.
 export const KB_SERVICE_TAG = "knowledge-base-as-service";
+export const INTERNAL_SERVICES = "internal-services";
 export const isKnowledgeBaseService = (item: MarketplaceItem) => item.tags?.includes(KB_SERVICE_TAG) ?? false;
 
 /**
@@ -49,7 +50,7 @@ export function filterConnectionMarketplaceItems(
             if (isKnowledgeBaseService(item)) {
                 return false;
             }
-            if (filterType === "internal-services") {
+            if (filterType === INTERNAL_SERVICES) {
                 return item.component?.componentId !== selectedComponentId;
             }
             return true;
