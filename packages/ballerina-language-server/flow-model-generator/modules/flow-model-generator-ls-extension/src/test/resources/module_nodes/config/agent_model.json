@@ -64,7 +64,7 @@
             "optional": false,
             "editable": true,
             "advanced": false,
-            "hidden": false,
+            "hidden": true,
             "codedata": {
               "kind": "INCLUDED_FIELD",
               "originalName": "systemPrompt"
@@ -219,7 +219,7 @@
             "optional": true,
             "editable": true,
             "advanced": true,
-            "hidden": false,
+            "hidden": true,
             "codedata": {
               "kind": "INCLUDED_FIELD",
               "originalName": "tools"
@@ -335,7 +335,7 @@
             "optional": true,
             "editable": true,
             "advanced": true,
-            "hidden": false,
+            "hidden": true,
             "codedata": {
               "kind": "INCLUDED_FIELD",
               "originalName": "memory"
@@ -375,6 +375,62 @@
             "editable": true,
             "advanced": true,
             "hidden": true
+          },
+          "role": {
+            "metadata": {
+              "label": "Role",
+              "description": "Define the agent's primary function"
+            },
+            "types": [
+              {
+                "fieldType": "PROMPT",
+                "ballerinaType": "string",
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string",
+                "selected": true
+              }
+            ],
+            "value": "\"Telegram Assistant\"",
+            "placeholder": "e.g., Customer Support Assistant, Sales Advisor, Data Analyst",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "REQUIRED"
+            },
+            "defaultValue": ""
+          },
+          "instructions": {
+            "metadata": {
+              "label": "Instructions",
+              "description": "Detailed instructions for the agent"
+            },
+            "types": [
+              {
+                "fieldType": "PROMPT",
+                "ballerinaType": "string",
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string",
+                "selected": true
+              }
+            ],
+            "value": "\"Assist the users with their requests, whether it's for information, \" +\n            \"tasks, or troubleshooting. Provide clear, helpful responses in a friendly and professional manner.\"",
+            "placeholder": "e.g., You are a friendly assistant. Your goal is to...",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "REQUIRED"
+            },
+            "defaultValue": ""
           },
           "variable": {
             "metadata": {

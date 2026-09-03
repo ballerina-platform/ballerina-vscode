@@ -16,44 +16,32 @@
  * under the License.
  */
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import styled from "@emotion/styled";
 import { Button, ProgressRing, ThemeColors, Typography } from "@wso2/ui-toolkit";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { AddProjectFormFields } from "./AddProjectFormFields";
-import { AddLibraryFields } from "./AddLibraryFields";
+import { AddComponentFields } from "./AddComponentFields";
 import { AddProjectFormData } from "./types";
 import { isFormValidAddProject, joinPath, sanitizeOrgHandle, sanitizePackageName, splitPath } from "./utils";
 import { useRealtimeProjectPathValidation } from "../CreateIntegrationWizard/hooks/useRealtimeProjectPathValidation";
 import { ValidateProjectFormErrorField } from "@wso2/ballerina-core";
-import { ProjectContext } from "../CreateIntegrationWizard/types";
 import { BiWsClientProvider } from "../wsManager/WsClientContext";
 import { CreateFlowShell } from "./embedded/integrator-form/shared/CreateFlowShell";
 import { FormFooter } from "./embedded/integrator-form/shared/FormPageLayout";
+import { FormSection } from "./styles";
 import { useDirectoryNameCoupling } from "./hooks/useDirectoryNameCoupling";
 import { useDefaultOrgName } from "./hooks/useDefaultOrgName";
-import { prefetchChunks } from "../../../utils/viewPrefetch";
 
-/** Which screen of the Add-to-project flow is showing. */
-type Screen = "chooser" | "integration" | "library";
-
-/**
- * Lazy: the wizard pulls the whole artifact-form tree, so the chooser must not wait on
- * it. Warmed as soon as the chooser mounts.
- */
-const LazyCreateIntegrationWizard = React.lazy(() =>
-    import("../CreateIntegrationWizard").then((module) => ({ default: module.CreateIntegrationWizard }))
-);
-
-/** Submit-time error beside the action button, for failures with no single field. */
-const WizardLoader = styled.div`
-    flex: 1;
-    min-height: 0;
+/** Holds the panel's body height while initialization settles, so it does not collapse. */
+const ShellLoader = styled.div`
     display: flex;
     align-items: center;
     justify-content: center;
+    min-height: 320px;
 `;
 
+/** Submit-time error beside the action button, for failures with no single field. */
 const SubmitError = styled.div`
     flex: 1;
     margin-right: 16px;
@@ -77,12 +65,14 @@ export function AddProjectForm() {
     // into the new project.
     const [currentIntegrationDirName, setCurrentIntegrationDirName] = useState<string>("");
     const [addNewAfterConvert, setAddNewAfterConvert] = useState<boolean>(false);
-    // chooser = project + starting point; integration = the Create wizard in place;
-    // library = name + package details.
-    const [screen, setScreen] = useState<Screen>("chooser");
     const [targetPath, setTargetPath] = useState<string>("");
-    // Title of the already-open project, for the wizard's "Adding … to project X" copy.
-    const [openProjectName, setOpenProjectName] = useState<string>("");
+    // Whether initialization — workspace discovery and the suggested defaults — has settled.
+    // Gates two things. The body is not rendered until then, because `isInProject` defaults
+    // to the convert variant and would otherwise flash the wrong screen. And the integration
+    // name field, which mounts with this screen rather than on a later one like the library's,
+    // must not index its collision-free default against the arriving defaults, or whichever
+    // resolves last wins.
+    const [defaultsReady, setDefaultsReady] = useState<boolean>(false);
     // Convert flow: `convertBaseDir` is the parent location; the folder name defaults to
     // the project name until edited.
     const [convertBaseDir, setConvertBaseDir] = useState<string>("");
@@ -97,8 +87,6 @@ export function AddProjectForm() {
     const isConvertAndAdd = isConvert && addNewAfterConvert;
     // Whether a starting point (integration/library) is being added (vs a plain convert).
     const isAddingComponent = isInProject || addNewAfterConvert;
-    // A starting point is configured on the next screen ("Next"); a plain convert submits from here.
-    const routeToNextScreen = isAddingComponent;
 
     // The name-derived default for the destination folder segment.
     const autoConvertDirName = formData.projectHandle?.trim()
@@ -116,25 +104,31 @@ export function AddProjectForm() {
         setPathValidationError(null);
         setPackageNameValidationError(null);
         setProjectNameValidationError(null);
+        // Switching starting point re-validates the name under the other kind's rules.
+        // Clear so a stale diagnostic cannot block submit; the field reports its own
+        // again on the next render.
+        if (data.isLibrary !== undefined) {
+            setComponentNameError(null);
+        }
     }, []);
 
-    // Owned here: a plain convert never reaches the library screen but still writes the
+    // Owned here: a plain convert collects no starting point at all but still writes the
     // org into the new project's context file.
     const handleOrgResolved = useCallback((orgName: string) => setFormData(prev => ({ ...prev, orgName })), []);
     const { organizations, isOrgLocked, isOrgDataLoaded, markOrgTouched } =
         useDefaultOrgName(isInProject, handleOrgResolved);
 
-    // Owned here so a manually edited package name survives a remount of the library screen.
+    // Owned here so a manually edited package name survives a remount of the fields.
     const [packageNameTouched, setPackageNameTouched] = useState<boolean>(false);
     const markPackageNameTouched = useCallback(() => setPackageNameTouched(true), []);
 
-    // Same reasoning for the display name: once typed, remounting the library screen
-    // must not let the collision-indexed default silently rename it.
+    // Same reasoning for the display name: once typed, a remount must not let the
+    // collision-indexed default silently rename it.
     const [nameTouched, setNameTouched] = useState<boolean>(false);
     const markNameTouched = useCallback(() => setNameTouched(true), []);
 
-    // Live name diagnostic from the library screen (format + collision with an
-    // existing integration/library in the target project). Blocks submit there.
+    // Live name diagnostic for the starting point's name (format + collision with an
+    // existing integration/library in the target project). Blocks submit.
     const [componentNameError, setComponentNameError] = useState<string | null>(null);
 
     // Adapter so the shared realtime path-validation hook can call the native RPC client.
@@ -157,50 +151,45 @@ export function AddProjectForm() {
         directoryName: effectiveConvertDirName,
     });
 
-    // Both starting points lead into the wizard, so start pulling its chunk while the
-    // user is still reading the chooser.
     useEffect(() => {
-        prefetchChunks(["createIntegrationWizard"]);
-    }, []);
-
-    useEffect(() => {
-        Promise.all([
-            rpcClient.getCommonRpcClient().getWorkspaceRoot(),
-            rpcClient.getCommonRpcClient().getWorkspaceType()
-        ]).then(async ([workspaceRoot, workspaceType]) => {
-            const inProject = workspaceType.type === "BALLERINA_WORKSPACE";
-            setTargetPath(workspaceRoot.path);
-            // The converted project is created next to the current integration by
-            // default, so seed the location with the integration's parent directory.
-            const { base, name } = splitPath(workspaceRoot.path);
-            setConvertBaseDir(base);
-            setCurrentIntegrationDirName(inProject ? "" : name);
-            setIsInProject(inProject);
-
-            if (inProject) {
-                // Only needed to name the project on the wizard's progress screen, so a
-                // failure here just leaves that copy unnamed.
-                try {
-                    const structure = await rpcClient.getBIDiagramRpcClient().getProjectStructure();
-                    setOpenProjectName(structure?.workspaceTitle || structure?.workspaceName || name);
-                } catch {
-                    setOpenProjectName(name);
-                }
-            }
-
+        // One `finally` around the whole sequence, not just the defaults call: the
+        // integration name field waits on `defaultsReady` before indexing its default, so
+        // any leg failing — workspace discovery included — would strand it unseeded.
+        (async () => {
             try {
-                const defaults = await rpcClient.getBIDiagramRpcClient().getSuggestedProjectDefaults({ isInProject: inProject });
-                setFormData(prev => ({
-                    ...prev,
-                    workspaceName: inProject ? prev.workspaceName : defaults.projectName,
-                    projectHandle: inProject ? prev.projectHandle : defaults.projectHandle,
-                    integrationName: defaults.integrationName,
-                    packageName: defaults.packageName,
-                }));
-            } catch {
-                // defaults unavailable — leave form empty
+                const [workspaceRoot, workspaceType] = await Promise.all([
+                    rpcClient.getCommonRpcClient().getWorkspaceRoot(),
+                    rpcClient.getCommonRpcClient().getWorkspaceType()
+                ]);
+                const inProject = workspaceType.type === "BALLERINA_WORKSPACE";
+                setTargetPath(workspaceRoot.path);
+                // The converted project is created next to the current integration by
+                // default, so seed the location with the integration's parent directory.
+                const { base, name } = splitPath(workspaceRoot.path);
+                setConvertBaseDir(base);
+                setCurrentIntegrationDirName(inProject ? "" : name);
+                setIsInProject(inProject);
+
+                try {
+                    const defaults = await rpcClient.getBIDiagramRpcClient().getSuggestedProjectDefaults({ isInProject: inProject });
+                    setFormData(prev => ({
+                        ...prev,
+                        workspaceName: inProject ? prev.workspaceName : defaults.projectName,
+                        projectHandle: inProject ? prev.projectHandle : defaults.projectHandle,
+                        integrationName: defaults.integrationName,
+                        packageName: defaults.packageName,
+                    }));
+                } catch {
+                    // defaults unavailable — leave form empty
+                }
+            } catch (error) {
+                // Discovery failed: the form stays on its initial state rather than
+                // silently pointing at nothing.
+                console.error("Failed to resolve the workspace for the add-to-project form:", error);
+            } finally {
+                setDefaultsReady(true);
             }
-        });
+        })();
     }, []);
 
     const handleConvertPathChange = (value: string) => {
@@ -225,20 +214,13 @@ export function AddProjectForm() {
         }
     };
 
-    // The project the wizard adds into: the open workspace, or a new one from converting
-    // the current integration.
-    const integrationProjectContext: ProjectContext = isInProject
-        ? { isNewProject: false, workspacePath: targetPath, workspaceName: openProjectName || undefined }
-        : {
-            isNewProject: true,
-            workspacePath: convertFullPath,
-            workspaceName: formData.workspaceName?.trim() || undefined,
-            convertToWorkspace: true,
-        };
+    // The project the starting point is added into: the open workspace, or a new one from
+    // converting the current integration.
+    const componentTargetPath = isInProject ? targetPath : convertFullPath;
 
     // Convert-flow "Next" is disabled until the project name + a valid location are set;
-    // the add-from-workspace flow has no project fields, so it is always enabled.
-    const nextDisabled =
+    // the add-from-workspace flow has no project fields, so it never blocks on them.
+    const projectFieldsInvalid =
         isLoading ||
         (isConvert &&
             (!formData.workspaceName?.trim() ||
@@ -246,27 +228,6 @@ export function AddProjectForm() {
                 !effectiveConvertDirName ||
                 !!convertPathError ||
                 !!projectNameValidationError));
-
-    /** Chooser → the starting point's own screen (integration wizard or library form).
-     *  In the convert flow the project name + location are captured (and validated)
-     *  here first; the next screen then owns naming/configuring the artifact and the
-     *  convert-and-add on submit. */
-    const handleNext = () => {
-        if (isConvert) {
-            if (!formData.workspaceName?.trim()) {
-                setProjectNameValidationError("Project name is required");
-                return;
-            }
-            if (!convertBaseDir.trim() || !effectiveConvertDirName) {
-                setConvertPathError("Please select a location for your project");
-                return;
-            }
-            if (convertPathError) {
-                return;
-            }
-        }
-        setScreen(formData.isLibrary ? "library" : "integration");
-    };
 
     const handleAddProject = async () => {
         setIsLoading(true);
@@ -298,20 +259,19 @@ export function AddProjectForm() {
             });
 
             if (!validationResult.isValid) {
-                // Convert-flow fields live on the chooser, so those errors return there.
                 if (validationResult.errorField === ValidateProjectFormErrorField.PATH) {
                     if (isInProject) {
                         // The path is `<project>/<packageName>`, so this is almost always a
-                        // name collision — show it on the library screen.
+                        // name collision.
                         setPathValidationError(validationResult.errorMessage || `Invalid ${resourceTypeLabel.toLowerCase()} path`);
                     } else {
                         setConvertPathError(validationResult.errorMessage || "Invalid project path");
-                        setScreen("chooser");
                     }
                 } else if (validationResult.errorField === ValidateProjectFormErrorField.NAME) {
                     if (isInProject) {
-                        // The package name is edited in the library screen's Advanced
-                        // Configurations, which is where this submit came from.
+                        // The name validated above is the package name, which both routes
+                        // now edit under Advanced Configurations — reporting it there also
+                        // auto-expands the section.
                         setPackageNameValidationError(
                             validationResult.errorMessage || `Invalid ${resourceTypeLabel.toLowerCase()} name`
                         );
@@ -319,7 +279,6 @@ export function AddProjectForm() {
                         setProjectNameValidationError(
                             validationResult.errorMessage || "Invalid project name"
                         );
-                        setScreen("chooser");
                     }
                 }
                 setIsLoading(false);
@@ -329,7 +288,7 @@ export function AddProjectForm() {
             const orgHandle = sanitizeOrgHandle(formData.orgName);
 
             // If validation passes, add the project
-            rpcClient.getBIDiagramRpcClient().addProjectToWorkspace({
+            void rpcClient.getBIDiagramRpcClient().addProjectToWorkspace({
                 projectName: formData.integrationName,
                 packageName: formData.packageName,
                 convertToWorkspace: isConvert,
@@ -339,19 +298,21 @@ export function AddProjectForm() {
                 packageDirectoryName,
                 workspaceName: formData.workspaceName,
                 orgName: formData.orgName || undefined,
-                orgHandle,
+                // Omitted rather than sent empty. `createBIProjectPure` writes
+                // `org = "${orgHandle ?? finalOrgName}"`, and `??` does not fall through on
+                // "" — an empty handle would land in Ballerina.toml verbatim. Only reachable
+                // now that the integration route no longer gates submit on the organization.
+                orgHandle: orgHandle || undefined,
                 version: formData.version || undefined,
                 isLibrary: formData.isLibrary,
                 projectHandle: formData.projectHandle,
-            });
+            }).catch((): undefined => undefined);
         } catch (error) {
             const message = error instanceof Error ? error.message : "An error occurred during validation";
             if (isInProject) {
                 setPathValidationError(message);
             } else {
                 setConvertPathError(message);
-                // The Project Location field this reports on lives on the chooser.
-                setScreen("chooser");
             }
             setIsLoading(false);
         }
@@ -361,89 +322,18 @@ export function AddProjectForm() {
         rpcClient.getVisualizerRpcClient().goBack();
     };
 
-    const startingPointSubtitle = isInProject
-        ? undefined
-        : `In project ${formData.workspaceName?.trim() || "your new project"}`;
-
-    if (screen === "integration") {
+    // `isInProject` is false until workspace discovery resolves, and false is the convert
+    // variant — so rendering straight away shows "Convert to Project" with the project
+    // name/location fields for a frame or two, then swaps the title, the fields, the type
+    // selector and the button all at once when the real answer lands. Hold the body until
+    // it is known. The shell stays mounted, so the backdrop, panel and header row keep
+    // their place and only the content fills in.
+    if (!defaultsReady) {
         return (
-            <CreateFlowShell
-                title="New Integration"
-                subtitle={startingPointSubtitle}
-                onBack={() => setScreen("chooser")}
-                bodyFill
-                fill
-            >
-                <BiWsClientProvider onBack={() => setScreen("chooser")}>
-                    <React.Suspense
-                        fallback={
-                            <WizardLoader>
-                                <ProgressRing color={ThemeColors.PRIMARY} />
-                            </WizardLoader>
-                        }
-                    >
-                        <LazyCreateIntegrationWizard
-                            embedded
-                            showHeader={false}
-                            projectContext={integrationProjectContext}
-                        />
-                    </React.Suspense>
-                </BiWsClientProvider>
-            </CreateFlowShell>
-        );
-    }
-
-    if (screen === "library") {
-        return (
-            <CreateFlowShell
-                title="New Library"
-                subtitle={startingPointSubtitle}
-                onBack={() => setScreen("chooser")}
-                fill
-            >
-                {/* The project listing used for the name-collision check is only
-                    exposed on the WS bridge, the same seam the integration wizard
-                    below uses. */}
-                <BiWsClientProvider onBack={() => setScreen("chooser")}>
-                    <AddLibraryFields
-                        formData={formData}
-                        onFormDataChange={handleFormDataChange}
-                        projectPath={isInProject ? targetPath : convertFullPath}
-                        reservedFolders={currentIntegrationDirName ? [currentIntegrationDirName] : undefined}
-                        organizations={organizations}
-                        isOrgLocked={isOrgLocked}
-                        isOrgDataLoaded={isOrgDataLoaded}
-                        onOrgTouched={markOrgTouched}
-                        packageNameTouched={packageNameTouched}
-                        onPackageNameTouched={markPackageNameTouched}
-                        nameTouched={nameTouched}
-                        onNameTouched={markNameTouched}
-                        packageNameValidationError={packageNameValidationError || undefined}
-                        onNameErrorChange={setComponentNameError}
-                    />
-                </BiWsClientProvider>
-
-                <FormFooter>
-                    {pathValidationError && <SubmitError>{pathValidationError}</SubmitError>}
-                    <Button
-                        disabled={
-                            !!componentNameError ||
-                            !isFormValidAddProject(formData, isInProject, addNewAfterConvert) ||
-                            isLoading ||
-                            (isConvert && !!convertPathError)
-                        }
-                        onClick={handleAddProject}
-                        appearance="primary"
-                    >
-                        {isLoading ? (
-                            <Typography variant="progress">
-                                {isConvertAndAdd ? "Converting & Adding..." : "Adding..."}
-                            </Typography>
-                        ) : (
-                            isConvertAndAdd ? "Convert & Add Library" : "Add Library"
-                        )}
-                    </Button>
-                </FormFooter>
+            <CreateFlowShell title="" onBack={goBack} fill>
+                <ShellLoader>
+                    <ProgressRing color={ThemeColors.PRIMARY} />
+                </ShellLoader>
             </CreateFlowShell>
         );
     }
@@ -472,25 +362,59 @@ export function AddProjectForm() {
                 convertPathError={convertPathError || undefined}
             />
 
+            {/* Both starting points are named and configured here rather than on a step of
+                their own — the wizard is bypassed, so this screen submits. The WS bridge is
+                what exposes the project listing behind the collision check. */}
+            {isAddingComponent && (
+                <FormSection>
+                    <BiWsClientProvider onBack={goBack}>
+                        <AddComponentFields
+                            formData={formData}
+                            onFormDataChange={handleFormDataChange}
+                            defaultsReady={defaultsReady}
+                            projectPath={componentTargetPath}
+                            reservedFolders={currentIntegrationDirName ? [currentIntegrationDirName] : undefined}
+                            organizations={organizations}
+                            isOrgLocked={isOrgLocked}
+                            isOrgDataLoaded={isOrgDataLoaded}
+                            onOrgTouched={markOrgTouched}
+                            packageNameTouched={packageNameTouched}
+                            onPackageNameTouched={markPackageNameTouched}
+                            nameTouched={nameTouched}
+                            onNameTouched={markNameTouched}
+                            packageNameValidationError={packageNameValidationError || undefined}
+                            onNameErrorChange={setComponentNameError}
+                        />
+                    </BiWsClientProvider>
+                </FormSection>
+            )}
+
             <FormFooter>
-                {routeToNextScreen ? (
-                    <Button disabled={nextDisabled} onClick={handleNext} appearance="primary">
-                        Next
-                    </Button>
-                ) : (
-                    // Plain convert: nothing further to collect, so submit from here.
-                    <Button
-                        disabled={!isFormValidAddProject(formData, isInProject, addNewAfterConvert) || isLoading || (isConvert && !!convertPathError)}
-                        onClick={handleAddProject}
-                        appearance="primary"
-                    >
-                        {isLoading ? (
-                            <Typography variant="progress">Converting...</Typography>
-                        ) : (
-                            "Convert to Project"
-                        )}
-                    </Button>
-                )}
+                {pathValidationError && <SubmitError>{pathValidationError}</SubmitError>}
+                <Button
+                    disabled={
+                        projectFieldsInvalid ||
+                        (isAddingComponent && !!componentNameError) ||
+                        !isFormValidAddProject(formData, isInProject, addNewAfterConvert) ||
+                        isLoading ||
+                        (isConvert && !!convertPathError)
+                    }
+                    onClick={handleAddProject}
+                    appearance="primary"
+                >
+                    {isLoading ? (
+                        <Typography variant="progress">
+                            {!isAddingComponent
+                                ? "Converting..."
+                                : isConvertAndAdd ? "Converting & Adding..." : "Adding..."}
+                        </Typography>
+                    ) : !isAddingComponent ? (
+                        // Plain convert: nothing further to collect.
+                        "Convert to Project"
+                    ) : (
+                        `${isConvertAndAdd ? "Convert & Add" : "Add"} ${resourceTypeLabel}`
+                    )}
+                </Button>
             </FormFooter>
         </CreateFlowShell>
     );

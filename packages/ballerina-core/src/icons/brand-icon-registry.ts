@@ -50,14 +50,23 @@ export const BRAND_ICON_REGISTRY: Record<string, BrandIcon> = {
     mcp: { glyph: "bi-mcp" },
     solace: { glyph: "bi-solace", color: "#00C895" },
     ftp: { glyph: "bi-ftp" },
+    smb: { glyph: "bi-smb" },
+    "azure.storage.files": { glyph: "bi-azure-files", color: "#2ABADF" },
     file: { glyph: "bi-file" },
     mssql: { glyph: "bi-mssql", color: "#b61d1c" },
     postgresql: { glyph: "bi-postgresql", color: "#336791" },
     mysql: { glyph: "bi-mysql", color: "#00758F" },
+    oracledb: { glyph: "bi-oracledb", color: "#b61d1c" },
+    "sap.jco": { glyph: "bi-sap" },
+    jco: { glyph: "bi-sap" },
+    "solace.jms": { glyph: "bi-solace", color: "#00C895" },
     shopify: { glyph: "bi-shopify", color: "#95BF47" },
     "trigger.shopify": { glyph: "bi-shopify", color: "#95BF47" },
     hubspot: { glyph: "bi-hubspot", color: "#FF7A59" },
     "trigger.hubspot": { glyph: "bi-hubspot", color: "#FF7A59" },
+    telegram: { glyph: "bi-telegram", color: "#26A5E4" },
+    "whatsapp.business": { glyph: "bi-whatsapp", color: "#25D366" },
+    "googleapis.chat": { glyph: "bi-google-chat", color: "#00AC47" },
 };
 
 /** Looks up the brand glyph override for a module/type identifier; `undefined` when there is none. */

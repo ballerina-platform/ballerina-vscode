@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { AvailableNode, LineRange, NodeKind } from '@wso2/ballerina-core';
+import { AvailableNode, CodeData, LineRange, NodeKind } from '@wso2/ballerina-core';
 import React, { createContext, FC, useContext } from 'react';
 import {
     Control,
@@ -60,6 +60,11 @@ export interface FormContext {
         selectedConnector: AvailableNode;
         onSaved: (variableName: string) => void;
     }) => void;
+    onCreateNode?: (
+        kind: string,
+        onCreated: (variableName: string) => void,
+        nodeCodeData?: CodeData
+    ) => void;
 }
 
 const defaultState: any = {};

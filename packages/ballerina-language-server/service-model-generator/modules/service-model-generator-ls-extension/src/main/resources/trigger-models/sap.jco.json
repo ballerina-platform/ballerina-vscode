@@ -751,6 +751,86 @@
         }
       ]
     },
+    "driverDependencies": {
+      "metadata": {
+        "label": "SAP Driver Libraries",
+        "description": "SAP's proprietary JCo middleware libraries aren't bundled with the connector. Select both JARs; they will be copied into the project (if needed) and registered as platform dependencies in Ballerina.toml."
+      },
+      "types": [
+        {
+          "fieldType": "GROUP_SECTION",
+          "selected": true
+        }
+      ],
+      "enabled": true,
+      "editable": true,
+      "optional": false,
+      "advanced": false,
+      "properties": {
+        "sapIdocDriverPath": {
+          "metadata": {
+            "label": "SAP IDoc Library JAR",
+            "description": "Select the sapidoc3.jar provided by SAP."
+          },
+          "types": [
+            {
+              "fieldType": "PROJECT_FILE_SELECT",
+              "selected": true,
+              "extensions": ["jar"]
+            }
+          ],
+          "value": "",
+          "enabled": true,
+          "editable": true,
+          "optional": false,
+          "advanced": false,
+          "codedata": {
+            "driverDependency": {
+              "groupId": "com.sap",
+              "artifactId": "com.sap.conn.idoc",
+              "version": "3.1.*",
+              "scope": "provided"
+            }
+          },
+          "validations": [
+            {
+              "rule": "common.validate.required"
+            }
+          ]
+        },
+        "sapJcoDriverPath": {
+          "metadata": {
+            "label": "SAP JCo Library JAR",
+            "description": "Select the sapjco3.jar provided by SAP."
+          },
+          "types": [
+            {
+              "fieldType": "PROJECT_FILE_SELECT",
+              "selected": true,
+              "extensions": ["jar"]
+            }
+          ],
+          "value": "",
+          "enabled": true,
+          "editable": true,
+          "optional": false,
+          "advanced": false,
+          "codedata": {
+            "driverDependency": {
+              "groupId": "com.sap",
+              "artifactId": "com.sap.conn.jco",
+              "version": "3.1.*",
+              "scope": "provided"
+            }
+          },
+          "validations": [
+            {
+              "rule": "common.validate.required"
+            }
+          ]
+        }
+      }
+    },
     "serviceType": {
       "metadata": {
         "label": "Service Type",
@@ -763,11 +843,11 @@
           "ballerinaType": "jco:GenericServiceType",
           "options": [
             {
-              "label": "IDocService",
+              "label": "SAP JCo IDoc Service",
               "value": "jco:IDocService"
             },
             {
-              "label": "RfcService",
+              "label": "SAP JCo RFC Service",
               "value": "jco:RfcService"
             }
           ]
@@ -792,7 +872,7 @@
   "serviceTypes": [
     {
       "metadata": {
-        "label": "IDocService",
+        "label": "SAP JCo IDoc Service",
         "description": "Handles IDocs pushed from an SAP system."
       },
       "name": "jco:IDocService",
@@ -998,7 +1078,7 @@
     },
     {
       "metadata": {
-        "label": "RfcService",
+        "label": "SAP JCo RFC Service",
         "description": "Handles inbound RFC calls from an SAP system. SAP invokes the service as if it were a registered RFC function module."
       },
       "name": "jco:RfcService",

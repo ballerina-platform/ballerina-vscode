@@ -49,6 +49,7 @@ import io.ballerina.projects.Package;
 import io.ballerina.projects.Project;
 import io.ballerina.servicemodelgenerator.extension.builder.FunctionBuilderRouter;
 import io.ballerina.servicemodelgenerator.extension.builder.ServiceBuilderRouter;
+import io.ballerina.servicemodelgenerator.extension.connector.PlatformDependencyEditUtil;
 import io.ballerina.servicemodelgenerator.extension.connector.TriggerModelReader;
 import io.ballerina.servicemodelgenerator.extension.model.Codedata;
 import io.ballerina.servicemodelgenerator.extension.model.Function;
@@ -64,6 +65,7 @@ import io.ballerina.servicemodelgenerator.extension.model.request.AddFieldReques
 import io.ballerina.servicemodelgenerator.extension.model.request.ClassFieldModifierRequest;
 import io.ballerina.servicemodelgenerator.extension.model.request.ClassModelFromSourceRequest;
 import io.ballerina.servicemodelgenerator.extension.model.request.CommonModelFromSourceRequest;
+import io.ballerina.servicemodelgenerator.extension.model.request.CreateClassDependencyRequest;
 import io.ballerina.servicemodelgenerator.extension.model.request.FunctionModelRequest;
 import io.ballerina.servicemodelgenerator.extension.model.request.FunctionModifierRequest;
 import io.ballerina.servicemodelgenerator.extension.model.request.FunctionSourceRequest;
@@ -71,6 +73,7 @@ import io.ballerina.servicemodelgenerator.extension.model.request.ListenerDiscov
 import io.ballerina.servicemodelgenerator.extension.model.request.ListenerModelRequest;
 import io.ballerina.servicemodelgenerator.extension.model.request.ListenerModifierRequest;
 import io.ballerina.servicemodelgenerator.extension.model.request.ListenerSourceRequest;
+import io.ballerina.servicemodelgenerator.extension.model.request.ModifyClassDependencyRequest;
 import io.ballerina.servicemodelgenerator.extension.model.request.OpenApiEndpointsRequest;
 import io.ballerina.servicemodelgenerator.extension.model.request.ServiceClassSourceRequest;
 import io.ballerina.servicemodelgenerator.extension.model.request.ServiceInitSourceRequest;
@@ -131,6 +134,7 @@ import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -252,7 +256,7 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
             try {
                 Path filePath = Path.of(request.filePath());
 
-                this.workspaceManager.loadProject(filePath);
+                Project project = this.workspaceManager.loadProject(filePath);
                 Optional<SemanticModel> semanticModel = this.workspaceManager.semanticModel(filePath);
                 Optional<Document> documentOpt = this.workspaceManager.document(filePath);
 
@@ -273,6 +277,9 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                                 FTPListenerUtil.adjustFtpListenerModelForDeprecatedMode(
                                         listenerModel, request.removeDeprecated(), semanticModel.get(), document);
                             }
+                            PlatformDependencyEditUtil.overlayDriverDependencies(listenerModel,
+                                    request.codedata().getOrgName(), request.codedata().getModuleName(),
+                                    request.codedata().getVersion(), project);
                             return new ListenerModelResponse(listenerModel);
                         })
                         .orElseGet(ListenerModelResponse::new);
@@ -293,7 +300,7 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
         return CompletableFuture.supplyAsync(() -> {
             try {
                 Path filePath = Path.of(request.filePath());
-                this.workspaceManager.loadProject(filePath);
+                Project project = this.workspaceManager.loadProject(filePath);
 
                 Optional<Document> document = this.workspaceManager.document(filePath);
                 if (document.isEmpty()) {
@@ -311,7 +318,13 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                 }
                 String listenerDeclaration = listener.getListenerDeclaration();
                 edits.add(new TextEdit(Utils.toRange(lineRange.endLine()), NEW_LINE + listenerDeclaration));
-                return new CommonSourceResponse(Map.of(request.filePath(), edits));
+
+                Map<String, List<TextEdit>> allEdits = new LinkedHashMap<>();
+                allEdits.put(request.filePath(), edits);
+                PlatformDependencyEditUtil.addDriverDependenciesIfPresent(allEdits, project,
+                        listener.getProperties());
+
+                return new CommonSourceResponse(allEdits);
             } catch (Throwable e) {
                 return new CommonSourceResponse(e);
             }
@@ -806,7 +819,7 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                 Path filePath = Path.of(request.filePath());
                 Listener listener = request.listener();
 
-                this.workspaceManager.loadProject(filePath);
+                Project project = this.workspaceManager.loadProject(filePath);
                 Optional<Document> document = this.workspaceManager.document(filePath);
                 if (document.isEmpty()) {
                     return new CommonSourceResponse();
@@ -850,7 +863,12 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                 // Add imports required by the FTP coordination config type cast
                 FTPListenerUtil.addCoordinationConfigImports(listenerDeclaration, modulePartNode, edits);
 
-                return new CommonSourceResponse(Map.of(request.filePath(), edits));
+                Map<String, List<TextEdit>> allEdits = new LinkedHashMap<>();
+                allEdits.put(request.filePath(), edits);
+                PlatformDependencyEditUtil.addDriverDependenciesIfPresent(allEdits, project,
+                        listener.getProperties());
+
+                return new CommonSourceResponse(allEdits);
             } catch (Throwable e) {
                 return new CommonSourceResponse(e);
             }
@@ -1008,6 +1026,83 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                 TextEdit fieldEdit = new TextEdit(Utils.toRange(lineRange),
                         ServiceClassUtil.buildObjectFiledString(request.field()));
                 edits.add(fieldEdit);
+                return new CommonSourceResponse(Map.of(request.filePath(), edits));
+            } catch (Throwable e) {
+                return new CommonSourceResponse(e);
+            }
+        });
+    }
+
+    @JsonRequest
+    public CompletableFuture<CommonSourceResponse> createClassDependency(CreateClassDependencyRequest request) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                Path filePath = Path.of(request.filePath());
+                this.workspaceManager.loadProject(filePath);
+                Optional<Document> document = this.workspaceManager.document(filePath);
+                if (document.isEmpty()) {
+                    return new CommonSourceResponse();
+                }
+                SyntaxTree syntaxTree = document.get().syntaxTree();
+                ModulePartNode modulePartNode = syntaxTree.rootNode();
+                TextDocument textDocument = syntaxTree.textDocument();
+                LineRange lineRange = request.classLineRange();
+                int start = textDocument.textPositionFrom(lineRange.startLine());
+                int end = textDocument.textPositionFrom(lineRange.endLine());
+                NonTerminalNode node = modulePartNode.findNode(TextRange.from(start, end - start), true);
+                if (!(node instanceof ClassDefinitionNode classDefinitionNode)) {
+                    return new CommonSourceResponse();
+                }
+                List<TextEdit> edits = ServiceClassUtil.buildAddInitParameterEdits(classDefinitionNode,
+                        request.field(), textDocument, modulePartNode);
+                return new CommonSourceResponse(Map.of(request.filePath(), edits));
+            } catch (Throwable e) {
+                return new CommonSourceResponse(e);
+            }
+        });
+    }
+
+    @JsonRequest
+    public CompletableFuture<CommonSourceResponse> updateClassDependency(ModifyClassDependencyRequest request) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                Path filePath = Path.of(request.filePath());
+                this.workspaceManager.loadProject(filePath);
+                Optional<Document> document = this.workspaceManager.document(filePath);
+                if (document.isEmpty()) {
+                    return new CommonSourceResponse();
+                }
+                NonTerminalNode node = findNonTerminalNode(request.field().codedata(), document.get());
+                if (!(node instanceof ObjectFieldNode fieldNode)) {
+                    return new CommonSourceResponse();
+                }
+                ModulePartNode modulePartNode = document.get().syntaxTree().rootNode();
+                List<TextEdit> edits = ServiceClassUtil.buildUpdateInitParameterEdits(fieldNode, request.field(),
+                        modulePartNode);
+                return new CommonSourceResponse(Map.of(request.filePath(), edits));
+            } catch (Throwable e) {
+                return new CommonSourceResponse(e);
+            }
+        });
+    }
+
+    @JsonRequest
+    public CompletableFuture<CommonSourceResponse> removeClassDependency(ModifyClassDependencyRequest request) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                Path filePath = Path.of(request.filePath());
+                this.workspaceManager.loadProject(filePath);
+                Optional<Document> document = this.workspaceManager.document(filePath);
+                if (document.isEmpty()) {
+                    return new CommonSourceResponse();
+                }
+                SyntaxTree syntaxTree = document.get().syntaxTree();
+                TextDocument textDocument = syntaxTree.textDocument();
+                NonTerminalNode node = findNonTerminalNode(request.field().codedata(), document.get());
+                if (!(node instanceof ObjectFieldNode fieldNode)) {
+                    return new CommonSourceResponse();
+                }
+                List<TextEdit> edits = ServiceClassUtil.buildRemoveInitParameterEdits(fieldNode, textDocument);
                 return new CommonSourceResponse(Map.of(request.filePath(), edits));
             } catch (Throwable e) {
                 return new CommonSourceResponse(e);

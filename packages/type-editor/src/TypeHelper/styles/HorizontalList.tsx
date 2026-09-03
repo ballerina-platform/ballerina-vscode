@@ -22,11 +22,20 @@ export const HorizontalListContainer = styled.div`
     display: flex;
     flex-direction: column;
     gap: 3px;
+    min-width: 0;
+
+    /* SlidingPaneNavContainer wraps its children in unstyled divs that default to
+       min-width:auto, which lets a long label stretch the fixed-height row. */
+    div:has(> .expandable-list-item),
+    div:has(> div > .expandable-list-item) {
+        min-width: 0;
+    }
 `;
 
 export const HorizontalListItem = styled.div`
     display: flex;
     width: 100%;
+    min-width: 0;
     justify-content: space-between;
     align-items: center;
     gap: 12px;
@@ -38,4 +47,6 @@ export const HorizontalListItemLeftContent = styled.div`
     display: flex;
     align-items: center;
     gap: 10px;
+    flex: 1;
+    min-width: 0;
 `;

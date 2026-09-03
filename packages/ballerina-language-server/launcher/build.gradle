@@ -28,6 +28,8 @@ dependencies {
     
     implementation "com.google.code.gson:gson:${gsonVersion}"
     implementation "org.eclipse.lsp4j:org.eclipse.lsp4j:${eclipseLsp4jVersion}"
+
+    testImplementation "org.testng:testng:${testngVersion}"
 }
 
 jar {
@@ -36,4 +38,8 @@ jar {
                 'Main-Class': 'org.ballerinalang.langserver.launchers.stdio.Main'
         )
     }
+}
+
+test {
+    useTestNG()
 }

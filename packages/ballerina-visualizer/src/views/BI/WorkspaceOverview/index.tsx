@@ -1091,8 +1091,7 @@ export function WorkspaceOverview({ isInDevant, isICPSupported }: WorkspaceOverv
                                         variant="body1"
                                         sx={{ marginBottom: "24px", color: "var(--vscode-descriptionForeground)" }}
                                     >
-                                        Add an integration or library to get started, or describe what you want to
-                                        build in the Copilot box above
+                                        Start by adding integrations and libraries to your project
                                     </Typography>
                                     <ButtonContainer>
                                         <Button appearance="primary" onClick={handleAddResource}>

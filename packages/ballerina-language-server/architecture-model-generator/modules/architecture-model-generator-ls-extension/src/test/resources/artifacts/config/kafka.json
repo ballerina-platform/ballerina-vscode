@@ -42,12 +42,7 @@
         "name": "orderListener",
         "scope": "Global",
         "visibility": "module",
-        "icon": {
-          "url": "https://bcentral-packageicons.azureedge.net/images/ballerinax_kafka_4.6.5.png",
-          "glyph": "bi-kafka",
-          "kind": "event",
-          "source": "central"
-        },
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_kafka_4.6.5.png",
         "module": "kafka",
         "children": {}
       }
@@ -70,12 +65,7 @@
         "name": "Kafka Event Integration",
         "scope": "Global",
         "visibility": "module",
-        "icon": {
-          "url": "https://bcentral-packageicons.azureedge.net/images/ballerinax_kafka_4.6.5.png",
-          "glyph": "bi-kafka",
-          "kind": "event",
-          "source": "central"
-        },
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_kafka_4.6.5.png",
         "module": "kafka",
         "children": {
           "onConsumerRecord": {

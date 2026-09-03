@@ -58,7 +58,7 @@ interface AIAgentConfigureFormProps {
 }
 
 /**
- * The Configure step for the AI Chat Agent — collects only the agent name (mirroring
+ * The Configure step for the Chat Agent Service — collects only the agent name (mirroring
  * AIChatAgentWizard's single input and validation rules; the duplicate-service
  * check is skipped since the project is brand-new). The agent's multi-RPC
  * creation orchestration runs post-reload via the pre-filled AIChatAgentWizard.
@@ -93,7 +93,7 @@ export function AIAgentConfigureForm({ isSubmitting, onSubmit }: AIAgentConfigur
 
     return (
         <FormContainer>
-            <FormHeader title="Create AI Chat Agent" subtitle="Create an intelligent chat agent" />
+            <FormHeader title="Create Chat Agent Service" subtitle="Create an intelligent chat agent" />
             <FieldGroup>
                 <TextField
                     label="Name"

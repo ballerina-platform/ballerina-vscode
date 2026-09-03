@@ -16,30 +16,26 @@
  * under the License.
  */
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import styled from "@emotion/styled";
-import { css, keyframes } from "@emotion/react";
+import { keyframes } from "@emotion/react";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { AgentRunStatus, AgentRunState } from "@wso2/ballerina-core";
-import { Icon } from "@wso2/ui-toolkit";
-import { ShaderOrb } from "./ShaderOrb";
+import { AgentRunStatus, AgentRunState, SHARED_COMMANDS } from "@wso2/ballerina-core";
 import { MiniChat } from "./MiniChat";
+import { CopilotOrb } from "./CopilotOrb";
+import { useOrbColors } from "./orbTheme";
 import {
     Anchor,
     ANCHOR_STORAGE_KEY,
-    BRAND_ORANGE,
     EDGE_MARGIN,
     loadAnchor,
-    ORB_COLORS,
-    ORB_ENERGY,
     ORB_SIZE,
-    Sphere,
-    Gloss,
-    IconOverlay,
     activeStateLabel,
     subscribeAgentRunStatus,
     subscribeOrbSuppressed,
     subscribeMiniChatOpen,
+    syncOrbThemeFromSetting,
+    useAmbientCopilotPresence,
 } from "./shared";
 import { createMiniChatPrompt, MiniChatPrompt } from "./promptHandoff";
 
@@ -99,11 +95,6 @@ function nearestAnchor(x: number, y: number): Anchor {
     return `${vertical}-${horizontal}` as Anchor;
 }
 
-const rotate = keyframes`
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-`;
-
 const breathe = keyframes`
     0%, 100% { transform: scale(1); }
     50% { transform: scale(1.12); }
@@ -120,19 +111,10 @@ const fadeIn = keyframes`
     to { opacity: 1; transform: translateX(0); }
 `;
 
-const hueCycle = keyframes`
-    from { filter: blur(8px) hue-rotate(0deg); }
-    to { filter: blur(8px) hue-rotate(360deg); }
-`;
-
-const haloPulse = keyframes`
-    0%, 100% { opacity: 0.25; transform: scale(1); }
-    50% { opacity: 0.6; transform: scale(1.18); }
-`;
-
 const Wrapper = styled.div`
     position: fixed;
-    z-index: 10000;
+    /* Below side panels and modals (>=1900) so an open form keeps its controls reachable; above diagram content. */
+    z-index: 1800;
     display: flex;
     align-items: center;
     gap: 10px;
@@ -206,7 +188,6 @@ const InviteDismiss = styled.button`
 
 interface OrbStyleProps {
     state: AgentRunState;
-    colors: [string, string, string];
 }
 
 const OrbButton = styled.button<{ state: AgentRunState }>`
@@ -238,68 +219,6 @@ const OrbButton = styled.button<{ state: AgentRunState }>`
     }
 `;
 
-const Halo = styled.div<{ colors: [string, string, string] }>`
-    position: absolute;
-    inset: -16px;
-    border-radius: 50%;
-    background: radial-gradient(
-        circle,
-        ${(props: Pick<OrbStyleProps, "colors">) => props.colors[1]} 0%,
-        transparent 70%
-    );
-    animation: ${haloPulse} 1.8s ease-in-out infinite;
-    pointer-events: none;
-    @media (prefers-reduced-motion: reduce) {
-        animation: none;
-        opacity: 0.4;
-    }
-`;
-
-const Aura = styled.div<{ colors: [string, string, string]; state: AgentRunState }>`
-    position: absolute;
-    inset: -6px;
-    border-radius: 50%;
-    background: conic-gradient(
-        from 0deg,
-        ${(props: Pick<OrbStyleProps, "colors">) => `${props.colors[0]}, ${props.colors[1]}, ${props.colors[2]}, ${props.colors[0]}`}
-    );
-    filter: blur(8px);
-    opacity: ${(props: Pick<OrbStyleProps, "state">) => (props.state === "idle" ? 0.45 : props.state === "running" ? 1 : 0.85)};
-    ${(props: Pick<OrbStyleProps, "state">) =>
-        props.state === "running"
-            ? css`animation: ${rotate} 2.8s linear infinite, ${hueCycle} 5s linear infinite;`
-            : props.state === "idle"
-                ? css`animation: ${rotate} 14s linear infinite;`
-                : css`animation: ${rotate} 9s linear infinite;`}
-    @media (prefers-reduced-motion: reduce) {
-        animation: none;
-    }
-`;
-
-/** Thin brand ring at the sphere's edge — the logo's circle as an accent. */
-const BrandRing = styled.div`
-    position: absolute;
-    inset: 0;
-    border-radius: 50%;
-    border: 1.5px solid rgba(241, 78, 35, 0.55);
-    pointer-events: none;
-`;
-
-/** Brighter arc traveling the ring while the agent runs. */
-const SpinArc = styled.div`
-    position: absolute;
-    inset: -2px;
-    border-radius: 50%;
-    border: 2px solid transparent;
-    border-top-color: ${BRAND_ORANGE};
-    animation: ${rotate} 1.1s linear infinite;
-    pointer-events: none;
-    @media (prefers-reduced-motion: reduce) {
-        display: none;
-    }
-`;
-
-
 export function AgentStatusOrb() {
     const { rpcClient } = useRpcContext();
     const [status, setStatus] = useState<AgentRunStatus | null>(null);
@@ -321,14 +240,11 @@ export function AgentStatusOrb() {
     const miniPromptRef = useRef<MiniChatPrompt | undefined>(undefined);
     /** Forces a fresh mini instance when a diagram launches it while already open. */
     const [miniChatKey, setMiniChatKey] = useState(0);
-    /** WebGL unavailable — render the CSS gradient sphere instead. */
-    const [webglFailed, setWebglFailed] = useState(false);
-    const handleWebglFailed = useCallback(() => setWebglFailed(true), []);
-
     useEffect(() => {
         if (!rpcClient) {
             return;
         }
+        syncOrbThemeFromSetting(rpcClient);
         return subscribeAgentRunStatus(rpcClient, setStatus);
     }, [rpcClient]);
 
@@ -367,13 +283,19 @@ export function AgentStatusOrb() {
         }
     }, [orbHidden]);
 
+    // Resolve orb colors before any early return so the hook order stays stable
+    // across renders (status is null while the orb is hidden).
+    const colors = useOrbColors(status?.state ?? "idle");
+
+    useAmbientCopilotPresence(!orbHidden);
+
     if (orbHidden) {
         return null;
     }
 
     const state = status.state;
-    const colors = ORB_COLORS[state];
-    const label = state === "idle" ? "Chat with WSO2 Integrator Copilot" : activeStateLabel(status);
+    // Idle has nothing to report, so the tooltip falls back to the bare product name.
+    const label = state === "idle" ? undefined : activeStateLabel(status);
     const dragging = dragPos !== null && !snapping;
     // Active states keep the pill visible the whole time. Idle shows the
     // invitation input; dismissing only collapses it into the orb — hovering
@@ -451,14 +373,23 @@ export function AgentStatusOrb() {
         }, SNAP_ANIMATION_MS);
     };
 
-    const handleClick = () => {
+    const handleClick = (event: React.MouseEvent) => {
         // Suppress the click that follows a drag; dragStateRef is already
         // cleared on pointerup, so only a stale wasDrag matters here.
-        // Clicking toggles the mini chat overlay; the full panel is one more
-        // click away (the mini's maximize button).
-        if (dragPos === null) {
-            setMiniOpen((open) => !open);
+        // Single click toggles the mini chat; double click opens the full panel,
+        // so let the second click of a double fall through to onDoubleClick.
+        if (dragPos !== null || event.detail >= 2) {
+            return;
         }
+        setMiniOpen((open) => !open);
+    };
+
+    const handleDoubleClick = () => {
+        if (dragPos !== null || !rpcClient) {
+            return;
+        }
+        setMiniOpen(false);
+        rpcClient.getCommonRpcClient().executeCommand({ commands: [SHARED_COMMANDS.OPEN_AI_PANEL] });
     };
 
     // Keep the label pill on-screen and horizontally centered orbs balanced:
@@ -511,9 +442,9 @@ export function AgentStatusOrb() {
                             }
                         }}
                         placeholder="How can I help?"
-                        aria-label="Message WSO2 Integrator Copilot"
+                        aria-label="Message WSO2 Integration Intelligence"
                     />
-                    <InviteDismiss title="Hide" aria-label="Hide the copilot prompt" onClick={() => setInviteDismissed(true)}>
+                    <InviteDismiss title="Hide" aria-label="Hide the WSO2 Integration Intelligence prompt" onClick={() => setInviteDismissed(true)}>
                         ✕
                     </InviteDismiss>
                 </InviteBox>
@@ -522,34 +453,14 @@ export function AgentStatusOrb() {
             <OrbButton
                 state={state}
                 onClick={handleClick}
+                onDoubleClick={handleDoubleClick}
                 onPointerDown={handlePointerDown}
                 onPointerMove={handlePointerMove}
                 onPointerUp={handlePointerUp}
-                title={label ? `WSO2 Integrator Copilot — ${label}` : "WSO2 Integrator Copilot"}
-                aria-label={label ? `WSO2 Integrator Copilot: ${label}. Open the Copilot mini chat.` : "Open the WSO2 Integrator Copilot mini chat"}
+                title={label ? `WSO2 Integration Intelligence — ${label}` : "WSO2 Integration Intelligence"}
+                aria-label={label ? `WSO2 Integration Intelligence: ${label}. Click to open the mini chat, double-click for the chat panel.` : "Click to open the WSO2 Integration Intelligence mini chat, double-click for the chat panel"}
             >
-                {(state === "running" || state === "awaiting-input") && <Halo colors={colors} />}
-                <Aura colors={colors} state={state} />
-                {webglFailed ? (
-                    <Sphere colors={colors} energy={ORB_ENERGY[state]} />
-                ) : (
-                    <ShaderOrb
-                        colors={colors}
-                        energy={ORB_ENERGY[state]}
-                        size={ORB_SIZE}
-                        onContextFailed={handleWebglFailed}
-                    />
-                )}
-                <Gloss />
-                <BrandRing />
-                {state === "running" && <SpinArc />}
-                <IconOverlay>
-                    <Icon
-                        name="bi-ai-chat"
-                        sx={{ width: 26, height: 26 }}
-                        iconSx={{ fontSize: "26px", color: "#ffffff", cursor: "inherit" }}
-                    />
-                </IconOverlay>
+                <CopilotOrb state={state} colors={colors} size={ORB_SIZE} />
             </OrbButton>
         </Wrapper>
         </>

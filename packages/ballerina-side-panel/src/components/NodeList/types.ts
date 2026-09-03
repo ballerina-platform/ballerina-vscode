@@ -32,6 +32,7 @@ export type Category = {
     }
     devant?: ConnectionListItem;
     unusedDevantConn?: boolean;
+    origin?: "dependency" | "agent";
 };
 
 export type Node = {

@@ -112,7 +112,8 @@ public class AiUtilsGroupingTest {
 
     private static AvailableNode component(String label, String packageName, String object, String version) {
         return new AvailableNode(
-                new Metadata(label, label + " description", null, "icon-" + packageName, null, null, null),
+                new Metadata(label, label + " description", null, "icon-" + packageName, null, null, null,
+                        null),
                 new Codedata(NodeKind.MODEL_PROVIDER, "ballerinax", packageName, packageName, object, "init",
                         version, null, null, null, null, null, false, false, null, null),
                 true);

@@ -1,0 +1,85 @@
+{
+  "source": "workflow_function/agent.bal",
+  "description": "Register a gated tool: approval and reviewer roles emit a ToolDecl mapping entry",
+  "diagram": {
+    "id": "1",
+    "metadata": {
+      "label": "searchClaimDocs",
+      "description": "Register an AI tool the agent can call"
+    },
+    "codedata": {
+      "node": "DURABLE_AGENT_REGISTER_TOOL",
+      "org": "ballerina",
+      "module": "workflow",
+      "object": "DurableAgent",
+      "symbol": "registerAgentTool",
+      "parentSymbol": "claimAgent",
+      "lineRange": {
+        "fileName": "agent.bal",
+        "startLine": {
+          "line": 21,
+          "offset": 0
+        },
+        "endLine": {
+          "line": 21,
+          "offset": 0
+        }
+      },
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "tool": {
+        "metadata": {
+          "label": "Tool"
+        },
+        "valueType": "SINGLE_SELECT",
+        "value": "searchClaimDocs",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "requiresApproval": {
+        "metadata": {
+          "label": "Requires Approval"
+        },
+        "valueType": "FLAG",
+        "value": "true",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false
+      },
+      "userRoles": {
+        "metadata": {
+          "label": "Reviewer Roles"
+        },
+        "valueType": "EXPRESSION",
+        "value": "finance",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false
+      }
+    },
+    "flags": 0
+  },
+  "output": {
+    "workflow_function/agent.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 21,
+            "character": 0
+          },
+          "end": {
+            "line": 21,
+            "character": 0
+          }
+        },
+        "newText": "\n, tools: [{tool: searchClaimDocs, requiresApproval: true, userRoles: \"finance\"}]"
+      }
+    ]
+  }
+}

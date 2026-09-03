@@ -18,6 +18,7 @@
 
 import React, { createRef, useCallback, useEffect, useRef, useState } from "react";
 import {
+    PRODUCT_INTEGRATOR_ISSUES_URL,
     KeyboardNavigationManager,
     MachineStateValue,
     STModification,
@@ -212,8 +213,6 @@ const MainPanel = () => {
 
     useSuppressAgentStatusOrb(viewHidesAgentStatusOrb(activeView) || !!viewError);
 
-    const gitIssueUrl = "https://github.com/wso2/product-integrator/issues";
-
     // Leading edge so an ordinary navigation fetches immediately; trailing kept for bursts.
     const debounceFetchContext = useCallback(
         debounce(() => {
@@ -305,7 +304,7 @@ const MainPanel = () => {
 
             try {
                 if (isStaleNavigation()) return;
-                const navTarget = `${value?.view ?? ''}-${value?.identifier ?? ''}-${value?.documentUri ?? ''}-${value?.projectPath ?? ''}`;
+                const navTarget = `${value?.view ?? ''}-${value?.identifier ?? ''}-${value?.documentUri ?? ''}-${value?.projectPath ?? ''}-${value?.reviewData?.generationId ?? ''}`;
                 if (navTarget !== previousNavTargetRef.current) {
                     remountKeyRef.current += 1;
                     previousNavTargetRef.current = navTarget;
@@ -415,6 +414,7 @@ const MainPanel = () => {
                                         syntaxTree={st.syntaxTree}
                                         projectPath={value?.projectPath}
                                         filePath={value?.documentUri}
+                                        artifactType={value?.artifactType}
                                         view={value?.focusFlowDiagramView}
                                         breakpointState={breakpointStateRef.current}
                                     />
@@ -428,6 +428,7 @@ const MainPanel = () => {
                                         key={[value?.documentUri, value?.identifier].filter(Boolean).join('#')}
                                         projectPath={value?.projectPath}
                                         filePath={value?.documentUri}
+                                        artifactType={value?.artifactType}
                                         view={value?.focusFlowDiagramView}
                                         breakpointState={breakpointStateRef.current}
                                     />
@@ -670,6 +671,20 @@ const MainPanel = () => {
                             );
                             break;
                         }
+                        case MACHINE_VIEW.AgentDefinitionDesigner: {
+                            const { AgentDefinitionDesigner } = await import("./views/BI/AgentDefinitionEditor/AgentDefinitionDesigner");
+                            if (isStaleNavigation()) return;
+                            setViewComponent(
+                                <AgentDefinitionDesigner
+                                    key={remountKey}
+                                    projectPath={value.projectPath}
+                                    fileName={value?.documentUri}
+                                    position={value?.position}
+                                    type={value?.type}
+                                />
+                            );
+                            break;
+                        }
                         case MACHINE_VIEW.BIServiceClassConfigView: {
                             const { ServiceClassConfig } = await import("./views/BI/ServiceClassEditor/ServiceClassConfig");
                             if (isStaleNavigation()) return;
@@ -705,6 +720,24 @@ const MainPanel = () => {
                                     onNavigateToOverview={handleNavigateToOverview}
                                 />
                             );
+                            break;
+                        }
+                        case MACHINE_VIEW.AddAgent: {
+                            const { default: AddAgentPopup } = await import("./views/BI/AIChatAgent/AddAgentPopup");
+                            if (isStaleNavigation()) return;
+                            setViewComponent(
+                                <AddAgentPopup
+                                    key={remountKey}
+                                    projectPath={value.projectPath}
+                                    onNavigateToOverview={handleNavigateToOverview}
+                                />
+                            );
+                            break;
+                        }
+                        case MACHINE_VIEW.AddAgentDefinition: {
+                            const { default: AddAgentDefinition } = await import("./views/BI/AIChatAgent/AddAgentDefinition");
+                            if (isStaleNavigation()) return;
+                            setViewComponent(<AddAgentDefinition key={remountKey} projectPath={value.projectPath} />);
                             break;
                         }
                         case MACHINE_VIEW.EditConnectionWizard: {
@@ -768,6 +801,43 @@ const MainPanel = () => {
                                     filePath={defaultFunctionsFile}
                                     functionName={value?.identifier}
                                     isWorkflow={true}
+                                />
+                            );
+                            break;
+                        }
+                        case MACHINE_VIEW.BIDurableAgentForm: {
+                            const { FunctionForm } = await import("./views/BI/FunctionForm");
+                            // Durable agent declarations live in workflow.bal alongside the
+                            // workflow artifacts, not in functions.bal.
+                            const workflowFile = value.documentUri
+                                ?? (await rpcClient.getVisualizerRpcClient().joinProjectPath({ segments: ['workflow.bal'] })).filePath;
+                            if (isStaleNavigation()) return;
+                            setViewComponent(
+                                <FunctionForm
+                                    key={remountKey}
+                                    projectPath={value.projectPath}
+                                    filePath={workflowFile}
+                                    functionName={value?.identifier}
+                                    isDurableAgent={true}
+                                />
+                            );
+                            break;
+                        }
+                        case MACHINE_VIEW.BIActivityForm: {
+                            const { FunctionForm } = await import("./views/BI/FunctionForm");
+                            // Editing resolves the activity from the file that declares it
+                            // (`getDefaultFunctionsFile` returns `value.documentUri` when the
+                            // caller set it); creating one falls back to the default functions
+                            // file, same as the workflow and function forms.
+                            const activityFile = await getDefaultFunctionsFile();
+                            if (isStaleNavigation()) return;
+                            setViewComponent(
+                                <FunctionForm
+                                    key={remountKey}
+                                    projectPath={value.projectPath}
+                                    filePath={activityFile}
+                                    functionName={value?.identifier}
+                                    isActivity={true}
                                 />
                             );
                             break;
@@ -844,6 +914,24 @@ const MainPanel = () => {
                                     position={value?.position}
                                     currentFilePath={value.documentUri}
                                     projectPath={value.projectPath}
+                                    isAgentDefinitionConstructor={
+                                        value?.artifactType === DIRECTORY_MAP.AGENT_DEFINITION && value?.identifier === "init"
+                                    }
+                                />
+                            );
+                            break;
+                        }
+                        case MACHINE_VIEW.AIAgentToolForm: {
+                            const { AgentToolFormView } = await import("./views/BI/AIChatAgent/AgentToolFormView");
+                            if (isStaleNavigation()) return;
+                            setViewComponent(
+                                <AgentToolFormView
+                                    key={value?.identifier}
+                                    projectPath={value.projectPath}
+                                    documentUri={value.documentUri}
+                                    functionName={value?.identifier}
+                                    position={value?.position}
+                                    inClass={value?.artifactType === DIRECTORY_MAP.AGENT_DEFINITION}
                                 />
                             );
                             break;
@@ -851,7 +939,7 @@ const MainPanel = () => {
                         case MACHINE_VIEW.ReviewMode: {
                             const { ReviewMode } = await import("./views/ReviewMode");
                             if (isStaleNavigation()) return;
-                            setViewComponent(<ReviewMode />);
+                            setViewComponent(<ReviewMode key={remountKey} />);
                             break;
                         }
                         case MACHINE_VIEW.EvalsetViewer: {
@@ -963,7 +1051,7 @@ const MainPanel = () => {
         <>
             <Global styles={globalStyles} />
             <VisualizerContainer id="visualizer-container">
-                <ErrorBoundary goHome={handleNavigateToOverview} errorMsg="An error occurred in the visualizer" issueUrl={gitIssueUrl} ref={errorBoundaryRef} resetKeys={[viewComponent]}>
+                <ErrorBoundary goHome={handleNavigateToOverview} errorMsg="An error occurred in the visualizer" issueUrl={PRODUCT_INTEGRATOR_ISSUES_URL} ref={errorBoundaryRef} resetKeys={[viewComponent]}>
                     {/* {navActive && <NavigationBar showHome={showHome} />} */}
                     {showNavProgress && <ProgressIndicator id="visualizer-nav-progress" />}
                     {(showOverlay || modalStack.length > 0) && <Overlay />}

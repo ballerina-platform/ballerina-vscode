@@ -24,6 +24,7 @@ under the License.
         <classes>
             <class name="io.ballerina.architecturemodelgenerator.core.ServiceGeneratorTests"/>
             <class name="io.ballerina.architecturemodelgenerator.core.TypeGeneratorTests"/>
+            <class name="io.ballerina.artifactsgenerator.ArtifactNamingTest"/>
         </classes>
     </test>
 </suite>

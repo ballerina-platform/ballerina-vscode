@@ -72,6 +72,7 @@ import configuration from './configuration/configuration.spec';
 import typeTest from './type-editor/type.spec';
 import typeExplorerNavigationTest from './type-editor/type-explorer-navigation.spec';
 import serviceClassEditingTest from './type-editor/service-class-editing.spec';
+import serviceClassInitTest from './type-editor/service-class-init-config.spec';
 
 import importIntegration from './import-integration/import-integration.spec';
 
@@ -198,6 +199,7 @@ test.describe('Ballerina E2E Group 4', { tag: '@group4' }, async () => {
     test.describe(typeTest);
     test.describe(typeExplorerNavigationTest);
     test.describe(serviceClassEditingTest);
+    test.describe(serviceClassInitTest);
 
     // <----Data Mapper Test---->
     test.describe.skip(inlineDataMapper); // Failing due to a issue

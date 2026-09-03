@@ -116,6 +116,9 @@ export const RecordFromXml = (props: RecordFromXmlProps) => {
         } catch (err) {
             setError("Failed to import XML as type.");
             console.error("Error importing XML as type:", err);
+        } finally {
+            // The success path used to rely on the caller unmounting this form; when it does not
+            // (or when `lastRecord` is missing) the spinner never stopped.
             setIsSaving(false);
         }
     }

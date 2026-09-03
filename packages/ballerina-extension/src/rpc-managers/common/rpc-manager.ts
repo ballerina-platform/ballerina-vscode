@@ -21,17 +21,21 @@ import {
     AgentRunStatus,
     BallerinaDiagnosticsRequest,
     BallerinaDiagnosticsResponse,
+    ARTIFACT_TYPE,
     CommandResponse,
     CommandsRequest,
     CommandsResponse,
     CommonRPCAPI,
     Completion,
+    PRODUCT_INTEGRATOR_ISSUES_URL,
     CompletionParams,
     DefaultOrgNameResponse,
     DiagnosticData,
     FileOrDirRequest,
     FileOrDirResponse,
     GoToSourceRequest,
+    ProjectFileRequest,
+    ProjectFileResponse,
     OpenExternalUrlRequest,
     PackageTomlValues,
     PublishToCentralResponse,
@@ -41,6 +45,7 @@ import {
     SettingsTomlValues,
     ShowErrorMessageRequest,
     SyntaxTree,
+    VISIBILITY,
     TypeResponse,
     WorkspaceFileRequest,
     WorkspaceRootResponse,
@@ -73,7 +78,7 @@ import {
     askFileOrFolderPath,
     askFilePath,
     askProjectPath,
-    BALLERINA_INTEGRATOR_ISSUES_URL,
+    copyIntoIntegration,
     findWorkspaceTypeFromWorkspaceFolders,
     getFirstBalaPath,
     getPublishDescriptionInfo,
@@ -83,8 +88,11 @@ import {
     getUpdatedSource,
     handleDownloadFile,
     handlePublishDescriptionSetup,
+    nextAvailablePath,
     openPublishDescriptionInEditor,
-    selectSampleDownloadPath
+    resolveIntegrationRoot,
+    selectSampleDownloadPath,
+    toIntegrationRelative
 } from "./utils";
 import { VisualizerWebview } from "../../views/visualizer/webview";
 
@@ -224,15 +232,7 @@ export class CommonRpcManager implements CommonRPCAPI {
                         if (resp === 'Yes') {
                             // Move the file inside the project
                             const fileName = path.basename(filePath);
-                            const newFilePath = path.join(projectPath, fileName);
-                            // if newFilePath already exists, append a number to the file name
-                            let counter = 1;
-                            let finalFilePath = newFilePath;
-                            while (fs.existsSync(finalFilePath)) {
-                                const parsedPath = path.parse(newFilePath);
-                                finalFilePath = path.join(parsedPath.dir, `${parsedPath.name}-${counter}${parsedPath.ext}`);
-                                counter++;
-                            }
+                            const finalFilePath = nextAvailablePath(path.join(projectPath, fileName));
                             fs.copyFileSync(filePath, finalFilePath);
                             resolve({ path: finalFilePath });
                             return;
@@ -253,6 +253,40 @@ export class CommonRpcManager implements CommonRPCAPI {
                 }
             }
         });
+    }
+
+    /**
+     * A FILE_SELECT variant for fields (e.g. platform-dependency JARs) that must end up as a path
+     * relative to the current integration. Unlike {@link selectFileOrDirPath}, this never prompts
+     * "move it inside the project?" — a file outside the integration is copied into
+     * `<integration>/<targetDir>` (default "libs") automatically, and the resolved
+     * integration-relative path is returned. A file already inside the integration is left in
+     * place; only its path is relativized.
+     *
+     * The default is "libs", not "resources" — the latter is a reserved Ballerina package
+     * directory whose contents get bundled into the BALA/executable as module resources, which
+     * would ship a provided-scope dependency JAR inside the build artifact.
+     */
+    async selectProjectRelativeFile(params: ProjectFileRequest): Promise<ProjectFileResponse> {
+        const selectedFile = await askFilePath(params.filters);
+        if (!selectedFile || selectedFile.length === 0) {
+            return { path: "" };
+        }
+        const picked = selectedFile[0].fsPath;
+
+        const root = params.allowOutsideProject ? undefined : await resolveIntegrationRoot();
+        if (!root) {
+            return { path: picked, absolutePath: picked };
+        }
+        if (isPathInside(root, picked)) {
+            return { path: toIntegrationRelative(root, picked), absolutePath: picked };
+        }
+
+        const dest = await copyIntoIntegration(root, picked, params.targetDir ?? "libs");
+        if (!dest) {
+            return { path: "" };
+        }
+        return { path: toIntegrationRelative(root, dest), absolutePath: dest, copied: true };
     }
 
     async selectFileOrFolderPath(): Promise<FileOrDirResponse> {
@@ -276,6 +310,10 @@ export class CommonRpcManager implements CommonRPCAPI {
 
     async experimentalEnabled(): Promise<boolean> {
         return extension.ballerinaExtInstance.enabledExperimentalFeatures();
+    }
+
+    async getCopilotOrbTheme(): Promise<string> {
+        return workspace.getConfiguration("ballerina.copilot").get<string>("orbTheme", "animated");
     }
 
     async additionalTriggerSearchEnabled(): Promise<boolean> {
@@ -314,12 +352,12 @@ export class CommonRpcManager implements CommonRPCAPI {
 
     async showErrorMessage(params: ShowErrorMessageRequest): Promise<void> {
         const messageWithLink = new MarkdownString(params.message);
-        messageWithLink.appendMarkdown(`\n\nPlease [create an issue](${BALLERINA_INTEGRATOR_ISSUES_URL}) if the issue persists.`);
+        messageWithLink.appendMarkdown(`\n\nPlease [create an issue](${PRODUCT_INTEGRATOR_ISSUES_URL}) if the issue persists.`);
         window.showErrorMessage(messageWithLink.value);
     }
 
     async showInformationModal(params: ShowInfoModalRequest): Promise<string> {
-        return window.showInformationMessage(params?.message, {modal: true, detail: params?.detail}, ...(params?.items || []));
+        return window.showInformationMessage(params?.message, { modal: true, detail: params?.detail }, ...(params?.items || []));
     }
 
     async showQuickPick(params: ShowQuickPickRequest): Promise<QuickPickItem> {
@@ -598,6 +636,10 @@ export class CommonRpcManager implements CommonRPCAPI {
             break;
         }
 
+        if (artifactType === 'library') {
+            await this.syncAgentDefinitionKeyword(projectPath);
+        }
+
         const result = await this.packAndPushToCentral(projectPath);
         this.showPublishResult(result);
         return result;
@@ -653,25 +695,28 @@ export class CommonRpcManager implements CommonRPCAPI {
         };
     }
 
-    private async updateProjectPackageInfo(projectPath: string, details: PublishPackageInfo): Promise<boolean> {
+    private async updatePackageToml(projectPath: string, update: (content: string) => string): Promise<void> {
         const ballerinaTomlPath = path.join(projectPath, 'Ballerina.toml');
-        if (!fs.existsSync(ballerinaTomlPath)) {
-            return false;
+        const content = await fs.promises.readFile(ballerinaTomlPath, 'utf-8');
+        const updatedContent = update(content);
+        if (updatedContent === content) {
+            return;
         }
-
+        await fs.promises.writeFile(ballerinaTomlPath, updatedContent, 'utf-8');
         try {
-            const tomlContent = await fs.promises.readFile(ballerinaTomlPath, 'utf-8');
-            const packageSection = this.getPackageSectionBoundaries(tomlContent);
-            const updatedPackageSection = this.upsertPackageFields(
-                packageSection.content,
-                details
-            );
+            await StateMachine.langClient().didChange({
+                textDocument: { uri: Uri.file(ballerinaTomlPath).toString(), version: 1 },
+                contentChanges: [{ text: updatedContent }],
+            });
+        } catch (error) {
+            console.warn('Failed to notify the language server about the Ballerina.toml update:', error);
+        }
+    }
 
-            const updatedToml = tomlContent.slice(0, packageSection.start)
-                + updatedPackageSection
-                + tomlContent.slice(packageSection.end);
 
-            await fs.promises.writeFile(ballerinaTomlPath, updatedToml, 'utf-8');
+    private async updateProjectPackageInfo(projectPath: string, details: PublishPackageInfo): Promise<boolean> {
+        try {
+            await this.updatePackageToml(projectPath, (content) => this.updatePackageDetails(content, details));
             return true;
         } catch (error) {
             console.error('Failed to update Ballerina.toml package metadata:', error);
@@ -679,63 +724,43 @@ export class CommonRpcManager implements CommonRPCAPI {
         }
     }
 
-    private getPackageSectionBoundaries(content: string): { content: string; start: number; end: number } {
-        const packageHeaderRegex = /^\s*\[package\]\s*$/m;
-        const packageHeaderMatch = packageHeaderRegex.exec(content);
-
-        if (!packageHeaderMatch || packageHeaderMatch.index === undefined) {
-            const start = content.length;
-            const prefix = content.endsWith('\n') || content.length === 0 ? '' : '\n';
-            return {
-                content: `${prefix}[package]\n`,
-                start,
-                end: start
-            };
-        }
-
-        const sectionStart = packageHeaderMatch.index;
-        const nextSectionRegex = /^\s*\[[^\]]+\]\s*$/gm;
-        nextSectionRegex.lastIndex = sectionStart + packageHeaderMatch[0].length;
-        const nextSectionMatch = nextSectionRegex.exec(content);
-        const sectionEnd = nextSectionMatch ? nextSectionMatch.index : content.length;
-
-        return {
-            content: content.slice(sectionStart, sectionEnd),
-            start: sectionStart,
-            end: sectionEnd
-        };
+    private updatePackageDetails(content: string, details: PublishPackageInfo): string {
+        return this.updatePackageSection(content, (section) => {
+            let updated = this.upsertTomlField(section, 'org', details.orgName);
+            updated = this.upsertTomlField(updated, 'name', details.packageName);
+            return this.upsertTomlField(updated, 'version', details.version);
+        });
     }
 
-    private upsertPackageFields(packageSection: string, details: PublishPackageInfo): string {
-        let updatedSection = packageSection;
-        updatedSection = this.upsertTomlField(updatedSection, 'org', details.orgName);
-        updatedSection = this.upsertTomlField(updatedSection, 'name', details.packageName);
-        updatedSection = this.upsertTomlField(updatedSection, 'version', details.version);
-        if (!updatedSection.endsWith('\n')) {
-            updatedSection = `${updatedSection}\n`;
+    private updatePackageSection(content: string, update: (section: string) => string): string {
+        const packageHeader = /^\s*\[package\]\s*$/m.exec(content);
+        if (!packageHeader || packageHeader.index === undefined) {
+            return content;
         }
-        return updatedSection;
+        const start = packageHeader.index;
+        const nextSection = /^\s*(?:\[\[[^\]]+\]\]|\[[^\]]+\])\s*$/gm;
+        nextSection.lastIndex = start + packageHeader[0].length;
+        const end = nextSection.exec(content)?.index ?? content.length;
+        const section = content.slice(start, end);
+        const updated = update(section);
+        return updated === section ? content : content.slice(0, start) + updated + content.slice(end);
     }
 
-    private upsertTomlField(section: string, fieldName: string, fieldValue: string): string {
-        const escapedValue = fieldValue.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-        const escapedFieldName = fieldName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const fieldRegex = new RegExp(`^\\s*${escapedFieldName}\\s*=\\s*.*$`, 'm');
-        const fieldLine = `${fieldName} = "${escapedValue}"`;
-
-        if (fieldRegex.test(section)) {
-            return section.replace(fieldRegex, fieldLine);
-        }
-
-        const headerLineBreak = section.indexOf('\n');
-        if (headerLineBreak === -1) {
-            return `${section}\n${fieldLine}\n`;
-        }
-
-        return section.slice(0, headerLineBreak + 1)
-            + `${fieldLine}\n`
-            + section.slice(headerLineBreak + 1);
+    private upsertTomlField(section: string, field: string, value: string): string {
+        const fieldLine = `${field} = "${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+        const fieldPattern = new RegExp(`^\\s*${field}\\s*=.*$`, 'm');
+        return fieldPattern.test(section)
+            ? section.replace(fieldPattern, fieldLine)
+            : this.insertTomlField(section, fieldLine);
     }
+
+    private insertTomlField(section: string, fieldLine: string): string {
+        const headerEnd = section.indexOf('\n');
+        return headerEnd === -1
+            ? `${section}\n${fieldLine}\n`
+            : section.slice(0, headerEnd + 1) + `${fieldLine}\n` + section.slice(headerEnd + 1);
+    }
+
 
     private async packAndPushToCentral(projectPath: string): Promise<PublishToCentralResponse> {
         const result: PublishToCentralResponse = { success: false, message: '' };
@@ -823,4 +848,46 @@ export class CommonRpcManager implements CommonRPCAPI {
 
         return false;
     }
+
+    private async hasPublicAgentDefinition(projectPath: string): Promise<boolean | undefined> {
+        try {
+            const artifacts = await StateMachine.langClient().getProjectArtifacts({ projectPath });
+            return Object.values(artifacts?.artifacts?.[ARTIFACT_TYPE.AgentDefinitions] ?? {})
+                .some((artifact) => artifact.visibility === VISIBILITY.PUBLIC);
+        } catch (error) {
+            console.warn('Failed to inspect agent definitions before publishing:', error);
+            return undefined;
+        }
+    }
+
+    private async syncAgentDefinitionKeyword(projectPath: string): Promise<void> {
+        const hasPublicAgentDefinition = await this.hasPublicAgentDefinition(projectPath);
+        if (hasPublicAgentDefinition === undefined) {
+            console.warn('Skipping Type/Agent keyword synchronization: unable to read project artifacts.');
+            return;
+        }
+
+        try {
+            await this.updatePackageToml(projectPath, (content) =>
+                this.updateAgentDefinitionKeyword(content, hasPublicAgentDefinition));
+        } catch (error) {
+            console.warn('Failed to synchronize the Type/Agent package keyword:', error);
+        }
+    }
+
+    private updateAgentDefinitionKeyword(content: string, shouldInclude: boolean): string {
+        return this.updatePackageSection(content, (section) => {
+            const keywordLine = /^(\s*keywords\s*=\s*)\[(.*)\]\s*$/m;
+            const match = keywordLine.exec(section);
+            if (!match) {
+                return shouldInclude ? this.insertTomlField(section, 'keywords = ["Type/Agent"]') : section;
+            }
+
+            const keywords = match[2].split(',').map((value) => value.trim()).filter(Boolean);
+            const withoutAgent = keywords.filter((value) => value !== '"Type/Agent"' && value !== "'Type/Agent'");
+            const updatedKeywords = shouldInclude ? [...withoutAgent, '"Type/Agent"'] : withoutAgent;
+            return section.replace(keywordLine, `${match[1]}[${updatedKeywords.join(', ')}]`);
+        });
+    }
+
 }

@@ -176,14 +176,23 @@ export const Variables = (props: VariablesPageProps) => {
     const dropdownItems = useMemo(() => {
         const excludedDescriptions = ["Configurable", "Parameter", "Listener", "Client"];
 
-        const fieldItems = filteredCompletions.filter(
-            (completion) =>
-                (completion.kind === "field" || completion.kind === "variable") &&
-                completion.label !== "self" &&
-                !excludedDescriptions.some(desc =>
-                    completion.labelDetails?.description?.includes(desc)
-                )
-        );
+        const isClassField = (completion: CompletionItem) =>
+            completion.label.startsWith("self.") && completion.label !== "self.agent";
+
+        const fieldItems = filteredCompletions.filter((completion) => {
+            if (completion.kind !== "field" && completion.kind !== "variable") {
+                return false;
+            }
+            if (completion.label === "self" || completion.label === "self.agent") {
+                return false;
+            }
+            if (isClassField(completion)) {
+                return true;
+            }
+            return !excludedDescriptions.some(desc =>
+                completion.labelDetails?.description?.includes(desc)
+            );
+        });
 
         // If there are no fields/variables (e.g. a primitive type), fall back to toString()
         if (fieldItems.length === 0) {

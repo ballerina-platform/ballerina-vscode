@@ -73,6 +73,8 @@ export enum MACHINE_VIEW {
     BIAddProjectForm = "BI Add Project SKIP",
     BIComponentView = "BI Component View",
     AddConnectionWizard = "Add Connection Wizard",
+    AddAgent = "Add Agent",
+    AddAgentDefinition = "Add Agent Definition",
     ConnectionConfiguration = "Connection Configuration",
     AddCustomConnector = "Add Custom Connector",
     ViewConfigVariables = "View Config Variables",
@@ -83,6 +85,7 @@ export enum MACHINE_VIEW {
     BIFunctionForm = "Add Function SKIP",
     BIAgentToolForm = "Add Agent Tool SKIP",
     BIWorkflowForm = "Add Durable Workflow SKIP",
+    BIDurableAgentForm = "Add Durable Agentic Workflow SKIP",
     BIActivityForm = "Add Workflow Activity SKIP",
     BINPFunctionForm = "Add Natural Function SKIP",
     BITestFunctionForm = "Add Test Function SKIP",
@@ -91,12 +94,14 @@ export enum MACHINE_VIEW {
     BIServiceConfigView = "Service Config View",
     BIListenerConfigView = "Listener Config View",
     BIServiceClassDesigner = "Service Class Designer",
+    AgentDefinitionDesigner = "Agent Definition Designer",
     BIServiceClassConfigView = "Service Class Config View",
     BIDataMapperForm = "Add Data Mapper SKIP",
     AIAgentDesigner = "AI Agent Designer",
-    AIChatAgentWizard = "AI Chat Agent Wizard",
+    AIChatAgentWizard = "Chat Agent Service Wizard",
     ResolveMissingDependencies = "Resolve Missing Dependencies",
     ServiceFunctionForm = "Service Function Form",
+    AIAgentToolForm = "Agent Tool Form",
     BISamplesView = "BI Samples View",
     ReviewMode = "Review Mode SKIP",
     EvalsetViewer = "Evalset Viewer SKIP",
@@ -115,6 +120,8 @@ export interface CommandProps {
 
 export const FOCUS_FLOW_DIAGRAM_VIEW = {
     NP_FUNCTION: "NP_FUNCTION",
+    AGENT: "AGENT",
+    TYPED_AGENT: "TYPED_AGENT",
 } as const;
 
 export type FocusFlowDiagramView = typeof FOCUS_FLOW_DIAGRAM_VIEW[keyof typeof FOCUS_FLOW_DIAGRAM_VIEW];
@@ -240,6 +247,8 @@ export interface ReviewViewItem {
 export interface ReviewModeData {
     views: ReviewViewItem[];
     currentIndex: number;
+    /** MainPanel keys ReviewMode's remount on this; its data is only read on mount. */
+    generationId: string;
     onAccept?: string;
     onReject?: string;
     semanticDiffs?: object[];
@@ -248,6 +257,8 @@ export interface ReviewModeData {
     modifiedFiles?: string[];
     tempProjectPath?: string;
     isWorkspace?: boolean;
+    /** Compile/diff failure to surface in the review UI instead of a silent empty review. */
+    semanticDiffError?: string;
 }
 
 // --- Evalset Trace Types ---
@@ -843,6 +854,8 @@ export interface GenerationReviewState {
         semanticDiffs: object[];
         loadDesignDiagrams: boolean;
         isWorkspace: boolean;
+        /** Compile/diff failure to surface in the review UI instead of a silent empty review. */
+        semanticDiffError?: string;
     };
 }
 

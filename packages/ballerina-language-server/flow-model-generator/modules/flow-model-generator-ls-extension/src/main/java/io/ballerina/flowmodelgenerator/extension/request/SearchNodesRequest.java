@@ -17,17 +17,19 @@
  */
 package io.ballerina.flowmodelgenerator.extension.request;
 
+import io.ballerina.flowmodelgenerator.core.ModelGenerator.TypeConstraint;
 import io.ballerina.tools.text.LinePosition;
-
-import java.util.Map;
 
 /**
  * Represents a request to search semantic model symbols with given configurations.
  *
  * @param filePath  the path of the file
  * @param position  the line position
- * @param queryMap  the map containing query parameters (kind, exactMatch)
+ * @param query  the typed search query
  * @since 1.3.0
  */
-public record SearchNodesRequest(String filePath, LinePosition position, Map<String, String> queryMap) {
+public record SearchNodesRequest(String filePath, LinePosition position, SearchQuery query) {
+
+    public record SearchQuery(String kind, String exactMatch, TypeConstraint targetType) {
+    }
 }

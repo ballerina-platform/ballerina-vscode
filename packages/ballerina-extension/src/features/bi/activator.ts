@@ -110,6 +110,15 @@ export function activate(context: BallerinaExtension) {
         await handleCommandWithContext(item, MACHINE_VIEW.AddConnectionWizard);
     });
 
+    commands.registerCommand(BI_COMMANDS.ADD_AGENT, async (item?: TreeItem) => {
+        await handleCommandWithContext(item, MACHINE_VIEW.AddAgent);
+    });
+
+    commands.registerCommand(BI_COMMANDS.ADD_AGENT_DEFINITION, async (item?: TreeItem) => {
+        await handleCommandWithContext(item, MACHINE_VIEW.AddAgentDefinition);
+    });
+
+
     commands.registerCommand(BI_COMMANDS.ADD_CUSTOM_CONNECTOR, async (item?: TreeItem) => {
         await handleCommandWithContext(item, MACHINE_VIEW.AddConnectionWizard);
     });
@@ -283,7 +292,7 @@ export function activate(context: BallerinaExtension) {
 
         console.log(">>> delete component", item);
 
-        if (item.contextValue === DIRECTORY_MAP.CONNECTION) {
+        if (item.contextValue === DIRECTORY_MAP.CONNECTION || item.contextValue === DIRECTORY_MAP.AGENT) {
             await handleConnectionDeletion(item.label as string, item.info);
         } else if (item.contextValue === DIRECTORY_MAP.LOCAL_CONNECTORS) {
             await handleLocalModuleDeletion(item.label as string, item.info);

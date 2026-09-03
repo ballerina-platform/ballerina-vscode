@@ -138,19 +138,20 @@
         "metadata": {
           "label": "run",
           "description": "Executes the agent for a given user query.",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.12.0.png",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png",
           "data": {
-            "agent": {
-              "systemPrompt": "{role: string `Assistant`, instructions: string `Help users with weather and time queries.`}",
-              "instructions": "Help users with weather and time queries.",
-              "role": "Assistant",
-              "scope": "Local",
-              "model": "myModel"
-            },
-            "model": {
-              "name": "myModel",
-              "path": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.12.0.png",
-              "type": "Wso2ModelProvider"
+            "agentInfo": {
+              "systemPrompt": {
+                "instructions": "Help users with weather and time queries.",
+                "role": "Assistant"
+              },
+              "modelProvider": {
+                "presentation": {
+                  "name": "myModel",
+                  "path": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png",
+                  "type": "Wso2ModelProvider"
+                }
+              }
             }
           }
         },
@@ -161,7 +162,7 @@
           "packageName": "ai",
           "object": "Agent",
           "symbol": "run",
-          "version": "1.12.0",
+          "version": "1.13.0",
           "lineRange": {
             "fileName": "agents.bal",
             "startLine": {
@@ -183,7 +184,7 @@
               "packageName": "ai",
               "object": "Agent",
               "symbol": "init",
-              "version": "1.12.0",
+              "version": "1.13.0",
               "lineRange": {
                 "fileName": "agents.bal",
                 "startLine": {
@@ -217,7 +218,7 @@
                 "typeMembers": [
                   {
                     "type": "SystemPrompt",
-                    "packageInfo": "ballerina:ai:1.12.0",
+                    "packageInfo": "ballerina:ai:1.13.0",
                     "packageName": "ai",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -284,7 +285,7 @@
                       "typeMembers": [
                         {
                           "type": "ToolConfig",
-                          "packageInfo": "ballerina:ai:1.12.0",
+                          "packageInfo": "ballerina:ai:1.13.0",
                           "packageName": "ai",
                           "kind": "RECORD_TYPE",
                           "selected": false
@@ -478,7 +479,7 @@
                 "typeMembers": [
                   {
                     "type": "Credential",
-                    "packageInfo": "ballerina:ai:1.12.0",
+                    "packageInfo": "ballerina:ai:1.13.0",
                     "packageName": "ai",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -610,7 +611,7 @@
             "advanced": false,
             "hidden": false,
             "codedata": {
-              "kind": "REQUIRED"
+              "kind": "DEFAULTABLE"
             },
             "defaultValue": ""
           },
@@ -638,7 +639,7 @@
             "advanced": false,
             "hidden": false,
             "codedata": {
-              "kind": "REQUIRED"
+              "kind": "DEFAULTABLE"
             },
             "defaultValue": ""
           },
@@ -681,7 +682,7 @@
               }
             ],
             "value": "string",
-            "placeholder": "ai:Trace|string",
+            "placeholder": "ai:Trace|anydata",
             "optional": true,
             "editable": true,
             "advanced": true,
@@ -690,12 +691,12 @@
               "kind": "PARAM_FOR_TYPE_INFER",
               "originalName": "td"
             },
-            "defaultValue": "ai:Trace|string"
+            "defaultValue": "ai:Trace|anydata"
           },
           "query": {
             "metadata": {
               "label": "Query",
-              "description": "The natural language input provided to the agent"
+              "description": "A query to start a new turn (`string`/`Prompt`), or a `Resume` to continue a paused run"
             },
             "types": [
               {
@@ -704,8 +705,22 @@
                 "selected": true
               },
               {
+                "fieldType": "RECORD_MAP_EXPRESSION",
+                "ballerinaType": "ai:Resume",
+                "typeMembers": [
+                  {
+                    "type": "Resume",
+                    "packageInfo": "ballerina:ai:1.13.0",
+                    "packageName": "ai",
+                    "kind": "RECORD_TYPE",
+                    "selected": false
+                  }
+                ],
+                "selected": false
+              },
+              {
                 "fieldType": "EXPRESSION",
-                "ballerinaType": "string",
+                "ballerinaType": "string|ai:Prompt|ai:Resume",
                 "selected": false
               }
             ],
@@ -781,7 +796,7 @@
         "metadata": {
           "label": "Model Provider",
           "description": "Creates a default model provider based on the provided `wso2ProviderConfig`.",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.12.0.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png"
         },
         "codedata": {
           "node": "MODEL_PROVIDER",
@@ -894,14 +909,31 @@
         "metadata": {
           "label": "Agent",
           "description": "Represents an agent.",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.12.0.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png",
+          "data": {
+            "agentInfo": {
+              "systemPrompt": {
+                "instructions": "Help users with weather and time queries.",
+                "role": "Assistant"
+              },
+              "modelProvider": {
+                "presentation": {
+                  "name": "myModel",
+                  "path": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png",
+                  "type": "Wso2ModelProvider"
+                }
+              }
+            }
+          }
         },
         "codedata": {
           "node": "AGENT",
           "org": "ballerina",
           "module": "ai",
+          "packageName": "ai",
           "object": "Agent",
           "symbol": "init",
+          "version": "1.13.0",
           "lineRange": {
             "fileName": "agents.bal",
             "startLine": {
@@ -953,7 +985,7 @@
                 "typeMembers": [
                   {
                     "type": "SystemPrompt",
-                    "packageInfo": "ballerina:ai:1.12.0",
+                    "packageInfo": "ballerina:ai:1.13.0",
                     "packageName": "ai",
                     "kind": "RECORD_TYPE",
                     "selected": true
@@ -972,7 +1004,7 @@
             "optional": false,
             "editable": true,
             "advanced": false,
-            "hidden": false,
+            "hidden": true,
             "codedata": {
               "kind": "INCLUDED_FIELD",
               "originalName": "systemPrompt"
@@ -996,7 +1028,7 @@
                       "typeMembers": [
                         {
                           "type": "ToolConfig",
-                          "packageInfo": "ballerina:ai:1.12.0",
+                          "packageInfo": "ballerina:ai:1.13.0",
                           "packageName": "ai",
                           "kind": "RECORD_TYPE",
                           "selected": false
@@ -1027,7 +1059,7 @@
             "optional": true,
             "editable": true,
             "advanced": true,
-            "hidden": false,
+            "hidden": true,
             "codedata": {
               "kind": "INCLUDED_FIELD",
               "originalName": "tools"
@@ -1106,7 +1138,7 @@
             "optional": true,
             "editable": true,
             "advanced": true,
-            "hidden": false,
+            "hidden": true,
             "codedata": {
               "kind": "INCLUDED_FIELD",
               "originalName": "memory"
@@ -1190,7 +1222,7 @@
                 "typeMembers": [
                   {
                     "type": "Credential",
-                    "packageInfo": "ballerina:ai:1.12.0",
+                    "packageInfo": "ballerina:ai:1.13.0",
                     "packageName": "ai",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -1248,6 +1280,62 @@
             "editable": true,
             "advanced": true,
             "hidden": true
+          },
+          "role": {
+            "metadata": {
+              "label": "Role",
+              "description": "Define the agent's primary function"
+            },
+            "types": [
+              {
+                "fieldType": "PROMPT",
+                "ballerinaType": "string",
+                "selected": true
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string",
+                "selected": false
+              }
+            ],
+            "value": "Assistant",
+            "placeholder": "e.g., Customer Support Assistant, Sales Advisor, Data Analyst",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "REQUIRED"
+            },
+            "defaultValue": ""
+          },
+          "instructions": {
+            "metadata": {
+              "label": "Instructions",
+              "description": "Detailed instructions for the agent"
+            },
+            "types": [
+              {
+                "fieldType": "PROMPT",
+                "ballerinaType": "string",
+                "selected": true
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string",
+                "selected": false
+              }
+            ],
+            "value": "Help users with weather and time queries.",
+            "placeholder": "e.g., You are a friendly assistant. Your goal is to...",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "REQUIRED"
+            },
+            "defaultValue": ""
           },
           "variable": {
             "metadata": {

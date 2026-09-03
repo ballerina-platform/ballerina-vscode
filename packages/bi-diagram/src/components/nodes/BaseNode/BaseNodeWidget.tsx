@@ -45,7 +45,14 @@ import { useDiagramContext } from "../../DiagramContext";
 import { BaseNodeModel } from "./BaseNodeModel";
 import { ELineRange, FlowNode } from "@wso2/ballerina-core";
 import { DiagnosticsPopUp } from "../../DiagnosticsPopUp";
-import { getDiffContainerStyles, getDiffTitleStyles, getNodeTitle, isWorkflowNode, nodeHasError } from "../../../utils/node";
+import {
+    getDiffContainerStyles,
+    getDiffTitleStyles,
+    getNodeTitle,
+    getWorkflowFunctionName,
+    isWorkflowNode,
+    nodeHasError,
+} from "../../../utils/node";
 import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
 import { NodeNoteChip } from "../../NodeNoteChip";
 
@@ -255,16 +262,7 @@ export function BaseNodeWidget(props: BaseNodeWidgetProps) {
     const functionViewRange = model.node.properties?.view?.value as ELineRange | undefined;
     const hasViewRange = Boolean(functionViewRange);
     const processFunctionValue = (model.node.properties as any)?.processFunction?.value as string | undefined;
-    const workflowStartFunctionName =
-        typeof processFunctionValue === "string"
-            ? processFunctionValue
-                .trim()
-                .replace(/^["']|["']$/g, "")
-                .split(":")
-                .pop()
-                ?.split("(")[0]
-                ?.trim()
-            : undefined;
+    const workflowStartFunctionName = getWorkflowFunctionName(processFunctionValue) || undefined;
     const canViewProjectFunction =
         hasViewRange &&
         model.node.codedata.node === "FUNCTION_CALL" &&
@@ -477,7 +475,18 @@ export function BaseNodeWidget(props: BaseNodeWidgetProps) {
             <NodeStyles.TopPortWidget port={model.getPort("in")!} engine={engine} />
             <NodeStyles.Row>
                 <NodeStyles.Icon onClick={handleOnClick}>
-                    <NodeIcon type={model.node.codedata.node} size={24} />
+                    <div style={{ position: "relative", display: "flex" }}>
+                        <NodeIcon type={model.node.codedata.node} size={24} />
+                        {/* A configured timeout on a data-event wait or human task is a deadline:
+                            surface it with a small clock badge, as on the agent canvas. */}
+                        {(model.node.codedata.node === "WAIT_DATA" || model.node.codedata.node === "HUMAN_TASK") &&
+                            !!(model.node.properties as any)?.timeout?.value && (
+                                <Icon
+                                    name="bi-clock"
+                                    sx={{ fontSize: "11px", position: "absolute", right: "-5px", bottom: "-3px" }}
+                                />
+                            )}
+                    </div>
                     {/* {model.node.properties.variable?.value && (
                         <NodeStyles.Description>{model.node.properties.variable.value}</NodeStyles.Description>
                     )} */}

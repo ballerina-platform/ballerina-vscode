@@ -35,7 +35,10 @@ import {
     getNodeByIndex,
     getNodeByName,
     getNodeByUid,
-    getView
+    getView,
+    releaseCreateLanding,
+    resolveCreateLandingOverride,
+    resolveSingleIntegrationOverride
 } from './utils/state-machine-utils';
 import * as path from 'path';
 import { extension } from './BalExtensionContext';
@@ -194,6 +197,7 @@ const stateMachine = createMachine<MachineContext>(
                         documentUri: (context, event) => event.viewLocation.documentUri ? event.viewLocation.documentUri : context.documentUri,
                         position: (context, event) => event.viewLocation.position ? event.viewLocation.position : context.position,
                         identifier: (context, event) => event.viewLocation.identifier ? event.viewLocation.identifier : context.identifier,
+                        artifactType: (context, event) => event.viewLocation.artifactType ? event.viewLocation.artifactType : context.artifactType,
                         addType: (context, event) => event.viewLocation?.addType !== undefined ? event.viewLocation.addType : context?.addType,
                     }),
                     (context, event) => notifyTreeView(
@@ -345,6 +349,7 @@ const stateMachine = createMachine<MachineContext>(
                                 position: (context, event) => event.viewLocation.position,
                                 projectPath: (context, event) => event.viewLocation?.projectPath || context?.projectPath,
                                 identifier: (context, event) => event.viewLocation.identifier,
+                                artifactType: (context, event) => event.viewLocation.artifactType,
                                 serviceType: (context, event) => event.viewLocation.serviceType,
                                 type: (context, event) => event.viewLocation?.type,
                                 isGraphql: (context, event) => event.viewLocation?.isGraphql,
@@ -451,6 +456,8 @@ const stateMachine = createMachine<MachineContext>(
                                         documentUri: (context, event) => event.viewLocation.documentUri,
                                         position: (context, event) => event.viewLocation.position,
                                         identifier: (context, event) => event.viewLocation.identifier,
+                                        artifactType: (context, event) => event.viewLocation.artifactType,
+                                        focusFlowDiagramView: (context, event) => event.viewLocation.focusFlowDiagramView,
                                         serviceType: (context, event) => event.viewLocation.serviceType,
                                         projectPath: (context, event) => event.viewLocation?.projectPath || context?.projectPath,
                                         org: (context, event) => event.viewLocation?.org || context?.org,
@@ -483,6 +490,7 @@ const stateMachine = createMachine<MachineContext>(
                                         position: (context, event) => event.viewLocation.position,
                                         view: (context, event) => event.viewLocation.view,
                                         identifier: (context, event) => event.viewLocation.identifier,
+                                        artifactType: (context, event) => event.viewLocation.artifactType,
                                         serviceType: (context, event) => event.viewLocation.serviceType,
                                         type: (context, event) => event.viewLocation?.type,
                                         agentMetadata: (context, event) => event.viewLocation?.agentMetadata,
@@ -701,6 +709,7 @@ const stateMachine = createMachine<MachineContext>(
                             identifier: context.identifier,
                             parentIdentifier: context.parentIdentifier,
                             artifactType: context.artifactType,
+                            focusFlowDiagramView: context?.focusFlowDiagramView,
                             org: orgName || context.org,
                             package: packageName || context.package,
                             type: context?.type,
@@ -729,6 +738,10 @@ const stateMachine = createMachine<MachineContext>(
                         );
                     }
                     return resolve({ ...selectedEntry.location, view: selectedEntry.location.view ? selectedEntry.location.view : MACHINE_VIEW.PackageOverview });
+                }
+
+                if (selectedEntry?.location.view === MACHINE_VIEW.AgentDefinitionDesigner) {
+                    return resolve(selectedEntry.location);
                 }
 
                 if (selectedEntry && (selectedEntry.location.view === MACHINE_VIEW.ERDiagram || selectedEntry.location.view === MACHINE_VIEW.ServiceDesigner || selectedEntry.location.view === MACHINE_VIEW.BIDiagram || selectedEntry.location.view === MACHINE_VIEW.ReviewMode)) {
@@ -773,7 +786,7 @@ const stateMachine = createMachine<MachineContext>(
                     if (!uid && position) {
                         const generatedUid = generateUid(position, fullST);
                         selectedST = getNodeByUid(generatedUid, fullST);
-                        if (generatedUid) {
+                        if (generatedUid && selectedST) {
                             history.updateCurrentEntry({
                                 ...selectedEntry,
                                 location: {
@@ -783,8 +796,6 @@ const stateMachine = createMachine<MachineContext>(
                                 },
                                 uid: generatedUid
                             });
-                        } else {
-                            // show identification failure message
                         }
                     }
 
@@ -959,6 +970,8 @@ export const StateMachine = {
     state: () => { return stateService.getSnapshot().value as MachineStateValue; },
     setEditMode: () => { stateService.send({ type: EVENT_TYPE.FILE_EDIT }); },
     setReadyMode: () => { stateService.send({ type: EVENT_TYPE.EDIT_DONE }); },
+    // Also the `viewActive` half of {@link handlesOpenView}: keep the two in step, since a change
+    // here silently stops the create-landing claim from working rather than failing.
     isReady: () => {
         const state = stateService.getSnapshot().value;
         return typeof state === 'object' && 'viewActive' in state && state.viewActive === "viewReady";
@@ -987,23 +1000,73 @@ export const StateMachine = {
         await buildProjectsStructure(projectInfo, StateMachine.langClient(), true);
         return stateService.getSnapshot().context.projectStructure;
     },
+    setProjectInfo: (projectInfo: ProjectInfo) => {
+        stateService.send({ type: 'SET_PROJECT_INFO', projectInfo });
+    },
     resetToExtensionReady: () => {
         stateService.send({ type: 'RESET_TO_EXTENSION_READY' });
     },
 };
 
-export function openView(type: EVENT_TYPE, viewLocation: VisualizerLocation, resetHistory = false) {
+/**
+ * Whether an `OPEN_VIEW` sent right now would be acted on.
+ *
+ * The machine handles it in `extensionReady` and `viewActive.viewReady` only — there is no
+ * root-level handler — so one sent while a view is mid-load is dropped without trace.
+ */
+function handlesOpenView(): boolean {
+    const value = stateService.getSnapshot().value;
+    return value === "extensionReady" || StateMachine.isReady();
+}
+
+export interface OpenViewOptions {
+    /**
+     * Take `viewLocation.view` literally, skipping the single-integration redirect in
+     * {@link openView}. For callers whose whole purpose is to reach the workspace overview —
+     * Home being the one — since redirecting them to the integration overview would land on
+     * the page the user is already looking at and make the control appear dead.
+     */
+    exactView?: boolean;
+}
+
+export function openView(
+    type: EVENT_TYPE,
+    viewLocation: VisualizerLocation,
+    resetHistory = false,
+    options?: OpenViewOptions
+) {
     if (resetHistory) {
         StateMachine.setReadyMode();
         history?.clear();
     }
     extension.hasPullModuleResolved = false;
     extension.hasPullModuleNotification = false;
-    const projectPath = viewLocation.projectPath || StateMachine.context().projectPath;
+    // Two rules can redirect a workspace-overview navigation, both skipped for a caller that
+    // means that view literally (Home):
+    //
+    //   - a create that just landed on its new integration keeps it against the one navigation
+    //     arriving behind it (the claim is consumed here, whichever way it resolves);
+    //   - a workspace holding a single integration opens on that integration rather than on a
+    //     one-item list. Applied to every navigation, not just the first: the project explorer
+    //     re-navigates once its tree finishes loading, seconds after startup.
+    //
+    // An override REPLACES the location rather than merging into it. The fields a redirected
+    // navigation carried describe a target that no longer applies, and `identifier` with
+    // `artifactType` would survive onto the overview's history entry and send `updateView`
+    // hunting for an artifact that this view does not have.
+    let override: VisualizerLocation | undefined;
+    if (options?.exactView) {
+        releaseCreateLanding();
+    } else {
+        override = resolveCreateLandingOverride(viewLocation, handlesOpenView(), StateMachine.context().projectPath)
+            ?? resolveSingleIntegrationOverride(viewLocation, StateMachine.context());
+    }
+    const location = override ?? viewLocation;
+    const projectPath = location.projectPath || StateMachine.context().projectPath;
     const { orgName, packageName } = getOrgAndPackageName(StateMachine.context().projectInfo, projectPath);
-    viewLocation.org = orgName;
-    viewLocation.package = packageName;
-    stateService.send({ type: type, viewLocation: viewLocation });
+    location.org = orgName;
+    location.package = packageName;
+    stateService.send({ type: type, viewLocation: location });
 }
 
 export function updateView(refreshTreeView?: boolean, updatedIdentifier?: string) {
@@ -1217,7 +1280,7 @@ function refreshProjectExplorer() {
         if (integratorExtension && !integratorExtension.isActive) {
             return;
         }
-    
+
         commands.executeCommand(BI_COMMANDS.PROJECT_EXPLORER_REFRESH);
     } catch (error) {
         console.error('Error refreshing project explorer:', error);

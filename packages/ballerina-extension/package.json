@@ -85,7 +85,7 @@
             {
                 "language": "ballerina",
                 "scopeName": "source.ballerina",
-                "path": "./grammar/ballerina-grammar/syntaxes/ballerina.tmLanguage"
+                "path": "./syntaxes/ballerina.tmLanguage"
             }
         ],
         "configuration": {
@@ -208,6 +208,23 @@
                     "default": false,
                     "description": "Enable experimental features."
                 },
+                "ballerina.copilot.orbTheme": {
+                    "type": "string",
+                    "enum": [
+                        "animated",
+                        "simple"
+                    ],
+                    "enumItemLabels": [
+                        "Animated",
+                        "Simple"
+                    ],
+                    "enumDescriptions": [
+                        "Animated orb with a glowing ring. Uses the simple orb when it cannot render.",
+                        "Simple gradient orb without a ring."
+                    ],
+                    "default": "animated",
+                    "description": "WSO2 Integration Intelligence orb style."
+                },
                 "ballerina.enableNotebookDebug": {
                     "type": "boolean",
                     "default": false,
@@ -281,7 +298,7 @@
                     "type": "boolean",
                     "default": false,
                     "scope": "window",
-                    "description": "Enable Model Context Protocol (MCP) tool support in the WSO2 Integrator Copilot."
+                    "description": "Enable Model Context Protocol (MCP) tool support in the WSO2 Integration Intelligence."
                 },
                 "ballerina.copilot.skills": {
                     "type": "object",
@@ -642,7 +659,7 @@
             },
             {
                 "command": "ballerina.open.ai.panel",
-                "title": "Open WSO2 Integrator Copilot",
+                "title": "Open WSO2 Integration Intelligence",
                 "category": "Ballerina",
                 "icon": {
                     "dark": "./resources/icons/light-ai-chat.svg",
@@ -1140,8 +1157,8 @@
                 {
                     "command": "ballerina.open.ai.panel",
                     "group": "navigation@1",
-                    "when": "resourceLangId == ballerina || isBallerinaDiagram || (isBalVisualizerActive && isBIProject)",
-                    "title": "Open WSO2 Integrator Copilot"
+                    "when": "resourceLangId == ballerina || isBallerinaDiagram || (isBalVisualizerActive && isBIProject && !ballerina.copilotAmbientPresent)",
+                    "title": "Open WSO2 Integration Intelligence"
                 },
                 {
                     "command": "BI.project.run",
@@ -1273,14 +1290,14 @@
         ],
         "icons": {
             "bi-ai-agent": {
-                "description": "ai-agent",
+                "description": "bi-ai-agent",
                 "default": {
                     "fontPath": "./resources/font-wso2-vscode/dist/wso2-vscode.woff",
                     "fontCharacter": "\\f112"
                 }
             },
             "bi-ai-chat": {
-                "description": "ai-chat",
+                "description": "bi-ai-chat",
                 "default": {
                     "fontPath": "./resources/font-wso2-vscode/dist/wso2-vscode.woff",
                     "fontCharacter": "\\f113"
@@ -1332,14 +1349,14 @@
                 "description": "start",
                 "default": {
                     "fontPath": "./resources/font-wso2-vscode/dist/wso2-vscode.woff",
-                    "fontCharacter": "\\f24a"
+                    "fontCharacter": "\\f255"
                 }
             },
             "ballerina-debug": {
                 "description": "debug",
                 "default": {
                     "fontPath": "./resources/font-wso2-vscode/dist/wso2-vscode.woff",
-                    "fontCharacter": "\\f1c1"
+                    "fontCharacter": "\\f1cb"
                 }
             },
             "ballerina-source-view": {
@@ -1353,7 +1370,7 @@
                 "description": "persist-diagram",
                 "default": {
                     "fontPath": "./resources/font-wso2-vscode/dist/wso2-vscode.woff",
-                    "fontCharacter": "\\f220"
+                    "fontCharacter": "\\f22b"
                 }
             },
             "ballerina-cached-rounded": {
@@ -1367,42 +1384,42 @@
                 "description": "cached-round",
                 "default": {
                     "fontPath": "./resources/font-wso2-vscode/dist/wso2-vscode.woff",
-                    "fontCharacter": "\\f107"
+                    "fontCharacter": "\\f1a9"
                 }
             },
             "ballerina-fit-to-screen": {
                 "description": "fit-to-screen",
                 "default": {
                     "fontPath": "./resources/font-wso2-vscode/dist/wso2-vscode.woff",
-                    "fontCharacter": "\\f120"
+                    "fontCharacter": "\\f1ed"
                 }
             },
             "ballerina-explicit-outlined": {
                 "description": "explicit-outlined",
                 "default": {
                     "fontPath": "./resources/font-wso2-vscode/dist/wso2-vscode.woff",
-                    "fontCharacter": "\\f11f"
+                    "fontCharacter": "\\f1e5"
                 }
             },
             "ballerina-error-icon": {
                 "description": "error-icon",
                 "default": {
                     "fontPath": "./resources/font-wso2-vscode/dist/wso2-vscode.woff",
-                    "fontCharacter": "\\f11c"
+                    "fontCharacter": "\\f1df"
                 }
             },
             "ballerina-error-outline": {
                 "description": "error-outline",
                 "default": {
                     "fontPath": "./resources/font-wso2-vscode/dist/wso2-vscode.woff",
-                    "fontCharacter": "\\f11d"
+                    "fontCharacter": "\\f1e1"
                 }
             },
             "ballerina-symbol-struct-icon": {
                 "description": "symbol-struct-icon",
                 "default": {
                     "fontPath": "./resources/font-wso2-vscode/dist/wso2-vscode.woff",
-                    "fontCharacter": "\\f13d"
+                    "fontCharacter": "\\f259"
                 }
             },
             "ballerina-add-circle-outline": {
@@ -1416,21 +1433,21 @@
                 "description": "radio-button-checked",
                 "default": {
                     "fontPath": "./resources/font-wso2-vscode/dist/wso2-vscode.woff",
-                    "fontCharacter": "\\f134"
+                    "fontCharacter": "\\f23a"
                 }
             },
             "ballerina-radio-button-unchecked": {
                 "description": "radio-button-unchecked",
                 "default": {
                     "fontPath": "./resources/font-wso2-vscode/dist/wso2-vscode.woff",
-                    "fontCharacter": "\\f135"
+                    "fontCharacter": "\\f23b"
                 }
             },
             "ballerina-file-upload": {
                 "description": "file-upload",
                 "default": {
                     "fontPath": "./resources/font-wso2-vscode/dist/wso2-vscode.woff",
-                    "fontCharacter": "\\f11f"
+                    "fontCharacter": "\\f1ea"
                 }
             },
             "ballerina-file-submodule": {
@@ -1451,7 +1468,7 @@
                 "description": "design-view",
                 "default": {
                     "fontPath": "./resources/font-wso2-vscode/dist/wso2-vscode.woff",
-                    "fontCharacter": "\\f1c6"
+                    "fontCharacter": "\\f1d0"
                 }
             },
             "distro-file-submodule": {
@@ -1525,7 +1542,6 @@
         "e2e-test": "pnpm exec playwright test -c e2e-test/playwright.config.js",
         "e2e-test:download-prerelease": "DOWNLOAD_PRERELEASE=true pnpm exec playwright test -c e2e-test/playwright.config.js",
         "test-coverage": "cross-env COVER_CONFIG=html pnpm run test",
-        "build-tm-grammar": "js-yaml grammar/ballerina-grammar/syntaxes/ballerina.tmLanguage.yaml > grammar/ballerina-grammar/syntaxes/ballerina.tmLanguage.json",
         "lint": "tslint --fix 'src/**/*{.ts,.tsx}'",
         "package": "node ../../submodules/wso2-vscode-extensions/workspaces/common-libs/scripts/package-vsix.js",
         "clearVsix": "del-cli \"./ballerina-[0-9]*.vsix\" \"./vsix/ballerina-[0-9]*.vsix\"",
@@ -1533,7 +1549,7 @@
         "copyVSIX": "copyfiles *.vsix ./vsix",
         "copyVSIXToRoot": "copyfiles -f ./vsix/*.vsix ../../..",
         "copyLS": "del-cli ./ls && node -e \"const fs=require('fs'),path=require('path'),version=require('./package.json').version,source=path.join('..','ballerina-language-server','build','ballerina-language-server-'+version+'.jar'),destination=path.join('ls',path.basename(source));fs.mkdirSync('ls',{recursive:true});fs.copyFileSync(source,destination);console.log('Copied '+source+' -> '+destination)\"",
-        "copyGrammar": "del-cli ./grammar/ballerina-grammar && copyfiles -u 3 \"../ballerina-grammar/syntaxes/*\" ./grammar/ballerina-grammar/syntaxes/",
+        "copyGrammar": "copyfiles -f ../ballerina-grammar/syntaxes/ballerina.tmLanguage ./syntaxes/",
         "build": "pnpm run compile && pnpm run lint && pnpm run postbuild",
         "rebuild": "pnpm run clean && pnpm run compile && pnpm run postbuild",
         "postbuild": "pnpm run copyLS && pnpm run copyFonts && pnpm run copyJSLibs && pnpm run clearVsix && pnpm run package && pnpm run copyVSIX",

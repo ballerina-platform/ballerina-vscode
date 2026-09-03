@@ -50,6 +50,7 @@ import io.ballerina.compiler.syntax.tree.BindingPatternNode;
 import io.ballerina.compiler.syntax.tree.BlockStatementNode;
 import io.ballerina.compiler.syntax.tree.BreakStatementNode;
 import io.ballerina.compiler.syntax.tree.ByteArrayLiteralNode;
+import io.ballerina.compiler.syntax.tree.CaptureBindingPatternNode;
 import io.ballerina.compiler.syntax.tree.CheckExpressionNode;
 import io.ballerina.compiler.syntax.tree.ClassDefinitionNode;
 import io.ballerina.compiler.syntax.tree.ClientResourceAccessActionNode;
@@ -149,6 +150,12 @@ import io.ballerina.flowmodelgenerator.core.model.node.ChunkerBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.ClassInitBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.DataLoaderBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.DataMapperBuilder;
+import io.ballerina.flowmodelgenerator.core.model.node.DurableAgentAddActivityBuilder;
+import io.ballerina.flowmodelgenerator.core.model.node.DurableAgentDataResultBuilder;
+import io.ballerina.flowmodelgenerator.core.model.node.DurableAgentResultBuilder;
+import io.ballerina.flowmodelgenerator.core.model.node.DurableAgentRunBuilder;
+import io.ballerina.flowmodelgenerator.core.model.node.DurableAgentStartBuilder;
+import io.ballerina.flowmodelgenerator.core.model.node.DurableAgentUpdateBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.EmbeddingProviderBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.FailBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.FunctionCall;
@@ -180,11 +187,11 @@ import io.ballerina.flowmodelgenerator.core.model.node.builtin.EmailActivityStra
 import io.ballerina.flowmodelgenerator.core.model.node.builtin.RestActivityStrategy;
 import io.ballerina.flowmodelgenerator.core.model.node.builtin.SoapActivityStrategy;
 import io.ballerina.flowmodelgenerator.core.utils.ConnectorUtil;
-import io.ballerina.flowmodelgenerator.core.utils.FileSystemUtils;
 import io.ballerina.flowmodelgenerator.core.utils.FlowNodeUtil;
 import io.ballerina.flowmodelgenerator.core.utils.ParamUtils;
 import io.ballerina.flowmodelgenerator.core.utils.WorkflowUtil;
 import io.ballerina.modelgenerator.commons.CommonUtils;
+import io.ballerina.modelgenerator.commons.FileSystemUtils;
 import io.ballerina.modelgenerator.commons.FunctionData;
 import io.ballerina.modelgenerator.commons.FunctionDataBuilder;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
@@ -228,6 +235,8 @@ import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.CALL_ACTIV
 import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.CALL_HUMAN_TASK_METHOD_NAME;
 import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.CONTEXT_CLASS_NAME;
 import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.HUMAN_TASK_DESCRIPTION;
+import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.RUN_DURABLE_AGENT_DESCRIPTION;
+import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.RUN_DURABLE_AGENT_LABEL;
 import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.HUMAN_TASK_LABEL;
 import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.SLEEP_DESCRIPTION;
 import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.SLEEP_LABEL;
@@ -293,6 +302,8 @@ public class CodeAnalyzer extends NodeVisitor {
     public static final String ICON_PATH = CommonUtils.generateIcon(BALLERINA_ORG_NAME, "mcp", "0.4.2");
     public static final String MCP_TOOL_KIT = "McpToolKit";
     public static final String MCP_SERVER = "MCP Server";
+    public static final String AGENT_TOOL_TYPE = "Agent";
+    private static final String RUN_METHOD = "run";
     public static final String NAME = "name";
     private static final String DATA_MAPPINGS_BAL = "data_mappings.bal";
 
@@ -301,6 +312,7 @@ public class CodeAnalyzer extends NodeVisitor {
     private static final String FIELD_MODEL = "model";
     private static final String FIELD_SYSTEM_PROMPT = "systemPrompt";
     private static final String FIELD_MEMORY = "memory";
+    private static final String MODEL_PROVIDER_INTERFACE_NAME = "ModelProvider";
 
     // Metadata data keys
     private static final String KIND_KEY = "kind";
@@ -490,6 +502,9 @@ public class CodeAnalyzer extends NodeVisitor {
         if (isAgentClass(classSymbol)) {
             startNode(NodeKind.AGENT_CALL, expressionNode.parent());
             populateAgentMetaData(expressionNode, classSymbol);
+        } else if (AiUtils.isTypedAgent(classSymbol)) {
+            startNode(NodeKind.AGENT_RUN, expressionNode.parent());
+            populateAgentRunMetaData(expressionNode, classSymbol);
         } else if (isWorkflowCtxOperation(remoteMethodCallActionNode, classSymbol, CALL_ACTIVITY_METHOD_NAME)) {
             startNode(NodeKind.ACTIVITY_CALL, expressionNode.parent());
         } else if (isWorkflowCtxOperation(remoteMethodCallActionNode, classSymbol, CALL_HUMAN_TASK_METHOD_NAME)) {
@@ -499,12 +514,33 @@ public class CodeAnalyzer extends NodeVisitor {
             // plugin diagnostics on the typed binding pattern (e.g. WORKFLOW_123 on non-nilable tuple
             // members) attach to the WAIT_DATA flow node.
             startNode(NodeKind.WAIT_DATA, remoteMethodCallActionNode.parent());
+        } else if (isWorkflowCtxOperation(remoteMethodCallActionNode, classSymbol,
+                Constants.Workflow.RUN_CHILD_WORKFLOW_METHOD_NAME)) {
+            startNode(NodeKind.CHILD_WORKFLOW_RUN, expressionNode.parent());
+        } else if (isWorkflowCtxOperation(remoteMethodCallActionNode, classSymbol,
+                Constants.Workflow.CALL_CHILD_WORKFLOW_METHOD_NAME)) {
+            startNode(NodeKind.CHILD_WORKFLOW_CALL, expressionNode.parent());
+        } else if (isWorkflowCtxOperation(remoteMethodCallActionNode, classSymbol,
+                Constants.Workflow.WAIT_CHILD_WORKFLOW_METHOD_NAME)) {
+            startNode(NodeKind.CHILD_WORKFLOW_WAIT, expressionNode.parent());
+        } else if (isWorkflowCtxOperation(remoteMethodCallActionNode, classSymbol,
+                Constants.Workflow.SEND_DATA_CHILD_WORKFLOW_METHOD_NAME)) {
+            startNode(NodeKind.CHILD_WORKFLOW_SEND_DATA, expressionNode.parent());
         } else {
             startNode(NodeKind.REMOTE_ACTION_CALL, expressionNode.parent());
         }
         Map<String, Object> metadataData = getConnectorMetadata(classSymbol);
         setFunctionProperties(functionName, expressionNode, remoteMethodCallActionNode, functionSymbol,
                 classSymbol.getName().orElse(""), metadataData);
+
+        // The generic "<module> : <label>" title reads "workflow : Run Child Workflo…" once it is
+        // clipped, and never says which workflow is being run. A child workflow statement keeps its
+        // own title with the target workflow underneath, the way the send node names its channel.
+        // Only the workflow context's own operations qualify — a connector client exposing a remote
+        // method of the same name (`callWorkflow` especially) keeps its generic title.
+        if (isWorkflowContextClass(classSymbol)) {
+            applyChildWorkflowMetadata(remoteMethodCallActionNode, functionName);
+        }
 
         if (isWorkflowCtxOperation(remoteMethodCallActionNode, classSymbol, CALL_ACTIVITY_METHOD_NAME)) {
             String builtinSymbol = resolveBuiltinActivitySymbol(remoteMethodCallActionNode.arguments());
@@ -519,6 +555,12 @@ public class CodeAnalyzer extends NodeVisitor {
             } else {
                 overrideSymbolFromFirstArg(remoteMethodCallActionNode.arguments());
                 populateActivityCallProperties(remoteMethodCallActionNode);
+                // `callActivity` returns `T|error` with `T` an inferred typedesc, so processing its symbol
+                // marks the node as having an inferred return type - and the form hides the result type
+                // field for such nodes. For a user-defined activity the result type is the activity
+                // function's own, which the creation form does present, so clear the flag or the field
+                // would vanish on edit.
+                nodeBuilder.codedata().inferredReturnType(null);
             }
             // The node title is the activity being called, not the generic callActivity method name
             // (the node icon already marks it as an activity call).
@@ -527,6 +569,13 @@ public class CodeAnalyzer extends NodeVisitor {
             populateHumanTaskProperties(remoteMethodCallActionNode);
         } else if (isWorkflowCtxOperation(remoteMethodCallActionNode, classSymbol, AWAIT_METHOD_NAME)) {
             populateAwaitWaitDataProperties(remoteMethodCallActionNode);
+        } else if (isWorkflowCtxOperation(remoteMethodCallActionNode, classSymbol,
+                Constants.Workflow.RUN_CHILD_WORKFLOW_METHOD_NAME)
+                || isWorkflowCtxOperation(remoteMethodCallActionNode, classSymbol,
+                        Constants.Workflow.CALL_CHILD_WORKFLOW_METHOD_NAME)) {
+            // Carry the child workflow function as the node symbol so the diagram labels the node
+            // with the workflow it starts, matching the palette-created template.
+            overrideSymbolFromFirstArg(remoteMethodCallActionNode.arguments());
         }
     }
 
@@ -546,7 +595,7 @@ public class CodeAnalyzer extends NodeVisitor {
                 if (newExprOpt.isPresent()) {
                     agentData.put(Property.SCOPE_KEY,
                             new AiUtils.AgentPropertyValue(Property.SERVICE_INIT_SCOPE, Property.ValueType.EXPRESSION));
-                    genAgentData(newExprOpt.get(), classSymbol, agentData);
+                    genAgentData(newExprOpt.get(), classSymbol, agentData, true);
                 }
             }
         } else {
@@ -586,9 +635,47 @@ public class CodeAnalyzer extends NodeVisitor {
                 }
                 Optional<ImplicitNewExpressionNode> newExpressionNodeOpt = getNewExpr(initializerExpr);
                 newExpressionNodeOpt.ifPresent(
-                        implicitNewExpressionNode -> genAgentData(implicitNewExpressionNode, classSymbol, agentData));
+                        implicitNewExpressionNode -> genAgentData(implicitNewExpressionNode, classSymbol, agentData,
+                                true));
             }
         }
+    }
+
+    private void populateAgentRunMetaData(ExpressionNode expressionNode, ClassSymbol classSymbol) {
+        SeparatedNodeList<FunctionArgumentNode> argumentNodes = getAgentInstanceNewExpr(expressionNode)
+                .flatMap(ImplicitNewExpressionNode::parenthesizedArgList)
+                .map(ParenthesizedArgList::arguments)
+                .orElse(null);
+        AiUtils.applyAgentRunMetadata(nodeBuilder, classSymbol, argumentNodes, project, this::getModelIconUrl);
+    }
+
+    private Optional<ImplicitNewExpressionNode> getAgentInstanceNewExpr(ExpressionNode expressionNode) {
+        if (isClassField(expressionNode)) {
+            FieldAccessExpressionNode fieldAccess = (FieldAccessExpressionNode) expressionNode;
+            Optional<Symbol> fieldSymbol = semanticModel.symbol(fieldAccess.fieldName());
+            if (fieldSymbol.isEmpty() || fieldSymbol.get().kind() != SymbolKind.CLASS_FIELD) {
+                return Optional.empty();
+            }
+            return findFieldInitAssignment(fieldSymbol.get()).flatMap(assign -> getNewExpr(assign.expression()));
+        }
+        Optional<Symbol> symbol = semanticModel.symbol(expressionNode);
+        if (symbol.isEmpty() || !(symbol.get() instanceof VariableSymbol variableSymbol)) {
+            return Optional.empty();
+        }
+        Optional<Location> optLocation = variableSymbol.getLocation();
+        if (optLocation.isEmpty()) {
+            return Optional.empty();
+        }
+        Document document = CommonUtils.getDocument(project, optLocation.get());
+        if (document == null) {
+            return Optional.empty();
+        }
+        Optional<NonTerminalNode> varNodeOpt = CommonUtil.findNode(variableSymbol, document.syntaxTree());
+        if (varNodeOpt.isEmpty()) {
+            return Optional.empty();
+        }
+        ExpressionNode initializerExpr = getInitializerFromVariableNode(varNodeOpt.get());
+        return initializerExpr == null ? Optional.empty() : getNewExpr(initializerExpr);
     }
 
     private ExpressionNode getInitializerFromVariableNode(NonTerminalNode varNode) {
@@ -639,7 +726,7 @@ public class CodeAnalyzer extends NodeVisitor {
     }
 
     private void genAgentData(ImplicitNewExpressionNode newExpressionNode, ClassSymbol classSymbol,
-                              Map<String, AiUtils.AgentPropertyValue> agentData) {
+                              Map<String, AiUtils.AgentPropertyValue> agentData, boolean includeCallProperties) {
         Optional<ParenthesizedArgList> argList = newExpressionNode.parenthesizedArgList();
         if (argList.isEmpty()) {
             return;
@@ -648,6 +735,7 @@ public class CodeAnalyzer extends NodeVisitor {
         ExpressionNode modelArg = null;
         ExpressionNode systemPromptArg = null;
         ExpressionNode memory = null;
+        Map<String, Object> agentInfo = new HashMap<>();
 
         for (FunctionArgumentNode arg : argList.get().arguments()) {
             if (arg instanceof NamedArgumentNode namedArgumentNode) {
@@ -695,105 +783,74 @@ public class CodeAnalyzer extends NodeVisitor {
 
         if (toolsArg != null && toolsArg.kind() == SyntaxKind.LIST_CONSTRUCTOR) {
             List<ToolData> toolsData = new ArrayList<>();
-            ListConstructorExpressionNode listCtrExprNode = (ListConstructorExpressionNode) toolsArg;
-            for (Node node : listCtrExprNode.expressions()) {
-                if (node.kind() != SyntaxKind.SIMPLE_NAME_REFERENCE) {
-                    continue;
-                }
-                SimpleNameReferenceNode simpleNameReferenceNode = (SimpleNameReferenceNode) node;
-                Optional<Symbol> nodeSymbol = semanticModel.symbol(node);
-                if (nodeSymbol.isEmpty()) {
-                    String toolName = simpleNameReferenceNode.name().text();
-                    toolsData.add(new ToolData(toolName, getIcon(toolName), getToolDescription(toolName), null));
-                    continue;
-                }
-
-                Symbol symbol = nodeSymbol.get();
-                String toolName = simpleNameReferenceNode.name().text();
-                boolean isMcpToolKit = nodeSymbol
-                        .filter(newSymbol -> symbol.kind() == SymbolKind.VARIABLE)
-                        .map(newSymbol -> ((VariableSymbol) symbol).typeDescriptor())
-                        .filter(typeSymbol -> isMcpToolKitAiClass(typeSymbol) || isGeneratedMcpToolKit(typeSymbol))
-                        .isPresent();
-                if (isMcpToolKit) {
-                    toolsData.add(new ToolData(toolName, ICON_PATH, getToolDescription(""), MCP_SERVER));
-                } else {
-                    toolName = simpleNameReferenceNode.name().text();
-                    toolsData.add(new ToolData(toolName, getIcon(toolName), getToolDescription(toolName), null));
+            for (Node element : ((ListConstructorExpressionNode) toolsArg).expressions()) {
+                if (element instanceof FieldAccessExpressionNode fieldAccess) {
+                    if (!(fieldAccess.fieldName() instanceof SimpleNameReferenceNode fieldName)) {
+                        continue;
+                    }
+                    String toolName = fieldName.name().text();
+                    if (isMcpToolKitExpression(fieldAccess)) {
+                        toolsData.add(new ToolData(toolName, ICON_PATH, "", MCP_SERVER, false));
+                        continue;
+                    }
+                    MethodSymbol method = resolveToolMethod(fieldAccess, toolName).orElse(null);
+                    String icon = method == null ? "" : AiUtils.getToolDisplayIcon(method);
+                    String type = method != null && isAgentDelegationTool(method) ? AGENT_TOOL_TYPE : null;
+                    String description = method == null ? "" : method.documentation()
+                            .flatMap(Documentation::description)
+                            .orElse("");
+                    boolean requiresApproval = method != null
+                            && AiUtils.readRequiresApproval(method, project);
+                    toolsData.add(new ToolData(toolName, icon, description, type, requiresApproval));
+                } else if (element instanceof SimpleNameReferenceNode nameRef) {
+                    String toolName = nameRef.name().text();
+                    Symbol symbol = semanticModel.symbol(element).orElse(null);
+                    if (AiUtils.isMcpToolKitSymbol(symbol) || isMcpToolKitExpression(nameRef)) {
+                        toolsData.add(new ToolData(toolName, ICON_PATH, getToolDescription(""), MCP_SERVER, false));
+                    } else {
+                        String type = symbol instanceof FunctionSymbol function && isAgentDelegationTool(function)
+                                ? AGENT_TOOL_TYPE : null;
+                        boolean requiresApproval = symbol != null
+                                && AiUtils.readRequiresApproval(symbol, project);
+                        toolsData.add(new ToolData(toolName, getIcon(toolName), getToolDescription(toolName), type,
+                                requiresApproval));
+                    }
                 }
             }
-            nodeBuilder.metadata().addData("tools", toolsData);
+            agentInfo.put(AiUtils.AGENT_TOOLS_KEY, toolsData);
         }
 
         if (systemPromptArg != null && systemPromptArg.kind() == SyntaxKind.MAPPING_CONSTRUCTOR) {
-            MappingConstructorExpressionNode mappingCtrExprNode =
-                    (MappingConstructorExpressionNode) systemPromptArg;
-            SeparatedNodeList<MappingFieldNode> fields = mappingCtrExprNode.fields();
-            for (MappingFieldNode field : fields) {
-                SyntaxKind kind = field.kind();
-                if (kind != SyntaxKind.SPECIFIC_FIELD) {
-                    continue;
+            parseSystemPromptFields((MappingConstructorExpressionNode) systemPromptArg, agentData);
+
+            Map<String, String> systemPrompt = new HashMap<>();
+            for (String field : List.of("role", "instructions")) {
+                AiUtils.AgentPropertyValue value = agentData.get(field);
+                if (value != null) {
+                    systemPrompt.put(field, value.value());
                 }
-                SpecificFieldNode specificFieldNode = (SpecificFieldNode) field;
-                Optional<ExpressionNode> valueExprOpt = specificFieldNode.valueExpr();
-                if (valueExprOpt.isEmpty()) {
-                    continue;
-                }
-                ExpressionNode valueExpr = valueExprOpt.get();
-                String value;
-                Property.ValueType selectedType;
-                if (valueExpr.kind() == SyntaxKind.STRING_TEMPLATE_EXPRESSION) {
-                    TemplateExpressionNode templateExpr = (TemplateExpressionNode) valueExpr;
-                    value = templateExpr.content().stream()
-                            .map(Node::toString)
-                            .collect(Collectors.joining());
-                    value = AiUtils.restoreBackticksFromStringTemplate(value);
-                    selectedType = Property.ValueType.PROMPT;
-                } else {
-                    value = valueExpr.toString().trim();
-                    selectedType = Property.ValueType.EXPRESSION;
-                }
-                agentData.put(specificFieldNode.fieldName().toString().trim(),
-                        new AiUtils.AgentPropertyValue(value, selectedType));
             }
-
-            Map<String, String> simpleAgentData = agentData.entrySet().stream()
-                    .collect(Collectors.toMap(
-                            Map.Entry::getKey,
-                            e -> e.getValue().value()
-                    ));
-
-            nodeBuilder.metadata().addData("agent", simpleAgentData);
+            if (!systemPrompt.isEmpty()) {
+                agentInfo.put(AiUtils.AGENT_SYSTEM_PROMPT_KEY, systemPrompt);
+            }
         }
 
-        if (memory == null) {
-            String defaultMemoryManagerName = getDefaultMemoryManagerName(classSymbol);
-            if (!defaultMemoryManagerName.isEmpty()) {
-                nodeBuilder.metadata().addData("memory",
-                        new MemoryManagerData(defaultMemoryManagerName, AiUtils.MEMORY_DEFAULT_VALUE));
-            }
-        } else if (memory.kind() == SyntaxKind.EXPLICIT_NEW_EXPRESSION) {
-            ExplicitNewExpressionNode newExpr = (ExplicitNewExpressionNode) memory;
-            SeparatedNodeList<FunctionArgumentNode> arguments = newExpr.parenthesizedArgList().arguments();
-            String size = "";
-            if (arguments.size() == 1) {
-                size = arguments.get(0).toSourceCode();
-            }
-            nodeBuilder.metadata().addData("memory",
-                    new MemoryManagerData(newExpr.typeDescriptor().toSourceCode(), size));
-        } else if (memory.kind() == SyntaxKind.SIMPLE_NAME_REFERENCE) {
-            Optional<TypeSymbol> optSymbolType = semanticModel.typeOf(memory);
-            optSymbolType.ifPresent(typeSymbol -> nodeBuilder.metadata()
-                    .addData("memory",
-                            new MemoryManagerData(typeSymbol.getName().orElse("Memory Not Configured"),
-                                    AiUtils.MEMORY_DEFAULT_VALUE)));
+        MemoryManagerData memoryData = memory == null ? defaultMemoryData(classSymbol) : getMemoryData(memory);
+        if (memoryData != null) {
+            AiUtils.addPresentationMetadata(agentInfo, AiUtils.MEMORY_METADATA_KEY, memoryData);
         }
 
         if (modelArg != null) {
             ModelData modelUrl = getModelIconUrl(modelArg);
             if (modelUrl != null) {
-                nodeBuilder.metadata().addData("model", modelUrl);
+                AiUtils.addPresentationMetadata(agentInfo, AiUtils.MODEL_PROVIDER_METADATA_KEY, modelUrl);
             }
+        }
+        AiUtils.addAgentMetadata(nodeBuilder, agentInfo);
+
+        if (!includeCallProperties) {
+            AgentCallBuilder.setAdditionalAgentProperties(nodeBuilder, agentData, false);
+            return;
         }
 
         // Find the agent variable declaration to get the correct line range and source code
@@ -822,7 +879,7 @@ public class CodeAnalyzer extends NodeVisitor {
                 .build();
 
         Path agentFilePath =
-                FileSystemUtils.resolveFilePathFromCodedata(codedata, project.sourceRoot());
+                FileSystemUtils.resolveFilePathFromLineRange(codedata.lineRange(), project.sourceRoot());
 
         NodeBuilder.TemplateContext context =
                 new NodeBuilder.TemplateContext(workspaceManager, agentFilePath,
@@ -835,16 +892,34 @@ public class CodeAnalyzer extends NodeVisitor {
         nodeBuilder.codedata().addData(Constants.Ai.AGENT_CODEDATA, codedata);
     }
 
-    private boolean isMcpToolKitAiClass(TypeSymbol typeSymbol) {
-        // Enables backward-compatible rendering of the MCP tool in the UI
-        return typeSymbol.getModule().isPresent() && (typeSymbol.nameEquals(MCP_TOOL_KIT)
-                && typeSymbol.getModule().get().id().moduleName().equals(AI_AGENT));
-    }
-
-    private boolean isGeneratedMcpToolKit(TypeSymbol typeSymbol) {
-        return typeSymbol instanceof TypeReferenceTypeSymbol referenceTypeSymbol
-                && referenceTypeSymbol.typeDescriptor() instanceof ClassSymbol classSymbol
-                && isAiMcpBaseToolKit(classSymbol);
+    private void parseSystemPromptFields(MappingConstructorExpressionNode mappingCtr,
+                                         Map<String, AiUtils.AgentPropertyValue> agentData) {
+        for (MappingFieldNode field : mappingCtr.fields()) {
+            if (field.kind() != SyntaxKind.SPECIFIC_FIELD) {
+                continue;
+            }
+            SpecificFieldNode specificFieldNode = (SpecificFieldNode) field;
+            Optional<ExpressionNode> valueExprOpt = specificFieldNode.valueExpr();
+            if (valueExprOpt.isEmpty()) {
+                continue;
+            }
+            ExpressionNode valueExpr = valueExprOpt.get();
+            String value;
+            Property.ValueType selectedType;
+            if (valueExpr.kind() == SyntaxKind.STRING_TEMPLATE_EXPRESSION) {
+                TemplateExpressionNode templateExpr = (TemplateExpressionNode) valueExpr;
+                value = templateExpr.content().stream()
+                        .map(Node::toString)
+                        .collect(Collectors.joining());
+                value = AiUtils.restoreBackticksFromStringTemplate(value);
+                selectedType = Property.ValueType.PROMPT;
+            } else {
+                value = valueExpr.toString().trim();
+                selectedType = Property.ValueType.EXPRESSION;
+            }
+            agentData.put(specificFieldNode.fieldName().toString().trim(),
+                    new AiUtils.AgentPropertyValue(value, selectedType));
+        }
     }
 
     private boolean isWorkflowOperation(FunctionSymbol functionSymbol, String operationName) {
@@ -855,9 +930,14 @@ public class CodeAnalyzer extends NodeVisitor {
     private boolean isWorkflowCtxOperation(RemoteMethodCallActionNode remoteMethodCallActionNode,
                                            ClassSymbol classSymbol, String operationName) {
         String methodName = remoteMethodCallActionNode.methodName().name().text();
-        String className = classSymbol.getName().orElse("");
-        return methodName.equals(operationName) &&
-                className.equals(CONTEXT_CLASS_NAME) && isWorkflowModule(classSymbol.getModule());
+        return methodName.equals(operationName) && isWorkflowContextClass(classSymbol);
+    }
+
+    // The workflow module's own `workflow:Context`, as opposed to any connector client that happens
+    // to expose a remote method with a name this analyzer looks for.
+    private boolean isWorkflowContextClass(ClassSymbol classSymbol) {
+        return CONTEXT_CLASS_NAME.equals(classSymbol.getName().orElse(""))
+                && isWorkflowModule(classSymbol.getModule());
     }
 
     /**
@@ -932,6 +1012,634 @@ public class CodeAnalyzer extends NodeVisitor {
         boolean hasCheck = parentKind == SyntaxKind.CHECK_ACTION
                 || parentKind == SyntaxKind.CHECK_EXPRESSION;
         nodeBuilder.properties().checkError(hasCheck);
+    }
+
+    // Object-model durable agent: builds the node for `<agentVar>.run(...)` and renders the
+    // agent's DECLARATION (module-level `final workflow:DurableAgent x = check new ({...})`)
+    // as the agent box — role/instructions/model and the capability circles all come from the
+    // constructor config literal, since the object model has no imperative register statements.
+    private void populateDurableAgentObjectRun(MethodCallExpressionNode callNode, ExpressionNode expressionNode,
+                                               FunctionSymbol functionSymbol, String functionName) {
+        String agentVarName = expressionNode.toSourceCode().trim();
+        nodeBuilder
+                .symbolInfo(functionSymbol)
+                .metadata()
+                    .label(RUN_DURABLE_AGENT_LABEL)
+                    .description(RUN_DURABLE_AGENT_DESCRIPTION)
+                    .stepOut()
+                .codedata()
+                    .node(NodeKind.DURABLE_AGENT_RUN)
+                    .org(WORKFLOW_ORG)
+                    .module(WORKFLOW_MODULE)
+                    .object(Constants.Workflow.DURABLE_AGENT_OBJECT_CLASS_NAME)
+                    .parentSymbol(agentVarName)
+                    .symbol(functionName);
+
+        nodeBuilder.metadata().addData("agentName", agentVarName);
+        nodeBuilder.metadata().addData("agentBox", true);
+        populateAgentDeclarationMetadata(expressionNode);
+
+        // From a caller's flow this node's form is the run call's own, so it needs the arguments
+        // the call was written with — otherwise the query and input open blank and a save drops
+        // them. The same omission left the send and result forms empty.
+        SeparatedNodeList<FunctionArgumentNode> runArguments = callNode.arguments();
+        addAgentCallProperty(DurableAgentStartBuilder.QUERY_KEY, "Query",
+                "The initial user query for the agent", positionalArgumentSource(runArguments, 0));
+        addAgentCallProperty(DurableAgentStartBuilder.INPUT_KEY, "Input",
+                "The structured input the run was given", positionalArgumentSource(runArguments, 1));
+
+        SyntaxKind parentKind = callNode.parent().kind();
+        boolean hasCheck = parentKind == SyntaxKind.CHECK_ACTION || parentKind == SyntaxKind.CHECK_EXPRESSION;
+        nodeBuilder.properties().checkError(hasCheck);
+    }
+
+    /**
+     * Titles a child workflow statement after what it does, with the target workflow as its second
+     * line. Does nothing for any other remote call.
+     *
+     * @param callNode     the {@code ctx->...} call being analyzed
+     * @param methodName   the context method invoked
+     */
+    private void applyChildWorkflowMetadata(NonTerminalNode callNode, String methodName) {
+        String label = switch (methodName) {
+            case Constants.Workflow.RUN_CHILD_WORKFLOW_METHOD_NAME ->
+                    Constants.Workflow.RUN_CHILD_WORKFLOW_LABEL;
+            case Constants.Workflow.CALL_CHILD_WORKFLOW_METHOD_NAME ->
+                    Constants.Workflow.CALL_CHILD_WORKFLOW_LABEL;
+            case Constants.Workflow.WAIT_CHILD_WORKFLOW_METHOD_NAME ->
+                    Constants.Workflow.WAIT_CHILD_WORKFLOW_LABEL;
+            case Constants.Workflow.SEND_DATA_CHILD_WORKFLOW_METHOD_NAME ->
+                    Constants.Workflow.SEND_DATA_CHILD_WORKFLOW_LABEL;
+            default -> null;
+        };
+        if (label == null) {
+            return;
+        }
+        nodeBuilder.metadata().label(label);
+        String target = callNode instanceof RemoteMethodCallActionNode remoteCall
+                && !remoteCall.arguments().isEmpty()
+                && remoteCall.arguments().get(0) instanceof PositionalArgumentNode positional
+                ? positional.expression().toSourceCode().trim() : null;
+        if (target == null || target.isEmpty()) {
+            return;
+        }
+        // run/call name the workflow directly. The wait and the send are given the handle the run
+        // returned, so the handle is followed back to that run and the workflow it started is
+        // named instead — a bare handle variable says nothing about which workflow is involved.
+        boolean takesHandle = Constants.Workflow.WAIT_CHILD_WORKFLOW_METHOD_NAME.equals(methodName)
+                || Constants.Workflow.SEND_DATA_CHILD_WORKFLOW_METHOD_NAME.equals(methodName);
+        if (takesHandle) {
+            String startedWorkflow = findChildWorkflowForHandle(callNode, target);
+            if (startedWorkflow != null && !startedWorkflow.isEmpty()) {
+                target = startedWorkflow;
+            }
+        }
+        nodeBuilder.metadata().description(target);
+    }
+
+    /**
+     * Turns a durable agent call's arguments into the properties its form edits, keyed as the
+     * matching builder keys them so an existing statement opens with its own values.
+     */
+    private void populateDurableAgentCallArguments(MethodCallExpressionNode callNode, NodeKind nodeKind,
+                                                   boolean waits, String dataEventName) {
+        SeparatedNodeList<FunctionArgumentNode> arguments = callNode.arguments();
+        // Every one of these methods takes the instance to act on first.
+        addAgentCallProperty(DurableAgentUpdateBuilder.AGENT_ID_KEY, "Instance Id",
+                "The running agent's instance ID", positionalArgumentSource(arguments, 0));
+        switch (nodeKind) {
+            case DURABLE_AGENT_UPDATE -> {
+                // The argument's own source, not the unquoted name: a literal keeps its escapes
+                // verbatim, and a channel the form cannot represent as a literal is still shown
+                // instead of opening the field blank and writing that blank back on save.
+                addAgentCallProperty(DurableAgentUpdateBuilder.EVENT_NAME_KEY, "Data Event",
+                        "The channel the payload is sent on", positionalArgumentSource(arguments, 1));
+                addAgentCallProperty(DurableAgentUpdateBuilder.DATA_KEY, "Data",
+                        "The payload sent on the channel", positionalArgumentSource(arguments, 2));
+            }
+            case DURABLE_AGENT_DATA_RESULT -> {
+                addAgentCallProperty(DurableAgentDataResultBuilder.TOKEN_KEY, "Correlation Token",
+                        "The correlation token the send returned", positionalArgumentSource(arguments, 1));
+                addAgentCallFlag(DurableAgentDataResultBuilder.WAIT_KEY, "Wait For Answer", waits);
+            }
+            default -> addAgentCallFlag(DurableAgentResultBuilder.WAIT_KEY, "Wait For Result", waits);
+        }
+    }
+
+    private void addAgentCallProperty(String key, String label, String doc, String value) {
+        if (value == null || value.isEmpty()) {
+            return;
+        }
+        nodeBuilder.properties().custom()
+                .metadata()
+                    .label(label)
+                    .description(doc)
+                    .stepOut()
+                .type(Property.ValueType.EXPRESSION)
+                .value(value)
+                .editable(true)
+                .stepOut()
+                .addProperty(key);
+    }
+
+    // The waiting and non-waiting reads differ only by which method was called, so the flag is
+    // derived from that rather than from an argument.
+    private void addAgentCallFlag(String key, String label, boolean value) {
+        nodeBuilder.properties().custom()
+                .metadata()
+                    .label(label)
+                    .stepOut()
+                .type(Property.ValueType.FLAG)
+                .value(String.valueOf(value))
+                .editable(true)
+                .stepOut()
+                .addProperty(key);
+    }
+
+    private static String positionalArgumentSource(SeparatedNodeList<FunctionArgumentNode> arguments, int index) {
+        if (arguments.size() <= index || !(arguments.get(index) instanceof PositionalArgumentNode positional)) {
+            return null;
+        }
+        return positional.expression().toSourceCode().trim();
+    }
+
+    /**
+     * The node kind for a durable agent's driving method, or null when the method is not one of
+     * them. {@code run} is excluded — it renders the agent box and is handled on its own.
+     */
+    private static NodeKind durableAgentCallKind(String methodName) {
+        return switch (methodName) {
+            case Constants.Workflow.AGENT_SEND_DATA_METHOD_NAME -> NodeKind.DURABLE_AGENT_UPDATE;
+            case Constants.Workflow.AGENT_WAIT_DATA_RESULT_METHOD_NAME,
+                 Constants.Workflow.AGENT_GET_DATA_RESULT_METHOD_NAME -> NodeKind.DURABLE_AGENT_DATA_RESULT;
+            case Constants.Workflow.AGENT_WAIT_RESULT_METHOD_NAME,
+                 Constants.Workflow.AGENT_GET_RESULT_METHOD_NAME -> NodeKind.DURABLE_AGENT_RESULT;
+            default -> null;
+        };
+    }
+
+    /**
+     * Attaches what the send/wait/result widgets render for a durable agent call: the label, the
+     * agent variable the call drives (drawn as the dashed agent box), and — for a data event —
+     * the channel name, so the node reads "Send to &lt;event&gt;" / "Wait for &lt;event&gt;" the
+     * way the equivalent workflow nodes do.
+     */
+    private void populateDurableAgentObjectCall(MethodCallExpressionNode callNode, ExpressionNode agentRef,
+                                                FunctionSymbol functionSymbol, String methodName,
+                                                NodeKind nodeKind) {
+        String agentVarName = agentRef.toSourceCode().trim();
+        boolean waits = Constants.Workflow.AGENT_WAIT_DATA_RESULT_METHOD_NAME.equals(methodName)
+                || Constants.Workflow.AGENT_WAIT_RESULT_METHOD_NAME.equals(methodName);
+        String label = switch (nodeKind) {
+            case DURABLE_AGENT_UPDATE -> Constants.Workflow.AGENT_SEND_DATA_LABEL;
+            case DURABLE_AGENT_DATA_RESULT -> waits ? Constants.Workflow.AGENT_WAIT_DATA_RESULT_LABEL
+                    : Constants.Workflow.AGENT_DATA_RESULT_LABEL;
+            default -> waits ? Constants.Workflow.AGENT_WAIT_RESULT_LABEL
+                    : Constants.Workflow.AGENT_RESULT_LABEL;
+        };
+        String description = switch (nodeKind) {
+            case DURABLE_AGENT_UPDATE -> Constants.Workflow.AGENT_SEND_DATA_DESCRIPTION;
+            case DURABLE_AGENT_DATA_RESULT -> Constants.Workflow.AGENT_DATA_RESULT_DESCRIPTION;
+            default -> Constants.Workflow.AGENT_RESULT_DESCRIPTION;
+        };
+
+        nodeBuilder
+                .symbolInfo(functionSymbol)
+                .metadata()
+                    .label(label)
+                    .description(description)
+                    .stepOut()
+                .codedata()
+                    .node(nodeKind)
+                    .org(WORKFLOW_ORG)
+                    .module(WORKFLOW_MODULE)
+                    .object(Constants.Workflow.DURABLE_AGENT_OBJECT_CLASS_NAME)
+                    .parentSymbol(agentVarName)
+                    .symbol(methodName);
+
+        // The widgets key the dashed target box on the agent name, and the wait affordance on
+        // whether the call suspends the caller.
+        nodeBuilder.metadata().addData("agentName", agentVarName);
+        nodeBuilder.metadata().addData("waits", waits);
+
+        String dataEventName = resolveDurableAgentDataEventName(callNode, nodeKind);
+        if (dataEventName != null) {
+            nodeBuilder.metadata().addData("dataName", dataEventName);
+        }
+
+        // The call's arguments are what the form edits. Without them the form opened with its
+        // instance ID, payload and correlation token blank even though the statement supplied all
+        // three, and saving would have written those blanks back.
+        populateDurableAgentCallArguments(callNode, nodeKind, waits, dataEventName);
+
+        SyntaxKind parentKind = callNode.parent().kind();
+        boolean hasCheck = parentKind == SyntaxKind.CHECK_ACTION || parentKind == SyntaxKind.CHECK_EXPRESSION;
+        nodeBuilder.properties().checkError(hasCheck);
+    }
+
+    /**
+     * The data-event channel a durable agent call concerns.
+     *
+     * <p>{@code sendData} names the channel directly. The result reads do not — they take the
+     * correlation token the send returned — so the channel is recovered by following that token
+     * back to the {@code sendData} call that produced it, which is what lets the wait node say
+     * what it is waiting for. Returns null when the channel is not a literal, or the token does
+     * not trace back to a send in this function.
+     */
+    private String resolveDurableAgentDataEventName(MethodCallExpressionNode callNode, NodeKind nodeKind) {
+        SeparatedNodeList<FunctionArgumentNode> arguments = callNode.arguments();
+        if (nodeKind == NodeKind.DURABLE_AGENT_UPDATE) {
+            // sendData(instanceId, "<event>", data)
+            return arguments.size() > 1 ? stringLiteralArgument(arguments.get(1)) : null;
+        }
+        if (nodeKind != NodeKind.DURABLE_AGENT_DATA_RESULT || arguments.size() < 2) {
+            return null;
+        }
+        String tokenName = arguments.get(1) instanceof PositionalArgumentNode positional
+                ? positional.expression().toSourceCode().trim() : null;
+        if (tokenName == null || tokenName.isEmpty()) {
+            return null;
+        }
+        return findSendDataEventForToken(callNode, tokenName);
+    }
+
+    // Walks the enclosing function for `<...> <tokenName> = <agent>.sendData(id, "<event>", ...)`
+    // and returns that event name.
+    private String findSendDataEventForToken(NonTerminalNode fromNode, String tokenName) {
+        NonTerminalNode scope = enclosingCallableScope(fromNode);
+        if (scope == null) {
+            return null;
+        }
+        DurableAgentSendDataFinder finder = new DurableAgentSendDataFinder(tokenName);
+        scope.accept(finder);
+        return finder.eventName();
+    }
+
+    // The callable a statement belongs to — the search space for the declaration that produced a
+    // token or a handle the statement was given.
+    private static NonTerminalNode enclosingCallableScope(NonTerminalNode fromNode) {
+        NonTerminalNode scope = fromNode;
+        while (scope != null && scope.kind() != SyntaxKind.FUNCTION_DEFINITION
+                && scope.kind() != SyntaxKind.RESOURCE_ACCESSOR_DEFINITION
+                && scope.kind() != SyntaxKind.OBJECT_METHOD_DEFINITION) {
+            scope = scope.parent();
+        }
+        return scope;
+    }
+
+    /**
+     * The child workflow a run handle came from, so a wait or a send names the workflow it
+     * concerns instead of the handle variable. Returns null when the handle does not trace back to
+     * a run/call in this callable.
+     */
+    private String findChildWorkflowForHandle(NonTerminalNode fromNode, String handleName) {
+        NonTerminalNode scope = enclosingCallableScope(fromNode);
+        if (scope == null) {
+            return null;
+        }
+        ChildWorkflowHandleFinder finder = new ChildWorkflowHandleFinder(handleName);
+        scope.accept(finder);
+        return finder.workflowName();
+    }
+
+    /**
+     * Finds the {@code runChildWorkflow}/{@code callChildWorkflow} whose handle was bound to a
+     * given variable, so a later wait or send can name the workflow that handle belongs to.
+     */
+    private static class ChildWorkflowHandleFinder extends NodeVisitor {
+
+        private final String handleName;
+        private String workflowName;
+
+        ChildWorkflowHandleFinder(String handleName) {
+            this.handleName = handleName;
+        }
+
+        String workflowName() {
+            return workflowName;
+        }
+
+        @Override
+        public void visit(VariableDeclarationNode variableDeclarationNode) {
+            if (workflowName == null
+                    && variableDeclarationNode.typedBindingPattern().bindingPattern().toSourceCode().trim()
+                            .equals(handleName)) {
+                variableDeclarationNode.initializer().ifPresent(this::captureWorkflowName);
+            }
+            if (workflowName == null) {
+                super.visit(variableDeclarationNode);
+            }
+        }
+
+        private void captureWorkflowName(ExpressionNode initializer) {
+            ExpressionNode expression = initializer instanceof CheckExpressionNode check
+                    ? check.expression() : initializer;
+            if (!(expression instanceof RemoteMethodCallActionNode call) || call.arguments().isEmpty()) {
+                return;
+            }
+            String method = call.methodName().toSourceCode().trim();
+            boolean startsChild = Constants.Workflow.RUN_CHILD_WORKFLOW_METHOD_NAME.equals(method)
+                    || Constants.Workflow.CALL_CHILD_WORKFLOW_METHOD_NAME.equals(method);
+            if (startsChild && call.arguments().get(0) instanceof PositionalArgumentNode positional) {
+                workflowName = positional.expression().toSourceCode().trim();
+            }
+        }
+    }
+
+    private static String stringLiteralArgument(FunctionArgumentNode argument) {
+        if (!(argument instanceof PositionalArgumentNode positional)) {
+            return null;
+        }
+        ExpressionNode expression = positional.expression();
+        if (expression.kind() != SyntaxKind.STRING_LITERAL) {
+            return null;
+        }
+        String text = expression.toSourceCode().trim();
+        return text.length() >= 2 && text.startsWith("\"") && text.endsWith("\"")
+                ? text.substring(1, text.length() - 1) : text;
+    }
+
+    /**
+     * Finds the {@code sendData} call whose result was bound to a given token variable, so a
+     * later result read can name the channel it belongs to.
+     */
+    private static class DurableAgentSendDataFinder extends NodeVisitor {
+
+        private final String tokenName;
+        private String eventName;
+
+        DurableAgentSendDataFinder(String tokenName) {
+            this.tokenName = tokenName;
+        }
+
+        String eventName() {
+            return eventName;
+        }
+
+        @Override
+        public void visit(VariableDeclarationNode variableDeclarationNode) {
+            if (eventName == null
+                    && variableDeclarationNode.typedBindingPattern().bindingPattern().toSourceCode().trim()
+                            .equals(tokenName)) {
+                variableDeclarationNode.initializer().ifPresent(this::captureSendDataEvent);
+            }
+            if (eventName == null) {
+                super.visit(variableDeclarationNode);
+            }
+        }
+
+        private void captureSendDataEvent(ExpressionNode initializer) {
+            ExpressionNode expression = initializer;
+            if (expression instanceof CheckExpressionNode check) {
+                expression = check.expression();
+            }
+            if (expression instanceof MethodCallExpressionNode call
+                    && Constants.Workflow.AGENT_SEND_DATA_METHOD_NAME
+                            .equals(getIdentifierName(call.methodName()))
+                    && call.arguments().size() > 1) {
+                eventName = stringLiteralArgument(call.arguments().get(1));
+            }
+        }
+    }
+
+    // Parses the agent variable's `check new ({...})` config literal and attaches the agent-box
+    // metadata: agent role/instructions, model, and the capability lists.
+    private void populateAgentDeclarationMetadata(ExpressionNode agentVarRef) {
+        Optional<Symbol> symbol = semanticModel.symbol(agentVarRef);
+        if (symbol.isEmpty() || !(symbol.get() instanceof VariableSymbol variableSymbol)
+                || variableSymbol.getLocation().isEmpty()) {
+            return;
+        }
+        Document document = CommonUtils.getDocument(project, variableSymbol.getLocation().get());
+        if (document == null) {
+            return;
+        }
+        Optional<NonTerminalNode> varNodeOpt = CommonUtil.findNode(variableSymbol, document.syntaxTree());
+        if (varNodeOpt.isEmpty()) {
+            return;
+        }
+        populateAgentDeclarationMetadata(varNodeOpt.get());
+    }
+
+    // Variant taking the declaration node directly (used when the declaration itself is the
+    // diagram canvas).
+    private void populateAgentDeclarationMetadata(NonTerminalNode varNode) {
+        ExpressionNode initializer = getInitializerFromVariableNode(varNode);
+        if (initializer == null) {
+            return;
+        }
+        // Shared with the edit paths so an explicit `new workflow:DurableAgent({...})` agent
+        // reports the same metadata the implicit-new shape does.
+        Optional<MappingConstructorExpressionNode> configLiteral = WorkflowUtil.agentConfigLiteral(initializer);
+        if (configLiteral.isEmpty()) {
+            return;
+        }
+        List<AgentCapabilityData> activities = new ArrayList<>();
+        List<AgentCapabilityData> humanTasks = new ArrayList<>();
+        List<AgentCapabilityData> agentTools = new ArrayList<>();
+        List<AgentCapabilityData> peers = new ArrayList<>();
+        List<AgentCapabilityData> updateEvents = new ArrayList<>();
+        for (MappingFieldNode field : configLiteral.get().fields()) {
+            if (!(field instanceof SpecificFieldNode specificField) || specificField.valueExpr().isEmpty()) {
+                continue;
+            }
+            String fieldName = specificField.fieldName().toSourceCode().trim();
+            ExpressionNode valueExpr = specificField.valueExpr().get();
+            switch (fieldName) {
+                case "systemPrompt" -> {
+                    if (valueExpr.kind() == SyntaxKind.MAPPING_CONSTRUCTOR) {
+                        Map<String, String> agentData = new LinkedHashMap<>();
+                        Map<String, AiUtils.AgentPropertyValue> promptValues = new LinkedHashMap<>();
+                        for (MappingFieldNode promptField
+                                : ((MappingConstructorExpressionNode) valueExpr).fields()) {
+                            if (promptField instanceof SpecificFieldNode promptSpecific
+                                    && promptSpecific.valueExpr().isPresent()) {
+                                String promptText = extractPromptText(promptSpecific.valueExpr().get());
+                                String promptFieldName = promptSpecific.fieldName().toSourceCode().trim();
+                                agentData.put(promptFieldName, promptText);
+                                promptValues.put(promptFieldName,
+                                        new AiUtils.AgentPropertyValue(promptText, Property.ValueType.PROMPT));
+                            }
+                        }
+                        nodeBuilder.metadata().addData("agent", agentData);
+                        // The box's edit form exposes the declaration identity: Role/Instructions
+                        // prompt fields, saved back into the declaration's systemPrompt.
+                        DurableAgentRunBuilder.applyAgentFormShape(nodeBuilder, promptValues);
+                    }
+                }
+                case "model" -> {
+                    ModelData modelData = getModelIconUrl(valueExpr);
+                    nodeBuilder.metadata().addData("model", modelData != null ? modelData
+                            : new ModelData(valueExpr.toSourceCode().trim(), null, ""));
+                    nodeBuilder.properties().custom()
+                            .metadata()
+                                .label("Model")
+                                .description("The model provider used for the agent's LLM calls")
+                                .stepOut()
+                            .type(Property.ValueType.EXPRESSION)
+                            .value(valueExpr.toSourceCode().trim())
+                            .editable(true)
+                            .stepOut()
+                            .addProperty(DurableAgentRunBuilder.MODEL_KEY);
+                    DurableAgentRunBuilder.convertModelToSelect(nodeBuilder,
+                            DurableAgentRunBuilder.modelProviderOptions(semanticModel));
+                }
+                // The reasoning cap is part of the declaration, so the configuration form has to
+                // show the declared value rather than opening blank on it.
+                case "maxIter" -> addAgentCallProperty(DurableAgentRunBuilder.MAX_ITER_KEY,
+                        "Maximum Iterations", "Maximum LLM reasoning iterations per turn",
+                        valueExpr.toSourceCode().trim());
+                case "activities" -> collectDeclaredCapabilities(valueExpr, "activity", "activity",
+                        Map.of("activity", "activity", "name", "name", "description", "description",
+                                "requiresApproval", "requiresApproval", "userRoles", "userRoles"), activities);
+                case "tools" -> collectDeclaredCapabilities(valueExpr, "tool", "tool",
+                        Map.of("tool", "tool", "name", "name", "description", "description",
+                                "requiresApproval", "requiresApproval", "userRoles", "userRoles"), agentTools);
+                // A peer is another durable agent this one delegates to, not a function it calls,
+                // and it has its own form — so it travels as its own capability kind.
+                case "peers" -> collectDeclaredCapabilities(valueExpr, "peer", "agent",
+                        Map.of("agent", "agent", "name", "name", "description", "description",
+                                "wait", "wait", "callbackChannel", "callbackChannel"), peers);
+                case "events" -> collectDeclaredCapabilities(valueExpr, "event", null,
+                        Map.of("name", "name", "request", "requestType", "response", "responseType",
+                                "cardinality", "cardinality"), updateEvents);
+                case "humanTasks" -> collectDeclaredCapabilities(valueExpr, "humanTask", null,
+                        Map.of("name", "taskName", "roles", "userRoles", "title", "title",
+                                "description", "description", "resultType", "resultType", "timeout", "timeout"),
+                        humanTasks);
+                default -> {
+                }
+            }
+        }
+        nodeBuilder.metadata().addData("activities", activities);
+        nodeBuilder.metadata().addData("humanTasks", humanTasks);
+        nodeBuilder.metadata().addData("tools", agentTools);
+        nodeBuilder.metadata().addData("events", updateEvents);
+        nodeBuilder.metadata().addData("peers", peers);
+        // The declaration's own range lets a run-site box navigate to the agent's model.
+        NonTerminalNode declarationNode = varNode;
+        while (declarationNode != null && declarationNode.kind() != SyntaxKind.MODULE_VAR_DECL) {
+            declarationNode = declarationNode.parent();
+        }
+        nodeBuilder.metadata().addData("declaration",
+                (declarationNode != null ? declarationNode : varNode).lineRange());
+    }
+
+    // Extracts capabilities from a declaration config list. Bare function/variable references
+    // use their identifier; mapping entries carry their fields as form values (keyed by the
+    // matching builder property via fieldToPropertyKey). Each capability records the ITEM's own
+    // line range so its circle opens a pre-filled edit form that rewrites that exact entry.
+    private void collectDeclaredCapabilities(ExpressionNode listExpr, String capabilityType, String refField,
+                                             Map<String, String> fieldToPropertyKey,
+                                             List<AgentCapabilityData> out) {
+        if (listExpr.kind() != SyntaxKind.LIST_CONSTRUCTOR) {
+            return;
+        }
+        for (Node item : ((ListConstructorExpressionNode) listExpr).expressions()) {
+            String name = null;
+            Map<String, String> values = new LinkedHashMap<>();
+            if (item.kind() == SyntaxKind.SIMPLE_NAME_REFERENCE || item.kind() == SyntaxKind.QUALIFIED_NAME_REFERENCE) {
+                name = item.toSourceCode().trim();
+                if (refField != null) {
+                    values.put(fieldToPropertyKey.getOrDefault(refField, refField), name);
+                }
+            } else if (item.kind() == SyntaxKind.MAPPING_CONSTRUCTOR) {
+                String refName = null;
+                String declaredName = null;
+                for (MappingFieldNode field : ((MappingConstructorExpressionNode) item).fields()) {
+                    if (!(field instanceof SpecificFieldNode specificField)
+                            || specificField.valueExpr().isEmpty()) {
+                        continue;
+                    }
+                    String fieldName = specificField.fieldName().toSourceCode().trim();
+                    String rawValue = specificField.valueExpr().get().toSourceCode().trim();
+                    // Activity entries carry two composite fields the generic key mapping cannot
+                    // express, and both must hydrate or an edit-save regenerates the entry
+                    // without them. retryPolicy decomposes into the retry form's dropdown value
+                    // plus sub-fields; bindings explodes into the form's per-parameter selectors.
+                    if ("activity".equals(capabilityType) && "retryPolicy".equals(fieldName)) {
+                        RetryPolicyForm retryForm = normalizeRetryPolicy(rawValue);
+                        values.put(ActivityCallBuilder.RETRY_POLICY_PARAM, retryForm.dropdownValue());
+                        putIfNotBlank(values, ActivityCallBuilder.MAX_RETRIES_KEY, retryForm.maxRetries());
+                        putIfNotBlank(values, ActivityCallBuilder.RETRY_DELAY_KEY, retryForm.retryDelay());
+                        putIfNotBlank(values, ActivityCallBuilder.RETRY_BACKOFF_KEY, retryForm.retryBackoff());
+                        putIfNotBlank(values, ActivityCallBuilder.MAX_RETRY_DELAY_KEY,
+                                retryForm.maxRetryDelay());
+                        putIfNotBlank(values, ActivityCallBuilder.RETRY_USER_ROLES_KEY,
+                                retryForm.retryUserRoles());
+                        continue;
+                    }
+                    if ("activity".equals(capabilityType) && "bindings".equals(fieldName)
+                            && specificField.valueExpr().get().kind() == SyntaxKind.MAPPING_CONSTRUCTOR) {
+                        for (MappingFieldNode bindingField
+                                : ((MappingConstructorExpressionNode) specificField.valueExpr().get()).fields()) {
+                            if (bindingField instanceof SpecificFieldNode bindingSpecific
+                                    && bindingSpecific.valueExpr().isPresent()) {
+                                values.put(DurableAgentAddActivityBuilder.BINDING_KEY_PREFIX
+                                                + bindingSpecific.fieldName().toSourceCode().trim(),
+                                        bindingSpecific.valueExpr().get().toSourceCode().trim());
+                            }
+                        }
+                        continue;
+                    }
+                    String propertyKey = fieldToPropertyKey.get(fieldName);
+                    if (propertyKey != null) {
+                        // The cardinality enum may be module-qualified in source (workflow:SINGLE_EVENT);
+                        // the form's select options carry the bare enum names. String-literal values
+                        // of text-mode fields (name/title/description/roles) hydrate unquoted so the
+                        // form shows the text, not its source syntax.
+                        String value;
+                        if ("cardinality".equals(fieldName)) {
+                            value = WorkflowUtil.stripModulePrefix(rawValue);
+                        } else if (TEXT_MODE_CAPABILITY_FIELDS.contains(fieldName)) {
+                            value = stripQuotes(rawValue);
+                        } else {
+                            value = rawValue;
+                        }
+                        values.put(propertyKey, value);
+                    }
+                    if ("name".equals(fieldName)) {
+                        declaredName = stripQuotes(rawValue);
+                    } else if (refField != null && refField.equals(fieldName)) {
+                        refName = rawValue;
+                    }
+                }
+                name = declaredName != null ? declaredName : refName;
+            }
+            if (name != null && !name.isBlank()) {
+                out.add(new AgentCapabilityData(name, capabilityType, item.lineRange(), values));
+            }
+        }
+    }
+
+    // Capability declaration fields whose values render in text-mode form fields.
+    private static final Set<String> TEXT_MODE_CAPABILITY_FIELDS =
+            Set.of("name", "title", "description", "roles");
+
+    private static void putIfNotBlank(Map<String, String> values, String key, String value) {
+        if (value != null && !value.isBlank()) {
+            values.put(key, value);
+        }
+    }
+
+    private static String stripQuotes(String value) {
+        if (value.length() >= 2 && value.startsWith("\"") && value.endsWith("\"")) {
+            return value.substring(1, value.length() - 1);
+        }
+        return value;
+    }
+
+    private String extractPromptText(ExpressionNode valueExpr) {
+        if (valueExpr.kind() == SyntaxKind.STRING_TEMPLATE_EXPRESSION) {
+            String value = ((TemplateExpressionNode) valueExpr).content().stream()
+                    .map(Node::toString)
+                    .collect(Collectors.joining());
+            return AiUtils.restoreBackticksFromStringTemplate(value);
+        }
+        return stripQuotes(valueExpr.toSourceCode().trim());
+    }
+
+    private record AgentCapabilityData(String name, String type, LineRange lineRange, Map<String, String> values) {
     }
 
     /**
@@ -1060,6 +1768,7 @@ public class CodeAnalyzer extends NodeVisitor {
         }
 
         if (activityParamSymbols.isEmpty()) {
+            ActivityCallBuilder.addCheckErrorProperty(nodeBuilder, isCheckedCall(remoteMethodCallActionNode));
             addNormalizedRetryPolicyProperties(rawRetryPolicyValue);
             return;
         }
@@ -1139,8 +1848,47 @@ public class CodeAnalyzer extends NodeVisitor {
                     customPropBuilder, diagnosticHandler);
             nodeBuilderFormBuilder.addProperty(FlowNodeUtil.getPropertyKey(paramName), valueNode);
         }
+        // The flag mirrors the template so an existing statement round-trips: a call written without
+        // `check` comes back with the box cleared instead of being silently rewritten with it.
+        ActivityCallBuilder.addCheckErrorProperty(nodeBuilder, isCheckedCall(remoteMethodCallActionNode));
         // After activity input params, add retryPolicy at root level (outside ADVANCE_PARAM_LIST).
         addNormalizedRetryPolicyProperties(rawRetryPolicyValue);
+    }
+
+    /**
+     * Whether the given call is wrapped in a {@code check} expression/action in the source.
+     */
+    private static boolean isCheckedCall(NonTerminalNode callNode) {
+        SyntaxKind parentKind = callNode.parent().kind();
+        return parentKind == SyntaxKind.CHECK_ACTION || parentKind == SyntaxKind.CHECK_EXPRESSION;
+    }
+
+    private boolean bindsWildcard() {
+        return this.typedBindingPatternNode != null
+                && this.typedBindingPatternNode.bindingPattern().kind() == SyntaxKind.WILDCARD_BINDING_PATTERN;
+    }
+
+    /**
+     * Whether the statement discards a result that carries no value of its own — the shape
+     * {@code () _ = check ctx->callActivity(...)} takes when an activity only reports failure.
+     *
+     * <p>A wildcard alone is not enough: {@code int _ = check ctx->callActivity(...)} discards a value
+     * that still has a declared type, and reading it as a nil result would drop that type from the
+     * form and rewrite the statement without it on save.
+     */
+    private boolean bindsNilWildcard() {
+        return bindsWildcard()
+                && ActivityCallBuilder.isNilResultType(this.typedBindingPatternNode.typeDescriptor());
+    }
+
+    /**
+     * Whether the statement names a result whose type carries no value of its own — the shape
+     * {@code error? r = ctx->callActivity(...)} takes when an activity only reports failure and its
+     * errors are not checked.
+     */
+    private boolean bindsNilResult() {
+        return this.typedBindingPatternNode != null && !bindsWildcard()
+                && ActivityCallBuilder.isNilResultType(this.typedBindingPatternNode.typeDescriptor());
     }
 
     /**
@@ -1343,10 +2091,6 @@ public class CodeAnalyzer extends NodeVisitor {
         // the clear below discards them.  Without this, builtin activities lose their advanced options
         // on every reload/regeneration, causing toSourceBuiltin() to omit them.
         Map<String, Property> currentProps = nodeBuilder.properties().build();
-        Property savedCheckError = currentProps.get(Property.CHECK_ERROR_KEY);
-        boolean uncheckedBuiltinInDoClause = callNode.parent().kind() != SyntaxKind.CHECK_ACTION
-                && callNode.parent().kind() != SyntaxKind.CHECK_EXPRESSION
-                && CommonUtils.withinDoClause(callNode);
         Property savedInferredType = currentProps.values().stream()
                 .filter(property -> property.codedata() != null && property.codedata().kind() != null
                         && property.codedata().kind().equals(ParameterData.Kind.PARAM_FOR_TYPE_INFER.name()))
@@ -1457,16 +2201,8 @@ public class CodeAnalyzer extends NodeVisitor {
                             .advanced(false)
                             .build());
         }
-        // Restore checkError. If the original call was unchecked inside a do-clause and no explicit
-        // checkError property was captured, persist false explicitly so toSourceBuiltin() doesn't
-        // fall back to its default true.
-        if (savedCheckError != null) {
-            boolean checkError = savedCheckError.value() != null
-                    && Boolean.parseBoolean(savedCheckError.value().toString());
-            nodeBuilder.properties().checkError(checkError);
-        } else if (uncheckedBuiltinInDoClause) {
-            nodeBuilder.properties().checkError(false);
-        }
+
+        ActivityCallBuilder.addCheckErrorProperty(nodeBuilder, isCheckedCall(callNode));
 
         // Restore advanced callActivity params (retryOnError, timeout, etc.) as ADVANCED_PARAM_KEY
         // so toSourceBuiltin() / populateAdvancedArgs() can emit them as named arguments.
@@ -1489,25 +2225,59 @@ public class CodeAnalyzer extends NodeVisitor {
      * then adds them as root-level properties on the current nodeBuilder.
      */
     private void addNormalizedRetryPolicyProperties(String rawValue) {
+        RetryPolicyForm form = normalizeRetryPolicy(rawValue);
+        ActivityCallBuilder.addRetryPolicyFormProperties(nodeBuilder, form.dropdownValue(),
+                form.maxRetries(), form.retryDelay(), form.retryBackoff(), form.maxRetryDelay(),
+                form.retryUserRoles());
+    }
+
+    // The retry-policy form's decomposition of a raw retryPolicy source value: the dropdown
+    // selection plus its sub-field values.
+    private record RetryPolicyForm(String dropdownValue, String maxRetries, String retryDelay,
+                                   String retryBackoff, String maxRetryDelay, String retryUserRoles) {
+    }
+
+    private static RetryPolicyForm normalizeRetryPolicy(String rawValue) {
         String dropdownValue = ActivityCallBuilder.NO_RETRY_VALUE;
         String maxRetries = "", retryDelay = "", retryBackoff = "", maxRetryDelay = "";
+        String retryUserRoles = "";
 
         if (rawValue != null && !rawValue.isBlank()) {
-            if (rawValue.contains("ManualRetry")) {
-                dropdownValue = ActivityCallBuilder.MANUAL_RETRY_VALUE;
-            } else if (rawValue.trim().startsWith("{")) {
+            String trimmed = rawValue.trim();
+            if (trimmed.startsWith("{")) {
                 dropdownValue = ActivityCallBuilder.AUTO_RETRY_VALUE;
                 Map<String, String> fields = parseSimpleRecord(rawValue);
                 maxRetries = fields.getOrDefault(ActivityCallBuilder.MAX_RETRIES_KEY, "");
                 retryDelay = fields.getOrDefault(ActivityCallBuilder.RETRY_DELAY_KEY, "");
                 retryBackoff = fields.getOrDefault(ActivityCallBuilder.RETRY_BACKOFF_KEY, "");
                 maxRetryDelay = fields.getOrDefault(ActivityCallBuilder.MAX_RETRY_DELAY_KEY, "");
+            } else if (trimmed.equals("()") || trimmed.contains("NoRetry")
+                    || trimmed.contains("NoAutomaticRetry")) {
+                dropdownValue = ActivityCallBuilder.NO_RETRY_VALUE;
+            } else if (trimmed.contains("ManualRetry") || trimmed.contains("HumanReview")
+                    || trimmed.equals("[]")) {
+                // The sentinel forms of Human Review with no roles attached: any role may decide.
+                dropdownValue = ActivityCallBuilder.MANUAL_RETRY_VALUE;
+            } else if (isRoleLiteral(trimmed)) {
+                // Human Review scoped to reviewer role(s): a string or a list of strings.
+                dropdownValue = ActivityCallBuilder.MANUAL_RETRY_VALUE;
+                retryUserRoles = trimmed;
+            } else {
+                // Any other expression — a const, variable or call producing the policy — is not a
+                // shape the form can edit. Carry it as the dropdown value so it round-trips
+                // verbatim instead of being read as reviewer roles and re-emitted as a string.
+                dropdownValue = trimmed;
             }
-            // else: NoRetry (default) or any unrecognized value
         }
+        return new RetryPolicyForm(dropdownValue, maxRetries, retryDelay, retryBackoff,
+                maxRetryDelay, retryUserRoles);
+    }
 
-        ActivityCallBuilder.addRetryPolicyFormProperties(nodeBuilder, dropdownValue,
-                maxRetries, retryDelay, retryBackoff, maxRetryDelay);
+    // Whether the retryPolicy source is a literal reviewer role (a string) or role list, the two
+    // shapes the Human Review form field edits.
+    private static boolean isRoleLiteral(String expression) {
+        return (expression.startsWith("\"") && expression.endsWith("\""))
+                || (expression.startsWith("[") && expression.endsWith("]"));
     }
 
     /** Parses a simple Ballerina record literal {@code {key: value, ...}} into a string map. */
@@ -2853,6 +3623,10 @@ public class CodeAnalyzer extends NodeVisitor {
                     .object(name)
                     .symbol(NewConnectionBuilder.INIT_SYMBOL);
 
+        if (kind == NodeKind.AGENT || kind == NodeKind.TYPED_AGENT) {
+            nodeBuilder.codedata().packageName(packageName).version(functionData.version());
+        }
+
         if (kind == NodeKind.MCP_TOOL_KIT && isAiMcpBaseToolKit(classSymbol)) {
             Map<String, Object> classDefinitionData = getClassDefinitionCodedata(classSymbol);
             if (classDefinitionData != null) {
@@ -2863,6 +3637,9 @@ public class CodeAnalyzer extends NodeVisitor {
                 String toolScopes = getToolScopesFromClass(classSymbol);
                 if (toolScopes != null) {
                     McpToolKitBuilder.setToolScopesProperty(nodeBuilder, toolScopes);
+                }
+                if (hasContextInAllMcpTools(classSymbol)) {
+                    McpToolKitBuilder.setIncludeContextProperty(nodeBuilder);
                 }
             }
         }
@@ -2878,6 +3655,18 @@ public class CodeAnalyzer extends NodeVisitor {
                 .properties()
                 .scope(connectionScope)
                 .checkError(true, NewConnectionBuilder.CHECK_ERROR_DOC, false);
+
+        if (kind == NodeKind.AGENT) {
+            AgentBuilder.hideAgentConfigProperties(nodeBuilder);
+            if (newExpressionNode instanceof ImplicitNewExpressionNode implicitAgentExpr) {
+                genAgentData(implicitAgentExpr, classSymbol, new HashMap<>(), false);
+            }
+        }
+
+        if (kind == NodeKind.TYPED_AGENT) {
+            AiUtils.applyAgentTypeMetadata(nodeBuilder, classSymbol, argumentNodes, project, this::getModelIconUrl,
+                    this::getMemoryData);
+        }
     }
 
     /**
@@ -2917,6 +3706,9 @@ public class CodeAnalyzer extends NodeVisitor {
     private NodeKind resolveNodeKind(ClassSymbol classSymbol) {
         if (isAgentClass(classSymbol)) {
             return NodeKind.AGENT;
+        }
+        if (AiUtils.isTypedAgent(classSymbol)) {
+            return NodeKind.TYPED_AGENT;
         }
         if (isAiModelProvider(classSymbol)) {
             return NodeKind.MODEL_PROVIDER;
@@ -3139,6 +3931,21 @@ public class CodeAnalyzer extends NodeVisitor {
                             Property.VARIABLE_DOC, true, new HashSet<>(), true);
         } else if (nodeBuilder instanceof WaitDataBuilder) {
             // Variable/type info is embedded in the dataWaits property — skip generic handling
+        } else if (nodeBuilder instanceof ActivityCallBuilder && (bindsNilWildcard() || bindsNilResult())) {
+            // An activity producing no value: `() _ = check ctx->callActivity(...)` while its errors are
+            // checked, `error? r = ctx->callActivity(...)` while they are not. Either way the form gets the
+            // template's shape - the Result field inside the cleared Check Error branch, its value in a
+            // root property the branch's field reads from - so clearing the box on a checked statement
+            // still asks for a name. A plain result variable here would be shadowed by the branch's own
+            // (empty) field, leaving the form blank.
+            // The wildcard names nothing, so the name starts empty and the branch's field (required)
+            // collects it; an unchecked statement carries the name it already bound.
+            Property capturedFlag = nodeBuilder.properties().build().get(Property.CHECK_ERROR_KEY);
+            boolean checkedInSource = capturedFlag == null || capturedFlag.value() == null
+                    || Boolean.parseBoolean(capturedFlag.value().toString());
+            String boundName = bindsWildcard() ? ""
+                    : this.typedBindingPatternNode.bindingPattern().toSourceCode().strip();
+            ActivityCallBuilder.addNilResultProperties(nodeBuilder, checkedInSource, boundName);
         } else if (nodeBuilder.properties().build().containsKey(Property.VARIABLE_KEY)
                 && !(nodeBuilder instanceof AgentCallBuilder)) {
             // VARIABLE_KEY already set (e.g. by populateBuiltinActivityProperties) — skip.
@@ -3154,7 +3961,50 @@ public class CodeAnalyzer extends NodeVisitor {
 
     @Override
     public void visit(ModuleVariableDeclarationNode moduleVariableDeclarationNode) {
+        if (tryHandleDurableAgentDeclarationCanvas(moduleVariableDeclarationNode)) {
+            return;
+        }
         handleVariableNode(moduleVariableDeclarationNode);
+    }
+
+    // A module-level `workflow:DurableAgent` declaration opened as the diagram canvas (e.g. from
+    // the overview): synthesize the agent-only view — a Start pill followed by the agent box
+    // built from the declaration's config literal.
+    private boolean tryHandleDurableAgentDeclarationCanvas(ModuleVariableDeclarationNode varDecl) {
+        if (!(varDecl.typedBindingPattern().bindingPattern()
+                instanceof CaptureBindingPatternNode captureBindingPattern)
+                || varDecl.initializer().isEmpty()) {
+            return false;
+        }
+        if (!WorkflowUtil.isDurableAgentDeclaration(varDecl, semanticModel)) {
+            return false;
+        }
+
+        String agentVarName = captureBindingPattern.variableName().text();
+        startNode(NodeKind.EVENT_START, varDecl).codedata()
+                .lineRange(varDecl.lineRange())
+                .sourceCode(varDecl.toSourceCode().strip());
+        nodeBuilder.metadata()
+                .addData(KIND_KEY, "Durable Agentic Workflow")
+                .addData(LABEL_KEY, agentVarName);
+        endNode();
+
+        startNode(NodeKind.DURABLE_AGENT_RUN, varDecl).codedata()
+                .org(WORKFLOW_ORG)
+                .module(WORKFLOW_MODULE)
+                .object(Constants.Workflow.DURABLE_AGENT_OBJECT_CLASS_NAME)
+                .parentSymbol(agentVarName)
+                .symbol(Constants.Workflow.AGENT_OBJECT_RUN_METHOD_NAME)
+                .lineRange(varDecl.lineRange())
+                .sourceCode(varDecl.toSourceCode().strip());
+        nodeBuilder.metadata().addData("agentName", agentVarName);
+        nodeBuilder.metadata().addData("agentBox", true);
+        // Marks the synthetic agent-only view: an in-chain `agent.run(...)` statement carries the
+        // agentBox marker too, but is a real statement whose diagram edges stay editable.
+        nodeBuilder.metadata().addData("agentDeclarationCanvas", true);
+        populateAgentDeclarationMetadata(varDecl);
+        endNode();
+        return true;
     }
 
     @Override
@@ -3186,6 +4036,10 @@ public class CodeAnalyzer extends NodeVisitor {
                     .editable()
                     .stepOut()
                     .addProperty(Property.VARIABLE_KEY);
+            if (nodeBuilder instanceof AgentBuilder
+                    && assignmentStatementNode.varRef() instanceof FieldAccessExpressionNode) {
+                nodeBuilder.properties().scope(Property.SERVICE_INIT_SCOPE);
+            }
         }
         endNode(assignmentStatementNode);
     }
@@ -3248,6 +4102,7 @@ public class CodeAnalyzer extends NodeVisitor {
         endNode(expressionStatementNode);
     }
 
+
     @Override
     public void visit(ContinueStatementNode continueStatementNode) {
         startNode(NodeKind.CONTINUE, continueStatementNode);
@@ -3290,9 +4145,35 @@ public class CodeAnalyzer extends NodeVisitor {
             return;
         }
 
+        // Object-model durable agent: `<agentVar>.run(...)` renders the agent's declaration as
+        // the agent box (role/instructions/model/capabilities from the config literal) inside
+        // the caller's flow diagram.
+        if (Constants.Workflow.DURABLE_AGENT_OBJECT_CLASS_NAME.equals(classSymbol.getName().orElse(""))
+                && isWorkflowModule(classSymbol.getModule())) {
+            if (Constants.Workflow.AGENT_OBJECT_RUN_METHOD_NAME.equals(functionName)) {
+                startNode(NodeKind.DURABLE_AGENT_RUN, methodCallExpressionNode.parent());
+                populateDurableAgentObjectRun(methodCallExpressionNode, expressionNode, functionSymbol, functionName);
+                return;
+            }
+            // The agent's other driving methods have their own node kinds, and the palette
+            // already writes them — without mapping the calls back, reading the file renders
+            // them as plain `workflow : sendData` method calls instead of the send/wait nodes
+            // the equivalent workflow flow gets.
+            NodeKind agentCallKind = durableAgentCallKind(functionName);
+            if (agentCallKind != null) {
+                startNode(agentCallKind, methodCallExpressionNode.parent());
+                populateDurableAgentObjectCall(methodCallExpressionNode, expressionNode, functionSymbol,
+                        functionName, agentCallKind);
+                return;
+            }
+        }
+
         if (isAgentClass(classSymbol)) {
             startNode(NodeKind.AGENT_CALL, expressionNode.parent());
             populateAgentMetaData(expressionNode, classSymbol);
+        } else if (AiUtils.isTypedAgent(classSymbol)) {
+            startNode(NodeKind.AGENT_RUN, expressionNode.parent());
+            populateAgentRunMetaData(expressionNode, classSymbol);
         } else if (isAiKnowledgeBase(classSymbol)) {
             startNode(NodeKind.KNOWLEDGE_BASE_CALL, expressionNode.parent());
         } else {
@@ -3307,7 +4188,10 @@ public class CodeAnalyzer extends NodeVisitor {
                         .name(functionName)
                         .functionSymbol(functionSymbol)
                         .semanticModel(semanticModel)
-                        .userModuleInfo(moduleInfo);
+                        .userModuleInfo(moduleInfo)
+                        .project(project)
+                        .workspaceManager(workspaceManager)
+                        .filePath(filePath);
         FunctionData functionData = functionDataBuilder.build();
 
         nodeBuilder
@@ -3355,6 +4239,8 @@ public class CodeAnalyzer extends NodeVisitor {
             startNode(NodeKind.DATA_MAPPER_CALL, functionCallExpressionNode.parent());
         } else if (isAgentClass(symbol.get())) {
             startNode(NodeKind.AGENT_CALL, functionCallExpressionNode.parent());
+        } else if (AiUtils.isTypedAgent(symbol.get())) {
+            startNode(NodeKind.AGENT_RUN, functionCallExpressionNode.parent());
         } else if (naturalFunctions.containsKey(functionName)) {
             startNode(NodeKind.NP_FUNCTION_CALL, functionCallExpressionNode.parent());
         } else if (isWorkflowOperation(functionSymbol, RUN_METHOD_NAME)) {
@@ -3374,7 +4260,10 @@ public class CodeAnalyzer extends NodeVisitor {
                                 .functionSymbol(functionSymbol)
                                 .functionResultKind(getFunctionResultKind(info.classSymbol()))
                                 .semanticModel(semanticModel)
-                                .userModuleInfo(moduleInfo);
+                                .userModuleInfo(moduleInfo)
+                                .project(project)
+                                .workspaceManager(workspaceManager)
+                                .filePath(filePath);
                 FunctionData functionData = functionDataBuilder.build();
 
                 processFunctionSymbol(functionCallExpressionNode, functionCallExpressionNode.arguments(),
@@ -3410,7 +4299,10 @@ public class CodeAnalyzer extends NodeVisitor {
                         .name(functionName)
                         .functionSymbol(functionSymbol)
                         .semanticModel(semanticModel)
-                        .userModuleInfo(moduleInfo);
+                        .userModuleInfo(moduleInfo)
+                        .project(project)
+                        .workspaceManager(workspaceManager)
+                        .filePath(filePath);
         FunctionData functionData = functionDataBuilder.build();
 
         processFunctionSymbol(functionCallExpressionNode, functionCallExpressionNode.arguments(), functionSymbol,
@@ -3670,14 +4562,42 @@ public class CodeAnalyzer extends NodeVisitor {
                 return null;
             }
             ModuleID id = optModule.get().id();
+            String iconType = symbolName.orElse("");
+            if (iconType.isEmpty() || iconType.equals(MODEL_PROVIDER_INTERFACE_NAME)) {
+                iconType = id.packageName();
+            }
             return new ModelData(optSymbol.get().getName().orElse(""),
                     CommonUtils.generateIcon(id.orgName(), id.packageName(), id.version()),
-                    symbolName.orElse(""));
+                    iconType);
         } else if (expressionNode.kind() == SyntaxKind.FIELD_ACCESS) {
             FieldAccessExpressionNode fieldAccessExpressionNode = (FieldAccessExpressionNode) expressionNode;
             return getModelIconUrl(fieldAccessExpressionNode.fieldName());
         }
+        return new ModelData(expressionNode.toSourceCode().strip(), null, null);
+    }
+
+    private MemoryManagerData getMemoryData(ExpressionNode memory) {
+        if (memory == null) {
+            return null;
+        }
+        if (memory.kind() == SyntaxKind.EXPLICIT_NEW_EXPRESSION) {
+            ExplicitNewExpressionNode newExpr = (ExplicitNewExpressionNode) memory;
+            SeparatedNodeList<FunctionArgumentNode> arguments = newExpr.parenthesizedArgList().arguments();
+            String size = arguments.size() == 1 ? arguments.get(0).toSourceCode() : "";
+            return new MemoryManagerData(newExpr.typeDescriptor().toSourceCode(), size);
+        }
+        if (memory.kind() == SyntaxKind.SIMPLE_NAME_REFERENCE) {
+            return semanticModel.typeOf(memory)
+                    .map(typeSymbol -> new MemoryManagerData(typeSymbol.getName().orElse("Memory Not Configured"),
+                            AiUtils.MEMORY_DEFAULT_VALUE))
+                    .orElse(null);
+        }
         return null;
+    }
+
+    private MemoryManagerData defaultMemoryData(ClassSymbol classSymbol) {
+        String name = getDefaultMemoryManagerName(classSymbol);
+        return name.isEmpty() ? null : new MemoryManagerData(name, AiUtils.MEMORY_DEFAULT_VALUE);
     }
 
     private static String getIdentifierName(NameReferenceNode nameReferenceNode) {
@@ -4180,6 +5100,24 @@ public class CodeAnalyzer extends NodeVisitor {
         return "";
     }
 
+    private boolean isMcpToolKitExpression(ExpressionNode expressionNode) {
+        return AiUtils.isMcpToolKitSymbol(semanticModel.symbol(expressionNode).orElse(null))
+                || semanticModel.typeOf(expressionNode)
+                .map(AiUtils::isMcpToolKitType)
+                .orElse(false);
+    }
+
+    private Optional<MethodSymbol> resolveToolMethod(FieldAccessExpressionNode fieldAccess, String toolName) {
+        Node parent = fieldAccess.parent();
+        while (parent != null && !(parent instanceof ClassDefinitionNode)) {
+            parent = parent.parent();
+        }
+        if (parent != null && semanticModel.symbol(parent).orElse(null) instanceof ClassSymbol classSymbol) {
+            return Optional.ofNullable(classSymbol.methods().get(toolName));
+        }
+        return Optional.empty();
+    }
+
     private String getToolDescription(String toolName) {
         for (Symbol symbol : semanticModel.moduleSymbols()) {
             if (symbol.kind() != SymbolKind.FUNCTION) {
@@ -4201,6 +5139,43 @@ public class CodeAnalyzer extends NodeVisitor {
         }
 
         return "";
+    }
+
+    private boolean isAgentDelegationTool(FunctionSymbol functionSymbol) {
+        Optional<Location> location = functionSymbol.getLocation();
+        if (location.isEmpty()) {
+            return false;
+        }
+        Document document = CommonUtils.getDocument(project, location.get());
+        if (document == null) {
+            return false;
+        }
+        NonTerminalNode node = ((ModulePartNode) document.syntaxTree().rootNode())
+                .findNode(location.get().textRange());
+        while (node != null && !(node instanceof FunctionDefinitionNode)) {
+            node = node.parent();
+        }
+        return node != null && delegatesToAgentRun(((FunctionDefinitionNode) node).functionBody());
+    }
+
+    private boolean delegatesToAgentRun(Node node) {
+        if (!(node instanceof NonTerminalNode nonTerminal)) {
+            return false;
+        }
+        if (node instanceof MethodCallExpressionNode methodCall
+                && methodCall.methodName().toString().trim().equals(RUN_METHOD)) {
+            Optional<TypeSymbol> receiverType = semanticModel.typeOf(methodCall.expression());
+            if (receiverType.isPresent() && CommonUtils.getRawType(receiverType.get()) instanceof ClassSymbol cls
+                    && (isAgentClass(cls) || AiUtils.isTypedAgent(cls))) {
+                return true;
+            }
+        }
+        for (Node child : nonTerminal.children()) {
+            if (delegatesToAgentRun(child)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private Optional<ImplicitNewExpressionNode> getNewExpr(ExpressionNode expressionNode) {
@@ -4401,6 +5376,47 @@ public class CodeAnalyzer extends NodeVisitor {
         return new Gson().toJson(toolScopes);
     }
 
+    private boolean hasContextInAllMcpTools(ClassSymbol classSymbol) {
+        Optional<Location> optLocation = classSymbol.getLocation();
+        if (optLocation.isEmpty()) {
+            return false;
+        }
+
+        Document document = CommonUtils.getDocument(project, optLocation.get());
+        if (document == null) {
+            return false;
+        }
+
+        Optional<NonTerminalNode> optNode = CommonUtil.findNode(classSymbol, document.syntaxTree());
+        if (optNode.isEmpty() || !(optNode.get() instanceof ClassDefinitionNode classNode)) {
+            return false;
+        }
+
+        boolean hasTool = false;
+        for (Node member : classNode.members()) {
+            if (member.kind() != SyntaxKind.OBJECT_METHOD_DEFINITION) {
+                continue;
+            }
+            FunctionDefinitionNode methodNode = (FunctionDefinitionNode) member;
+            String methodName = methodNode.functionName().text();
+            if (methodName.equals("init") || methodName.equals("getTools")) {
+                continue;
+            }
+            boolean isAgentTool = methodNode.metadata().stream()
+                    .flatMap(metadata -> metadata.annotations().stream())
+                    .anyMatch(annotation -> annotation.annotReference().toSourceCode().trim().equals("ai:AgentTool"));
+            if (!isAgentTool) {
+                continue;
+            }
+            hasTool = true;
+            SeparatedNodeList<ParameterNode> parameters = methodNode.functionSignature().parameters();
+            if (parameters.isEmpty() || !parameters.get(0).toSourceCode().trim().matches("ai:Context\\s+ctx\\b.*")) {
+                return false;
+            }
+        }
+        return hasTool;
+    }
+
     /**
      * Builds a mapping from method names to original tool names by parsing the permittedTools map in the init method.
      */
@@ -4556,7 +5572,8 @@ public class CodeAnalyzer extends NodeVisitor {
 
     }
 
-    private record ToolData(String name, String path, String description, String type) {
+    private record ToolData(String name, String path, String description, String type,
+                            boolean requiresApproval) {
 
     }
 
@@ -4631,8 +5648,9 @@ public class CodeAnalyzer extends NodeVisitor {
         FUNCTION("Function"),
         REMOTE_FUNCTION("Remote Function"),
         RESOURCE("Resource"),
-        AI_CHAT_AGENT("AI Chat Agent"),
+        AI_CHAT_AGENT("Chat Agent Service"),
         WORKFLOW("Workflow"),
+        DURABLE_AGENT("Durable Agentic Workflow"),
         ACTIVITY("Activity");
 
         private final String value;

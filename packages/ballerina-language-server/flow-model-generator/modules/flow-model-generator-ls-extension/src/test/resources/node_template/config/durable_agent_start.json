@@ -1,0 +1,138 @@
+{
+  "source": "durable_agent_module.bal",
+  "position": {
+    "line": 16,
+    "offset": 0
+  },
+  "description": "Run Durable Agent node template",
+  "codedata": {
+    "node": "DURABLE_AGENT_START",
+    "org": "ballerina",
+    "module": "workflow"
+  },
+  "output": {
+    "id": "31",
+    "metadata": {
+      "label": "Run Durable Agent",
+      "description": "Start a durable agent instance and bind its instance ID"
+    },
+    "codedata": {
+      "node": "DURABLE_AGENT_START",
+      "org": "ballerina",
+      "module": "workflow",
+      "symbol": "run",
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "agent": {
+        "metadata": {
+          "label": "Durable Agentic Workflow",
+          "description": "The durable agent to start"
+        },
+        "types": [
+          {
+            "fieldType": "SINGLE_SELECT",
+            "options": [
+              {
+                "label": "supportAgent",
+                "value": "supportAgent"
+              }
+            ],
+            "selected": true
+          }
+        ],
+        "value": "",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED"
+        }
+      },
+      "query": {
+        "metadata": {
+          "label": "Query",
+          "description": "The user turn appended to the agent's system prompt"
+        },
+        "types": [
+          {
+            "fieldType": "TEXT",
+            "ballerinaType": "string",
+            "selected": false
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string",
+            "selected": false
+          }
+        ],
+        "value": "",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED"
+        }
+      },
+      "input": {
+        "metadata": {
+          "label": "Input",
+          "description": "Optional structured input for the run"
+        },
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "anydata",
+            "selected": false
+          }
+        ],
+        "value": "",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "DEFAULTABLE"
+        }
+      },
+      "variable": {
+        "metadata": {
+          "label": "Instance ID Variable Name",
+          "description": "Variable name to receive the new agent instance ID"
+        },
+        "types": [
+          {
+            "fieldType": "IDENTIFIER",
+            "selected": true
+          }
+        ],
+        "value": "instanceId",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "checkError": {
+        "metadata": {
+          "label": "Check Error",
+          "description": "Trigger error flow"
+        },
+        "types": [
+          {
+            "fieldType": "FLAG",
+            "selected": true
+          }
+        ],
+        "value": true,
+        "optional": false,
+        "editable": true,
+        "advanced": true,
+        "hidden": true
+      }
+    },
+    "flags": 0
+  }
+}

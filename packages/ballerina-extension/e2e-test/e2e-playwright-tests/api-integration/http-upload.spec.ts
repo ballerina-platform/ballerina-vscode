@@ -136,9 +136,24 @@ async function addReturnNodeFromDiagram(locatorOwner: ReturnType<typeof switchTo
     await expect(locatorOwner.getByText('payload', { exact: true })).toBeVisible({ timeout: 30000 });
     await locatorOwner.getByText('payload', { exact: true }).click({ force: true });
     await expect.poll(async () => locatorOwner.locator('[data-testid="ex-editor-expression"] .cm-content').evaluate((element) => element.textContent)).toBe('payload');
-    await locatorOwner.locator('[data-testid="ex-editor-expression"] .cm-content').click({ force: true });
-    await page.page.keyboard.press(process.platform === 'darwin' ? 'Meta+A' : 'Control+A');
-    await page.page.keyboard.type('{key: string `uploads/${name}`, size: payload.content.length()}');
+    // Dispatch directly into CM6 — typing this key-by-key risks bracket auto-close mangling it.
+    const expressionText = '{key: string `uploads/${name}`, size: payload.content.length()}';
+    const exEditorContainer = locatorOwner.locator('[data-testid="ex-editor-expression"]');
+    const dispatched = await exEditorContainer.evaluate((container, text) => {
+        const cmContent = container.querySelector('.cm-content');
+        const view = (cmContent as any)?.cmView?.view;
+        if (!view) {
+            return false;
+        }
+        view.focus();
+        view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: text } });
+        return true;
+    }, expressionText);
+    if (!dispatched) {
+        const editorInput = exEditorContainer.locator('div[contenteditable="true"]');
+        await editorInput.click({ clickCount: 3 });
+        await editorInput.fill(expressionText);
+    }
     await locatorOwner.getByRole('button', { name: 'Close Helper Panel' }).click({ force: true }).catch(() => {});
     await locatorOwner.getByText('Return value.', { exact: true }).click({ force: true }).catch(() => {});
     await locatorOwner.getByRole('button', { name: 'Save' }).click({ force: true });

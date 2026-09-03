@@ -159,32 +159,49 @@ export function ContextTypeEditor(props: ContextTypeEditorProps) {
 
     const onTypeSave = async (type: Type) => {
         const name = type.name;
+        const request = { filePath: type.codedata?.lineRange?.fileName || 'types.bal', type, description: "" };
         setIsSaving(true);
-        // IF type nodeKind is CLASS then we call graphqlEndpoint
-        // TODO: for TypeDiagram we need to give a generic class creation
-        if (type.codedata.node === "CLASS") {
-            const response: UpdateTypeResponse = await props.rpcClient
-                .getBIDiagramRpcClient()
-                .createGraphqlClassType({ filePath: type.codedata?.lineRange?.fileName || 'types.bal', type, description: "" });
-            if (!isPopupTypeForm) {
-                await props.rpcClient
-                    .getVisualizerRpcClient()
-                    .openView({ type: EVENT_TYPE.UPDATE_PROJECT_LOCATION, location: { identifier: response.name, addType: false } });
+        try {
+            let response: UpdateTypeResponse;
+            try {
+                // IF type nodeKind is CLASS then we call graphqlEndpoint
+                // TODO: for TypeDiagram we need to give a generic class creation
+                response = type.codedata.node === "CLASS"
+                    ? await props.rpcClient.getBIDiagramRpcClient().createGraphqlClassType(request)
+                    : await props.rpcClient.getBIDiagramRpcClient().updateType(request);
+            } catch (error) {
+                // Only a failure of the save itself is reported as a save failure. Lead with
+                // the type name so the toast always says what failed, then append the
+                // underlying reason when the error carries one.
+                console.error(">>> error saving the type", error);
+                const reason = (error as Error)?.message;
+                props.rpcClient.getCommonRpcClient().showErrorMessage({
+                    message: `Failed to save the type '${name}'. ${reason || "Please try again."}`
+                });
+                return;
             }
 
-        } else {
-            const response: UpdateTypeResponse = await props.rpcClient
-                .getBIDiagramRpcClient()
-                .updateType({ filePath: type.codedata?.lineRange?.fileName || 'types.bal', type, description: "" });
             if (!isPopupTypeForm) {
-                await props.rpcClient
-                    .getVisualizerRpcClient()
-                    .openView({ type: EVENT_TYPE.UPDATE_PROJECT_LOCATION, location: { identifier: response.name, addType: false } });
+                try {
+                    await props.rpcClient
+                        .getVisualizerRpcClient()
+                        .openView({ type: EVENT_TYPE.UPDATE_PROJECT_LOCATION, location: { identifier: response.name, addType: false } });
+                } catch (error) {
+                    // The type was saved; only navigating to it failed, so this must not be
+                    // reported to the user as a failed save.
+                    console.error(">>> error navigating to the saved type", error);
+                }
             }
+
+            props.onTypeChange(type);
+            props.onSaveType(type)
+        } catch (error) {
+            // The save already succeeded by this point, so nothing here is a save failure.
+            // Swallowed rather than rethrown: callers retry `onTypeSave` in their own catch.
+            console.error(">>> error completing the type save", error);
+        } finally {
+            setIsSaving(false);
         }
-        props.onTypeChange(type);
-        props.onSaveType(type)
-        setIsSaving(false);
     }
 
     const handleTabChange = (tabId: string) => {

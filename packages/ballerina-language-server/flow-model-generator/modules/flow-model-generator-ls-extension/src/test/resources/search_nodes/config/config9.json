@@ -5,7 +5,7 @@
     "line": 17,
     "offset": 0
   },
-  "queryMap": {
+  "query": {
     "kind": "AGENT",
     "exactMatch": "_salesAgentAgent"
   },
@@ -15,14 +15,32 @@
       "metadata": {
         "label": "Agent",
         "description": "Represents an agent.",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.12.0.png"
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png",
+        "data": {
+          "agentInfo": {
+            "systemPrompt": {
+              "instructions": "",
+              "role": "\"\""
+            },
+            "modelProvider": {
+              "presentation": {
+                "name": "_salesAgentModel",
+                "path": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png",
+                "type": "Wso2ModelProvider"
+              }
+            },
+            "tools": []
+          }
+        }
       },
       "codedata": {
         "node": "AGENT",
         "org": "ballerina",
         "module": "ai",
+        "packageName": "ai",
         "object": "Agent",
         "symbol": "init",
+        "version": "1.13.0",
         "lineRange": {
           "fileName": "agent.bal",
           "startLine": {
@@ -50,7 +68,7 @@
               "typeMembers": [
                 {
                   "type": "SystemPrompt",
-                  "packageInfo": "ballerina:ai:1.12.0",
+                  "packageInfo": "ballerina:ai:1.13.0",
                   "packageName": "ai",
                   "kind": "RECORD_TYPE",
                   "selected": true
@@ -69,7 +87,7 @@
           "optional": false,
           "editable": true,
           "advanced": false,
-          "hidden": false,
+          "hidden": true,
           "codedata": {
             "kind": "INCLUDED_FIELD",
             "originalName": "systemPrompt"
@@ -117,7 +135,7 @@
                     "typeMembers": [
                       {
                         "type": "ToolConfig",
-                        "packageInfo": "ballerina:ai:1.12.0",
+                        "packageInfo": "ballerina:ai:1.13.0",
                         "packageName": "ai",
                         "kind": "RECORD_TYPE",
                         "selected": false
@@ -149,7 +167,7 @@
           "optional": true,
           "editable": true,
           "advanced": true,
-          "hidden": false,
+          "hidden": true,
           "codedata": {
             "kind": "INCLUDED_FIELD",
             "originalName": "tools"
@@ -228,7 +246,7 @@
           "optional": true,
           "editable": true,
           "advanced": true,
-          "hidden": false,
+          "hidden": true,
           "codedata": {
             "kind": "INCLUDED_FIELD",
             "originalName": "memory"
@@ -312,7 +330,7 @@
               "typeMembers": [
                 {
                   "type": "Credential",
-                  "packageInfo": "ballerina:ai:1.12.0",
+                  "packageInfo": "ballerina:ai:1.13.0",
                   "packageName": "ai",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -370,6 +388,62 @@
           "editable": true,
           "advanced": true,
           "hidden": true
+        },
+        "role": {
+          "metadata": {
+            "label": "Role",
+            "description": "Define the agent's primary function"
+          },
+          "types": [
+            {
+              "fieldType": "PROMPT",
+              "ballerinaType": "string",
+              "selected": false
+            },
+            {
+              "fieldType": "EXPRESSION",
+              "ballerinaType": "string",
+              "selected": true
+            }
+          ],
+          "value": "\"\"",
+          "placeholder": "e.g., Customer Support Assistant, Sales Advisor, Data Analyst",
+          "optional": false,
+          "editable": true,
+          "advanced": false,
+          "hidden": false,
+          "codedata": {
+            "kind": "REQUIRED"
+          },
+          "defaultValue": ""
+        },
+        "instructions": {
+          "metadata": {
+            "label": "Instructions",
+            "description": "Detailed instructions for the agent"
+          },
+          "types": [
+            {
+              "fieldType": "PROMPT",
+              "ballerinaType": "string",
+              "selected": true
+            },
+            {
+              "fieldType": "EXPRESSION",
+              "ballerinaType": "string",
+              "selected": false
+            }
+          ],
+          "value": "",
+          "placeholder": "e.g., You are a friendly assistant. Your goal is to...",
+          "optional": false,
+          "editable": true,
+          "advanced": false,
+          "hidden": false,
+          "codedata": {
+            "kind": "REQUIRED"
+          },
+          "defaultValue": ""
         },
         "variable": {
           "metadata": {

@@ -1,7 +1,7 @@
 {
   "source": "proj/connections.bal",
   "description": "Get all module-level connections and variables",
-  "queryMap": {},
+  "query": {},
   "output": [
     {
       "id": "36732",

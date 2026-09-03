@@ -19,6 +19,12 @@
 import React, { useMemo } from "react";
 import { BallerinaRpcClient, Context } from "@wso2/ballerina-rpc-client";
 import { BiWsClient } from "../../wsManager/WsClient";
+import { FormHostCapabilities, FormHostCapabilitiesContext } from "../../Forms/formHostCapabilities";
+
+// Pre-project, forms must not offer type creation: the type editor resolves its
+// file from the visualizer state machine (absent here), and a type created in the
+// throwaway staging scaffold would never reach the generated integration.
+const WIZARD_FORM_CAPABILITIES: FormHostCapabilities = { typeCreation: false };
 
 /**
  * Wraps a manager stub so an undefined method resolves to `undefined` with a warning
@@ -71,10 +77,11 @@ function createWizardRpcAdapter(wsClient: BiWsClient): BallerinaRpcClient {
 
     const commonRpcClient = withFallback("Common", {
         showErrorMessage: (params: any) => wsClient.showErrorMessage(params),
-        // FILE_SELECT pickers go over the WS bridge. `allowOutsideProject` is forced:
-        // pre-project the host would otherwise offer to copy the spec into whatever
+        // FILE_SELECT / PROJECT_FILE_SELECT pickers go over the WS bridge. `allowOutsideProject`
+        // is forced: pre-project the host would otherwise offer to copy the spec into whatever
         // project happens to be open.
         selectFileOrDirPath: (params: any) => wsClient.selectFileOrDirPath({ ...params, allowOutsideProject: true }),
+        selectProjectRelativeFile: (params: any) => wsClient.selectProjectRelativeFile({ ...params, allowOutsideProject: true }),
         selectFileOrFolderPath: () => wsClient.selectFileOrFolderPath(),
     });
 
@@ -114,9 +121,16 @@ interface WizardRpcAdapterProviderProps {
     children: React.ReactNode;
 }
 
-/** Mounts the rpc-client React context with the WS-backed adapter so `useRpcContext()` works pre-project. */
+/** Mounts the rpc-client React context with the WS-backed adapter so `useRpcContext()` works
+ *  pre-project, and restricts form-host capabilities for every form in the wizard. */
 export function WizardRpcAdapterProvider({ wsClient, children }: WizardRpcAdapterProviderProps) {
     const rpcClient = useMemo(() => createWizardRpcAdapter(wsClient), [wsClient]);
     const value = useMemo(() => ({ rpcClient }), [rpcClient]);
-    return <Context.Provider value={value}>{children}</Context.Provider>;
+    return (
+        <Context.Provider value={value}>
+            <FormHostCapabilitiesContext.Provider value={WIZARD_FORM_CAPABILITIES}>
+                {children}
+            </FormHostCapabilitiesContext.Provider>
+        </Context.Provider>
+    );
 }

@@ -22,9 +22,7 @@ import { keyframes } from "@emotion/react";
 import { AgentRunState, AgentRunStatus, ChatNotify, MACHINE_VIEW } from "@wso2/ballerina-core";
 import { BallerinaRpcClient, useRpcContext } from "@wso2/ballerina-rpc-client";
 import type { MiniChatPrompt } from "./promptHandoff";
-
-/** WSO2 brand orange — the pulse-icon color from wso2.com/about/brand. */
-export const BRAND_ORANGE = "#F14E23";
+import { ambientBorderColor } from "./orbTheme";
 
 /** Floating orb geometry, shared with the mini chat for anchor-relative placement. */
 export const ORB_SIZE = 56;
@@ -45,26 +43,21 @@ export function loadAnchor(): Anchor {
     } catch {
         stored = null;
     }
-    // Default to bottom-center so the copilot invitation is front and center
-    // when BI opens; users can drag the orb to any of the six anchors.
-    return stored && (ANCHORS as readonly string[]).includes(stored) ? (stored as Anchor) : "bottom-center";
+    // bottom-center sits on top of whatever the active view docks at its own
+    // bottom-center (form submit buttons, artifact-picker cards, …), so default
+    // to bottom-right instead; users can still drag the orb to any anchor.
+    return stored && (ANCHORS as readonly string[]).includes(stored) ? (stored as Anchor) : "bottom-right";
 }
-
-export const ORB_COLORS: Record<AgentRunState, [string, string, string]> = {
-    "idle": ["#6b5ce8", BRAND_ORANGE, "#ffb199"],
-    "running": ["#4facfe", "#a78bfa", "#f472b6"],
-    "awaiting-input": ["#fbbf24", "#f59e0b", "#fb923c"],
-    "completed": ["#34d399", "#10b981", "#6ee7b7"],
-    "error": ["#f87171", "#ef4444", "#fb7185"],
-};
 
 /** Flow speed / contrast of the shader per state (0 = still, 1 = lively). */
 export const ORB_ENERGY: Record<AgentRunState, number> = {
-    "idle": 0.35,
+    // Raised across the board so the single-hue orb visibly flows (the motion,
+    // not the color, is what carries "alive"). Running stays at the ceiling.
+    "idle": 0.6,
     "running": 1.0,
-    "awaiting-input": 0.55,
-    "completed": 0.45,
-    "error": 0.5,
+    "awaiting-input": 0.72,
+    "completed": 0.6,
+    "error": 0.65,
 };
 
 const ambientGradientShift = keyframes`
@@ -80,8 +73,9 @@ interface AmbientFrameProps {
     $variant?: AmbientFrameVariant;
 }
 
-function ambientColors(props: AmbientFrameProps): [string, string, string] {
-    return ORB_COLORS[props.$state ?? "idle"];
+/** The frame's base color (accent floored to focusBorder for visibility); tinted in CSS. */
+function ambientBase(props: AmbientFrameProps): string {
+    return ambientBorderColor(props.$state ?? "idle");
 }
 
 /**
@@ -95,27 +89,35 @@ export const AmbientFrame = styled.div<AmbientFrameProps>`
     padding: ${(props: AmbientFrameProps) => props.$variant === "hero" ? "1.5px" : "1px"};
     border-radius: ${(props: AmbientFrameProps) => props.$variant === "hero" ? "14px" : "10px"};
     background: ${(props: AmbientFrameProps) => {
-        const [first, second, third] = ambientColors(props);
-        return `linear-gradient(120deg, ${first}, ${second}, ${third}, ${first})`;
+        // Monochromatic gradient tinted from the state's accent so the frame
+        // reads as one theme color (light stop → base → dark stop).
+        const base = ambientBase(props);
+        return `linear-gradient(120deg,`
+            + ` color-mix(in srgb, ${base} 82%, #ffffff),`
+            + ` ${base},`
+            + ` color-mix(in srgb, ${base} 80%, #000000),`
+            + ` color-mix(in srgb, ${base} 82%, #ffffff))`;
     }};
     background-size: 300% 300%;
     animation: ${ambientGradientShift} 9s ease infinite;
     box-shadow: ${(props: AmbientFrameProps) => {
-        const [first, second] = ambientColors(props);
+        const base = ambientBase(props);
         const hero = props.$variant === "hero";
         const active = !!props.$state && props.$state !== "idle";
-        const outerStrength = hero ? 25 : active ? 20 : 12;
-        const innerStrength = hero ? 12 : active ? 13 : 7;
-        const outerSize = hero ? 18 : active ? 16 : 12;
-        const innerSize = hero ? 10 : active ? 10 : 8;
-        return `0 0 ${outerSize}px color-mix(in srgb, ${first} ${outerStrength}%, transparent), 0 0 ${innerSize}px color-mix(in srgb, ${second} ${innerStrength}%, transparent)`;
+        // Idle composer used to be the faintest (12/7); bump it so the frame
+        // stays legible where the accent is muted or near the panel background.
+        const outerStrength = hero ? 25 : active ? 20 : 18;
+        const innerStrength = hero ? 12 : active ? 13 : 11;
+        const outerSize = hero ? 18 : active ? 16 : 14;
+        const innerSize = hero ? 10 : active ? 10 : 9;
+        return `0 0 ${outerSize}px color-mix(in srgb, ${base} ${outerStrength}%, transparent), 0 0 ${innerSize}px color-mix(in srgb, ${base} ${innerStrength}%, transparent)`;
     }};
     transition: box-shadow 0.25s ease;
 
     &:focus-within {
         box-shadow: ${(props: AmbientFrameProps) => {
-            const [first, second] = ambientColors(props);
-            return `0 0 22px color-mix(in srgb, ${first} 34%, transparent), 0 0 13px color-mix(in srgb, ${second} 20%, transparent)`;
+            const base = ambientBase(props);
+            return `0 0 22px color-mix(in srgb, ${base} 34%, transparent), 0 0 13px color-mix(in srgb, ${base} 20%, transparent)`;
         }};
     }
 
@@ -131,19 +133,25 @@ export const AmbientFrame = styled.div<AmbientFrameProps>`
     }
 `;
 
-/** User-facing label for a non-idle run state, shared by the orb and the hero box. */
+export const AWAITING_INPUT_LABEL = "Needs your input";
+
+/**
+ * User-facing label for a non-idle run state. Never names the product: every surface
+ * that shows one already does — the orb tooltip, and the status bar the extension
+ * builds from the same vocabulary.
+ */
 export function activeStateLabel(status: AgentRunStatus): string {
     switch (status.state) {
         case "completed":
-            return "Done — click to open Copilot";
+            return "Done — click to open the chat";
         case "running":
             return status.label ?? "Working on it…";
         case "awaiting-input":
-            return status.label ?? "Copilot needs your input";
+            return status.label ?? AWAITING_INPUT_LABEL;
         case "error":
-            return status.label ?? "Copilot hit an error";
+            return status.label ?? "Something went wrong";
         default:
-            return "Chat with WSO2 Integrator Copilot";
+            return "Ready to chat";
     }
 }
 
@@ -157,6 +165,10 @@ const sphereDrift = keyframes`
     0% { background-position: 30% 30%; }
     50% { background-position: 70% 62%; }
     100% { background-position: 30% 30%; }
+`;
+const sphereSheen = keyframes`
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 `;
 
 interface SphereProps {
@@ -189,17 +201,65 @@ export const Sphere = styled.div<SphereProps>`
     display: flex;
     align-items: center;
     justify-content: center;
-    background: radial-gradient(
-        circle at 32% 28%,
-        rgba(255, 255, 255, 0.55),
-        ${(props: SphereProps) => props.colors[0]} 45%,
-        ${(props: SphereProps) => props.colors[1]} 100%
-    );
-    background-size: 180% 180%;
-    box-shadow: inset 0 -5px 10px rgba(0, 0, 0, 0.18);
+    overflow: hidden;
+    // Base has to dominate the body or this reads near-black on a light theme.
+    background:
+        radial-gradient(
+            circle at 30% 24%,
+            rgba(255, 255, 255, 0.55),
+            rgba(255, 255, 255, 0.1) 24%,
+            transparent 44%
+        ),
+        radial-gradient(
+            circle at 74% 80%,
+            color-mix(in srgb, ${(props: SphereProps) => props.colors[2]} 65%, transparent),
+            transparent 50%
+        ),
+        radial-gradient(
+            circle at 62% 34%,
+            color-mix(in srgb, ${(props: SphereProps) => props.colors[2]} 55%, transparent),
+            transparent 46%
+        ),
+        radial-gradient(
+            circle at 26% 70%,
+            color-mix(in srgb, ${(props: SphereProps) => props.colors[0]} 65%, transparent),
+            transparent 48%
+        ),
+        radial-gradient(
+            circle at 32% 28%,
+            ${(props: SphereProps) => props.colors[2]},
+            ${(props: SphereProps) => props.colors[1]} 52%,
+            ${(props: SphereProps) => props.colors[0]} 100%
+        );
+    /*
+     * Highlights stay at 100% so they never slide; the three tinted layers are
+     * oversized by different amounts so one shared drift moves them at different
+     * apparent speeds, which is what fakes the shader's liquid depth.
+     */
+    background-size: 100% 100%, 100% 100%, 220% 220%, 170% 170%, 180% 180%;
+    box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.22),
+        inset 0 9px 16px rgba(255, 255, 255, 0.1),
+        inset 0 -8px 14px rgba(0, 0, 0, 0.16),
+        0 0 14px color-mix(in srgb, ${(props: SphereProps) => props.colors[1]} 45%, transparent);
     animation:
         ${spherePulse} ${(props: SphereProps) => (4.2 - props.energy * 2.4).toFixed(2)}s ease-in-out infinite,
         ${sphereDrift} ${(props: SphereProps) => (7.5 - props.energy * 3.5).toFixed(2)}s ease-in-out infinite;
+
+    // Slow sheen sweep — the CSS stand-in for the shader's motion.
+    &::before {
+        content: "";
+        position: absolute;
+        inset: -28%;
+        background: conic-gradient(
+            from 0deg,
+            transparent 0 54%,
+            rgba(255, 255, 255, 0.26) 72%,
+            transparent 86%
+        );
+        animation: ${sphereSheen} ${(props: SphereProps) => (9 - props.energy * 4).toFixed(2)}s linear infinite;
+        pointer-events: none;
+    }
 
     /*
      * Both fallbacks also undo background-size: the enlarged box only exists so
@@ -208,7 +268,11 @@ export const Sphere = styled.div<SphereProps>`
      */
     @media (prefers-reduced-motion: reduce), (forced-colors: active) {
         animation: none;
-        background-size: 100% 100%;
+        background-size: 100% 100%, 100% 100%, 100% 100%, 100% 100%, 100% 100%;
+
+        &::before {
+            display: none;
+        }
     }
 `;
 
@@ -284,6 +348,14 @@ export function subscribeAgentRunStatus(
     };
 }
 
+/** Test-only: clears the module-level status cache and listeners between test cases. */
+export function __resetAgentRunStatusStoreForTests(): void {
+    currentStatus = null;
+    statusWired = false;
+    receivedStatusNotification = false;
+    statusListeners.clear();
+}
+
 /**
  * True while the Copilot panel is open — inline copilot surfaces stand down so
  * the panel is the only chat entry point. Seeded from the cached status so a
@@ -301,6 +373,21 @@ export function useAiPanelOpen(): boolean {
     }, [rpcClient]);
 
     return open;
+}
+
+/** The live run state — says nothing about what the turn will produce. */
+export function useAgentRunState(): AgentRunState | undefined {
+    const { rpcClient } = useRpcContext();
+    const [state, setState] = useState(() => currentStatus?.state);
+
+    useEffect(() => {
+        if (!rpcClient) {
+            return;
+        }
+        return subscribeAgentRunStatus(rpcClient, (status) => setState(status?.state));
+    }, [rpcClient]);
+
+    return state;
 }
 
 // ---------------------------------------------------------------------------
@@ -421,4 +508,101 @@ export function subscribeOrbSuppressed(listener: (suppressed: boolean) => void):
     return () => {
         orbSuppressListeners.delete(listener);
     };
+}
+
+// ---------------------------------------------------------------------------
+// Ambient Copilot presence.
+//
+// True while an in-context opener (the floating orb or the overview composer)
+// is on screen. The extension mirrors this into `ballerina.copilotAmbientPresent`
+// so the legacy editor-title icon only shows where no ambient surface exists.
+// ---------------------------------------------------------------------------
+
+let ambientPresenceCount = 0;
+const ambientPresenceListeners = new Set<(present: boolean) => void>();
+
+function notifyAmbientPresence() {
+    ambientPresenceListeners.forEach((listener) => listener(ambientPresenceCount > 0));
+}
+
+/**
+ * Registers an ambient Copilot surface while the caller is mounted and `present`
+ * holds. Layout effect so presence lands in the same frame as the render, matching
+ * orb suppression and avoiding a one-frame flash of the legacy icon.
+ */
+export function useAmbientCopilotPresence(present = true): void {
+    useLayoutEffect(() => {
+        if (!present) {
+            return;
+        }
+        ambientPresenceCount++;
+        notifyAmbientPresence();
+        return () => {
+            ambientPresenceCount--;
+            notifyAmbientPresence();
+        };
+    }, [present]);
+}
+
+export function subscribeAmbientCopilotPresence(listener: (present: boolean) => void): () => void {
+    ambientPresenceListeners.add(listener);
+    listener(ambientPresenceCount > 0);
+    return () => {
+        ambientPresenceListeners.delete(listener);
+    };
+}
+
+// animated: WebGL core + brand ring (default). simple: CSS sphere, no ring — also
+// the fallback when animated can't render. Add a theme by appending it here and to
+// the `ballerina.copilot.orbTheme` enum.
+export const ORB_THEMES = ["animated", "simple"] as const;
+export type OrbTheme = typeof ORB_THEMES[number];
+
+export const DEFAULT_ORB_THEME: OrbTheme = "animated";
+export const FALLBACK_ORB_THEME: OrbTheme = "simple";
+
+export function orbThemeFromSetting(value: string): OrbTheme {
+    return (ORB_THEMES as readonly string[]).includes(value) ? (value as OrbTheme) : FALLBACK_ORB_THEME;
+}
+
+let currentOrbTheme: OrbTheme = DEFAULT_ORB_THEME;
+const orbThemeListeners = new Set<(theme: OrbTheme) => void>();
+
+export function getOrbTheme(): OrbTheme {
+    return currentOrbTheme;
+}
+
+export function setOrbTheme(theme: OrbTheme): void {
+    if (theme === currentOrbTheme) {
+        return;
+    }
+    currentOrbTheme = theme;
+    orbThemeListeners.forEach((listener) => listener(theme));
+}
+
+export function subscribeOrbTheme(listener: (theme: OrbTheme) => void): () => void {
+    orbThemeListeners.add(listener);
+    return () => {
+        orbThemeListeners.delete(listener);
+    };
+}
+
+export function useOrbTheme(): OrbTheme {
+    const [theme, setTheme] = useState<OrbTheme>(currentOrbTheme);
+    useEffect(() => subscribeOrbTheme(setTheme), []);
+    return theme;
+}
+
+let orbThemeSynced = false;
+
+export function syncOrbThemeFromSetting(rpcClient: BallerinaRpcClient): void {
+    if (orbThemeSynced) {
+        return;
+    }
+    orbThemeSynced = true;
+    rpcClient
+        .getCommonRpcClient()
+        .getCopilotOrbTheme()
+        .then((value: string) => setOrbTheme(orbThemeFromSetting(value)))
+        .catch((): void => { /* older host without the RPC — keep the default */ });
 }

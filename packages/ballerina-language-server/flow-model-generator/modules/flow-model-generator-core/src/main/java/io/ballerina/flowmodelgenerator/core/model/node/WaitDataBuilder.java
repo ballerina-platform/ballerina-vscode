@@ -50,10 +50,10 @@ import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
 import io.ballerina.flowmodelgenerator.core.model.TypeData;
-import io.ballerina.flowmodelgenerator.core.utils.FileSystemUtils;
 import io.ballerina.flowmodelgenerator.core.utils.TypeUtils;
 import io.ballerina.flowmodelgenerator.core.utils.WorkflowUtil;
 import io.ballerina.modelgenerator.commons.CommonUtils;
+import io.ballerina.modelgenerator.commons.FileSystemUtils;
 import io.ballerina.modelgenerator.commons.FunctionData;
 import io.ballerina.modelgenerator.commons.FunctionDataBuilder;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
@@ -492,7 +492,7 @@ public class WaitDataBuilder extends CallBuilder {
                 dataTypeName,
                 true,
                 new Metadata(dataTypeName, "Data record for workflow function",
-                        null, null, null, null, null),
+                        null, null, null, null, null, null),
                 new Codedata.Builder<>(null).node(NodeKind.RECORD).build(),
                 Map.of(),
                 members,

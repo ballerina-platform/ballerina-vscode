@@ -359,11 +359,11 @@ export async function checkAndRunPendingEnhancement(): Promise<void> {
         _activeSession = { isActive: false, aiFeatureUsed: true, fullyEnhanced: false };
 
         const action = await window.showInformationMessage(
-            "Migration AI enhancement was paused. You can resume it from 'WSO2 Integrator Copilot'.",
-            "Open Copilot"
+            "Migration AI enhancement was paused. You can resume it from 'WSO2 Integration Intelligence'.",
+            "Open WSO2 Integration Intelligence"
         );
 
-        if (action === "Open Copilot") {
+        if (action === "Open WSO2 Integration Intelligence") {
             openAIPanelWithPrompt();
         }
     } else {
@@ -372,10 +372,10 @@ export async function checkAndRunPendingEnhancement(): Promise<void> {
         _activeSession = { isActive: false, aiFeatureUsed: false, fullyEnhanced: false };
         console.log("[MigrationEnhancement] AI not enabled at wizard – notification shown.");
         const action = await window.showInformationMessage(
-            "Your migrated project is ready. Open 'WSO2 Integrator Copilot' to run AI enhancement — it can resolve TODOs, fix build errors, and refine tests.",
-            "Open Copilot"
+            "Your migrated project is ready. Open 'WSO2 Integration Intelligence' to run AI enhancement — it can resolve TODOs, fix build errors, and refine tests.",
+            "Open WSO2 Integration Intelligence"
         );
-        if (action === "Open Copilot") {
+        if (action === "Open WSO2 Integration Intelligence") {
             openAIPanelWithPrompt();
         }
     }
@@ -402,6 +402,18 @@ async function getWorkspacePackagePaths(projectRoot: string): Promise<string[] |
         return null;
     }
     return toml.workspace.packages;
+}
+
+/**
+ * Directory the enhancement stages actually edit when the project holds a single package.
+ *
+ * A migrated integration is a package INSIDE its project (the migration wizard creates the
+ * project and puts the package in it, matching the new-project flow), so the sources live
+ * one level down from the project root. A standalone package — nothing declared in a
+ * `[workspace]` section — is its own root.
+ */
+function resolveSinglePackagePath(projectRoot: string, packagePaths: string[] | null): string {
+    return packagePaths?.length === 1 ? path.join(projectRoot, packagePaths[0]) : projectRoot;
 }
 
 /**
@@ -726,7 +738,7 @@ async function runStagesForPackage(opts: StageRunnerOpts): Promise<void> {
 let _migrationAbortController: AbortController | undefined;
 
 /** Module-level selected model ID (set by the UI's model selector). */
-let _selectedModelId: string = "wso2"; // default to WSO2 Integrator Copilot
+let _selectedModelId: string = "wso2"; // default to WSO2 Integration Intelligence
 
 /**
  * Update the selected model ID from the webview.
@@ -867,13 +879,14 @@ export async function runMigrationAgent(): Promise<void> {
             }
         } else {
             // ── Single-package project ───────────────────────────────────
+            const packagePath = resolveSinglePackagePath(projectRoot, packagePaths);
             const stages = getEnhancementStages(buildMigrationContext(projectRoot));
             injectResumePreamble(projectRoot, stages);
             console.log(`[MigrationEnhancement] Starting migration agent (${stages.length} stages) – model: ${_selectedModelId}, sourcePath: ${sourcePath ?? 'none'}`);
-            debugLogger.logMilestone(`Run start — single package, model: ${_selectedModelId}, projectRoot: ${projectRoot}`);
+            debugLogger.logMilestone(`Run start — single package, model: ${_selectedModelId}, projectRoot: ${projectRoot}, packagePath: ${packagePath}`);
 
             await runStagesForPackage({
-                projectRoot, packagePath: projectRoot, sourcePath, stages,
+                projectRoot, packagePath, sourcePath, stages,
                 eventHandler, abortController: _migrationAbortController,
                 fromAIChat: false, stageIdPrefix: "migration",
                 useExistingTempPath: false, debugLogger,
@@ -977,7 +990,7 @@ async function ensureAuthenticated(): Promise<boolean> {
     }
 
     // Tell the wizard UI we're signing in
-    const signingInMsg = { type: "content_block" as const, content: "Signing in to WSO2 Integrator Copilot...\n\n" };
+    const signingInMsg = { type: "content_block" as const, content: "Signing in to WSO2 Integration Intelligence...\n\n" };
     sendVisualizerMigrationNotification(signingInMsg);
     _wizardChatEmitter.fire(signingInMsg);
 
@@ -1047,7 +1060,7 @@ export function isAIAuthenticated(): boolean {
 }
 
 /**
- * Triggers the WSO2 Integrator Copilot browser sign-in flow and waits until the user is
+ * Triggers the WSO2 Integration Intelligence browser sign-in flow and waits until the user is
  * authenticated, cancels, or the 2-minute timeout elapses.
  *
  * Unlike `ensureAuthenticated`, this function does NOT emit any messages to a
@@ -1309,7 +1322,7 @@ export async function runWizardMigrationEnhancement(): Promise<void> {
     if (!isAuthenticated) {
         eventHandler({
             type: "error",
-            content: "Please sign in to WSO2 Integrator Copilot to use AI enhancement. Please retry the AI Enhancement step.",
+            content: "Please sign in to WSO2 Integration Intelligence to use AI enhancement. Please retry the AI Enhancement step.",
         });
         return;
     }
@@ -1457,10 +1470,11 @@ export async function runWizardMigrationEnhancement(): Promise<void> {
             }
         } else {
             // ── Single-package project ───────────────────────────────────
+            const packagePath = resolveSinglePackagePath(projectRoot, packagePaths);
             const stages = getEnhancementStages(buildMigrationContext(projectRoot));
             injectResumePreamble(projectRoot, stages);
-            console.log(`[MigrationEnhancement] Starting wizard migration agent (${stages.length} stages) – projectRoot: ${projectRoot}, sourcePath: ${sourcePath ?? 'none'}`);
-            debugLogger.logMilestone(`Run start — single package (wizard), model: ${_selectedModelId}, projectRoot: ${projectRoot}`);
+            console.log(`[MigrationEnhancement] Starting wizard migration agent (${stages.length} stages) – projectRoot: ${projectRoot}, packagePath: ${packagePath}, sourcePath: ${sourcePath ?? 'none'}`);
+            debugLogger.logMilestone(`Run start — single package (wizard), model: ${_selectedModelId}, projectRoot: ${projectRoot}, packagePath: ${packagePath}`);
 
             // Suppress per-stage "stop" events emitted by AgentExecutor at the end of each
             // stage — without this, the first stage's stop sets terminalRef=true in the webview
@@ -1472,7 +1486,7 @@ export async function runWizardMigrationEnhancement(): Promise<void> {
             };
 
             await runStagesForPackage({
-                projectRoot, packagePath: projectRoot, sourcePath, stages,
+                projectRoot, packagePath, sourcePath, stages,
                 eventHandler: singleStageHandler, abortController: _migrationAbortController,
                 fromAIChat, stageIdPrefix: "wizard-migration",
                 useExistingTempPath: true, debugLogger,

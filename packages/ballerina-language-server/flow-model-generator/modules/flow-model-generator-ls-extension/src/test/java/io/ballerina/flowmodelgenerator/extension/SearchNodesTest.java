@@ -28,7 +28,6 @@ import org.testng.annotations.Test;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Map;
 
 /**
  * Tests for the searchNodes API.
@@ -46,7 +45,7 @@ public class SearchNodesTest extends AbstractLSTest {
         SearchNodesRequest request = new SearchNodesRequest(
                 getSourcePath(testConfig.source()),
                 testConfig.position(),
-                testConfig.queryMap()
+                testConfig.query()
         );
 
         JsonArray jsonModel = getResponseAndCloseFile(request, testConfig.source()).getAsJsonArray("output");
@@ -54,7 +53,7 @@ public class SearchNodesTest extends AbstractLSTest {
         if (!jsonModel.equals(testConfig.output())) {
             TestConfig updateConfig =
                     new TestConfig(testConfig.source(), testConfig.description(), testConfig.position(),
-                            testConfig.queryMap(), jsonModel);
+                            testConfig.query(), jsonModel);
 //            updateConfig(configJsonPath, updateConfig);
             compareJsonElements(jsonModel, testConfig.output());
             Assert.fail(String.format("Failed test: '%s' (%s)", testConfig.description(), configJsonPath));
@@ -89,11 +88,11 @@ public class SearchNodesTest extends AbstractLSTest {
      * @param source      The source file path
      * @param description The description of the test
      * @param position    The position in the file
-     * @param queryMap    The query parameters
+     * @param query       The typed search query
      * @param output      The expected output
      */
     private record TestConfig(String source, String description, LinePosition position,
-                              Map<String, String> queryMap, JsonArray output) {
+                              SearchNodesRequest.SearchQuery query, JsonArray output) {
 
         public String description() {
             return description == null ? "" : description;

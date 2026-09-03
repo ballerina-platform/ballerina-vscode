@@ -136,6 +136,25 @@ export function ComponentDiagram(props: ComponentDiagramProps) {
         if (!workflow.location) {
             return;
         }
+        // A durable agentic workflow (object model): open the agent diagram — the flow model
+        // generator synthesizes Start → agent box for the declaration's range.
+        if (workflow.kind === "DURABLE_AGENT") {
+            rpcClient.getVisualizerRpcClient().openView({
+                type: EVENT_TYPE.OPEN_VIEW,
+                location: {
+                    view: MACHINE_VIEW.BIDiagram,
+                    documentUri: workflow.location.filePath,
+                    position: {
+                        startLine: workflow.location.startLine.line,
+                        startColumn: workflow.location.startLine.offset,
+                        endLine: workflow.location.endLine.line,
+                        endColumn: workflow.location.endLine.offset,
+                    },
+                    identifier: workflow.symbol,
+                },
+            });
+            return;
+        }
         rpcClient.getVisualizerRpcClient().openView({
             type: EVENT_TYPE.OPEN_VIEW,
             location: {

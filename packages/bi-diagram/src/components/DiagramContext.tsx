@@ -21,6 +21,7 @@ import { Flow, FlowNode, Branch, LineRange, ToolData } from "../utils/types";
 import { CompletionItem, FormExpressionEditorRef, HelperPaneHeight } from "@wso2/ui-toolkit";
 import { ExpressionProperty, JoinProjectPathRequest, JoinProjectPathResponse, RecordTypeField, TextEdit, VisualizerLocation } from "@wso2/ballerina-core";
 import { HelperpaneOnChangeOptions, InputMode } from "@wso2/ballerina-side-panel";
+import { AgentNodeActions } from "./AgentNodeActions";
 
 type CompletionConditionalProps = {
     completions: CompletionItem[];
@@ -91,24 +92,16 @@ export interface DiagramContextState {
     onConnectionSelect?: (connectionName: string) => void;
     goToSource: (node: FlowNode) => void;
     openView: (location: VisualizerLocation) => void;
+    goToAgent?: (node: FlowNode) => void;
+    goToAgentDefinition?: (node: FlowNode) => void;
+    getAgentDefinitionLocation?: (node: FlowNode) => Promise<VisualizerLocation | undefined>;
     draftNode?: {
         override: boolean;
         showSpinner?: boolean;
         description?: string;
     };
     selectedNodeId?: string;
-    agentNode: {
-        onModelSelect: (node: FlowNode) => void;
-        onAddTool: (node: FlowNode) => void;
-        onAddMcpServer: (node: FlowNode) => void;
-        onSelectTool: (tool: ToolData, node: FlowNode) => void;
-        onSelectMcpToolkit: (tool: ToolData, node: FlowNode) => void;
-        onDeleteTool: (tool: ToolData, node: FlowNode) => void;
-        goToTool: (tool: ToolData, node: FlowNode) => void;
-        onSelectMemoryManager: (node: FlowNode) => void;
-        onDeleteMemoryManager: (node: FlowNode) => void;
-        onChatWithAgent?: (node: FlowNode) => void;
-    };
+    agentNode?: AgentNodeActions;
     aiNodes?: {
         onModelSelect: (node: FlowNode) => void;
     };
@@ -155,23 +148,16 @@ export const DiagramContext = React.createContext<DiagramContextState>({
     addBreakpoint: () => { },
     removeBreakpoint: () => { },
     openView: () => { },
+    goToAgent: () => { },
+    goToAgentDefinition: () => { },
+    getAgentDefinitionLocation: () => Promise.resolve(undefined),
     draftNode: {
         override: true,
         showSpinner: false,
         description: "",
     },
     selectedNodeId: undefined,
-    agentNode: {
-        onModelSelect: () => { },
-        onAddTool: () => { },
-        onAddMcpServer: () => { },
-        onSelectTool: () => { },
-        onSelectMcpToolkit: () => { },
-        onDeleteTool: () => { },
-        goToTool: () => { },
-        onSelectMemoryManager: () => { },
-        onDeleteMemoryManager: () => { },
-    },
+    agentNode: undefined,
     aiNodes: {
         onModelSelect: () => { },
     },

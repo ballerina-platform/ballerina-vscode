@@ -489,7 +489,7 @@
     "path": {
       "metadata": {
         "label": "Monitored Path",
-        "description": "Directory within the SMB share to monitor for file events. Defaults to the service name when left unset."
+        "description": "The folder on the remote server to monitor for file actions (e.g., /uploads or /incoming)"
       },
       "types": [
         {
@@ -538,8 +538,9 @@
         {
           "metadata": {
             "label": "On Create",
-            "description": "Invoked when a file is created in the monitored directory. Delivers the file content as a plain string.",
+            "description": "Invoked when a file is created in the monitored directory. The content arrives as plain text.",
             "addLabel": "Add On Create Handler (Text)",
+            "addDescription": "Invoked when a file is created in the monitored directory.",
             "badge": "onCreate"
           },
           "name": "onFileText",
@@ -568,13 +569,13 @@
             {
               "metadata": {
                 "label": "Content",
-                "description": "Delivers the file content as a plain string."
+                "description": "The content arrives as plain text."
               },
               "kind": "DATA_BINDING",
               "type": {
                 "metadata": {
                   "label": "Text Content",
-                  "description": "Delivers the file content as a plain string."
+                  "description": "The content arrives as plain text."
                 },
                 "value": "",
                 "types": [
@@ -591,7 +592,7 @@
                   "payload": {
                     "metadata": {
                       "label": "Content",
-                      "description": "The text file content as a plain string."
+                      "description": "The file content as plain text."
                     },
                     "value": "string",
                     "enabled": false,
@@ -644,7 +645,7 @@
             {
               "metadata": {
                 "label": "File Metadata (fileInfo)",
-                "description": "Metadata for the file such as name, path, size and timestamps."
+                "description": "File properties such as name, path, size and timestamps."
               },
               "kind": "OPTIONAL",
               "type": {
@@ -669,7 +670,7 @@
               "name": {
                 "metadata": {
                   "label": "fileInfo",
-                  "description": "Metadata for the file such as name, path, size and timestamps."
+                  "description": "File properties such as name, path, size and timestamps."
                 },
                 "placeholder": "fileInfo",
                 "value": "fileInfo",
@@ -766,7 +767,7 @@
             "fileHandling": {
               "metadata": {
                 "label": "File Handling Options",
-                "description": "@smb:FunctionConfig \u2014 per-handler file-name filter and the action taken on the source file after the handler runs."
+                "description": "What happens to the source file after the handler runs."
               },
               "types": [
                 {
@@ -1065,8 +1066,9 @@
         {
           "metadata": {
             "label": "On Create",
-            "description": "Invoked when a file is created in the monitored directory. Binds the file content to json or a custom record type.",
+            "description": "Invoked when a file is created in the monitored directory. Define a schema below to receive the content as a custom type (e.g., User, Student).",
             "addLabel": "Add On Create Handler (JSON)",
+            "addDescription": "Invoked when a file is created in the monitored directory.",
             "badge": "onCreate"
           },
           "name": "onFileJson",
@@ -1095,13 +1097,13 @@
             {
               "metadata": {
                 "label": "Content",
-                "description": "Binds the file content to json or a custom record type."
+                "description": "Define a schema below to receive the content as a custom type (e.g., User, Student)."
               },
               "kind": "DATA_BINDING",
               "type": {
                 "metadata": {
                   "label": "JSON Content",
-                  "description": "Binds the file content to json or a custom record type."
+                  "description": "Define a schema below to receive the content as a custom type (e.g., User, Student)."
                 },
                 "value": "",
                 "types": [
@@ -1118,7 +1120,7 @@
                   "payload": {
                     "metadata": {
                       "label": "Content Schema",
-                      "description": "Bound content type (defaults to json)."
+                      "description": "Create a record type describing the file content. Defaults to json."
                     },
                     "value": "json",
                     "enabled": true,
@@ -1185,7 +1187,7 @@
             {
               "metadata": {
                 "label": "File Metadata (fileInfo)",
-                "description": "Metadata for the file such as name, path, size and timestamps."
+                "description": "File properties such as name, path, size and timestamps."
               },
               "kind": "OPTIONAL",
               "type": {
@@ -1210,7 +1212,7 @@
               "name": {
                 "metadata": {
                   "label": "fileInfo",
-                  "description": "Metadata for the file such as name, path, size and timestamps."
+                  "description": "File properties such as name, path, size and timestamps."
                 },
                 "placeholder": "fileInfo",
                 "value": "fileInfo",
@@ -1307,7 +1309,7 @@
             "fileHandling": {
               "metadata": {
                 "label": "File Handling Options",
-                "description": "@smb:FunctionConfig \u2014 per-handler file-name filter and the action taken on the source file after the handler runs."
+                "description": "What happens to the source file after the handler runs."
               },
               "types": [
                 {
@@ -1606,8 +1608,9 @@
         {
           "metadata": {
             "label": "On Create",
-            "description": "Invoked when a file is created in the monitored directory. Binds the file content to xml or a custom record type.",
+            "description": "Invoked when a file is created in the monitored directory. Define a schema below to receive the content as a custom type (e.g., User, Student).",
             "addLabel": "Add On Create Handler (XML)",
+            "addDescription": "Invoked when a file is created in the monitored directory.",
             "badge": "onCreate"
           },
           "name": "onFileXml",
@@ -1636,13 +1639,13 @@
             {
               "metadata": {
                 "label": "Content",
-                "description": "Binds the file content to xml or a custom record type."
+                "description": "Define a schema below to receive the content as a custom type (e.g., User, Student)."
               },
               "kind": "DATA_BINDING",
               "type": {
                 "metadata": {
                   "label": "XML Content",
-                  "description": "Binds the file content to xml or a custom record type."
+                  "description": "Define a schema below to receive the content as a custom type (e.g., User, Student)."
                 },
                 "value": "",
                 "types": [
@@ -1659,7 +1662,7 @@
                   "payload": {
                     "metadata": {
                       "label": "Content Schema",
-                      "description": "Bound content type (defaults to xml)."
+                      "description": "Create a record type describing the file content. Defaults to xml."
                     },
                     "value": "xml",
                     "enabled": true,
@@ -1726,7 +1729,7 @@
             {
               "metadata": {
                 "label": "File Metadata (fileInfo)",
-                "description": "Metadata for the file such as name, path, size and timestamps."
+                "description": "File properties such as name, path, size and timestamps."
               },
               "kind": "OPTIONAL",
               "type": {
@@ -1751,7 +1754,7 @@
               "name": {
                 "metadata": {
                   "label": "fileInfo",
-                  "description": "Metadata for the file such as name, path, size and timestamps."
+                  "description": "File properties such as name, path, size and timestamps."
                 },
                 "placeholder": "fileInfo",
                 "value": "fileInfo",
@@ -1848,7 +1851,7 @@
             "fileHandling": {
               "metadata": {
                 "label": "File Handling Options",
-                "description": "@smb:FunctionConfig \u2014 per-handler file-name filter and the action taken on the source file after the handler runs."
+                "description": "What happens to the source file after the handler runs."
               },
               "types": [
                 {
@@ -2147,8 +2150,9 @@
         {
           "metadata": {
             "label": "On Create",
-            "description": "Invoked when a file is created in the monitored directory. Comma-separated rows \u2014 binds each row to T, emits T[] (or stream<T, error?> for large files).",
+            "description": "Invoked when a file is created in the monitored directory. Define a row schema below to receive the rows as custom types (e.g., User[], Student[]).",
             "addLabel": "Add On Create Handler (CSV)",
+            "addDescription": "Invoked when a file is created in the monitored directory.",
             "badge": "onCreate"
           },
           "name": "onFileCsv",
@@ -2177,13 +2181,13 @@
             {
               "metadata": {
                 "label": "Content",
-                "description": "Comma-separated rows \u2014 binds each row to T, emits T[] (or stream<T, error?> for large files)."
+                "description": "Define a row schema below to receive the rows as custom types (e.g., User[], Student[])."
               },
               "kind": "DATA_BINDING",
               "type": {
                 "metadata": {
                   "label": "CSV Content",
-                  "description": "Comma-separated rows \u2014 binds each row to T, emits T[] (or stream<T, error?> for large files)."
+                  "description": "Define a row schema below to receive the rows as custom types (e.g., User[], Student[])."
                 },
                 "value": "",
                 "types": [
@@ -2197,30 +2201,10 @@
                 "optional": false,
                 "advanced": false,
                 "properties": {
-                  "rows": {
-                    "metadata": {
-                      "label": "Rows",
-                      "description": "Content Schema contains a row of CSV Row type"
-                    },
-                    "value": true,
-                    "types": [
-                      {
-                        "fieldType": "METADATA_FLAG",
-                        "selected": true
-                      }
-                    ],
-                    "enabled": true,
-                    "editable": false,
-                    "optional": false,
-                    "advanced": false,
-                    "codedata": {
-                      "type": "METADATA_FLAG"
-                    }
-                  },
                   "stream": {
                     "metadata": {
                       "label": "Stream (Large Files)",
-                      "description": "Process the file content in chunks"
+                      "description": "Process the file content in chunks."
                     },
                     "value": false,
                     "types": [
@@ -2247,7 +2231,7 @@
                   "payload": {
                     "metadata": {
                       "label": "Row Schema",
-                      "description": "Define or select the bound row type (T). Content is delivered as T[], or stream<T, error?> when streaming is enabled."
+                      "description": "Create a record type describing one row of the file. Each row arrives as one record."
                     },
                     "value": "string[][]",
                     "enabled": true,
@@ -2315,7 +2299,7 @@
             {
               "metadata": {
                 "label": "File Metadata (fileInfo)",
-                "description": "Metadata for the file such as name, path, size and timestamps."
+                "description": "File properties such as name, path, size and timestamps."
               },
               "kind": "OPTIONAL",
               "type": {
@@ -2340,7 +2324,7 @@
               "name": {
                 "metadata": {
                   "label": "fileInfo",
-                  "description": "Metadata for the file such as name, path, size and timestamps."
+                  "description": "File properties such as name, path, size and timestamps."
                 },
                 "placeholder": "fileInfo",
                 "value": "fileInfo",
@@ -2417,6 +2401,17 @@
               }
             }
           ],
+          "layout": [
+            {
+              "fields": [
+                "$variant",
+                "$description",
+                "content",
+                "stream",
+                "*rest"
+              ]
+            }
+          ],
           "returnType": {
             "metadata": {
               "label": "Return Type",
@@ -2437,7 +2432,7 @@
             "fileHandling": {
               "metadata": {
                 "label": "File Handling Options",
-                "description": "@smb:FunctionConfig \u2014 per-handler file-name filter and the action taken on the source file after the handler runs."
+                "description": "What happens to the source file after the handler runs."
               },
               "types": [
                 {
@@ -2736,8 +2731,9 @@
         {
           "metadata": {
             "label": "On Create",
-            "description": "Invoked when a file is created in the monitored directory. Delivers the raw file content as byte[] (or stream<byte[], error?> for large files).",
+            "description": "Invoked when a file is created in the monitored directory. The content arrives as raw, unparsed bytes.",
             "addLabel": "Add On Create Handler (Raw Bytes)",
+            "addDescription": "Invoked when a file is created in the monitored directory.",
             "badge": "onCreate"
           },
           "name": "onFile",
@@ -2766,13 +2762,13 @@
             {
               "metadata": {
                 "label": "Content",
-                "description": "Delivers the raw file content as byte[] (or stream<byte[], error?> for large files)."
+                "description": "The content arrives as raw, unparsed bytes."
               },
               "kind": "DATA_BINDING",
               "type": {
                 "metadata": {
                   "label": "Raw Bytes Content",
-                  "description": "Delivers the raw file content as byte[] (or stream<byte[], error?> for large files)."
+                  "description": "The content arrives as raw, unparsed bytes."
                 },
                 "value": "",
                 "types": [
@@ -2789,7 +2785,7 @@
                   "stream": {
                     "metadata": {
                       "label": "Stream (Large Files)",
-                      "description": "Deliver the content as stream<byte[], error?> to process large binary files in chunks."
+                      "description": "Process the file content in chunks."
                     },
                     "value": false,
                     "types": [
@@ -2816,7 +2812,7 @@
                   "payload": {
                     "metadata": {
                       "label": "Content",
-                      "description": "Raw file content as byte[], or stream<byte[], error?> when streaming is enabled."
+                      "description": "The raw file content as bytes."
                     },
                     "value": "byte[]",
                     "enabled": true,
@@ -2870,7 +2866,7 @@
             {
               "metadata": {
                 "label": "File Metadata (fileInfo)",
-                "description": "Metadata for the file such as name, path, size and timestamps."
+                "description": "File properties such as name, path, size and timestamps."
               },
               "kind": "OPTIONAL",
               "type": {
@@ -2895,7 +2891,7 @@
               "name": {
                 "metadata": {
                   "label": "fileInfo",
-                  "description": "Metadata for the file such as name, path, size and timestamps."
+                  "description": "File properties such as name, path, size and timestamps."
                 },
                 "placeholder": "fileInfo",
                 "value": "fileInfo",
@@ -2972,6 +2968,17 @@
               }
             }
           ],
+          "layout": [
+            {
+              "fields": [
+                "$variant",
+                "$description",
+                "content",
+                "stream",
+                "*rest"
+              ]
+            }
+          ],
           "returnType": {
             "metadata": {
               "label": "Return Type",
@@ -2992,7 +2999,7 @@
             "fileHandling": {
               "metadata": {
                 "label": "File Handling Options",
-                "description": "@smb:FunctionConfig \u2014 per-handler file-name filter and the action taken on the source file after the handler runs."
+                "description": "What happens to the source file after the handler runs."
               },
               "types": [
                 {
@@ -3438,7 +3445,7 @@
         {
           "metadata": {
             "label": "On Error",
-            "description": "Invoked when an error occurs during file processing.",
+            "description": "Invoked when an error occurs while processing a file in the monitored directory.",
             "addLabel": "Add On Error Handler",
             "badge": "onError"
           },
@@ -3462,7 +3469,7 @@
             {
               "metadata": {
                 "label": "SMB Error",
-                "description": "The error that occurred during file processing."
+                "description": "The error that occurred while processing the file."
               },
               "kind": "REQUIRED",
               "type": {
@@ -3470,8 +3477,8 @@
                   "label": "Parameter Type",
                   "description": "The type of the parameter"
                 },
-                "placeholder": "error",
-                "value": "error",
+                "placeholder": "smb:Error",
+                "value": "smb:Error",
                 "types": [
                   {
                     "fieldType": "TYPE",
@@ -3486,7 +3493,7 @@
               "name": {
                 "metadata": {
                   "label": "err",
-                  "description": "The error that occurred during file processing."
+                  "description": "The error that occurred while processing the file."
                 },
                 "placeholder": "err",
                 "value": "err",
@@ -3506,6 +3513,58 @@
               "optional": false,
               "advanced": false,
               "hidden": true,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            },
+            {
+              "metadata": {
+                "label": "SMB Connection (caller)",
+                "description": "SMB connection handle for performing additional file operations within the handler."
+              },
+              "kind": "OPTIONAL",
+              "type": {
+                "metadata": {
+                  "label": "Include SMB Connection (caller)",
+                  "description": "Tick to include the SMB Connection (caller) parameter in the handler signature."
+                },
+                "placeholder": "smb:Caller",
+                "value": false,
+                "types": [
+                  {
+                    "fieldType": "FLAG",
+                    "selected": true,
+                    "ballerinaType": "smb:Caller"
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "caller",
+                  "description": "SMB connection handle for performing additional file operations within the handler."
+                },
+                "placeholder": "caller",
+                "value": "caller",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": false,
+              "editable": true,
+              "optional": true,
+              "advanced": true,
+              "hidden": false,
               "codedata": {
                 "type": "FUNCTION_PARAM"
               }

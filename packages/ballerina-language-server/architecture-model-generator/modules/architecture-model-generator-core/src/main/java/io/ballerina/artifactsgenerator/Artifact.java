@@ -24,17 +24,15 @@ import io.ballerina.compiler.api.symbols.Symbol;
 import io.ballerina.compiler.syntax.tree.Node;
 import io.ballerina.compiler.syntax.tree.ServiceDeclarationNode;
 import io.ballerina.designmodelgenerator.core.CommonUtils;
-import io.ballerina.modelgenerator.commons.IconDescriptor;
-import io.ballerina.modelgenerator.commons.trigger.utils.TriggerArtifactResolver;
 import io.ballerina.runtime.api.utils.IdentifierUtils;
 import io.ballerina.tools.text.LineRange;
 
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Represents an artifact in the project tree.
@@ -46,14 +44,14 @@ import java.util.Optional;
  * @param accessor   accessor of the artifact
  * @param scope      lexical scope of the artifact (global/local/object)
  * @param visibility visibility of the artifact (public/module/private)
- * @param icon       resolved icon descriptor for the artifact (url/glyph/color/kind/source)
+ * @param icon       icon representing the artifact
  * @param children   map of child artifacts (id -> child)
  * @param module     module name of the artifact
  * @param metadata   metadata about the artifact
  * @since 1.0.0
  */
 public record Artifact(String id, LineRange location, String type, String name, String accessor,
-                       String scope, String visibility, IconDescriptor icon, String module,
+                       String scope, String visibility, String icon, String module,
                        Map<String, Artifact> children, Map<String, Object> metadata) {
 
     private static final String CATEGORY_ENTRY_POINTS = "Entry Points";
@@ -66,6 +64,8 @@ public record Artifact(String id, LineRange location, String type, String name, 
     private static final String CATEGORY_CONFIGURATIONS = "Configurations";
     private static final String CATEGORY_TYPES = "Types";
     private static final String CATEGORY_CONNECTIONS = "Connections";
+    private static final String CATEGORY_AGENTS = "Agents";
+    private static final String CATEGORY_AGENT_DEFINITIONS = "Agent Definitions";
     private static final String CATEGORY_VARIABLES = "Variables";
     private static final String CATEGORY_WORKFLOWS = "Workflows";
     private static final String CATEGORY_DEFAULT = "Others";
@@ -82,8 +82,11 @@ public record Artifact(String id, LineRange location, String type, String name, 
             Map.entry(Type.CONFIGURABLE.name(), CATEGORY_CONFIGURATIONS),
             Map.entry(Type.TYPE.name(), CATEGORY_TYPES),
             Map.entry(Type.CONNECTION.name(), CATEGORY_CONNECTIONS),
+            Map.entry(Type.AGENT.name(), CATEGORY_AGENTS),
+            Map.entry(Type.AGENT_DEFINITION.name(), CATEGORY_AGENT_DEFINITIONS),
             Map.entry(Type.VARIABLE.name(), CATEGORY_VARIABLES),
             Map.entry(Type.WORKFLOW.name(), CATEGORY_WORKFLOWS),
+            Map.entry(Type.DURABLE_AGENT.name(), CATEGORY_WORKFLOWS),
             Map.entry(Type.ACTIVITY.name(), CATEGORY_WORKFLOWS));
 
     private static final Map<String, String> entryPointMap = Map.ofEntries(
@@ -112,10 +115,16 @@ public record Artifact(String id, LineRange location, String type, String name, 
             Map.entry("ftp", "FTP Integration"),
             Map.entry("file", "Local Files"),
             Map.entry("smb", "SMB Integration"),
-            Map.entry("files", "Azure Storage Files Integration"),
+            Map.entry("azure.storage.files", "Azure Files Integration"),
             Map.entry("business", "Whatsapp Event Integration"),
             Map.entry("chat", "Google Chat Event Integration"),
             Map.entry("telegram", "Telegram Event Integration")
+    );
+
+    private static final Map<String, Map<String, String>> serviceTypeMap = Map.of(
+            "sap.jco", Map.of(
+                    "jco:IDocService", "SAP JCo IDoc Service",
+                    "jco:RfcService", "SAP JCo RFC Service")
     );
 
     /**
@@ -128,8 +137,16 @@ public record Artifact(String id, LineRange location, String type, String name, 
             "postgresql", new String[]{"tables"},
             "mysql", new String[]{"tables"},
             "ftp", new String[]{"path"},
+            "smb", new String[]{"path"},
             "rabbitmq", new String[]{"queueName"}
     );
+
+    /**
+     * Modules whose service can carry its watched path in the attach point, so the entry-point label appends that
+     * path even though the service also has a type descriptor. Azure Files has no path annotation at all; SMB has
+     * one that wins whenever it is present, which leaves the attach point as its fallback.
+     */
+    private static final Set<String> attachPointNamedModules = Set.of("azure.storage.files", "smb");
 
     public static String getCategory(String type) {
         return typeCategoryMap.getOrDefault(type, CATEGORY_DEFAULT);
@@ -158,8 +175,11 @@ public record Artifact(String id, LineRange location, String type, String name, 
         CONFIGURABLE,
         TYPE,
         CONNECTION,
+        AGENT,
+        AGENT_DEFINITION,
         VARIABLE,
         WORKFLOW,
+        DURABLE_AGENT,
         ACTIVITY
     }
 
@@ -210,9 +230,8 @@ public record Artifact(String id, LineRange location, String type, String name, 
         private String accessor;
         private Scope scope = Scope.GLOBAL;
         private Visibility visibility = null;
-        private IconDescriptor icon;
+        private String icon;
         private String module;
-        private ModuleID moduleId;
         private final Map<String, Artifact> children = new HashMap<>();
         private Map<String, Object> metadata = null;
 
@@ -264,8 +283,7 @@ public record Artifact(String id, LineRange location, String type, String name, 
                 return this;
             }
             ModuleID moduleId = moduleSymbol.get().id();
-            this.moduleId = moduleId;
-            this.icon = TriggerArtifactResolver.resolveIcon(moduleId);
+            this.icon = CommonUtils.generateIcon(moduleId);
             this.module = moduleId.moduleName();
             return this;
         }
@@ -278,16 +296,23 @@ public record Artifact(String id, LineRange location, String type, String name, 
         }
 
         public Builder serviceNameWithPath(String path) {
-            Optional<String> displayName = moduleId == null
-                    ? Optional.empty() : TriggerArtifactResolver.resolveDisplayName(moduleId);
-            this.name = displayName.map(dn -> dn + " - " + path).orElse(path);
+            // A string-literal attach point (`service files:Service "/invoices" on lsn`) reaches here with its
+            // quotes, unlike the identifier form (`service /invoices on lsn`).
+            String attachPoint = unquote(path);
+            if (module == null || !entryPointMap.containsKey(module)) {
+                this.name = attachPoint;
+            } else {
+                this.name = entryPointMap.get(module) + " - " + attachPoint;
+            }
             return this;
         }
 
+        public String module() {
+            return module;
+        }
+
         public Builder serviceName(String name) {
-            Optional<String> displayName = moduleId == null
-                    ? Optional.empty() : TriggerArtifactResolver.resolveDisplayName(moduleId);
-            this.name = displayName.orElse(name);
+            this.name = resolveServiceName(module, name);
             return this;
         }
 
@@ -311,16 +336,16 @@ public record Artifact(String id, LineRange location, String type, String name, 
          * @return true if name was successfully extracted from annotation, false otherwise
          */
         public boolean trySetNameFromAnnotation(ServiceDeclarationNode serviceNode) {
-            if (moduleId == null) {
-                return false;
-            }
-            List<String> fieldNames = TriggerArtifactResolver.resolveLabelFields(moduleId);
-            for (String fieldName : fieldNames) {
-                Optional<String> extractedValue = CommonUtils.extractServiceAnnotationField(serviceNode, fieldName);
-                if (extractedValue.isPresent()) {
-                    String displayName = TriggerArtifactResolver.resolveDisplayName(moduleId).orElse("");
-                    this.name = displayName + " - " + extractedValue.get();
-                    return true;
+            if (module != null && moduleAnnotationFields.containsKey(module)) {
+                String[] fieldNames = moduleAnnotationFields.get(module);
+
+                for (String fieldName : fieldNames) {
+                    Optional<String> extractedValue = CommonUtils.extractServiceAnnotationField(serviceNode, fieldName);
+                    if (extractedValue.isPresent()) {
+                        this.name = Objects.requireNonNullElse(entryPointMap.get(module), "") + " - " +
+                                extractedValue.get();
+                        return true;
+                    }
                 }
             }
             return false;
@@ -338,5 +363,34 @@ public record Artifact(String id, LineRange location, String type, String name, 
                     visibility == null ? null : visibility.getValue(), icon,
                     module, new HashMap<>(children), metadata == null ? null : new HashMap<>(metadata));
         }
+    }
+
+    /**
+     * Whether the module can take its service's watched path from the attach point, as in
+     * {@code service files:Service /invoices on lsn}.
+     *
+     * <p>An entry-point label is required too, since without one {@code serviceNameWithPath} would emit a bare
+     * path with no connector name — worse than the type-descriptor label this branch pre-empts.
+     *
+     * @param module the module name the semantic model reports
+     * @return true when the attach point supplies the name
+     */
+    public static boolean usesAttachPointAsName(String module) {
+        return module != null && attachPointNamedModules.contains(module) && entryPointMap.containsKey(module);
+    }
+
+    static String unquote(String value) {
+        if (value == null || value.length() < 2 || !value.startsWith("\"") || !value.endsWith("\"")) {
+            return value;
+        }
+        return value.substring(1, value.length() - 1);
+    }
+
+    public static String resolveServiceName(String module, String name) {
+        if (module == null) {
+            return name;
+        }
+        String serviceTypeName = serviceTypeMap.getOrDefault(module, Collections.emptyMap()).get(name);
+        return serviceTypeName != null ? serviceTypeName : entryPointMap.getOrDefault(module, name);
     }
 }

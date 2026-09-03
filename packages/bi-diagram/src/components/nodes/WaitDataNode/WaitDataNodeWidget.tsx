@@ -26,11 +26,23 @@ import { MoreVertIcon } from "../../../resources";
 import { useDiagramContext } from "../../DiagramContext";
 import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
 import { DiagnosticsPopUp } from "../../DiagnosticsPopUp";
-import { getDiffContainerStyles, getDiffTitleStyles, nodeHasError } from "../../../utils/node";
+import {
+    getAgentDataEventName,
+    getHumanTaskUserRoles,
+    getNodeTitle,
+    isHumanTaskNode,
+    isReceiveEventNode,
+    getDiffContainerStyles,
+    getDiffTitleStyles,
+    nodeHasError,
+    normalizeNodePropertyValue,
+} from "../../../utils/node";
 import { WaitDataNodeModel } from "./WaitDataNodeModel";
 import {
     HIGHLIGHT_NODE_BORDER_COLOR,
     HIGHLIGHT_NODE_BORDER_WIDTH,
+    HUMAN_TASK_ROLES_LABEL_GAP,
+    HUMAN_TASK_ROLES_LABEL_WIDTH,
     NODE_BG_BREAKPOINT_COLOR,
     NODE_BG_COLOR,
     NODE_BG_HOVER_COLOR,
@@ -38,7 +50,12 @@ import {
     NODE_BORDER_COLOR,
     NODE_BORDER_ERROR_COLOR,
     NODE_BORDER_SELECTED_COLOR,
+    LABEL_HEIGHT,
+    NODE_GAP_X,
+    NODE_HEIGHT,
+    NODE_PADDING,
     NODE_TEXT_COLOR,
+    NODE_WIDTH,
     WAIT_DATA_ARROW_WIDTH,
     WAIT_DATA_CIRCLE_SIZE,
     WAIT_DATA_DETAILS_GAP,
@@ -46,7 +63,17 @@ import {
 } from "../../../resources/constants";
 
 const EXTERNAL_DOT_RADIUS = 4;
+const SOURCE_BOX_SIZE = 44;
 const EXTERNAL_DOT_STROKE = 2.5;
+// The roles beside the source box are drawn as SVG text, which neither wraps nor ellipsizes, so
+// they are trimmed to what the reserved strip holds. The advance approximates the label font's.
+const SOURCE_LABEL_FONT_SIZE = 12;
+const SOURCE_LABEL_CHAR_WIDTH = 6.6;
+
+function fitSourceLabel(label: string, availableWidth: number): string {
+    const maxChars = Math.max(4, Math.floor(availableWidth / SOURCE_LABEL_CHAR_WIDTH));
+    return label.length > maxChars ? `${label.slice(0, maxChars - 1)}…` : label;
+}
 
 export namespace NodeStyles {
     export type NodeStyleProp = {
@@ -84,10 +111,13 @@ export namespace NodeStyles {
     export const Circle = styled.div<NodeStyleProp>`
         display: flex;
         align-items: center;
-        justify-content: center;
-        width: ${WAIT_DATA_CIRCLE_SIZE}px;
-        height: ${WAIT_DATA_CIRCLE_SIZE}px;
-        border-radius: 50%;
+        justify-content: flex-start;
+        gap: 8px;
+        width: ${NODE_WIDTH}px;
+        min-height: ${NODE_HEIGHT}px;
+        padding: 0 ${NODE_PADDING}px;
+        /* The body of a wait is a box like a send's: the two are halves of one exchange. */
+        border-radius: 10px;
         border: 2px solid
             ${(props: NodeStyleProp) =>
                 props.hasError
@@ -119,7 +149,8 @@ export namespace NodeStyles {
     export const TextGroup = styled.div`
         min-width: 0;
         flex: 1;
-        max-width: 140px;
+        align-self: center;
+        max-width: ${NODE_WIDTH - 110}px;
     `;
 
     export const Title = styled.div`
@@ -144,6 +175,9 @@ export namespace NodeStyles {
     export const ActionButtonGroup = styled.div`
         display: flex;
         flex-direction: row;
+        /* Pinned to the top-right of the box, as on every other node. */
+        align-self: flex-start;
+        margin-left: auto;
         align-items: center;
         gap: 2px;
         flex-shrink: 0;
@@ -160,15 +194,27 @@ interface WaitDataNodeWidgetProps {
     onClick?: (node: FlowNode) => void;
 }
 
-function normalizeNodePropertyValue(value?: string): string {
-    if (typeof value !== "string") {
-        return "";
+function getWaitDataInfo(node: FlowNode): { title: string; subtitle: string } {
+    // A human task waits on a person, not on a declared channel, so it keeps the label and the
+    // result variable it read as a plain node — only the shape changes.
+    if (isHumanTaskNode(node)) {
+        return {
+            title: getNodeTitle(node),
+            subtitle: normalizeNodePropertyValue((node.properties as any)?.variable?.value as string | undefined),
+        };
     }
 
-    return value.trim().replace(/^["']|["']$/g, "");
-}
+    // A durable agent's wait names the channel it is waiting on. The call itself carries only the
+    // correlation token, so the channel comes from metadata — the language server recovers it from
+    // the sendData that issued the token.
+    const agentDataEvent = getAgentDataEventName(node);
+    if (agentDataEvent) {
+        return {
+            title: `Wait for ${agentDataEvent}`,
+            subtitle: normalizeNodePropertyValue((node.properties as any)?.variable?.value as string | undefined),
+        };
+    }
 
-function getWaitDataInfo(node: FlowNode): { title: string; subtitle: string } {
     // New format: dataWaits repeatable property
     const dataWaits = (node.properties as any)?.dataWaits?.value;
     if (dataWaits && typeof dataWaits === "object") {
@@ -251,14 +297,41 @@ export function WaitDataNodeWidget(props: WaitDataNodeWidgetProps) {
     const isActiveBreakpoint = model.isActiveBreakpoint();
     const hasError = nodeHasError(model.node);
     const { title: nodeTitle, subtitle: nodeSubtitle } = getWaitDataInfo(model.node);
+    // The counterpart of the send node's target: who the awaited event comes from.
+    const sourceName = (model.node.metadata?.data as { agentName?: string } | undefined)?.agentName;
+    const isHumanTask = isHumanTaskNode(model.node);
+    // A human task is waiting on a person, so the person is the source on the left and the body
+    // carries the same glyph — the wait node keeps one icon on both ends of its arrow.
+    const nodeIconName = isHumanTask ? "bi-user" : isReceiveEventNode(model.node) ? "bi-import" : "bi-wait";
+    const sourceIconName = isHumanTask ? "bi-user" : sourceName ? "bi-ai-agent" : "bi-import";
+    // A configured timeout is a deadline on the wait: surface it with the same clock badge the
+    // plain node used.
+    const hasTimeout = !!(model.node.properties as any)?.timeout?.value;
+    // Who the task is waiting on: the roles named on the statement, reading into the person icon
+    // they describe.
+    const userRoles = isHumanTask ? getHumanTaskUserRoles(model.node) : [];
+    const userRolesLabel = userRoles.join(", ");
 
     // Compute layout positions for the external arrow SVG
     const circleRadius = WAIT_DATA_CIRCLE_SIZE / 2;
-    const svgWidth = model.node.viewState?.lw ? model.node.viewState.lw - circleRadius : WAIT_DATA_ARROW_WIDTH;
-    const svgHeight = WAIT_DATA_CIRCLE_SIZE;
-    const svgMidY = svgHeight / 2;
-    const dotCx = EXTERNAL_DOT_RADIUS + EXTERNAL_DOT_STROKE;
-    const lineX1 = dotCx + EXTERNAL_DOT_RADIUS + 4;
+    // The body has to land on the node's centre line, so the space before it is exactly the left
+    // width minus half the body. Deriving it any other way leaves the body off-centre and the
+    // links bending to reach it.
+    const svgWidth = model.node.viewState?.lw
+        ? Math.max(model.node.viewState.lw - NODE_WIDTH / 2, SOURCE_BOX_SIZE + NODE_GAP_X)
+        : SOURCE_BOX_SIZE + NODE_GAP_X;
+    const svgHeight = NODE_HEIGHT + LABEL_HEIGHT;
+    const svgMidY = (NODE_HEIGHT + LABEL_HEIGHT) / 2;
+    // The roles read into the person they name, so they take the strip the sizing visitor reserved
+    // at the far left and the source box starts after it. Clamped, so a stale view state shrinks
+    // the strip rather than pushing the box out of the node.
+    const rolesLabelWidth = userRolesLabel
+        ? Math.max(0, Math.min(HUMAN_TASK_ROLES_LABEL_WIDTH, svgWidth - SOURCE_BOX_SIZE))
+        : 0;
+    // The source sits at the far left, and the arrow runs from it into the body.
+    const sourceBoxX = rolesLabelWidth;
+    const sourceBoxY = svgMidY - SOURCE_BOX_SIZE / 2;
+    const lineX1 = sourceBoxX + SOURCE_BOX_SIZE;
     const arrowColor = isHovered && !readOnly ? NODE_BORDER_SELECTED_COLOR : NODE_TEXT_COLOR;
 
     const selectNode = () => {
@@ -347,14 +420,55 @@ export function WaitDataNodeWidget(props: WaitDataNodeWidgetProps) {
                 viewBox={`0 0 ${svgWidth} ${svgHeight}`}
                 style={{ flexShrink: 0 }}
             >
-                <circle
-                    cx={dotCx}
-                    cy={svgMidY}
-                    r={EXTERNAL_DOT_RADIUS}
-                    fill="none"
+                <rect
+                    x={sourceBoxX}
+                    y={sourceBoxY}
+                    width={SOURCE_BOX_SIZE}
+                    height={SOURCE_BOX_SIZE}
+                    rx={12}
+                    fill={NODE_BG_COLOR}
                     stroke={arrowColor}
-                    strokeWidth={EXTERNAL_DOT_STROKE}
+                    strokeWidth={1.5}
                 />
+                <foreignObject x={sourceBoxX} y={sourceBoxY} width={SOURCE_BOX_SIZE} height={SOURCE_BOX_SIZE}>
+                    <div
+                        style={{
+                            width: `${SOURCE_BOX_SIZE}px`,
+                            height: `${SOURCE_BOX_SIZE}px`,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                        }}
+                    >
+                        <Icon name={sourceIconName} sx={{ width: 24, height: 24, fontSize: 24 }} />
+                    </div>
+                </foreignObject>
+                {sourceName && (
+                    <text
+                        x={sourceBoxX}
+                        y={svgHeight - 2}
+                        textAnchor="start"
+                        fill={NODE_TEXT_COLOR}
+                        fontSize="14px"
+                        fontFamily="GilmerRegular"
+                    >
+                        {sourceName}
+                    </text>
+                )}
+                {userRolesLabel && rolesLabelWidth > 0 && (
+                    <text
+                        x={sourceBoxX - HUMAN_TASK_ROLES_LABEL_GAP}
+                        y={svgMidY}
+                        textAnchor="end"
+                        dominantBaseline="central"
+                        fill={NODE_TEXT_COLOR}
+                        fontSize={`${SOURCE_LABEL_FONT_SIZE}px`}
+                        fontFamily="GilmerRegular"
+                    >
+                        <title>{userRolesLabel}</title>
+                        {fitSourceLabel(userRolesLabel, rolesLabelWidth - HUMAN_TASK_ROLES_LABEL_GAP)}
+                    </text>
+                )}
                 <line
                     x1={lineX1}
                     y1={svgMidY}
@@ -406,30 +520,48 @@ export function WaitDataNodeWidget(props: WaitDataNodeWidgetProps) {
                         style={getDiffContainerStyles(model.node)}
                         onClick={handleOnClick}
                     >
-                        <Icon name="bi-wait" sx={{ fontSize: 32, width: 32, height: 32, color: NODE_TEXT_COLOR }} />
+                        <div style={{ position: "relative", display: "flex", flexShrink: 0 }}>
+                            <Icon
+                                // Receiving a declared event is the same act whether a workflow or an
+                                // agent does it, so it carries the agent box's receive-event icon. The
+                                // timer is kept for the waits that are only waits — a child workflow's
+                                // result, or an agent's answer to a turn.
+                                name={nodeIconName}
+                                sx={{ fontSize: 24, width: 24, height: 24, color: NODE_TEXT_COLOR }}
+                            />
+                            {hasTimeout && (
+                                <Icon
+                                    name="bi-clock"
+                                    sx={{
+                                        fontSize: "11px",
+                                        width: "11px",
+                                        height: "11px",
+                                        position: "absolute",
+                                        right: "-5px",
+                                        bottom: "-3px",
+                                    }}
+                                />
+                            )}
+                        </div>
+                        <NodeStyles.TextGroup>
+                            <NodeStyles.Title style={getDiffTitleStyles(model.node)}>{nodeTitle}</NodeStyles.Title>
+                            <NodeStyles.Subtitle>{nodeSubtitle}</NodeStyles.Subtitle>
+                        </NodeStyles.TextGroup>
+                        <NodeStyles.ActionButtonGroup>
+                            {hasError && <DiagnosticsPopUp node={model.node} engine={engine} />}
+                            <NodeStyles.MenuButton
+                                ref={setMenuButtonElement}
+                                buttonSx={readOnly ? { cursor: "not-allowed" } : {}}
+                                appearance="icon"
+                                onClick={handleOnMenuClick}
+                            >
+                                <MoreVertIcon />
+                            </NodeStyles.MenuButton>
+                        </NodeStyles.ActionButtonGroup>
                     </NodeStyles.Circle>
                 </Tooltip>
                 <NodeStyles.BottomPortWidget port={model.getPort("out")!} engine={engine} />
             </NodeStyles.CircleColumn>
-
-            {/* Right: Title, subtitle, and action buttons */}
-            <NodeStyles.Details onClick={handleOnClick}>
-                <NodeStyles.TextGroup>
-                    <NodeStyles.Title style={getDiffTitleStyles(model.node)}>{nodeTitle}</NodeStyles.Title>
-                    <NodeStyles.Subtitle>{nodeSubtitle}</NodeStyles.Subtitle>
-                </NodeStyles.TextGroup>
-                <NodeStyles.ActionButtonGroup>
-                    {hasError && <DiagnosticsPopUp node={model.node} engine={engine} />}
-                    <NodeStyles.MenuButton
-                        ref={setMenuButtonElement}
-                        buttonSx={readOnly ? { cursor: "not-allowed" } : {}}
-                        appearance="icon"
-                        onClick={handleOnMenuClick}
-                    >
-                        <MoreVertIcon />
-                    </NodeStyles.MenuButton>
-                </NodeStyles.ActionButtonGroup>
-            </NodeStyles.Details>
 
             {/* Context menu */}
             {isMenuOpen && menuPos && createPortal(

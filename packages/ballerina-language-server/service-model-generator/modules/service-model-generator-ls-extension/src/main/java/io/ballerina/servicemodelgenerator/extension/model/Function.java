@@ -75,9 +75,11 @@ public class Function {
     private String group;
     private String variantLabel;
     private String addLabel;
+    private String addDescription;
     @JsonAdapter(RepeatableSerializer.class)
     private Repeatable repeatable;
     private Boolean nameEditable;
+    private List<LayoutSection> layout;
 
     public Function(MetaData metadata, List<String> qualifiers, String kind, Value accessor, Value name,
                     Value documentation, List<Parameter> parameters, Map<String, Parameter> schema,
@@ -419,6 +421,14 @@ public class Function {
         this.addLabel = addLabel;
     }
 
+    public String getAddDescription() {
+        return addDescription;
+    }
+
+    public void setAddDescription(String addDescription) {
+        this.addDescription = addDescription;
+    }
+
     public Repeatable getRepeatable() {
         return repeatable;
     }
@@ -433,6 +443,14 @@ public class Function {
 
     public void setNameEditable(Boolean nameEditable) {
         this.nameEditable = nameEditable;
+    }
+
+    public List<LayoutSection> getLayout() {
+        return layout;
+    }
+
+    public void setLayout(List<LayoutSection> layout) {
+        this.layout = layout;
     }
 
     public boolean isCanAddParameters() {

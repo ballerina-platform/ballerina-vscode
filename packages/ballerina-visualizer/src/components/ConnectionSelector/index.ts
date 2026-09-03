@@ -19,6 +19,8 @@
 export { ConnectionConfig } from "./ConnectionConfig";
 export { ConnectionSelectionList } from "./ConnectionSelectionList";
 export { ConnectionCreator } from "./ConnectionCreator";
+export { ConnectionCreateWizard } from "./ConnectionCreateWizard";
+export { useCreateNode } from "./useCreateNode";
 
 export type {
     ConnectionKind,
@@ -34,5 +36,6 @@ export {
     CONNECTION_TYPE_CONFIGS,
     CONNECTION_SPECIAL_CONFIGS,
     getConnectionKindConfig,
+    getConnectionKindDisplayName,
     getConnectionSpecialConfig
 } from "./config";

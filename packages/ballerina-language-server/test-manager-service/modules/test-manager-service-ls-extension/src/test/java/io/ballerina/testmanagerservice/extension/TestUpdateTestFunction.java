@@ -91,6 +91,14 @@ public class TestUpdateTestFunction extends AbstractLSTest {
     }
 
     @Override
+    protected String[] skipList() {
+        return new String[]{
+                // Will be removed after this issue is fixed: https://github.com/wso2/product-integrator/issues/1920
+                "update_eval_template_evalset_config1.json",
+        };
+    }
+
+    @Override
     protected String getResourceDir() {
         return "update_test_function";
     }

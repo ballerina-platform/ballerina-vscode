@@ -21,10 +21,6 @@ import {
     AIAgentAPI,
     AiModuleOrgRequest,
     AiModuleOrgResponse,
-    AIAgentRequest,
-    AIAgentResponse,
-    AIAgentToolsUpdateRequest,
-    AIGentToolsRequest,
     AIGentToolsResponse,
     AIModelsRequest,
     AIModelsResponse,
@@ -35,9 +31,9 @@ import {
     AIToolsRequest,
     AIToolsResponse,
     configureDefaultModelProvider,
-    createAIAgent,
     DefaultProviderKind,
-    genTool,
+    genAgentDefinition,
+    GenAgentDefinitionRequest,
     getAiModuleOrg,
     getAllAgents,
     getAllMemoryManagers,
@@ -51,7 +47,6 @@ import {
     McpToolUpdateRequest,
     MemoryManagersRequest,
     MemoryManagersResponse,
-    updateAIAgentTools,
     updateMCPToolKit,
     getPackageVersion,
     fixMissingImports,
@@ -100,8 +95,8 @@ export class AiAgentRpcClient implements AIAgentAPI {
         return this._messenger.sendRequest(getMcpTools, HOST_EXTENSION, params);
     }
 
-    genTool(params: AIGentToolsRequest): Promise<AIGentToolsResponse> {
-        return this._messenger.sendRequest(genTool, HOST_EXTENSION, params);
+    genAgentDefinition(params: GenAgentDefinitionRequest): Promise<AIGentToolsResponse> {
+        return this._messenger.sendRequest(genAgentDefinition, HOST_EXTENSION, params);
     }
 
     fixMissingImports(): Promise<void> {
@@ -115,14 +110,6 @@ export class AiAgentRpcClient implements AIAgentAPI {
     configureDefaultModelProvider(kind: DefaultProviderKind): Promise<void> {
         this._messenger.sendNotification(configureDefaultModelProvider, HOST_EXTENSION, kind);
         return Promise.resolve();
-    }
-
-    createAIAgent(params: AIAgentRequest): Promise<AIAgentResponse> {
-        return this._messenger.sendRequest(createAIAgent, HOST_EXTENSION, params);
-    }
-
-    updateAIAgentTools(params: AIAgentToolsUpdateRequest): Promise<AIAgentResponse> {
-        return this._messenger.sendRequest(updateAIAgentTools, HOST_EXTENSION, params);
     }
 
     updateMCPToolKit(params: McpToolUpdateRequest): Promise<void> {

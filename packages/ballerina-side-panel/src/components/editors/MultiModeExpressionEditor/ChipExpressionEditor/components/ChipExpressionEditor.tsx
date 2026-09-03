@@ -491,9 +491,10 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
                             onChange={onHelperItemSelect}
                         />
                     }
-                    {!props.disabled && (
+                    {/* Expand stays available when disabled; helper toggle is editing-only. */}
+                    {(props.onOpenExpandedMode || !props.disabled) && (
                         <FloatingButtonContainer>
-                            {!props.isExpandedVersion && configuration.getIsToggleHelperAvailable() &&
+                            {!props.disabled && !props.isExpandedVersion && configuration.getIsToggleHelperAvailable() &&
                                 <FloatingToggleButton
                                     ref={helperPaneToggleButtonRef}
                                     onClick={handleManualToggle}

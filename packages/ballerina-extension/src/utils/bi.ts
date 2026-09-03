@@ -41,7 +41,7 @@ import {
     SuggestedProjectDefaultsResponse
 } from "@wso2/ballerina-core";
 import { StateMachine, history, openView } from "../stateMachine";
-import { applyModifications, modifyFileContent, writeBallerinaFileDidOpen } from "./modification";
+import { applyModifications, modifyFileContent, writeBallerinaFileDidOpen, writeBallerinaFileSilent } from "./modification";
 import { ModulePart, STKindChecker } from "@wso2/syntax-tree";
 import { URI } from "vscode-uri";
 import { debug } from "./logger";
@@ -51,7 +51,7 @@ import { extension } from "../BalExtensionContext";
 import { scheduleMigrationEnhancement, writeEnhanceToml } from "../features/ai/migration/orchestrator";
 // Imported from `startup-progress` rather than `pending-artifact`: that module pulls in the
 // RPC managers, which import this file back.
-import { PendingIntegrationLanding, writePendingIntegrationPointer } from "../features/bi/startup-progress";
+import { writePendingIntegrationPointer } from "../features/bi/startup-progress";
 import { runBackgroundTerminalCommand } from "./runCommand";
 import { stringify as stringifyYaml } from "yaml";
 
@@ -457,7 +457,7 @@ function getBallerinaDistribution(): string | undefined {
         if (!ballerinaVersion) {
             return undefined;
         }
-        
+
         // Extract version number from strings like "Ballerina 2201.13.0" or "2201.13.0"
         // Match pattern: <numbers>.<numbers>.<numbers>
         const versionMatch = ballerinaVersion.match(/(\d+\.\d+\.\d+)/);
@@ -579,7 +579,7 @@ packages = ["${sanitizeName(projectRequest.packageName)}"]
     return workspaceRoot;
 }
 
-export async function createBIProjectPure(projectRequest: ProjectRequest): Promise<string> {
+export async function createBIProjectPure(projectRequest: ProjectRequest, options?: { silentFiles?: boolean }): Promise<string> {
     const projectInfo = setupProjectInfo(projectRequest);
     const {
         projectRoot,
@@ -592,9 +592,11 @@ export async function createBIProjectPure(projectRequest: ProjectRequest): Promi
 
     const EMPTY = "\n";
 
+    const writeSkeletonFile = options?.silentFiles ? writeBallerinaFileSilent : writeBallerinaFileDidOpen;
+
     // Get the Ballerina distribution version
     const distribution = getBallerinaDistribution();
-    
+
     // Build the distribution line if version is available
     const distributionLine = distribution ? `distribution = "${distribution}"\n` : '';
 
@@ -613,50 +615,45 @@ sticky = true
     if (projectRequest.isLibrary) {
         const libraryBal = path.join(projectRoot, 'lib.bal');
         const libraryBalContent = `import ${VALIDATOR_PACKAGE_NAME} as _;`;
-        writeBallerinaFileDidOpen(libraryBal, libraryBalContent);
-        try {
-            await runBackgroundTerminalCommand(`bal pull ${VALIDATOR_PACKAGE_NAME}`);
-        } catch (error) {
-            console.error('Failed to pull library validator package:', error);
-        }
+        writeSkeletonFile(libraryBal, libraryBalContent);
     }
 
     // Create Ballerina.toml file
     const ballerinaTomlPath = path.join(projectRoot, 'Ballerina.toml');
-    writeBallerinaFileDidOpen(ballerinaTomlPath, ballerinaTomlContent);
+    writeSkeletonFile(ballerinaTomlPath, ballerinaTomlContent);
 
     // Create connections.bal file
     const connectionsBalPath = path.join(projectRoot, 'connections.bal');
-    writeBallerinaFileDidOpen(connectionsBalPath, EMPTY);
+    writeSkeletonFile(connectionsBalPath, EMPTY);
 
     // Create config.bal file
     const configurationsBalPath = path.join(projectRoot, 'config.bal');
-    writeBallerinaFileDidOpen(configurationsBalPath, EMPTY);
+    writeSkeletonFile(configurationsBalPath, EMPTY);
 
     // Create types.bal file
     const typesBalPath = path.join(projectRoot, 'types.bal');
-    writeBallerinaFileDidOpen(typesBalPath, EMPTY);
+    writeSkeletonFile(typesBalPath, EMPTY);
 
     // Create agents.bal file
     const agentsBal = path.join(projectRoot, 'agents.bal');
-    writeBallerinaFileDidOpen(agentsBal, EMPTY);
+    writeSkeletonFile(agentsBal, EMPTY);
 
     // Create functions.bal file
     const functionsBal = path.join(projectRoot, 'functions.bal');
-    writeBallerinaFileDidOpen(functionsBal, EMPTY);
+    writeSkeletonFile(functionsBal, EMPTY);
 
     // Create datamappings.bal file
     const datamappingsBalPath = path.join(projectRoot, 'data_mappings.bal');
-    writeBallerinaFileDidOpen(datamappingsBalPath, EMPTY);
+    writeSkeletonFile(datamappingsBalPath, EMPTY);
 
     if (!projectRequest.isLibrary) {
         // Create main.bal file
         const mainBal = path.join(projectRoot, 'main.bal');
-        writeBallerinaFileDidOpen(mainBal, EMPTY);
+        writeSkeletonFile(mainBal, EMPTY);
 
         // Create automation.bal file
         const automationBal = path.join(projectRoot, 'automation.bal');
-        writeBallerinaFileDidOpen(automationBal, EMPTY);
+        writeSkeletonFile(automationBal, EMPTY);
     }
 
     // Create .vscode configuration files
@@ -666,11 +663,15 @@ sticky = true
     const gitignorePath = path.join(projectRoot, '.gitignore');
     fs.writeFileSync(gitignorePath, gitignoreContent.trim());
 
+    if (projectRequest.isLibrary) {
+        void runBackgroundTerminalCommand(`bal pull ${VALIDATOR_PACKAGE_NAME}`).catch((error) => console.error('Failed to pull library validator package:', error));
+    }
+
     console.log(`Integration(default profile) created successfully at ${projectRoot}`);
     return projectRoot;
 }
 
-export async function convertProjectToWorkspace(params: AddProjectToWorkspaceRequest) {
+export async function convertProjectToWorkspace(params: AddProjectToWorkspaceRequest): Promise<string> {
     const currentProjectPath = StateMachine.context().projectPath;
     const tomlValues = await getProjectTomlValues(currentProjectPath);
     const currentPackageName = tomlValues?.package?.name;
@@ -714,12 +715,14 @@ export async function convertProjectToWorkspace(params: AddProjectToWorkspaceReq
     const existingProjectDirName = path.basename(currentProjectPath);
     createWorkspaceToml(newDirectory, params.workspaceName, existingProjectDirName);
 
+    // Without a new package the conversion's result is the project root itself.
+    let projectPath = newDirectory;
     if (params.addNewAfterConvert) {
         // Resolved after the move + createWorkspaceToml, so it can't collide with the
         // package just moved in.
         const packageFolder = resolvePackageFolderInWorkspace(newDirectory, params);
         addToWorkspaceToml(newDirectory, packageFolder);
-        await createProjectInWorkspace(params, newDirectory, packageFolder);
+        projectPath = await createProjectInWorkspace(params, newDirectory, packageFolder);
     }
 
     // create settings.json file
@@ -728,6 +731,7 @@ export async function convertProjectToWorkspace(params: AddProjectToWorkspaceReq
     await writeLocalContextYaml(newDirectory, params.orgHandle, params.projectHandle);
 
     openInVSCode(newDirectory);
+    return projectPath;
 }
 
 /** Adds a package to the project already open in this window; returns the new package's root. */
@@ -736,7 +740,25 @@ export async function addProjectToExistingWorkspace(params: AddProjectToWorkspac
     const packageFolder = resolvePackageFolderInWorkspace(workspacePath, params);
     addToWorkspaceToml(workspacePath, packageFolder);
 
-    return createProjectInWorkspace(params, workspacePath, packageFolder);
+    const projectPath = await createProjectInWorkspace(params, workspacePath, packageFolder);
+    notifyWorkspaceTomlChanged(workspacePath);
+
+    return projectPath;
+}
+
+function notifyWorkspaceTomlChanged(workspacePath: string) {
+    const ballerinaTomlPath = path.join(workspacePath, 'Ballerina.toml');
+    if (!fs.existsSync(ballerinaTomlPath)) {
+        return;
+    }
+    const content = fs.readFileSync(ballerinaTomlPath, 'utf8');
+    StateMachine.langClient().didChange({
+        contentChanges: [{ text: content }],
+        textDocument: {
+            uri: Uri.file(ballerinaTomlPath).toString(),
+            version: 1
+        }
+    });
 }
 
 function createWorkspaceToml(workspacePath: string, projectTitle: string, packageName: string) {
@@ -879,30 +901,42 @@ async function convertAndAddComponent(projectRequest: ProjectRequest): Promise<{
 }
 
 /**
+ * Ensures an empty project (workspace) exists at `workspaceRoot`, scaffolding it when the
+ * target is not one already. Adding into a workspace that is already there is allowed; a
+ * package there is an error, so a project is never created on top of an integration.
+ *
+ * @returns `true` when this call scaffolded the project, `false` when it was already there.
+ */
+function ensureWorkspaceRoot(workspaceRoot: string, workspaceName?: string): boolean {
+    const existing = classifyBallerinaProject(workspaceRoot);
+    if (existing === 'package') {
+        throw new Error('An integration or library already exists at the selected location');
+    }
+    if (existing === 'workspace') {
+        return false;
+    }
+
+    // For a brand-new project neither the folder nor its parents exist yet.
+    fs.mkdirSync(workspaceRoot, { recursive: true });
+    const workspaceTomlContent = `
+[workspace]
+title = "${workspaceName?.trim() || path.basename(workspaceRoot)}"
+packages = []
+
+`;
+    writeBallerinaFileDidOpen(path.join(workspaceRoot, 'Ballerina.toml'), workspaceTomlContent);
+    createVSCodeSettings(workspaceRoot);
+    return true;
+}
+
+/**
  * Scaffolds a fresh workspace at `projectRequest.projectPath` and creates the package
  * inside it. Returns the package root and the workspace root.
  */
 async function createComponentInNewWorkspace(projectRequest: ProjectRequest): Promise<{ packageRoot: string; openRoot: string }> {
     const workspaceRoot = projectRequest.projectPath;
 
-    // Never clobber an existing project: add into a workspace already at the target;
-    // a package there is an error.
-    const existing = classifyBallerinaProject(workspaceRoot);
-    if (existing === 'package') {
-        throw new Error('An integration or library already exists at the selected location');
-    }
-    if (existing !== 'workspace') {
-        // For a brand-new project neither the folder nor its parents exist yet.
-        fs.mkdirSync(workspaceRoot, { recursive: true });
-        const workspaceTomlContent = `
-[workspace]
-title = "${projectRequest.workspaceName ?? path.basename(workspaceRoot)}"
-packages = []
-
-`;
-        writeBallerinaFileDidOpen(path.join(workspaceRoot, 'Ballerina.toml'), workspaceTomlContent);
-        createVSCodeSettings(workspaceRoot);
-    }
+    ensureWorkspaceRoot(workspaceRoot, projectRequest.workspaceName);
 
     const base = projectRequest.directoryName?.trim() || sanitizeName(projectRequest.packageName);
     const packageFolder = resolveAvailablePackageFolder(workspaceRoot, base);
@@ -935,37 +969,32 @@ export async function createBIComponent(projectRequest: ProjectRequest): Promise
 }
 
 /**
- * Naming and landing for a create, resolved once at submit time (the only point that knows
- * whether the project was created by this same submit) and carried across the reload.
+ * Naming for a create, resolved once at submit time — the only point that knows whether the
+ * project was created by this same submit — and carried across the reload for the startup
+ * progress screen. Where the window lands is not part of it: every create opens the new
+ * integration, whether or not it also made the project.
  */
-export interface CreateLandingContext {
+export interface CreateNamingContext {
     /** Display name of the project the package went into; undefined for a standalone package. */
     projectName?: string;
     /** Whether this submit created the project too. */
     isNewProject: boolean;
-    /**
-     * A brand-new project lands on the project overview — the project is what the user just
-     * made. Adding into a project that already existed lands on the new package instead.
-     */
-    landing: PendingIntegrationLanding;
 }
 
-export function resolveCreateLandingContext(
+export function resolveCreateNamingContext(
     packageRoot: string,
     openRoot: string,
     request: Pick<ProjectRequest, 'newProject' | 'convertToWorkspace' | 'workspaceName'>
-): CreateLandingContext {
+): CreateNamingContext {
     // The folder to open being the package itself means no project was involved.
     if (isSamePath(packageRoot, openRoot)) {
-        return { isNewProject: false, landing: "package" };
+        return { isNewProject: false };
     }
-    const isNewProject = !!request.newProject || !!request.convertToWorkspace;
     return {
         // The form's project name is authoritative for a new project; for an existing one
         // read the title it was actually created with.
         projectName: request.workspaceName?.trim() || getExistingProjectInfo(openRoot).name || path.basename(openRoot),
-        isNewProject,
-        landing: isNewProject ? "project" : "package",
+        isNewProject: !!request.newProject || !!request.convertToWorkspace,
     };
 }
 
@@ -1000,7 +1029,7 @@ export function deleteProjectFromWorkspace(workspacePath: string, packagePath: s
     if (!fs.existsSync(ballerinaTomlPath)) {
         return;
     }
-    
+
     try {
         const ballerinaTomlContent = fs.readFileSync(ballerinaTomlPath, 'utf8');
         const tomlData = parse(ballerinaTomlContent) as Partial<WorkspaceTomlValues>;
@@ -1056,13 +1085,13 @@ function removePackageFromToml(tomlContent: string, packagePath: string): string
 
     if (match) {
         const currentArrayContent = match[1].trim();
-        
+
         // Split by comma, trim whitespace, and filter out the package to remove
         const packages = currentArrayContent
             .split(',')
             .map(pkg => pkg.trim())
             .filter(pkg => pkg && pkg !== `"${packagePath}"`);
-        
+
         const newArrayContent = packages.length > 0 ? packages.join(', ') : '';
         return tomlContent.replace(packagesRegex, `packages = [${newArrayContent}]`);
     } else {
@@ -1092,7 +1121,7 @@ async function createProjectInWorkspace(
         projectHandle: params.projectHandle
     };
 
-    return await createBIProjectPure(projectRequest);
+    return await createBIProjectPure(projectRequest, { silentFiles: true });
 }
 
 /**
@@ -1127,44 +1156,95 @@ export function openInVSCode(projectRoot: string) {
     commands.executeCommand('vscode.openFolder', Uri.file(resolvedRoot));
 }
 
-export async function createBIProjectFromMigration(params: MigrateRequest) {
-    const projectInfo = setupProjectInfo(params.project);
-    const { projectRoot, sanitizedPackageName } = projectInfo;
+/**
+ * Project (workspace) root for a migration, created when missing.
+ *
+ * Follows the same convention as {@link createBIWorkspaceWithProject}, the new-project
+ * flow this step mirrors: `projectPath` is the LOCATION the user picked and the project
+ * folder is derived from the project name (`workspaceName`), or from an explicit
+ * `directoryName` when the form let the user edit that last path segment.
+ */
+function resolveMigrationProjectRoot(request: ProjectRequest): string {
+    // `createDirectory === false` means the picked path IS the project root.
+    if (request.createDirectory === false) {
+        return resolveWorkspacePath(request.projectPath, undefined);
+    }
+    const projectTitle = request.workspaceName?.trim() || request.projectName?.trim() || '';
+    const folderName = request.directoryName?.trim() || sanitizeName(projectTitle);
+    if (!folderName) {
+        throw new Error('A project name is required to create the migrated project.');
+    }
+    assertSafePathSegment(folderName);
+    return resolveWorkspacePath(request.projectPath, folderName);
+}
 
-    const EMPTY = "\n";
-    // Write files based on keys in params.textEdits
+/**
+ * Single-project migration: the converted sources become ONE package inside the project,
+ * exactly as a newly created integration would be. The project's own `Ballerina.toml` is
+ * scaffolded here (the LS only emits the package-level one) and the package is registered
+ * in its `packages` list.
+ */
+function writeSingleProjectMigration(params: MigrateRequest, projectRoot: string): void {
+    const request = params.project;
+    const projectInfo = setupProjectInfo({ ...request, projectPath: projectRoot, createDirectory: false });
+    const { sanitizedPackageName, finalOrgName, finalVersion, integrationName, orgHandle } = projectInfo;
+
+    ensureWorkspaceRoot(projectRoot, request.workspaceName);
+
+    // Indexed against what is already in the project, so migrating a second integration
+    // into an existing project cannot overwrite the first.
+    const packageFolder = resolveAvailablePackageFolder(projectRoot, sanitizedPackageName);
+    const packageRoot = path.join(projectRoot, packageFolder);
+    fs.mkdirSync(packageRoot, { recursive: true });
+
     for (const [fileName, fileContent] of Object.entries(params.textEdits)) {
         let content = fileContent;
-        const filePath = path.join(projectRoot, fileName);
 
         if (fileName === "Ballerina.toml") {
-            if (params.projects && params.projects.length > 0) {
-                // Multi-project migration: this is a workspace-level Ballerina.toml ([workspace] section).
-                // The packages list from the LS reflects the CLI's directory naming convention,
-                // which may differ from the projectName values used to create actual directories.
-                // Rebuild the packages list from the actual project names.
-                const packageList = params.projects.map(p => `"${p.projectName}"`).join(', ');
-                content = content.replace(/packages\s*=\s*\[[\s\S]*?\]/, `packages = [${packageList}]`);
-            } else {
-                // Single-project migration: this is a package-level Ballerina.toml ([package] section).
-                content = content.replace(/name = ".*?"/, `name = "${sanitizedPackageName}"`);
-                content = content.replace(/org = ".*?"/, `org = "${projectInfo.orgHandle ?? projectInfo.finalOrgName}"`);
+            // A package-level Ballerina.toml ([package] section) — the form's package
+            // details win over whatever naming the migration tool chose.
+            content = content.replace(/name = ".*?"/, `name = "${sanitizedPackageName}"`);
+            content = content.replace(/org = ".*?"/, `org = "${orgHandle ?? finalOrgName}"`);
 
-                // Remove any existing distribution line
-                content = content.replace(/^\s*distribution\s*=\s*".*?"\n?/m, '');
+            // Remove any existing distribution line
+            content = content.replace(/^\s*distribution\s*=\s*".*?"\n?/m, '');
 
-                // Get the Ballerina distribution version
-                const distribution = getBallerinaDistribution();
-                const distributionLine = distribution ? `\ndistribution = "${distribution}"` : '';
+            // Get the Ballerina distribution version
+            const distribution = getBallerinaDistribution();
+            const distributionLine = distribution ? `\ndistribution = "${distribution}"` : '';
 
-                content = content.replace(/version = ".*?"/, `version = "${projectInfo.finalVersion}"${distributionLine}\ntitle = "${projectInfo.integrationName}"`);
-            }
+            content = content.replace(/version = ".*?"/, `version = "${finalVersion}"${distributionLine}\ntitle = "${integrationName}"`);
         }
 
-        writeBallerinaFileDidOpen(filePath, content || EMPTY);
+        writeMigratedFile(path.join(packageRoot, fileName), content);
     }
 
-    params.projects?.forEach(project => {
+    // Same package scaffolding a freshly created integration gets.
+    createVSCodeSettingsWithLaunch(packageRoot);
+    fs.writeFileSync(path.join(packageRoot, '.gitignore'), gitignoreContent.trim());
+
+    addToWorkspaceToml(projectRoot, packageFolder);
+}
+
+/**
+ * Multi-project migration: the LS emits the project-level (`[workspace]`) `Ballerina.toml`
+ * and one package per sub-project. File generation is deliberately unchanged here — only
+ * where the project root comes from moved.
+ */
+function writeMultiProjectMigration(params: MigrateRequest, projectRoot: string): void {
+    // The packages list from the LS reflects the CLI's directory naming convention,
+    // which may differ from the projectName values used to create actual directories.
+    // Rebuild the packages list from the actual project names.
+    const packageList = params.projects.map(p => `"${p.projectName}"`).join(', ');
+
+    for (const [fileName, fileContent] of Object.entries(params.textEdits)) {
+        const content = fileName === "Ballerina.toml"
+            ? fileContent.replace(/packages\s*=\s*\[[\s\S]*?\]/, `packages = [${packageList}]`)
+            : fileContent;
+        writeMigratedFile(path.join(projectRoot, fileName), content);
+    }
+
+    params.projects.forEach(project => {
         createProjectFiles(project, projectRoot);
     });
 
@@ -1174,6 +1254,27 @@ export async function createBIProjectFromMigration(params: MigrateRequest) {
     // Create .gitignore file
     const gitignorePath = path.join(projectRoot, '.gitignore');
     fs.writeFileSync(gitignorePath, gitignoreContent.trim());
+}
+
+/** Writes one migrated file, creating its parent directory (LS output may be nested). */
+function writeMigratedFile(filePath: string, content: string): void {
+    const fileDir = path.dirname(filePath);
+    if (!fs.existsSync(fileDir)) {
+        fs.mkdirSync(fileDir, { recursive: true });
+    }
+    writeBallerinaFileDidOpen(filePath, content || "\n");
+}
+
+export async function createBIProjectFromMigration(params: MigrateRequest) {
+    // Both cases now land in a project (workspace): a single migrated integration becomes
+    // one package inside it, matching what the new-project flow produces.
+    const projectRoot = resolveMigrationProjectRoot(params.project);
+
+    if (params.projects && params.projects.length > 0) {
+        writeMultiProjectMigration(params, projectRoot);
+    } else {
+        writeSingleProjectMigration(params, projectRoot);
+    }
 
     debug(`BI project created successfully at ${projectRoot}`);
 
@@ -1443,18 +1544,17 @@ export async function createBIProject(params: any): Promise<void> {
     }
     // Components go into an existing workspace when the target resolves inside one, else standalone.
     const { packageRoot, openRoot } = await createBIComponent(params);
-    // No artifact is configured on this path, so the pointer carries only the narration
-    // and the landing view for the window that opens next.
-    const landingContext = resolveCreateLandingContext(packageRoot, openRoot, params);
+    // No artifact is configured on this path, so the pointer carries only the narration for
+    // the window that opens next.
+    const namingContext = resolveCreateNamingContext(packageRoot, openRoot, params);
     const componentLabel: IntegrationComponentLabel = params.isLibrary ? "library" : "integration";
     await writePendingIntegrationPointer({
         projectRoot: packageRoot,
         timestamp: Date.now(),
         integrationName: params.projectName,
-        projectName: landingContext.projectName,
-        isNewProject: landingContext.isNewProject,
+        projectName: namingContext.projectName,
+        isNewProject: namingContext.isNewProject,
         componentLabel,
-        landing: landingContext.landing,
     });
     openInVSCode(openRoot);
 }

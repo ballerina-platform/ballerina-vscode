@@ -175,8 +175,8 @@
         },
         {
           "metadata": {
-            "label": "Send Data",
-            "description": "Send data to an existing workflow instance"
+            "label": "Send Data Event",
+            "description": "Send a data event to a running workflow instance"
           },
           "codedata": {
             "node": "SEND_DATA"

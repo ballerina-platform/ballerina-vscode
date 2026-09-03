@@ -103,6 +103,59 @@ task copyStdlibs() {
     }
 }
 
+// The Copilot trigger-metadata corpus: the libraries whose schema-driven service assertions are written
+// against a specific package release.
+//
+// Provisioning is no longer per package — the root build's hermetic `resolveBallerinaDependencies` task
+// populates a build-owned Ballerina home from build-config/ballerina_dependencies, and the root
+// `allprojects { tasks.withType(Test) }` block points every test at it.
+//
+// The VERSIONS are therefore read straight out of that project's Ballerina.toml rather than duplicated in
+// gradle.properties. This is what makes the invariant CopilotSchemaServicesTest depends on true by
+// construction: the version a test REQUESTS is the version the build PROVISIONED, so the two can never
+// drift. Duplicating them is exactly how they drifted before (the build pre-fetched ftp 2.16.0 while the
+// test asked for 2.20.1, invisibly). A library added here must also be declared in that Ballerina.toml, or
+// it resolves nothing and the schema test skips.
+ext.copilotCorpusLibraries = [
+        'ballerina/http', 'ballerina/graphql', 'ballerina/grpc', 'ballerina/ftp', 'ballerina/smb',
+        'ballerina/mcp', 'ballerina/websub', 'ballerina/websocket', 'ballerinax/kafka',
+        'ballerinax/rabbitmq', 'ballerinax/mssql', 'ballerinax/cdc', 'ballerinax/trigger.github',
+        'ballerinax/trigger.google.calendar', 'ballerinax/asb',
+        // Not schema-driven, and pinned for exactly that reason: it is the control case proving the
+        // overload is a no-op for a library the service index alone describes.
+        'ballerina/ai',
+        // Newly bundled by the 2026-08-19 trigger-metadata corpus. Listed so their documents are
+        // checked against a real package rather than only against the schema: a document that names a
+        // listener or service type its release does not declare produces an EMPTY catalog and, by
+        // design, no index fallback — a silent loss that only a resolved package can catch.
+        // `ballerinax/oracledb` is here for the same reason even though its document does not yet work
+        // against the pinned release; see testNewlyBundledDocumentsMatchTheirPackage.
+        'ballerinax/mysql', 'ballerinax/postgresql', 'ballerinax/oracledb', 'ballerinax/salesforce',
+        'ballerinax/solace', 'ballerinax/solace.jms', 'ballerina/mqtt', 'ballerinax/trigger.shopify',
+        'ballerinax/trigger.hubspot',
+]
+
+ext.copilotCorpusVersions = { ->
+    // Dependencies.toml, not Ballerina.toml: the latter declares version FLOORS, the former is the lock and
+    // is what actually gets provisioned. Reading the floors would report mcp 1.0.3 while the build installs
+    // 1.2.0 — the same requested-vs-provisioned drift this derivation exists to eliminate.
+    def lock = rootProject.file('build-config/ballerina_dependencies/Dependencies.toml').text
+    def locked = [:]
+    (lock =~ /(?s)\[\[package\]\]\s*\norg = "([^"]+)"\s*\nname = "([^"]+)"\s*\nversion = "([^"]+)"/)
+            .each { full, org, name, version -> locked["$org/$name"] = version }
+    def resolved = [:]
+    copilotCorpusLibraries.each { library ->
+        def version = locked[library]
+        if (version == null) {
+            throw new GradleException("Copilot corpus library '$library' is not in " +
+                    "build-config/ballerina_dependencies/Dependencies.toml, so the hermetic Ballerina home " +
+                    "will not contain it and the schema-driven tests would skip silently. Add it to that " +
+                    "project's Ballerina.toml and regenerate the lock with `bal build`.")
+        }
+        resolved[library] = version
+    }
+    return resolved
+}()
 task copyServiceIndex(type: Copy) {
     from "${rootDir}/service-model-generator/modules/service-model-generator-ls-extension/src/main/resources/service-index.sqlite"
     into "${buildDir}/resources/test"
@@ -113,6 +166,12 @@ checkstyleTest.dependsOn copyServiceIndex
 test {
     dependsOn copyStdlibs, copyServiceIndex
     systemProperty "ballerina.home", balDistribution
+    // The corpus versions, handed to the tests as the single source of truth. Without this the pinned
+    // version lives twice — once here, where it is pre-fetched, and once as a literal in the test, where it
+    // is requested — and the two drift: the tests asked for http 2.16.6 and ftp 2.20.1 while the build
+    // pre-fetched 2.16.3 and 2.16.0, so those tests either downloaded from Central or skipped silently.
+    systemProperty "copilot.pinnedVersions",
+            copilotCorpusVersions.collect { library, version -> "$library=$version" }.join(",")
     // Allocate a larger heap for the test JVM as the suite compiles full Ballerina projects.
     maxHeapSize = "2g"
     useTestNG() {

@@ -18,15 +18,8 @@
 
 package io.ballerina.flowmodelgenerator.core.model.node;
 
-import com.google.gson.Gson;
-import io.ballerina.compiler.api.SemanticModel;
-import io.ballerina.compiler.syntax.tree.ModulePartNode;
-import io.ballerina.compiler.syntax.tree.NonTerminalNode;
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
-import io.ballerina.compiler.syntax.tree.SyntaxTree;
 import io.ballerina.flowmodelgenerator.core.AiUtils;
-import io.ballerina.flowmodelgenerator.core.CodeAnalyzer;
-import io.ballerina.flowmodelgenerator.core.Constants;
 import io.ballerina.flowmodelgenerator.core.model.Codedata;
 import io.ballerina.flowmodelgenerator.core.model.FlowNode;
 import io.ballerina.flowmodelgenerator.core.model.Metadata;
@@ -34,26 +27,16 @@ import io.ballerina.flowmodelgenerator.core.model.NodeBuilder;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
-import io.ballerina.flowmodelgenerator.core.utils.FileSystemUtils;
 import io.ballerina.flowmodelgenerator.core.utils.FlowNodeUtil;
-import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.modelgenerator.commons.FunctionData;
-import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.ParameterData;
-import io.ballerina.projects.Document;
-import io.ballerina.projects.Project;
-import io.ballerina.tools.text.TextDocument;
-import io.ballerina.tools.text.TextRange;
 import org.ballerinalang.langserver.common.utils.NameUtil;
 import org.eclipse.lsp4j.TextEdit;
 
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -125,9 +108,6 @@ public class AgentCallBuilder extends CallBuilder {
 
     @Override
     public void setConcreteTemplateData(TemplateContext context) {
-        setAgentProperties(this, context, null);
-        setAdditionalAgentProperties(this, null);
-
         FlowNode callTemplate = getOrCreateCallFunctionTemplate(context);
         restoreFromTemplate(callTemplate);
 
@@ -267,6 +247,12 @@ public class AgentCallBuilder extends CallBuilder {
 
     public static void setAdditionalAgentProperties(NodeBuilder nodeBuilder,
                                                     Map<String, AiUtils.AgentPropertyValue> propertyValues) {
+        setAdditionalAgentProperties(nodeBuilder, propertyValues, true);
+    }
+
+    public static void setAdditionalAgentProperties(NodeBuilder nodeBuilder,
+                                                    Map<String, AiUtils.AgentPropertyValue> propertyValues,
+                                                    boolean optional) {
         AiUtils.AgentPropertyValue roleProperty = (propertyValues != null && propertyValues.containsKey(ROLE)) ?
                 propertyValues.get(ROLE) : null;
         AiUtils.AgentPropertyValue instructionsProperty =
@@ -287,9 +273,9 @@ public class AgentCallBuilder extends CallBuilder {
                 instructionsProperty.selectedType() : Property.ValueType.PROMPT;
 
         AiUtils.addStringProperty(nodeBuilder, ROLE, ROLE_LABEL, ROLE_DOC, ROLE_PLACEHOLDER, roleValue,
-                roleSelectedType);
+                roleSelectedType, optional);
         AiUtils.addStringProperty(nodeBuilder, INSTRUCTIONS, INSTRUCTIONS_LABEL, INSTRUCTIONS_DOC,
-                INSTRUCTIONS_PLACEHOLDER, instructionsValue, instructionsSelectedType);
+                INSTRUCTIONS_PLACEHOLDER, instructionsValue, instructionsSelectedType, optional);
     }
 
     private static FlowNode getOrCreateAgentTemplate(TemplateContext context) {
@@ -337,128 +323,10 @@ public class AgentCallBuilder extends CallBuilder {
 
     @Override
     public Map<Path, List<TextEdit>> toSource(SourceBuilder sourceBuilder) {
-        // Use custom variable declaration with inferred type handling and default to "string"
         newVariableWithInferredTypeAndDefault(sourceBuilder);
-
         FlowNode agentCallNode = sourceBuilder.flowNode;
-        Path projectRoot = sourceBuilder.workspaceManager.projectRoot(sourceBuilder.filePath);
-        Map<Path, List<TextEdit>> allTextEdits = new HashMap<>();
 
-        FlowNode modelProviderNode =
-                createModelProviderIfNeeded(sourceBuilder, agentCallNode, projectRoot, allTextEdits);
-        TemplateContext agentTemplateContext = resolveAgentContext(sourceBuilder, agentCallNode, projectRoot);
-        FlowNode agentNode = createAndConfigureAgentNode(agentTemplateContext, agentCallNode, modelProviderNode);
-
-        generateAgentSource(sourceBuilder, agentNode, agentTemplateContext, projectRoot, allTextEdits);
-        generateAgentCallSource(sourceBuilder, agentCallNode, agentNode, allTextEdits);
-
-        return allTextEdits;
-    }
-
-    private FlowNode createModelProviderIfNeeded(SourceBuilder sourceBuilder, FlowNode agentCallNode,
-                                                 Path projectRoot, Map<Path, List<TextEdit>> allTextEdits) {
-        Optional<Property> model = agentCallNode.getProperty(MODEL);
-        if (model.isPresent() && model.get().value() != null && !model.get().value().toString().isEmpty()) {
-            // Skip creating a new model provider since a model provider already exists
-            return null;
-        }
-
-        NodeBuilder.TemplateContext modelProviderContext =
-                AiUtils.createDefaultTemplateContext(sourceBuilder,
-                        AiUtils.getDefaultModelProviderCodedata(agentCallNode.codedata().org()));
-        FlowNode modelProviderNode = NodeBuilder.getNodeFromKind(
-                        Objects.equals(agentCallNode.codedata().org(), BALLERINA) ? NodeKind.MODEL_PROVIDER :
-                                NodeKind.CLASS_INIT)
-                .setConstData()
-                .setTemplateData(modelProviderContext)
-                .build();
-
-        SourceBuilder modelProviderSourceBuilder = new SourceBuilder(modelProviderNode,
-                sourceBuilder.workspaceManager, projectRoot);
-        Map<Path, List<TextEdit>> modelProviderTextEdits =
-                new ModelProviderBuilder().toSource(modelProviderSourceBuilder);
-        modelProviderTextEdits.forEach((path, textEdits) ->
-                allTextEdits.merge(path, textEdits, (existing, incoming) -> {
-                    List<TextEdit> merged = new ArrayList<>(existing);
-                    merged.addAll(incoming);
-                    return merged;
-                }));
-
-        return modelProviderNode;
-    }
-
-    private TemplateContext resolveAgentContext(SourceBuilder sourceBuilder, FlowNode agentCallNode, Path projectRoot) {
-        return agentCallNode.getProperty(Property.CONNECTION_KEY)
-                .filter(connection -> connection.value() != null && !connection.value().toString().isEmpty())
-                .map(connection -> extractAgentCodedata(sourceBuilder, agentCallNode, projectRoot))
-                .orElse(AiUtils.createDefaultTemplateContext(sourceBuilder,
-                        AiUtils.getDefaultAgentCodedata(agentCallNode.codedata().org())));
-    }
-
-    private TemplateContext extractAgentCodedata(SourceBuilder sourceBuilder, FlowNode agentCallNode,
-                                                 Path projectRoot) {
-        Object agentCodedataObj = agentCallNode.codedata().data().get(Constants.Ai.AGENT_CODEDATA);
-
-        if (agentCodedataObj == null) {
-            return AiUtils.createDefaultTemplateContext(sourceBuilder,
-                    AiUtils.getDefaultAgentCodedata(agentCallNode.codedata().org()));
-        }
-
-        Gson gson = new Gson();
-        Codedata agentCodedata = gson.fromJson(gson.toJson(agentCodedataObj), Codedata.class);
-
-        Path agentFilePath =
-                FileSystemUtils.resolveFilePathFromCodedata(agentCodedata, projectRoot);
-
-        return new NodeBuilder.TemplateContext(sourceBuilder.workspaceManager, agentFilePath,
-                agentCodedata.lineRange().startLine(), agentCodedata, null);
-    }
-
-    private FlowNode createAndConfigureAgentNode(TemplateContext agentTemplateContext, FlowNode agentCallNode,
-                                                 FlowNode modelProviderNode) {
-        FlowNode agentNode;
-
-        // Check if we should retrieve an existing agent node or create a new one
-        if (agentTemplateContext.codedata() != null && agentTemplateContext.codedata().isNew() != null
-                && !agentTemplateContext.codedata().isNew()) {
-            // Retrieve existing agent node from the semantic model using the lineRange
-            agentNode = findExistingAgentNode(agentTemplateContext);
-        } else {
-            // Create a new agent node
-            agentNode = new AgentBuilder().setConstData().setTemplateData(agentTemplateContext).build();
-        }
-
-        updateAgentNodeProperties(agentNode, agentCallNode);
-
-        if (modelProviderNode != null) {
-            AiUtils.copyPropertyValue(agentNode, modelProviderNode, MODEL, Property.VARIABLE_KEY);
-        } else {
-            AiUtils.copyPropertyValue(agentNode, agentCallNode, MODEL, MODEL);
-            AiUtils.copyPropertyValue(agentNode, agentCallNode, Property.VARIABLE_KEY, Property.CONNECTION_KEY);
-        }
-
-        return agentNode;
-    }
-
-    private void generateAgentSource(SourceBuilder sourceBuilder, FlowNode agentNode,
-                                     TemplateContext agentTemplateContext, Path projectRoot,
-                                     Map<Path, List<TextEdit>> allTextEdits) {
-        Path agentFilePath =
-                FileSystemUtils.resolveFilePathFromCodedata(agentTemplateContext.codedata(), projectRoot);
-        SourceBuilder agentSourceBuilder = new SourceBuilder(agentNode, sourceBuilder.workspaceManager, agentFilePath);
-        Map<Path, List<TextEdit>> agentTextEdits =
-                NodeBuilder.getNodeFromKind(agentNode.codedata().node()).toSource(agentSourceBuilder);
-        agentTextEdits.forEach((path, textEdits) ->
-                allTextEdits.merge(path, textEdits, (existing, incoming) -> {
-                    List<TextEdit> merged = new ArrayList<>(existing);
-                    merged.addAll(incoming);
-                    return merged;
-                }));
-    }
-
-    private void generateAgentCallSource(SourceBuilder sourceBuilder, FlowNode agentCallNode, FlowNode agentNode,
-                                         Map<Path, List<TextEdit>> allTextEdits) {
-        Optional<Property> connection = agentNode.getProperty(Property.VARIABLE_KEY);
+        Optional<Property> connection = agentCallNode.getProperty(Property.CONNECTION_KEY);
         if (connection.isEmpty()) {
             throw new IllegalStateException("Agent variable must be defined for an agent call node");
         }
@@ -468,7 +336,7 @@ public class AgentCallBuilder extends CallBuilder {
         }
 
         Set<String> excludeKeys = getExcludeKeys(agentCallNode);
-        Map<Path, List<TextEdit>> callTextEdits = sourceBuilder.token()
+        return sourceBuilder.token()
                 .name(connection.get().toSourceCode())
                 .keyword(BALLERINA.equals(agentCallNode.codedata().org()) ?
                         SyntaxKind.DOT_TOKEN : SyntaxKind.RIGHT_ARROW_TOKEN)
@@ -477,13 +345,6 @@ public class AgentCallBuilder extends CallBuilder {
                 .functionParameters(agentCallNode, excludeKeys)
                 .textEdit()
                 .build();
-
-        callTextEdits.forEach((path, textEdits) ->
-                allTextEdits.merge(path, textEdits, (existing, incoming) -> {
-                    List<TextEdit> merged = new ArrayList<>(existing);
-                    merged.addAll(incoming);
-                    return merged;
-                }));
     }
 
     private Set<String> getExcludeKeys(FlowNode agentCallNode) {
@@ -494,84 +355,31 @@ public class AgentCallBuilder extends CallBuilder {
                 : new HashSet<>();
     }
 
-    private void updateAgentNodeProperties(FlowNode agentNode, FlowNode agentCallNode) {
-        if (agentNode.properties() == null) {
-            return;
-        }
-        AiUtils.copyCommonProperties(agentNode, agentCallNode);
-        updateSystemPromptProperty(agentNode, agentCallNode);
-    }
-
-    private void updateSystemPromptProperty(FlowNode agentNode, FlowNode agentCallNode) {
-        Property systemPrompt = agentNode.properties().get(SYSTEM_PROMPT);
+    public static void writeSystemPromptFromRoleInstructions(FlowNode roleSource, FlowNode systemPromptTarget) {
+        Property systemPrompt = systemPromptTarget.properties().get(SYSTEM_PROMPT);
         if (systemPrompt == null) {
             return;
         }
-        String role = agentCallNode.getProperty(ROLE).map(Property::value).orElse("").toString();
-        String instructions = agentCallNode.getProperty(INSTRUCTIONS).map(Property::value).orElse("").toString();
+        String role = roleSource.getProperty(ROLE).map(Property::value).orElse("").toString();
+        String instructions = roleSource.getProperty(INSTRUCTIONS).map(Property::value).orElse("").toString();
 
-        String escapedRole = isPromptTypeSelected(agentCallNode.getProperty(ROLE).orElse(null))
+        String escapedRole = isPromptTypeSelected(roleSource.getProperty(ROLE).orElse(null))
                 ? AiUtils.replaceBackticksForStringTemplate(role) : role;
-        String escapedInstructions = isPromptTypeSelected(agentCallNode.getProperty(INSTRUCTIONS).orElse(null))
+        String escapedInstructions = isPromptTypeSelected(roleSource.getProperty(INSTRUCTIONS).orElse(null))
                 ? AiUtils.replaceBackticksForStringTemplate(instructions) : instructions;
 
         String systemPromptValue =
                 "{role: " + escapedRole + ", instructions: " + escapedInstructions + "}";
 
         Property updatedProperty = AiUtils.createUpdatedProperty(systemPrompt, systemPromptValue);
-        agentNode.properties().put(SYSTEM_PROMPT, updatedProperty);
+        systemPromptTarget.properties().put(SYSTEM_PROMPT, updatedProperty);
     }
 
-    private boolean isPromptTypeSelected(Property property) {
+    private static boolean isPromptTypeSelected(Property property) {
         if (property == null || property.types() == null) {
             return false;
         }
         return property.types().stream()
                 .anyMatch(type -> type.fieldType() == Property.ValueType.PROMPT && type.selected());
-    }
-
-    private FlowNode findExistingAgentNode(TemplateContext agentTemplateContext) {
-        // Get the document from the workspace manager
-        Path filePath = agentTemplateContext.filePath();
-        Document document = agentTemplateContext.workspaceManager().document(filePath)
-                .orElseThrow(() -> new IllegalStateException("Document not found for path: " + filePath));
-
-        // Get the syntax tree and semantic model
-        SyntaxTree syntaxTree = document.syntaxTree();
-        TextDocument textDocument = syntaxTree.textDocument();
-        SemanticModel semanticModel = agentTemplateContext.workspaceManager()
-                .semanticModel(filePath)
-                .orElseThrow(() -> new IllegalStateException("Semantic model not found for path: " + filePath));
-
-        // Get the syntax node at the lineRange from the codedata
-        Codedata codedata = agentTemplateContext.codedata();
-        TextRange textRange = CommonUtils.toTextRange(textDocument, codedata.lineRange());
-        NonTerminalNode syntaxNode = ((ModulePartNode) syntaxTree.rootNode()).findNode(textRange, true);
-
-        // Extract scope from the codedata, defaulting to LOCAL_SCOPE if not found
-        String scope = Property.LOCAL_SCOPE;
-        if (codedata.data() != null && codedata.data().containsKey(Property.SCOPE_KEY)) {
-            Object scopeValue = codedata.data().get(Property.SCOPE_KEY);
-            if (scopeValue != null) {
-                scope = scopeValue.toString();
-            }
-        }
-
-        // Use CodeAnalyzer to analyze the syntax node and generate FlowNode
-        Project project = document.module().project();
-        CodeAnalyzer codeAnalyzer = new CodeAnalyzer(project, semanticModel, scope,
-                Map.of(), Map.of(), textDocument,
-                ModuleInfo.from(document.module().descriptor()), false,
-                agentTemplateContext.workspaceManager(), filePath);
-        syntaxNode.accept(codeAnalyzer);
-
-        // Get the generated flow nodes and return the first one (should be the agent node)
-        List<FlowNode> flowNodes = codeAnalyzer.getFlowNodes();
-        if (flowNodes.isEmpty()) {
-            throw new IllegalStateException(
-                    "No flow node found for the existing agent at line range: " + codedata.lineRange());
-        }
-
-        return flowNodes.getFirst();
     }
 }

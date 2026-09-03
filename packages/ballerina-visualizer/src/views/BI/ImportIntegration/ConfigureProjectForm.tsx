@@ -16,284 +16,76 @@
  * under the License.
  */
 
-import { ActionButtons, Typography } from "@wso2/ui-toolkit";
-import { useState } from "react";
+import { Typography } from "@wso2/ui-toolkit";
 import { useBiWsContext } from "../wsManager/WsClientContext";
-import { ValidateProjectFormErrorField } from "@wso2/ballerina-core";
-import { BodyText } from "../../styles";
-import { ProjectFormData, ProjectFormFields } from "../ProjectForm/ProjectFormFields";
-import { validatePackageName } from "../ProjectForm/utils";
-import { MultiProjectFormData, MultiProjectFormFields } from "./components/MultiProjectFormFields";
-import { ButtonWrapper } from "./styles";
+import { usePlatformExtContext } from "../../../providers/platform-ext-ctx-provider";
+import {
+    ProjectDestinationForm,
+    ProjectDestinationValues,
+} from "../ProjectForm/embedded/integrator-form/shared/ProjectDestinationForm";
+import { Organization } from "../ProjectForm/embedded/integrator-form/components";
 import { ConfigureProjectFormProps } from "./types";
 
+/**
+ * Step 3 of the migration wizard: where the converted sources land.
+ *
+ * The fields are {@link ProjectDestinationForm} — the same component the Create flow's
+ * project chooser renders — so this step and new-project creation stay identical by
+ * construction. Two things differ, both driven by what a migration actually produces:
+ * there is no Integration / Library starting point to choose (a migration always yields
+ * integrations), and a multi-project import has no single integration to name, so only
+ * the project and the shared package details are asked for.
+ *
+ * Nothing is written here. The resolved destination is handed back through `onNext` and
+ * only used once the rule-based migration has run and the user picks an action.
+ */
 export function ConfigureProjectForm({ isMultiProject, onNext, onBack }: ConfigureProjectFormProps) {
     const { wsClient } = useBiWsContext();
-    const [singleIntegrationData, setSingleIntegrationData] = useState<ProjectFormData>({
-        integrationName: "",
-        packageName: "",
-        path: "",
-        createDirectory: true,
-        createAsWorkspace: false,
-        workspaceName: "",
-        orgName: "",
-        version: "",
-        isLibrary: false,
-    });
+    const { platformExtState } = usePlatformExtContext();
+    const isLoggedIn = !!platformExtState?.isLoggedIn;
+    const organizations = isLoggedIn
+        ? (platformExtState?.userInfo?.organizations as Organization[] | undefined)
+        : undefined;
 
-    const [multiProjectData, setMultiProjectData] = useState<MultiProjectFormData>({
-        rootFolderName: "",
-        path: "",
-        createDirectory: true,
-    });
-
-    const [isValidating, setIsValidating] = useState(false);
-    const [pathError, setPathError] = useState<string | null>(null);
-    const [folderNameError, setFolderNameError] = useState<string | null>(null);
-    const [singleIntegrationNameError, setSingleIntegrationNameError] = useState<string | null>(null);
-    const [singleIntegrationPathError, setSingleIntegrationPathError] = useState<string | null>(null);
-    const [projectNameError, setProjectNameError] = useState<string | null>(null);
-    const [singleIntegrationPackageNameError, setSingleIntegrationPackageNameError] = useState<string | null>(null);
-    const selectedResourceTypeLabel = singleIntegrationData.isLibrary ? "Library" : "Integration";
-
-    const handleSingleProjectFormChange = (data: Partial<ProjectFormData>) => {
-        setSingleIntegrationData(prev => ({ ...prev, ...data }));
-        // Clear validation errors when form data changes
-        if (singleIntegrationNameError) {
-            setSingleIntegrationNameError(null);
-        }
-        if (singleIntegrationPathError) {
-            setSingleIntegrationPathError(null);
-        }
-        if (projectNameError) {
-            setProjectNameError(null);
-        }
-        if (singleIntegrationPackageNameError) {
-            setSingleIntegrationPackageNameError(null);
-        }
-    };
-
-    const handleMultiProjectFormChange = (data: Partial<MultiProjectFormData>) => {
-        setMultiProjectData(prev => ({ ...prev, ...data }));
-        // Clear validation errors when form data changes
-        if (pathError) {
-            setPathError(null);
-        }
-        if (folderNameError) {
-            setFolderNameError(null);
-        }
-    };
-
-    const handleCreateSingleProject = async () => {
-        setIsValidating(true);
-        setSingleIntegrationNameError(null);
-        setSingleIntegrationPathError(null);
-        setProjectNameError(null);
-        setSingleIntegrationPackageNameError(null);
-
-        // Validate required fields first
-        let hasError = false;
-
-        if (singleIntegrationData.integrationName.trim().length < 2) {
-            setSingleIntegrationNameError(`${selectedResourceTypeLabel} name must be at least 2 characters`);
-            hasError = true;
-        }
-
-        if (singleIntegrationData.packageName.trim().length < 2) {
-            setSingleIntegrationPackageNameError("Package name must be at least 2 characters");
-            hasError = true;
-        } else {
-            const packageNameError = validatePackageName(singleIntegrationData.packageName, singleIntegrationData.integrationName);
-            if (packageNameError) {
-                setSingleIntegrationPackageNameError(packageNameError);
-                hasError = true;
-            }
-        }
-
-        if (singleIntegrationData.path.trim().length < 2) {
-            setSingleIntegrationPathError(`Please select a path for your ${selectedResourceTypeLabel.toLowerCase()}`);
-            hasError = true;
-        }
-
-        if (hasError) {
-            setIsValidating(false);
-            return;
-        }
-
-        try {
-            // Validate the project path
-            const targetNameForValidation = singleIntegrationData.createAsWorkspace
-                ? singleIntegrationData.workspaceName
-                : singleIntegrationData.packageName;
-            const validationResult = await wsClient.validateProjectPath({
-                projectPath: singleIntegrationData.path,
-                projectName: targetNameForValidation,
-                createDirectory: singleIntegrationData.createDirectory,
-            });
-
-            if (!validationResult.isValid) {
-                // Show error on the appropriate field
-                if (validationResult.errorField === ValidateProjectFormErrorField.PATH) {
-                    if (singleIntegrationData.createAsWorkspace) {
-                        setSingleIntegrationPathError(validationResult.errorMessage || "Invalid project path");
-                    } else {
-                        setSingleIntegrationPathError(
-                            validationResult.errorMessage || `Invalid ${selectedResourceTypeLabel.toLowerCase()} path`
-                        );
-                    }
-                } else if (validationResult.errorField === ValidateProjectFormErrorField.NAME) {
-                    if (singleIntegrationData.createAsWorkspace) {
-                        setProjectNameError(
-                            validationResult.errorMessage || "Invalid project name"
-                        );
-                    } else {
-                        setSingleIntegrationPackageNameError(
-                            validationResult.errorMessage || `Invalid ${selectedResourceTypeLabel.toLowerCase()} name`
-                        );
-                    }
-                }
-                setIsValidating(false);
-                return;
-            }
-
-            // If validation passes, proceed
-            const payload = {
-                projectName: singleIntegrationData.integrationName,
-                packageName: singleIntegrationData.packageName,
-                projectPath: singleIntegrationData.path,
-                createDirectory: singleIntegrationData.createDirectory,
-                createAsWorkspace: singleIntegrationData.createAsWorkspace,
-                workspaceName: singleIntegrationData.workspaceName,
-                orgName: singleIntegrationData.orgName || undefined,
-                version: singleIntegrationData.version || undefined,
-                isLibrary: singleIntegrationData.isLibrary,
-            };
-            await onNext(payload, false);
-        } catch (error) {
-            setSingleIntegrationPathError("An error occurred during validation");
-        } finally {
-            setIsValidating(false);
-        }
-    };
-
-    const handleCreateMultiProject = async () => {
-        setIsValidating(true);
-        setPathError(null);
-        setFolderNameError(null);
-
-        // Validate required fields first
-        let hasError = false;
-
-        if (!multiProjectData.path.trim() || multiProjectData.path.length < 2) {
-            setPathError("Please select a path for your project");
-            hasError = true;
-        }
-
-        if (multiProjectData.createDirectory && (!multiProjectData.rootFolderName.trim() || multiProjectData.rootFolderName.length < 1)) {
-            setFolderNameError("Folder name is required when creating a new directory");
-            hasError = true;
-        }
-
-        if (hasError) {
-            setIsValidating(false);
-            return;
-        }
-
-        try {
-            // Validate the project path
-            const validationResult = await wsClient.validateProjectPath({
-                projectPath: multiProjectData.path,
-                projectName: multiProjectData.rootFolderName,
-                createDirectory: multiProjectData.createDirectory,
-            });
-
-            if (!validationResult.isValid) {
-                // Show error on the appropriate field
-                if (validationResult.errorField === ValidateProjectFormErrorField.PATH) {
-                    setPathError(validationResult.errorMessage || "Invalid project path");
-                } else if (validationResult.errorField === ValidateProjectFormErrorField.NAME) {
-                    setFolderNameError(validationResult.errorMessage || "Invalid folder name");
-                }
-                setIsValidating(false);
-                return;
-            }
-
-            // If validation passes, proceed
-            await onNext({
-                projectName: multiProjectData.rootFolderName,
-                packageName: multiProjectData.rootFolderName,
-                projectPath: multiProjectData.path,
-                createDirectory: multiProjectData.createDirectory,
-                createAsWorkspace: false,
-            }, false);
-        } catch (error) {
-            setPathError("An error occurred during validation");
-        } finally {
-            setIsValidating(false);
-        }
+    const handleSubmit = async (values: ProjectDestinationValues) => {
+        await onNext(
+            {
+                // The project (workspace) the migrated packages land in.
+                workspaceName: values.projectName,
+                projectPath: values.location,
+                directoryName: values.directoryName,
+                createDirectory: true,
+                createAsWorkspace: true,
+                newProject: values.newProject,
+                // The single migrated integration. Absent for a multi-project import,
+                // where each package is named by the migration tool.
+                projectName: values.integrationName || undefined,
+                packageName: values.packageName || undefined,
+                orgName: values.orgName || undefined,
+                orgHandle: values.orgHandle,
+                version: values.version || undefined,
+            },
+            false
+        );
     };
 
     return (
         <>
-            {isMultiProject ? (
-                <>
-                    <Typography variant="h2">Configure Multi-Project Import</Typography>
-                    <BodyText>Select the location where you want to save the migrated integrations.</BodyText>
+            <Typography variant="h2">
+                {isMultiProject ? "Configure Multi-Project Import" : "Configure Your Integration"}
+            </Typography>
 
-                    <MultiProjectFormFields
-                        formData={multiProjectData}
-                        onFormDataChange={handleMultiProjectFormChange}
-                        pathError={pathError || undefined}
-                        folderNameError={folderNameError || undefined}
-                    />
-
-                    <ButtonWrapper>
-                        <ActionButtons
-                            primaryButton={{
-                                text: isValidating ? "Validating..." : "Start Migration",
-                                onClick: handleCreateMultiProject,
-                                disabled: isValidating
-                            }}
-                            secondaryButton={{
-                                text: "Back",
-                                onClick: onBack,
-                                disabled: false
-                            }}
-                        />
-                    </ButtonWrapper>
-                </>
-            ) : (
-                <>
-                    <Typography variant="h2">Configure Your {selectedResourceTypeLabel}</Typography>
-                    <BodyText>
-                        Please provide the necessary details to create your {selectedResourceTypeLabel.toLowerCase()}.
-                    </BodyText>
-
-                    <ProjectFormFields
-                        formData={singleIntegrationData}
-                        onFormDataChange={handleSingleProjectFormChange}
-                        integrationNameError={singleIntegrationNameError || undefined}
-                        pathError={singleIntegrationPathError || undefined}
-                        projectNameError={projectNameError || undefined}
-                        packageNameValidationError={singleIntegrationPackageNameError || undefined}
-                    />
-
-                    <ButtonWrapper>
-                        <ActionButtons
-                            primaryButton={{
-                                text: isValidating ? "Validating..." : "Start Migration",
-                                onClick: handleCreateSingleProject,
-                                disabled: isValidating
-                            }}
-                            secondaryButton={{
-                                text: "Back",
-                                onClick: onBack,
-                                disabled: false
-                            }}
-                        />
-                    </ButtonWrapper>
-                </>
-            )}
+            <ProjectDestinationForm
+                wsClient={wsClient}
+                organizations={organizations}
+                collectArtifact={!isMultiProject}
+                artifactNoun={isMultiProject ? "integrations" : "integration"}
+                submitLabel="Start Migration"
+                submittingLabel="Starting..."
+                submitErrorPrefix="Failed to start the migration."
+                secondaryButton={{ text: "Back", onClick: onBack }}
+                onSubmit={handleSubmit}
+            />
         </>
     );
 }

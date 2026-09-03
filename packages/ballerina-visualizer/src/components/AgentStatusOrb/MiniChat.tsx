@@ -355,7 +355,8 @@ const spin = keyframes`
 
 const Panel = styled.div`
     position: fixed;
-    z-index: 10001;
+    /* One above the orb, still below panels/modals so an open panel takes priority. */
+    z-index: 1801;
     width: ${PANEL_WIDTH}px;
     max-width: calc(100vw - ${EDGE_MARGIN * 2}px);
     height: min(520px, calc(100vh - 150px));
@@ -976,10 +977,10 @@ export function MiniChat({ anchor, onClose, takeInitialPrompt }: MiniChatProps) 
     const transcript = renderTranscript(msgs, streaming);
 
     return (
-        <Panel style={panelPosition(anchor)} role="dialog" aria-label="WSO2 Integrator Copilot mini chat">
+        <Panel style={panelPosition(anchor)} role="dialog" aria-label="WSO2 Integration Intelligence mini chat">
             <Header>
                 <Icon name="bi-ai-chat" sx={{ width: 16, height: 16, flex: "none" }} iconSx={{ fontSize: "16px" }} />
-                <HeaderTitle>WSO2 Integrator Copilot</HeaderTitle>
+                <HeaderTitle>WSO2 Integration Intelligence</HeaderTitle>
                 <HeaderButton title="Open full chat" aria-label="Open the full Copilot chat" onClick={openFullChat}>
                     <Codicon name="screen-full" />
                 </HeaderButton>
@@ -1048,7 +1049,7 @@ export function MiniChat({ anchor, onClose, takeInitialPrompt }: MiniChatProps) 
                                 ? "What should I add here?"
                                 : "What should we work on?"
                     }
-                    aria-label="Message WSO2 Integrator Copilot"
+                    aria-label="Message WSO2 Integration Intelligence"
                     disabled={runActive}
                 />
                 <SendButton title="Send" aria-label="Send message" onClick={send} disabled={runActive || !input.trim()}>

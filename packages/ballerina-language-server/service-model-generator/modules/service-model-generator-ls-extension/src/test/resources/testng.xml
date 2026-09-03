@@ -33,6 +33,7 @@ under the License.
             <class name="io.ballerina.servicemodelgenerator.extension.AddFunctionTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.AddResourceTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.AddFieldTest"/>
+            <class name="io.ballerina.servicemodelgenerator.extension.CreateClassDependencyTest"/>
 <!--            <class name="io.ballerina.servicemodelgenerator.extension.AddServiceTest"/>-->
             <class name="io.ballerina.servicemodelgenerator.extension.GetFunctionModelTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.GetListenerModelTest"/>
@@ -51,6 +52,8 @@ under the License.
             <class name="io.ballerina.servicemodelgenerator.extension.connector.TriggerModelReaderSchemaDrivenTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.connector.TriggerServiceAdapterTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.connector.PayloadComposerTest"/>
+            <class name="io.ballerina.servicemodelgenerator.extension.connector.TriggerFunctionAdapterTest"/>
+            <class name="io.ballerina.servicemodelgenerator.extension.connector.TriggerLayoutTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.connector.AnnotationEmitterTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.connector.TriggerImportTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.util.ModuleAliasResolverTest"/>
@@ -66,6 +69,8 @@ under the License.
             <class name="io.ballerina.servicemodelgenerator.extension.connector.ExistingListenerResolverTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.util.TriggerSearchUtilTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.connector.LocalDependencyEditUtilTest"/>
+            <class name="io.ballerina.servicemodelgenerator.extension.connector.PlatformDependencyEditUtilTest"/>
+            <class name="io.ballerina.servicemodelgenerator.extension.connector.DriverDependencyFieldTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.validation.ValidationEngineTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.validation.LsRuleValidatorsTest"/>
         </classes>

@@ -2,16 +2,17 @@ name: Nightly Build
 
 on:
   schedule:
-    - cron: '30 1 * * *'
+    - cron: '30 19 * * *'
   workflow_dispatch:
     inputs:
       sourceBranch:
         description: >-
-          Branch to run the nightly pipeline against. Defaults to main, which is
-          what the schedule always uses.
+          Branch to run the nightly pipeline against. Leave blank to auto-select:
+          the latest staging/* branch if one exists, otherwise main — the same
+          resolution the schedule always uses.
         required: false
         type: string
-        default: main
+        default: ''
 
 permissions:
   contents: read
@@ -27,8 +28,9 @@ jobs:
   # ─────────────────────────────────────────────────────────────────────────
   # builds/nightly branch — selected source plus a single version commit
   #
-  # Scheduled runs reset the branch to main; manual runs reset it to sourceBranch (main by
-  # default). It is then force-pushed, so it is never a merge target and never accumulates
+  # Scheduled runs, and manual runs with sourceBranch left blank, reset the branch to the
+  # latest staging/* branch if one exists, otherwise main; an explicit sourceBranch always
+  # wins. It is then force-pushed, so it is never a merge target and never accumulates
   # history. `git diff <selected-source> builds/nightly` is always exactly the version bump.
   # Its purpose is to give every nightly VSIX an inspectable commit that pins both the source
   # and the version it was built at.
@@ -59,16 +61,25 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Reset builds/nightly to the source branch
-        env:
-          SOURCE_BRANCH: ${{ inputs.sourceBranch || 'main' }}
+      - name: Configure git identity
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Resolve source branch
+        id: resolve-source
+        uses: ./.github/actions/resolve-source-branch
+        with:
+          sourceBranch: ${{ inputs.sourceBranch }}
+
+      - name: Reset builds/nightly to the source branch
+        env:
+          SOURCE_BRANCH: ${{ steps.resolve-source.outputs.branch }}
+        run: |
+          set -euo pipefail
           # Checkout fetches only the triggering ref, so fetch the requested source
           # explicitly even though the initial checkout uses fetch-depth 0.
-          SOURCE_BRANCH="$(git check-ref-format --branch "${SOURCE_BRANCH}")"
           git fetch origin \
             "refs/heads/${SOURCE_BRANCH}:refs/remotes/origin/${SOURCE_BRANCH}"
           git checkout -B builds/nightly "origin/${SOURCE_BRANCH}"
@@ -256,6 +267,12 @@ jobs:
           gradle-version: ${{ matrix.version }}
           package-user: ${{ github.actor }}
           package-pat: ${{ secrets.GITHUB_TOKEN }}
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+          # This job checks out matrix.branch, not the ref the schedule fired on, so the
+          # upload has to be attributed explicitly — otherwise Codecov records every leg
+          # against the default branch head and no branch ever gets a baseline. It also
+          # keeps the coverage artifact name unique per leg.
+          codecov-branch: ${{ matrix.branch }}
 
   ls-windows-build:
     name: LS Windows build (${{ matrix.branch }})
@@ -367,6 +384,7 @@ jobs:
       COPILOT_ROOT_URL: ${{ secrets.COPILOT_ROOT_URL }}
       COPILOT_DEV_ROOT_URL: ${{ secrets.COPILOT_DEV_ROOT_URL }}
       APPINSIGHTS_INSTRUMENTATION_KEY: ${{ secrets.APPINSIGHTS_INSTRUMENTATION_KEY }}
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     with:
       # Pin the nightly commit SHA rather than the branch name: the branch is
       # force-pushed every run, so a name would let a concurrent run swap the tree

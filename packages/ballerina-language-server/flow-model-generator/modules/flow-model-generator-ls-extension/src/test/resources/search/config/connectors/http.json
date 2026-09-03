@@ -134,7 +134,7 @@
     },
     {
       "metadata": {
-        "label": "Public",
+        "label": "DRACOON",
         "description": "This is a generated connector from [Dracoon API v4.28.3](https://www.dracoon.com/en/home) OpenAPI specification.\nREST Web Services for DRACOON. <a title='Developer Information' href='https://developer.dracoon.com'>Developer Information</a>&emsp;&emsp;<a title='Get SDKs on GitHub' href='https://github.com/dracoon'>Get SDKs on GitHub</a><br><br><a title='Terms of service' href='https://www.dracoon.com/terms/general-terms-and-conditions/'>Terms of service</a>",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_dracoon.public_1.5.1.png",
         "data": {
@@ -155,7 +155,7 @@
     },
     {
       "metadata": {
-        "label": "Admin",
+        "label": "Shopify Admin",
         "description": "As the primary way that apps interact with Shopify, the Admin API allows you to add your own features to the Shopify user experience. Considerations when using the Shopify Admin include:\n\n- The Admin API supports both [GraphQL](https://shopify.dev/docs/api/admin-graphql) and [REST](https://shopify.dev/docs/api/admin-rest).\n- This is a [versioned API](https://shopify.dev/docs/api/usage/versioning). Updates are released quarterly and supported API versions are listed in the [release notes](https://shopify.dev/docs/api/release-notes).\n- Apps must explicitly request the relevant [access scopes](https://shopify.dev/docs/api/usage/access-scopes) from the user during installation.\n- Apps must [authenticate](https://shopify.dev/docs/apps/auth) to interact with the Admin API.\n- The Admin API enforces [rate limits](https://shopify.dev/docs/api/usage/rate-limits) on all requests. Note that there are different rate-limiting methods for GraphQL and REST. All apps connecting to the Admin API are subject to [Shopify’s API Terms of Service](https://www.shopify.com/legal/api-terms).\n\n\n---",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_shopify.admin_3.0.0.png",
         "data": {
@@ -176,7 +176,7 @@
     },
     {
       "metadata": {
-        "label": "Sap",
+        "label": "SAP",
         "description": "The `sap` client provides the capability for initiating contact with a remote HTTP service provided by any SAP products. The API it\nprovides includes the functions for the standard HTTP methods.",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_sap_1.3.1.png",
         "data": {
@@ -281,7 +281,7 @@
     },
     {
       "metadata": {
-        "label": "Connect",
+        "label": "Cdata Connect",
         "description": "The [Ballerina](https://ballerina.io/) connector for [CData Connect](https://cloud.cdata.com/docs/JDBC.html) \nallows you to programmatically access all of the CData Connect applications, databases, APIs, and services\nacross an organization via the Java Database Connectivity (JDBC) API using [Ballerina](https://ballerina.io/). \nFor detailed information on working with each data source, see [Data Sources](https://cloud.cdata.com/docs/Data-Sources.html).\nCData Connect supports a wide range of standard DDL commands, SQL commands, and SQL functions to query data sources. \nFor reference information on all the CData Connect SQL commands (i.e., DDL, DML, and query syntax), \nsee the [SQL Reference](https://cloud.cdata.com/docs/SQL-Reference.html).",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_cdata.connect_1.2.0.png",
         "data": {
@@ -302,7 +302,7 @@
     },
     {
       "metadata": {
-        "label": "Openweathermap",
+        "label": "OpenWeatherMap",
         "description": "This is a generated connector from [Open Weather Map API version 2.5](https://openweathermap.org/) OpenAPI Specification. \nThe Open Weather Map API provides access to current weather data and weather forecast of any location worldwide including 200,000 cities by consuming the [`Current Weather Data`](https://openweathermap.org/current) and [`One Call`](https://openweathermap.org/api/one-call-api) API endpoints.  ",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_openweathermap_1.5.1.png",
         "data": {
@@ -365,7 +365,7 @@
     },
     {
       "metadata": {
-        "label": "Customer",
+        "label": "commercetools Customer",
         "description": "This is a generated connector for [Commercetools API v1](https://docs.commercetools.com/api/) OpenAPI specification. \nThe commercetools Platform HTTP API(Customer) offers an interface for programmatic access to retrieve certain information on customer related operations.",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_commercetools.customer_1.4.1.png",
         "data": {
@@ -386,7 +386,7 @@
     },
     {
       "metadata": {
-        "label": "Cartsordershoppinglists",
+        "label": "commercetools Carts & Orders",
         "description": "This is a generated connector for [Commercetools API v1](https://docs.commercetools.com/api/) OpenAPI specification. \nThe commercetools Platform HTTP API offers an interface for programmatic access to operations related to carts, orders and shopping lists.",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_commercetools.cartsordershoppinglists_1.4.1.png",
         "data": {

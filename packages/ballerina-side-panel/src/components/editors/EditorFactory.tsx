@@ -28,6 +28,7 @@ import { ContextAwareExpressionEditor, DataMapperJoinClauseRhsEditor } from "./E
 import { ParamManagerEditor } from "../ParamManager/ParamManager";
 import { DropdownEditor } from "./DropdownEditor";
 import { FileSelect } from "./FileSelect";
+import { ProjectFileSelect } from "./ProjectFileSelect";
 import { CheckBoxEditor } from "./CheckBoxEditor";
 import { ChoiceForm } from "./ChoiceForm";
 
@@ -144,6 +145,8 @@ export const EditorFactory = (props: FormFieldEditorProps) => {
         return <AutoCompleteEditor field={field} openSubPanel={openSubPanel} />;
     } else if (fieldInputType.fieldType === "CUSTOM_DROPDOWN") {
         return <CustomDropdownEditor field={field} openSubPanel={openSubPanel} />;
+    } else if (fieldInputType.fieldType === "PROJECT_FILE_SELECT" && field.editable) {
+        return <ProjectFileSelect field={field} />;
     } else if (fieldInputType.fieldType === "FILE_SELECT" && field.editable) {
         return <FileSelect field={field} />;
     } else if (fieldInputType.fieldType === "SINGLE_SELECT" && !showWithExpressionEditor && field.editable && field.dynamicFormFields) {

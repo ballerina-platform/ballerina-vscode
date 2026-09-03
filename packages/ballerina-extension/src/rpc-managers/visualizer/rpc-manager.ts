@@ -71,6 +71,7 @@ export class VisualizerRpcManager implements VisualizerAPI {
                 }
                 openView(params.type, params.location as VisualizerLocation);
             }
+            resolve();
         });
     }
 
@@ -99,7 +100,11 @@ export class VisualizerRpcManager implements VisualizerAPI {
                         ? MACHINE_VIEW.WorkspaceOverview
                         : MACHINE_VIEW.PackageOverview
                 },
-                true
+                true,
+                // Home is the way back up to the workspace, so it keeps the workspace overview
+                // even when a single integration would otherwise collapse onto itself — the
+                // landing view is already that integration, so redirecting here does nothing.
+                { exactView: true }
             );
         });
     }

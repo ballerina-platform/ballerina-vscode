@@ -16,10 +16,10 @@
     "displayName": "MCP Service",
     "moduleName": "mcp",
     "orgName": "ballerina",
-    "version": "1.0.3",
+    "version": "1.2.0",
     "packageName": "mcp",
     "listenerProtocol": "mcp",
-    "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_mcp_1.0.3.png",
+    "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_mcp_1.2.0.png",
     "properties": {
       "listener": {
         "metadata": {
@@ -83,7 +83,7 @@
             "selected": true
           }
         ],
-        "enabled": false,
+        "enabled": true,
         "editable": false,
         "optional": false,
         "advanced": false
@@ -215,6 +215,55 @@
           "advanced": false
         },
         "parameters": [
+          {
+            "metadata": {
+              "label": "Meta",
+              "description": "Binds the MCP request metadata (e.g. a progress token) attached to the tool call."
+            },
+            "kind": "OPTIONAL",
+            "type": {
+              "metadata": {
+                "label": "Parameter Type",
+                "description": "The type of the parameter"
+              },
+              "placeholder": "mcp:Meta?",
+              "value": "mcp:Meta?",
+              "types": [
+                {
+                  "fieldType": "TYPE",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": false,
+              "optional": true,
+              "advanced": false
+            },
+            "name": {
+              "metadata": {
+                "label": "Meta",
+                "description": "Binds the MCP request metadata (e.g. a progress token) attached to the tool call."
+              },
+              "placeholder": "meta",
+              "value": "meta",
+              "types": [
+                {
+                  "fieldType": "IDENTIFIER",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false
+            },
+            "enabled": false,
+            "editable": true,
+            "optional": true,
+            "advanced": true,
+            "hidden": false,
+            "isGraphqlId": false
+          },
           {
             "metadata": {
               "label": "city",
@@ -421,7 +470,7 @@
           "orgName": "ballerina",
           "packageName": "mcp",
           "moduleName": "mcp",
-          "version": "1.0.3"
+          "version": "1.2.0"
         },
         "properties": {},
         "group": "newTool",
@@ -473,6 +522,55 @@
           "advanced": false
         },
         "parameters": [
+          {
+            "metadata": {
+              "label": "Meta",
+              "description": "Binds the MCP request metadata (e.g. a progress token) attached to the tool call."
+            },
+            "kind": "OPTIONAL",
+            "type": {
+              "metadata": {
+                "label": "Parameter Type",
+                "description": "The type of the parameter"
+              },
+              "placeholder": "mcp:Meta?",
+              "value": "mcp:Meta?",
+              "types": [
+                {
+                  "fieldType": "TYPE",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": false,
+              "optional": true,
+              "advanced": false
+            },
+            "name": {
+              "metadata": {
+                "label": "Meta",
+                "description": "Binds the MCP request metadata (e.g. a progress token) attached to the tool call."
+              },
+              "placeholder": "meta",
+              "value": "meta",
+              "types": [
+                {
+                  "fieldType": "IDENTIFIER",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false
+            },
+            "enabled": false,
+            "editable": true,
+            "optional": true,
+            "advanced": true,
+            "hidden": false,
+            "isGraphqlId": false
+          },
           {
             "metadata": {
               "label": "location",
@@ -760,7 +858,7 @@
           "orgName": "ballerina",
           "packageName": "mcp",
           "moduleName": "mcp",
-          "version": "1.0.3"
+          "version": "1.2.0"
         },
         "properties": {},
         "group": "newTool",
@@ -812,7 +910,57 @@
           "optional": true,
           "advanced": false
         },
-        "parameters": [],
+        "parameters": [
+          {
+            "metadata": {
+              "label": "Meta",
+              "description": "Binds the MCP request metadata (e.g. a progress token) attached to the tool call."
+            },
+            "kind": "OPTIONAL",
+            "type": {
+              "metadata": {
+                "label": "Parameter Type",
+                "description": "The type of the parameter"
+              },
+              "placeholder": "mcp:Meta?",
+              "value": "mcp:Meta?",
+              "types": [
+                {
+                  "fieldType": "TYPE",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": false,
+              "optional": true,
+              "advanced": false
+            },
+            "name": {
+              "metadata": {
+                "label": "Meta",
+                "description": "Binds the MCP request metadata (e.g. a progress token) attached to the tool call."
+              },
+              "placeholder": "meta",
+              "value": "meta",
+              "types": [
+                {
+                  "fieldType": "IDENTIFIER",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false
+            },
+            "enabled": false,
+            "editable": true,
+            "optional": true,
+            "advanced": true,
+            "hidden": false,
+            "isGraphqlId": false
+          }
+        ],
         "schema": {
           "parameter": {
             "metadata": {
@@ -928,7 +1076,7 @@
           "orgName": "ballerina",
           "packageName": "mcp",
           "moduleName": "mcp",
-          "version": "1.0.3"
+          "version": "1.2.0"
         },
         "properties": {},
         "group": "newTool",

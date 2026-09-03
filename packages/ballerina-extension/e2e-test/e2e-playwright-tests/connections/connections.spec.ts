@@ -17,7 +17,7 @@
  */
 import { Frame, Locator, test } from '@playwright/test';
 import * as path from 'path';
-import { BI_INTEGRATOR_LABEL, BI_WEBVIEW_NOT_FOUND_ERROR, initTest, page, logStep, newProjectPath } from '../utils/helpers';
+import { BI_INTEGRATOR_LABEL, BI_WEBVIEW_NOT_FOUND_ERROR, initTest, page, logStep, newProjectPath, domClick } from '../utils/helpers';
 import { switchToIFrame, Form } from '@wso2/playwright-vscode-tester';
 import { ProjectExplorer, Diagram, SidePanel } from '../utils/pages';
 import { DEFAULT_PROJECT_NAME } from '../utils/helpers/constants';
@@ -325,11 +325,18 @@ export default function createTests() {
             // diagram — no explicit "Open View" navigation is needed.
             artifactWebView = await switchToIFrame(BI_INTEGRATOR_LABEL, page.page, 30000);
 
-            await artifactWebView.getByRole('button', { name: /Add Artifact/i }).click({ force: true });
-            await artifactWebView.locator('[data-testid="function-card-Connection"], #connection').first().click({ force: true });
+            // The diagram can still be settling right after the previous test's save
+            // (same drag-tolerance trap as elsewhere in this file) — retry the click
+            // rather than assume it registered.
+            const connectionCard = artifactWebView.locator('[data-testid="function-card-Connection"], #connection').first();
+            await clickUntil(artifactWebView.getByRole('button', { name: /Add Artifact/i }), connectionCard, 'Add Artifact button');
+            // domClick avoids the floating Copilot orb intercepting a coordinate click.
+            await domClick(connectionCard);
             await page.page.waitForTimeout(1500);
 
-            await artifactWebView.getByText('Connect via API Specification', { exact: false }).first().click({ force: true });
+            const apiSpecOption = artifactWebView.getByText('Connect via API Specification', { exact: false }).first();
+            await apiSpecOption.waitFor({ state: 'visible', timeout: 30000 });
+            await domClick(apiSpecOption);
             await page.page.waitForTimeout(1000);
 
             const connectorNameInput = artifactWebView.locator('#connector-name');

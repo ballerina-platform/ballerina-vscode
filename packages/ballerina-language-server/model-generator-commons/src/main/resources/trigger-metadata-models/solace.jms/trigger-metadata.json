@@ -1,0 +1,83 @@
+{
+  "version": "v1.0",
+
+  "listeners": [
+    {
+      "id": "$listener",
+      "doc": "Connects to a JMS broker and dispatches each delivered message to the attached service.",
+      "type": { "name": "Listener" },
+      "services": ["$service"],
+      "multipleServicesAllowed": true,
+      "multipleServicesOfSameTypeAllowed": true
+    }
+  ],
+
+  "serviceTypes": [
+    {
+      "id": "$service",
+      "doc": "Consumes messages delivered from the queue or topic named in @jms:ServiceConfig.",
+      "type": { "name": "Service" },
+      "concrete": false,
+      "multipleListenersAllowed": true,
+      "annotations": ["$serviceConfig"],
+      "handlers": {
+        "backedByConcreteType": false,
+        "options": [
+          {
+            "id": "$service.onMessage",
+            "name": "onMessage",
+            "kind": "remote",
+            "doc": "Invoked once per message delivered from the queue or topic named in @jms:ServiceConfig. Declare a narrower payload type to project the message payload, see the messagePayload data-binding rule.",
+            "presence": "required",
+            "params": [
+              {
+                "id": "$service.onMessage.message",
+                "name": "message",
+                "doc": "The delivered message. Declare a narrower type to project the payload, see the messagePayload data-binding rule.",
+                "type": { "name": "Message" },
+                "presence": "required",
+                "dataBinding": {
+                  "typedescs": [
+                    {
+                      "constraint": { "name": "anydata", "builtin": true },
+                      "shapes": [{ "form": "included", "envelope": { "name": "Message" }, "bindableFields": ["payload"] }]
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "$service.onMessage.caller",
+                "name": "caller",
+                "doc": "Handle for explicit acknowledgement and transaction control. Needed only when the service's ackMode is CLIENT_ACKNOWLEDGE (for caller->ack) or SESSION_TRANSACTED (for caller->commit/caller->rollback).",
+                "type": { "name": "Caller" },
+                "presence": "optional"
+              }
+            ],
+            "returns": { "id": "$service.onMessage.returns", "type": [{ "name": "Error" }, { "name": "()", "builtin": true }] }
+          },
+          {
+            "id": "$service.onError",
+            "name": "onError",
+            "kind": "remote",
+            "doc": "Invoked when a delivered message cannot be dispatched to onMessage, most commonly because its payload fails to bind to a declared narrowed payload type.",
+            "presence": "optional",
+            "params": [
+              {
+                "id": "$service.onError.err",
+                "name": "err",
+                "doc": "The failure that prevented dispatch.",
+                "type": { "name": "Error" },
+                "presence": "required"
+              }
+            ],
+            "returns": { "id": "$service.onError.returns", "type": [{ "name": "Error" }, { "name": "()", "builtin": true }] }
+          }
+        ]
+      }
+    }
+  ],
+
+  "annotations": [
+    { "id": "$serviceConfig", "type": { "name": "ServiceConfig" }, "attachPoint": "service", "presence": "required" }
+  ]
+}

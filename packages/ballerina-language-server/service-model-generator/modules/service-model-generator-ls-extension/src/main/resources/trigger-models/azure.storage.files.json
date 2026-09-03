@@ -7,9 +7,9 @@
   "orgName": "ballerinax",
   "packageName": "azure.storage.files",
   "moduleName": "azure.storage.files",
-  "version": "0.9.0",
+  "version": "1.0.1",
   "type": "files",
-  "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure.storage.files_0.9.0.png",
+  "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure.storage.files_1.0.1.png",
   "kind": "file",
   "listenerKind": "SINGLE_SELECT_LISTENER",
   "initProperties": {
@@ -1076,8 +1076,8 @@
     },
     "path": {
       "metadata": {
-        "label": "Monitoring Path",
-        "description": "The folder on the share to monitor for file actions (e.g., /uploads or /incoming); / watches the share root"
+        "label": "Monitored Path",
+        "description": "The folder on the share to monitor for file actions (e.g., /uploads or /incoming)"
       },
       "types": [
         {
@@ -1091,7 +1091,7 @@
           "selected": false
         }
       ],
-      "value": "\"/\"",
+      "value": "/",
       "enabled": true,
       "editable": true,
       "optional": false,
@@ -1213,7 +1213,7 @@
               "typeMembers": [
                 {
                   "type": "ServiceConfiguration",
-                  "packageInfo": "ballerinax:azure.storage.files:0.9.0",
+                  "packageInfo": "ballerinax:azure.storage.files:1.0.1",
                   "packageName": "azure.storage.files",
                   "kind": "RECORD_TYPE",
                   "selected": true
@@ -1239,8 +1239,9 @@
         {
           "metadata": {
             "label": "On Create",
-            "description": "Handles a file whose extension routes to the CSV format (.csv), binding its content as string[][] or as rows of a record type (T[]).",
+            "description": "Invoked when a .csv file is created in the monitored directory. Define a row schema below to receive the rows as custom types (e.g., User[], Student[]).",
             "addLabel": "Add On Create Handler (CSV)",
+            "addDescription": "Invoked when a file is created in the monitored directory.",
             "badge": "onCreate"
           },
           "name": "onFileCsv",
@@ -1257,7 +1258,7 @@
           "optional": true,
           "canAddParameters": false,
           "repeatable": "ONE_EACH_PER_GROUP",
-          "documentation": "Handles a file whose extension routes to the CSV format (.csv), binding its content as string[][] or as rows of a record type (T[]).",
+          "documentation": "Handles a newly created CSV file.",
           "codedata": {
             "type": "FUNCTION",
             "originalName": "onFileCsv",
@@ -1268,13 +1269,13 @@
             {
               "metadata": {
                 "label": "Content",
-                "description": "Handles a file whose extension routes to the CSV format (.csv), binding its content as string[][] or as rows of a record type (T[])."
+                "description": "Define a row schema below to receive the rows as custom types (e.g., User[], Student[])."
               },
               "kind": "DATA_BINDING",
               "type": {
                 "metadata": {
                   "label": "Content",
-                  "description": "Handles a file whose extension routes to the CSV format (.csv), binding its content as string[][] or as rows of a record type (T[])."
+                  "description": "Define a row schema below to receive the rows as custom types (e.g., User[], Student[])."
                 },
                 "types": [
                   {
@@ -1288,22 +1289,60 @@
                 "optional": false,
                 "advanced": false,
                 "properties": {
+                  "stream": {
+                    "metadata": {
+                      "label": "Stream (Large Files)",
+                      "description": "Process the file content in chunks."
+                    },
+                    "value": false,
+                    "types": [
+                      {
+                        "fieldType": "FLAG",
+                        "selected": true,
+                        "template": "stream<{{type}}, error?>"
+                      }
+                    ],
+                    "enabled": true,
+                    "editable": true,
+                    "optional": false,
+                    "advanced": false,
+                    "codedata": {
+                      "type": "PAYLOAD_MODIFIER",
+                      "modifier": "stream",
+                      "template": "stream<{{type}}, error?>",
+                      "supersedes": [
+                        "base"
+                      ],
+                      "targetParam": "payload"
+                    }
+                  },
                   "payload": {
                     "metadata": {
                       "label": "Row Schema",
-                      "description": "Define or select the bound row type (T); content is delivered as T[]. Defaults to string[] rows."
+                      "description": "Create a record type describing one row of the file. Each row arrives as one record."
                     },
                     "value": "string[][]",
-                    "enabled": false,
-                    "editable": false,
+                    "enabled": true,
+                    "editable": true,
                     "optional": false,
                     "advanced": false,
                     "types": [
                       {
                         "fieldType": "PAYLOAD_TYPE",
                         "selected": true,
+                        "formats": [
+                          {
+                            "supported": [
+                              "schema",
+                              "browse",
+                              "json",
+                              "xml"
+                            ],
+                            "defaultFormat": "schema"
+                          }
+                        ],
                         "ballerinaType": "string[][]",
-                        "template": "{{type}}"
+                        "template": "{{type}}[]"
                       }
                     ],
                     "codedata": {
@@ -1321,7 +1360,7 @@
               "name": {
                 "metadata": {
                   "label": "content",
-                  "description": "Handles a file whose extension routes to the CSV format (.csv), binding its content as string[][] or as rows of a record type (T[])."
+                  "description": "Define a row schema below to receive the rows as custom types (e.g., User[], Student[])."
                 },
                 "placeholder": "content",
                 "value": "content",
@@ -1348,7 +1387,7 @@
             {
               "metadata": {
                 "label": "File Metadata (fileInfo)",
-                "description": "File properties: path, name, size, eTag and last-modified time."
+                "description": "File properties such as path, name, size, eTag and last-modified time."
               },
               "kind": "OPTIONAL",
               "type": {
@@ -1373,7 +1412,7 @@
               "name": {
                 "metadata": {
                   "label": "fileInfo",
-                  "description": "File properties: path, name, size, eTag and last-modified time."
+                  "description": "File properties such as path, name, size, eTag and last-modified time."
                 },
                 "placeholder": "fileInfo",
                 "value": "fileInfo",
@@ -1469,8 +1508,8 @@
           "properties": {
             "afterFileProcessing": {
               "metadata": {
-                "label": "After File Processing",
-                "description": "@files:FunctionConfig - routing and auto-consume actions applied to the file after this handler runs."
+                "label": "File Handling Options",
+                "description": "What happens to the source file after the handler runs."
               },
               "types": [
                 {
@@ -1627,7 +1666,7 @@
                 "afterError": {
                   "metadata": {
                     "label": "On Error",
-                    "description": "Action when the handler fails or the file content does not match the expected format."
+                    "description": "Action when the handler returns an error. Also applies when the file content does not match the expected format, unless an onError handler is declared."
                   },
                   "types": [
                     {
@@ -1766,8 +1805,9 @@
         {
           "metadata": {
             "label": "On Create",
-            "description": "Handles a file whose extension routes to the JSON format (.json), binding its content as map<json> or a record type.",
+            "description": "Invoked when a .json file is created in the monitored directory. Define a schema below to receive the content as a custom type (e.g., User, Student).",
             "addLabel": "Add On Create Handler (JSON)",
+            "addDescription": "Invoked when a file is created in the monitored directory.",
             "badge": "onCreate"
           },
           "name": "onFileJson",
@@ -1784,7 +1824,7 @@
           "optional": true,
           "canAddParameters": false,
           "repeatable": "ONE_EACH_PER_GROUP",
-          "documentation": "Handles a file whose extension routes to the JSON format (.json), binding its content as map<json> or a record type.",
+          "documentation": "Handles a newly created JSON file.",
           "codedata": {
             "type": "FUNCTION",
             "originalName": "onFileJson",
@@ -1795,13 +1835,13 @@
             {
               "metadata": {
                 "label": "Content",
-                "description": "Handles a file whose extension routes to the JSON format (.json), binding its content as map<json> or a record type."
+                "description": "Define a schema below to receive the content as a custom type (e.g., User, Student)."
               },
               "kind": "DATA_BINDING",
               "type": {
                 "metadata": {
                   "label": "Content",
-                  "description": "Handles a file whose extension routes to the JSON format (.json), binding its content as map<json> or a record type."
+                  "description": "Define a schema below to receive the content as a custom type (e.g., User, Student)."
                 },
                 "types": [
                   {
@@ -1818,9 +1858,9 @@
                   "payload": {
                     "metadata": {
                       "label": "Content Schema",
-                      "description": "Bound content type (defaults to map<json>). Bind a record type for schema-checked access; bare json is not supported."
+                      "description": "Create a record type describing the file content. Defaults to json."
                     },
-                    "value": "map<json>",
+                    "value": "json",
                     "enabled": true,
                     "editable": true,
                     "optional": false,
@@ -1829,7 +1869,7 @@
                       {
                         "fieldType": "PAYLOAD_TYPE",
                         "selected": true,
-                        "ballerinaType": "map<json>",
+                        "ballerinaType": "json",
                         "formats": [
                           {
                             "supported": [
@@ -1849,7 +1889,7 @@
                       "boundType": "",
                       "typeConstraint": "anydata",
                       "bindingKind": "USER_SELECTED",
-                      "defaultType": "map<json>",
+                      "defaultType": "json",
                       "template": "{{type}}"
                     }
                   }
@@ -1858,7 +1898,7 @@
               "name": {
                 "metadata": {
                   "label": "content",
-                  "description": "Handles a file whose extension routes to the JSON format (.json), binding its content as map<json> or a record type."
+                  "description": "Define a schema below to receive the content as a custom type (e.g., User, Student)."
                 },
                 "placeholder": "content",
                 "value": "content",
@@ -1885,7 +1925,7 @@
             {
               "metadata": {
                 "label": "File Metadata (fileInfo)",
-                "description": "File properties: path, name, size, eTag and last-modified time."
+                "description": "File properties such as path, name, size, eTag and last-modified time."
               },
               "kind": "OPTIONAL",
               "type": {
@@ -1910,7 +1950,7 @@
               "name": {
                 "metadata": {
                   "label": "fileInfo",
-                  "description": "File properties: path, name, size, eTag and last-modified time."
+                  "description": "File properties such as path, name, size, eTag and last-modified time."
                 },
                 "placeholder": "fileInfo",
                 "value": "fileInfo",
@@ -2006,8 +2046,8 @@
           "properties": {
             "afterFileProcessing": {
               "metadata": {
-                "label": "After File Processing",
-                "description": "@files:FunctionConfig - routing and auto-consume actions applied to the file after this handler runs."
+                "label": "File Handling Options",
+                "description": "What happens to the source file after the handler runs."
               },
               "types": [
                 {
@@ -2164,7 +2204,7 @@
                 "afterError": {
                   "metadata": {
                     "label": "On Error",
-                    "description": "Action when the handler fails or the file content does not match the expected format."
+                    "description": "Action when the handler returns an error. Also applies when the file content does not match the expected format, unless an onError handler is declared."
                   },
                   "types": [
                     {
@@ -2303,8 +2343,9 @@
         {
           "metadata": {
             "label": "On Create",
-            "description": "Handles a file whose extension routes to the XML format (.xml), binding its content as xml or a record type.",
+            "description": "Invoked when a .xml file is created in the monitored directory. Define a schema below to receive the content as a custom type (e.g., User, Student).",
             "addLabel": "Add On Create Handler (XML)",
+            "addDescription": "Invoked when a file is created in the monitored directory.",
             "badge": "onCreate"
           },
           "name": "onFileXml",
@@ -2321,7 +2362,7 @@
           "optional": true,
           "canAddParameters": false,
           "repeatable": "ONE_EACH_PER_GROUP",
-          "documentation": "Handles a file whose extension routes to the XML format (.xml), binding its content as xml or a record type.",
+          "documentation": "Handles a newly created XML file.",
           "codedata": {
             "type": "FUNCTION",
             "originalName": "onFileXml",
@@ -2332,13 +2373,13 @@
             {
               "metadata": {
                 "label": "Content",
-                "description": "Handles a file whose extension routes to the XML format (.xml), binding its content as xml or a record type."
+                "description": "Define a schema below to receive the content as a custom type (e.g., User, Student)."
               },
               "kind": "DATA_BINDING",
               "type": {
                 "metadata": {
                   "label": "Content",
-                  "description": "Handles a file whose extension routes to the XML format (.xml), binding its content as xml or a record type."
+                  "description": "Define a schema below to receive the content as a custom type (e.g., User, Student)."
                 },
                 "types": [
                   {
@@ -2355,7 +2396,7 @@
                   "payload": {
                     "metadata": {
                       "label": "Content Schema",
-                      "description": "Bound content type (defaults to xml). Bind a record type for schema-checked access."
+                      "description": "Create a record type describing the file content. Defaults to xml."
                     },
                     "value": "xml",
                     "enabled": false,
@@ -2385,7 +2426,7 @@
               "name": {
                 "metadata": {
                   "label": "content",
-                  "description": "Handles a file whose extension routes to the XML format (.xml), binding its content as xml or a record type."
+                  "description": "Define a schema below to receive the content as a custom type (e.g., User, Student)."
                 },
                 "placeholder": "content",
                 "value": "content",
@@ -2412,7 +2453,7 @@
             {
               "metadata": {
                 "label": "File Metadata (fileInfo)",
-                "description": "File properties: path, name, size, eTag and last-modified time."
+                "description": "File properties such as path, name, size, eTag and last-modified time."
               },
               "kind": "OPTIONAL",
               "type": {
@@ -2437,7 +2478,7 @@
               "name": {
                 "metadata": {
                   "label": "fileInfo",
-                  "description": "File properties: path, name, size, eTag and last-modified time."
+                  "description": "File properties such as path, name, size, eTag and last-modified time."
                 },
                 "placeholder": "fileInfo",
                 "value": "fileInfo",
@@ -2533,8 +2574,8 @@
           "properties": {
             "afterFileProcessing": {
               "metadata": {
-                "label": "After File Processing",
-                "description": "@files:FunctionConfig - routing and auto-consume actions applied to the file after this handler runs."
+                "label": "File Handling Options",
+                "description": "What happens to the source file after the handler runs."
               },
               "types": [
                 {
@@ -2691,7 +2732,7 @@
                 "afterError": {
                   "metadata": {
                     "label": "On Error",
-                    "description": "Action when the handler fails or the file content does not match the expected format."
+                    "description": "Action when the handler returns an error. Also applies when the file content does not match the expected format, unless an onError handler is declared."
                   },
                   "types": [
                     {
@@ -2830,8 +2871,9 @@
         {
           "metadata": {
             "label": "On Create",
-            "description": "Handles a file whose extension routes to the Text format (.txt).",
+            "description": "Invoked when a .txt file is created in the monitored directory. The content arrives as plain text.",
             "addLabel": "Add On Create Handler (Text)",
+            "addDescription": "Invoked when a file is created in the monitored directory.",
             "badge": "onCreate"
           },
           "name": "onFileText",
@@ -2848,7 +2890,7 @@
           "optional": true,
           "canAddParameters": false,
           "repeatable": "ONE_EACH_PER_GROUP",
-          "documentation": "Handles a file whose extension routes to the Text format (.txt).",
+          "documentation": "Handles a newly created text file.",
           "codedata": {
             "type": "FUNCTION",
             "originalName": "onFileText",
@@ -2859,13 +2901,13 @@
             {
               "metadata": {
                 "label": "Content",
-                "description": "Handles a file whose extension routes to the Text format (.txt)."
+                "description": "The content arrives as plain text."
               },
               "kind": "DATA_BINDING",
               "type": {
                 "metadata": {
                   "label": "Content",
-                  "description": "Handles a file whose extension routes to the Text format (.txt)."
+                  "description": "The content arrives as plain text."
                 },
                 "types": [
                   {
@@ -2882,7 +2924,7 @@
                   "payload": {
                     "metadata": {
                       "label": "Content",
-                      "description": "The text file content as a plain string."
+                      "description": "The file content as plain text."
                     },
                     "value": "string",
                     "enabled": false,
@@ -2908,7 +2950,7 @@
               "name": {
                 "metadata": {
                   "label": "content",
-                  "description": "Handles a file whose extension routes to the Text format (.txt)."
+                  "description": "The content arrives as plain text."
                 },
                 "placeholder": "content",
                 "value": "content",
@@ -2935,7 +2977,7 @@
             {
               "metadata": {
                 "label": "File Metadata (fileInfo)",
-                "description": "File properties: path, name, size, eTag and last-modified time."
+                "description": "File properties such as path, name, size, eTag and last-modified time."
               },
               "kind": "OPTIONAL",
               "type": {
@@ -2960,7 +3002,7 @@
               "name": {
                 "metadata": {
                   "label": "fileInfo",
-                  "description": "File properties: path, name, size, eTag and last-modified time."
+                  "description": "File properties such as path, name, size, eTag and last-modified time."
                 },
                 "placeholder": "fileInfo",
                 "value": "fileInfo",
@@ -3056,8 +3098,8 @@
           "properties": {
             "afterFileProcessing": {
               "metadata": {
-                "label": "After File Processing",
-                "description": "@files:FunctionConfig - routing and auto-consume actions applied to the file after this handler runs."
+                "label": "File Handling Options",
+                "description": "What happens to the source file after the handler runs."
               },
               "types": [
                 {
@@ -3214,7 +3256,7 @@
                 "afterError": {
                   "metadata": {
                     "label": "On Error",
-                    "description": "Action when the handler fails or the file content does not match the expected format."
+                    "description": "Action when the handler returns an error. Also applies when the file content does not match the expected format, unless an onError handler is declared."
                   },
                   "types": [
                     {
@@ -3353,8 +3395,9 @@
         {
           "metadata": {
             "label": "On Create",
-            "description": "Handles any present file as raw bytes; also the fallback for extensions without a typed handler.",
+            "description": "Invoked when a file is created in the monitored directory. Handles any extension without a typed handler; the content arrives as raw, unparsed bytes.",
             "addLabel": "Add On Create Handler (Raw Bytes)",
+            "addDescription": "Invoked when a file is created in the monitored directory.",
             "badge": "onCreate"
           },
           "name": "onFile",
@@ -3371,7 +3414,7 @@
           "optional": true,
           "canAddParameters": false,
           "repeatable": "ONE_EACH_PER_GROUP",
-          "documentation": "Handles any present file as raw bytes; also the fallback for extensions without a typed handler.",
+          "documentation": "Handles a newly created file as raw bytes.",
           "codedata": {
             "type": "FUNCTION",
             "originalName": "onFile",
@@ -3382,13 +3425,13 @@
             {
               "metadata": {
                 "label": "Content",
-                "description": "Handles any present file as raw bytes; also the fallback for extensions without a typed handler."
+                "description": "The content arrives as raw, unparsed bytes."
               },
               "kind": "DATA_BINDING",
               "type": {
                 "metadata": {
                   "label": "Content",
-                  "description": "Handles any present file as raw bytes; also the fallback for extensions without a typed handler."
+                  "description": "The content arrives as raw, unparsed bytes."
                 },
                 "types": [
                   {
@@ -3402,6 +3445,33 @@
                 "optional": false,
                 "advanced": false,
                 "properties": {
+                  "stream": {
+                    "metadata": {
+                      "label": "Stream (Large Files)",
+                      "description": "Process the file content in chunks."
+                    },
+                    "value": false,
+                    "types": [
+                      {
+                        "fieldType": "FLAG",
+                        "selected": true,
+                        "template": "stream<{{type}}, error?>"
+                      }
+                    ],
+                    "enabled": true,
+                    "editable": true,
+                    "optional": false,
+                    "advanced": false,
+                    "codedata": {
+                      "type": "PAYLOAD_MODIFIER",
+                      "modifier": "stream",
+                      "template": "stream<{{type}}, error?>",
+                      "supersedes": [
+                        "base"
+                      ],
+                      "targetParam": "payload"
+                    }
+                  },
                   "payload": {
                     "metadata": {
                       "label": "Content",
@@ -3431,7 +3501,7 @@
               "name": {
                 "metadata": {
                   "label": "content",
-                  "description": "Handles any present file as raw bytes; also the fallback for extensions without a typed handler."
+                  "description": "The content arrives as raw, unparsed bytes."
                 },
                 "placeholder": "content",
                 "value": "content",
@@ -3458,7 +3528,7 @@
             {
               "metadata": {
                 "label": "File Metadata (fileInfo)",
-                "description": "File properties: path, name, size, eTag and last-modified time."
+                "description": "File properties such as path, name, size, eTag and last-modified time."
               },
               "kind": "OPTIONAL",
               "type": {
@@ -3483,7 +3553,7 @@
               "name": {
                 "metadata": {
                   "label": "fileInfo",
-                  "description": "File properties: path, name, size, eTag and last-modified time."
+                  "description": "File properties such as path, name, size, eTag and last-modified time."
                 },
                 "placeholder": "fileInfo",
                 "value": "fileInfo",
@@ -3579,8 +3649,8 @@
           "properties": {
             "afterFileProcessing": {
               "metadata": {
-                "label": "After File Processing",
-                "description": "@files:FunctionConfig - routing and auto-consume actions applied to the file after this handler runs."
+                "label": "File Handling Options",
+                "description": "What happens to the source file after the handler runs."
               },
               "types": [
                 {
@@ -3737,7 +3807,7 @@
                 "afterError": {
                   "metadata": {
                     "label": "On Error",
-                    "description": "Action when the handler fails or the file content does not match the expected format."
+                    "description": "Action when the handler returns an error. Also applies when the file content does not match the expected format, unless an onError handler is declared."
                   },
                   "types": [
                     {
@@ -3872,16 +3942,161 @@
               }
             }
           }
+        },
+        {
+          "metadata": {
+            "label": "On Error",
+            "description": "Invoked when a poll fails or a file's content does not match the expected format. Errors returned by the other handlers are not sent here.",
+            "addLabel": "Add On Error Handler",
+            "badge": "onError"
+          },
+          "name": "onError",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": false,
+          "editable": true,
+          "optional": true,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onError",
+            "moduleName": "files"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Azure Files Error",
+                "description": "The error reported by the listener: a failed poll, or content that does not match the expected format."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "files:Error",
+                "value": "files:Error",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "err",
+                  "description": "The error reported by the listener: a failed poll, or content that does not match the expected format."
+                },
+                "placeholder": "err",
+                "value": "err",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": true,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            },
+            {
+              "metadata": {
+                "label": "Azure Files Connection (caller)",
+                "description": "A connection scoped to the watched share for acting on the file (download, upload, delete, move) within the handler."
+              },
+              "kind": "OPTIONAL",
+              "type": {
+                "metadata": {
+                  "label": "Include Azure Files Connection (caller)",
+                  "description": "Tick to include the Azure Files Connection (caller) parameter in the handler signature."
+                },
+                "placeholder": "files:Caller",
+                "value": false,
+                "types": [
+                  {
+                    "fieldType": "FLAG",
+                    "selected": true,
+                    "ballerinaType": "files:Caller"
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "caller",
+                  "description": "A connection scoped to the watched share for acting on the file (download, upload, delete, move) within the handler."
+                },
+                "placeholder": "caller",
+                "value": "caller",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": false,
+              "editable": true,
+              "optional": true,
+              "advanced": true,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
         }
       ]
     }
   ],
   "readOnlyMetadata": [
     {
-      "key": "path",
+      "key": "basePath",
       "displayName": "Monitored Path",
-      "kind": "SERVICE_ANNOTATION",
-      "path": "ServiceConfig.path"
+      "kind": "SERVICE_BASE_PATH"
     }
   ],
   "importStatements": []

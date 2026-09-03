@@ -24,9 +24,16 @@ const INPUT_DIR = path.join(__dirname, "resources", "input");
 const EXPECTED_DIR = path.join(__dirname, "resources", "expected");
 
 /**
- * When called, writes the actual output as the expected .txt file.
- * This is used to bootstrap expected files for new inputs.
- * Comment out the call to this function once snapshots are reviewed and committed.
+ * Writes the actual output as the expected .txt file, to bootstrap a snapshot for a new input.
+ *
+ * Opt-in via `UPDATE_SNAPSHOTS=1`, and deliberately NOT called on a normal run. It used to be invoked
+ * unconditionally on every test, immediately before the comparison — which overwrote the expected file
+ * with whatever the renderer had just produced and then compared it to itself. The assertion could not
+ * fail, so the suite reported success while protecting nothing.
+ *
+ * To re-baseline after an intended rendering change:
+ *   UPDATE_SNAPSHOTS=1 npx mocha --require ts-node/register/transpile-only --ui tdd <this file>
+ * then read the diff before committing it.
  */
 function updateExpected(name: string, actual: string): void {
     if (!fs.existsSync(EXPECTED_DIR)) {
@@ -65,9 +72,9 @@ suite("toSyntaxString — snapshot tests", () => {
             const libraries: Library[] = JSON.parse(fs.readFileSync(inputPath, "utf-8"));
             const actual = toSyntaxString(libraries);
 
-            // --- Auto-generate expected file if missing ---
-            // Comment out the next line once you've reviewed and committed the .txt snapshots.
-            updateExpected(name, actual);
+            if (process.env.UPDATE_SNAPSHOTS === "1") {
+                updateExpected(name, actual);
+            }
 
             assert.ok(
                 fs.existsSync(expectedPath),

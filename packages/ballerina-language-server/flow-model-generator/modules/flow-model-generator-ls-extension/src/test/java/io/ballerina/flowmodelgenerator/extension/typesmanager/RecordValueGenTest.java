@@ -20,6 +20,7 @@ package io.ballerina.flowmodelgenerator.extension.typesmanager;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import io.ballerina.flowmodelgenerator.core.model.Codedata;
 import io.ballerina.flowmodelgenerator.extension.request.RecordValueGenerateRequest;
 import io.ballerina.modelgenerator.commons.AbstractLSTest;
 import org.testng.Assert;
@@ -42,12 +43,13 @@ public class RecordValueGenTest extends AbstractLSTest {
         Path configJsonPath = configDir.resolve(config);
         TestConfig testConfig = gson.fromJson(Files.newBufferedReader(configJsonPath), TestConfig.class);
         RecordValueGenerateRequest request = new RecordValueGenerateRequest(
-                getSourcePath(testConfig.filePath()), testConfig.type());
+                getSourcePath(testConfig.filePath()), testConfig.type(), testConfig.typeConstraint(),
+                testConfig.codedata());
         JsonObject response = getResponse(request);
         JsonElement configResponse = response.get("recordValue");
         if (!configResponse.equals(testConfig.output())) {
             TestConfig updateConfig = new TestConfig(testConfig.filePath(), testConfig.description(),
-                    testConfig.type(), configResponse);
+                    testConfig.type(), testConfig.typeConstraint(), testConfig.codedata(), configResponse);
 //             updateConfig(configJsonPath, updateConfig);
             compareJsonElements(configResponse, testConfig.output());
             Assert.fail(String.format("Failed test: '%s' (%s)", testConfig.description(), configJsonPath));
@@ -74,6 +76,7 @@ public class RecordValueGenTest extends AbstractLSTest {
         return "typesManager";
     }
 
-    private record TestConfig(String filePath, String description, JsonElement type, JsonElement output) {
+    private record TestConfig(String filePath, String description, JsonElement type, String typeConstraint,
+                              Codedata codedata, JsonElement output) {
     }
 }

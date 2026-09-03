@@ -118,6 +118,7 @@ public abstract class AbstractFunctionBuilder implements NodeBuilder<Function> {
         function.setParameters(parameterModels);
         function.setCodedata(new Codedata(functionDefinitionNode.lineRange()));
         updateAnnotationAttachmentProperty(functionDefinitionNode, function);
+        Utils.updateFunctionAndReturnDocs(functionDefinitionNode, function);
         return function;
     }
 
@@ -160,6 +161,7 @@ public abstract class AbstractFunctionBuilder implements NodeBuilder<Function> {
         functionModel.setCanAddParameters(true);
         functionModel.setOptional(true);
         updateAnnotationAttachmentProperty(functionDefinitionNode, functionModel);
+        Utils.updateFunctionAndReturnDocs(functionDefinitionNode, functionModel);
         return functionModel;
     }
 
