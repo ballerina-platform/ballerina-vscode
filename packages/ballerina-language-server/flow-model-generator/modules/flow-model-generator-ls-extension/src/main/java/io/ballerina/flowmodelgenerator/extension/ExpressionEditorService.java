@@ -336,7 +336,7 @@ public class ExpressionEditorService implements ExtendedLanguageServerService {
         }
         try {
             Path filePath = Path.of(filePathString);
-            this.workspaceManagerProxy.get().loadProject(filePath);
+            PackageUtil.loadProject(this.workspaceManagerProxy.get(), filePath);
             Optional<Document> document = this.workspaceManagerProxy.get().document(filePath);
             if (document.isEmpty()
                     || !(document.get().syntaxTree().rootNode() instanceof ModulePartNode rootNode)) {
@@ -345,7 +345,7 @@ public class ExpressionEditorService implements ExtendedLanguageServerService {
             return ImportPrefixReader.existingImportPrefix(rootNode, codedata.org(), codedata.module())
                     .orElseGet(() -> ModuleAliasResolver.allocatePrefix(codedata.module(),
                             ImportPrefixReader.importedPrefixes(rootNode)));
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             // Without a file to read, the module's natural prefix is the only available answer.
             return codedata.getModulePrefix();
         }
