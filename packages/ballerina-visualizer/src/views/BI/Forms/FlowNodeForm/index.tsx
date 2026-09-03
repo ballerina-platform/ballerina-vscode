@@ -123,7 +123,7 @@ import React from "react";
 import { SidePanelView } from "../../FlowDiagram/PanelManager";
 import { ConnectionKind, useCreateNode } from "../../../../components/ConnectionSelector";
 import { getFilteredTypesByKind } from "../../TypeEditor/utils";
-import { useModalStack } from "../../../../Context";
+import { useModalStack, useOverlayZIndex } from "../../../../Context";
 import { getArraySubFormFieldFromTypes, stringToRawArrayElements, stringToRawObjectEntries } from "@wso2/ballerina-side-panel/lib/components/editors/utils";
 
 interface FlowNodeTypeEditorState {
@@ -362,6 +362,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         selectedConnector: AvailableNode;
         onSaved: (variableName: string) => void;
     } | null>(null);
+    const connectionPopupZIndex = useOverlayZIndex(!!pendingConnectionPopup, 2);
 
     const handleRequestCreateConnection = (params: {
         selectedConnector: AvailableNode;
@@ -2258,6 +2259,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                     target={targetLineRange?.startLine}
                     onClose={handleCloseConnectionPopup}
                     onBack={() => setPendingConnectionPopup(null)}
+                    zIndex={connectionPopupZIndex}
                 />,
                 document.body
             )}

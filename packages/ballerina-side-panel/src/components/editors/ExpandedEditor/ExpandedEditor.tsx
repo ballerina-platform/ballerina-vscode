@@ -72,7 +72,7 @@ const ModalContainer = styled.div`
     left: 0;
     width: 100%;
     height: 100%;
-    z-index: 2100;
+    z-index: 2200;
     display: flex;
     justify-content: center;
     align-items: center;

@@ -20,7 +20,7 @@ import React, { cloneElement, isValidElement, ReactNode, ReactElement, useEffect
 import { createPortal } from "react-dom";
 import styled from "@emotion/styled";
 import { Icon, Divider, ThemeColors, Typography, Tooltip, Button } from "@wso2/ui-toolkit";
-import { useVisualizerContext } from "../../Context";
+import { InsideModalContext, OVERLAY_ZINDEX_BASE, useOverlayZIndex, useVisualizerContext } from "../../Context";
 
 export type DynamicModalProps = {
     children: ReactNode;
@@ -42,7 +42,6 @@ const ModalContainer = styled.div<{ sx?: any }>`
     left: 0;
     width: 100%;
     height: 100%;
-    z-index: 2100;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -110,6 +109,7 @@ const DynamicModal: React.FC<DynamicModalProps> & { Trigger: typeof Trigger } = 
     closeButtonIcon = "close",
 }) => {
     const { setShowOverlay } = useVisualizerContext();
+    const zIndex = useOverlayZIndex(openState);
     let trigger: ReactElement | null = null;
     const content: ReactNode[] = [];
 
@@ -158,10 +158,11 @@ const DynamicModal: React.FC<DynamicModalProps> & { Trigger: typeof Trigger } = 
         <>
             {trigger}
             {openState && targetEl && createPortal(
-                <ModalContainer 
-                    ref={anchorRef} 
-                    className="unq-modal-overlay" 
+                <ModalContainer
+                    ref={anchorRef}
+                    className="unq-modal-overlay"
                     sx={sx}
+                    style={{ zIndex: zIndex ?? OVERLAY_ZINDEX_BASE }}
                     onClick={handleBackdropClick}
                 >
                     <ModalBox width={width} height={height}>
@@ -176,7 +177,9 @@ const DynamicModal: React.FC<DynamicModalProps> & { Trigger: typeof Trigger } = 
                             </Tooltip>
                         </ModalHeaderSection>
                         <Divider />
-                        {content}
+                        <InsideModalContext.Provider value={true}>
+                            {content}
+                        </InsideModalContext.Provider>
                     </ModalBox>
                 </ModalContainer>,
                 targetEl

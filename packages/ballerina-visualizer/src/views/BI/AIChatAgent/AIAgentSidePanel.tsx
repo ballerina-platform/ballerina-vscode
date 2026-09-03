@@ -85,6 +85,7 @@ import {
     suggestToolName,
 } from "./toolForm";
 import { useCreateNode } from "../../../components/ConnectionSelector/useCreateNode";
+import { OVERLAY_ZINDEX_BASE, useOverlayZIndex } from "../../../Context";
 import { ConnectorIcon } from "@wso2/bi-diagram";
 import {
     BackButton,
@@ -1463,6 +1464,7 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
         sidePanelView === SidePanelView.CONNECTOR_SELECT ||
         sidePanelView === SidePanelView.DEPENDENCY_FORM ||
         sidePanelView === SidePanelView.CONNECTION_CONFIG;
+    const connectionPopupZIndex = useOverlayZIndex(isConnectionPopupOpen, 2) ?? OVERLAY_ZINDEX_BASE;
     const displayedCategories = dependencyMode && !categories.some((category) => category.title === "Connections")
         ? [{
             title: "Connections",
@@ -1526,12 +1528,12 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                         sx={{
                             background: ThemeColors.SURFACE_CONTAINER,
                             opacity: 0.5,
-                            zIndex: 2050,
+                            zIndex: connectionPopupZIndex,
                         }}
                     />
                     <AgentConnectionPopupContainer
                         $compact={sidePanelView === SidePanelView.CONNECTION_METHOD}
-                        style={{ zIndex: 2051 }}
+                        style={{ zIndex: connectionPopupZIndex + 1 }}
                     >
                         <ConnectionModalStep
                             key={sidePanelView}

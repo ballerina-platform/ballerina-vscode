@@ -89,6 +89,7 @@ import { requestMiniChatOpen } from "../../../components/AgentStatusOrb/shared";
 import { AgentEditorView, useAgentEditorController } from "../AIChatAgent/useAgentEditorController";
 import { CloudKnowledgeBasePage } from "../Connection/DevantConnections/CloudKnowledgeBasePage";
 import { prepareDevantKnowledgeBase } from "../Connection/DevantConnections/devant-kb-utils";
+import { OVERLAY_ZINDEX_BASE, useOverlayZIndex } from "../../../Context";
 
 const Container = styled.div`
     width: 100%;
@@ -97,7 +98,6 @@ const Container = styled.div`
 
 const AddAgentPopupLayer = styled.div`
     position: relative;
-    z-index: 2100;
 `;
 
 export interface BIFlowDiagramProps {
@@ -306,6 +306,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     const [targetLineRange, setTargetLineRange] = useState<LineRange>(targetRef?.current);
 
     const [showAddAgentPopup, setShowAddAgentPopup] = useState(false);
+    const addAgentPopupZIndex = useOverlayZIndex(showAddAgentPopup);
     const isCreatingNewModelProvider = useRef<boolean>(false);
     const isCreatingNewVectorStore = useRef<boolean>(false);
     const isCreatingNewEmbeddingProvider = useRef<boolean>(false);
@@ -4260,7 +4261,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             <PanelOverlayRenderer />
 
             {showAddAgentPopup && (
-                <AddAgentPopupLayer>
+                <AddAgentPopupLayer style={{ zIndex: addAgentPopupZIndex ?? OVERLAY_ZINDEX_BASE }}>
                     <AddAgentPopup
                         isPopup
                         inFlow

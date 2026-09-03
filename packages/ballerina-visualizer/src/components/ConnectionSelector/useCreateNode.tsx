@@ -21,7 +21,7 @@ import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { CodeData, FlowNode, isAgentDeclarationNode, LineRange } from "@wso2/ballerina-core";
 import { PanelOverlayContext } from "../../views/BI/FlowDiagram/context/PanelOverlayContext";
 import { getNodeTemplateForConnection } from "../../views/BI/FlowDiagram/utils";
-import { useModalStack } from "../../Context";
+import { InsideModalContext, useModalStack } from "../../Context";
 
 const CreateMemoryForm = lazy(() => import("../../views/BI/AIChatAgent/AddAgentPopup/CreateMemoryForm"));
 const CreateAgentForm = lazy(() => import("../../views/BI/AIChatAgent/AddAgentPopup/CreateAgentForm"));
@@ -46,7 +46,8 @@ export function useCreateNode(
 ) {
     const { rpcClient } = useRpcContext();
     const panelOverlayContext = useContext(PanelOverlayContext);
-    const panelOverlay = options?.preferModal ? undefined : panelOverlayContext;
+    const insideModal = useContext(InsideModalContext);
+    const panelOverlay = (options?.preferModal || insideModal) ? undefined : panelOverlayContext;
     const { addModal, closeModal } = useModalStack();
 
     const handleCreated = (variableName: string, onCreated: (variableName: string) => void) => {

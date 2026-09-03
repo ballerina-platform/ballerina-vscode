@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import React, { ReactNode, useRef, useState, createContext, useContext } from "react";
+import React, { ReactNode, useRef, useState, useLayoutEffect, createContext, useContext } from "react";
 import { BallerinaRpcClient, VisualizerContext as RpcContext, Context } from "@wso2/ballerina-rpc-client";
 import { NodePosition, STNode } from "@wso2/syntax-tree";
 import { ConnectorInfo, TriggerModelsResponse } from "@wso2/ballerina-core";
@@ -187,3 +187,43 @@ export const ModalStackProvider = ({children}: {children: ReactNode}) => {
 }
 
 export const useModalStack = () => useContext(ModalStackContext);
+
+export const InsideModalContext = createContext(false);
+
+export const useInsideModal = () => useContext(InsideModalContext);
+
+// Shared allocator so a newly-opened overlay always renders above what's already open; resets to base once everything closes so it stays under ExpandedEditor's fixed fallback (used by callers outside this package that can't reach this hook).
+export const OVERLAY_ZINDEX_BASE = 2100;
+
+let overlayOpenCount = 0;
+let nextOverlayZIndex = OVERLAY_ZINDEX_BASE;
+
+function acquireOverlayZIndex(slots: number): number {
+    if (overlayOpenCount === 0) {
+        nextOverlayZIndex = OVERLAY_ZINDEX_BASE;
+    }
+    overlayOpenCount += 1;
+    const zIndex = nextOverlayZIndex;
+    nextOverlayZIndex += slots;
+    return zIndex;
+}
+
+function releaseOverlayZIndex(): void {
+    overlayOpenCount = Math.max(0, overlayOpenCount - 1);
+}
+
+// `slots` > 1 reserves consecutive values for an overlay that stacks its own backdrop + box locally.
+export function useOverlayZIndex(isOpen: boolean = true, slots: number = 1): number | undefined {
+    const [zIndex, setZIndex] = useState<number>();
+
+    useLayoutEffect(() => {
+        if (!isOpen) {
+            setZIndex(undefined);
+            return;
+        }
+        setZIndex(acquireOverlayZIndex(slots));
+        return () => releaseOverlayZIndex();
+    }, [isOpen]);
+
+    return zIndex;
+}

@@ -30,6 +30,7 @@ import {
     PopupTitle,
 } from "../../Connection/styles";
 import { AddAgentPopupContent, AddAgentView } from "./AddAgentPopupContent";
+import { InsideModalContext, OVERLAY_ZINDEX_BASE, useOverlayZIndex } from "../../../../Context";
 
 const AgentModalStep = styled.div<{ $direction: "forward" | "backward" }>`
     display: flex;
@@ -102,6 +103,8 @@ export function AddAgentPopup(props: AddAgentPopupProps) {
     const isDependencyToolForm = Boolean(dependencyToolForm);
     const isForm = isDependencyToolForm || view === "configure" || view === "create" || view === "createDefinition";
 
+    const zIndex = useOverlayZIndex(true, 2) ?? OVERLAY_ZINDEX_BASE;
+
     const changeView = (nextView: AddAgentView, direction: "forward" | "backward" = "forward") => {
         setTransitionDirection(direction);
         setView(nextView);
@@ -116,9 +119,9 @@ export function AddAgentPopup(props: AddAgentPopupProps) {
     };
 
     return (
-        <>
-            <PopupOverlay sx={{ background: `${ThemeColors.SURFACE_CONTAINER}`, opacity: `0.5`, zIndex: 2050 }} />
-            <PopupContainer style={{ zIndex: 2051 }}>
+        <InsideModalContext.Provider value={true}>
+            <PopupOverlay sx={{ background: `${ThemeColors.SURFACE_CONTAINER}`, opacity: `0.5`, zIndex }} />
+            <PopupContainer style={{ zIndex: zIndex + 1 }}>
                 <AgentModalStep key={isDependencyToolForm ? "agent-tool-form" : view} $direction={transitionDirection}>
                     <PopupHeader>
                         {isForm && (
@@ -160,7 +163,7 @@ export function AddAgentPopup(props: AddAgentPopupProps) {
                     )}
                 </AgentModalStep>
             </PopupContainer>
-        </>
+        </InsideModalContext.Provider>
     );
 }
 

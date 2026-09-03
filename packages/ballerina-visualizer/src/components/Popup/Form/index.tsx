@@ -26,7 +26,6 @@ const PopupFormContainer = styled.div`
     left: 0;
     width: 100%;
     height: 100%;
-    z-index: 2100;
     background-color: color-mix(in srgb, ${ThemeColors.SECONDARY_CONTAINER} 70%, transparent);
     display: flex;
     justify-content: center;
@@ -46,7 +45,6 @@ const PopupFormBox = styled.div<{ width?: number; height?: number }>`
   border-radius: 10px;
   background-color: ${ThemeColors.SURFACE_DIM};
   box-shadow: 0 3px 8px rgb(0 0 0 / 0.2);
-  z-index: 2100;
 `;
 
 const PopupFormHeader = styled.header`
@@ -64,6 +62,7 @@ export type PopupFormProps = {
     title: string;
     children: React.ReactNode;
     onClose?: () => void;
+    zIndex?: number;
 };
 
 
@@ -77,11 +76,11 @@ const PopupFormContent = styled.div`
 
 
 export const PopupForm = (props: PopupFormProps) => {
-    const { width, height, title, children, onClose } = props;
+    const { width, height, title, children, onClose, zIndex } = props;
 
     return (
-        <PopupFormContainer>
-            <PopupFormBox width={width} height={height}>
+        <PopupFormContainer style={{ zIndex }}>
+            <PopupFormBox width={width} height={height} style={{ zIndex }}>
                 <PopupFormHeader>
                     <Typography
                         variant="h2"

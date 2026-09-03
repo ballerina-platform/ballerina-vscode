@@ -19,6 +19,7 @@
 import React, { ReactNode } from "react";
 import styled from "@emotion/styled";
 import { PopupForm } from "./Form";
+import { InsideModalContext, OVERLAY_ZINDEX_BASE, useOverlayZIndex } from "../../Context";
 
 export type PopupProps = {
     children: ReactNode;
@@ -34,7 +35,6 @@ const PopupContentContainer = styled.div`
     left: 0;
     width: 100%;
     height: 100%;
-    z-index: 2100;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -49,12 +49,14 @@ const Popup: React.FC<PopupProps> = ({
     height,
     title
 }) => {
-
+    const zIndex = useOverlayZIndex() ?? OVERLAY_ZINDEX_BASE;
 
     return (
-        <PopupContentContainer>
-            <PopupForm onClose={onClose} height={height} width={width} title={title}>
-                {children}
+        <PopupContentContainer style={{ zIndex }}>
+            <PopupForm onClose={onClose} height={height} width={width} title={title} zIndex={zIndex}>
+                <InsideModalContext.Provider value={true}>
+                    {children}
+                </InsideModalContext.Provider>
             </PopupForm>
         </PopupContentContainer>
     );
