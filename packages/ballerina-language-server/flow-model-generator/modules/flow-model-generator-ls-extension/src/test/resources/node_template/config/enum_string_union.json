@@ -1,0 +1,98 @@
+{
+  "source": "default_enum.bal",
+  "position": {
+    "line": 2,
+    "offset": 15
+  },
+  "description": "Function call with a union of an enum and a string parameter",
+  "codedata": {
+    "node": "FUNCTION_CALL",
+    "org": "$anon",
+    "module": ".",
+    "packageName": ".",
+    "symbol": "function7",
+    "version": "0.0.0"
+  },
+  "output": {
+    "id": "31",
+    "metadata": {
+      "label": "function7",
+      "description": "",
+      "icon": "https://bcentral-packageicons.azureedge.net/images/$anon_._0.0.0.png"
+    },
+    "codedata": {
+      "node": "FUNCTION_CALL",
+      "org": "$anon",
+      "module": ".",
+      "packageName": ".",
+      "symbol": "function7",
+      "version": "0.0.0",
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "day": {
+        "metadata": {
+          "label": "Day"
+        },
+        "types": [
+          {
+            "fieldType": "SINGLE_SELECT",
+            "options": [
+              {
+                "label": "Monday",
+                "value": "\"Monday\""
+              },
+              {
+                "label": "Sunday",
+                "value": "\"Sunday\""
+              },
+              {
+                "label": "Saturday",
+                "value": "\"Saturday\""
+              },
+              {
+                "label": "Friday",
+                "value": "\"Friday\""
+              },
+              {
+                "label": "Thursday",
+                "value": "\"Thursday\""
+              },
+              {
+                "label": "Wednesday",
+                "value": "\"Wednesday\""
+              },
+              {
+                "label": "Tuesday",
+                "value": "\"Tuesday\""
+              }
+            ],
+            "selected": false
+          },
+          {
+            "fieldType": "TEXT",
+            "ballerinaType": "string",
+            "selected": false
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "Day|string",
+            "selected": false
+          }
+        ],
+        "placeholder": "\"Sunday\"",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false,
+        "codedata": {
+          "kind": "DEFAULTABLE",
+          "originalName": "day"
+        },
+        "defaultValue": "\"Monday\""
+      }
+    },
+    "flags": 0
+  }
+}

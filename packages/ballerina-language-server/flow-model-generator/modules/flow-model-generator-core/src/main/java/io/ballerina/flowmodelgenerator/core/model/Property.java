@@ -787,28 +787,31 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
                     try {
                         List<TypeSymbol> typeSymbols = unionTypeSymbol.memberTypeDescriptors();
                         List<Option> options = new ArrayList<>();
-                        boolean allSingletons = true;
+                        List<TypeSymbol> otherTypes = new ArrayList<>();
                         for (TypeSymbol symbol : typeSymbols) {
-                            if (CommonUtil.getRawType(symbol).typeKind() == TypeDescKind.SINGLETON) {
+                            TypeDescKind memberTypeKind = CommonUtil.getRawType(symbol).typeKind();
+                            if (memberTypeKind == TypeDescKind.SINGLETON) {
                                 String label = CommonUtils.removeQuotes(symbol.signature());
-                                Option option = new Option(label, symbol.signature());
-                                options.add(option);
-                            } else {
-                                allSingletons = false;
-                                break;
+                                options.add(new Option(label, symbol.signature()));
+                            } else if (memberTypeKind != TypeDescKind.NIL) {
+                                // The nil member is conveyed by the `optional` flag of the property
+                                otherTypes.add(symbol);
                             }
                         }
 
-                        // If all the member types are singletons, treat it as a single-select option
-                        if (allSingletons) {
+                        // The singleton members (e.g. the members of an enum) become single-select options, even
+                        // when the union holds other member types as well.
+                        if (!options.isEmpty()) {
                             // Reorder options so that the default value appears first
                             if (defaultValue != null && !defaultValue.isEmpty()) {
                                 options = reorderOptionsByDefaultValue(options, defaultValue);
                             }
                             builder.type().fieldType(ValueType.SINGLE_SELECT).options(options).stepOut();
-                        } else {
-                            // Handle union of primitive types by defining an input type for each primitive type
-                            for (TypeSymbol ts : typeSymbols) {
+                        }
+
+                        if (!otherTypes.isEmpty()) {
+                            // Handle the remaining member types by defining an input type for each of them
+                            for (TypeSymbol ts : otherTypes) {
                                 handlePrimitiveType(ts, CommonUtils.getTypeSignature(ts, moduleInfo), semanticModel,
                                         moduleInfo, builder);
                             }
@@ -816,7 +819,8 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
                             List<PropertyType> propTypes = builder.types;
                             propTypes.stream()
                                     .filter(pt -> !(pt.fieldType() == ValueType.REPEATABLE_LIST
-                                            || pt.fieldType() == ValueType.REPEATABLE_MAP))
+                                            || pt.fieldType() == ValueType.REPEATABLE_MAP
+                                            || pt.fieldType() == ValueType.SINGLE_SELECT))
                                     .collect(java.util.stream.Collectors.groupingBy(PropertyType::fieldType))
                                     .forEach((fieldType, groupedTypes) -> {
                                         if (groupedTypes.size() > 1) {

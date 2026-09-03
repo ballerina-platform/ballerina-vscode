@@ -236,6 +236,16 @@
             },
             "types": [
               {
+                "fieldType": "SINGLE_SELECT",
+                "options": [
+                  {
+                    "label": "INFER_TOOL_COUNT",
+                    "value": "\"INFER_TOOL_COUNT\""
+                  }
+                ],
+                "selected": false
+              },
+              {
                 "fieldType": "NUMBER",
                 "ballerinaType": "int",
                 "selected": false

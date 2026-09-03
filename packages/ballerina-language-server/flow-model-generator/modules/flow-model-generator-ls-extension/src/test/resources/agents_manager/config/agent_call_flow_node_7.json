@@ -330,6 +330,16 @@
             },
             "types": [
               {
+                "fieldType": "SINGLE_SELECT",
+                "options": [
+                  {
+                    "label": "INFER_TOOL_COUNT",
+                    "value": "\"INFER_TOOL_COUNT\""
+                  }
+                ],
+                "selected": false
+              },
+              {
                 "fieldType": "NUMBER",
                 "ballerinaType": "int",
                 "selected": false
@@ -1072,6 +1082,16 @@
               "description": "The maximum number of reasoning-action cycles the agent performs to complete the task.\nA single cycle is one LLM call plus the execution of every tool call returned in\nthat response, so multiple tool calls from one response count as one iteration.\nDefaults to `max(number of tools, 10)` — i.e., at least 10, or more if the\nagent has more tools available."
             },
             "types": [
+              {
+                "fieldType": "SINGLE_SELECT",
+                "options": [
+                  {
+                    "label": "INFER_TOOL_COUNT",
+                    "value": "\"INFER_TOOL_COUNT\""
+                  }
+                ],
+                "selected": false
+              },
               {
                 "fieldType": "NUMBER",
                 "ballerinaType": "int",
