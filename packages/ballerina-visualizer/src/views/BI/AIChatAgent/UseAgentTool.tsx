@@ -25,6 +25,7 @@ import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Category as PanelCategory, Node as PanelNode, NodeList } from "@wso2/ballerina-side-panel";
 import { RelativeLoader } from "../../../components/RelativeLoader";
 import AddAgentPopup from "./AddAgentPopup";
+import { OVERLAY_ZINDEX_BASE, useOverlayZIndex } from "../../../Context";
 
 const LoaderContainer = styled.div`
     display: flex;
@@ -35,7 +36,6 @@ const LoaderContainer = styled.div`
 
 const PopupLayer = styled.div`
     position: relative;
-    z-index: 2100;
 `;
 
 interface UseAgentToolProps {
@@ -70,6 +70,7 @@ export function UseAgentTool(props: UseAgentToolProps): JSX.Element {
     const [agentNames, setAgentNames] = useState<string[]>([]);
     const [projectPath, setProjectPath] = useState<string>("");
     const [showAddAgentPopup, setShowAddAgentPopup] = useState<boolean>(false);
+    const addAgentPopupZIndex = useOverlayZIndex(showAddAgentPopup);
 
     const hostAgentVar = String(agentNode?.properties?.variable?.value ?? "");
 
@@ -133,7 +134,7 @@ export function UseAgentTool(props: UseAgentToolProps): JSX.Element {
                 searchPlaceholder={"Search agents"}
             />
             {showAddAgentPopup && createPortal(
-                <PopupLayer>
+                <PopupLayer style={{ zIndex: addAgentPopupZIndex ?? OVERLAY_ZINDEX_BASE }}>
                     <AddAgentPopup
                         isPopup
                         inFlow

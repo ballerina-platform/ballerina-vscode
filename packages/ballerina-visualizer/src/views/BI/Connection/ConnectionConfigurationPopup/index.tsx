@@ -220,15 +220,16 @@ export interface ConnectionConfigurationPopupProps {
     filteredCategories?: Category[];
     customValidator?: (fieldKey: string, value: any, allValues: FormValues) => string | undefined;
     overrideFlowNode?: (node: FlowNode) => FlowNode;
+    zIndex?: number;
 }
 
 export function ConnectionConfigurationPopup(props: ConnectionConfigurationPopupProps) {
-    const { selectedConnector, onClose, onBack } = props;
+    const { selectedConnector, onClose, onBack, zIndex } = props;
 
     return (
         <>
-            <PopupOverlay sx={{ background: `${ThemeColors.SURFACE_CONTAINER}`, opacity: `0.5` }} />
-            <PopupContainer>
+            <PopupOverlay sx={{ background: `${ThemeColors.SURFACE_CONTAINER}`, opacity: `0.5`, ...(zIndex ? { zIndex } : {}) }} />
+            <PopupContainer style={zIndex ? { zIndex: zIndex + 1 } : undefined}>
                 <ConfigHeader>
                     <BackButton appearance="icon" onClick={onBack}>
                         <Codicon name="chevron-left" />
