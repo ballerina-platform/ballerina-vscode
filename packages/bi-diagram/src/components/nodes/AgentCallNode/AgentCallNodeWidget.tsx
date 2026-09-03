@@ -204,6 +204,18 @@ export namespace NodeStyles {
         height: 100%;
         max-height: calc(100% - 5px);
         padding: 0 4px 4px;
+        -webkit-mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
+        mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
+    `;
+
+    // Full role/instructions/description text shown in the hover tooltip, wrapped and
+    // scrollable since it is not subject to the node box's fixed height.
+    export const TooltipMarkdown = styled(MarkdownContent)`
+        max-width: 280px;
+        max-height: 320px;
+        overflow-y: auto;
+        white-space: normal;
+        line-height: 1.5;
     `;
 
     export const InstructionsRow = styled.div<{ readOnly: boolean }>`
@@ -310,6 +322,35 @@ export namespace NodeStyles {
             border-bottom-color: ${ThemeColors.OUTLINE_VARIANT};
         }
     `;
+}
+
+const MARKDOWN_DISALLOWED_ELEMENTS = ['script', 'iframe', 'object', 'embed', 'link', 'style'];
+
+// Renders markdown text clamped/faded to its Styled container, plus a hover tooltip with the
+// unclamped text — the box's fixed height means long role/instructions text is always truncated,
+// so this is the only way to read it in full without opening the node's configuration form.
+function MarkdownWithTooltip(props: { text: string; Styled: React.ComponentType<{ children?: ReactNode }>; containerSx?: any }) {
+    const { text, Styled, containerSx } = props;
+    return (
+        <Tooltip
+            content={
+                // Stop wheel events from bubbling out of the scrollable tooltip so scrolling
+                // its overflowing text doesn't also pan/zoom the diagram canvas underneath.
+                <NodeStyles.TooltipMarkdown onWheel={(e) => e.stopPropagation()}>
+                    <ReactMarkdown disallowedElements={MARKDOWN_DISALLOWED_ELEMENTS} unwrapDisallowed={true}>
+                        {text}
+                    </ReactMarkdown>
+                </NodeStyles.TooltipMarkdown>
+            }
+            containerSx={containerSx}
+        >
+            <Styled>
+                <ReactMarkdown disallowedElements={MARKDOWN_DISALLOWED_ELEMENTS} unwrapDisallowed={true}>
+                    {text}
+                </ReactMarkdown>
+            </Styled>
+        </Tooltip>
+    );
 }
 
 const TitleArrow = styled.span`
@@ -666,37 +707,28 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
                         {sanitizedAgent?.role && sanitizedAgent?.instructions ? (
                             <>
                                 <NodeStyles.Row readOnly={readOnly} onClick={handleOnClick} style={{ marginBottom: 6 }}>
-                                    <NodeStyles.Role>
-                                        <ReactMarkdown
-                                            disallowedElements={['script', 'iframe', 'object', 'embed', 'link', 'style']}
-                                            unwrapDisallowed={true}
-                                        >
-                                            {sanitizedAgent?.role}
-                                        </ReactMarkdown>
-                                    </NodeStyles.Role>
+                                    <MarkdownWithTooltip
+                                        text={sanitizedAgent.role}
+                                        Styled={NodeStyles.Role}
+                                        containerSx={{ display: "block", width: "100%" }}
+                                    />
                                 </NodeStyles.Row>
 
                                 <NodeStyles.InstructionsRow readOnly={readOnly} onClick={handleOnClick}>
-                                    <NodeStyles.Instructions>
-                                        <ReactMarkdown
-                                            disallowedElements={['script', 'iframe', 'object', 'embed', 'link', 'style']}
-                                            unwrapDisallowed={true}
-                                        >
-                                            {sanitizedAgent?.instructions}
-                                        </ReactMarkdown>
-                                    </NodeStyles.Instructions>
+                                    <MarkdownWithTooltip
+                                        text={sanitizedAgent.instructions}
+                                        Styled={NodeStyles.Instructions}
+                                        containerSx={{ display: "block", width: "100%", height: "100%" }}
+                                    />
                                 </NodeStyles.InstructionsRow>
                             </>
                         ) : agentInfo?.description ? (
                             <NodeStyles.InstructionsRow readOnly={readOnly} onClick={handleOnClick}>
-                                <NodeStyles.Instructions>
-                                    <ReactMarkdown
-                                        disallowedElements={['script', 'iframe', 'object', 'embed', 'link', 'style']}
-                                        unwrapDisallowed={true}
-                                    >
-                                        {agentInfo.description}
-                                    </ReactMarkdown>
-                                </NodeStyles.Instructions>
+                                <MarkdownWithTooltip
+                                    text={agentInfo.description}
+                                    Styled={NodeStyles.Instructions}
+                                    containerSx={{ display: "block", width: "100%", height: "100%" }}
+                                />
                             </NodeStyles.InstructionsRow>
                         ) : null}
                     </div>

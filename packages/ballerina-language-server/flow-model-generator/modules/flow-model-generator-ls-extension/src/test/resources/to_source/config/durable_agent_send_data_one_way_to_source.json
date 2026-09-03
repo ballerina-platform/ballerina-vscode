@@ -1,10 +1,10 @@
 {
   "source": "durable_agent_module.bal",
-  "description": "Send Agent Data Event on a one-way channel without check binds only the error",
+  "description": "Send Agent Data Event on a channel that declares no response binds nothing",
   "diagram": {
     "id": "1",
     "metadata": {
-      "label": "Send Agent Data Event on a channel that declares no response, without check"
+      "label": "Send Agent Data Event on a channel that declares no response"
     },
     "codedata": {
       "node": "DURABLE_AGENT_UPDATE",
@@ -85,7 +85,7 @@
           "label": ""
         },
         "valueType": "FLAG",
-        "value": false,
+        "value": true,
         "optional": true,
         "editable": true,
         "advanced": false,
@@ -108,7 +108,7 @@
             "character": 0
           }
         },
-        "newText": "\nerror? eventToken = supportAgent.sendData(instanceId, \"billSubmitted\", {amount: 10});"
+        "newText": "\n_ = check supportAgent.sendData(instanceId, \"billSubmitted\", {amount: 10});"
       }
     ]
   }

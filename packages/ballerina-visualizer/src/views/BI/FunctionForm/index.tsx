@@ -26,7 +26,7 @@ import ArtifactForm from "../Forms/ArtifactForm";
 import { TitleBar } from "../../../components/TitleBar";
 import { TopNavigationBar } from "../../../components/TopNavigationBar";
 import { FormHeader } from "../../../components/FormHeader";
-import { convertConfig, getImportsForProperty } from "../../../utils/bi";
+import { convertConfig, getImportsForProperty, orderFormFields, DURABLE_AGENT_FORM_ORDER } from "../../../utils/bi";
 import { BodyText, LoadingContainer, TopBar } from "../../styles";
 import { LoadingRing } from "../../../components/Loader";
 
@@ -168,12 +168,12 @@ export function FunctionForm(props: FunctionFormProps) {
             }
         });
 
-        // Durable Agentic Workflow form. Create mode is name-only: the function template
-        // supplies the context/input parameters, and the model, instructions and
-        // capabilities are configured on the agent diagram afterwards. Edit mode
-        // additionally shows the input parameter (type + name) but still hides the Public
-        // checkbox, the return type fields, the workflow:AgenticWorkflowContext context
-        // parameter row and the Add Parameter action.
+        // Durable Agentic Workflow form. Create mode asks for the agent's identity — Name,
+        // Model, Role, Instructions and an optional Input Data Type — which is everything the
+        // declaration is generated from; its capabilities are added on the agent diagram
+        // afterwards. Edit mode additionally shows the input parameter (type + name) but still
+        // hides the Public checkbox, the return type fields, the workflow:AgenticWorkflowContext
+        // context parameter row and the Add Parameter action.
         if (isDurableAgent) {
             const isCreateMode = !functionName;
             const isContextParam = (param: Parameter) =>
@@ -202,6 +202,11 @@ export function FunctionForm(props: FunctionFormProps) {
                     }
                 }
             });
+            if (isCreateMode) {
+                // convertConfig sorts by property key, which reads as Name, Input Data Type,
+                // Instructions, Model, Role. Restore the order the fields are filled in.
+                fields = orderFormFields(fields, DURABLE_AGENT_FORM_ORDER);
+            }
         }
 
         setFunctionFields(fields);

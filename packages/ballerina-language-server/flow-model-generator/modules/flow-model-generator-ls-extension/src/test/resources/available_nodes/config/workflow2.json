@@ -69,59 +69,6 @@
         },
         {
           "metadata": {
-            "label": "Child Workflows",
-            "description": "Compose child workflows from this workflow",
-            "keywords": [
-              "Child",
-              "Workflow",
-              "Composition"
-            ]
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "Run Child Workflow",
-                "description": "Start a child workflow and continue without waiting for its result"
-              },
-              "codedata": {
-                "node": "CHILD_WORKFLOW_RUN"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "Call Child Workflow",
-                "description": "Run a child workflow and durably wait for its result"
-              },
-              "codedata": {
-                "node": "CHILD_WORKFLOW_CALL"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "Wait for Child Workflow",
-                "description": "Durably wait for a started child workflow's result"
-              },
-              "codedata": {
-                "node": "CHILD_WORKFLOW_WAIT"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "Send Data to Child Workflow",
-                "description": "Send a data event to a running child workflow"
-              },
-              "codedata": {
-                "node": "CHILD_WORKFLOW_SEND_DATA"
-              },
-              "enabled": true
-            }
-          ]
-        },
-        {
-          "metadata": {
             "label": "Workflow Functions",
             "description": "Utility functions of the workflow context",
             "keywords": [
@@ -169,6 +116,59 @@
               },
               "codedata": {
                 "node": "WORKFLOW_GET_TYPE"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "Child Workflows",
+            "description": "Compose child workflows from this workflow",
+            "keywords": [
+              "Child",
+              "Workflow",
+              "Composition"
+            ]
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "Run Child Workflow",
+                "description": "Start a child workflow and continue without waiting for its result"
+              },
+              "codedata": {
+                "node": "CHILD_WORKFLOW_RUN"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "Call Child Workflow",
+                "description": "Run a child workflow and durably wait for its result"
+              },
+              "codedata": {
+                "node": "CHILD_WORKFLOW_CALL"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "Wait for Child Workflow",
+                "description": "Durably wait for a started child workflow's result"
+              },
+              "codedata": {
+                "node": "CHILD_WORKFLOW_WAIT"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "Send Data to Child Workflow",
+                "description": "Send a data event to a running child workflow"
+              },
+              "codedata": {
+                "node": "CHILD_WORKFLOW_SEND_DATA"
               },
               "enabled": true
             }

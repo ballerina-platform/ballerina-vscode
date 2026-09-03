@@ -476,7 +476,13 @@ export function BaseNodeWidget(props: BaseNodeWidgetProps) {
             <NodeStyles.Row>
                 <NodeStyles.Icon onClick={handleOnClick}>
                     <div style={{ position: "relative", display: "flex" }}>
-                        <NodeIcon type={model.node.codedata.node} size={24} />
+                        <NodeIcon
+                            type={model.node.codedata.node}
+                            size={24}
+                            symbol={model.node.codedata.symbol}
+                            org={model.node.codedata.org}
+                            module={model.node.codedata.module}
+                        />
                         {/* A configured timeout on a data-event wait or human task is a deadline:
                             surface it with a small clock badge, as on the agent canvas. */}
                         {(model.node.codedata.node === "WAIT_DATA" || model.node.codedata.node === "HUMAN_TASK") &&
@@ -530,7 +536,7 @@ export function BaseNodeWidget(props: BaseNodeWidgetProps) {
                                     onClick={handleOnOpenDataMapperClick}
                                 >
                                     <Icon
-                                        name="bi-function-flow"
+                                        name="bi-open-in"
                                         sx={{ width: 16, height: 16 }}
                                         iconSx={{ fontSize: 16 }}
                                     />

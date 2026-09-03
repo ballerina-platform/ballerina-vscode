@@ -39,6 +39,22 @@ const DURABLE_AGENT_REGISTER_NODE_KINDS = new Set([
     "DURABLE_AGENT_HUMAN_TASK",
 ]);
 
+// Workflow accessor/utility statements — `workflow:currentTime()`, `workflow:sleep()`, etc. — are plain
+// function calls on the workflow context, not calls into a module's public API, so they render with the
+// same friendly names the side panel's "Workflow Functions" list uses instead of "workflow : <symbol>".
+// The language server currently emits these as generic statement kinds (e.g. "EXPRESSION") rather than
+// the dedicated WORKFLOW_* node kinds, so matching has to key off the function symbol, not the node kind.
+const WORKFLOW_UTILITY_NODE_TITLES: Record<string, string> = {
+    SLEEP: "Sleep",
+};
+
+const WORKFLOW_MODULE_FUNCTION_TITLES: Record<string, string> = {
+    currentTime: "Current Time",
+    isReplaying: "Is Replaying",
+    getWorkflowId: "Get Workflow ID",
+    getWorkflowType: "Get Workflow Type"
+};
+
 // Workflow and durable-agent statements are actions on the context or the agent — `ctx->callActivity`,
 // `ctx->runChildWorkflow`, `agent.sendData` — not calls into a module's API. Titling them
 // "workflow : <label>" misreads what they are, so they keep their plain action label.
@@ -440,6 +456,18 @@ export function getNodeTitle(node: FlowNode) {
     // without the module prefix; the registered name renders as the node's second line instead.
     if (isDurableAgentRegisterNode(node)) {
         return node.metadata?.label ?? node.codedata.node;
+    }
+
+    if (node.codedata?.node && WORKFLOW_UTILITY_NODE_TITLES[node.codedata.node]) {
+        return WORKFLOW_UTILITY_NODE_TITLES[node.codedata.node];
+    }
+
+    if (node.codedata?.org === "ballerina" && node.codedata?.module === "workflow") {
+        const symbol = typeof node.codedata?.symbol === "string" ? node.codedata.symbol : node.metadata?.label;
+        const friendlyTitle = symbol && WORKFLOW_MODULE_FUNCTION_TITLES[symbol];
+        if (friendlyTitle) {
+            return friendlyTitle;
+        }
     }
 
     const label = node.metadata.label.includes(".") ? node.metadata.label.split(".").pop() : node.metadata.label;

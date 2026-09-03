@@ -625,8 +625,8 @@ public class AvailableNodesGenerator {
                     .build();
 
             workflowNodes.add(steps);
-            workflowNodes.add(childWorkflows);
             workflowNodes.add(workflowFunctions);
+            workflowNodes.add(childWorkflows);
         } else {
             // Outside workflow functions the items follow the integration's artifacts:
             // workflow functions bring the workflow verbs, durable agents bring theirs.

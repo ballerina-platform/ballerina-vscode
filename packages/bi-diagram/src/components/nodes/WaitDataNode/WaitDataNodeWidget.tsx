@@ -65,6 +65,9 @@ import {
 const EXTERNAL_DOT_RADIUS = 4;
 const SOURCE_BOX_SIZE = 44;
 const EXTERNAL_DOT_STROKE = 2.5;
+// The source box's stroke is centered on its path, so its left edge needs at least half this
+// margin from x=0 or the SVG viewport clips it — see sourceBoxX below.
+const SOURCE_BOX_STROKE_WIDTH = 1.5;
 // The roles beside the source box are drawn as SVG text, which neither wraps nor ellipsizes, so
 // they are trimmed to what the reserved strip holds. The advance approximates the label font's.
 const SOURCE_LABEL_FONT_SIZE = 12;
@@ -87,7 +90,10 @@ export namespace NodeStyles {
     export const Node = styled.div<{ readOnly: boolean }>`
         display: flex;
         flex-direction: row;
-        align-items: center;
+        /* Flush the circle (and its ports) to the top, like every other node's outer row
+           (ApiCallNode, SendDataNode, CallActivityNode) — centering it inside the taller
+           source-arrow SVG would recess the ports and stretch the links connecting here. */
+        align-items: flex-start;
         color: ${NODE_TEXT_COLOR};
         cursor: ${(props: { readOnly: boolean }) => (props.readOnly ? "default" : "pointer")};
     `;
@@ -176,7 +182,6 @@ export namespace NodeStyles {
         display: flex;
         flex-direction: row;
         /* Pinned to the top-right of the box, as on every other node. */
-        align-self: flex-start;
         margin-left: auto;
         align-items: center;
         gap: 2px;
@@ -305,8 +310,10 @@ export function WaitDataNodeWidget(props: WaitDataNodeWidgetProps) {
     const nodeIconName = isHumanTask ? "bi-user" : isReceiveEventNode(model.node) ? "bi-import" : "bi-wait";
     const sourceIconName = isHumanTask ? "bi-user" : sourceName ? "bi-ai-agent" : "bi-import";
     // A configured timeout is a deadline on the wait: surface it with the same clock badge the
-    // plain node used.
-    const hasTimeout = !!(model.node.properties as any)?.timeout?.value;
+    // plain node used. An explicitly unset arg surfaces as the literal Ballerina nil `()`, not an
+    // empty value, so a plain truthiness check would still badge a `timeout = ()` call.
+    const timeoutValue = (model.node.properties as any)?.timeout?.value as string | undefined;
+    const hasTimeout = !!timeoutValue && timeoutValue.trim() !== "()";
     // Who the task is waiting on: the roles named on the statement, reading into the person icon
     // they describe.
     const userRoles = isHumanTask ? getHumanTaskUserRoles(model.node) : [];
@@ -321,15 +328,19 @@ export function WaitDataNodeWidget(props: WaitDataNodeWidgetProps) {
         ? Math.max(model.node.viewState.lw - NODE_WIDTH / 2, SOURCE_BOX_SIZE + NODE_GAP_X)
         : SOURCE_BOX_SIZE + NODE_GAP_X;
     const svgHeight = NODE_HEIGHT + LABEL_HEIGHT;
-    const svgMidY = (NODE_HEIGHT + LABEL_HEIGHT) / 2;
+    // The circle now sits flush at the top of the row (see NodeStyles.Node), so the arrow and
+    // source box must aim at the circle's own center, not the taller SVG's center.
+    const svgMidY = NODE_HEIGHT / 2;
     // The roles read into the person they name, so they take the strip the sizing visitor reserved
     // at the far left and the source box starts after it. Clamped, so a stale view state shrinks
     // the strip rather than pushing the box out of the node.
     const rolesLabelWidth = userRolesLabel
         ? Math.max(0, Math.min(HUMAN_TASK_ROLES_LABEL_WIDTH, svgWidth - SOURCE_BOX_SIZE))
         : 0;
-    // The source sits at the far left, and the arrow runs from it into the body.
-    const sourceBoxX = rolesLabelWidth;
+    // The source sits at the far left, and the arrow runs from it into the body. Clamped to at
+    // least half the box's stroke width so the left edge always has room to render its full
+    // stroke inside the SVG viewport instead of getting clipped at x=0.
+    const sourceBoxX = Math.max(rolesLabelWidth, SOURCE_BOX_STROKE_WIDTH / 2);
     const sourceBoxY = svgMidY - SOURCE_BOX_SIZE / 2;
     const lineX1 = sourceBoxX + SOURCE_BOX_SIZE;
     const arrowColor = isHovered && !readOnly ? NODE_BORDER_SELECTED_COLOR : NODE_TEXT_COLOR;
@@ -428,7 +439,7 @@ export function WaitDataNodeWidget(props: WaitDataNodeWidgetProps) {
                     rx={12}
                     fill={NODE_BG_COLOR}
                     stroke={arrowColor}
-                    strokeWidth={1.5}
+                    strokeWidth={SOURCE_BOX_STROKE_WIDTH}
                 />
                 <foreignObject x={sourceBoxX} y={sourceBoxY} width={SOURCE_BOX_SIZE} height={SOURCE_BOX_SIZE}>
                     <div
@@ -530,17 +541,25 @@ export function WaitDataNodeWidget(props: WaitDataNodeWidgetProps) {
                                 sx={{ fontSize: 24, width: 24, height: 24, color: NODE_TEXT_COLOR }}
                             />
                             {hasTimeout && (
-                                <Icon
-                                    name="bi-clock"
-                                    sx={{
-                                        fontSize: "11px",
-                                        width: "11px",
-                                        height: "11px",
+                                <div
+                                    style={{
                                         position: "absolute",
-                                        right: "-5px",
-                                        bottom: "-3px",
+                                        right: "-3px",
+                                        bottom: "-1px",
+                                        width: "12px",
+                                        height: "12px",
+                                        borderRadius: "50%",
+                                        background: NODE_BG_COLOR,
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
                                     }}
-                                />
+                                >
+                                    <Icon
+                                        name="bi-clock"
+                                        sx={{ fontSize: "13px", width: "13px", height: "13px", color: NODE_TEXT_COLOR }}
+                                    />
+                                </div>
                             )}
                         </div>
                         <NodeStyles.TextGroup>
