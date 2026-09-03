@@ -1814,8 +1814,10 @@ public class CodeAnalyzer extends NodeVisitor {
      * Reads individual positional and named arguments and maps each to the corresponding form property
      * defined by {@link io.ballerina.flowmodelgenerator.core.model.node.HumanTaskBuilder}.
      *
-     * <p>Argument layout: {@code awaitHumanTask(taskName, userRoles[, payload = ..., title = ...,
-     * description = ..., timeout = ...])}
+     * <p>Argument layout: {@code awaitHumanTask(taskName, taskInput[, userRoles = ..., title = ...,
+     * description = ..., timeout = ...])} — the task input is the second required argument, and
+     * the definition's fields (userRoles, title, description, timeout) are included-record
+     * fields, stated by name.
      *
      * @param callNode the {@code ctx->awaitHumanTask(...)} call node
      */
@@ -1929,32 +1931,20 @@ public class CodeAnalyzer extends NodeVisitor {
 
         // taskName: positional arg 0, or named arg form awaitHumanTask(taskName = "...", ...)
         String taskNameValue = "";
-        String userRolesValue = "";
         if (args.size() > 0 && args.get(0) instanceof PositionalArgumentNode posArg0) {
             taskNameValue = posArg0.expression().toSourceCode().strip();
         } else if (namedArgs.containsKey(HumanTaskBuilder.TASK_NAME_KEY)) {
             taskNameValue = namedArgs.get(HumanTaskBuilder.TASK_NAME_KEY);
         }
-        // userRoles: positional arg 1, or named arg form
-        if (args.size() > 1 && args.get(1) instanceof PositionalArgumentNode posArg1) {
-            userRolesValue = posArg1.expression().toSourceCode().strip();
-        } else if (namedArgs.containsKey(HumanTaskBuilder.USER_ROLES_KEY)) {
-            userRolesValue = namedArgs.get(HumanTaskBuilder.USER_ROLES_KEY);
+        // taskInput: the second required argument — positional arg 1, or stated by name
+        String taskInputValue = namedArgs.get(HumanTaskBuilder.TASK_INPUT_KEY);
+        if (taskInputValue == null && args.size() > 1 && args.get(1) instanceof PositionalArgumentNode posArg1) {
+            taskInputValue = posArg1.expression().toSourceCode().strip();
         }
-
-        // payload: named arg, or positional arg 2
-        String payloadValue = namedArgs.get(HumanTaskBuilder.PAYLOAD_KEY);
-        if (payloadValue == null && args.size() > 2 && args.get(2) instanceof PositionalArgumentNode posArg2) {
-            payloadValue = posArg2.expression().toSourceCode().strip();
-        }
-        // title: named arg only
+        // The definition's fields are included-record fields: named args only.
+        String userRolesValue = namedArgs.getOrDefault(HumanTaskBuilder.USER_ROLES_KEY, "");
         String titleValue = namedArgs.get(HumanTaskBuilder.TITLE_KEY);
-        // description: named arg, or positional arg 3
         String descValue = namedArgs.get(HumanTaskBuilder.DESCRIPTION_KEY);
-        if (descValue == null && args.size() > 3 && args.get(3) instanceof PositionalArgumentNode posArg3) {
-            descValue = posArg3.expression().toSourceCode().strip();
-        }
-        // timeout: named arg only
         String timeoutValue = namedArgs.get(HumanTaskBuilder.TIMEOUT_KEY);
 
         // Build the human task parameter form via the single shared definition in HumanTaskBuilder,
@@ -1962,7 +1952,7 @@ public class CodeAnalyzer extends NodeVisitor {
         Map<String, String> paramValues = new LinkedHashMap<>();
         paramValues.put(HumanTaskBuilder.TASK_NAME_KEY, taskNameValue.isEmpty() ? null : taskNameValue);
         paramValues.put(HumanTaskBuilder.USER_ROLES_KEY, userRolesValue.isEmpty() ? null : userRolesValue);
-        paramValues.put(HumanTaskBuilder.PAYLOAD_KEY, payloadValue);
+        paramValues.put(HumanTaskBuilder.TASK_INPUT_KEY, taskInputValue);
         paramValues.put(HumanTaskBuilder.TITLE_KEY, titleValue);
         paramValues.put(HumanTaskBuilder.DESCRIPTION_KEY, descValue);
         paramValues.put(HumanTaskBuilder.TIMEOUT_KEY, timeoutValue);

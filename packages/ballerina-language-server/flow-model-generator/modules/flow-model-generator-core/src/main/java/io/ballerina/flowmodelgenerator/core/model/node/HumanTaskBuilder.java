@@ -34,9 +34,9 @@ import org.eclipse.lsp4j.TextEdit;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.CALL_HUMAN_TASK_METHOD_NAME;
 import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.CONTEXT_CLASS_NAME;
@@ -52,7 +52,7 @@ import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.WORKFLOW_O
  * <p>Generated source example:
  * <pre>{@code
  * ApprovalDecision result = check ctx->awaitHumanTask("approveExpense", ["FINANCE_APPROVER"],
- *         payload = {"amount": 1200},
+ *         taskInput = {"amount": 1200},
  *         title = "Approve order",
  *         timeout = {hours: 24});
  * }</pre>
@@ -77,7 +77,9 @@ public class HumanTaskBuilder extends CallBuilder {
     public static final String TASK_NAME_KEY = "taskName";
     public static final String USER_ROLES_KEY = "userRoles";
     public static final String ADDITIONAL_VALUES_KEY = "additionalValues";
-    public static final String PAYLOAD_KEY = "payload";
+    public static final String TASK_INPUT_KEY = "taskInput";
+    /** The parameter's name before the module renamed it; resolved forms carry it until the pin moves. */
+    private static final String LEGACY_PAYLOAD_KEY = "payload";
     public static final String TITLE_KEY = "title";
     public static final String DESCRIPTION_KEY = "description";
     public static final String TIMEOUT_KEY = "timeout";
@@ -91,7 +93,7 @@ public class HumanTaskBuilder extends CallBuilder {
     // Form field labels.
     private static final String TASK_NAME_LABEL = "Task Name";
     private static final String USER_ROLES_LABEL = "User Roles";
-    private static final String PAYLOAD_LABEL = "Payload";
+    private static final String TASK_INPUT_LABEL = "Task Input";
     private static final String TITLE_LABEL = "Title";
     private static final String DESCRIPTION_LABEL = "Description";
     private static final String TIMEOUT_LABEL = "Timeout";
@@ -99,11 +101,11 @@ public class HumanTaskBuilder extends CallBuilder {
     // Form field descriptions.
     private static final String TASK_NAME_DOC = "Identifies the task type";
     private static final String USER_ROLES_DOC = "One or more roles permitted to complete this task";
-    private static final String PAYLOAD_DOC =
+    private static final String TASK_INPUT_DOC =
             "Read-only JSON object shown alongside the form. Required — a task with nothing to show "
-                    + "says so with {}, and the runtime checks this against the task's payloadType";
-    /** What an unstated payload is: a task that shows nothing, said explicitly. */
-    private static final String EMPTY_PAYLOAD = "{}";
+                    + "says so with {}, and the runtime checks this against the task's taskInputType";
+    /** What an unstated task input is: a task that shows nothing, said explicitly. */
+    private static final String EMPTY_TASK_INPUT = "{}";
     private static final String TITLE_DOC = "Short summary shown in the inbox";
     private static final String DESCRIPTION_DOC = "Additional context shown alongside the form";
     private static final String TIMEOUT_DOC = "Maximum time to wait; omit to wait indefinitely";
@@ -165,7 +167,7 @@ public class HumanTaskBuilder extends CallBuilder {
                 fallbackTemplate = true;
             } else {
                 Module module = context.workspaceManager().module(context.filePath()).orElse(null);
-                // Build each parameter (taskName, userRoles, payload, title, description, timeout) with its
+                // Build each parameter (taskName, userRoles, taskInput, title, description, timeout) with its
                 // real compiler-derived type metadata, and let the inferred {@code typedesc<anydata> T}
                 // parameter become a rich result-type selector (record-field-selector for record types) —
                 // the same mechanism the builtin Call REST activity uses for its databinding type.
@@ -219,7 +221,7 @@ public class HumanTaskBuilder extends CallBuilder {
     }
 
     /**
-     * Builds the {@code awaitHumanTask} form parameters (taskName, userRoles, payload, title, description,
+     * Builds the {@code awaitHumanTask} form parameters (taskName, userRoles, taskInput, title, description,
      * timeout) into {@code nodeBuilder}, in their canonical order. Shared by the node-template fallback
      * ({@link #setFallbackHumanTaskProperties}, with an empty value map) and {@code CodeAnalyzer}'s source
      * re-read path (with values parsed from the call arguments), so both render an identical form. A
@@ -257,20 +259,20 @@ public class HumanTaskBuilder extends CallBuilder {
 
         nodeBuilder.properties().custom()
                 .metadata()
-                    .label(PAYLOAD_LABEL)
-                    .description(PAYLOAD_DOC)
+                    .label(TASK_INPUT_LABEL)
+                    .description(TASK_INPUT_DOC)
                     .stepOut()
                 .type().fieldType(Property.ValueType.EXPRESSION).ballerinaType("map<json>").selected(true).stepOut()
-                .codedata().kind(ParameterData.Kind.REQUIRED.name()).originalName(PAYLOAD_KEY).stepOut()
-                // The payload is a required argument of awaitHumanTask now, not a field of the
+                .codedata().kind(ParameterData.Kind.REQUIRED.name()).originalName(TASK_INPUT_KEY).stepOut()
+                // The task input is a required argument of awaitHumanTask, not a field of the
                 // definition record: a task with nothing to show says so with `{}` rather than
                 // by omission. The form defaults to `{}` for the same reason — leaving the
                 // field blank would emit a call that does not compile.
-                .value(values.getOrDefault(PAYLOAD_KEY, EMPTY_PAYLOAD))
+                .value(values.getOrDefault(TASK_INPUT_KEY, EMPTY_TASK_INPUT))
                 .editable(true)
                 .optional(false)
                 .stepOut()
-                .addProperty(PAYLOAD_KEY);
+                .addProperty(TASK_INPUT_KEY);
 
         nodeBuilder.properties().custom()
                 .metadata()
@@ -337,7 +339,13 @@ public class HumanTaskBuilder extends CallBuilder {
 
         relabel(properties, TASK_NAME_KEY, TASK_NAME_LABEL, TASK_NAME_DOC);
         relabel(properties, USER_ROLES_KEY, USER_ROLES_LABEL, USER_ROLES_DOC);
-        relabel(properties, PAYLOAD_KEY, PAYLOAD_LABEL, PAYLOAD_DOC);
+        relabel(properties, TASK_INPUT_KEY, TASK_INPUT_LABEL, TASK_INPUT_DOC);
+        // The pinned workflow bala still names this parameter `payload`; a resolved-signature
+        // form therefore carries that key, and the emitted argument keeps the module's own
+        // name, so the label must not pretend otherwise. Dies with the pre-rename pin.
+        relabel(properties, LEGACY_PAYLOAD_KEY, "Payload",
+                "Read-only JSON object shown alongside the form. Required — a task with nothing "
+                        + "to show says so with {}, and the runtime checks this against the task's payloadType");
         relabel(properties, TITLE_KEY, TITLE_LABEL, TITLE_DOC);
         relabel(properties, DESCRIPTION_KEY, DESCRIPTION_LABEL, DESCRIPTION_DOC);
         relabel(properties, TIMEOUT_KEY, TIMEOUT_LABEL, TIMEOUT_DOC);
@@ -408,7 +416,7 @@ public class HumanTaskBuilder extends CallBuilder {
                 .name(CALL_HUMAN_TASK_METHOD_NAME);
 
         // The argument list comes from the node's own properties, generically: taskName emits
-        // positionally, and every other value-bearing property — userRoles, payload, title,
+        // positionally, and every other value-bearing property — userRoles, taskInput, title,
         // description, timeout, stepId, and whatever field a future module adds — emits as a
         // named argument (a HumanTaskOptions record field). No fixed field list on purpose:
         // this is what keeps the form forward compatible — a new record field surfaces in the

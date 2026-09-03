@@ -54,9 +54,9 @@
         "advanced": false,
         "hidden": false
       },
-      "payload": {
+      "taskInput": {
         "metadata": {
-          "label": "Payload",
+          "label": "Task Input",
           "description": "Read-only JSON object shown alongside the form"
         },
         "valueType": "EXPRESSION",
@@ -133,7 +133,7 @@
             "character": 0
           }
         },
-        "newText": "\nanydata result = check context->awaitHumanTask(\"approveExpense\", userRoles = [\"FINANCE_APPROVER\"], payload = {\"amount\": 1200}, title = \"Approve expense\");"
+        "newText": "\nanydata result = check context->awaitHumanTask(\"approveExpense\", userRoles = [\"FINANCE_APPROVER\"], taskInput = {\"amount\": 1200}, title = \"Approve expense\");"
       }
     ]
   }
