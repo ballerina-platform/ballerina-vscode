@@ -1,17 +1,16 @@
 {
-  "source": "new_connection-http-aliased/main.bal",
-  "description": "A connection whose module the target file already imports under an alias",
+  "source": "new_connection-github-existing-alias/main.bal",
+  "description": "A connection whose module the file already imports under an alias, committed when the file first resolved this same collision: the generator reuses it rather than allocating another",
   "diagram": {
     "id": "31",
     "metadata": {
       "label": "New Connection",
-      "description": "The HTTP client provides the capability for initiating contact with a remote HTTP service. The API it\nprovides includes the functions for the standard HTTP methods forwarding a received request and sending requests\nusing custom HTTP verbs.",
-      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.12.2.png"
+      "description": "GitHub connector"
     },
     "codedata": {
       "node": "NEW_CONNECTION",
-      "org": "ballerina",
-      "module": "http",
+      "org": "ballerinax",
+      "module": "github",
       "object": "Client",
       "symbol": "init",
       "id": 3077,
@@ -19,34 +18,22 @@
     },
     "returning": false,
     "properties": {
-      "url": {
-        "metadata": {
-          "label": "url",
-          "description": "URL of the target service"
-        },
-        "valueType": "EXPRESSION",
-        "valueTypeConstraint": "string",
-        "value": "\"\"",
-        "optional": false,
-        "editable": true,
-        "codedata": {
-          "kind": "REQUIRED",
-          "originalName": "url"
-        }
-      },
       "config": {
         "metadata": {
           "label": "config",
-          "description": "The configurations to be used when initializing the `client`"
+          "description": "Connection configuration"
         },
         "valueType": "EXPRESSION",
-        "valueTypeConstraint": "http:ClientConfiguration",
+        "valueTypeConstraint": "github:ConnectionConfig",
         "value": " {}",
         "optional": false,
         "editable": true,
         "codedata": {
-          "kind": "INCLUDED_RECORD",
+          "kind": "REQUIRED",
           "originalName": "config"
+        },
+        "imports": {
+          "github": "ballerinax/github"
         }
       },
       "type": {
@@ -55,11 +42,11 @@
           "description": "Type of the variable"
         },
         "valueType": "TYPE",
-        "value": "http:Client|http:ClientError",
+        "value": "github:Client",
         "optional": false,
         "editable": true,
         "imports": {
-          "http": "ballerina/http"
+          "github": "ballerinax/github"
         }
       },
       "variable": {
@@ -68,7 +55,7 @@
           "description": "Name of the variable"
         },
         "valueType": "IDENTIFIER",
-        "value": "item",
+        "value": "githubClient",
         "optional": false,
         "editable": true
       },
@@ -86,19 +73,19 @@
     "flags": 0
   },
   "output": {
-    "new_connection-http-aliased/connections.bal": [
+    "new_connection-github-existing-alias/connections.bal": [
       {
         "range": {
           "start": {
-            "line": 0,
-            "character": 27
+            "line": 1,
+            "character": 37
           },
           "end": {
-            "line": 0,
-            "character": 27
+            "line": 1,
+            "character": 37
           }
         },
-        "newText": "\nfinal h:Client|h:ClientError item = check new (\"\", {});"
+        "newText": "\nfinal ghClient:Client githubClient = check new ({});"
       }
     ]
   }
