@@ -278,7 +278,7 @@ export default function createTests() {
             const serviceNodeLink = webview.getByText('HTTP Service - /', { exact: false }).first();
             await serviceNodeLink.waitFor({ state: 'visible', timeout: 30000 });
             await domClick(serviceNodeLink);
-            await page.page.waitForTimeout(1000);
+            await page.page.waitForTimeout(2000);
             const secureRow = webview.getByText('secure', { exact: false }).first();
             await secureRow.waitFor({ timeout: 15000 });
             await domClick(secureRow);
