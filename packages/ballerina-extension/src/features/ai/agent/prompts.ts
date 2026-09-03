@@ -24,6 +24,7 @@ import { CONFIG_COLLECTOR_TOOL } from "./tools/config-collector";
 import { CLARIFY_TOOL } from "./tools/clarify";
 import { TEST_RUNNER_TOOL_NAME } from "./tools/test-runner";
 import { getLanglibInstructions } from "../utils/libs/langlibs";
+import { PAGINATION_LIBRARY_RULE } from "./pagination-rules";
 import { formatCodebaseStructure, formatCodeContext } from "./utils";
 import { GenerateAgentCodeRequest, OperationType, ProjectSource } from "@wso2/ballerina-core";
 import { formatActiveFileReminder } from "./activeFileReminder";
@@ -172,6 +173,7 @@ When generating Ballerina code strictly follow these syntax and structure guidel
 ## Library Usage and Importing libraries
 - Only use the libraries received from user query or discovered via ${LIBRARY_SEARCH_TOOL} and fetched via ${LIBRARY_GET_TOOL}, or langlibs.
 - Examine the library API documentation provided by ${LIBRARY_GET_TOOL} carefully. Strictly follow the type definitions, function signatures, and all the other details provided when writing the code.
+${PAGINATION_LIBRARY_RULE}
 - Each .bal file must include its own import statements for any external library references.
 - Do not import default langlibs (lang.string, lang.boolean, lang.float, lang.decimal, lang.int, lang.map).
 - For packages with dots in names, use aliases: \`import org/package.one as one;\`
