@@ -19,9 +19,9 @@
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { HelperPaneCompletionItem, InputMode } from "@wso2/ballerina-side-panel";
 import { debounce } from "lodash";
-import { useRef, useState, useCallback, RefObject, useEffect } from "react";
+import { useRef, useState, useCallback, RefObject, useEffect, UIEvent } from "react";
 import { extractFunctionInsertText } from "../../../../utils/bi";
-import { useFunctionPagination } from "../../../../utils/useFunctionPagination";
+import { loadNextAvailableSection, useFunctionPagination } from "../../../../utils/useFunctionPagination";
 import { CompletionInsertText, FunctionKind, LineRange } from "@wso2/ballerina-core";
 import { useMutation } from "@tanstack/react-query";
 import { ExpandableList } from "../Components/ExpandableList";
@@ -70,12 +70,33 @@ export const FunctionsPage = ({
     const [showContent, setShowContent] = useState<boolean>(false);
     const [projectPath, setProjectPath] = useState<string>('');
 
+    const scrollRef = useRef<HTMLDivElement>(null);
     const {
         info: functionInfo,
-        isFetchingMore,
+        sectionsWithMore,
+        loadingSections,
         loadFirstPage,
-        handleScroll
+        loadMoreSection
     } = useFunctionPagination({ fileName, targetLineRange });
+    const isFetchingMore = Object.values(loadingSections).some(Boolean);
+
+    // On scroll-to-bottom, load the next page of the first library section that still has more.
+    const handleScroll = useCallback((e: UIEvent<HTMLDivElement>) => {
+        const el = e.currentTarget;
+        const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 40;
+        if (nearBottom) {
+            loadNextAvailableSection(sectionsWithMore, loadingSections, loadMoreSection);
+        }
+    }, [sectionsWithMore, loadingSections, loadMoreSection]);
+
+    // If a freshly loaded page doesn't fill the scroll container there is no scroll event to trigger the next
+    // page, so nudge the next section in whenever the content is not yet scrollable.
+    useEffect(() => {
+        const el = scrollRef.current;
+        if (el && el.clientHeight > 0 && el.scrollHeight <= el.clientHeight) {
+            loadNextAvailableSection(sectionsWithMore, loadingSections, loadMoreSection);
+        }
+    }, [functionInfo, sectionsWithMore, loadingSections, loadMoreSection]);
 
     const { addModal, closeModal } = useModalStack();
 
@@ -206,7 +227,7 @@ export const FunctionsPage = ({
                 <SearchBox sx={{ width: "100%" }} placeholder='Search' value={searchValue} onChange={handleFunctionSearch} />
             </div>
 
-            <ScrollableContainer style={{ margin: '8px 0px' }} onScroll={handleScroll}>
+            <ScrollableContainer ref={scrollRef} style={{ margin: '8px 0px' }} onScroll={handleScroll}>
                 {
 
                     isLoading || !showContent ? (

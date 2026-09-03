@@ -68,6 +68,8 @@ public record Category(Metadata metadata, List<Item> items) implements Item {
                 List.of("Organization", "Function", "Library")),
         STANDARD_LIBRARY("Standard Library", "Components supported officially by Ballerina",
                 List.of("Ballerina", "Library")),
+        EXTENDED_LIBRARY("Extended Library", "Components from the ballerinax organization",
+                List.of("Ballerinax", "Library")),
         IMPORTED_FUNCTIONS("Imported Functions", "Functions imported from other integrations",
                 List.of("Imported", "Function", "Library")),
         IMPORTED_TYPES("Imported Types", "Types imported from other integrations",

@@ -71,8 +71,14 @@ class FunctionSearchCommand extends SearchCommand {
     private static final String FETCH_KEY = "functions";
     private static final Set<String> ALLOWED_ORGANIZATIONS = Set.of("ballerina", "ballerinax", "wso2");
     private static final String STANDARD_LIBRARY_ORG = "ballerina";
+    private static final String EXTENDED_LIBRARY_ORG = "ballerinax";
+    // Organizations whose functions can be loaded page-by-page as an independent library section.
+    private static final Set<String> PAGINATED_SECTION_ORGS = Set.of(STANDARD_LIBRARY_ORG, EXTENDED_LIBRARY_ORG);
     private final List<String> moduleNames;
     private final Document functionsDoc;
+    // When set (to "ballerina" or "ballerinax"), the request loads the next page of that single library section
+    // instead of the full view. Used by the per-section "Show more" pagination.
+    private final String sectionOrg;
 
     public FunctionSearchCommand(Project project, LineRange position, Map<String, String> queryMap,
                                  Document functionsDoc) {
@@ -85,6 +91,8 @@ class FunctionSearchCommand extends SearchCommand {
                 .map(moduleDependency -> moduleDependency.descriptor().name().packageName().value())
                 .toList();
         this.functionsDoc = functionsDoc;
+        String requestedSectionOrg = queryMap != null ? queryMap.getOrDefault("orgName", "") : "";
+        this.sectionOrg = PAGINATED_SECTION_ORGS.contains(requestedSectionOrg) ? requestedSectionOrg : "";
         // TODO: Use this method when https://github.com/ballerina-platform/ballerina-lang/issues/43695 is fixed
         // List<String> moduleNames = semanticModel.moduleSymbols().stream()
         // .filter(symbol -> symbol.kind().equals(SymbolKind.MODULE))
@@ -94,6 +102,10 @@ class FunctionSearchCommand extends SearchCommand {
 
     @Override
     protected List<Item> defaultView() {
+        if (!sectionOrg.isEmpty()) {
+            return loadLibrarySection();
+        }
+
         List<SearchResult> searchResults = new ArrayList<>();
 
         if (offset == 0) {
@@ -105,22 +117,36 @@ class FunctionSearchCommand extends SearchCommand {
             }
         }
 
+        // The standard library (ballerina) and the extended library (ballerinax) are fetched from Ballerina Central,
+        // each paginated independently with the same offset window. Falls back to the bundled popular functions when
+        // Central is unavailable.
         CentralSearchUtil centralSearch = new CentralSearchUtil(RemoteCentral.getInstance());
-        List<SearchResult> availableFunctions =
+        List<SearchResult> standardLibrary =
                 centralSearch.searchFunctionsByOrg(query, limit, offset, STANDARD_LIBRARY_ORG);
-        if (availableFunctions == null) {
-            availableFunctions = offset == 0
+        if (standardLibrary == null) {
+            // Central is unavailable, fall back to the bundled popular functions.
+            searchResults.addAll(offset == 0
                     ? defaultViewHolder.get(this).getOrDefault(FETCH_KEY, List.of())
-                    : List.of();
+                    : List.of());
+        } else {
+            searchResults.addAll(standardLibrary);
+            List<SearchResult> extendedLibrary =
+                    centralSearch.searchFunctionsByOrg(query, limit, offset, EXTENDED_LIBRARY_ORG);
+            if (extendedLibrary != null) {
+                searchResults.addAll(extendedLibrary);
+            }
         }
-        searchResults.addAll(availableFunctions);
 
-        buildLibraryNodes(searchResults);
+        buildLibraryNodes(searchResults, true);
         return rootBuilder.build().items();
     }
 
     @Override
     protected List<Item> search() {
+        if (!sectionOrg.isEmpty()) {
+            return loadLibrarySection();
+        }
+
         WorkspaceFunctionNodeBuilder.buildSubmoduleWorkspaceNodes(rootBuilder, project, position, query, functionsDoc);
 
         // Search functions from Ballerina Central, falling back to the local index on failure or timeout. Querying
@@ -136,7 +162,7 @@ class FunctionSearchCommand extends SearchCommand {
         if (functionSearchList == null) {
             functionSearchList = dbManager.searchFunctions(query, limit, offset);
         }
-        buildLibraryNodes(functionSearchList);
+        buildLibraryNodes(functionSearchList, true);
         return rootBuilder.build().items();
     }
 
@@ -158,10 +184,42 @@ class FunctionSearchCommand extends SearchCommand {
         return Map.of(FETCH_KEY, dbManager.searchFunctionsByPackages(packageNames, functionNames, limit, offset));
     }
 
+    /**
+     * Loads the next page of a single library section (the {@code sectionOrg} organization) for the per-section
+     * "Show more" pagination. Only that organization's functions are returned so the caller can append them to the
+     * corresponding section without disturbing the others.
+     *
+     * @return the section's page of function nodes
+     */
+    private List<Item> loadLibrarySection() {
+        CentralSearchUtil centralSearch = new CentralSearchUtil(RemoteCentral.getInstance());
+        List<SearchResult> sectionResults = centralSearch.searchFunctionsByOrg(query, limit, offset, sectionOrg);
+        buildLibraryNodes(sectionResults != null ? sectionResults : List.of(), true);
+        return rootBuilder.build().items();
+    }
+
     private void buildLibraryNodes(List<SearchResult> functionSearchList) {
+        buildLibraryNodes(functionSearchList, false);
+    }
+
+    /**
+     * Builds the library function nodes and groups them into categories.
+     *
+     * <p>Imported functions (from modules the current package depends on) always go to the imported category. When
+     * {@code categorizeByOrganization} is set, the remaining functions are split by organization: {@code ballerina}
+     * functions form the standard library, {@code ballerinax} functions form the extended library, and functions from
+     * any other organization are excluded. When it is not set, all non-imported functions go to the standard library
+     * (used by the current-organization search, which surfaces the user's own organization).
+     *
+     * @param functionSearchList       the functions to categorize
+     * @param categorizeByOrganization whether to split non-imported functions into standard/extended libraries by org
+     */
+    private void buildLibraryNodes(List<SearchResult> functionSearchList, boolean categorizeByOrganization) {
         // Set the categories based on the available flags
         Category.Builder importedFnBuilder = rootBuilder.stepIn(Category.Name.IMPORTED_FUNCTIONS);
-        Category.Builder availableFnBuilder = rootBuilder.stepIn(Category.Name.STANDARD_LIBRARY);
+        Category.Builder standardLibBuilder = rootBuilder.stepIn(Category.Name.STANDARD_LIBRARY);
+        Category.Builder extendedLibBuilder =
+                categorizeByOrganization ? rootBuilder.stepIn(Category.Name.EXTENDED_LIBRARY) : null;
 
         // Add the library functions
         for (SearchResult searchResult : functionSearchList) {
@@ -185,8 +243,13 @@ class FunctionSearchCommand extends SearchCommand {
             Category.Builder builder;
             if (moduleNames.contains(packageInfo.moduleName())) {
                 builder = importedFnBuilder;
+            } else if (!categorizeByOrganization || STANDARD_LIBRARY_ORG.equals(packageInfo.org())) {
+                builder = standardLibBuilder;
+            } else if (EXTENDED_LIBRARY_ORG.equals(packageInfo.org())) {
+                builder = extendedLibBuilder;
             } else {
-                builder = availableFnBuilder;
+                // Non-imported functions outside the ballerina and ballerinax organizations are not surfaced.
+                continue;
             }
             if (builder != null) {
                 builder.stepIn(packageInfo.moduleName(), "", List.of())

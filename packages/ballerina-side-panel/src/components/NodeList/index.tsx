@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import {
     Button,
@@ -385,9 +385,12 @@ interface NodeListProps {
     alwaysCollapsedCategories?: string[];
     alwaysExpandedCategories?: string[];
     loading?: boolean;
-    onLoadMore?: () => void;
-    hasMore?: boolean;
-    isLoadingMore?: boolean;
+    // Per-section pagination. Each category whose title is a key in sectionsWithMore (and true) gets a bottom
+    // sentinel; when it scrolls into view onLoadMoreSection is called with that category title and the parent
+    // fetches and appends that section's next page. loadingSections marks which sections are currently fetching.
+    onLoadMoreSection?: (sectionTitle: string) => void;
+    sectionsWithMore?: Record<string, boolean>;
+    loadingSections?: Record<string, boolean>;
 }
 
 export function NodeList(props: NodeListProps) {
@@ -414,9 +417,9 @@ export function NodeList(props: NodeListProps) {
         alwaysCollapsedCategories,
         alwaysExpandedCategories,
         loading,
-        onLoadMore,
-        hasMore,
-        isLoadingMore
+        onLoadMoreSection,
+        sectionsWithMore,
+        loadingSections
     } = props;
 
     const [searchText, setSearchText] = useState<string>("");
@@ -546,16 +549,50 @@ export function NodeList(props: NodeListProps) {
         setExpandedCategories(newExpandedState);
     };
 
-    const handleListScroll = (e: React.UIEvent<HTMLDivElement>) => {
-        if (!onLoadMore || !hasMore || isLoadingMore || searchText) {
-            return;
-        }
-        const el = e.currentTarget;
-        const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 40;
-        if (nearBottom) {
-            onLoadMore();
+    // A paginated section (e.g. Standard/Extended Library) loads its next page when its end scrolls into view.
+    // Only top-level sections the parent flagged in sectionsWithMore are paginated, and only while not searching
+    // (search results are not paginated here).
+    const isPaginatedSection = (categoryTitle: string): boolean =>
+        !searchText && Boolean(onLoadMoreSection) && sectionsWithMore != null && categoryTitle in sectionsWithMore;
+
+    // One bottom-of-section sentinel per expanded paginated section. Collapsed sections render no content or
+    // sentinel, so they never trigger a load.
+    const panelBodyRef = useRef<HTMLDivElement>(null);
+    const sectionSentinelRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+    const setSectionSentinelRef = (categoryTitle: string) => (el: HTMLDivElement | null) => {
+        if (el) {
+            sectionSentinelRefs.current.set(categoryTitle, el);
+        } else {
+            sectionSentinelRefs.current.delete(categoryTitle);
         }
     };
+
+    // Loads the next page of the topmost expanded paginated section whose end has come into view within the panel.
+    const loadVisibleSection = (panelEl: HTMLElement) => {
+        if (!onLoadMoreSection || !sectionsWithMore) {
+            return;
+        }
+        const panelBottom = panelEl.getBoundingClientRect().bottom;
+        const candidate = Array.from(sectionSentinelRefs.current.entries())
+            .filter(([title]) => sectionsWithMore[title] && !loadingSections?.[title])
+            .map(([title, el]) => ({ title, top: el.getBoundingClientRect().top }))
+            .filter(({ top }) => top <= panelBottom + 150)
+            .sort((a, b) => a.top - b.top)[0];
+        if (candidate) {
+            onLoadMoreSection(candidate.title);
+        }
+    };
+
+    const handlePanelScroll = (e: React.UIEvent<HTMLDivElement>) => loadVisibleSection(e.currentTarget);
+
+    // If a freshly loaded page doesn't fill the panel there is no scroll event to trigger the next page, so nudge
+    // the first in-view section's next page whenever the panel is not yet scrollable.
+    useEffect(() => {
+        const el = panelBodyRef.current;
+        if (el && el.clientHeight > 0 && el.scrollHeight <= el.clientHeight) {
+            loadVisibleSection(el);
+        }
+    }, [categories, sectionsWithMore, loadingSections]);
 
     const handleAddNode = (node: Node, category?: string) => {
         if (node.enabled) {
@@ -897,24 +934,44 @@ export function NodeList(props: NodeListProps) {
                                                         </S.HighlightedButton>
                                                     );
                                                 })}
-                                            {group.items &&
-                                            group.items.length > 0 &&
-                                            // 1. If parent group uses connection container and ALL items don't have id, use getConnectionContainer
-                                            shouldUseConnectionContainer(normalizedGroupTitle) &&
-                                            group.items.filter((item) => item != null).every((item) => !("id" in item))
-                                                ? getConnectionContainer(group.items as Category[], normalizedGroupTitle === "Agent")
-                                                : // 2. If ALL items don't have id (all are categories), use getCategoryContainer
-                                                group.items.filter((item) => item != null).every((item) => !("id" in item))
-                                                ? getCategoryContainer(
-                                                      group.items as Category[],
-                                                      true,
-                                                      !isSubCategory ? group.title : parentCategoryTitle
-                                                  )
-                                                : // 3. Otherwise (has items with id or mixed), use getNodesContainer
-                                                  getNodesContainer(
-                                                      group.items as (Node | Category)[],
-                                                      !isSubCategory ? group.title : parentCategoryTitle
-                                                  )}
+                                            {(() => {
+                                                const itemsContent =
+                                                    group.items &&
+                                                    group.items.length > 0 &&
+                                                    // 1. Connection container: parent uses it and ALL items are categories
+                                                    shouldUseConnectionContainer(normalizedGroupTitle) &&
+                                                    group.items.filter((item) => item != null).every((item) => !("id" in item))
+                                                        ? getConnectionContainer(group.items as Category[], normalizedGroupTitle === "Agent")
+                                                        : // 2. ALL items are categories: nested category container
+                                                        group.items.filter((item) => item != null).every((item) => !("id" in item))
+                                                        ? getCategoryContainer(
+                                                              group.items as Category[],
+                                                              true,
+                                                              !isSubCategory ? group.title : parentCategoryTitle
+                                                          )
+                                                        : // 3. Otherwise (has items with id or mixed): node container
+                                                          getNodesContainer(
+                                                              group.items as (Node | Category)[],
+                                                              !isSubCategory ? group.title : parentCategoryTitle
+                                                          );
+
+                                                // A paginated top-level section gets a bottom sentinel; when it
+                                                // scrolls into view the parent loads that section's next page.
+                                                if (isSubCategory || !isPaginatedSection(group.title)) {
+                                                    return itemsContent;
+                                                }
+                                                return (
+                                                    <>
+                                                        {itemsContent}
+                                                        <div ref={setSectionSentinelRef(group.title)} />
+                                                        {loadingSections?.[group.title] && (
+                                                            <div style={{ display: "flex", justifyContent: "center", padding: "8px" }}>
+                                                                <ProgressRing sx={{ height: "16px", width: "16px" }} />
+                                                            </div>
+                                                        )}
+                                                    </>
+                                                );
+                                            })()}
                                         </>
                                     )}
                                 </S.CategoryRow>
@@ -1045,7 +1102,7 @@ export function NodeList(props: NodeListProps) {
                 </S.PanelBody>
             )}
             {!showGeneratePanel && !isSearching && !loading && (
-                <S.PanelBody style={{ ...props.panelBodySx }} onScroll={handleListScroll}>
+                <S.PanelBody ref={panelBodyRef} style={{ ...props.panelBodySx }} onScroll={handlePanelScroll}>
                     {getCategoryContainer(filteredCategories)}
                     {/* Show More Functions button - moved outside Logging category */}
                     {callFunctionNode && !searchText && (
@@ -1065,11 +1122,6 @@ export function NodeList(props: NodeListProps) {
                                 </Button>
                             </S.AdvancedSubcategoryHeader>
                         </S.AdvancedSubcategoryContainer>
-                    )}
-                    {isLoadingMore && (
-                        <div style={{ display: "flex", justifyContent: "center", padding: "8px" }}>
-                            <ProgressRing sx={{ height: "16px", width: "16px" }} />
-                        </div>
                     )}
                 </S.PanelBody>
             )}
