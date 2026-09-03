@@ -100,10 +100,15 @@ export const useFunctionPagination = ({
     const sectionOffsetsRef = useRef<Record<string, number>>({});
     const sectionLoadingRef = useRef<Record<string, boolean>>({});
     const searchValueRef = useRef<string>("");
+    // Bumped on every fresh search so late responses from a superseded query are discarded instead of merging
+    // stale pages into the current results.
+    const searchGenerationRef = useRef<number>(0);
 
     const loadFirstPage = useCallback(
         (searchText: string) => {
             searchValueRef.current = searchText;
+            // A fresh search supersedes any in-flight section loads and any earlier first-page fetch.
+            const generation = ++searchGenerationRef.current;
             return rpcClient
                 .getBIDiagramRpcClient()
                 .search({
@@ -118,6 +123,9 @@ export const useFunctionPagination = ({
                     searchKind: "FUNCTION"
                 })
                 .then((response) => {
+                    if (generation !== searchGenerationRef.current) {
+                        return;
+                    }
                     const page = convertToHelperPaneFunction((response.categories ?? []) as Category[]);
                     setInfo(page);
                     const withMore: Record<string, boolean> = {};
@@ -129,6 +137,20 @@ export const useFunctionPagination = ({
                     sectionLoadingRef.current = {};
                     setSectionsWithMore(withMore);
                     setLoadingSections({});
+                })
+                .catch((error) => {
+                    // A newer search already owns the view; leave its results untouched.
+                    if (generation !== searchGenerationRef.current) {
+                        return;
+                    }
+                    // Clear so a failed fresh load doesn't present the previous query's results as current. The
+                    // returned promise resolves, so callers' loading UI still settles.
+                    console.error(">>> Error loading functions", error);
+                    setInfo(undefined);
+                    setSectionsWithMore({});
+                    setLoadingSections({});
+                    sectionOffsetsRef.current = {};
+                    sectionLoadingRef.current = {};
                 });
         },
         [rpcClient, fileName, targetLineRange, pageSize]
@@ -143,6 +165,8 @@ export const useFunctionPagination = ({
             sectionLoadingRef.current[sectionTitle] = true;
             setLoadingSections((prev) => ({ ...prev, [sectionTitle]: true }));
             const nextOffset = (sectionOffsetsRef.current[sectionTitle] ?? 0) + pageSize;
+            // Capture the active search so a page that arrives after a new search is discarded, not merged.
+            const generation = searchGenerationRef.current;
             rpcClient
                 .getBIDiagramRpcClient()
                 .search({
@@ -158,6 +182,9 @@ export const useFunctionPagination = ({
                     searchKind: "FUNCTION"
                 })
                 .then((response) => {
+                    if (generation !== searchGenerationRef.current) {
+                        return;
+                    }
                     const page = convertToHelperPaneFunction((response.categories ?? []) as Category[]);
                     // Merge only the target section: the org-scoped response may also carry an Imported Functions
                     // category (imported modules of the same org) which must not be duplicated into that section.
@@ -173,7 +200,16 @@ export const useFunctionPagination = ({
                         );
                     }
                 })
+                .catch((error) => {
+                    // The offset/has-more are advanced only on success, so a failed page leaves the section
+                    // unchanged and retryable on the next scroll.
+                    console.error(">>> Error loading more functions", error);
+                })
                 .finally(() => {
+                    // A newer search already reset the loading flags; don't clobber the state it now owns.
+                    if (generation !== searchGenerationRef.current) {
+                        return;
+                    }
                     sectionLoadingRef.current[sectionTitle] = false;
                     setLoadingSections((prev) => ({ ...prev, [sectionTitle]: false }));
                 });

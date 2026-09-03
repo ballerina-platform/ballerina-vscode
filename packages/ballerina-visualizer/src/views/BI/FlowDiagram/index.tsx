@@ -178,9 +178,10 @@ const mergePanelItems = (prev: any[] = [], next: any[] = []): any[] => {
                 result.push(item);
             }
         } else {
-            const existing = result.find((r) => !("id" in r) && r.title === item.title);
-            if (existing) {
-                existing.items = mergePanelItems(existing.items ?? [], item.items ?? []);
+            const index = result.findIndex((r) => !("id" in r) && r.title === item.title);
+            if (index >= 0) {
+                const existing = result[index];
+                result[index] = { ...existing, items: mergePanelItems(existing.items ?? [], item.items ?? []) };
             } else {
                 result.push(item);
             }
@@ -1666,6 +1667,8 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         functionSectionLoadingRef.current[sectionTitle] = true;
         setLoadingFunctionSections((prev) => ({ ...prev, [sectionTitle]: true }));
         const nextOffset = (functionSectionOffsetsRef.current[sectionTitle] ?? 0) + FUNCTION_PAGE_SIZE;
+        // Capture the panel-navigation epoch so a page that arrives after the user left this list is discarded.
+        const navEpoch = panelNavEpochRef.current;
         const request: BISearchRequest = {
             position: {
                 startLine: targetRef.current.startLine,
@@ -1683,6 +1686,10 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         };
         try {
             const response = await rpcClient.getBIDiagramRpcClient().search(request);
+            // The user navigated to a different panel while this was in flight; discard the stale page.
+            if (panelNavEpochRef.current !== navEpoch) {
+                return;
+            }
             if (response.categories) {
                 const pageCategories = convertFunctionCategoriesToSidePanelCategories(
                     [...response.categories] as Category[],
