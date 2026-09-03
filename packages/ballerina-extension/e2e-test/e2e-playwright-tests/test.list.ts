@@ -27,7 +27,6 @@ import path from 'path';
 const videosFolder = path.join(__dirname, '..', 'test-resources', 'videos');
 const VIDEO_SAVE_TIMEOUT_MS = Number(process.env.BI_E2E_VIDEO_SAVE_TIMEOUT_MS ?? 20000);
 const PAGE_CLOSE_TIMEOUT_MS = Number(process.env.BI_E2E_PAGE_CLOSE_TIMEOUT_MS ?? 10000);
-const ELECTRON_EXIT_WAIT_MS = Number(process.env.BI_E2E_ELECTRON_EXIT_WAIT_MS ?? 5000);
 const WORKER_FORCE_EXIT_MS = Number(process.env.BI_E2E_WORKER_FORCE_EXIT_MS ?? 8000);
 
 async function withTimeout<T>(operation: Promise<T>, timeoutMs: number, timeoutMessage: string): Promise<T> {
@@ -290,36 +289,7 @@ test.afterAll(async () => {
     // modules, runs beforeAll -> initVSCode -> launches a new Electron),
     // so tearing Electron down here is safe and does not interfere with
     // retries.
-    if (helpers.vscode) {
-        console.log('🛑 Terminating VS Code Electron app...');
-        try {
-            const electronProcess = helpers.vscode.process?.();
-            if (electronProcess && !electronProcess.killed) {
-                await new Promise<void>((resolve) => {
-                    let settled = false;
-                    const done = () => {
-                        if (settled) return;
-                        settled = true;
-                        clearTimeout(timer);
-                        resolve();
-                    };
-                    const timer = setTimeout(done, ELECTRON_EXIT_WAIT_MS);
-                    electronProcess.once('exit', done);
-                    try {
-                        electronProcess.kill('SIGKILL');
-                    } catch {
-                        // already gone — resolve immediately
-                        done();
-                    }
-                });
-                console.log('✅ VS Code Electron app terminated');
-            } else {
-                console.log('ℹ️  No live Electron process to terminate');
-            }
-        } catch (err) {
-            console.warn(`⚠️  Failed to terminate Electron: ${(err as Error).message}`);
-        }
-    }
+    await helpers.terminateVSCode();
 
     // Clean up the test project directory
     console.log('🧹 Cleaning up test project...');
