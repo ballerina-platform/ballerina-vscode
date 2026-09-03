@@ -19,6 +19,7 @@
 package io.ballerina.servicemodelgenerator.extension.connector;
 
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
+import io.ballerina.modelgenerator.commons.ImportPrefixReader;
 import io.ballerina.modelgenerator.commons.ModuleAliasResolver;
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerUISchemaModel;
 import io.ballerina.servicemodelgenerator.extension.model.Codedata;
@@ -416,14 +417,14 @@ public final class SchemaDrivenSourceGenerator {
     /**
      * The alias to emit for the connector's module in the context of an actual file — an existing
      * import's prefix, else the model/default alias disambiguated against the prefixes the file has
-     * already claimed. See {@link ModuleAliasResolver#resolve}.
+     * already claimed. See {@link ImportPrefixReader#resolve}.
      */
     private static String resolveEmitAlias(ModulePartNode rootNode, ServiceInitModel filledInitForm,
                                            TriggerUISchemaModel triggerModel) {
         String moduleName = filledInitForm.getModuleName();
         String override = triggerModel != null && triggerModel.importPrefix() != null
                 && !triggerModel.importPrefix().isBlank() ? triggerModel.importPrefix() : null;
-        return ModuleAliasResolver.resolve(rootNode, filledInitForm.getOrgName(), moduleName, override);
+        return ImportPrefixReader.resolve(rootNode, filledInitForm.getOrgName(), moduleName, override);
     }
 
     /** @see ModuleAliasResolver#rewriteSelfPrefix(String, String, String) */

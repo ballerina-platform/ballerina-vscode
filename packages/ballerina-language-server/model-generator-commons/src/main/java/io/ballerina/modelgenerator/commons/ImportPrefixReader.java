@@ -40,11 +40,72 @@ import java.util.stream.Collectors;
  * through a type symbol.
  * </p>
  *
+ * <p>
+ * Also home to the two decisions that can only be made by reading a file -- {@link #resolve}, for a caller that
+ * will add an import, and {@link #boundPrefix}, for one that will not. Both take their names from
+ * {@link ModuleAliasResolver}, which holds the naming policy and reads no file itself.
+ * </p>
+ *
  * @since 1.5.0
  */
 public final class ImportPrefixReader {
 
     private ImportPrefixReader() {
+    }
+
+    /**
+     * The prefix to emit for {@code org/module} in an actual file: reuses an existing import's prefix verbatim,
+     * else whatever {@link ModuleAliasResolver#allocate} picks against that file's already-taken prefixes.
+     *
+     * <p>
+     * For a caller that is going to write the import, and so may name the module something the file does not use
+     * yet. A caller that will not write one wants {@link #boundPrefix} instead.
+     * </p>
+     *
+     * @param rootNode       the file to read; a null root yields the override or the natural prefix
+     * @param org            the organization name
+     * @param module         the module name
+     * @param overridePrefix a model-pinned prefix to prefer over the computed one; may be null/blank
+     * @return the prefix to emit, empty only when no module was given
+     */
+    public static String resolve(ModulePartNode rootNode, String org, String module, String overridePrefix) {
+        if (module == null || module.isBlank()) {
+            return "";
+        }
+        if (rootNode == null) {
+            return overridePrefix != null && !overridePrefix.isBlank()
+                    ? overridePrefix : ModuleAliasResolver.selfPrefix(module);
+        }
+        Optional<String> existing = existingImportPrefix(rootNode, org, module);
+        if (existing.isPresent()) {
+            return existing.get();
+        }
+        return ModuleAliasResolver.allocate(module, overridePrefix, importedPrefixes(rootNode));
+    }
+
+    /**
+     * The prefix a file already binds {@code org/module} to, falling back to the module's natural prefix. Unlike
+     * {@link #resolve} this never allocates a fresh one.
+     *
+     * <p>
+     * For a caller that reads a file it is not going to add an import to -- a probe compiled against the real
+     * document, say. A reference there has to use the prefix the document actually binds, so an existing {@code as}
+     * clause must be honoured; but inventing an unused prefix for a module the file does not import would name
+     * nothing at all, where the natural one at least names what the model meant.
+     * </p>
+     *
+     * @param rootNode the file to read; a null root yields the natural prefix
+     * @param org      the organization name
+     * @param module   the module name
+     * @return the bound prefix, else the module's natural prefix
+     */
+    public static String boundPrefix(ModulePartNode rootNode, String org, String module) {
+        if (module == null || module.isBlank()) {
+            return "";
+        }
+        return rootNode == null ? ModuleAliasResolver.selfPrefix(module)
+                : existingImportPrefix(rootNode, org, module)
+                        .orElseGet(() -> ModuleAliasResolver.selfPrefix(module));
     }
 
     /**

@@ -18,20 +18,22 @@
 
 package io.ballerina.modelgenerator.commons;
 
-import io.ballerina.compiler.syntax.tree.ModulePartNode;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Decides the import prefix a connector's own module is referenced under in generated source, and
- * re-qualifies references authored against the module's natural prefix onto it. Needed because the
- * natural (last dot-segment) prefix can collide with a sibling package or an existing import alias.
+ * Decides what a module may be called in generated source, and re-qualifies references authored against a
+ * module's natural prefix onto the chosen name. Needed because the natural (last dot-segment) prefix can
+ * collide with a sibling package or an existing import alias.
+ *
+ * <p>
+ * Naming policy only: nothing here reads a file. The prefixes an actual file binds, and the decisions that
+ * depend on them, live in {@link ImportPrefixReader}, which calls this for the names it hands out.
+ * </p>
  *
  * @since 1.9.0
  */
@@ -67,50 +69,6 @@ public final class ModuleAliasResolver {
             alias.append(Character.toUpperCase(segment.charAt(0))).append(segment.substring(1));
         }
         return alias.toString();
-    }
-
-    /**
-     * The prefix to emit for {@code org/module} in an actual file: reuses an existing import's prefix
-     * verbatim, else whatever {@link #allocate} picks against that file's already-taken prefixes.
-     *
-     * @param overridePrefix a model-pinned prefix to prefer over the computed one; may be null/blank
-     */
-    public static String resolve(ModulePartNode rootNode, String org, String module, String overridePrefix) {
-        if (module == null || module.isBlank()) {
-            return "";
-        }
-        if (rootNode == null) {
-            return overridePrefix != null && !overridePrefix.isBlank() ? overridePrefix : selfPrefix(module);
-        }
-        Optional<String> existing = ImportPrefixReader.existingImportPrefix(rootNode, org, module);
-        if (existing.isPresent()) {
-            return existing.get();
-        }
-        return allocate(module, overridePrefix, ImportPrefixReader.importedPrefixes(rootNode));
-    }
-
-    /**
-     * The prefix a file already binds {@code org/module} to, falling back to the module's natural prefix. Unlike
-     * {@link #resolve} this never allocates a fresh one.
-     *
-     * <p>
-     * For a caller that reads a file it is not going to add an import to -- a probe compiled against the real
-     * document, say. A reference there has to use the prefix the document actually binds, so an existing {@code as}
-     * clause must be honoured; but inventing an unused prefix for a module the file does not import would name
-     * nothing at all, where the natural one at least names what the model meant.
-     * </p>
-     *
-     * @param rootNode the file to read; a null root yields the natural prefix
-     * @param org      the organization name
-     * @param module   the module name
-     * @return the bound prefix, else the module's natural prefix
-     */
-    public static String boundPrefix(ModulePartNode rootNode, String org, String module) {
-        if (module == null || module.isBlank()) {
-            return "";
-        }
-        return rootNode == null ? selfPrefix(module)
-                : ImportPrefixReader.existingImportPrefix(rootNode, org, module).orElseGet(() -> selfPrefix(module));
     }
 
     /**

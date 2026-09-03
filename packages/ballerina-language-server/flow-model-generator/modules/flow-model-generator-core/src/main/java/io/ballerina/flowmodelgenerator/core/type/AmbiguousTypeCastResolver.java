@@ -27,7 +27,7 @@ import io.ballerina.compiler.syntax.tree.SpecificFieldNode;
 import io.ballerina.compiler.syntax.tree.SyntaxTree;
 import io.ballerina.flowmodelgenerator.core.model.Codedata;
 import io.ballerina.modelgenerator.commons.CommonUtils;
-import io.ballerina.modelgenerator.commons.ModuleAliasResolver;
+import io.ballerina.modelgenerator.commons.ImportPrefixReader;
 import io.ballerina.projects.Document;
 import io.ballerina.projects.ModuleDescriptor;
 import io.ballerina.projects.Project;
@@ -276,7 +276,7 @@ public final class AmbiguousTypeCastResolver {
                 if (isInOwnModule(document, orgName, moduleName)) {
                     return typeName;
                 }
-                return ModuleAliasResolver.boundPrefix(document.syntaxTree().rootNode(), orgName, moduleName)
+                return ImportPrefixReader.boundPrefix(document.syntaxTree().rootNode(), orgName, moduleName)
                         + ":" + typeName;
             }
             return typeName == null ? "" : typeName;
@@ -345,7 +345,7 @@ public final class AmbiguousTypeCastResolver {
         if (codedata != null && codedata.module() != null && !codedata.module().isEmpty()) {
             return isInOwnModule(document, codedata.org(), codedata.module())
                     ? recordName
-                    : ModuleAliasResolver.boundPrefix(document.syntaxTree().rootNode(), codedata.org(),
+                    : ImportPrefixReader.boundPrefix(document.syntaxTree().rootNode(), codedata.org(),
                             codedata.module()) + ":" + recordName;
         }
         return recordName;

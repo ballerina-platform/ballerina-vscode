@@ -68,7 +68,7 @@ public class ModuleAliasResolverTest {
         // The reported edge case: `import ballerina/file as ftp;` binds the prefix `ftp` to a DIFFERENT
         // module, so adding an `ballerina/ftp` service must not emit a plain `import ballerina/ftp;` —
         // that would redeclare the prefix. It has to take a free one instead.
-        String alias = ModuleAliasResolver.resolve(rootOf("import ballerina/file as ftp;\n"),
+        String alias = ImportPrefixReader.resolve(rootOf("import ballerina/file as ftp;\n"),
                 "ballerina", "ftp", null);
         Assert.assertEquals(alias, "ftp2", "a shadowed natural prefix must be disambiguated");
     }
@@ -76,7 +76,7 @@ public class ModuleAliasResolverTest {
     @Test
     public void testUnshadowedSingleSegmentModuleKeepsNaturalPrefix() {
         // Regression guard: no conflict -> unchanged behaviour for every existing connector.
-        Assert.assertEquals(ModuleAliasResolver.resolve(rootOf("import ballerina/io;\n"),
+        Assert.assertEquals(ImportPrefixReader.resolve(rootOf("import ballerina/io;\n"),
                 "ballerina", "ftp", null), "ftp");
     }
 
@@ -84,9 +84,9 @@ public class ModuleAliasResolverTest {
     public void testExistingImportPrefixWins() {
         // Whatever the file already binds the module to is authoritative — including a hand-edited alias
         // and including the unaliased case.
-        Assert.assertEquals(ModuleAliasResolver.resolve(
+        Assert.assertEquals(ImportPrefixReader.resolve(
                 rootOf("import ballerinax/trigger.twilio as tw;\n"), "ballerinax", "trigger.twilio", null), "tw");
-        Assert.assertEquals(ModuleAliasResolver.resolve(
+        Assert.assertEquals(ImportPrefixReader.resolve(
                 rootOf("import ballerinax/trigger.twilio;\n"), "ballerinax", "trigger.twilio", null), "twilio");
     }
 
@@ -94,7 +94,7 @@ public class ModuleAliasResolverTest {
     public void testClaimedAliasIsSuffixed() {
         // Both the natural prefix (claimed by an unrelated import) and the generated fallback alias
         // (also claimed) are already taken, so only the final numeric-suffix step is left.
-        Assert.assertEquals(ModuleAliasResolver.resolve(
+        Assert.assertEquals(ImportPrefixReader.resolve(
                 rootOf("import foo/bar as twilio;\nimport baz/qux as triggerTwilio;\n"),
                 "ballerinax", "trigger.twilio", null),
                 "triggerTwilio2");
@@ -106,15 +106,15 @@ public class ModuleAliasResolverTest {
         // itself under its bare natural prefix (github) when nothing in the file claims it, not under
         // the generated alias (triggerGithub) — that alias is a fallback for an actual collision, not
         // the default.
-        Assert.assertEquals(ModuleAliasResolver.resolve(rootOf("\n"), "ballerinax", "trigger.github", null),
+        Assert.assertEquals(ImportPrefixReader.resolve(rootOf("\n"), "ballerinax", "trigger.github", null),
                 "github");
-        Assert.assertEquals(ModuleAliasResolver.resolve(rootOf("import ballerina/io;\n"),
+        Assert.assertEquals(ImportPrefixReader.resolve(rootOf("import ballerina/io;\n"),
                 "ballerinax", "trigger.github", null), "github");
     }
 
     @Test
     public void testOverridePrefixIsPreferred() {
-        Assert.assertEquals(ModuleAliasResolver.resolve(rootOf("\n"), "ballerinax", "trigger.twilio", "tw"), "tw");
+        Assert.assertEquals(ImportPrefixReader.resolve(rootOf("\n"), "ballerinax", "trigger.twilio", "tw"), "tw");
     }
 
     @Test
