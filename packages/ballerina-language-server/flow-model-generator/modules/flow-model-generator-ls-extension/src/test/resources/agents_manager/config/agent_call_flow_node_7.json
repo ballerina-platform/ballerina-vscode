@@ -315,7 +315,7 @@
             "placeholder": "[]",
             "optional": true,
             "editable": true,
-            "advanced": true,
+            "advanced": false,
             "hidden": true,
             "codedata": {
               "kind": "INCLUDED_FIELD",
@@ -343,7 +343,7 @@
             "placeholder": "\"INFER_TOOL_COUNT\"",
             "optional": true,
             "editable": true,
-            "advanced": true,
+            "advanced": false,
             "hidden": false,
             "codedata": {
               "kind": "INCLUDED_FIELD",
@@ -371,7 +371,7 @@
             "placeholder": "false",
             "optional": true,
             "editable": true,
-            "advanced": true,
+            "advanced": false,
             "hidden": false,
             "codedata": {
               "kind": "INCLUDED_FIELD",
@@ -431,7 +431,7 @@
             "placeholder": "\"LLM_FILTER\"",
             "optional": true,
             "editable": true,
-            "advanced": true,
+            "advanced": false,
             "hidden": false,
             "codedata": {
               "kind": "INCLUDED_FIELD",
@@ -459,7 +459,7 @@
             "placeholder": "false",
             "optional": true,
             "editable": true,
-            "advanced": true,
+            "advanced": false,
             "hidden": false,
             "codedata": {
               "kind": "INCLUDED_FIELD",
@@ -755,7 +755,7 @@
             "placeholder": "\"\"",
             "optional": true,
             "editable": true,
-            "advanced": true,
+            "advanced": false,
             "hidden": false,
             "codedata": {
               "kind": "DEFAULTABLE",
@@ -778,7 +778,7 @@
             "placeholder": "new ()",
             "optional": true,
             "editable": true,
-            "advanced": true,
+            "advanced": false,
             "hidden": false,
             "codedata": {
               "kind": "DEFAULTABLE",
@@ -1058,7 +1058,7 @@
             "placeholder": "[]",
             "optional": true,
             "editable": true,
-            "advanced": true,
+            "advanced": false,
             "hidden": true,
             "codedata": {
               "kind": "INCLUDED_FIELD",
@@ -1086,7 +1086,7 @@
             "placeholder": "\"INFER_TOOL_COUNT\"",
             "optional": true,
             "editable": true,
-            "advanced": true,
+            "advanced": false,
             "hidden": false,
             "codedata": {
               "kind": "INCLUDED_FIELD",
@@ -1114,7 +1114,7 @@
             "placeholder": "false",
             "optional": true,
             "editable": true,
-            "advanced": true,
+            "advanced": false,
             "hidden": false,
             "codedata": {
               "kind": "INCLUDED_FIELD",
@@ -1174,7 +1174,7 @@
             "placeholder": "\"LLM_FILTER\"",
             "optional": true,
             "editable": true,
-            "advanced": true,
+            "advanced": false,
             "hidden": false,
             "codedata": {
               "kind": "INCLUDED_FIELD",
@@ -1202,7 +1202,7 @@
             "placeholder": "false",
             "optional": true,
             "editable": true,
-            "advanced": true,
+            "advanced": false,
             "hidden": false,
             "codedata": {
               "kind": "INCLUDED_FIELD",

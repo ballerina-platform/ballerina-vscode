@@ -215,7 +215,8 @@ public class McpToolKitBuilder extends NodeBuilder {
                     .placeholder(param.placeholder())
                     .defaultValue(param.defaultValue())
                     .editable()
-                    .defaultable(param.optional());
+                    .optional(param.optional())
+                    .advanced(param.advanced());
 
             // Configure property type & defaultability by parameter kind
             switch (param.kind()) {
@@ -250,7 +251,7 @@ public class McpToolKitBuilder extends NodeBuilder {
 
     private void applyRestDefaultability(Property.Builder<FormBuilder<NodeBuilder>> builder, boolean onlyRestParam) {
         if (onlyRestParam) {
-            builder.defaultable(false);
+            builder.optional(false);
         }
     }
 

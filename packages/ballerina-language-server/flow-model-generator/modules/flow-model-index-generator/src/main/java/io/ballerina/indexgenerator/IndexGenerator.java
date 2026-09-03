@@ -286,7 +286,8 @@ class IndexGenerator {
                     parameterData.description(), parameterData.type(), parameterData.placeholder(),
                     parameterData.defaultValue(),
                     FunctionParameterKind.fromString(parameterData.kind().name()),
-                    parameterData.optional() ? 1 : 0, parameterData.importStatements(), parameterData.label());
+                    parameterData.optional() ? 1 : 0, parameterData.advanced() ? 1 : 0,
+                    parameterData.importStatements(), parameterData.label());
 
             // Insert parameter member types
             insertParameterMemberTypesFromParameterData(paramId, parameterData);

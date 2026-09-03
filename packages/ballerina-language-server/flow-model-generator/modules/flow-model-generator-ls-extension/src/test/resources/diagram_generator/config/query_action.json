@@ -274,7 +274,7 @@
                     "placeholder": "()",
                     "optional": true,
                     "editable": true,
-                    "advanced": true,
+                    "advanced": false,
                     "hidden": false,
                     "codedata": {
                       "kind": "DEFAULTABLE",
@@ -315,7 +315,7 @@
                     "placeholder": "()",
                     "optional": true,
                     "editable": true,
-                    "advanced": true,
+                    "advanced": false,
                     "hidden": false,
                     "codedata": {
                       "kind": "DEFAULTABLE",
@@ -352,7 +352,7 @@
                     "placeholder": "{}",
                     "optional": true,
                     "editable": true,
-                    "advanced": true,
+                    "advanced": false,
                     "hidden": false,
                     "codedata": {
                       "kind": "INCLUDED_RECORD_REST",
@@ -481,7 +481,7 @@
             "placeholder": "\"all\"",
             "optional": true,
             "editable": true,
-            "advanced": true,
+            "advanced": false,
             "hidden": false,
             "codedata": {
               "kind": "INCLUDED_FIELD",
@@ -530,7 +530,7 @@
             "placeholder": "\"none\"",
             "optional": true,
             "editable": true,
-            "advanced": true,
+            "advanced": false,
             "hidden": false,
             "codedata": {
               "kind": "INCLUDED_FIELD",
@@ -888,7 +888,7 @@
             "placeholder": "\"SER_AVRO\"",
             "optional": true,
             "editable": true,
-            "advanced": true,
+            "advanced": false,
             "hidden": false,
             "codedata": {
               "kind": "INCLUDED_FIELD",
@@ -925,7 +925,7 @@
             "placeholder": "\"SER_AVRO\"",
             "optional": true,
             "editable": true,
-            "advanced": true,
+            "advanced": false,
             "hidden": false,
             "codedata": {
               "kind": "INCLUDED_FIELD",
@@ -1503,7 +1503,7 @@
             "placeholder": "false",
             "optional": true,
             "editable": true,
-            "advanced": true,
+            "advanced": false,
             "hidden": false,
             "codedata": {
               "kind": "INCLUDED_FIELD",
@@ -1622,7 +1622,7 @@
             "placeholder": "\"PLAINTEXT\"",
             "optional": true,
             "editable": true,
-            "advanced": true,
+            "advanced": false,
             "hidden": false,
             "codedata": {
               "kind": "INCLUDED_FIELD",
