@@ -325,7 +325,9 @@ function hasEvaluationGroup(testFunction: any): boolean {
 /** Adds the removal of the data provider generated alongside an evaluation. */
 async function addDataProviderDeletion(edit: WorkspaceEdit, ballerinaExtInstance: BallerinaExtension,
     fileUri: string, name?: string) {
-    if (!name) { return; }
+    // Custom providers may be shared by other tests; only generated ones are safe to delete.
+    const isGenerated = name?.startsWith('loadEvalsetData') || name?.startsWith('loadQueriesData');
+    if (!name || !isGenerated) { return; }
     try {
         const fn = await ballerinaExtInstance.langClient?.getTestFunction({ functionName: name, filePath: fileUri });
         const range = isValidTestFunctionResponse(fn) ? fn.function?.codedata?.lineRange : undefined;
