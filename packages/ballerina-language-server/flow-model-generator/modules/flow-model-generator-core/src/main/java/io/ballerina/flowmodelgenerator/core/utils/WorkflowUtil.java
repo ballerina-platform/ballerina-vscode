@@ -859,44 +859,42 @@ public class WorkflowUtil {
         return nodeKind != null && AGENT_DECLARATION_NODES.contains(nodeKind);
     }
 
-    // A role field edits one role, a list of them, or an expression yielding either.
+    // A role field edits one role as text, or an expression yielding a role or a list of them.
     private static final String ROLE_TYPE = "string";
-    private static final String ROLE_LIST_TYPE = "string[]";
     private static final String ROLE_UNION_TYPE = "string|string[]";
 
     /**
-     * Declares the input modes a reviewer/user role field offers: a single role as text, a list of
-     * roles built item by item, and an expression producing either.
+     * Declares the input modes a reviewer/user role field offers: a single role as text, and an
+     * expression producing a role or a list of them.
      *
-     * <p>Await Human Task gets these three for free — its {@code userRoles} property is derived from
-     * {@code awaitHumanTask}'s own {@code string|string[]} parameter, and the union expansion in
+     * <p>Await Human Task derives its {@code userRoles} property from {@code awaitHumanTask}'s own
+     * {@code string|string[]} parameter, where the union expansion in
      * {@link Property.Builder#typeWithExpression} splits a union into one mode per member with the
      * full type on the trailing expression entry. The role fields on the activity and agent forms are
-     * hand-built with no parameter symbol to derive from, so they declare the same three modes here
+     * hand-built with no parameter symbol to derive from, so they declare the equivalent modes here
      * instead of collapsing to expression-only — otherwise the same value is edited two different
      * ways depending on which form it is opened from.
+     *
+     * <p>No {@code REPEATABLE_LIST} mode: {@code FieldFactory} renders only the first and last
+     * declared mode ({@code [types[0], types[types.length - 1]]}), so a list mode declared between
+     * them never reaches the user. Declaring one would advertise an editor that cannot be opened;
+     * a list is entered in the expression mode, whose type is the full union.
      *
      * @param builder the property builder to add the role input modes to
      * @param <T>     the builder's step-out target
      * @return the same builder, for fluent chaining
      */
     public static <T> Property.Builder<T> addRoleFieldTypes(Property.Builder<T> builder) {
-        Property listItem = new Property.Builder<>(null)
-                .type().fieldType(Property.ValueType.TEXT).ballerinaType(ROLE_TYPE).stepOut()
-                .type().fieldType(Property.ValueType.EXPRESSION).ballerinaType(ROLE_TYPE).stepOut()
-                .build();
         return builder
                 .type().fieldType(Property.ValueType.TEXT).ballerinaType(ROLE_TYPE).stepOut()
-                .type().fieldType(Property.ValueType.REPEATABLE_LIST).ballerinaType(ROLE_LIST_TYPE)
-                    .template(listItem).stepOut()
                 .type().fieldType(Property.ValueType.EXPRESSION).ballerinaType(ROLE_UNION_TYPE).stepOut();
     }
 
     /**
      * The role value as Ballerina source. The field is multi-mode, so the raw value is a string in
-     * expression mode, a string template in text mode, and a list of entries in list mode; going
-     * through {@link Property#toSourceCode()} renders each of those. A value entered in expression
-     * mode is written through untouched; otherwise {@link #quoteIfBareRole} quotes a bare word that
+     * expression mode and a string template in text mode; {@link Property#toSourceCode()} renders
+     * either. A value entered in expression mode is written through untouched — it may well be a
+     * list literal or a reference to one; otherwise {@link #quoteIfBareRole} quotes a bare word that
      * arrived without a template wrapper (a value read back from source, say) while leaving a list
      * or a qualified/called reference alone — note it does not recognise a bare identifier as a
      * reference, which is why the mode is checked first.
