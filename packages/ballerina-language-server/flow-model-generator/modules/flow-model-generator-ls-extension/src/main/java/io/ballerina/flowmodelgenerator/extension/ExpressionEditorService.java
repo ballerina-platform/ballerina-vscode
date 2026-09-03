@@ -46,7 +46,6 @@ import io.ballerina.flowmodelgenerator.extension.response.FunctionCallTemplateRe
 import io.ballerina.flowmodelgenerator.extension.response.ImportModuleResponse;
 import io.ballerina.flowmodelgenerator.extension.response.VisibleVariableTypesResponse;
 import io.ballerina.modelgenerator.commons.CommonUtils;
-import io.ballerina.modelgenerator.commons.ImportPrefixReader;
 import io.ballerina.modelgenerator.commons.ModuleAliasResolver;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.PackageUtil;
@@ -338,13 +337,12 @@ public class ExpressionEditorService implements ExtendedLanguageServerService {
             Path filePath = Path.of(filePathString);
             PackageUtil.loadProject(this.workspaceManagerProxy.get(), filePath);
             Optional<Document> document = this.workspaceManagerProxy.get().document(filePath);
-            if (document.isEmpty()
-                    || !(document.get().syntaxTree().rootNode() instanceof ModulePartNode rootNode)) {
-                return codedata.getModulePrefix();
-            }
-            return ImportPrefixReader.existingImportPrefix(rootNode, codedata.org(), codedata.module())
-                    .orElseGet(() -> ModuleAliasResolver.allocatePrefix(codedata.module(),
-                            ImportPrefixReader.importedPrefixes(rootNode)));
+            ModulePartNode rootNode = document
+                    .map(doc -> doc.syntaxTree().rootNode() instanceof ModulePartNode node ? node : null)
+                    .orElse(null);
+            // A null root falls back to the module's natural prefix, which is what this method promises without a
+            // file to read. An import is emitted for the result, so allocating a free prefix is the right answer.
+            return ModuleAliasResolver.resolve(rootNode, codedata.org(), codedata.module(), null);
         } catch (RuntimeException e) {
             // Without a file to read, the module's natural prefix is the only available answer.
             return codedata.getModulePrefix();

@@ -211,6 +211,30 @@ public final class ModulePrefixContext {
         return ambiguousNaturals.contains(naturalPrefix);
     }
 
+    /**
+     * The import signature to emit for {@code org/module}, registering it as {@link #prefixFor} does and carrying an
+     * {@code as <prefix>} clause only where the prefix is a rename this context can also rewrite references onto.
+     *
+     * <p>
+     * For a caller whose rewriting is keyed on the <b>natural</b> prefix ({@link #requalify}), where an ambiguous
+     * natural prefix is left alone and so an alias could not be followed through: aliasing there would bind the
+     * un-rewritten references to whichever module kept the natural prefix, which is worse than the redeclared-symbol
+     * error it set out to avoid. A caller that rewrites by authored qualifier instead has no such restriction and can
+     * use {@link ModuleAliasResolver#withAliasClause} directly.
+     * </p>
+     *
+     * @param org    the organization name; blank for a module of the current package
+     * @param module the module name
+     * @return {@code org/module}, with {@code as <prefix>} appended where the prefix is a followable rename
+     */
+    public String importSignatureFor(String org, String module) {
+        String prefix = prefixFor(org, module);
+        String signature = org == null || org.isBlank() ? module : org + "/" + module;
+        return isNaturalAmbiguous(ModuleAliasResolver.selfPrefix(module))
+                ? signature
+                : ModuleAliasResolver.withAliasClause(signature, prefix);
+    }
+
     /** The modules that still need an import statement, as {@code org/module} -> resolved prefix. */
     public Map<String, String> pendingImports() {
         return Map.copyOf(pendingImports);

@@ -56,7 +56,6 @@ import io.ballerina.flowmodelgenerator.core.utils.SourceCodeGenerator;
 import io.ballerina.flowmodelgenerator.core.utils.TypeTransformer;
 import io.ballerina.flowmodelgenerator.core.utils.TypeUtils;
 import io.ballerina.modelgenerator.commons.CommonUtils;
-import io.ballerina.modelgenerator.commons.ModuleAliasResolver;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.ModulePrefixContext;
 import io.ballerina.projects.Document;
@@ -1045,10 +1044,12 @@ public class TypesManager {
                     return;
                 }
             }
-            // External package — import with org prefix, aliased when its natural prefix is taken
-            String prefix = prefixes.prefixFor(orgName, fullModulePart);
+            // External package — import with org prefix, aliased when its natural prefix is taken. The signature is
+            // asked for unconditionally so the module is registered for the requalify pass below even when its
+            // import is already there.
+            String importSignature = prefixes.importSignatureFor(orgName, fullModulePart);
             if (!CommonUtils.importExists(rootNode, orgName, fullModulePart)) {
-                importStmts.add(getImportStmt(orgName, fullModulePart, prefix, prefixes));
+                importStmts.add(getImportStmt(importSignature));
             }
         });
 
@@ -1067,21 +1068,9 @@ public class TypesManager {
         }
     }
 
-    /**
-     * The import statement for {@code org/module}, carrying an {@code as <prefix>} clause only where the prefix is a
-     * genuine rename that the references can actually be rewritten onto.
-     */
-    private static String getImportStmt(String org, String module, String prefix, ModulePrefixContext prefixes) {
-        String natural = ModuleAliasResolver.selfPrefix(module);
-        if (prefix == null || prefix.isBlank() || prefix.equals(natural)
-                || prefixes.isNaturalAmbiguous(natural)) {
-            return String.format("%nimport %s/%s;%n", org, module);
-        }
-        return String.format("%nimport %s/%s as %s;%n", org, module, prefix);
-    }
-
-    private static String getImportStmt(String module) {
-        return String.format("%nimport %s;%n", module);
+    /** Wraps an import signature, with or without an {@code as} clause, as a statement on its own lines. */
+    private static String getImportStmt(String importSignature) {
+        return String.format("%nimport %s;%n", importSignature);
     }
 
     private static Map<String, String> getImports(String importsStatements) {

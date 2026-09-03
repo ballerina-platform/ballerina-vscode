@@ -90,6 +90,30 @@ public final class ModuleAliasResolver {
     }
 
     /**
+     * The prefix a file already binds {@code org/module} to, falling back to the module's natural prefix. Unlike
+     * {@link #resolve} this never allocates a fresh one.
+     *
+     * <p>
+     * For a caller that reads a file it is not going to add an import to -- a probe compiled against the real
+     * document, say. A reference there has to use the prefix the document actually binds, so an existing {@code as}
+     * clause must be honoured; but inventing an unused prefix for a module the file does not import would name
+     * nothing at all, where the natural one at least names what the model meant.
+     * </p>
+     *
+     * @param rootNode the file to read; a null root yields the natural prefix
+     * @param org      the organization name
+     * @param module   the module name
+     * @return the bound prefix, else the module's natural prefix
+     */
+    public static String boundPrefix(ModulePartNode rootNode, String org, String module) {
+        if (module == null || module.isBlank()) {
+            return "";
+        }
+        return rootNode == null ? selfPrefix(module)
+                : ImportPrefixReader.existingImportPrefix(rootNode, org, module).orElseGet(() -> selfPrefix(module));
+    }
+
+    /**
      * A prefix for {@code module} that none of {@code taken} already uses: its natural prefix when free,
      * else the generated alias, else a numbered suffix. For callers that hold a set of prefixes already
      * spoken for but no file to resolve against.

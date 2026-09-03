@@ -27,7 +27,7 @@ import io.ballerina.compiler.syntax.tree.SpecificFieldNode;
 import io.ballerina.compiler.syntax.tree.SyntaxTree;
 import io.ballerina.flowmodelgenerator.core.model.Codedata;
 import io.ballerina.modelgenerator.commons.CommonUtils;
-import io.ballerina.modelgenerator.commons.ImportPrefixReader;
+import io.ballerina.modelgenerator.commons.ModuleAliasResolver;
 import io.ballerina.projects.Document;
 import io.ballerina.projects.ModuleDescriptor;
 import io.ballerina.projects.Project;
@@ -360,9 +360,7 @@ public final class AmbiguousTypeCastResolver {
      * </p>
      */
     private static String boundPrefix(Document document, String org, String moduleName) {
-        return ImportPrefixReader
-                .existingImportPrefix(document.syntaxTree().rootNode(), org, moduleName)
-                .orElseGet(() -> CommonUtils.getDefaultModulePrefix(moduleName));
+        return ModuleAliasResolver.boundPrefix(document.syntaxTree().rootNode(), org, moduleName);
     }
 
     /**
