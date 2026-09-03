@@ -17,7 +17,7 @@
  */
 
 import { useState } from "react";
-import { accessSeparator, isNilableAfterAccess } from "./fieldAccess";
+import { accessSeparator, arrayElementType, isNilableAfterAccess } from "./fieldAccess";
 
 export type BreadCrumbStep = {
     label: string;
@@ -28,6 +28,7 @@ export type BreadCrumbStep = {
     stepType?: string;
     // Whether the value this step represents is nilable.
     nilable?: boolean;
+    parentSeparator?: string;
 }
 
 export const useHelperPaneNavigation = (initialLabel: string) => {
@@ -49,9 +50,9 @@ export const useHelperPaneNavigation = (initialLabel: string) => {
         setBreadCrumbSteps(newBreadCrumSteps);
     };
 
-    const navigateToNextArray = (value: string, currentValue: string, index: number, stepType?: string) => {
+    const navigateToNextArray = (value: string, currentValue: string, index: number, stepType?: string, selectedItemValue?: string) => {
         const lastStep = breadCrumbSteps[breadCrumbSteps.length - 1];
-        const useOptional = currentValue ? accessSeparator(lastStep?.nilable) === '?.' : false;
+        const useOptional = currentValue ? accessSeparator(lastStep?.nilable, selectedItemValue) === '?.' : false;
         const separator = currentValue ? (useOptional ? '?.' : '.') : '';
         const indexedValue = `${value}[${index}]`;
         const newBreadCrumSteps = [...breadCrumbSteps, {
@@ -61,7 +62,8 @@ export const useHelperPaneNavigation = (initialLabel: string) => {
             arrayIndex: index,
             fieldName: value,
             stepType,
-            nilable: isNilableAfterAccess(useOptional, stepType)
+            nilable: isNilableAfterAccess(useOptional, arrayElementType(stepType)),
+            parentSeparator: separator
         }];
         setBreadCrumbSteps(newBreadCrumSteps);
     };
@@ -74,7 +76,7 @@ export const useHelperPaneNavigation = (initialLabel: string) => {
 
         const parentStep = steps[steps.length - 2];
         const parentPath = parentStep.replaceText;
-        const separator = parentPath ? accessSeparator(parentStep.nilable) : '';
+        const separator = lastStep.parentSeparator ?? (parentPath ? accessSeparator(parentStep.nilable) : '');
         const newReplaceText = parentPath + separator + lastStep.fieldName + '[' + index + ']';
 
         steps[steps.length - 1] = {

@@ -35,3 +35,11 @@ export const accessSeparator = (parentNilable?: boolean, selectedItemValue?: str
 
 export const isNilableAfterAccess = (usedOptionalAccess: boolean, stepType?: string): boolean =>
     usedOptionalAccess || isOptionalType(stepType);
+
+export const arrayElementType = (arrayType?: string): string | undefined => {
+    if (!arrayType) return undefined;
+    const normalized = arrayType.trim().replace(/\?$/, '');
+    const baseType = normalized.split('&')[0].trim();
+    if (!baseType.endsWith('[]')) return undefined;
+    return baseType.slice(0, -2).trim();
+};

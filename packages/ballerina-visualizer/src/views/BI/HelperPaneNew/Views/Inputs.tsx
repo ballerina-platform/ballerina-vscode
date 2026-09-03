@@ -187,7 +187,7 @@ export const Inputs = (props: InputsPageProps) => {
     const handleInputsMoreIconClick = (item: CompletionItem) => {
         const typeDetail = item?.labelDetails?.detail || item?.description;
         if (isArrayOfObjectsType(typeDetail)) {
-            navigateToNextArray(item.label, navigationPath, 0, typeDetail);
+            navigateToNextArray(item.label, navigationPath, 0, typeDetail, item.value);
         } else {
             navigateToNext(item.label, navigationPath, typeDetail, item.value);
         }
