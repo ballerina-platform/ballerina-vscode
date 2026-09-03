@@ -86,6 +86,7 @@ copy.push(4);  // original stays [1, 2, 3]
 To convert between types while preserving data, use cloneWithType():
 \`\`\`ballerina
 json cfg = {port: 8080};
+// Config is an owned shape (you control it), so a closed record is fine here.
 type Config record {| int port; int timeout = 60; |};
 Config config = check cfg.cloneWithType();
 
@@ -93,6 +94,8 @@ Config config = check cfg.cloneWithType();
 json[] arr = [1, 2, 3];
 int[] numbers = check arr.cloneWithType();
 \`\`\`
+
+Important: cloneWithType() and fromJsonStringWithType() into a CLOSED record (record {| ... |}) fail at runtime if the source value carries ANY field the record does not declare. When binding JSON from an external system you do not control (cloud events, webhooks, third-party API responses), use an OPEN record (record { ... }) with optional fields for anything the provider may omit, so unmodeled fields land in the rest field instead of failing the conversion.
 
 To validate that a value matches a specific type, use ensureType():
 \`\`\`ballerina

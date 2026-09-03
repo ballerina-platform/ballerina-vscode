@@ -24,6 +24,7 @@ import { CONFIG_COLLECTOR_TOOL } from "./tools/config-collector";
 import { CLARIFY_TOOL } from "./tools/clarify";
 import { TEST_RUNNER_TOOL_NAME } from "./tools/test-runner";
 import { getLanglibInstructions } from "../utils/libs/langlibs";
+import { EXTERNAL_PAYLOAD_BINDING_RULES } from "./payload-binding-rules";
 import { formatCodebaseStructure, formatCodeContext } from "./utils";
 import { GenerateAgentCodeRequest, OperationType, ProjectSource } from "@wso2/ballerina-core";
 import { formatActiveFileReminder } from "./activeFileReminder";
@@ -216,6 +217,7 @@ When a connector authenticates via an OAuth2 refresh-token grant that includes a
 - Always use named arguments when providing values to any parameter (e.g., .get(key="value")).
 - Mention types EXPLICITLY in variable declarations and foreach statements. (Avoid var at all costs)
 - To narrow down a union type(or optional type), always declare a separate variable and then use that variable in the if condition.
+${EXTERNAL_PAYLOAD_BINDING_RULES}
 
 ## File modifications
 - You must apply changes to the existing source code using the provided ${[
