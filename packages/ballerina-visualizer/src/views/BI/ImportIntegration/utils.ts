@@ -53,6 +53,29 @@ export const resolveSourceLayoutParam = (
     );
 };
 
+/**
+ * Parameter key the migration tools read to decide whether each source file keeps its own
+ * `.bal` output, rather than being folded into a combined package layout.
+ */
+export const KEEP_STRUCTURE_PARAM_KEY = "keepStructure";
+
+/**
+ * The parameter the "Output Structure" choice writes.
+ *
+ * Owned by the Configure Destination step rather than the generic settings list, because
+ * it describes the shape of what the migration produces — the same question that step
+ * already asks about. Returns `null` for a tool that does not declare it, which is what
+ * hides the section for that tool.
+ */
+export const resolveKeepStructureParam = (
+    tool: MigrationTool | null | undefined
+): MigrationTool["parameters"][number] | null =>
+    tool?.parameters?.find((param) => param.key === KEEP_STRUCTURE_PARAM_KEY) ?? null;
+
+/** Reads a tool parameter value that may arrive as a boolean or its stringified form. */
+export const toBooleanParamValue = (value: unknown): boolean =>
+    typeof value === "string" ? value === "true" : value === true;
+
 /** Whether the given parameter values select the multi-project source layout. */
 export const isMultiRootSelected = (
     tool: MigrationTool | null | undefined,
@@ -62,8 +85,7 @@ export const isMultiRootSelected = (
     if (!param) {
         return false;
     }
-    const value = parameters?.[param.key];
-    return typeof value === "string" ? value === "true" : value === true;
+    return toBooleanParamValue(parameters?.[param.key]);
 };
 
 export const sanitizeProjectName = (name: string): string => {

@@ -47,7 +47,7 @@ import {
     StepperWrapper,
 } from "./styles";
 import { FinalIntegrationParams } from "./types";
-import { isMultiRootSelected } from "./utils";
+import { isMultiRootSelected, resolveKeepStructureParam, toBooleanParamValue } from "./utils";
 
 export function ImportIntegration() {
     const { wsClient, onBack } = useBiWsContext();
@@ -68,6 +68,9 @@ export function ImportIntegration() {
     const [migrationSuccessful, setMigrationSuccessful] = useState(false);
     const [migrationResponse, setMigrationResponse] = useState<ImportIntegrationResponse | null>(null);
     const [storedProjectRequest, setStoredProjectRequest] = useState<ProjectRequest | null>(null);
+    // Chosen on Configure Destination (step 2), not with the source settings, so it is held
+    // here rather than in `importParams.parameters` and merged in when the migration runs.
+    const [keepStructure, setKeepStructure] = useState(false);
     const migrationStartedRef = useRef(false);
 
     // Dry-run state (step 1)
@@ -88,6 +91,15 @@ export function ImportIntegration() {
     const isMultiProjectFromConfig = isMultiRootSelected(selectedIntegration, importParams?.parameters);
     // isMultiProject for MigrationProgressView is derived from actual migration results
     const isMultiProject = migratedProjects.length > 0;
+    const keepStructureParam = resolveKeepStructureParam(selectedIntegration);
+
+    // Picking a different source platform re-seeds the choice from the new tool's own
+    // default; carrying the previous tool's answer over would silently apply it.
+    const handleSelectIntegration = (integration: MigrationTool) => {
+        setSelectedIntegration(integration);
+        setKeepStructure(toBooleanParamValue(resolveKeepStructureParam(integration)?.defaultValue));
+    };
+
     // Recorded in the enhancement toml so the AI migration prompts can target the source platform
     const sourcePlatform: MigrateRequest["sourcePlatform"] =
         selectedIntegration?.commandName === 'migrate-mule' ? 'mule'
@@ -142,7 +154,11 @@ export function ImportIntegration() {
             packageName: "",
             commandName: integration.commandName,
             sourcePath: params.importSourcePath,
-            parameters: params.parameters,
+            // The destination step's answer wins over the tool's declared default, which is
+            // all `params.parameters` carries for this key.
+            parameters: keepStructureParam
+                ? { ...params.parameters, [keepStructureParam.key]: keepStructure }
+                : params.parameters,
         };
         try {
             const response = await wsClient.importIntegration(rpcParams);
@@ -209,7 +225,7 @@ export function ImportIntegration() {
             projects: migratedProjects,
             aiFeatureUsed: true,
             sourcePath: importParams.importSourcePath,
-            keepStructure: importParams?.parameters?.["keepStructure"] as boolean | undefined,
+            keepStructure,
             sourcePlatform: sourcePlatform,
         };
         // Await the project write before advancing: the enhancement step calls
@@ -234,7 +250,7 @@ export function ImportIntegration() {
             projects: migratedProjects,
             aiFeatureUsed: false,
             sourcePath: importParams.importSourcePath,
-            keepStructure: importParams?.parameters?.["keepStructure"] as boolean | undefined,
+            keepStructure,
             sourcePlatform: sourcePlatform,
         };
         // Fire-and-forget: the extension opens the folder (VS Code reloads). Guard the
@@ -255,7 +271,7 @@ export function ImportIntegration() {
             projects: migratedProjects,
             aiFeatureUsed: true,
             sourcePath: importParams.importSourcePath,
-            keepStructure: importParams?.parameters?.["keepStructure"] as boolean | undefined,
+            keepStructure,
             sourcePlatform: sourcePlatform,
         };
         // Await the project write before navigating away, so a failure keeps the user
@@ -403,7 +419,7 @@ export function ImportIntegration() {
                                 pullIntegrationTool={pullIntegrationTool}
                                 pullingTool={pullingTool}
                                 toolPullProgress={toolPullProgress}
-                                onSelectIntegration={setSelectedIntegration}
+                                onSelectIntegration={handleSelectIntegration}
                                 onNext={() => setStep(1)}
                                 onBack={gotToWelcome}
                             />
@@ -429,6 +445,9 @@ export function ImportIntegration() {
                             <ConfigureProjectForm
                                 isMultiProject={isMultiProjectFromConfig}
                                 importSourcePath={importParams?.importSourcePath}
+                                keepStructure={keepStructure}
+                                keepStructureParam={keepStructureParam}
+                                onKeepStructureChange={setKeepStructure}
                                 onNext={handleConfigureDestinationDone}
                                 onBack={handleStepBack}
                             />

@@ -16,8 +16,11 @@
  * under the License.
  */
 
-import { Typography } from "@wso2/ui-toolkit";
+import { useState } from "react";
+import styled from "@emotion/styled";
+import { CheckBox, Typography } from "@wso2/ui-toolkit";
 import { useBiWsContext } from "../wsManager/WsClientContext";
+import { CollapsibleSection } from "../ProjectForm/embedded/integrator-form/components";
 import { usePlatformExtContext } from "../../../providers/platform-ext-ctx-provider";
 import {
     ProjectDestinationForm,
@@ -25,6 +28,13 @@ import {
 } from "../ProjectForm/embedded/integrator-form/shared/ProjectDestinationForm";
 import { Organization } from "../ProjectForm/embedded/integrator-form/components";
 import { ConfigureProjectFormProps } from "./types";
+
+/** Sits under the checkbox label, indented past the box, like the form's other hints. */
+const OptionDescription = styled.div`
+    color: var(--vscode-list-deemphasizedForeground);
+    margin-top: 4px;
+    margin-left: 26px;
+`;
 
 /**
  * Step 3 of the migration wizard: where the converted sources land.
@@ -38,9 +48,25 @@ import { ConfigureProjectFormProps } from "./types";
  *
  * Nothing is written here. The resolved destination is handed back through `onNext` and
  * only used once the rule-based migration has run and the user picks an action.
+ *
+ * The one migration-specific question is "Output Structure": whether the migrated sources
+ * keep the original file layout. It belongs on this step rather than with the source
+ * settings because it describes the shape of what lands at the destination, and because
+ * the answer is only needed by the migration that runs after this step — the report
+ * generated before it is unaffected.
  */
-export function ConfigureProjectForm({ isMultiProject, onNext, onBack }: ConfigureProjectFormProps) {
+export function ConfigureProjectForm({
+    isMultiProject,
+    keepStructure,
+    keepStructureParam,
+    onKeepStructureChange,
+    onNext,
+    onBack,
+}: ConfigureProjectFormProps) {
     const { wsClient } = useBiWsContext();
+    // Open on arrival, unlike the package details below it: this is a decision about the
+    // migration's output that the user is expected to look at, not a rarely-touched default.
+    const [isOutputStructureExpanded, setIsOutputStructureExpanded] = useState(true);
     const { platformExtState } = usePlatformExtContext();
     const isLoggedIn = !!platformExtState?.isLoggedIn;
     const organizations = isLoggedIn
@@ -69,6 +95,26 @@ export function ConfigureProjectForm({ isMultiProject, onNext, onBack }: Configu
         );
     };
 
+    // Label and description come from the tool's own metadata, so a wording change ships
+    // with the migration tool instead of needing a matching edit here.
+    const outputStructureSection = keepStructureParam ? (
+        <CollapsibleSection
+            isExpanded={isOutputStructureExpanded}
+            onToggle={() => setIsOutputStructureExpanded((expanded) => !expanded)}
+            icon="gear"
+            title="Output Structure"
+        >
+            <CheckBox
+                label={keepStructureParam.label}
+                checked={keepStructure}
+                onChange={onKeepStructureChange}
+            />
+            {keepStructureParam.description && (
+                <OptionDescription>{keepStructureParam.description}</OptionDescription>
+            )}
+        </CollapsibleSection>
+    ) : undefined;
+
     return (
         <>
             <Typography variant="h2">
@@ -83,6 +129,7 @@ export function ConfigureProjectForm({ isMultiProject, onNext, onBack }: Configu
                 submitLabel="Start Migration"
                 submittingLabel="Starting..."
                 submitErrorPrefix="Failed to start the migration."
+                additionalSection={outputStructureSection}
                 secondaryButton={{ text: "Back", onClick: onBack }}
                 onSubmit={handleSubmit}
             />
