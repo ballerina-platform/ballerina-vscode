@@ -266,12 +266,18 @@ public final class ModulePrefixContext {
         Map<String, String> naturalCandidates = new LinkedHashMap<>();
         Set<String> contestedNaturals = new HashSet<>();
         for (Map.Entry<String, String> entry : importsByAuthored.entrySet()) {
-            // A version tail is dropped, and an entry with no organization is a module of the current package.
+            // A version tail is dropped, and an entry with no organization is a module of the current package --
+            // so it is classified under that package's organization, not as external. Without this an entry
+            // naming the file's own module would be registered and self-imported instead of resolving to no
+            // qualifier at all.
             String[] parts = entry.getValue().split(":")[0].split("/", 2);
             String org = parts.length == 2 ? parts[0] : "";
             String module = parts.length == 2 ? parts[1] : parts[0];
             if (module.isEmpty()) {
                 continue;
+            }
+            if (org.isEmpty() && currentModule != null) {
+                org = currentModule.org();
             }
             String resolved = prefixFor(org, module);
             if (resolved.isEmpty()) {

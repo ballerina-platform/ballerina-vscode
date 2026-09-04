@@ -682,7 +682,8 @@ public class SourceCodeGenerator {
         if (codedata == null || codedata.org() == null || codedata.module() == null) {
             return annot.toString();
         }
-        String prefix = prefixes.prefixFor(codedata.org(), codedata.module());
-        return prefix.isEmpty() ? annot.toString() : annot.toSourceCode(prefix);
+        // An empty prefix is the answer for an annotation of the file's own module, which needs no qualifier.
+        // Falling back to the model's stored prefix there would emit `@pkg:Ann` for a module nothing imports.
+        return annot.toSourceCode(prefixes.prefixFor(codedata.org(), codedata.module()));
     }
 }

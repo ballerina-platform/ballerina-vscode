@@ -207,6 +207,27 @@ public class ModulePrefixContextTest {
     }
 
     @Test
+    public void testAnOrgLessEntryNamingTheFilesOwnModuleIsNotSelfImported() {
+        // An imports-map entry with no organization is current-package data. Classifying it as external would
+        // register the file's own module and emit `import test_pack;` into test_pack itself.
+        ModulePrefixContext context = ModulePrefixContext.from(rootOf(""), CURRENT);
+
+        Assert.assertEquals(context.requalifyAuthored("Person", imports("test_pack", "test_pack")), "Person");
+        Assert.assertTrue(context.pendingImportStatements().isEmpty(), "a module needs no import into itself");
+    }
+
+    @Test
+    public void testAnOrgLessEntryNamingASiblingModuleStillImportsIt() {
+        // The neighbouring case, to show the normalisation did not swallow it: a sibling module is a different
+        // module and still needs its import.
+        ModulePrefixContext context = ModulePrefixContext.from(rootOf(""), CURRENT);
+
+        Assert.assertEquals(context.requalifyAuthored("sub:Person", imports("sub", "test_pack.sub")),
+                "sub:Person");
+        Assert.assertEquals(context.pendingImportStatements(), List.of("test_pack.sub"));
+    }
+
+    @Test
     public void testOwnModuleEntryIsNotMappedOntoAnEmptyQualifier() {
         ModulePrefixContext context = ModulePrefixContext.from(rootOf(""), CURRENT);
 

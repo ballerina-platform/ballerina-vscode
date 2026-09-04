@@ -530,11 +530,8 @@ public class TypesManager {
         allTypes.addAll(referencedTypes);
 
         if (updateExisting) {
-            List<TextEdit> textEdits = new ArrayList<>();
-            for (TypeData typeData : allTypes) {
-                textEdits.addAll(updateType(typeData));
-            }
-            return textEdits;
+            // One call, so the whole request shares a prefix context, as the create path below already does.
+            return updateTypesInPlace(allTypes);
         }
         return createMultipleTypes(allTypes);
     }
@@ -623,21 +620,39 @@ public class TypesManager {
     }
 
     private List<TextEdit> updateType(TypeData typeData) {
+        return updateTypesInPlace(List.of(typeData));
+    }
+
+    /**
+     * Rewrites each type in place, resolving every module named across the whole request against <b>one</b>
+     * context.
+     *
+     * <p>
+     * Sharing it is what stops two types naming modules that end in the same segment from both claiming that
+     * segment, and what stops two types naming the same missing module from each emitting its import.
+     * </p>
+     *
+     * @param typeDataList the types to rewrite, each carrying the range it occupies
+     * @return the snippet edits, with the imports they still need prepended
+     */
+    private List<TextEdit> updateTypesInPlace(List<TypeData> typeDataList) {
         List<TextEdit> textEdits = new ArrayList<>();
         SyntaxTree syntaxTree = this.typeDocument.syntaxTree();
         ModulePartNode rootNode = syntaxTree.rootNode();
 
-        // Regenerate code snippet for the type
         ModulePrefixContext prefixes = prefixesFor(rootNode);
         SourceCodeGenerator sourceCodeGenerator = new SourceCodeGenerator(prefixes);
-        String codeSnippet = sourceCodeGenerator.generateCodeSnippetForType(typeData);
+        for (TypeData typeData : typeDataList) {
+            // Regenerate code snippet for the type
+            String codeSnippet = sourceCodeGenerator.generateCodeSnippetForType(typeData);
 
-        LineRange lineRange = typeData.codedata().lineRange();
-        if (lineRange == null) {
-            textEdits.add(new TextEdit(CommonUtils.toRange(rootNode.lineRange().endLine()), codeSnippet));
-        } else {
-            NonTerminalNode node = CommonUtil.findNode(CommonUtils.toRange(lineRange), syntaxTree);
-            textEdits.add(new TextEdit(CommonUtils.toRange(node.lineRange()), codeSnippet));
+            LineRange lineRange = typeData.codedata().lineRange();
+            if (lineRange == null) {
+                textEdits.add(new TextEdit(CommonUtils.toRange(rootNode.lineRange().endLine()), codeSnippet));
+            } else {
+                NonTerminalNode node = CommonUtil.findNode(CommonUtils.toRange(lineRange), syntaxTree);
+                textEdits.add(new TextEdit(CommonUtils.toRange(node.lineRange()), codeSnippet));
+            }
         }
         addImportEdits(prefixes, rootNode, textEdits);
         return textEdits;
