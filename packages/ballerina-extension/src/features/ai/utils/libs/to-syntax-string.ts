@@ -47,6 +47,7 @@ import {
     TypedescVariant,
     PlatformDependency,
 } from "./library-types";
+import { isClassTypeDef } from "./class-typedefs";
 
 /**
  * One `AnnotationAttachPoint` constant, as it must be written in a Ballerina annotation declaration.
@@ -407,8 +408,14 @@ function renderBaseTypeDefinition(typeDef: TypeDefinitionBase): string {
 
 /**
  * Renders a type definition to Ballerina syntax.
+ *
+ * The pre-switch class check is a backstop for older language servers, which omitted the discriminator on
+ * class declarations. Falling through to `// Unknown type:` discards a whole connector API silently.
  */
 function renderTypeDef(typeDef: TypeDefinition): string {
+    if (!typeDef.type && isClassTypeDef(typeDef)) {
+        return renderClass(typeDef as ClassTypeDefinition);
+    }
     switch (typeDef.type) {
         case "Record":
             return renderRecord(typeDef as RecordTypeDefinition);
