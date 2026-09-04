@@ -1,0 +1,116 @@
+{
+  "description": "A public enum of an unindexed imported module is returned by the live-compilation fallback, alongside indexed matches from other packages (wso2/product-integrator#2172)",
+  "kind": "TYPE",
+  "source": "live_fallback_types/main.bal",
+  "queryMap": {
+    "q": "CompressionType",
+    "limit": "5"
+  },
+  "categories": [
+    {
+      "metadata": {
+        "label": "Current Integration",
+        "description": "Components defined within the current integration",
+        "keywords": [
+          "Project",
+          "Local",
+          "Function",
+          "Types",
+          "Data Mapper"
+        ]
+      },
+      "items": []
+    },
+    {
+      "metadata": {
+        "label": "Imported Types",
+        "description": "Types imported from other integrations",
+        "keywords": [
+          "Imported",
+          "Type",
+          "Library"
+        ]
+      },
+      "items": [
+        {
+          "metadata": {
+            "label": "grpc",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "CompressionType",
+                "description": "Compression types that are supported.\nGZIP - Gzip compression",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_grpc_1.14.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "grpc",
+                "packageName": "grpc",
+                "symbol": "CompressionType",
+                "version": "1.14.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "Compression",
+                "description": "Represents compression options.\n\n`AUTO`: When the service behaves as a HTTP gateway, the inbound request/response accept-encoding option is set as the\noutbound request/response accept-encoding/content-encoding option\n`ALWAYS`: Always set accept-encoding/content-encoding in outbound request/response\n`NEVER`: Never set accept-encoding/content-encoding header in outbound request/response",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_grpc_1.14.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "grpc",
+                "packageName": "grpc",
+                "symbol": "Compression",
+                "version": "1.14.2"
+              },
+              "enabled": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "label": "Standard Library",
+        "description": "Components supported officially by Ballerina",
+        "keywords": [
+          "Ballerina",
+          "Library"
+        ]
+      },
+      "items": [
+        {
+          "metadata": {
+            "label": "kafka",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "CompressionType",
+                "description": "Kafka compression types to compress the messages.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_kafka_4.6.5.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerinax",
+                "module": "kafka",
+                "packageName": "kafka",
+                "symbol": "CompressionType",
+                "version": "4.6.5"
+              },
+              "enabled": true
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

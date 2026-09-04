@@ -1,0 +1,196 @@
+{
+  "description": "Type search pagination page 1 of 3 across two indexed modules with different type counts (os=5, time=15), verifying fair-share quotas tile without dropping or duplicating rows",
+  "kind": "TYPE",
+  "source": "type_pagination/main.bal",
+  "queryMap": {
+    "q": "",
+    "limit": "8",
+    "offset": "0"
+  },
+  "categories": [
+    {
+      "metadata": {
+        "label": "Current Integration",
+        "description": "Components defined within the current integration",
+        "keywords": [
+          "Project",
+          "Local",
+          "Function",
+          "Types",
+          "Data Mapper"
+        ]
+      },
+      "items": []
+    },
+    {
+      "metadata": {
+        "label": "Imported Types",
+        "description": "Types imported from other integrations",
+        "keywords": [
+          "Imported",
+          "Type",
+          "Library"
+        ]
+      },
+      "items": [
+        {
+          "metadata": {
+            "label": "os",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "Command",
+                "description": "",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_os_1.10.1.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "os",
+                "packageName": "os",
+                "symbol": "Command",
+                "version": "1.10.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "EnvProperties",
+                "description": "",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_os_1.10.1.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "os",
+                "packageName": "os",
+                "symbol": "EnvProperties",
+                "version": "1.10.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "Error",
+                "description": "Represents OS module related errors.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_os_1.10.1.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "os",
+                "packageName": "os",
+                "symbol": "Error",
+                "version": "1.10.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "Process",
+                "description": "This object contains information on a process being created from Ballerina.\nThis is returned from the `exec` function in the `os` module.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_os_1.10.1.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "os",
+                "packageName": "os",
+                "symbol": "Process",
+                "version": "1.10.1"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "time",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "Civil",
+                "description": "Time within some region relative to a\ntime scale stipulated by civilian authorities.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.8.0.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "time",
+                "packageName": "time",
+                "symbol": "Civil",
+                "version": "2.8.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "Date",
+                "description": "Date in proleptic Gregorian calendar.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.8.0.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "time",
+                "packageName": "time",
+                "symbol": "Date",
+                "version": "2.8.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "DayOfWeek",
+                "description": "The day of week according to the US convention.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.8.0.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "time",
+                "packageName": "time",
+                "symbol": "DayOfWeek",
+                "version": "2.8.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "Duration",
+                "description": "Represents the time duration used to adjust a civil date-time value by a specified amount.\nThe duration can be added to or subtracted from the civil time.\nFields in the record can be negative, in which case the duration is subtracted.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.8.0.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "time",
+                "packageName": "time",
+                "symbol": "Duration",
+                "version": "2.8.0"
+              },
+              "enabled": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "label": "Standard Library",
+        "description": "Components supported officially by Ballerina",
+        "keywords": [
+          "Ballerina",
+          "Library"
+        ]
+      },
+      "items": []
+    }
+  ]
+}

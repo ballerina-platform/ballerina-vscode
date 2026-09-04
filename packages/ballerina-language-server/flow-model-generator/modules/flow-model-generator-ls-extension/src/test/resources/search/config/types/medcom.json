@@ -163,22 +163,6 @@
             },
             {
               "metadata": {
-                "label": "MedComCoreEncounterStatusHistoryStatus",
-                "description": "MedComCoreEncounterStatusHistoryStatus enum",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4.medcom240_1.0.1.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerinax",
-                "module": "health.fhir.r4.medcom240",
-                "packageName": "health.fhir.r4.medcom240",
-                "symbol": "MedComCoreEncounterStatusHistoryStatus",
-                "version": "1.0.1"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
                 "label": "MedComCoreEncounterLocationStatus",
                 "description": "MedComCoreEncounterLocationStatus enum",
                 "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4.medcom240_1.0.1.png"
@@ -211,6 +195,22 @@
             },
             {
               "metadata": {
+                "label": "MedComCoreEncounterStatusHistoryStatus",
+                "description": "MedComCoreEncounterStatusHistoryStatus enum",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4.medcom240_1.0.1.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerinax",
+                "module": "health.fhir.r4.medcom240",
+                "packageName": "health.fhir.r4.medcom240",
+                "symbol": "MedComCoreEncounterStatusHistoryStatus",
+                "version": "1.0.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
                 "label": "MedComCoreMediaStatus",
                 "description": "MedComCoreMediaStatus enum",
                 "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4.medcom240_1.0.1.png"
@@ -221,22 +221,6 @@
                 "module": "health.fhir.r4.medcom240",
                 "packageName": "health.fhir.r4.medcom240",
                 "symbol": "MedComCoreMediaStatus",
-                "version": "1.0.1"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "MedComCoreObservationValueComparator",
-                "description": "MedComCoreObservationValueComparator enum",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4.medcom240_1.0.1.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerinax",
-                "module": "health.fhir.r4.medcom240",
-                "packageName": "health.fhir.r4.medcom240",
-                "symbol": "MedComCoreObservationValueComparator",
                 "version": "1.0.1"
               },
               "enabled": true
@@ -275,6 +259,38 @@
             },
             {
               "metadata": {
+                "label": "MedComCoreObservationValueComparator",
+                "description": "MedComCoreObservationValueComparator enum",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4.medcom240_1.0.1.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerinax",
+                "module": "health.fhir.r4.medcom240",
+                "packageName": "health.fhir.r4.medcom240",
+                "symbol": "MedComCoreObservationValueComparator",
+                "version": "1.0.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "MedComCoreOrganizationIdentifierUse",
+                "description": "MedComCoreOrganizationIdentifierUse enum",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4.medcom240_1.0.1.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerinax",
+                "module": "health.fhir.r4.medcom240",
+                "packageName": "health.fhir.r4.medcom240",
+                "symbol": "MedComCoreOrganizationIdentifierUse",
+                "version": "1.0.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
                 "label": "MedComCoreOrganizationIdentifierUseOne",
                 "description": "MedComCoreOrganizationIdentifierUseOne enum",
                 "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4.medcom240_1.0.1.png"
@@ -307,8 +323,8 @@
             },
             {
               "metadata": {
-                "label": "MedComCoreOrganizationIdentifierUse",
-                "description": "MedComCoreOrganizationIdentifierUse enum",
+                "label": "MedComCorePatientAddressType",
+                "description": "MedComCorePatientAddressType enum",
                 "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4.medcom240_1.0.1.png"
               },
               "codedata": {
@@ -316,15 +332,15 @@
                 "org": "ballerinax",
                 "module": "health.fhir.r4.medcom240",
                 "packageName": "health.fhir.r4.medcom240",
-                "symbol": "MedComCoreOrganizationIdentifierUse",
+                "symbol": "MedComCorePatientAddressType",
                 "version": "1.0.1"
               },
               "enabled": true
             },
             {
               "metadata": {
-                "label": "MedComCorePatientGender",
-                "description": "MedComCorePatientGender enum",
+                "label": "MedComCorePatientAddressUse",
+                "description": "MedComCorePatientAddressUse enum",
                 "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4.medcom240_1.0.1.png"
               },
               "codedata": {
@@ -332,23 +348,7 @@
                 "org": "ballerinax",
                 "module": "health.fhir.r4.medcom240",
                 "packageName": "health.fhir.r4.medcom240",
-                "symbol": "MedComCorePatientGender",
-                "version": "1.0.1"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "MedComCorePatientLinkType",
-                "description": "MedComCorePatientLinkType enum",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4.medcom240_1.0.1.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerinax",
-                "module": "health.fhir.r4.medcom240",
-                "packageName": "health.fhir.r4.medcom240",
-                "symbol": "MedComCorePatientLinkType",
+                "symbol": "MedComCorePatientAddressUse",
                 "version": "1.0.1"
               },
               "enabled": true
