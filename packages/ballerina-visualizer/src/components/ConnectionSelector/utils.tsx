@@ -20,6 +20,7 @@ import { FlowNode, Category, Property, ProjectStructureArtifactResponse } from "
 import { FormField, Category as PanelCategory, FormValues, FormImports } from "@wso2/ballerina-side-panel";
 import { ConnectionKindConfig, ConnectionKind, ConnectionSearchConfig } from "./types";
 import { getImportsForProperty, DEFAULT_MODEL_PROVIDER_ITEM } from "../../utils/bi";
+import { hasAiType } from "../../utils/node-property-utils";
 import { getConnectionKindConfig } from "./config";
 import { Codicon } from "@wso2/ui-toolkit";
 import { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
@@ -111,9 +112,16 @@ export const convertConnectionCategories = (connectionKind: ConnectionKind, cate
     return config.categoryConverter(categories);
 };
 
-const getValidPropertyKey = (node: FlowNode, nodePropertyKeys: string | string[]): string | undefined => {
-    const keys = Array.isArray(nodePropertyKeys) ? nodePropertyKeys : [nodePropertyKeys];
-    return keys.find(key => node.properties[key as keyof typeof node.properties]?.value);
+const getValidPropertyKey = (node: FlowNode, config: ConnectionKindConfig): string | undefined => {
+    const ballerinaType = config.types.find((type) => type.ballerinaType)?.ballerinaType;
+    const keys = Array.isArray(config.nodePropertyKey) ? config.nodePropertyKey : [config.nodePropertyKey];
+    const typeMatches = ballerinaType
+        ? Object.keys(node.properties ?? {}).filter((key) =>
+            hasAiType(node.properties[key as keyof typeof node.properties], ballerinaType))
+        : [];
+    return keys.find((key) => typeMatches.includes(key))
+        ?? typeMatches[0]
+        ?? keys.find((key) => node.properties[key as keyof typeof node.properties]?.value);
 };
 
 export const fetchConnectionValueForNode = async (
@@ -121,7 +129,7 @@ export const fetchConnectionValueForNode = async (
     targetNode: FlowNode,
 ): Promise<string> => {
     const config = getConnectionKindConfig(connectionKind);
-    const propertyKey = getValidPropertyKey(targetNode, config.nodePropertyKey);
+    const propertyKey = getValidPropertyKey(targetNode, config);
     const targetPropertyValue = propertyKey ? targetNode.properties?.[propertyKey as keyof typeof targetNode.properties]?.value as string : null;
     if (targetPropertyValue === null) return "";
     return targetPropertyValue;
@@ -132,7 +140,7 @@ export const updateNodeWithConnectionVariable = (connectionKind: ConnectionKind,
     if (!config) {
         return;
     }
-    const propertyKey = getValidPropertyKey(selectedNode, config.nodePropertyKey) || (Array.isArray(config.nodePropertyKey) ? config.nodePropertyKey[0] : config.nodePropertyKey);
+    const propertyKey = getValidPropertyKey(selectedNode, config) || (Array.isArray(config.nodePropertyKey) ? config.nodePropertyKey[0] : config.nodePropertyKey);
     const property = selectedNode.properties[propertyKey as keyof typeof selectedNode.properties];
 
     if (property && typeof property === 'object') {

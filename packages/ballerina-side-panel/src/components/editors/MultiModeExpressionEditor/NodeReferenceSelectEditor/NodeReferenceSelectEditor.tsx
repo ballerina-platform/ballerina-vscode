@@ -28,7 +28,7 @@ import {
     SearchNodesQuery,
     SearchNodesTypeConstraint,
 } from "@wso2/ballerina-core";
-import { Button, Codicon, LinkButton, ProgressRing, ThemeColors } from "@wso2/ui-toolkit";
+import { Button, Codicon, Icon, LinkButton, ProgressRing, ThemeColors } from "@wso2/ui-toolkit";
 import { FormField } from "../../../Form/types";
 import { NodeReferenceSelect, NodeReferenceSelectItem } from "../../NodeReferenceSelect";
 import { useFormContext } from "../../../../context";
@@ -65,6 +65,16 @@ interface NodeReferenceSelectEditorProps {
     onChange: (value: string, cursorPosition: number) => void;
     nodeReferenceFilters?: NodeReferenceFilter[];
 }
+
+const SelectRow = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    > *:first-of-type {
+        flex: 1;
+        min-width: 0;
+    }
+`;
 
 const AddButtons = styled.div`
     display: flex;
@@ -293,15 +303,22 @@ export const NodeReferenceSelectEditor: React.FC<NodeReferenceSelectEditorProps>
 
     return (
         <>
-            <NodeReferenceSelect
-                id={field.key}
-                items={selectItems}
-                value={value}
-                required={!field.optional}
-                disabled={!field.editable}
-                loading={loading}
-                onChange={(val) => onChange(val, val?.length)}
-            />
+            <SelectRow>
+                <NodeReferenceSelect
+                    id={field.key}
+                    items={selectItems}
+                    value={value}
+                    required={!field.optional}
+                    disabled={!field.editable}
+                    loading={loading}
+                    onChange={(val) => onChange(val, val?.length)}
+                />
+                {field.editCallback && value && (
+                    <Button appearance="icon" tooltip={`Configure ${value}`} onClick={() => field.editCallback(value)}>
+                        <Icon name="bi-edit" sx={{ width: 18, height: 18, fontSize: 18 }} />
+                    </Button>
+                )}
+            </SelectRow>
             {showConnectorActions && (
                 <AddButtons>
                     {connectors.map((c, i) => {

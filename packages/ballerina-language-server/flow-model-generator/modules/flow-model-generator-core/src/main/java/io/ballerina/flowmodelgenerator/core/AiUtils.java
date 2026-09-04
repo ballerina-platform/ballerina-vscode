@@ -48,6 +48,7 @@ import io.ballerina.compiler.syntax.tree.AnnotationNode;
 import io.ballerina.compiler.syntax.tree.AssignmentStatementNode;
 import io.ballerina.compiler.syntax.tree.CheckExpressionNode;
 import io.ballerina.compiler.syntax.tree.ExpressionNode;
+import io.ballerina.compiler.syntax.tree.FieldAccessExpressionNode;
 import io.ballerina.compiler.syntax.tree.FunctionArgumentNode;
 import io.ballerina.compiler.syntax.tree.FunctionBodyBlockNode;
 import io.ballerina.compiler.syntax.tree.FunctionDefinitionNode;
@@ -2101,6 +2102,10 @@ public class AiUtils {
     }
 
     private static boolean isAiInterfaceType(TypeSymbol typeSymbol, String interfaceName) {
+        if (typeSymbol instanceof UnionTypeSymbol union) {
+            return union.memberTypeDescriptors().stream()
+                    .anyMatch(member -> isAiInterfaceType(member, interfaceName));
+        }
         if (typeSymbol instanceof TypeReferenceTypeSymbol typeRef
                 && typeRef.definition().nameEquals(interfaceName)) {
             return typeRef.getModule()
@@ -2138,6 +2143,58 @@ public class AiUtils {
             }
         }
         return null;
+    }
+
+    public record ModelData(String name, String path, String type) {
+    }
+
+    public static ModelData getModelIconUrl(SemanticModel semanticModel, ExpressionNode expression) {
+        if (expression.kind() == SyntaxKind.SIMPLE_NAME_REFERENCE) {
+            return resolveComponent(semanticModel, expression, Ai.MODEL_PROVIDER_TYPE_NAME);
+        }
+        if (expression.kind() == SyntaxKind.FIELD_ACCESS) {
+            return getModelIconUrl(semanticModel, ((FieldAccessExpressionNode) expression).fieldName());
+        }
+        return new ModelData(expression.toSourceCode().strip(), null, null);
+    }
+
+    public static ModelData getMemoryStoreData(SemanticModel semanticModel,
+                                               SeparatedNodeList<FunctionArgumentNode> arguments) {
+        for (FunctionArgumentNode argument : arguments) {
+            ExpressionNode expression = switch (argument.kind()) {
+                case POSITIONAL_ARG -> ((PositionalArgumentNode) argument).expression();
+                case NAMED_ARG -> ((NamedArgumentNode) argument).expression();
+                default -> null;
+            };
+            if (expression != null && semanticModel.symbol(expression)
+                    .filter(CommonUtils::isAiMemoryStore).isPresent()) {
+                return resolveComponent(semanticModel, expression, null);
+            }
+        }
+        return null;
+    }
+
+    private static ModelData resolveComponent(SemanticModel semanticModel, ExpressionNode expression,
+                                              String genericTypeName) {
+        Symbol symbol = semanticModel.symbol(expression).orElse(null);
+        TypeSymbol typeDescriptor;
+        if (symbol instanceof VariableSymbol variable) {
+            typeDescriptor = variable.typeDescriptor();
+        } else if (symbol instanceof ClassFieldSymbol field) {
+            typeDescriptor = field.typeDescriptor();
+        } else {
+            return null;
+        }
+        Optional<ModuleID> optId = typeDescriptor.getModule().map(ModuleSymbol::id);
+        if (optId.isEmpty()) {
+            return null;
+        }
+        ModuleID id = optId.get();
+        String type = typeDescriptor.getName().orElse("");
+        String iconType = genericTypeName == null || type.isEmpty() || type.equals(genericTypeName)
+                ? id.packageName() : type;
+        return new ModelData(symbol.getName().orElse(""),
+                CommonUtils.generateIcon(id.orgName(), id.packageName(), id.version()), iconType);
     }
 
 }

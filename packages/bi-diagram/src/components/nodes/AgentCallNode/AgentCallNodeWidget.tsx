@@ -55,7 +55,7 @@ import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
 import { NodeMetadata, isDefaultModelProviderExpr } from "@wso2/ballerina-core";
 import ReactMarkdown from "react-markdown";
 
-import { flowDashAnimation, sanitizeAgentData, sanitizeId } from "../agentNodeUtils";
+import { flowDashAnimation, releaseBoxHover, sanitizeAgentData, sanitizeId } from "../agentNodeUtils";
 import { getAgentNodeContainerHeight } from "../AgentWidget/agentNodeLayout";
 import { useAgentNodeController } from "../AgentWidget/useAgentNodeController";
 import { ApprovalBadge } from "../AgentWidget/ApprovalBadge";
@@ -706,6 +706,7 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
                             clickable={canViewAgent}
                             onClick={canViewAgent ? handleViewAgentClick : undefined}
                             title="View Agent"
+                            {...(canViewAgent ? releaseBoxHover(setIsBoxHovered) : {})}
                         >
                             <AgentName data-agent-name>{agentVarName}</AgentName>
                             {canViewAgent && (

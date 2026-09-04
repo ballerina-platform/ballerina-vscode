@@ -3913,6 +3913,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     useEffect(() => {
         const panelMap: Record<Exclude<AgentEditorView, "NONE">, SidePanelView> = {
             MEMORY: SidePanelView.AGENT_MEMORY_MANAGER,
+            MEMORY_STORE: SidePanelView.AGENT_MEMORY_STORE,
             ADD_TOOL: SidePanelView.ADD_TOOL,
             NEW_TOOL_CUSTOM: SidePanelView.NEW_TOOL_CUSTOM,
             NEW_TOOL_CONNECTION: SidePanelView.NEW_TOOL_FROM_CONNECTION,

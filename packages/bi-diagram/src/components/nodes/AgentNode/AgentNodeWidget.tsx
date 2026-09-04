@@ -38,6 +38,7 @@ import { Button, Icon, Item, Menu, MenuItem, Popover, ThemeColors, getAIModuleIc
 import { MoreVertIcon } from "../../../resources/icons";
 import { FlowNode, ToolData } from "../../../utils/types";
 import NodeIcon from "../../NodeIcon";
+import { AIModelIcon } from "../../AIModelIcon";
 import ConnectorIcon from "../../ConnectorIcon";
 import { DiagnosticsPopUp } from "../../DiagnosticsPopUp";
 import { nodeHasError } from "../../../utils/node";
@@ -46,7 +47,7 @@ import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
 import { NodeMetadata, isDefaultModelProviderExpr } from "@wso2/ballerina-core";
 import ReactMarkdown from "react-markdown";
 
-import { flowDashAnimation, sanitizeAgentData, sanitizeId } from "../agentNodeUtils";
+import { flowDashAnimation, releaseBoxHover, sanitizeAgentData, sanitizeId } from "../agentNodeUtils";
 import { getAgentNodeContainerHeight } from "../AgentWidget/agentNodeLayout";
 import { useAgentNodeController } from "../AgentWidget/useAgentNodeController";
 import { ApprovalBadge } from "../AgentWidget/ApprovalBadge";
@@ -294,6 +295,19 @@ export namespace NodeStyles {
         border-radius: 5px;
     `;
 
+    export const MemoryStoreButton = styled(Button)`
+        margin-right: 4px;
+        & > vscode-button::part(control) {
+            padding: 4px;
+            border-radius: 4px;
+            border: 1px solid transparent;
+            transition: border-color 0.4s ease-out;
+        }
+        & > vscode-button:hover::part(control) {
+            border-color: ${ThemeColors.SECONDARY};
+        }
+    `;
+
     export const MemoryButton = styled.div<{ readOnly: boolean }>`
         display: flex;
         align-items: center;
@@ -308,6 +322,7 @@ export namespace NodeStyles {
         font-size: 14px;
         font-family: "GilmerRegular";
         cursor: ${(props: { readOnly: boolean }) => (props.readOnly ? "default" : "pointer")};
+        transition: border-color 0.4s ease-out;
         &:hover {
             background-color: ${ThemeColors.SURFACE_BRIGHT};
             border-color: ${(props: { readOnly: boolean }) =>
@@ -323,7 +338,8 @@ export namespace NodeStyles {
         background-color: transparent;
         color: ${ThemeColors.ON_SURFACE};
         cursor: ${(props: { readOnly: boolean }) => (props.readOnly ? "default" : "pointer")};
-        &:hover {
+        transition: border-color 0.4s ease-out;
+        &:hover:not(:has(vscode-button:hover)) {
             border-color: ${(props: { readOnly: boolean }) =>
             props.readOnly ? ThemeColors.OUTLINE_VARIANT : ThemeColors.SECONDARY};
         }
@@ -419,6 +435,31 @@ function getAgentNodePresentation(variant: "agent" | "typedAgent", agentInfo?: N
     };
 }
 
+function MemoryStoreButton({ store, readOnly, onClick }: {
+    store?: ToolData;
+    readOnly: boolean;
+    onClick: (event: React.MouseEvent) => void;
+}) {
+    if (!store?.name) {
+        return null;
+    }
+    return (
+        <NodeStyles.MemoryStoreButton
+            appearance="icon"
+            buttonSx={readOnly ? { cursor: "not-allowed" } : {}}
+            tooltip={`Memory store: ${store.name}`}
+            onClick={onClick}
+        >
+            <AIModelIcon
+                type={store.type}
+                codedata={{ module: store.type, node: "SHORT_TERM_MEMORY_STORE" }}
+                iconUrl={store.path}
+                size={18}
+            />
+        </NodeStyles.MemoryStoreButton>
+    );
+}
+
 export function AgentNodeWidget(props: AgentNodeWidgetProps) {
     const { model, engine, onClick, variant = model.getType() === NodeTypes.TYPED_AGENT_NODE ? "typedAgent" : "agent" } = props;
     const controller = useAgentNodeController(model);
@@ -488,6 +529,14 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
         }
         agentNode?.onSelectMemoryManager && agentNode.onSelectMemoryManager(model.node);
         setMemoryMenuAnchorEl(null);
+    };
+
+    const onMemoryStoreClick = (event: React.MouseEvent) => {
+        event.stopPropagation();
+        if (readOnly) {
+            return;
+        }
+        agentNode?.onSelectMemoryStore?.(model.node);
     };
 
     const onMemoryManagerDeleteClick = () => {
@@ -844,6 +893,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                     onClick={onMemoryManagerClick}
                                     title="Configure Memory"
                                     onContextMenu={!readOnly ? handleMemoryContextMenu : undefined}
+                                    {...releaseBoxHover(setIsBoxHovered)}
                                 >
                                     <NodeStyles.Row readOnly={readOnly}>
                                         <div style={{ flex: 1 }}>
@@ -852,6 +902,11 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                                 {(memory.type || "MessageWindowChatMemory").replace(/^ai:/, "")}
                                             </NodeStyles.MemoryMeta>
                                         </div>
+                                        <MemoryStoreButton
+                                            store={memory.store}
+                                            readOnly={readOnly}
+                                            onClick={onMemoryStoreClick}
+                                        />
                                         <NodeStyles.MenuButton
                                             ref={setMemoryMenuButtonElement}
                                             buttonSx={readOnly ? { cursor: "not-allowed" } : {}}
@@ -863,7 +918,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                     </NodeStyles.Row>
                                 </NodeStyles.MemoryCard>
                             ) : (
-                                <NodeStyles.MemoryButton readOnly={readOnly} onClick={onMemoryManagerClick} title="Add Memory">
+                                <NodeStyles.MemoryButton readOnly={readOnly} onClick={onMemoryManagerClick} title="Add Memory" {...releaseBoxHover(setIsBoxHovered)}>
                                     <Icon name="bi-plus" sx={{ fontSize: "16px", marginRight: "4px" }} />
                                     Add Memory
                                 </NodeStyles.MemoryButton>
