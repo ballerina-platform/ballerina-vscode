@@ -34,6 +34,7 @@ import io.ballerina.flowmodelgenerator.core.copilot.service.ServiceLoader;
 import io.ballerina.flowmodelgenerator.core.copilot.util.SymbolProcessor;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.PackageUtil;
+import io.ballerina.projects.Module;
 import io.ballerina.projects.Package;
 
 import java.io.IOException;
@@ -121,7 +122,10 @@ public class CopilotLibraryManager {
      * Documentation is included only for packages of the organizations listed in
      * {@link #DOC_WHITELIST_ORGS}.
      *
-     * @param libraryNames Array of library names in "org/package_name" format to filter
+     * @param libraryNames Array of library names in "org/module" format to filter. A package's default
+     *                     module is addressed by the package name itself; a
+     *                     non-default exported module by its full module name ("ballerinax/aws.auth"),
+     *                     which resolves through its owning package ("ballerinax/aws")
      * @return List of Library objects with complete information
      */
     public List<Library> loadFilteredLibraries(String[] libraryNames) {
@@ -144,43 +148,58 @@ public class CopilotLibraryManager {
         List<Library> libraries = new ArrayList<>();
 
         for (String libraryName : libraryNames) {
-            // Parse library name "org/package_name"
+            // Parse library name "org/module_name"
             String[] parts = libraryName.split("/");
             if (parts.length != 2) {
                 continue; // Skip invalid format
             }
             String org = parts[0];
-            String packageName = parts[1];
+            String moduleName = parts[1];
 
-            // Create module info (use latest version by passing null)
-            ModuleInfo moduleInfo = new ModuleInfo(org, packageName, org + "/" +
-                    packageName, null);
-
-            // Resolve the package once; the README loader below reuses this same Package
-            // to avoid a second (potentially network-bound) resolution.
+            // Resolve the owning package once; the README loader below reuses this same Package
+            // to avoid a second (potentially network-bound) resolution. The requested name may be a
+            // package ("ballerinax/aws.sns") or a non-default exported module ("ballerinax/aws.auth"
+            // lives in "ballerinax/aws") — the coordinate cross-package type links carry. Resolution
+            // failure is contained per library, so one bad entry cannot abort the rest of the batch.
             String pinned = pinnedVersions == null ? null : pinnedVersions.get(libraryName);
-            Optional<Package> optPackage = pinned == null || pinned.isBlank()
-                    ? PackageUtil.getModulePackage(PackageUtil.getSampleProject(), org, packageName)
-                    : PackageUtil.getModulePackage(PackageUtil.getSampleProject(), org, packageName, pinned);
-            if (optPackage.isEmpty()) {
+            Optional<ResolvedModule> resolution = resolveModule(org, moduleName, pinned);
+            if (resolution.isEmpty()) {
+                LOGGER.warning("No package resolvable for '" + libraryName + "'. Skipping.");
                 continue;
             }
-            Package pkg = optPackage.get();
+            Package pkg = resolution.get().pkg();
+            Module module = resolution.get().module();
+            String packageName = pkg.packageName().value();
+            boolean isDefaultModule = moduleName.equals(packageName);
+
+            // Create module info (use latest version by passing null). The default-module form is
+            // unchanged; a submodule gets the real (org, packageName, moduleName) triple.
+            ModuleInfo moduleInfo = isDefaultModule
+                    ? new ModuleInfo(org, moduleName, org + "/" + moduleName, null)
+                    : new ModuleInfo(org, packageName, moduleName, null);
+
             SemanticModel semanticModel = PackageUtil.getCompilation(pkg)
-                    .getSemanticModel(pkg.getDefaultModule().moduleId());
+                    .getSemanticModel(module.moduleId());
 
-            // Get the package description from database
-            String description = LibraryDatabaseAccessor.getPackageDescription(org, packageName).orElse("");
+            // Get the package description from database; a submodule has no row of its own, so it
+            // falls back to the owning package's.
+            String description = LibraryDatabaseAccessor.getPackageDescription(org, moduleName)
+                    .filter(desc -> !desc.isBlank())
+                    .or(() -> LibraryDatabaseAccessor.getPackageDescription(org, packageName))
+                    .orElse("");
 
-            // Create library object
+            // Create library object, keyed by the requested name: it is also the import path the
+            // renderer emits and the source of the alias prefix ("auth:" for ballerinax/aws.auth).
             Library library = new Library(libraryName, description);
 
-            // Process module symbols to extract clients, functions, and typedefs
+            // Process module symbols to extract clients, functions, and typedefs. The module name is
+            // the "current package" identity, so the module's own types link internal while a sibling
+            // module of the same package links external.
             SymbolProcessor.SymbolProcessingResult symbolResult = SymbolProcessor.processModuleSymbols(
                     semanticModel,
                     moduleInfo,
                     org,
-                    packageName,
+                    moduleName,
                     pkg
             );
 
@@ -204,7 +223,9 @@ public class CopilotLibraryManager {
             library.setAnnotations(symbolResult.getAnnotations());
 
             if (DOC_WHITELIST_ORGS.contains(org)) {
-                readPackageDocumentation(pkg).ifPresent(library::setReadme);
+                // A submodule request carries its own module document, not the whole package's.
+                (isDefaultModule ? readPackageDocumentation(pkg) : readModuleDocumentation(pkg, moduleName))
+                        .ifPresent(library::setReadme);
             }
 
             libraries.add(library);
@@ -214,6 +235,69 @@ public class CopilotLibraryManager {
         augmentLibrariesWithInstructions(libraries);
 
         return libraries;
+    }
+
+    /**
+     * One resolved {@code org/module} request.
+     *
+     * @param pkg    the owning package
+     * @param module the requested module within it
+     */
+    private record ResolvedModule(Package pkg, Module module) {
+    }
+
+    /**
+     * Resolves an {@code org/module} path to its owning package and module: the name is tried as a
+     * package first (the default-module case), then trailing {@code .segment}s are stripped and retried
+     * ({@code aws.auth} → {@code aws}) — sound because a submodule's name always starts with its
+     * package's name. Within a resolved package the module is matched by its full name, so a package
+     * that does not export the requested module yields empty rather than a wrong catalog.
+     *
+     * @param moduleName    the requested module name, e.g. {@code "aws.auth"}
+     * @param pinnedVersion the pinned version, applied to whichever candidate resolves; may be null
+     * @return the owning package and module, or empty when nothing resolves
+     */
+    private Optional<ResolvedModule> resolveModule(String org, String moduleName, String pinnedVersion) {
+        String candidate = moduleName;
+        while (true) {
+            Optional<Package> optPackage = resolvePackageSafely(org, candidate, pinnedVersion);
+            if (optPackage.isPresent()) {
+                Package pkg = optPackage.get();
+                for (Module module : pkg.modules()) {
+                    if (module.moduleName().toString().equals(moduleName)) {
+                        return Optional.of(new ResolvedModule(pkg, module));
+                    }
+                }
+                // Defensive: a package's default module always shares its name, so for the exact-name
+                // candidate this preserves the previous behaviour. A shortened candidate that does not
+                // export the requested module yields empty instead of a wrong catalog.
+                return candidate.equals(moduleName)
+                        ? Optional.of(new ResolvedModule(pkg, pkg.getDefaultModule()))
+                        : Optional.empty();
+            }
+            int lastDot = candidate.lastIndexOf('.');
+            if (lastDot < 0) {
+                return Optional.empty();
+            }
+            candidate = candidate.substring(0, lastDot);
+        }
+    }
+
+    /**
+     * One package-resolution attempt that reports failure as empty instead of throwing:
+     * {@code getModulePackage} throws for a name Central has no package under (its latest-version
+     * lookup surfaces the 404), and for a non-final {@link #resolveModule} candidate — a module-only
+     * name such as {@code aws.auth} — that is a routine outcome, not an error.
+     */
+    private static Optional<Package> resolvePackageSafely(String org, String name, String pinnedVersion) {
+        try {
+            return pinnedVersion == null || pinnedVersion.isBlank()
+                    ? PackageUtil.getModulePackage(PackageUtil.getSampleProject(), org, name)
+                    : PackageUtil.getModulePackage(PackageUtil.getSampleProject(), org, name, pinnedVersion);
+        } catch (RuntimeException e) {
+            LOGGER.log(Level.FINE, "Package resolution failed for " + org + "/" + name, e);
+            return Optional.empty();
+        }
     }
 
     /**
@@ -288,6 +372,21 @@ public class CopilotLibraryManager {
         readFirstAvailableDoc(docsDir, PACKAGE_DOC_NAMES).ifPresent(content::append);
         appendModuleDocumentation(docsDir, content);
         return content.isEmpty() ? Optional.empty() : Optional.of(content.toString());
+    }
+
+    /**
+     * Reads the documentation of one non-default module of a resolved .bala package —
+     * {@code docs/modules/<moduleName>/README.md} (or {@code Module.md}).
+     *
+     * @param pkg        the resolved owning package
+     * @param moduleName the full module name, e.g. {@code "aws.auth"}, which is also the docs
+     *                   directory name the bala layout uses
+     * @return an Optional containing the module documentation if present
+     */
+    private Optional<String> readModuleDocumentation(Package pkg, String moduleName) {
+        Path moduleDocsDir = pkg.project().sourceRoot()
+                .resolve(DOCS_DIR).resolve(MODULES_DIR).resolve(moduleName);
+        return readFirstAvailableDoc(moduleDocsDir, MODULE_DOC_NAMES);
     }
 
     /**

@@ -124,6 +124,70 @@ public class CopilotLibraryFilterTest extends AbstractLSTest {
                 "trigger.salesforce should be excluded and return empty libraries");
     }
 
+    /**
+     * One unresolvable library must never cost the caller the rest of the batch.
+     *
+     * <p>{@code ballerinax/aws.auth} is the real-world shape this pins: a <b>module</b> of
+     * {@code ballerinax/aws}, not a package. Resolving it as a package used to <b>throw</b> (Central
+     * answers the latest-version lookup with a 404), and the exception unwound through the JSON-RPC
+     * boundary, discarding every sibling library in the request — the already-built {@code aws.sns}
+     * catalog was lost to its own dependency's coordinate. Resolution failures are now contained in
+     * {@code CopilotLibraryManager.resolvePackageSafely}, and an unresolvable entry is skipped.
+     */
+    @Test
+    public void testUnresolvableLibraryDoesNotAbortBatch() throws IOException {
+        GetSelectedLibrariesRequest request = new GetSelectedLibrariesRequest(
+                new String[]{"ballerinax/no.such.package", "ballerinax/salesforce"});
+        JsonObject response = getResponse(request);
+        JsonArray libraries = response.getAsJsonArray("libraries");
+
+        Assert.assertNotNull(libraries, "Libraries array should not be null");
+        Assert.assertEquals(libraries.size(), 1,
+                "the unresolvable entry should be skipped and the resolvable one still served");
+        JsonObject salesforce = libraries.get(0).getAsJsonObject();
+        Assert.assertEquals(salesforce.get("name").getAsString(), "ballerinax/salesforce");
+        // The surviving library must be the full catalog, not a stub built before the sibling failed.
+        assertHasNonEmptyArray(salesforce, "clients");
+        assertHasNonEmptyArray(salesforce, "typeDefs");
+    }
+
+    /**
+     * An {@code org/module} request whose module is <b>not</b> a package's default module must resolve
+     * through the owning package and serve <i>that module's</i> catalog.
+     *
+     * <p>{@code ballerinax/salesforce.types} is a module of {@code ballerinax/salesforce} and no package
+     * of its own (Central answers 404 for it) — the same shape as {@code ballerinax/aws.auth}, the
+     * coordinate every cross-package type link carries. Three things are pinned:
+     * <ul>
+     *   <li>the owning package is found by stripping dot-segments off the requested name;</li>
+     *   <li>the response identity stays the <b>requested</b> string — it is the import path the renderer
+     *       emits and the source of the {@code types:} prefix — never the owning package's name;</li>
+     *   <li>the catalog is the requested <b>module's</b> (its typeDefs and its own module README), not
+     *       the owning package's default module's.</li>
+     * </ul>
+     */
+    @Test
+    public void testSubmoduleLibraryResolvedThroughOwningPackage() throws IOException {
+        GetSelectedLibrariesRequest request = new GetSelectedLibrariesRequest(
+                new String[]{"ballerinax/salesforce.types"});
+        JsonObject response = getResponse(request);
+        JsonArray libraries = response.getAsJsonArray("libraries");
+
+        Assert.assertNotNull(libraries, "Libraries array should not be null");
+        Assert.assertEquals(libraries.size(), 1, "the submodule request should resolve to one library");
+
+        JsonObject lib = libraries.get(0).getAsJsonObject();
+        Assert.assertEquals(lib.get("name").getAsString(), "ballerinax/salesforce.types",
+                "the response identity must be the requested org/module path, not the owning package");
+        // salesforce.types is a generated type catalog: its whole surface is type definitions.
+        assertHasNonEmptyArray(lib, "typeDefs");
+        // The module's own document, not the whole owning package's (which describes every module).
+        Assert.assertTrue(lib.has("readme"),
+                "ballerinax is doc-whitelisted, so the module README should be attached");
+        Assert.assertFalse(lib.get("readme").getAsString().isEmpty(),
+                "the salesforce.types module README should not be empty");
+    }
+
     @Test
     public void testDocumentationIncludedForWhitelistedOrgs() throws IOException {
         // Documentation is whitelisted per organization (CopilotLibraryManager.DOC_WHITELIST_ORGS),

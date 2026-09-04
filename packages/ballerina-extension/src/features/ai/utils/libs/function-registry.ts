@@ -952,9 +952,22 @@ async function getExternalRecords(
 
         let library = cachedLibraries.find((lib) => lib.name === libName);
         if (!library) {
-            const result = (await langClient.getCopilotFilteredLibraries({
-                libNames: [libName]
-            })) as { libraries: Library[] };
+            // A failed fetch of ONE external dependency must not cost the caller the libraries it
+            // already has. Without this catch, a rejected request unwound uncaught to LibraryGetTool's
+            // catch-all, which answers the WHOLE tool call with `[]` — `ballerinax/aws.sns` was lost
+            // because its `ConnectionConfig.auth` field links to `ballerinax/aws.auth`, whose fetch the
+            // language server answered with a JSON-RPC error. Skipping degrades to the same shape as a
+            // gracefully-empty response below: the referencing field still renders, with its Special
+            // Agent Note naming the owning module, so only this record's definition is missing.
+            let result: { libraries: Library[] };
+            try {
+                result = (await langClient.getCopilotFilteredLibraries({
+                    libNames: [libName]
+                })) as { libraries: Library[] };
+            } catch (error) {
+                console.warn(`Library ${libName} could not be fetched: ${error}. Skipping.`);
+                continue;
+            }
             if (result.libraries && result.libraries.length > 0) {
                 library = result.libraries[0];
             } else {
