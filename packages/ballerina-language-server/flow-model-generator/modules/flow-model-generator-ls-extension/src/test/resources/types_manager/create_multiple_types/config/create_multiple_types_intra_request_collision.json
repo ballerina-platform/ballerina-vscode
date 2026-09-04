@@ -1,0 +1,105 @@
+{
+  "filePath": "test_pack_collision/types.bal",
+  "description": "Two modules sharing a natural prefix inside one request. Pins the CURRENT behaviour, which is wrong: trigger.github's import is dropped by putIfAbsent and both fields render as 'github:'. See ModulePrefixContext.isNaturalAmbiguous - the identity is lost in TypeTransformer, upstream of addImportsToTextEdits.",
+  "types": [
+    {
+      "name": "Combined",
+      "editable": true,
+      "metadata": {
+        "label": "Combined",
+        "description": ""
+      },
+      "codedata": {
+        "node": "RECORD"
+      },
+      "properties": {
+        "name": {
+          "metadata": {
+            "label": "Type name",
+            "description": "Unique name to identify the type"
+          },
+          "valueType": "IDENTIFIER",
+          "value": "Combined",
+          "optional": false,
+          "editable": false,
+          "advanced": false
+        },
+        "isPublic": {
+          "metadata": {
+            "label": "public",
+            "description": "Is this public"
+          },
+          "valueType": "FLAG",
+          "value": "false",
+          "optional": true,
+          "editable": true,
+          "advanced": false
+        },
+        "description": {
+          "metadata": {
+            "label": "Type description",
+            "description": "Detailed description about the type"
+          },
+          "valueType": "STRING",
+          "value": "",
+          "optional": false,
+          "editable": true,
+          "advanced": false
+        }
+      },
+      "members": [
+        {
+          "kind": "FIELD",
+          "refs": [],
+          "type": "github:Client",
+          "name": "restClient",
+          "docs": "",
+          "imports": {
+            "github": "ballerinax/github:1.0.0"
+          }
+        },
+        {
+          "kind": "FIELD",
+          "refs": [],
+          "type": "github:ListenerConfig",
+          "name": "listenerConfig",
+          "docs": "",
+          "imports": {
+            "github": "ballerinax/trigger.github:1.0.0"
+          }
+        }
+      ],
+      "includes": []
+    }
+  ],
+  "output": {
+    "test_pack_collision/types.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "\nimport ballerinax/github;\n"
+      },
+      {
+        "range": {
+          "start": {
+            "line": 2,
+            "character": 3
+          },
+          "end": {
+            "line": 2,
+            "character": 3
+          }
+        },
+        "newText": "\ntype Combined record {|\n\tgithub:Client restClient;\n\tgithub:ListenerConfig listenerConfig;\n|};"
+      }
+    ]
+  }
+}
