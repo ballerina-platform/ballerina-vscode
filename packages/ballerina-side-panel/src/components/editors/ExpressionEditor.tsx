@@ -554,6 +554,16 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
                 } else {
                     setValue(key, value);
                 }
+                setFormDiagnostics([]);
+                liveDiagnostics.onValueChange(value);
+                if (getExpressionEditorDiagnostics) {
+                    getExpressionEditorDiagnostics(
+                        (required ?? !field.optional) || value !== '',
+                        value,
+                        key,
+                        getPropertyFromFormField(field)
+                    );
+                }
             };
             onOpenRecordConfigPage(key, currentValue, recordTypeField, onChangeCallback);
             return;
