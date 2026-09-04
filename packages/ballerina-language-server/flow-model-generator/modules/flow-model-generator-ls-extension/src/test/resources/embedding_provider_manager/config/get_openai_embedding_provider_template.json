@@ -104,16 +104,37 @@
               "fieldType": "SINGLE_SELECT",
               "options": [
                 {
-                  "label": "text-embedding-ada-002",
-                  "value": "\"text-embedding-ada-002\""
+                  "label": "TEXT_EMBEDDING_3_SMALL",
+                  "value": "TEXT_EMBEDDING_3_SMALL",
+                  "typeInfo": {
+                    "type": "OPEN_AI_EMBEDDING_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.openai:1.3.5",
+                    "packageName": "ai.openai",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "text-embedding-3-large",
-                  "value": "\"text-embedding-3-large\""
+                  "label": "TEXT_EMBEDDING_3_LARGE",
+                  "value": "TEXT_EMBEDDING_3_LARGE",
+                  "typeInfo": {
+                    "type": "OPEN_AI_EMBEDDING_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.openai:1.3.5",
+                    "packageName": "ai.openai",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "text-embedding-3-small",
-                  "value": "\"text-embedding-3-small\""
+                  "label": "TEXT_EMBEDDING_ADA_002",
+                  "value": "TEXT_EMBEDDING_ADA_002",
+                  "typeInfo": {
+                    "type": "OPEN_AI_EMBEDDING_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.openai:1.3.5",
+                    "packageName": "ai.openai",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 }
               ],
               "selected": false
@@ -172,16 +193,37 @@
               "fieldType": "SINGLE_SELECT",
               "options": [
                 {
-                  "label": "2.0",
-                  "value": "\"2.0\""
+                  "label": "HTTP_2_0",
+                  "value": "HTTP_2_0",
+                  "typeInfo": {
+                    "type": "HttpVersion",
+                    "packageInfo": "ballerina:http:2.16.6",
+                    "packageName": "http",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "1.1",
-                  "value": "\"1.1\""
+                  "label": "HTTP_1_0",
+                  "value": "HTTP_1_0",
+                  "typeInfo": {
+                    "type": "HttpVersion",
+                    "packageInfo": "ballerina:http:2.16.6",
+                    "packageName": "http",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "1.0",
-                  "value": "\"1.0\""
+                  "label": "HTTP_1_1",
+                  "value": "HTTP_1_1",
+                  "typeInfo": {
+                    "type": "HttpVersion",
+                    "packageInfo": "ballerina:http:2.16.6",
+                    "packageName": "http",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 }
               ],
               "selected": false

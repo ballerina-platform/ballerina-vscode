@@ -135,35 +135,91 @@
               "options": [
                 {
                   "label": "MARKDOWN_HEADER",
-                  "value": "\"MARKDOWN_HEADER\""
-                },
-                {
-                  "label": "CHARACTER",
-                  "value": "\"CHARACTER\""
-                },
-                {
-                  "label": "WORD",
-                  "value": "\"WORD\""
-                },
-                {
-                  "label": "SENTENCE",
-                  "value": "\"SENTENCE\""
-                },
-                {
-                  "label": "LINE",
-                  "value": "\"LINE\""
-                },
-                {
-                  "label": "PARAGRAPH",
-                  "value": "\"PARAGRAPH\""
-                },
-                {
-                  "label": "HORIZONTAL_LINE",
-                  "value": "\"HORIZONTAL_LINE\""
+                  "value": "MARKDOWN_HEADER",
+                  "typeInfo": {
+                    "type": "MarkdownChunkStrategy",
+                    "packageInfo": "ballerina:ai:1.13.0",
+                    "packageName": "ai",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
                   "label": "CODE_BLOCK",
-                  "value": "\"CODE_BLOCK\""
+                  "value": "CODE_BLOCK",
+                  "typeInfo": {
+                    "type": "MarkdownChunkStrategy",
+                    "packageInfo": "ballerina:ai:1.13.0",
+                    "packageName": "ai",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
+                },
+                {
+                  "label": "HORIZONTAL_LINE",
+                  "value": "HORIZONTAL_LINE",
+                  "typeInfo": {
+                    "type": "MarkdownChunkStrategy",
+                    "packageInfo": "ballerina:ai:1.13.0",
+                    "packageName": "ai",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
+                },
+                {
+                  "label": "PARAGRAPH",
+                  "value": "PARAGRAPH",
+                  "typeInfo": {
+                    "type": "MarkdownChunkStrategy",
+                    "packageInfo": "ballerina:ai:1.13.0",
+                    "packageName": "ai",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
+                },
+                {
+                  "label": "LINE",
+                  "value": "LINE",
+                  "typeInfo": {
+                    "type": "MarkdownChunkStrategy",
+                    "packageInfo": "ballerina:ai:1.13.0",
+                    "packageName": "ai",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
+                },
+                {
+                  "label": "SENTENCE",
+                  "value": "SENTENCE",
+                  "typeInfo": {
+                    "type": "MarkdownChunkStrategy",
+                    "packageInfo": "ballerina:ai:1.13.0",
+                    "packageName": "ai",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
+                },
+                {
+                  "label": "WORD",
+                  "value": "WORD",
+                  "typeInfo": {
+                    "type": "MarkdownChunkStrategy",
+                    "packageInfo": "ballerina:ai:1.13.0",
+                    "packageName": "ai",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
+                },
+                {
+                  "label": "CHARACTER",
+                  "value": "CHARACTER",
+                  "typeInfo": {
+                    "type": "MarkdownChunkStrategy",
+                    "packageInfo": "ballerina:ai:1.13.0",
+                    "packageName": "ai",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 }
               ],
               "selected": false

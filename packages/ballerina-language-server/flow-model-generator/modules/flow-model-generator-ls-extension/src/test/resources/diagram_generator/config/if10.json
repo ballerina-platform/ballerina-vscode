@@ -462,16 +462,37 @@
                 "fieldType": "SINGLE_SELECT",
                 "options": [
                   {
-                    "label": "2.0",
-                    "value": "\"2.0\""
+                    "label": "HTTP_1_0",
+                    "value": "HTTP_1_0",
+                    "typeInfo": {
+                      "type": "HttpVersion",
+                      "packageInfo": "ballerina:http:2.16.6",
+                      "packageName": "http",
+                      "kind": "ENUM_TYPE",
+                      "selected": false
+                    }
                   },
                   {
-                    "label": "1.1",
-                    "value": "\"1.1\""
+                    "label": "HTTP_1_1",
+                    "value": "HTTP_1_1",
+                    "typeInfo": {
+                      "type": "HttpVersion",
+                      "packageInfo": "ballerina:http:2.16.6",
+                      "packageName": "http",
+                      "kind": "ENUM_TYPE",
+                      "selected": false
+                    }
                   },
                   {
-                    "label": "1.0",
-                    "value": "\"1.0\""
+                    "label": "HTTP_2_0",
+                    "value": "HTTP_2_0",
+                    "typeInfo": {
+                      "type": "HttpVersion",
+                      "packageInfo": "ballerina:http:2.16.6",
+                      "packageName": "http",
+                      "kind": "ENUM_TYPE",
+                      "selected": false
+                    }
                   }
                 ],
                 "selected": false

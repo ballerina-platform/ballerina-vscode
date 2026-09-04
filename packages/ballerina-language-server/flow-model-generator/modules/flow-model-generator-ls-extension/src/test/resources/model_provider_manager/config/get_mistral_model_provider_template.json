@@ -105,132 +105,356 @@
               "fieldType": "SINGLE_SELECT",
               "options": [
                 {
-                  "label": "open-codestral-mamba",
-                  "value": "\"open-codestral-mamba\""
+                  "label": "MISTRAL_SMALL_LATEST",
+                  "value": "MISTRAL_SMALL_LATEST",
+                  "typeInfo": {
+                    "type": "MISTRAL_AI_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.mistral:1.2.4",
+                    "packageName": "ai.mistral",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "pixtral-12b-2409",
-                  "value": "\"pixtral-12b-2409\""
+                  "label": "MISTRAL_MEDIUM_LATEST",
+                  "value": "MISTRAL_MEDIUM_LATEST",
+                  "typeInfo": {
+                    "type": "MISTRAL_AI_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.mistral:1.2.4",
+                    "packageName": "ai.mistral",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "pixtral-large-2411",
-                  "value": "\"pixtral-large-2411\""
+                  "label": "MISTRAL_LARGE_LATEST",
+                  "value": "MISTRAL_LARGE_LATEST",
+                  "typeInfo": {
+                    "type": "MISTRAL_AI_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.mistral:1.2.4",
+                    "packageName": "ai.mistral",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "open-mixtral-8x22b",
-                  "value": "\"open-mixtral-8x22b\""
+                  "label": "DEVSTRAL_SMALL_LATEST",
+                  "value": "DEVSTRAL_SMALL_LATEST",
+                  "typeInfo": {
+                    "type": "MISTRAL_AI_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.mistral:1.2.4",
+                    "packageName": "ai.mistral",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "open-mixtral-8x7b",
-                  "value": "\"open-mixtral-8x7b\""
+                  "label": "PIXTRAL_LARGE_LATEST",
+                  "value": "PIXTRAL_LARGE_LATEST",
+                  "typeInfo": {
+                    "type": "MISTRAL_AI_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.mistral:1.2.4",
+                    "packageName": "ai.mistral",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "open-mistral-nemo",
-                  "value": "\"open-mistral-nemo\""
+                  "label": "MINISTRAL_3B_LATEST",
+                  "value": "MINISTRAL_3B_LATEST",
+                  "typeInfo": {
+                    "type": "MISTRAL_AI_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.mistral:1.2.4",
+                    "packageName": "ai.mistral",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "open-mistral-7b",
-                  "value": "\"open-mistral-7b\""
+                  "label": "MINISTRAL_8B_LATEST",
+                  "value": "MINISTRAL_8B_LATEST",
+                  "typeInfo": {
+                    "type": "MISTRAL_AI_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.mistral:1.2.4",
+                    "packageName": "ai.mistral",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "devstral-small-2505",
-                  "value": "\"devstral-small-2505\""
+                  "label": "MISTRAL_SABA_LATEST",
+                  "value": "MISTRAL_SABA_LATEST",
+                  "typeInfo": {
+                    "type": "MISTRAL_AI_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.mistral:1.2.4",
+                    "packageName": "ai.mistral",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "codestral-mamba-2407",
-                  "value": "\"codestral-mamba-2407\""
+                  "label": "CODESTRAL_LATEST",
+                  "value": "CODESTRAL_LATEST",
+                  "typeInfo": {
+                    "type": "MISTRAL_AI_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.mistral:1.2.4",
+                    "packageName": "ai.mistral",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "codestral-2501",
-                  "value": "\"codestral-2501\""
+                  "label": "MISTRAL_SMALL_2402",
+                  "value": "MISTRAL_SMALL_2402",
+                  "typeInfo": {
+                    "type": "MISTRAL_AI_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.mistral:1.2.4",
+                    "packageName": "ai.mistral",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "codestral-2405",
-                  "value": "\"codestral-2405\""
+                  "label": "MISTRAL_SMALL_2409",
+                  "value": "MISTRAL_SMALL_2409",
+                  "typeInfo": {
+                    "type": "MISTRAL_AI_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.mistral:1.2.4",
+                    "packageName": "ai.mistral",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "mistral-saba-2502",
-                  "value": "\"mistral-saba-2502\""
+                  "label": "MISTRAL_SMALL_2501",
+                  "value": "MISTRAL_SMALL_2501",
+                  "typeInfo": {
+                    "type": "MISTRAL_AI_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.mistral:1.2.4",
+                    "packageName": "ai.mistral",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "mistral-large-2411",
-                  "value": "\"mistral-large-2411\""
+                  "label": "MISTRAL_SMALL_2503",
+                  "value": "MISTRAL_SMALL_2503",
+                  "typeInfo": {
+                    "type": "MISTRAL_AI_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.mistral:1.2.4",
+                    "packageName": "ai.mistral",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "mistral-large-2407",
-                  "value": "\"mistral-large-2407\""
+                  "label": "MINISTRAL_3B_2410",
+                  "value": "MINISTRAL_3B_2410",
+                  "typeInfo": {
+                    "type": "MISTRAL_AI_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.mistral:1.2.4",
+                    "packageName": "ai.mistral",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "mistral-large-2402",
-                  "value": "\"mistral-large-2402\""
+                  "label": "MINISTRAL_8B_2410",
+                  "value": "MINISTRAL_8B_2410",
+                  "typeInfo": {
+                    "type": "MISTRAL_AI_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.mistral:1.2.4",
+                    "packageName": "ai.mistral",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "mistral-medium-2505",
-                  "value": "\"mistral-medium-2505\""
+                  "label": "MISTRAL_MEDIUM_2312",
+                  "value": "MISTRAL_MEDIUM_2312",
+                  "typeInfo": {
+                    "type": "MISTRAL_AI_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.mistral:1.2.4",
+                    "packageName": "ai.mistral",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "mistral-medium-2312",
-                  "value": "\"mistral-medium-2312\""
+                  "label": "MISTRAL_MEDIUM_2505",
+                  "value": "MISTRAL_MEDIUM_2505",
+                  "typeInfo": {
+                    "type": "MISTRAL_AI_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.mistral:1.2.4",
+                    "packageName": "ai.mistral",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "ministral-8b-2410",
-                  "value": "\"ministral-8b-2410\""
+                  "label": "MISTRAL_LARGE_2402",
+                  "value": "MISTRAL_LARGE_2402",
+                  "typeInfo": {
+                    "type": "MISTRAL_AI_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.mistral:1.2.4",
+                    "packageName": "ai.mistral",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "ministral-3b-2410",
-                  "value": "\"ministral-3b-2410\""
+                  "label": "MISTRAL_LARGE_2407",
+                  "value": "MISTRAL_LARGE_2407",
+                  "typeInfo": {
+                    "type": "MISTRAL_AI_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.mistral:1.2.4",
+                    "packageName": "ai.mistral",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "mistral-small-2503",
-                  "value": "\"mistral-small-2503\""
+                  "label": "MISTRAL_LARGE_2411",
+                  "value": "MISTRAL_LARGE_2411",
+                  "typeInfo": {
+                    "type": "MISTRAL_AI_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.mistral:1.2.4",
+                    "packageName": "ai.mistral",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "mistral-small-2501",
-                  "value": "\"mistral-small-2501\""
+                  "label": "MISTRAL_SABA_2502",
+                  "value": "MISTRAL_SABA_2502",
+                  "typeInfo": {
+                    "type": "MISTRAL_AI_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.mistral:1.2.4",
+                    "packageName": "ai.mistral",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "mistral-small-2409",
-                  "value": "\"mistral-small-2409\""
+                  "label": "CODESTRAL_2405",
+                  "value": "CODESTRAL_2405",
+                  "typeInfo": {
+                    "type": "MISTRAL_AI_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.mistral:1.2.4",
+                    "packageName": "ai.mistral",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "mistral-small-2402",
-                  "value": "\"mistral-small-2402\""
+                  "label": "CODESTRAL_2501",
+                  "value": "CODESTRAL_2501",
+                  "typeInfo": {
+                    "type": "MISTRAL_AI_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.mistral:1.2.4",
+                    "packageName": "ai.mistral",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "codestral-latest",
-                  "value": "\"codestral-latest\""
+                  "label": "CODESTRAL_MAMBA_2407",
+                  "value": "CODESTRAL_MAMBA_2407",
+                  "typeInfo": {
+                    "type": "MISTRAL_AI_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.mistral:1.2.4",
+                    "packageName": "ai.mistral",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "mistral-saba-latest",
-                  "value": "\"mistral-saba-latest\""
+                  "label": "DEVSTRAL_SMALL_2505",
+                  "value": "DEVSTRAL_SMALL_2505",
+                  "typeInfo": {
+                    "type": "MISTRAL_AI_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.mistral:1.2.4",
+                    "packageName": "ai.mistral",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "ministral-8b-latest",
-                  "value": "\"ministral-8b-latest\""
+                  "label": "OPEN_MISTRAL_7B",
+                  "value": "OPEN_MISTRAL_7B",
+                  "typeInfo": {
+                    "type": "MISTRAL_AI_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.mistral:1.2.4",
+                    "packageName": "ai.mistral",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "ministral-3b-latest",
-                  "value": "\"ministral-3b-latest\""
+                  "label": "OPEN_MISTRAL_NEMO",
+                  "value": "OPEN_MISTRAL_NEMO",
+                  "typeInfo": {
+                    "type": "MISTRAL_AI_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.mistral:1.2.4",
+                    "packageName": "ai.mistral",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "pixtral-large-latest",
-                  "value": "\"pixtral-large-latest\""
+                  "label": "OPEN_MIXTRAL_8X7B",
+                  "value": "OPEN_MIXTRAL_8X7B",
+                  "typeInfo": {
+                    "type": "MISTRAL_AI_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.mistral:1.2.4",
+                    "packageName": "ai.mistral",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "devstral-small-latest",
-                  "value": "\"devstral-small-latest\""
+                  "label": "OPEN_MIXTRAL_8X22B",
+                  "value": "OPEN_MIXTRAL_8X22B",
+                  "typeInfo": {
+                    "type": "MISTRAL_AI_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.mistral:1.2.4",
+                    "packageName": "ai.mistral",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "mistral-large-latest",
-                  "value": "\"mistral-large-latest\""
+                  "label": "PIXTRAL_LARGE_2411",
+                  "value": "PIXTRAL_LARGE_2411",
+                  "typeInfo": {
+                    "type": "MISTRAL_AI_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.mistral:1.2.4",
+                    "packageName": "ai.mistral",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "mistral-medium-latest",
-                  "value": "\"mistral-medium-latest\""
+                  "label": "PIXTRAL_12B_2409",
+                  "value": "PIXTRAL_12B_2409",
+                  "typeInfo": {
+                    "type": "MISTRAL_AI_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.mistral:1.2.4",
+                    "packageName": "ai.mistral",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "mistral-small-latest",
-                  "value": "\"mistral-small-latest\""
+                  "label": "OPEN_CODESTRAL_MAMBA",
+                  "value": "OPEN_CODESTRAL_MAMBA",
+                  "typeInfo": {
+                    "type": "MISTRAL_AI_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.mistral:1.2.4",
+                    "packageName": "ai.mistral",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 }
               ],
               "selected": false
@@ -345,16 +569,37 @@
               "fieldType": "SINGLE_SELECT",
               "options": [
                 {
-                  "label": "2.0",
-                  "value": "\"2.0\""
+                  "label": "HTTP_1_0",
+                  "value": "HTTP_1_0",
+                  "typeInfo": {
+                    "type": "HttpVersion",
+                    "packageInfo": "ballerina:http:2.16.6",
+                    "packageName": "http",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "1.1",
-                  "value": "\"1.1\""
+                  "label": "HTTP_1_1",
+                  "value": "HTTP_1_1",
+                  "typeInfo": {
+                    "type": "HttpVersion",
+                    "packageInfo": "ballerina:http:2.16.6",
+                    "packageName": "http",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "1.0",
-                  "value": "\"1.0\""
+                  "label": "HTTP_2_0",
+                  "value": "HTTP_2_0",
+                  "typeInfo": {
+                    "type": "HttpVersion",
+                    "packageInfo": "ballerina:http:2.16.6",
+                    "packageName": "http",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 }
               ],
               "selected": false

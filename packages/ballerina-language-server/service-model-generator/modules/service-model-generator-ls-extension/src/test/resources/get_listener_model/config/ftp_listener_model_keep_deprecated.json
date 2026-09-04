@@ -197,16 +197,37 @@
               "ballerinaType": "ftp:Protocol",
               "options": [
                 {
-                  "label": "sftp",
-                  "value": "\"sftp\""
+                  "label": "FTP",
+                  "value": "FTP",
+                  "typeInfo": {
+                    "type": "Protocol",
+                    "packageInfo": "ballerina:ftp:2.20.1",
+                    "packageName": "ftp",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "ftps",
-                  "value": "\"ftps\""
+                  "label": "FTPS",
+                  "value": "FTPS",
+                  "typeInfo": {
+                    "type": "Protocol",
+                    "packageInfo": "ballerina:ftp:2.20.1",
+                    "packageName": "ftp",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "ftp",
-                  "value": "\"ftp\""
+                  "label": "SFTP",
+                  "value": "SFTP",
+                  "typeInfo": {
+                    "type": "Protocol",
+                    "packageInfo": "ballerina:ftp:2.20.1",
+                    "packageName": "ftp",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 }
               ],
               "selected": true
@@ -545,12 +566,26 @@
               "ballerinaType": "ftp:FileTransferMode",
               "options": [
                 {
-                  "label": "ASCII",
-                  "value": "\"ASCII\""
+                  "label": "BINARY",
+                  "value": "BINARY",
+                  "typeInfo": {
+                    "type": "FileTransferMode",
+                    "packageInfo": "ballerina:ftp:2.20.1",
+                    "packageName": "ftp",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "BINARY",
-                  "value": "\"BINARY\""
+                  "label": "ASCII",
+                  "value": "ASCII",
+                  "typeInfo": {
+                    "type": "FileTransferMode",
+                    "packageInfo": "ballerina:ftp:2.20.1",
+                    "packageName": "ftp",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 }
               ],
               "selected": true
@@ -588,16 +623,37 @@
                     "ballerinaType": "ftp:TransferCompression",
                     "options": [
                       {
-                        "label": "none",
-                        "value": "\"none\""
+                        "label": "ZLIB",
+                        "value": "ZLIB",
+                        "typeInfo": {
+                          "type": "TransferCompression",
+                          "packageInfo": "ballerina:ftp:2.20.1",
+                          "packageName": "ftp",
+                          "kind": "ENUM_TYPE",
+                          "selected": false
+                        }
                       },
                       {
-                        "label": "zlib@openssh.com",
-                        "value": "\"zlib@openssh.com\""
+                        "label": "ZLIBOPENSSH",
+                        "value": "ZLIBOPENSSH",
+                        "typeInfo": {
+                          "type": "TransferCompression",
+                          "packageInfo": "ballerina:ftp:2.20.1",
+                          "packageName": "ftp",
+                          "kind": "ENUM_TYPE",
+                          "selected": false
+                        }
                       },
                       {
-                        "label": "zlib",
-                        "value": "\"zlib\""
+                        "label": "NO",
+                        "value": "NO",
+                        "typeInfo": {
+                          "type": "TransferCompression",
+                          "packageInfo": "ballerina:ftp:2.20.1",
+                          "packageName": "ftp",
+                          "kind": "ENUM_TYPE",
+                          "selected": false
+                        }
                       }
                     ],
                     "selected": true

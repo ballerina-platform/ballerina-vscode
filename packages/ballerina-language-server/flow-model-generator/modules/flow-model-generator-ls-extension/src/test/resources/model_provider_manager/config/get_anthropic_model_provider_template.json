@@ -104,76 +104,202 @@
               "fieldType": "SINGLE_SELECT",
               "options": [
                 {
-                  "label": "claude-3-haiku-20240307",
-                  "value": "\"claude-3-haiku-20240307\""
+                  "label": "CLAUDE_SONNET_4_5",
+                  "value": "CLAUDE_SONNET_4_5",
+                  "typeInfo": {
+                    "type": "ANTHROPIC_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.anthropic:1.3.4",
+                    "packageName": "ai.anthropic",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "claude-3-sonnet-20240229",
-                  "value": "\"claude-3-sonnet-20240229\""
+                  "label": "CLAUDE_SONNET_4_5_20250929",
+                  "value": "CLAUDE_SONNET_4_5_20250929",
+                  "typeInfo": {
+                    "type": "ANTHROPIC_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.anthropic:1.3.4",
+                    "packageName": "ai.anthropic",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "claude-3-opus-20240229",
-                  "value": "\"claude-3-opus-20240229\""
+                  "label": "CLAUDE_HAIKU_4_5",
+                  "value": "CLAUDE_HAIKU_4_5",
+                  "typeInfo": {
+                    "type": "ANTHROPIC_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.anthropic:1.3.4",
+                    "packageName": "ai.anthropic",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "claude-3-5-sonnet-20240620",
-                  "value": "\"claude-3-5-sonnet-20240620\""
+                  "label": "CLAUDE_HAIKU_4_5_20251001",
+                  "value": "CLAUDE_HAIKU_4_5_20251001",
+                  "typeInfo": {
+                    "type": "ANTHROPIC_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.anthropic:1.3.4",
+                    "packageName": "ai.anthropic",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "claude-3-5-sonnet-20241022",
-                  "value": "\"claude-3-5-sonnet-20241022\""
+                  "label": "CLAUDE_OPUS_4_5",
+                  "value": "CLAUDE_OPUS_4_5",
+                  "typeInfo": {
+                    "type": "ANTHROPIC_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.anthropic:1.3.4",
+                    "packageName": "ai.anthropic",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "claude-3-5-haiku-20241022",
-                  "value": "\"claude-3-5-haiku-20241022\""
+                  "label": "CLAUDE_OPUS_4_5_20251101",
+                  "value": "CLAUDE_OPUS_4_5_20251101",
+                  "typeInfo": {
+                    "type": "ANTHROPIC_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.anthropic:1.3.4",
+                    "packageName": "ai.anthropic",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "claude-3-7-sonnet-20250219",
-                  "value": "\"claude-3-7-sonnet-20250219\""
+                  "label": "CLAUDE_OPUS_4_6",
+                  "value": "CLAUDE_OPUS_4_6",
+                  "typeInfo": {
+                    "type": "ANTHROPIC_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.anthropic:1.3.4",
+                    "packageName": "ai.anthropic",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "claude-sonnet-4-20250514",
-                  "value": "\"claude-sonnet-4-20250514\""
+                  "label": "CLAUDE_SONNET_4_6",
+                  "value": "CLAUDE_SONNET_4_6",
+                  "typeInfo": {
+                    "type": "ANTHROPIC_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.anthropic:1.3.4",
+                    "packageName": "ai.anthropic",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "claude-opus-4-20250514",
-                  "value": "\"claude-opus-4-20250514\""
+                  "label": "CLAUDE_OPUS_4_1_20250805",
+                  "value": "CLAUDE_OPUS_4_1_20250805",
+                  "typeInfo": {
+                    "type": "ANTHROPIC_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.anthropic:1.3.4",
+                    "packageName": "ai.anthropic",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "claude-opus-4-1-20250805",
-                  "value": "\"claude-opus-4-1-20250805\""
+                  "label": "CLAUDE_OPUS_4_20250514",
+                  "value": "CLAUDE_OPUS_4_20250514",
+                  "typeInfo": {
+                    "type": "ANTHROPIC_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.anthropic:1.3.4",
+                    "packageName": "ai.anthropic",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "claude-sonnet-4-6",
-                  "value": "\"claude-sonnet-4-6\""
+                  "label": "CLAUDE_SONNET_4_20250514",
+                  "value": "CLAUDE_SONNET_4_20250514",
+                  "typeInfo": {
+                    "type": "ANTHROPIC_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.anthropic:1.3.4",
+                    "packageName": "ai.anthropic",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "claude-opus-4-6",
-                  "value": "\"claude-opus-4-6\""
+                  "label": "CLAUDE_3_7_SONNET_20250219",
+                  "value": "CLAUDE_3_7_SONNET_20250219",
+                  "typeInfo": {
+                    "type": "ANTHROPIC_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.anthropic:1.3.4",
+                    "packageName": "ai.anthropic",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "claude-opus-4-5-20251101",
-                  "value": "\"claude-opus-4-5-20251101\""
+                  "label": "CLAUDE_3_5_HAIKU_20241022",
+                  "value": "CLAUDE_3_5_HAIKU_20241022",
+                  "typeInfo": {
+                    "type": "ANTHROPIC_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.anthropic:1.3.4",
+                    "packageName": "ai.anthropic",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "claude-opus-4-5",
-                  "value": "\"claude-opus-4-5\""
+                  "label": "CLAUDE_3_5_SONNET_20241022",
+                  "value": "CLAUDE_3_5_SONNET_20241022",
+                  "typeInfo": {
+                    "type": "ANTHROPIC_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.anthropic:1.3.4",
+                    "packageName": "ai.anthropic",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "claude-haiku-4-5-20251001",
-                  "value": "\"claude-haiku-4-5-20251001\""
+                  "label": "CLAUDE_3_5_SONNET_20240620",
+                  "value": "CLAUDE_3_5_SONNET_20240620",
+                  "typeInfo": {
+                    "type": "ANTHROPIC_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.anthropic:1.3.4",
+                    "packageName": "ai.anthropic",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "claude-haiku-4-5",
-                  "value": "\"claude-haiku-4-5\""
+                  "label": "CLAUDE_3_OPUS_20240229",
+                  "value": "CLAUDE_3_OPUS_20240229",
+                  "typeInfo": {
+                    "type": "ANTHROPIC_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.anthropic:1.3.4",
+                    "packageName": "ai.anthropic",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "claude-sonnet-4-5-20250929",
-                  "value": "\"claude-sonnet-4-5-20250929\""
+                  "label": "CLAUDE_3_SONNET_20240229",
+                  "value": "CLAUDE_3_SONNET_20240229",
+                  "typeInfo": {
+                    "type": "ANTHROPIC_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.anthropic:1.3.4",
+                    "packageName": "ai.anthropic",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "claude-sonnet-4-5",
-                  "value": "\"claude-sonnet-4-5\""
+                  "label": "CLAUDE_3_HAIKU_20240307",
+                  "value": "CLAUDE_3_HAIKU_20240307",
+                  "typeInfo": {
+                    "type": "ANTHROPIC_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.anthropic:1.3.4",
+                    "packageName": "ai.anthropic",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 }
               ],
               "selected": false
@@ -288,16 +414,37 @@
               "fieldType": "SINGLE_SELECT",
               "options": [
                 {
-                  "label": "2.0",
-                  "value": "\"2.0\""
+                  "label": "HTTP_1_0",
+                  "value": "HTTP_1_0",
+                  "typeInfo": {
+                    "type": "HttpVersion",
+                    "packageInfo": "ballerina:http:2.16.6",
+                    "packageName": "http",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "1.1",
-                  "value": "\"1.1\""
+                  "label": "HTTP_1_1",
+                  "value": "HTTP_1_1",
+                  "typeInfo": {
+                    "type": "HttpVersion",
+                    "packageInfo": "ballerina:http:2.16.6",
+                    "packageName": "http",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "1.0",
-                  "value": "\"1.0\""
+                  "label": "HTTP_2_0",
+                  "value": "HTTP_2_0",
+                  "typeInfo": {
+                    "type": "HttpVersion",
+                    "packageInfo": "ballerina:http:2.16.6",
+                    "packageName": "http",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 }
               ],
               "selected": false

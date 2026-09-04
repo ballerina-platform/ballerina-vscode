@@ -130,16 +130,37 @@
               "fieldType": "SINGLE_SELECT",
               "options": [
                 {
-                  "label": "HYBRID",
-                  "value": "\"HYBRID\""
+                  "label": "DENSE",
+                  "value": "DENSE",
+                  "typeInfo": {
+                    "type": "VectorStoreQueryMode",
+                    "packageInfo": "ballerina:ai:1.13.0",
+                    "packageName": "ai",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
                   "label": "SPARSE",
-                  "value": "\"SPARSE\""
+                  "value": "SPARSE",
+                  "typeInfo": {
+                    "type": "VectorStoreQueryMode",
+                    "packageInfo": "ballerina:ai:1.13.0",
+                    "packageName": "ai",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "DENSE",
-                  "value": "\"DENSE\""
+                  "label": "HYBRID",
+                  "value": "HYBRID",
+                  "typeInfo": {
+                    "type": "VectorStoreQueryMode",
+                    "packageInfo": "ballerina:ai:1.13.0",
+                    "packageName": "ai",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 }
               ],
               "selected": false

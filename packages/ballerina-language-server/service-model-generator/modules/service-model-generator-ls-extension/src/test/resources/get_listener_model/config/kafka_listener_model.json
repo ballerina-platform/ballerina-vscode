@@ -494,12 +494,26 @@
               "ballerinaType": "kafka:DeserializerType",
               "options": [
                 {
-                  "label": "DES_AVRO",
-                  "value": "\"DES_AVRO\""
+                  "label": "DES_BYTE_ARRAY",
+                  "value": "DES_BYTE_ARRAY",
+                  "typeInfo": {
+                    "type": "DeserializerType",
+                    "packageInfo": "ballerinax:kafka:4.6.5",
+                    "packageName": "kafka",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "DES_BYTE_ARRAY",
-                  "value": "\"DES_BYTE_ARRAY\""
+                  "label": "DES_AVRO",
+                  "value": "DES_AVRO",
+                  "typeInfo": {
+                    "type": "DeserializerType",
+                    "packageInfo": "ballerinax:kafka:4.6.5",
+                    "packageName": "kafka",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 }
               ],
               "selected": true
@@ -532,12 +546,26 @@
               "ballerinaType": "kafka:DeserializerType",
               "options": [
                 {
-                  "label": "DES_AVRO",
-                  "value": "\"DES_AVRO\""
+                  "label": "DES_BYTE_ARRAY",
+                  "value": "DES_BYTE_ARRAY",
+                  "typeInfo": {
+                    "type": "DeserializerType",
+                    "packageInfo": "ballerinax:kafka:4.6.5",
+                    "packageName": "kafka",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "DES_BYTE_ARRAY",
-                  "value": "\"DES_BYTE_ARRAY\""
+                  "label": "DES_AVRO",
+                  "value": "DES_AVRO",
+                  "typeInfo": {
+                    "type": "DeserializerType",
+                    "packageInfo": "ballerinax:kafka:4.6.5",
+                    "packageName": "kafka",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 }
               ],
               "selected": true
