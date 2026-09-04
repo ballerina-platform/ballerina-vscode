@@ -278,6 +278,78 @@ public class ModulePrefixContextTest {
         Assert.assertEquals(context.pendingImportStatements(), List.of("ballerinax/ai.google as aiGoogle"));
     }
 
+    // -------- requalifyAuthoredValue: a value is not a type descriptor --------
+
+    /** A context where ballerinax/github must become github2, because the file already binds github. */
+    private ModulePrefixContext aliasingContext() {
+        return ModulePrefixContext.from(rootOf("import ballerinax/trigger.github;"), CURRENT);
+    }
+
+    @Test
+    public void testAValueLeavesAStringLiteralAlone() {
+        Assert.assertEquals(aliasingContext().requalifyAuthoredValue("\"github://host\"",
+                imports("github", "ballerinax/github:5.1.0")), "\"github://host\"",
+                "a URL scheme inside a string literal is not a module qualifier");
+    }
+
+    @Test
+    public void testAValueLeavesAMappingFieldKeyAlone() {
+        Assert.assertEquals(aliasingContext().requalifyAuthoredValue("{github: 1}",
+                imports("github", "ballerinax/github:5.1.0")), "{github: 1}",
+                "a mapping-constructor key is not a module qualifier");
+    }
+
+    @Test
+    public void testAValueRewritesARealQualifier() {
+        Assert.assertEquals(aliasingContext().requalifyAuthoredValue("github:SOME_CONST",
+                imports("github", "ballerinax/github:5.1.0")), "github2:SOME_CONST");
+    }
+
+    @Test
+    public void testAValueRewritesOnlyTheQualifierAmongAllThreePositions() {
+        Assert.assertEquals(aliasingContext().requalifyAuthoredValue(
+                "{url: \"github://h\", github: 1, kind: github:K}",
+                imports("github", "ballerinax/github:5.1.0")),
+                "{url: \"github://h\", github: 1, kind: github2:K}",
+                "the string literal and the field key are left as authored; only the reference moves");
+    }
+
+    @Test
+    public void testAUrlStringConcatenatedWithACallOnTheSameModule() {
+        // The same four characters twice: once inside a string literal, once as a real qualifier. The parser puts
+        // only the second in a QualifiedNameReferenceNode, so only the second moves.
+        ModulePrefixContext context =
+                ModulePrefixContext.from(rootOf("import myorg/http;"), CURRENT);
+
+        Assert.assertEquals(context.requalifyAuthoredValue(
+                "\"http://localhost:5005\" + http:someFunc()",
+                imports("http", "ballerina/http:2.10.0")),
+                "\"http://localhost:5005\" + http2:someFunc()");
+    }
+
+    @Test
+    public void testAValueThatDoesNotParseFallsBackToTheTextualRewrite() {
+        // Already-malformed source: falling back keeps this no worse than the previous behaviour.
+        Assert.assertEquals(aliasingContext().requalifyAuthoredValue("github:foo(",
+                imports("github", "ballerinax/github:5.1.0")), "github2:foo(");
+    }
+
+    @Test
+    public void testAValueIsUntouchedWhenNoModuleWasAliased() {
+        // Nothing collides here, so github keeps its natural prefix and no rewrite happens at all.
+        ModulePrefixContext context = ModulePrefixContext.from(rootOf(""), CURRENT);
+
+        Assert.assertEquals(context.requalifyAuthoredValue("{github: 1, kind: github:K}",
+                imports("github", "ballerinax/github:5.1.0")), "{github: 1, kind: github:K}");
+    }
+
+    @Test
+    public void testATypeStillUsesTheTextualRewrite() {
+        // Every `identifier:` in a type descriptor is a qualifier, so the type path is unchanged.
+        Assert.assertEquals(aliasingContext().requalifyAuthored("github:Client|github:Error",
+                imports("github", "ballerinax/github:5.1.0")), "github2:Client|github2:Error");
+    }
+
     @Test
     public void testAnEmptyImportsMapLeavesTextAlone() {
         ModulePrefixContext context = ModulePrefixContext.from(rootOf(""), CURRENT);

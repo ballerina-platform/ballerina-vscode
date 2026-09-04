@@ -18,7 +18,14 @@
 
 package io.ballerina.modelgenerator.commons;
 
+import io.ballerina.compiler.syntax.tree.ExpressionNode;
+import io.ballerina.compiler.syntax.tree.NodeParser;
+import io.ballerina.compiler.syntax.tree.NodeVisitor;
+import io.ballerina.compiler.syntax.tree.QualifiedNameReferenceNode;
+import io.ballerina.compiler.syntax.tree.Token;
+
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -148,23 +155,91 @@ public final class ModuleAliasResolver {
         return requalify(text, Map.of(selfPrefix, emitAlias == null ? selfPrefix : emitAlias));
     }
 
+    /** The keys of {@code byQualifier} that actually rename something; an entry mapping a prefix to itself is a
+     * no-op, and a mapping made entirely of those leaves the text alone. */
+    private static List<String> renames(Map<String, String> byQualifier) {
+        List<String> changing = new ArrayList<>();
+        for (Map.Entry<String, String> entry : byQualifier.entrySet()) {
+            if (!entry.getKey().isBlank() && !entry.getKey().equals(entry.getValue())) {
+                changing.add(entry.getKey());
+            }
+        }
+        return changing;
+    }
+
+    /**
+     * Re-qualifies the module qualifiers in an <b>expression</b>, by parsing it and rewriting only the prefixes
+     * the parser identifies as qualified name references.
+     *
+     * <p>
+     * {@link #requalify} cannot be used on a value. It is a textual substitution over {@code identifier:}, and in
+     * an expression that shape is also a mapping-constructor field key and can occur inside a string literal, so
+     * {@code "http://host"} and <code>{drive: 1}</code> would be rewritten as if they named a module. Parsing is
+     * what tells a qualifier from a field name, and the text is spliced rather than reprinted so that formatting,
+     * spacing and every other character survive untouched.
+     * </p>
+     *
+     * <p>
+     * A value that does not parse falls back to {@link #requalify}: such text is already malformed source, and
+     * falling back keeps this strictly no worse than the previous behaviour.
+     * </p>
+     *
+     * @param text        the expression to rewrite
+     * @param byQualifier authored qualifier -&gt; the prefix to emit
+     * @return the expression with only its real module qualifiers rewritten
+     */
+    public static String requalifyExpression(String text, Map<String, String> byQualifier) {
+        if (text == null || text.isEmpty() || byQualifier == null || byQualifier.isEmpty()) {
+            return text == null ? "" : text;
+        }
+        if (renames(byQualifier).isEmpty()) {
+            return text;
+        }
+        ExpressionNode expression = NodeParser.parseExpression(text);
+        if (expression.hasDiagnostics()) {
+            return requalify(text, byQualifier);
+        }
+        Map<Integer, Token> prefixTokens = new LinkedHashMap<>();
+        expression.accept(new NodeVisitor() {
+            @Override
+            public void visit(QualifiedNameReferenceNode node) {
+                Token prefix = node.modulePrefix();
+                String emitted = byQualifier.get(prefix.text());
+                if (emitted != null && !emitted.equals(prefix.text())) {
+                    prefixTokens.put(prefix.textRange().startOffset(), prefix);
+                }
+                super.visit(node);
+            }
+        });
+        if (prefixTokens.isEmpty()) {
+            return text;
+        }
+        // Spliced back to front so an earlier replacement cannot shift the offsets of the ones still to come.
+        StringBuilder out = new StringBuilder(text);
+        prefixTokens.keySet().stream().sorted((a, b) -> Integer.compare(b, a)).forEach(start -> {
+            Token prefix = prefixTokens.get(start);
+            out.replace(start, prefix.textRange().endOffset(), byQualifier.get(prefix.text()));
+        });
+        return out.toString();
+    }
+
     /**
      * Re-qualifies every standalone module qualifier in {@code text} per {@code naturalToEmitted}
      * (natural prefix -&gt; resolved emit alias), in a single pass over the original text so a chain of
      * aliases (one module's emitted name equal to another's natural prefix) can never cascade. An entry
      * mapping a prefix to itself is a no-op. Shared by {@link #rewriteSelfPrefix} (one prefix) and
      * {@code ModulePrefixContext} (every aliased module registered in one operation).
+     *
+     * <p>
+     * For <b>type</b> text only: every {@code identifier:} in a type descriptor is a module qualifier. Use
+     * {@link #requalifyExpression} for a value, where that is not true.
+     * </p>
      */
     public static String requalify(String text, Map<String, String> naturalToEmitted) {
         if (text == null || text.isEmpty() || naturalToEmitted.isEmpty()) {
             return text == null ? "" : text;
         }
-        List<String> changing = new ArrayList<>();
-        for (Map.Entry<String, String> entry : naturalToEmitted.entrySet()) {
-            if (!entry.getKey().isBlank() && !entry.getKey().equals(entry.getValue())) {
-                changing.add(entry.getKey());
-            }
-        }
+        List<String> changing = renames(naturalToEmitted);
         if (changing.isEmpty()) {
             return text;
         }

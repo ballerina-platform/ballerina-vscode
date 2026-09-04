@@ -470,7 +470,7 @@ public class SourceBuilder {
         if (!isNewNode()) {
             return property.toSourceCode();
         }
-        return prefixes().requalifyAuthored(property.toSourceCode(), property.imports());
+        return prefixes().requalifyAuthoredValue(property.toSourceCode(), property.imports());
     }
 
     /** Whether the node is being created rather than edited, i.e. whether its values are the model's own text. */
@@ -1123,7 +1123,9 @@ public class SourceBuilder {
         }
 
         public TokenBuilder param(Property property) {
-            sb.append(CommonUtils.escapeIdentifierFromFormField(property.toSourceCode()));
+            // Requalified like its named-arg counterpart: a positional argument naming an aliased module needs the
+            // same rewrite, and writing it raw bound it to whichever module kept the natural prefix.
+            sb.append(CommonUtils.escapeIdentifierFromFormField(valueOf(property)));
             return this;
         }
 

@@ -234,6 +234,28 @@ public final class ModulePrefixContext {
      * @return the text with each qualifier replaced by the prefix its module is bound to
      */
     public String requalifyAuthored(String text, Map<String, String> importsByAuthored) {
+        return requalifyAuthored(text, importsByAuthored, false);
+    }
+
+    /**
+     * As {@link #requalifyAuthored}, but for a property's <b>value</b> rather than its type.
+     *
+     * <p>
+     * A value is rewritten by parsing it, because in an expression {@code identifier:} is not necessarily a module
+     * qualifier -- it is also a mapping-constructor field key, and it occurs inside string literals. Registering
+     * the modules is identical either way; only the substitution differs. See
+     * {@link ModuleAliasResolver#requalifyExpression}.
+     * </p>
+     *
+     * @param text              the authored value
+     * @param importsByAuthored authored qualifier -> {@code org/module}
+     * @return the value with only its real module qualifiers rewritten
+     */
+    public String requalifyAuthoredValue(String text, Map<String, String> importsByAuthored) {
+        return requalifyAuthored(text, importsByAuthored, true);
+    }
+
+    private String requalifyAuthored(String text, Map<String, String> importsByAuthored, boolean isValue) {
         if (importsByAuthored == null || importsByAuthored.isEmpty()) {
             return text;
         }
@@ -278,7 +300,8 @@ public final class ModulePrefixContext {
         if (text == null || text.isEmpty() || text.indexOf(':') < 0) {
             return text;
         }
-        return ModuleAliasResolver.requalify(text, byAuthored);
+        return isValue ? ModuleAliasResolver.requalifyExpression(text, byAuthored)
+                : ModuleAliasResolver.requalify(text, byAuthored);
     }
 
     /**
