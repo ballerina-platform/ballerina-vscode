@@ -105,17 +105,14 @@ export function AIServiceWidget({ model, engine }: BaseNodeWidgetProps) {
     const { onFunctionSelect, onDeleteComponent, readonly } = useDiagramContext();
     const isMenuOpen = Boolean(menuAnchorEl);
 
-    const serviceFunctions = [];
-    if ((model.node as CDService).remoteFunctions?.length > 0) {
-        serviceFunctions.push(...(model.node as CDService).remoteFunctions);
-    }
-    if ((model.node as CDService).resourceFunctions?.length > 0) {
-        serviceFunctions.push(...(model.node as CDService).resourceFunctions);
-    }
+    // ai:Listener entry point is fixed to `post chat`.
+    const chatResource = (model.node as CDService).resourceFunctions?.find(
+        (r) => r.accessor === "post" && r.path === "chat"
+    );
 
     const handleOnClick = () => {
-        if (serviceFunctions.length > 0) {
-            onFunctionSelect(serviceFunctions[0]);
+        if (chatResource) {
+            onFunctionSelect(chatResource);
         }
     };
 
@@ -198,9 +195,9 @@ export function AIServiceWidget({ model, engine }: BaseNodeWidgetProps) {
             </Popover>
 
             <BottomPortWidget port={model.getPort("out")!} engine={engine} />
-            {serviceFunctions.length > 0 && (
+            {chatResource && (
                 <BottomPortWidget
-                    port={model.getPort(getEntryNodeFunctionPortName(serviceFunctions[0]))!}
+                    port={model.getPort(getEntryNodeFunctionPortName(chatResource))!}
                     engine={engine}
                 />
             )}
