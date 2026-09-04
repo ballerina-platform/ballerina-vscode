@@ -173,7 +173,8 @@ public final class ModulePrefixContext {
             return cached;
         }
         return rootNode == null ? ""
-                : ImportPrefixReader.existingImportPrefix(rootNode, org, module).orElse("");
+                : ImportPrefixReader.existingImportPrefix(rootNode, org, module,
+                        currentModule == null ? null : currentModule.org()).orElse("");
     }
 
     /**

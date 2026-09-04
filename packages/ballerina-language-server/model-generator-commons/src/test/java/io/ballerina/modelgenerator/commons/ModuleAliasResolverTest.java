@@ -101,6 +101,22 @@ public class ModuleAliasResolverTest {
     }
 
     @Test
+    public void testOrgLessLocalImportIsNotMatchedForAForeignModule() {
+        // Package `ai` imports its own submodule org-lessly. A request for ballerinax/ai.google must not be told
+        // it is already imported: resolve would return `google`, no import would be written, and the reference
+        // would bind to the local module instead.
+        ModulePartNode root = rootOf("import ai.google;\n");
+
+        Assert.assertEquals(ImportPrefixReader.resolve(root, "ballerinax", "ai.google", null, "testorg"),
+                "aiGoogle", "the foreign module takes a free prefix, since google is bound locally");
+        Assert.assertEquals(ImportPrefixReader.boundPrefix(root, "ballerinax", "ai.google", "testorg"),
+                "google", "boundPrefix never allocates, so it falls back to the natural prefix");
+
+        // The file's own package still matches, which is what the leniency exists for.
+        Assert.assertEquals(ImportPrefixReader.resolve(root, "testorg", "ai.google", null, "testorg"), "google");
+    }
+
+    @Test
     public void testOverridePrefixIsPreferred() {
         Assert.assertEquals(ImportPrefixReader.resolve(rootOf("\n"), "ballerinax", "trigger.twilio", "tw"), "tw");
     }

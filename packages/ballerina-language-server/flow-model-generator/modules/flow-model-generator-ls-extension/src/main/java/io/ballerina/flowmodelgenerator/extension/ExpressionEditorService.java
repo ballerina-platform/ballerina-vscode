@@ -346,9 +346,12 @@ public class ExpressionEditorService implements ExtendedLanguageServerService {
             // A null root falls back to the module's natural prefix, which is what this method promises without a
             // file to read. Allocating a free prefix is only right where the caller then writes the import that
             // binds it; without one, the file's own binding is the only answer that resolves.
+            // The owning organization is passed so an org-less import in the file -- which can only name a
+            // module of its own package -- is not taken as a match for a foreign module of the same name.
+            String currentOrg = document.map(doc -> doc.module().descriptor().org().value()).orElse(null);
             return willWriteImport
-                    ? ImportPrefixReader.resolve(rootNode, codedata.org(), codedata.module(), null)
-                    : ImportPrefixReader.boundPrefix(rootNode, codedata.org(), codedata.module());
+                    ? ImportPrefixReader.resolve(rootNode, codedata.org(), codedata.module(), null, currentOrg)
+                    : ImportPrefixReader.boundPrefix(rootNode, codedata.org(), codedata.module(), currentOrg);
         } catch (RuntimeException e) {
             // Without a file to read, the module's natural prefix is the only available answer.
             return codedata.getModulePrefix();

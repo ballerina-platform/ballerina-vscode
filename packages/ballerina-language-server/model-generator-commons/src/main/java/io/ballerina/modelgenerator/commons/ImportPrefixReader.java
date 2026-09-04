@@ -76,7 +76,31 @@ public final class ImportPrefixReader {
             return overridePrefix != null && !overridePrefix.isBlank()
                     ? overridePrefix : ModuleAliasResolver.selfPrefix(module);
         }
-        Optional<String> existing = existingImportPrefix(rootNode, org, module);
+        return resolve(rootNode, org, module, overridePrefix, null);
+    }
+
+    /**
+     * As {@link #resolve(ModulePartNode, String, String, String)}, but told which organization owns the file so an
+     * org-less import in it is only matched for modules that package could own. See
+     * {@link #existingImportPrefix(ModulePartNode, String, String, String)}.
+     *
+     * @param rootNode       the root node of the file to read
+     * @param org            the organization of the module to resolve
+     * @param module         the module name
+     * @param overridePrefix a prefix to prefer when free, or null
+     * @param currentOrg     the organization owning the file, or null to accept an org-less import for any
+     * @return the prefix to use
+     */
+    public static String resolve(ModulePartNode rootNode, String org, String module, String overridePrefix,
+                                 String currentOrg) {
+        if (module == null || module.isBlank()) {
+            return "";
+        }
+        if (rootNode == null) {
+            return overridePrefix != null && !overridePrefix.isBlank()
+                    ? overridePrefix : ModuleAliasResolver.selfPrefix(module);
+        }
+        Optional<String> existing = existingImportPrefix(rootNode, org, module, currentOrg);
         if (existing.isPresent()) {
             return existing.get();
         }
@@ -100,11 +124,25 @@ public final class ImportPrefixReader {
      * @return the bound prefix, else the module's natural prefix
      */
     public static String boundPrefix(ModulePartNode rootNode, String org, String module) {
+        return boundPrefix(rootNode, org, module, null);
+    }
+
+    /**
+     * As {@link #boundPrefix(ModulePartNode, String, String)}, but told which organization owns the file so an
+     * org-less import in it is only matched for modules that package could own.
+     *
+     * @param rootNode   the root node of the file to read
+     * @param org        the organization of the module to resolve
+     * @param module     the module name
+     * @param currentOrg the organization owning the file, or null to accept an org-less import for any
+     * @return the bound prefix, else the module's natural prefix
+     */
+    public static String boundPrefix(ModulePartNode rootNode, String org, String module, String currentOrg) {
         if (module == null || module.isBlank()) {
             return "";
         }
         return rootNode == null ? ModuleAliasResolver.selfPrefix(module)
-                : existingImportPrefix(rootNode, org, module)
+                : existingImportPrefix(rootNode, org, module, currentOrg)
                         .orElseGet(() -> ModuleAliasResolver.selfPrefix(module));
     }
 
