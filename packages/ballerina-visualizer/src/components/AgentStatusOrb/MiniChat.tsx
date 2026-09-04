@@ -35,7 +35,6 @@ import {
     buildPlanItem,
     applyPlanApprovalResolution,
     appendAbortMarker,
-    appendTruncationMarker,
     applyTaskWriteResult,
     COMPACTION_DISABLED_NOTICE,
 } from "../../views/AIPanel/components/AIChat/utils/streamSerialization";
@@ -129,7 +128,7 @@ type FoldableNotify = Extract<ChatNotify, {
     | "content_block" | "content_replace" | "tool_call" | "tool_result" | "chat_component"
     | "task_approval_request" | "plan_approval_resolved" | "connector_generation_notification"
     | "configuration_collection_event" | "clarify_event" | "skill_enable_event"
-    | "abort" | "turn_truncated" | "compaction_disabled";
+    | "abort" | "compaction_disabled";
 }>;
 
 type UnmodelledNotifyType =
@@ -302,9 +301,6 @@ function applyContentEvent(prevContent: string, evt: FoldableNotify): string {
     }
     if (evt.type === "abort") {
         return serializeStream(appendAbortMarker(entries), prevContent);
-    }
-    if (evt.type === "turn_truncated") {
-        return serializeStream(appendTruncationMarker(entries), prevContent);
     }
     if (evt.type === "compaction_disabled") {
         // Raw-content append (outside the blob), matching the panel.
@@ -781,12 +777,6 @@ export function MiniChat({ anchor, onClose, takeInitialPrompt }: MiniChatProps) 
                 // transient notice — the marker is for history, the notice for here.
                 setMsgs((prev) => reduceEvent(prev, evt, gen));
                 setTail((prev) => [...prev, { kind: "notice", text: "Generation stopped." }]);
-                break;
-            // Unlike abort, a normal `stop` follows, so leave `streaming` to it. The marker
-            // still has to be recorded here — the mini authors the stored turn.
-            case "turn_truncated":
-                setMsgs((prev) => reduceEvent(prev, evt, gen));
-                setTail((prev) => [...prev, { kind: "notice", text: "Response cut off before it finished." }]);
                 break;
             case "error":
                 setStreaming(false);

@@ -58,6 +58,7 @@ for (const m of [
     '../features/ai/agent/skills/context', '../features/ai/agent/mcp',
     '../features/ai/agent/stream-handlers/stream-context',
     '../features/ai/agent/tools/diagnostics-utils', '../features/ai/agent/tools/task-writer',
+    '../features/ai/agent/tools/text-editor',
     '../features/ai/agent/tools/running-service-manager',
     '../features/ai/utils/ai-client', '../features/ai/utils/ai-utils',
     '../utils', '../utils/ai/auth', '../BalExtensionContext',

@@ -94,7 +94,6 @@ import { backTooltipFor, PanelRoute } from "./utils/panelNav";
 import {
     serializeStream, parseStream, appendToLastEntry, upsertComponent, upsertRequestCard,
     buildRequestCardData, buildPlanItem, applyPlanApprovalResolution, appendAbortMarker, applyTaskWriteResult,
-    appendTruncationMarker,
     COMPACTION_DISABLED_NOTICE,
 } from "./utils/streamSerialization";
 
@@ -1516,19 +1515,6 @@ const AIChat: React.FC = () => {
             } else if (response.key === 'mcpToolsEnabled') {
                 setMcpToolsEnabled(response.value);
             }
-
-        } else if (type === "turn_truncated") {
-            // Marker only — `stop` still follows and does the teardown, so a truncated turn
-            // clears its loading state exactly like any other.
-            console.log("Received turn truncation signal");
-            setMessages(prevMessages => {
-                const msgs = [...prevMessages];
-                const targetIndex = ensureAssistantMessage(msgs);
-                const last = msgs[targetIndex];
-                const updated = appendTruncationMarker(parseStream(last.content));
-                msgs[targetIndex] = { ...last, content: serializeStream(updated, last.content) };
-                return msgs;
-            });
 
         } else if (type === "stop") {
             console.log("Received stop signal");

@@ -19,7 +19,7 @@
 import { AICommandExecutor, AICommandConfig, AIExecutionResult } from '../executors/base/AICommandExecutor';
 import { Command, GenerateAgentCodeRequest, ProjectSource, ExecutionContext, SemanticDiff, ReviewModeData, PROJECT_KIND, LoginMethod } from '@wso2/ballerina-core';
 import { StateMachine } from '../../../stateMachine';
-import { FinishReason, ModelMessage, stepCountIs, streamText, TextStreamPart } from 'ai';
+import { FinishReason, LanguageModelUsage, ModelMessage, stepCountIs, streamText, TextStreamPart } from 'ai';
 import { getAnthropicClient, getProviderCacheControl, getProviderModelOptions, addCacheControlToMessages, ANTHROPIC_SONNET } from '../utils/ai-client';
 import { populateHistoryForAgent, getErrorMessage, getErrorCode, buildChatError } from '../utils/ai-utils';
 import { seedAiBaselines } from '../utils/project/ls-schema-notifications';
@@ -39,6 +39,13 @@ import { getWorkspaceTomlValues } from '../../../utils';
 import { StreamContext } from './stream-handlers/stream-context';
 import { checkCompilationErrors } from './tools/diagnostics-utils';
 import { TASK_WRITE_TOOL_NAME } from './tools/task-writer';
+import { FILE_BATCH_EDIT_TOOL_NAME, FILE_SINGLE_EDIT_TOOL_NAME } from './tools/text-editor';
+import {
+    MAX_TRUNCATION_RETRIES,
+    addUsage,
+    buildTruncationRecoveryNote,
+    dropDanglingToolCalls,
+} from './truncation-recovery';
 import { updateAndSaveChat, calculateTotalCost } from '../utils/events';
 import { chatStateStorage } from '../../../views/ai-panel/chatStateStorage';
 import * as path from 'path';
@@ -68,7 +75,12 @@ import { workspace } from 'vscode';
 import { runningServicesManager } from './tools/running-service-manager';
 
 
-const RESERVED_OUTPUT_TOKENS = 8_192;
+/** Per-response output cap, and what the context-usage widget reports as reserved. */
+const RESERVED_OUTPUT_TOKENS = 64_000;
+
+/** Built once; the tool names come from the registry so the advice cannot go stale. */
+const TRUNCATION_RECOVERY_NOTE = buildTruncationRecoveryNote(
+    FILE_BATCH_EDIT_TOOL_NAME, FILE_SINGLE_EDIT_TOOL_NAME);
 
 /**
  * Tracks threads that have already received a compaction_disabled warning this session.
@@ -434,90 +446,17 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
             let compactionContent = '';
             let cleanedCompactionSummary: string | undefined;
 
-            // Stream LLM response with server-side context management
-            const { fullStream, response, usage, totalUsage } = streamText({
-                model,
-                maxOutputTokens: 8192,
-                messages: allMessages,
-                tools,
-                abortSignal: this.config.abortController.signal,
-                providerOptions: providerOptions as any,
-
-                // Strip <analysis> blocks from compaction entries before each subsequent step
-                // to avoid re-sending thousands of reasoning tokens.
-                // Also apply incremental cache control to the last message so Anthropic caches the
-                // growing conversation history on each step.
-                prepareStep: async ({ messages: stepMessages }) => {
-                    if (cleanedCompactionSummary) {
-                        stripAnalysisFromCompactionBlocks(stepMessages);
-                    }
-                    return { messages: addCacheControlToMessages({ messages: stepMessages, model }) };
-                },
-
-                // Emit per-step token usage for context usage widget + observability
-                onStepFinish: (step) => {
-                    // Accumulate tool call/result chars for per-category breakdown estimation
-                    accToolCallChars += JSON.stringify(step.toolCalls ?? []).length;
-                    accToolResultChars += JSON.stringify(step.toolResults ?? []).length;
-
-                    console.log(
-                        `[AgentExecutor] Step ${step.stepNumber} complete: ` +
-                        `${step.usage?.inputTokens ?? 0} input tokens, ` +
-                        `finishReason: ${step.finishReason}`
-                    );
-
-                    // Detect tool-use clearing (no mid-stream signal for this edit type)
-                    const appliedCompaction = detectAppliedCompaction(step.providerMetadata);
-                    if (appliedCompaction?.clearedToolUses) {
-                        console.log(`[AgentExecutor] Server cleared ${appliedCompaction.clearedToolUses} tool uses`);
-                    }
-
-                    // Persist partial modelMessages after each step so chat is recoverable mid-stream
-                    const stepMessages = step.response?.messages ?? [];
-                    if (stepMessages.length > 0) {
-                        console.log(`[AgentExecutor] Step ${step.stepNumber} saving ${stepMessages.length} message(s) to chat storage`);
-                        chatStateStorage.updateGeneration(workspaceId, threadId, this.config.generationId, {
-                            modelMessages: [
-                                { role: "user", content: userMessageContent },
-                                ...stepMessages,
-                            ],
-                        });
-                        updateAndSaveChat(this.config.generationId, Command.Agent, this.config.eventHandler);
-                    }
-
-                    if (step.usage) {
-                        const inputTokens = step.usage.inputTokens || 0;
-                        const cacheReadTokens = step.usage.inputTokenDetails?.cacheReadTokens || 0;
-                        const cacheWriteTokens = step.usage.inputTokenDetails?.cacheWriteTokens || 0;
-                        const outputTokens = step.usage.outputTokens || 0;
-                        const cacheRatio = inputTokens > 0 ? (cacheReadTokens / inputTokens * 100).toFixed(1) : '0';
-                        console.log(
-                            `[AgentExecutor] Step ${step.stepNumber} complete: ` +
-                            `input: ${inputTokens}, output: ${outputTokens}, ` +
-                            `cache read: ${cacheReadTokens}, cache write: ${cacheWriteTokens} ` +
-                            `(ratio: ${cacheRatio}%), finishReason: ${step.finishReason}`
-                        );
-                        this.config.eventHandler({
-                            type: "usage_metrics",
-                            model: ANTHROPIC_SONNET,
-                            usage: {
-                                inputTokens,
-                                cacheCreationInputTokens: cacheWriteTokens,
-                                cacheReadInputTokens: cacheReadTokens,
-                                outputTokens,
-                            },
-                            breakdown: computeTokenBreakdown(allMessages, tools, accToolCallChars, accToolResultChars, inputTokens, (userMessageContent[0] as any)?.text?.length ?? 0),
-                        });
-                    }
-                },
-
-                stopWhen: [stepCountIs(50)],
-            });
-
             // Send start event to frontend
             this.config.eventHandler({ type: "start" });
 
-            // Create stream context for handlers
+            // Carried across attempts so a resumed turn is persisted, costed and replayed
+            // as one turn.
+            const carriedMessages: ModelMessage[] = [];
+            let carriedUsage: LanguageModelUsage | undefined;
+            let truncationRetries = 0;
+
+            // `response`/`totalUsage` belong to one streamText call, so they are reassigned
+            // per attempt below, before any handler reads them.
             const streamContext: StreamContext = {
                 eventHandler: this.config.eventHandler,
                 modifiedFiles,
@@ -525,89 +464,227 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
                 projects,
                 messageId: this.config.generationId,
                 userMessageContent,
-                response,
-                totalUsage,
+                response: undefined as unknown as StreamContext['response'],
+                totalUsage: undefined as unknown as StreamContext['totalUsage'],
                 ctx: this.config.executionContext,
                 generationStartTime,
                 projectId,
                 toolModelUsage,
+                carriedMessages,
             };
 
             // Process stream events - NATIVE V6 PATTERN
             try {
-                for await (const part of fullStream) {
-                    // Handle compaction block detection inline (text-start/text-delta)
-                    if (part.type === 'text-start') {
-                        const isCompaction = (part as any).providerMetadata?.anthropic?.type === 'compaction';
-                        if (isCompaction) {
-                            isCompactionBlock = true;
-                            compactionContent = '';
-                            this.config.eventHandler({ type: 'compaction_start' });
-                        } else {
-                            if (isCompactionBlock) {
-                                // Compaction block just ended — flush it
-                                isCompactionBlock = false;
-                                const summary = extractCompactionSummary(compactionContent);
-                                cleanedCompactionSummary = summary || compactionContent;
-                                streamContext.wasCompactionTurn = true;
-                                this.config.eventHandler({ type: 'compaction_end', summary: summary ?? undefined });
-                                // Reset context widget to near-zero after compaction
-                                this.config.eventHandler({
-                                    type: 'usage_metrics',
-                                    usage: { inputTokens: 0, cacheCreationInputTokens: 0, cacheReadInputTokens: 0, outputTokens: 0 },
+                // One pass per streamText call. It loops only to resume a turn the model cut
+                // short at its output limit; every other outcome finalises and breaks.
+                for (; ;) {
+                    // Stream LLM response with server-side context management
+                    const { fullStream, response, usage, totalUsage } = streamText({
+                        model,
+                        maxOutputTokens: RESERVED_OUTPUT_TOKENS,
+                        messages: allMessages,
+                        tools,
+                        abortSignal: this.config.abortController.signal,
+                        providerOptions: providerOptions as any,
+
+                        // Strip <analysis> blocks from compaction entries before each subsequent step
+                        // to avoid re-sending thousands of reasoning tokens.
+                        // Also apply incremental cache control to the last message so Anthropic caches the
+                        // growing conversation history on each step.
+                        prepareStep: async ({ messages: stepMessages }) => {
+                            if (cleanedCompactionSummary) {
+                                stripAnalysisFromCompactionBlocks(stepMessages);
+                            }
+                            return { messages: addCacheControlToMessages({ messages: stepMessages, model }) };
+                        },
+
+                        // Emit per-step token usage for context usage widget + observability
+                        onStepFinish: (step) => {
+                            // Accumulate tool call/result chars for per-category breakdown estimation
+                            accToolCallChars += JSON.stringify(step.toolCalls ?? []).length;
+                            accToolResultChars += JSON.stringify(step.toolResults ?? []).length;
+
+                            console.log(
+                                `[AgentExecutor] Step ${step.stepNumber} complete: ` +
+                                `${step.usage?.inputTokens ?? 0} input tokens, ` +
+                                `finishReason: ${step.finishReason}`
+                            );
+
+                            // Detect tool-use clearing (no mid-stream signal for this edit type)
+                            const appliedCompaction = detectAppliedCompaction(step.providerMetadata);
+                            if (appliedCompaction?.clearedToolUses) {
+                                console.log(`[AgentExecutor] Server cleared ${appliedCompaction.clearedToolUses} tool uses`);
+                            }
+
+                            // Persist partial modelMessages after each step so chat is recoverable mid-stream
+                            const stepMessages = step.response?.messages ?? [];
+                            if (stepMessages.length > 0) {
+                                // `stepMessages` is this attempt's share only; count what is
+                                // actually written, or a resume looks like it lost history.
+                                const savedCount = 1 + carriedMessages.length + stepMessages.length;
+                                const carriedNote = carriedMessages.length > 0
+                                    ? ` (${stepMessages.length} from this attempt, ${carriedMessages.length} carried)`
+                                    : '';
+                                console.log(`[AgentExecutor] Step ${step.stepNumber} saving ${savedCount} message(s) to chat storage${carriedNote}`);
+                                chatStateStorage.updateGeneration(workspaceId, threadId, this.config.generationId, {
+                                    modelMessages: [
+                                        { role: "user", content: userMessageContent },
+                                        ...carriedMessages,
+                                        ...stepMessages,
+                                    ],
                                 });
-                                // Inline notice before the continuing response
+                                updateAndSaveChat(this.config.generationId, Command.Agent, this.config.eventHandler);
+                            }
+
+                            if (step.usage) {
+                                const inputTokens = step.usage.inputTokens || 0;
+                                const cacheReadTokens = step.usage.inputTokenDetails?.cacheReadTokens || 0;
+                                const cacheWriteTokens = step.usage.inputTokenDetails?.cacheWriteTokens || 0;
+                                const outputTokens = step.usage.outputTokens || 0;
+                                const cacheRatio = inputTokens > 0 ? (cacheReadTokens / inputTokens * 100).toFixed(1) : '0';
+                                console.log(
+                                    `[AgentExecutor] Step ${step.stepNumber} complete: ` +
+                                    `input: ${inputTokens}, output: ${outputTokens}, ` +
+                                    `cache read: ${cacheReadTokens}, cache write: ${cacheWriteTokens} ` +
+                                    `(ratio: ${cacheRatio}%), finishReason: ${step.finishReason}`
+                                );
                                 this.config.eventHandler({
-                                    type: 'content_block',
-                                    content: '<compaction>Context compacted — key context preserved, conversation continues below.</compaction>',
+                                    type: "usage_metrics",
+                                    model: ANTHROPIC_SONNET,
+                                    usage: {
+                                        inputTokens,
+                                        cacheCreationInputTokens: cacheWriteTokens,
+                                        cacheReadInputTokens: cacheReadTokens,
+                                        outputTokens,
+                                    },
+                                    breakdown: computeTokenBreakdown(allMessages, tools, accToolCallChars, accToolResultChars, inputTokens, (userMessageContent[0] as any)?.text?.length ?? 0),
                                 });
                             }
-                            // Normal text-start: emit paragraph break
-                            this.config.eventHandler({ type: 'content_block', content: ' \n' });
+                        },
+
+                        stopWhen: [stepCountIs(50)],
+                    });
+
+                    streamContext.response = response;
+                    streamContext.totalUsage = totalUsage;
+
+                    let attemptFinishReason: FinishReason | undefined;
+                    let attemptRawFinishReason: string | undefined;
+
+                    for await (const part of fullStream) {
+                        // Handle compaction block detection inline (text-start/text-delta)
+                        if (part.type === 'text-start') {
+                            const isCompaction = (part as any).providerMetadata?.anthropic?.type === 'compaction';
+                            if (isCompaction) {
+                                isCompactionBlock = true;
+                                compactionContent = '';
+                                this.config.eventHandler({ type: 'compaction_start' });
+                            } else {
+                                if (isCompactionBlock) {
+                                    // Compaction block just ended — flush it
+                                    isCompactionBlock = false;
+                                    const summary = extractCompactionSummary(compactionContent);
+                                    cleanedCompactionSummary = summary || compactionContent;
+                                    streamContext.wasCompactionTurn = true;
+                                    this.config.eventHandler({ type: 'compaction_end', summary: summary ?? undefined });
+                                    // Reset context widget to near-zero after compaction
+                                    this.config.eventHandler({
+                                        type: 'usage_metrics',
+                                        usage: { inputTokens: 0, cacheCreationInputTokens: 0, cacheReadInputTokens: 0, outputTokens: 0 },
+                                    });
+                                    // Inline notice before the continuing response
+                                    this.config.eventHandler({
+                                        type: 'content_block',
+                                        content: '<compaction>Context compacted — key context preserved, conversation continues below.</compaction>',
+                                    });
+                                }
+                                // Normal text-start: emit paragraph break
+                                this.config.eventHandler({ type: 'content_block', content: ' \n' });
+                            }
+                            continue;
                         }
+
+                        if (part.type === 'text-delta') {
+                            if (isCompactionBlock) {
+                                compactionContent += part.text;
+                            } else if (useContentBasedDetection && !isCompactionBlock && compactionContent === '' && part.text.trimStart().startsWith(COMPACTION_BLOCK_PREFIX)) {
+                                // Bedrock: no providerMetadata on text-start, detect via content
+                                isCompactionBlock = true;
+                                compactionContent = part.text;
+                                this.config.eventHandler({ type: 'compaction_start' });
+                            } else {
+                                this.config.eventHandler({ type: 'content_block', content: part.text });
+                            }
+                            continue;
+                        }
+
+                        // The run-end `finish` is recorded, not acted on: the attempt loop
+                        // decides whether it ends the turn or triggers a resume.
+                        if (part.type === 'finish') {
+                            attemptFinishReason = part.finishReason;
+                            attemptRawFinishReason = part.rawFinishReason;
+                            continue;
+                        }
+
+                        await this.handleStreamPart(part, streamContext);
+                    }
+
+                    // Flush compaction block if still open at stream end (e.g. compaction was last block)
+                    if (isCompactionBlock) {
+                        isCompactionBlock = false;
+                        const summary = extractCompactionSummary(compactionContent);
+                        cleanedCompactionSummary = summary || compactionContent;
+                        this.config.eventHandler({ type: 'compaction_end', summary: summary ?? undefined });
+                        this.config.eventHandler({
+                            type: 'usage_metrics',
+                            usage: { inputTokens: 0, cacheCreationInputTokens: 0, cacheReadInputTokens: 0, outputTokens: 0 },
+                        });
+                        this.config.eventHandler({
+                            type: 'content_block',
+                            content: '<compaction>Context compacted — key context preserved.</compaction>',
+                        });
+                    }
+
+                    // Check if abort was called after stream completed
+                    // This handles the case where abort happens but doesn't throw an error
+                    if (this.config.abortController.signal.aborted) {
+                        console.log("[AgentExecutor] Detected abort after stream completion");
+                        const abortError = new Error('Aborted by user');
+                        abortError.name = 'AbortError';
+                        throw abortError;
+                    }
+
+                    const attemptResponse = await response;
+                    const attemptMessages = (attemptResponse.messages ?? []) as ModelMessage[];
+
+                    // A truncated attempt never ran its last tool call, so the change it
+                    // carried is missing while earlier ones are already on disk. Hand the
+                    // model its partial work back with a note and let it finish.
+                    if (attemptFinishReason === 'length' && truncationRetries < MAX_TRUNCATION_RETRIES) {
+                        truncationRetries++;
+                        console.warn(
+                            `[AgentExecutor] Output limit reached (raw: ${attemptRawFinishReason ?? 'n/a'}) — ` +
+                            `resuming turn automatically (${truncationRetries}/${MAX_TRUNCATION_RETRIES})`
+                        );
+                        const resumed: ModelMessage[] = [
+                            ...dropDanglingToolCalls(attemptMessages),
+                            { role: 'user', content: TRUNCATION_RECOVERY_NOTE },
+                        ];
+                        carriedMessages.push(...resumed);
+                        allMessages.push(...resumed);
+                        carriedUsage = addUsage(carriedUsage, await totalUsage);
                         continue;
                     }
 
-                    if (part.type === 'text-delta') {
-                        if (isCompactionBlock) {
-                            compactionContent += part.text;
-                        } else if (useContentBasedDetection && !isCompactionBlock && compactionContent === '' && part.text.trimStart().startsWith(COMPACTION_BLOCK_PREFIX)) {
-                            // Bedrock: no providerMetadata on text-start, detect via content
-                            isCompactionBlock = true;
-                            compactionContent = part.text;
-                            this.config.eventHandler({ type: 'compaction_start' });
-                        } else {
-                            this.config.eventHandler({ type: 'content_block', content: part.text });
-                        }
-                        continue;
-                    }
-
-                    await this.handleStreamPart(part, streamContext);
-                }
-
-                // Flush compaction block if still open at stream end (e.g. compaction was last block)
-                if (isCompactionBlock) {
-                    isCompactionBlock = false;
-                    const summary = extractCompactionSummary(compactionContent);
-                    cleanedCompactionSummary = summary || compactionContent;
-                    this.config.eventHandler({ type: 'compaction_end', summary: summary ?? undefined });
-                    this.config.eventHandler({
-                        type: 'usage_metrics',
-                        usage: { inputTokens: 0, cacheCreationInputTokens: 0, cacheReadInputTokens: 0, outputTokens: 0 },
-                    });
-                    this.config.eventHandler({
-                        type: 'content_block',
-                        content: '<compaction>Context compacted — key context preserved.</compaction>',
-                    });
-                }
-
-                // Check if abort was called after stream completed
-                // This handles the case where abort happens but doesn't throw an error
-                if (this.config.abortController.signal.aborted) {
-                    console.log("[AgentExecutor] Detected abort after stream completion");
-                    const abortError = new Error('Aborted by user');
-                    abortError.name = 'AbortError';
-                    throw abortError;
+                    // Finalise against the whole turn, not just the last attempt's slice.
+                    streamContext.response = Promise.resolve({
+                        ...attemptResponse,
+                        messages: [...carriedMessages, ...attemptMessages],
+                    }) as StreamContext['response'];
+                    streamContext.totalUsage = Promise.resolve(addUsage(carriedUsage, await totalUsage));
+                    await this.handleStreamFinish(
+                        streamContext, attemptFinishReason, attemptRawFinishReason, truncationRetries);
+                    break;
                 }
             } catch (error: any) {
                 // Handle abort specifically
@@ -617,8 +694,8 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
                     // Get partial messages from SDK
                     let partialLLMMessages: any[] = [];
                     try {
-                        const partialResponse = await response;
-                        partialLLMMessages = partialResponse.messages || [];
+                        const partialResponse = await streamContext.response;
+                        partialLLMMessages = [...carriedMessages, ...(partialResponse.messages || [])];
                     } catch (e) {
                         console.warn("[AgentExecutor] Could not retrieve partial response messages:", e);
                     }
@@ -736,13 +813,6 @@ Generation stopped by user. The last in-progress task was not saved. Any complet
                 const error = part.error instanceof Error ? part.error : new Error(String(part.error));
                 await this.handleStreamError(error, context);
                 throw error;
-
-            case "finish":
-                // A truncated tool call never becomes a `tool-call` chunk (Anthropic leaves
-                // the block unclosed), so the SDK has nothing to feed back and quietly ends
-                // the run — indistinguishable from a clean stop without `finishReason`.
-                await this.handleStreamFinish(context, part.finishReason, part.rawFinishReason);
-                break;
 
             case "tool-call":
                 if (this.config.debugLogger) {
@@ -864,7 +934,7 @@ Generation stopped by user. The last in-progress task was not saved. Any complet
         let messagesToSave: any[] = [];
         try {
             const partialResponse = await context.response;
-            messagesToSave = partialResponse.messages || [];
+            messagesToSave = [...(context.carriedMessages ?? []), ...(partialResponse.messages || [])];
         } catch (e) {
             console.warn("[AgentExecutor] Could not retrieve partial response messages on error:", e);
         }
@@ -888,26 +958,27 @@ Generation stopped by user. The last in-progress task was not saved. Any complet
     /**
      * Handles stream completion - runs diagnostics and updates chat state.
      *
-     * A truncated turn still runs everything that makes its edits reviewable and revertible.
-     * Only the "this turn succeeded" signals change: the telemetry event, the follow-up chip
-     * framing, and an incomplete marker in the transcript.
+     * `truncationRetries` counts the resumes the turn needed. Arriving here still on
+     * `finishReason === 'length'` means the budget ran out and the turn ended truncated.
      */
     private async handleStreamFinish(
         context: StreamContext,
         finishReason?: FinishReason,
         rawFinishReason?: string,
+        truncationRetries = 0,
     ): Promise<void> {
         // 'length' covers both max_tokens and model_context_window_exceeded. Typed as the
         // SDK's `FinishReason`, not `string`: the provider hands up a `{ unified, raw }`
         // object that the SDK flattens, and an upgrade that stopped flattening it would make
         // this silently false forever. This way it fails the build instead.
-        const wasTruncated = finishReason === 'length';
-        if (wasTruncated) {
+        const exhaustedTruncationRetries = finishReason === 'length';
+        if (exhaustedTruncationRetries) {
             console.warn(
-                `[AgentExecutor] Turn truncated at the output token limit ` +
-                `(finishReason: ${finishReason}, raw: ${rawFinishReason ?? 'n/a'}). ` +
-                `The model's last tool call was cut off mid-argument and never ran.`
+                `[AgentExecutor] Turn still truncated after ${truncationRetries} automatic ` +
+                `resume(s) (raw: ${rawFinishReason ?? 'n/a'}) — giving up with work unfinished.`
             );
+        } else if (truncationRetries > 0) {
+            console.log(`[AgentExecutor] Turn completed after ${truncationRetries} automatic resume(s)`);
         }
 
         const finalResponse = await context.response;
@@ -944,7 +1015,7 @@ Generation stopped by user. The last in-progress task was not saved. Any complet
             context.toolModelUsage
         );
 
-        console.log(`[AgentExecutor] Generation ${wasTruncated ? 'truncated' : 'complete'} — token usage:`, {
+        console.log(`[AgentExecutor] Generation ${exhaustedTruncationRetries ? 'truncated' : 'complete'} — token usage:`, {
             input: inputTokens,
             output: outputTokens,
             cacheRead: totalCacheRead,
@@ -954,10 +1025,12 @@ Generation stopped by user. The last in-progress task was not saved. Any complet
             cost: `$${totalCost.toFixed(4)}`,
         });
 
-        // Truncated turns get their own event so they cannot inflate the completion rate.
+        // Only a turn that exhausted its resumes counts as truncated; one that recovered is a
+        // real completion, with `truncation_retries` recording what it cost. Recovery is
+        // invisible in the UI, so this is the only signal that it happened.
         sendTelemetryEvent(
             extension.ballerinaExtInstance,
-            wasTruncated
+            exhaustedTruncationRetries
                 ? TM_EVENT_BALLERINA_AI_GENERATION_TRUNCATED
                 : TM_EVENT_BALLERINA_AI_GENERATION_COMPLETED,
             CMP_BALLERINA_AI_GENERATION,
@@ -967,7 +1040,7 @@ Generation stopped by user. The last in-progress task was not saved. Any complet
                 'generation.start_time': context.generationStartTime.toString(),
                 'generation.end_time': generationEndTime.toString(),
                 'plan_mode': isPlanModeEnabled.toString(),
-                ...(wasTruncated ? { 'generation.raw_finish_reason': rawFinishReason ?? 'unknown' } : {}),
+                ...(exhaustedTruncationRetries ? { 'generation.raw_finish_reason': rawFinishReason ?? 'unknown' } : {}),
             },
             {
                 'tokens.input': inputTokens,
@@ -980,6 +1053,7 @@ Generation stopped by user. The last in-progress task was not saved. Any complet
                 'project.files_after': finalProjectMetrics.fileCount,
                 'project.lines_after': finalProjectMetrics.lineCount,
                 'cost.total': totalCost,
+                'generation.truncation_retries': truncationRetries,
             }
         );
 
@@ -1000,19 +1074,11 @@ Generation stopped by user. The last in-progress task was not saved. Any complet
             }
         }
 
-        // Emitted before the review card so the marker closes the streamed text rather than
-        // trailing after it. Review state stays 'done' — the only revertible status, and a
-        // truncated turn has usually already written edits worth reverting. Same reasoning as
-        // the abort and stream-error paths above.
-        if (wasTruncated) {
-            context.eventHandler({ type: 'turn_truncated', rawFinishReason });
-        }
-
         // Emit UI events
         await this.emitReviewActions(context);
 
         // Follow-up suggestions — best-effort, non-blocking.
-        this.maybeScheduleFollowups(context, assistantMessages, wasTruncated ? 'truncated' : 'completed');
+        this.maybeScheduleFollowups(context, assistantMessages, 'completed');
 
         // TODO(auto-memory): auto-dream consolidation temporarily disabled for this release.
         // // autoDream consolidation — skipped on compaction turns (no real user activity)

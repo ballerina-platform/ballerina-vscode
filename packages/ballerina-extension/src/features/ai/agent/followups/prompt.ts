@@ -20,7 +20,7 @@ import { ModelMessage } from "ai";
 import { ANCHOR_ACTIONS } from "./anchors";
 
 /** How the turn these suggestions belong to ended. */
-export type FollowupSituation = "completed" | "aborted" | "error" | "usage_limit" | "truncated";
+export type FollowupSituation = "completed" | "aborted" | "error" | "usage_limit";
 
 /** One message from an earlier turn, as context for the suggestions. */
 export interface RecentExchange {
@@ -60,10 +60,6 @@ const ERROR_FRAMING = `The Copilot builds integrations for the user. This turn F
 
 Base the suggestions on the failure: if it looks like something the user can resolve or work around, suggest that; if the work was simply interrupted, suggest getting it finished. Never pretend the work succeeded, and never ask the user to debug the product itself.`;
 
-const TRUNCATED_FRAMING = `The Copilot builds integrations for the user. This turn was cut short because the Copilot tried to write out too much in one go and ran out of room mid-change, so the work is unfinished and its last change was never applied. Propose up to 2 short, specific things the user can do next. Each is shown as a clickable chip; clicking one sends its prompt to the Copilot as the user's next message.
-
-A separate action that asks the Copilot to redo the work in smaller pieces is already offered, so never suggest continuing, resuming, retrying, finishing, or breaking the work up — that is covered. Suggest instead a smaller or narrower slice of the same goal the user could ask for on its own, so the next attempt has less to write. Never pretend the work succeeded.`;
-
 const SHARED_RULES = `Scope — only suggest things the Copilot can actually do: build, change, explain, run, or test the user's integration, or connect it to other systems or services. Never suggest anything else, because it will be refused — in particular, no deploying to a container or cloud platform, and no infrastructure, CI/CD, or cloud-provider setup.
 
 Audience — the user builds integrations in a friendly, low-code product and may not be a programmer. Write every label and prompt in plain, outcome-focused language: say what the user gets, not how it is built. Never expose implementation details — no programming-language or Ballerina specifics, no command-line commands, no code, annotation, or configuration syntax, no file, module, or library names, and no technical keywords or type names.
@@ -82,7 +78,6 @@ const COMPLETED_ONLY_RULE = `
 function buildSystemPrompt(situation: FollowupSituation): string {
     const framing = situation === "aborted" ? ABORTED_FRAMING
         : situation === "error" ? ERROR_FRAMING
-        : situation === "truncated" ? TRUNCATED_FRAMING
         : COMPLETED_FRAMING;
     return `You help users of WSO2 Integration Intelligence decide what to do next.
 

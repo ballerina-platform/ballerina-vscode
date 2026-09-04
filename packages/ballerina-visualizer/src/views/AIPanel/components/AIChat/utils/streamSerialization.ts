@@ -275,19 +275,6 @@ export function appendAbortMarker(entries: StreamEntry[]): StreamEntry[] {
 }
 
 /**
- * Marker both surfaces persist when a run stops at the model's output limit. Separate from
- * {@link ABORT_MARKER_TEXT}: nobody interrupted this one, and the two get different
- * follow-up chips.
- */
-export const TRUNCATION_MARKER_TEXT =
-    "*[Response cut off before it finished — the last change was not applied. Ask to finish it in smaller steps.]*";
-
-/** Append the truncation marker as its own trailing entry. */
-export function appendTruncationMarker(entries: StreamEntry[]): StreamEntry[] {
-    return [...entries, { description: "", items: [{ kind: "text", text: TRUNCATION_MARKER_TEXT }] }];
-}
-
-/**
  * Compaction-unavailable notice. Appended to the raw `content` (outside the
  * `<agentstream>` blob) rather than added as a stream item, so it renders as
  * markdown — `MarkdownRenderer` handles the `<compaction>` tag.

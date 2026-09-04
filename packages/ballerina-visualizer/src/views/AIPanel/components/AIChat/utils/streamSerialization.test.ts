@@ -51,11 +51,9 @@ import {
     buildPlanItem,
     applyPlanApprovalResolution,
     appendAbortMarker,
-    appendTruncationMarker,
     applyTaskWriteResult,
     TaskWriteTask,
     ABORT_MARKER_TEXT,
-    TRUNCATION_MARKER_TEXT,
     COMPACTION_DISABLED_NOTICE,
 } from "./streamSerialization";
 
@@ -255,29 +253,6 @@ describe("appendAbortMarker", () => {
         expect(out).toHaveLength(2);
         expect(out[0]).toBe(last);
         expect(out[1]).toEqual({ description: "", items: [{ kind: "text", text: ABORT_MARKER_TEXT }] });
-    });
-});
-
-describe("appendTruncationMarker", () => {
-    it("appends a NEW entry instead of merging into the last one", () => {
-        // appendToLastEntry would bury the marker inside the previous entry.
-        const last = floating([{ kind: "text", text: "hello" }]);
-        const out = appendTruncationMarker([last]);
-        expect(out).toHaveLength(2);
-        expect(out[0]).toBe(last);
-        expect(out[1]).toEqual({ description: "", items: [{ kind: "text", text: TRUNCATION_MARKER_TEXT }] });
-    });
-
-    it("survives a serialize/parse round trip, so a reloaded panel still shows the turn as incomplete", () => {
-        // The panel re-reads persisted `content` on mount; a marker lost here would put the
-        // transcript back to reading as a completed turn.
-        const entries = appendTruncationMarker([floating([{ kind: "text", text: "partial work" }])]);
-        const round = parseStream(serializeStream(entries, ""));
-        expect(round[round.length - 1].items).toEqual([{ kind: "text", text: TRUNCATION_MARKER_TEXT }]);
-    });
-
-    it("is distinguishable from the user-interruption marker", () => {
-        expect(TRUNCATION_MARKER_TEXT).not.toEqual(ABORT_MARKER_TEXT);
     });
 });
 
