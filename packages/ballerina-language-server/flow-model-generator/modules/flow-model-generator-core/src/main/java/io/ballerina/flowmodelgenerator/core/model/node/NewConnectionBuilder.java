@@ -240,7 +240,7 @@ public class NewConnectionBuilder extends CallBuilder {
             switch (paramResult.kind()) {
                 case INCLUDED_RECORD_REST -> {
                     if (hasOnlyRestParams) {
-                        customPropBuilder.optional(false);
+                        customPropBuilder.optional(false).advanced(false);
                     }
                     unescapedParamName = "additionalValues";
                     Property template = customPropBuilder.buildRepeatableTemplates(paramResult.typeSymbol(),
@@ -254,7 +254,7 @@ public class NewConnectionBuilder extends CallBuilder {
                 }
                 case REST_PARAMETER -> {
                     if (hasOnlyRestParams) {
-                        customPropBuilder.optional(false);
+                        customPropBuilder.optional(false).advanced(false);
                     }
                     Property template = customPropBuilder.buildRepeatableTemplates(paramResult.typeSymbol(),
                             semanticModel, moduleInfo);

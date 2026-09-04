@@ -66,7 +66,7 @@ public class NPFunctionCall extends FunctionCall {
             switch (paramResult.kind()) {
                 case INCLUDED_RECORD_REST -> {
                     if (hasOnlyRestParams) {
-                        customPropBuilder.optional(false);
+                        customPropBuilder.optional(false).advanced(false);
                     }
                     unescapedParamName = "additionalValues";
                     Property template = customPropBuilder.buildRepeatableTemplates(paramResult.typeSymbol(),
@@ -80,7 +80,7 @@ public class NPFunctionCall extends FunctionCall {
                 }
                 case REST_PARAMETER -> {
                     if (hasOnlyRestParams) {
-                        customPropBuilder.optional(false);
+                        customPropBuilder.optional(false).advanced(false);
                     }
                     Property template = customPropBuilder.buildRepeatableTemplates(paramResult.typeSymbol(),
                             semanticModel, moduleInfo);

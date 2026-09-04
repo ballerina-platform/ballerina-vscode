@@ -251,7 +251,7 @@ public class McpToolKitBuilder extends NodeBuilder {
 
     private void applyRestDefaultability(Property.Builder<FormBuilder<NodeBuilder>> builder, boolean onlyRestParam) {
         if (onlyRestParam) {
-            builder.optional(false);
+            builder.optional(false).advanced(false);
         }
     }
 

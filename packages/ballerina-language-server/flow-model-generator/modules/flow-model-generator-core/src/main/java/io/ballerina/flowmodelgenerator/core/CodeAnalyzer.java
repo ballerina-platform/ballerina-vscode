@@ -2977,7 +2977,7 @@ public class CodeAnalyzer extends NodeVisitor {
 
             if (paramResult.kind() == ParameterData.Kind.INCLUDED_RECORD_REST) {
                 if (hasOnlyRestParams) {
-                    customPropBuilder.optional(false);
+                    customPropBuilder.optional(false).advanced(false);
                 }
                 unescapedParamName = "additionalValues";
                 Property template = customPropBuilder.buildRepeatableTemplates(paramResult.typeSymbol(),
@@ -2990,7 +2990,7 @@ public class CodeAnalyzer extends NodeVisitor {
                         .stepOut();
             } else if (paramResult.kind() == ParameterData.Kind.REST_PARAMETER) {
                 if (hasOnlyRestParams) {
-                    customPropBuilder.optional(false);
+                    customPropBuilder.optional(false).advanced(false);
                 }
                 Property template = customPropBuilder.buildRepeatableTemplates(paramResult.typeSymbol(),
                         semanticModel, moduleInfo);
@@ -3066,7 +3066,7 @@ public class CodeAnalyzer extends NodeVisitor {
 
                 if (paramKind == ParameterData.Kind.INCLUDED_RECORD_REST) {
                     if (hasOnlyRestParams) {
-                        customPropBuilder.optional(false);
+                        customPropBuilder.optional(false).advanced(false);
                     }
                     Property template = customPropBuilder.buildRepeatableTemplates(paramResult.typeSymbol(),
                             semanticModel, moduleInfo);
@@ -3078,7 +3078,7 @@ public class CodeAnalyzer extends NodeVisitor {
                             .stepOut();
                 } else if (paramKind == ParameterData.Kind.REST_PARAMETER) {
                     if (hasOnlyRestParams) {
-                        customPropBuilder.optional(false);
+                        customPropBuilder.optional(false).advanced(false);
                     }
                     Property template = customPropBuilder.buildRepeatableTemplates(paramResult.typeSymbol(),
                             semanticModel, moduleInfo);
