@@ -29,6 +29,7 @@ import org.ballerinalang.annotation.JavaSPIService;
 import org.ballerinalang.central.client.CentralAPIClient;
 import org.ballerinalang.central.client.exceptions.CentralClientException;
 import org.ballerinalang.central.client.exceptions.PackageAlreadyExistsException;
+import org.ballerinalang.compiler.BLangCompilerException;
 import org.ballerinalang.langserver.LSClientLogger;
 import org.ballerinalang.langserver.LSContextOperation;
 import org.ballerinalang.langserver.codeaction.providers.imports.PullModuleCodeAction;
@@ -325,6 +326,24 @@ public class PullModuleExecutor implements LSCommandExecutor {
     }
 
     /**
+     * Returns whether the given throwable is a missing-module failure that can be repaired by
+     * pulling the missing dependency balas from Ballerina Central.
+     *
+     * <p>The trigger is a {@link BLangCompilerException} whose message starts with
+     * {@code "failed to load the module"}. This is the same signal the legacy
+     * {@code ResolveCompilationErrorsSubscriber} keyed off, centralized here so the message
+     * literal cannot drift between call sites.
+     *
+     * @param throwable the throwable to inspect
+     * @return {@code true} if the throwable is a repairable missing-module failure
+     */
+    public static boolean isMissingModuleFailure(Throwable throwable) {
+        return throwable instanceof BLangCompilerException
+                && throwable.getMessage() != null
+                && throwable.getMessage().startsWith("failed to load the module");
+    }
+
+    /**
      * Repairs the local bala cache for the given project by pulling any dependency bala that is
      * required but missing from the local repository.
      * <p>
@@ -339,10 +358,24 @@ public class PullModuleExecutor implements LSCommandExecutor {
      * and the resolution-based pull cannot repair the gap because its online dependency graph is
      * unified to the locked versions and never requests the as-built version.
      *
-     * @param project      the (member) project to repair the cache for
-     * @param clientLogger the client logger
+     * @param project the (member) project to repair the cache for
      */
-    private static void repairMissingDependencyBalas(Project project, LSClientLogger clientLogger) {
+    public static void repairMissingDependencyBalas(Project project) {
+        repairMissingDependencyBalasInternal(project, null);
+    }
+
+    /**
+     * Repairs the local bala cache for the given project, logging progress through the given
+     * client logger when available.
+     *
+     * @param project      the (member) project to repair the cache for
+     * @param clientLogger the client logger, or {@code null} to skip logging
+     */
+    public static void repairMissingDependencyBalas(Project project, LSClientLogger clientLogger) {
+        repairMissingDependencyBalasInternal(project, clientLogger);
+    }
+
+    private static void repairMissingDependencyBalasInternal(Project project, LSClientLogger clientLogger) {
         Path balaCacheRoot = RepoUtils.createAndGetHomeReposPath()
                 .resolve(ProjectConstants.REPOSITORIES_DIR)
                 .resolve(ProjectConstants.CENTRAL_REPOSITORY_CACHE_NAME)
@@ -373,19 +406,19 @@ public class PullModuleExecutor implements LSCommandExecutor {
             Path balaVersionDir = balaCacheRoot.resolve(org).resolve(name).resolve(version);
             if (!Files.isDirectory(balaVersionDir)) {
                 if (pullCount >= MAX_MISSING_BALA_PULLS) {
-                    clientLogger.logTrace("Skipped pulling missing bala '" + org + "/" + name + ":" + version
+                    logTrace(clientLogger, "Skipped pulling missing bala '" + org + "/" + name + ":" + version
                             + "' since the maximum number of pulls per request has been reached");
                     continue;
                 }
                 pullCount++;
-                clientLogger.logTrace("Pulling missing bala '" + org + "/" + name + ":" + version
+                logTrace(clientLogger, "Pulling missing bala '" + org + "/" + name + ":" + version
                         + "' from Ballerina central");
                 try {
                     pullModuleFromCentral(org, name, version);
                 } catch (CentralClientException e) {
                     // Continue with the remaining packages; the compilation will surface the
                     // failure for this one through the regular error flow.
-                    clientLogger.logTrace("Failed to pull bala '" + org + "/" + name + ":" + version
+                    logTrace(clientLogger, "Failed to pull bala '" + org + "/" + name + ":" + version
                             + "' from Ballerina central: " + e.getMessage());
                     continue;
                 }
@@ -425,10 +458,16 @@ public class PullModuleExecutor implements LSCommandExecutor {
                 }
             }
         } catch (IOException | JsonSyntaxException e) {
-            clientLogger.logTrace("Failed to read dependency graph of bala '" + balaVersionDir + "': "
+            logTrace(clientLogger, "Failed to read dependency graph of bala '" + balaVersionDir + "': "
                     + e.getMessage());
         }
         return List.of();
+    }
+
+    private static void logTrace(LSClientLogger clientLogger, String message) {
+        if (clientLogger != null) {
+            clientLogger.logTrace(message);
+        }
     }
 
     /**
