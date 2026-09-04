@@ -659,10 +659,11 @@ public class TypesManager {
             String codeSnippet = sourceCodeGenerator.generateCodeSnippetForType(typeData);
             codeSnippets.add(codeSnippet);
         }
-        addImportsToTextEdits(sourceCodeGenerator.getImports(), rootNode, textEdits, this.module);
-
+        // The snippet has to be in the list before the imports are added: that is the edit the requalify pass
+        // rewrites onto the prefixes it decides.
         textEdits.add(new TextEdit(CommonUtils.toRange(rootNode.lineRange().endLine()),
                 String.join(System.lineSeparator(), codeSnippets)));
+        addImportsToTextEdits(sourceCodeGenerator.getImports(), rootNode, textEdits, this.module);
         return textEdits;
     }
 
