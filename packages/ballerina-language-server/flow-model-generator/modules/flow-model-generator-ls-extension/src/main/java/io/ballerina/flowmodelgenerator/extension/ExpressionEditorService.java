@@ -200,13 +200,16 @@ public class ExpressionEditorService implements ExtendedLanguageServerService {
                     // A symbol of the current module needs no qualifier, and its codedata names no module.
                     case CURRENT -> template = codedata.symbol();
                     case IMPORTED -> {
-                        String prefix = boundPrefix(request.filePath(), codedata);
+                        // Already imported, so no import is written here and no prefix may be allocated: an
+                        // allocated one would name a binding this file does not have.
+                        String prefix = boundPrefix(request.filePath(), codedata, false);
                         response.setPrefix(prefix);
                         response.setModuleId(codedata.getModuleId());
                         template = prefix + ":" + codedata.symbol();
                     }
                     case AVAILABLE -> {
-                        String prefix = boundPrefix(request.filePath(), codedata);
+                        // applyModuleImport writes the import below, so a free prefix may be allocated for it.
+                        String prefix = boundPrefix(request.filePath(), codedata, true);
                         template = prefix + ":" + codedata.symbol();
                         applyModuleImport(request.filePath(), codedata.getModuleId(), codedata.getImportSignature(),
                                 prefix, response);
@@ -328,7 +331,7 @@ public class ExpressionEditorService implements ExtendedLanguageServerService {
      * derived prefix cannot tell them apart and the reference would name whichever the file already imports.
      * </p>
      */
-    private String boundPrefix(String filePathString, Codedata codedata) {
+    private String boundPrefix(String filePathString, Codedata codedata, boolean willWriteImport) {
         if (codedata.module() == null || codedata.module().isEmpty()) {
             // Codedata.getModulePrefix would dereference the very module missing here.
             return "";
@@ -341,8 +344,11 @@ public class ExpressionEditorService implements ExtendedLanguageServerService {
                     .map(doc -> doc.syntaxTree().rootNode() instanceof ModulePartNode node ? node : null)
                     .orElse(null);
             // A null root falls back to the module's natural prefix, which is what this method promises without a
-            // file to read. An import is emitted for the result, so allocating a free prefix is the right answer.
-            return ImportPrefixReader.resolve(rootNode, codedata.org(), codedata.module(), null);
+            // file to read. Allocating a free prefix is only right where the caller then writes the import that
+            // binds it; without one, the file's own binding is the only answer that resolves.
+            return willWriteImport
+                    ? ImportPrefixReader.resolve(rootNode, codedata.org(), codedata.module(), null)
+                    : ImportPrefixReader.boundPrefix(rootNode, codedata.org(), codedata.module());
         } catch (RuntimeException e) {
             // Without a file to read, the module's natural prefix is the only available answer.
             return codedata.getModulePrefix();

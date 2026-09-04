@@ -1310,8 +1310,14 @@ public class FunctionDataBuilder {
             String qualifier = qualifierBySignature.get(signature);
             String module = signature.contains("/")
                     ? signature.substring(signature.indexOf('/') + 1) : signature;
-            imports.put(qualifier != null ? qualifier
-                    : ModuleAliasResolver.allocatePrefix(module, imports.keySet()), signature);
+            // The allocator only names the modules the rendered text mentions, and the text is rendered with
+            // error members dropped while this list is not -- so a signature can arrive with no qualifier, or
+            // with one another signature already holds. Either way it takes a free prefix rather than
+            // displacing the module that got there first, whose import would otherwise be lost.
+            if (qualifier == null || imports.containsKey(qualifier)) {
+                qualifier = ModuleAliasResolver.allocatePrefix(module, imports.keySet());
+            }
+            imports.put(qualifier, signature);
         }
         return CommonUtils.encodeImportStatements(imports);
     }

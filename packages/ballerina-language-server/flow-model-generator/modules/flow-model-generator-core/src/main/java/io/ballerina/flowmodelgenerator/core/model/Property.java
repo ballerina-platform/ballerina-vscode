@@ -569,16 +569,26 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
             }
             for (Map.Entry<String, String> entry : parsed.entrySet()) {
                 String existing = this.imports.get(entry.getKey());
+                // A module already recorded under another key keeps that key: the first spelling wins, and the
+                // later one is a duplicate of a module already carried.
                 if (Objects.equals(existing, entry.getValue()) || this.imports.containsValue(entry.getValue())) {
                     continue;
                 }
                 // A key already standing for a different module gets a free one rather than displacing it, which
-                // would drop that module's import.
+                // would drop that module's import. Allocated from the module name, not the key, so the alias is
+                // the one TypeQualifierAllocator and ModulePrefixContext would pick for the same module.
                 this.imports.put(existing == null ? entry.getKey()
-                        : ModuleAliasResolver.allocatePrefix(entry.getKey(), this.imports.keySet()),
+                        : ModuleAliasResolver.allocatePrefix(moduleNameOf(entry.getValue()), this.imports.keySet()),
                         entry.getValue());
             }
             return this;
+        }
+
+        /** The bare module name of an {@code org/module[:version]} entry, which is what an alias is derived from. */
+        private static String moduleNameOf(String importSignature) {
+            String withoutVersion = importSignature.split(":")[0];
+            int slash = withoutVersion.indexOf('/');
+            return slash < 0 ? withoutVersion : withoutVersion.substring(slash + 1);
         }
 
         public PropertyCodedata.Builder<Builder<T>> codedata() {
