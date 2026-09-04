@@ -173,7 +173,7 @@
       "$description": {
         "metadata": {
           "label": "Description",
-          "description": "Additional context shown alongside the form. Optional"
+          "description": "Additional context shown alongside the form"
         },
         "types": [
           {

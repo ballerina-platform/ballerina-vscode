@@ -1,0 +1,195 @@
+{
+  "source": "durable_agent_activities.bal",
+  "position": {
+    "line": 27,
+    "offset": 0
+  },
+  "description": "Peer Agent template: delegation target, tool identity, wait/callback, and PeerDecl approval gating fields",
+  "codedata": {
+    "node": "DURABLE_AGENT_PEER",
+    "org": "ballerina",
+    "module": "workflow"
+  },
+  "output": {
+    "id": "31",
+    "metadata": {
+      "label": "Peer Agent",
+      "description": "Another durable agent this agent can delegate to, advertised to the model as a tool"
+    },
+    "codedata": {
+      "node": "DURABLE_AGENT_PEER",
+      "org": "ballerina",
+      "module": "workflow",
+      "object": "AgenticWorkflowContext",
+      "symbol": "agent",
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "agent": {
+        "metadata": {
+          "label": "Peer Agent",
+          "description": "The durable agent to delegate to"
+        },
+        "types": [
+          {
+            "fieldType": "SINGLE_SELECT",
+            "options": [
+              {
+                "label": "billingAgent",
+                "value": "billingAgent"
+              }
+            ],
+            "selected": true
+          }
+        ],
+        "value": "",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED"
+        }
+      },
+      "name": {
+        "metadata": {
+          "label": "Tool Name",
+          "description": "The name the model calls this peer by; must be a constant string"
+        },
+        "types": [
+          {
+            "fieldType": "TEXT",
+            "ballerinaType": "string",
+            "selected": true
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string",
+            "selected": false
+          }
+        ],
+        "value": "",
+        "placeholder": "askHotelDesk",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED"
+        }
+      },
+      "description": {
+        "metadata": {
+          "label": "Description",
+          "description": "What the peer does, for the model to decide when to delegate"
+        },
+        "types": [
+          {
+            "fieldType": "TEXT",
+            "ballerinaType": "string",
+            "selected": true
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string",
+            "selected": false
+          }
+        ],
+        "value": "",
+        "placeholder": "Asks the hotel specialist to research and recommend hotels.",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "DEFAULTABLE"
+        }
+      },
+      "wait": {
+        "metadata": {
+          "label": "Wait for the Answer",
+          "description": "When set, the delegation blocks durably for the peer's result; otherwise the peer runs async and replies on the callback channel"
+        },
+        "types": [
+          {
+            "fieldType": "FLAG",
+            "selected": true
+          }
+        ],
+        "value": "true",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "DEFAULTABLE"
+        }
+      },
+      "callbackChannel": {
+        "metadata": {
+          "label": "Callback Channel",
+          "description": "The declared data event channel the async peer replies on; required when the delegation does not wait"
+        },
+        "types": [
+          {
+            "fieldType": "TEXT",
+            "ballerinaType": "string",
+            "selected": true
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string",
+            "selected": false
+          }
+        ],
+        "value": "",
+        "placeholder": "hotelResults",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "DEFAULTABLE"
+        }
+      },
+      "requiresApproval": {
+        "metadata": {
+          "label": "Requires Approval",
+          "description": "Gate this delegation: before the agent delegates to the peer, a review activity is created and the agent suspends durably until a reviewer proceeds or rejects."
+        },
+        "types": [
+          {
+            "fieldType": "FLAG",
+            "ballerinaType": "boolean",
+            "selected": true
+          }
+        ],
+        "value": "false",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false
+      },
+      "userRoles": {
+        "metadata": {
+          "label": "Reviewer Roles",
+          "description": "Role(s) permitted to decide the approval review of this delegation, e.g. \"support-lead\" or [\"finance\", \"manager\"]."
+        },
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string|string[]",
+            "selected": true
+          }
+        ],
+        "placeholder": "",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false
+      }
+    },
+    "flags": 0
+  }
+}
