@@ -27,4 +27,9 @@ under the License.
             <class name="io.ballerina.modelgenerator.commons.trigger.TypeRefResolverTest"/>
         </classes>
     </test>
+    <test name="module-prefix-test" parallel="false">
+        <classes>
+            <class name="io.ballerina.modelgenerator.commons.ModulePrefixContextTest"/>
+        </classes>
+    </test>
 </suite>

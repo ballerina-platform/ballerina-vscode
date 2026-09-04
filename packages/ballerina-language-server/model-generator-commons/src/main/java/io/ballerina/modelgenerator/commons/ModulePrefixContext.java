@@ -20,8 +20,11 @@ package io.ballerina.modelgenerator.commons;
 
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -48,9 +51,12 @@ public final class ModulePrefixContext {
     /** {@code org/module} -> resolved prefix, for modules the file does not import yet. */
     private final Map<String, String> pendingImports = new LinkedHashMap<>();
     private final ModulePartNode rootNode;
+    /** The module owning the file, when known; decides which modules need an import at all. */
+    private final ModuleInfo currentModule;
 
-    private ModulePrefixContext(ModulePartNode rootNode) {
+    private ModulePrefixContext(ModulePartNode rootNode, ModuleInfo currentModule) {
         this.rootNode = rootNode;
+        this.currentModule = currentModule;
         if (rootNode != null) {
             claimed.addAll(ImportPrefixReader.importedPrefixes(rootNode));
         }
@@ -58,17 +64,45 @@ public final class ModulePrefixContext {
 
     /** A context bound to the file the edits will be applied to. A null root means "no file knowledge". */
     public static ModulePrefixContext from(ModulePartNode rootNode) {
-        return new ModulePrefixContext(rootNode);
+        return new ModulePrefixContext(rootNode, null);
+    }
+
+    /**
+     * A context that also knows which module owns the file, and so can tell a type of the file's own module
+     * (no import, no qualifier) and a sibling module of its package (imported without an organization) from a
+     * genuinely external one. A null {@code currentModule} classifies every module as external, which is what
+     * {@link #from(ModulePartNode)} does.
+     *
+     * @param rootNode      the root of the file the edits will be applied to; null means "no file knowledge"
+     * @param currentModule the module owning that file, or null
+     * @return a context bound to that file
+     */
+    public static ModulePrefixContext from(ModulePartNode rootNode, ModuleInfo currentModule) {
+        return new ModulePrefixContext(rootNode, currentModule);
     }
 
     /**
      * The prefix to emit for {@code org/module}, resolved once and cached. An import already in the
      * file wins outright; otherwise a free prefix is allocated via {@link #allocate} and recorded in
      * {@link #pendingImports}.
+     *
+     * <p>
+     * A type of the file's own module resolves to the empty prefix and registers nothing: it needs no import,
+     * and claiming a prefix on its behalf would push a genuinely external module named in the same operation
+     * onto an alias it did not need. A sibling module of the same package is registered under a blank
+     * organization, which is how its import has to be written.
+     * </p>
      */
     public String prefixFor(String org, String module) {
         if (module == null || module.isBlank()) {
             return "";
+        }
+        Origin origin = classify(org, module);
+        if (origin == Origin.SAME_MODULE) {
+            return "";
+        }
+        if (origin == Origin.SAME_PACKAGE) {
+            org = "";
         }
         String key = (org == null ? "" : org) + "/" + module;
         String cached = byModule.get(key);
@@ -93,6 +127,27 @@ public final class ModulePrefixContext {
             ambiguousNaturals.add(natural);
         }
         return resolved;
+    }
+
+    /** Where a module sits relative to the file being edited, which decides how its import is written. */
+    private enum Origin { SAME_MODULE, SAME_PACKAGE, EXTERNAL }
+
+    /**
+     * Classifies {@code org/module} against the module owning the file. Everything is external when this
+     * context was built without a {@link ModuleInfo}, which is the behaviour of {@link #from(ModulePartNode)}.
+     */
+    private Origin classify(String org, String module) {
+        if (currentModule == null || org == null || org.isBlank()
+                || !org.equals(currentModule.org())) {
+            return Origin.EXTERNAL;
+        }
+        // moduleName() is the full dotted path; packageName() is the root-only name.
+        if (module.equals(currentModule.moduleName())) {
+            return Origin.SAME_MODULE;
+        }
+        int firstDot = module.indexOf('.');
+        String rootPackage = firstDot < 0 ? module : module.substring(0, firstDot);
+        return rootPackage.equals(currentModule.packageName()) ? Origin.SAME_PACKAGE : Origin.EXTERNAL;
     }
 
     /**
@@ -178,6 +233,8 @@ public final class ModulePrefixContext {
         // pending imports needs the same set it would have imported before -- the text is only one of the places
         // a dependent module is used.
         Map<String, String> byAuthored = new LinkedHashMap<>();
+        Map<String, String> naturalCandidates = new LinkedHashMap<>();
+        Set<String> contestedNaturals = new HashSet<>();
         for (Map.Entry<String, String> entry : importsByAuthored.entrySet()) {
             // A version tail is dropped, and an entry with no organization is a module of the current package.
             String[] parts = entry.getValue().split(":")[0].split("/", 2);
@@ -186,8 +243,30 @@ public final class ModulePrefixContext {
             if (module.isEmpty()) {
                 continue;
             }
-            byAuthored.put(entry.getKey(), prefixFor(org, module));
+            String resolved = prefixFor(org, module);
+            if (resolved.isEmpty()) {
+                // A type of the file's own module carries no qualifier; mapping one onto "" would emit ":Type".
+                continue;
+            }
+            byAuthored.put(entry.getKey(), resolved);
+            // The key is only a proposed join between text and module: it can be the type name rather than the
+            // qualifier, and a stale entry can name a module the text never mentions. The module's own natural
+            // prefix is therefore offered as a second spelling, so an aliased module is rewritten under whichever
+            // of the two the text actually used.
+            String natural = ModuleAliasResolver.selfPrefix(module);
+            String previous = naturalCandidates.putIfAbsent(natural, resolved);
+            if (previous != null && !previous.equals(resolved)) {
+                contestedNaturals.add(natural);
+            }
         }
+        naturalCandidates.forEach((natural, resolved) -> {
+            // Only where the natural prefix is a sound identity: unclaimed by another module in this map, not
+            // already ambiguous across the operation, and not shadowing a key the caller supplied itself.
+            if (!contestedNaturals.contains(natural) && !ambiguousNaturals.contains(natural)
+                    && !byAuthored.containsKey(natural)) {
+                byAuthored.put(natural, resolved);
+            }
+        });
         if (text == null || text.isEmpty() || text.indexOf(':') < 0) {
             return text;
         }
@@ -235,9 +314,33 @@ public final class ModulePrefixContext {
                 : ModuleAliasResolver.withAliasClause(signature, prefix);
     }
 
-    /** The modules that still need an import statement, as {@code org/module} -> resolved prefix. */
+    /**
+     * The modules that still need an import statement, as {@code org/module} -> resolved prefix, in the order
+     * they were registered. Callers emit import text from this, so the order has to survive the copy.
+     */
     public Map<String, String> pendingImports() {
-        return Map.copyOf(pendingImports);
+        return Collections.unmodifiableMap(new LinkedHashMap<>(pendingImports));
+    }
+
+    /**
+     * The import signatures still to be written, in registration order, each already carrying its
+     * {@code as <prefix>} clause where the resolved prefix is a rename.
+     *
+     * <p>
+     * Unlike {@link #importSignatureFor}, no ambiguity check applies: this is for a caller that rewrites
+     * references by authored qualifier, and so can follow an alias through wherever it allocates one.
+     * </p>
+     *
+     * @return one {@code org/module[ as prefix]} per module the file does not import yet
+     */
+    public List<String> pendingImportStatements() {
+        List<String> statements = new ArrayList<>();
+        pendingImports.forEach((key, prefix) -> {
+            // A blank organization is a module of the current package, whose import carries no organization.
+            String signature = key.startsWith("/") ? key.substring(1) : key;
+            statements.add(ModuleAliasResolver.withAliasClause(signature, prefix));
+        });
+        return List.copyOf(statements);
     }
 
     /** Whether any registered module resolved to something other than its natural prefix. */
