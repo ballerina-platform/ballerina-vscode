@@ -1586,6 +1586,11 @@ export interface ServiceModelFromCodeRequest {
     filePath: string;
     codedata: {
         lineRange: LineRange; // For the entire service
+        // The service's own attach point, as the language server last reported it
+        // (`properties.basePath.value`). A range recorded before an edit can come to
+        // enclose a different service; naming the one being edited lets the server
+        // refuse that match instead of answering with the wrong service.
+        originalName?: string;
     };
 }
 export interface ServiceModelFromCodeResponse {

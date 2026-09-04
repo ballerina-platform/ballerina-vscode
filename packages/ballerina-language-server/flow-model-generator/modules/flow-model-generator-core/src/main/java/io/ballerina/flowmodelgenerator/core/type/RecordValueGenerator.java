@@ -67,8 +67,15 @@ public class RecordValueGenerator {
      * falls through to the default branch, which emits the type name as a string literal.
      */
     private static void generateIntersectionValue(JsonObject json, StringBuilder builder, int indentLevel) {
+        // What the wrapper states about the value is answer enough, and is checked in the order the default
+        // branch this replaced used: without the `defaultValue` arm, a wrapper carrying only a default would
+        // delegate to a member that has none and emit that member's zero value instead.
         if (json.has("value") && !json.get("value").getAsString().isEmpty()) {
             builder.append(json.get("value").getAsString());
+            return;
+        }
+        if (json.has("defaultValue") && !json.get("defaultValue").getAsString().isEmpty()) {
+            builder.append(json.get("defaultValue").getAsString());
             return;
         }
 
@@ -79,10 +86,11 @@ public class RecordValueGenerator {
             return;
         }
 
-        // The wrapper is the field slot, so its name and selection stand - the same merge
-        // IntersectionNormalizer applies on the way out. The record and array branches skip an unselected node,
-        // which for a record field would emit the field name with no value at all, and isAmbiguousUnionModulePrefix
-        // keys off the field's name.
+        // Only `name` and `selected` need carrying: this is the field slot's half of what
+        // IntersectionNormalizer.merge does, not the whole merge. The record and array branches skip an
+        // unselected node, which for a record field would emit the field name with no value at all, and
+        // isAmbiguousUnionModulePrefix keys off the field's name - `typeInfo` it reads from the member, which
+        // is where diagram-util puts it (`getIntersectionType` never stamps the wrapper).
         JsonObject member = shape.deepCopy();
         if (json.has("selected")) {
             member.add("selected", json.get("selected"));

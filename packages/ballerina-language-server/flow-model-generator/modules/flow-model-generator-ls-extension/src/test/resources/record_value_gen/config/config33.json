@@ -1,0 +1,40 @@
+{
+    "filePath": "proj",
+    "description": "an intersection wrapper carrying only a default value emits that default, not the member's zero value",
+    "type": {
+        "name": "DefaultedReadonly",
+        "fields": [
+            {
+                "name": "retries",
+                "typeName": "intersection",
+                "defaultValue": "5",
+                "optional": false,
+                "defaultable": true,
+                "isRestType": false,
+                "selected": true,
+                "members": [
+                    {
+                        "typeName": "readonly",
+                        "optional": false,
+                        "defaultable": false,
+                        "isRestType": false,
+                        "selected": false
+                    },
+                    {
+                        "typeName": "int",
+                        "optional": false,
+                        "defaultable": false,
+                        "isRestType": false,
+                        "selected": false
+                    }
+                ]
+            }
+        ],
+        "typeName": "record",
+        "optional": false,
+        "defaultable": false,
+        "isRestType": false,
+        "selected": true
+    },
+    "output": "{\n    retries: 5\n}"
+}

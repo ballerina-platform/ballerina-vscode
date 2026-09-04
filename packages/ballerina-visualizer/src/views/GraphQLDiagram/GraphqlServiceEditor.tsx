@@ -254,15 +254,22 @@ export function GraphqlServiceEditor(props: GraphqlServiceEditorProps) {
                 filePath: reqFilePath,
                 codedata: {
                     lineRange: reqLineRange,
+                    // Name the service being refreshed, so the server's stale-range recovery cannot
+                    // answer with a different service that has come to enclose this range. Sent back
+                    // exactly as the server reported it; absent on the first fetch, whose range is
+                    // the one the panel was opened with and so is not stale.
+                    originalName: serviceModel?.properties?.basePath?.value,
                 },
             });
             console.log("Service Model: ", res.service);
-            if (res.service) {
-                setServiceModel(res.service);
-            }
+            // No service means the one this panel was opened on is gone. Clear rather than keep
+            // operations whose ranges point at nothing - onDeleteFunction edits at
+            // `model.codedata.lineRange`, and a stale one would delete the wrong text.
+            setServiceModel(res.service);
         } catch (error) {
-            // A range recorded before an edit no longer resolves against the edited document, and
-            // the request fails. Keep the model we have rather than rejecting into nothing.
+            // The request itself failed, which says nothing about whether the service is still
+            // there. Keep the model we have rather than rejecting into nothing: nothing awaits
+            // this call, so a rejection escaping here would take down the webview.
             console.error("Error fetching the service model:", error);
         }
         await getProjectListeners();

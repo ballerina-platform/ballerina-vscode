@@ -107,7 +107,10 @@ const STALE_LINE_RANGE = {
 
 function serviceWith(fieldNames: string[]) {
     return {
-        name: SERVICE_NAME,
+        name: "GraphQL Service",
+        // The attach point, as the language server reports it. The panel sends it back so a refresh
+        // cannot be answered with a different service that has come to enclose its range.
+        properties: { basePath: { value: SERVICE_NAME } },
         functions: fieldNames.map((name) => ({
             kind: "QUERY",
             name: { value: name },
@@ -205,9 +208,33 @@ describe("GraphqlServiceEditor delete", () => {
         // current location happens to be.
         expect(applyModifications.mock.calls[0][2]).toBe(FILE_PATH);
         expect(getServiceModelFromCode).toHaveBeenCalledTimes(2);
+        // The mount had no model to name a service from; the refresh does, and the range it sends is
+        // the stale one, which is exactly when the server needs the name to disambiguate.
+        expect(getServiceModelFromCode.mock.calls[0][0].codedata.originalName).toBeUndefined();
+        expect(getServiceModelFromCode.mock.calls[1][0].codedata.originalName).toBe(SERVICE_NAME);
         expect(container.querySelector('[data-testid="delete-we"]')).toBeNull();
         expect(container.querySelector('[data-testid="delete-other"]')).toBeTruthy();
         expect(rejections).toEqual([]);
+    });
+
+    it("clears the panel when the refresh finds no service", async () => {
+        // The service this panel was opened on is gone - deleted or renamed elsewhere. Keeping the
+        // operations on screen would leave every one of them wired to a range that now points at
+        // other text, and onDeleteFunction edits at that range.
+        const getServiceModelFromCode = jest
+            .fn<any, any>()
+            .mockResolvedValueOnce({ service: serviceWith(["we"]) })
+            .mockResolvedValue({ service: undefined });
+        await render(makeRpc(getServiceModelFromCode));
+
+        await act(async () => {
+            (container.querySelector('[data-testid="delete-we"]') as HTMLElement).click();
+        });
+        await settle();
+
+        expect(rejections).toEqual([]);
+        expect(container.querySelector('[data-testid="delete-we"]')).toBeNull();
+        expect(container.querySelector('[data-testid="progress-ring"]')).toBeTruthy();
     });
 
     it("contains a refresh that fails and keeps showing the fields it has", async () => {

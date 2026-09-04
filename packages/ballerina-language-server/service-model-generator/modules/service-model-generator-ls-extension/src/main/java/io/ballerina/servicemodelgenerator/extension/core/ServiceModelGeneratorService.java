@@ -229,6 +229,21 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                 .findFirst();
     }
 
+    /**
+     * Whether the service the fallback landed on is the one the client asked for. Containment on its own is not
+     * enough: text added above the open service pushes an earlier service down over the start line the client
+     * recorded, and that earlier service would then come back as a successful answer. A client that names the
+     * service it is editing - its attach point, exactly as {@code extractServicePathInfo} reported it back -
+     * has that checked; one that does not keeps the plain containment behaviour.
+     */
+    private static boolean isRequestedService(Codedata codedata, ServiceDeclarationNode serviceNode) {
+        String requestedAttachPoint = codedata.getOriginalName();
+        if (requestedAttachPoint == null || requestedAttachPoint.isBlank()) {
+            return true;
+        }
+        return requestedAttachPoint.equals(Utils.getPath(serviceNode.absoluteResourcePath()));
+    }
+
     @Override
     public void init(LanguageServer langServer, WorkspaceManager workspaceManager,
                      LanguageServerContext serverContext) {
@@ -604,7 +619,7 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                 // rather than reporting that the service it is looking at no longer exists.
                 Optional<ServiceDeclarationNode> enclosingService =
                         findServiceContaining(request.codedata(), document.get());
-                if (enclosingService.isEmpty()) {
+                if (enclosingService.isEmpty() || !isRequestedService(request.codedata(), enclosingService.get())) {
                     return new ServiceFromSourceResponse();
                 }
                 serviceNode = enclosingService.get();
