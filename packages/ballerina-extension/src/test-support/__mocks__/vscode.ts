@@ -19,18 +19,30 @@
 // Minimal `vscode` stub for host-side unit/contract tests (no real editor).
 // Extend as contract tests need more surface.
 
+/** Editor tab input, matched with `instanceof` by anything that filters tabs. */
+export class TabInputText {
+    constructor(public readonly uri: { fsPath: string; toString(): string }) {}
+}
+
 export const window = {
     showErrorMessage: () => Promise.resolve(undefined),
     showInformationMessage: () => Promise.resolve(undefined),
     showWarningMessage: () => Promise.resolve(undefined),
     createOutputChannel: () => ({ appendLine() {}, append() {}, show() {}, clear() {}, dispose() {} }),
     activeTextEditor: undefined,
+    // Tests assign `all` and spy on `close`.
+    tabGroups: {
+        all: [] as { tabs: { input: unknown }[] }[],
+        close: (_tab: unknown, _preserveFocus?: boolean) => Promise.resolve(true),
+    },
 };
 
 export const workspace = {
     getConfiguration: () => ({ get: () => undefined, update: () => Promise.resolve(), inspect: () => undefined }),
     workspaceFolders: [] as unknown[],
     isTrusted: true,
+    // Tests assign this to stand in for the documents VS Code has materialised.
+    textDocuments: [] as { uri: { fsPath: string }; isDirty: boolean; save(): Promise<boolean> }[],
     onDidChangeConfiguration: () => ({ dispose() {} }),
     onDidGrantWorkspaceTrust: () => ({ dispose() {} }),
 };

@@ -28,6 +28,7 @@ import { getAskResponse } from "../../features/ai/ask/index";
 import { ArtifactNotificationHandler, ArtifactsUpdated } from "../../utils/project-artifacts-handler";
 import { VisualizerRpcManager } from "../visualizer/rpc-manager";
 import { renderDatamapper } from "../../../src/views/ai-panel/checkpoint/checkpointUtils";
+import { closeTabsOpenedByEdit, openTabUris, saveEditedDocuments } from "./edit-tabs";
 
 // Common functions
 
@@ -40,6 +41,7 @@ export function isErrorCode(error: any): boolean {
 export async function addToIntegration(workspaceFolderPath: string, fileChanges: FileChanges[]) {
     const formattedWorkspaceEdit = new WorkspaceEdit();
     const nonBalFiles: FileChanges[] = [];
+    const editedBalUris: Uri[] = [];
     let isBalFileAdded = false;
     for (const fileChange of fileChanges) {
         let balFilePath = path.join(workspaceFolderPath, fileChange.filePath);
@@ -55,6 +57,7 @@ export async function addToIntegration(workspaceFolderPath: string, fileChanges:
             continue;
         }
 
+        editedBalUris.push(fileUri);
         formattedWorkspaceEdit.createFile(fileUri, { ignoreIfExists: true });
 
         formattedWorkspaceEdit.replace(
@@ -67,9 +70,13 @@ export async function addToIntegration(workspaceFolderPath: string, fileChanges:
         );
     }
 
-    // Apply all formatted changes at once
-    await workspace.applyEdit(formattedWorkspaceEdit);
-    await workspace.saveAll();
+    // Apply all formatted changes at once. isRefactoring lets files.refactoring.autoSave
+    // (on by default) save the touched files as part of the edit itself — a bulk-edited file
+    // left dirty is what VS Code surfaces as a new tab when the user's autosave is off.
+    const tabsBeforeEdit = openTabUris();
+    await workspace.applyEdit(formattedWorkspaceEdit, { isRefactoring: true });
+    await saveEditedDocuments(editedBalUris);
+    await closeTabsOpenedByEdit(editedBalUris, tabsBeforeEdit);
 
     // Write non ballerina files separately as ls doesn't need to be notified of those changes
     for (const fileChange of nonBalFiles) {
