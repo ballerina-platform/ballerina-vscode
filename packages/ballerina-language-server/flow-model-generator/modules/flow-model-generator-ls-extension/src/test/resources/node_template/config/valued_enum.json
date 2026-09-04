@@ -1,0 +1,77 @@
+{
+  "source": "default_enum.bal",
+  "position": {
+    "line": 2,
+    "offset": 15
+  },
+  "description": "Function call with a nilable enum having values that differ from the member names",
+  "codedata": {
+    "node": "FUNCTION_CALL",
+    "org": "$anon",
+    "module": ".",
+    "packageName": ".",
+    "symbol": "function8",
+    "version": "0.0.0"
+  },
+  "output": {
+    "id": "31",
+    "metadata": {
+      "label": "function8",
+      "description": "",
+      "icon": "https://bcentral-packageicons.azureedge.net/images/$anon_._0.0.0.png"
+    },
+    "codedata": {
+      "node": "FUNCTION_CALL",
+      "org": "$anon",
+      "module": ".",
+      "packageName": ".",
+      "symbol": "function8",
+      "version": "0.0.0",
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "priority": {
+        "metadata": {
+          "label": "Priority"
+        },
+        "types": [
+          {
+            "fieldType": "SINGLE_SELECT",
+            "options": [
+              {
+                "label": "HIGH",
+                "value": "HIGH"
+              },
+              {
+                "label": "MEDIUM",
+                "value": "MEDIUM"
+              },
+              {
+                "label": "LOW",
+                "value": "LOW"
+              }
+            ],
+            "selected": false
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "Priority?",
+            "selected": false
+          }
+        ],
+        "placeholder": "()",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false,
+        "codedata": {
+          "kind": "DEFAULTABLE",
+          "originalName": "priority"
+        },
+        "defaultValue": "\"5\""
+      }
+    },
+    "flags": 0
+  }
+}
