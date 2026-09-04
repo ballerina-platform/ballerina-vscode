@@ -121,6 +121,30 @@ public final class ImportPrefixReader {
      * @return the prefix the file binds the module to, or empty when the file does not import it
      */
     public static Optional<String> existingImportPrefix(ModulePartNode node, String org, String module) {
+        return existingImportPrefix(node, org, module, null);
+    }
+
+    /**
+     * As {@link #existingImportPrefix(ModulePartNode, String, String)}, but told which organization owns the file so
+     * an org-less import in it can be matched safely.
+     *
+     * <p>
+     * An import written without an organization belongs to the file's own package. Treating it as a match for any
+     * organization lets a request for a <b>foreign</b> module of the same dotted name -- {@code ballerinax/ai.google}
+     * against a local {@code import ai.google;} -- come back as already imported. The caller then emits no import and
+     * renders {@code google:}, which binds to the local module instead: a silent mis-binding rather than a
+     * redeclared-symbol error. Passing {@code currentOrg} restricts that leniency to modules that really could be
+     * the file's own.
+     * </p>
+     *
+     * @param node       the root node of the file to read
+     * @param org        the organization to match; null or blank matches any
+     * @param module     the module name to match
+     * @param currentOrg the organization owning the file, or null to accept an org-less import for any organization
+     * @return the prefix the file binds the module to, or empty when the file does not import it
+     */
+    public static Optional<String> existingImportPrefix(ModulePartNode node, String org, String module,
+                                                        String currentOrg) {
         if (node == null || module == null || module.isBlank()) {
             return Optional.empty();
         }
@@ -132,9 +156,18 @@ public final class ImportPrefixReader {
             }
             // An import written without an organization is a module of the file's own package, and its module name
             // identifies it within the file on its own. The model records such a module with the organization, so
-            // matching strictly on it would miss the very import that already binds the prefix.
-            if (anyOrg || importDeclarationNode.orgName().isEmpty()
-                    || org.equals(importDeclarationNode.orgName().get().orgName().text())) {
+            // matching strictly on it would miss the very import that already binds the prefix -- but only where the
+            // requested organization is one the file's own package could have.
+            if (anyOrg) {
+                return Optional.of(importPrefixOf(importDeclarationNode, moduleName));
+            }
+            if (importDeclarationNode.orgName().isEmpty()) {
+                if (currentOrg == null || currentOrg.equals(org)) {
+                    return Optional.of(importPrefixOf(importDeclarationNode, moduleName));
+                }
+                continue;
+            }
+            if (org.equals(importDeclarationNode.orgName().get().orgName().text())) {
                 return Optional.of(importPrefixOf(importDeclarationNode, moduleName));
             }
         }

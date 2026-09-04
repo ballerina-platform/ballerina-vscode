@@ -110,8 +110,9 @@ public final class ModulePrefixContext {
             return cached;
         }
         String natural = ModuleAliasResolver.selfPrefix(module);
-        Optional<String> existing = rootNode == null
-                ? Optional.empty() : ImportPrefixReader.existingImportPrefix(rootNode, org, module);
+        Optional<String> existing = rootNode == null ? Optional.empty()
+                : ImportPrefixReader.existingImportPrefix(rootNode, org, module,
+                        currentModule == null ? null : currentModule.org());
         String resolved;
         if (existing.isPresent()) {
             resolved = existing.get();

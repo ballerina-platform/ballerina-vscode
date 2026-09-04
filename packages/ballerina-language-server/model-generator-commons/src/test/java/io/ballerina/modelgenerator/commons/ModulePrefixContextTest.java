@@ -66,6 +66,22 @@ public class ModulePrefixContextTest {
     }
 
     @Test
+    public void testTheThreeOriginsDifferInWhetherAnImportIsNeededAtAll() {
+        // The file's own module: no import, and no qualifier either -- the type is directly in scope.
+        // A sibling module of the same package: a different module, so it still needs an import.
+        // Anything else: an import carrying the organization.
+        ModulePrefixContext context = ModulePrefixContext.from(rootOf(""), CURRENT);
+
+        Assert.assertEquals(context.prefixFor("testorg", "test_pack"), "", "own module -- no qualifier");
+        Assert.assertEquals(context.prefixFor("testorg", "test_pack.sub"), "sub", "sibling -- qualified");
+        Assert.assertEquals(context.prefixFor("ballerinax", "github"), "github", "external -- qualified");
+
+        Assert.assertEquals(context.pendingImportStatements(),
+                List.of("test_pack.sub", "ballerinax/github"),
+                "only the own module is absent: a sibling module is still a separate module");
+    }
+
+    @Test
     public void testSamePackageModuleIsImportedWithoutOrganization() {
         ModulePrefixContext context = ModulePrefixContext.from(rootOf(""), CURRENT);
 
@@ -212,6 +228,54 @@ public class ModulePrefixContextTest {
                 "the key is composite and is not an import signature on its own");
         Assert.assertEquals(context.pendingImportStatements(), List.of("pkg.sub"),
                 "the statement drops the empty organization");
+    }
+
+    /** A package literally named {@code ai}, so that {@code import ai.google;} is its own submodule. */
+    private static final ModuleInfo AI_PACKAGE = new ModuleInfo("testorg", "ai", "ai", "0.1.0");
+
+    @Test
+    public void testAnOrgLessImportDoesNotStandInForAForeignModule() {
+        // Package "ai" imports its own submodule org-lessly, which is one of the two spellings Ballerina allows
+        // for a same-package import. ballerinax/ai.google is a different module that happens to share that dotted
+        // name. Matching the local import against it would emit no import and render "google:", binding the
+        // reference to the local module -- a silent mis-binding, worse than the redeclared-symbol error.
+        ModulePrefixContext context = ModulePrefixContext.from(rootOf("import ai.google;"), AI_PACKAGE);
+
+        Assert.assertEquals(context.prefixFor("ballerinax", "ai.google"), "aiGoogle",
+                "the foreign module has to be aliased, since google is taken by the local import");
+        Assert.assertEquals(context.pendingImportStatements(), List.of("ballerinax/ai.google as aiGoogle"));
+    }
+
+    @Test
+    public void testAnOrgLessImportStillMatchesTheFilesOwnPackage() {
+        // The tolerance itself must survive: the model records a same-package module WITH the organization, while
+        // the file may write its import without one. Both spellings name the same module.
+        ModulePrefixContext context = ModulePrefixContext.from(rootOf("import ai.google as g;"), AI_PACKAGE);
+
+        Assert.assertEquals(context.prefixFor("testorg", "ai.google"), "g",
+                "the alias the file already committed to still wins");
+        Assert.assertTrue(context.pendingImportStatements().isEmpty());
+    }
+
+    @Test
+    public void testSamePackageImportWrittenWithItsOrganizationAlsoMatches() {
+        // The other spelling: the file writes the organization out in full for its own submodule.
+        ModulePrefixContext context =
+                ModulePrefixContext.from(rootOf("import testorg/ai.google as g;"), AI_PACKAGE);
+
+        Assert.assertEquals(context.prefixFor("testorg", "ai.google"), "g");
+        Assert.assertTrue(context.pendingImportStatements().isEmpty());
+    }
+
+    @Test
+    public void testForeignModuleIsUnaffectedByAnOrgFulSamePackageImport() {
+        // With the organization written out there is no ambiguity to resolve, and the foreign module is still
+        // aliased because the local import holds the natural prefix.
+        ModulePrefixContext context =
+                ModulePrefixContext.from(rootOf("import testorg/ai.google;"), AI_PACKAGE);
+
+        Assert.assertEquals(context.prefixFor("ballerinax", "ai.google"), "aiGoogle");
+        Assert.assertEquals(context.pendingImportStatements(), List.of("ballerinax/ai.google as aiGoogle"));
     }
 
     @Test
