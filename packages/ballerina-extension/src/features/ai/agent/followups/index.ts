@@ -48,6 +48,15 @@ const RETRY_SUGGESTION: FollowupSuggestion = {
     prompt: "Try that again.",
 };
 
+/**
+ * Offered when the turn ran out of output room mid-change. A plain "Continue" would invite
+ * the same oversized write and truncate again, so this asks for smaller edits explicitly.
+ */
+const SMALLER_STEPS_SUGGESTION: FollowupSuggestion = {
+    label: "Finish in smaller steps",
+    prompt: "That was cut off before it finished. Redo the change you were part-way through, applying it as several small edits instead of one large one.",
+};
+
 export interface FollowupTurn {
     situation: FollowupSituation;
     /** Generation this turn belongs to. */
@@ -117,6 +126,7 @@ export function startFollowupSuggestions(turn: FollowupTurn): boolean {
 
             const fixed = aborted || situation === "usage_limit" ? [CONTINUE_SUGGESTION]
                 : situation === "error" ? [RETRY_SUGGESTION]
+                : situation === "truncated" ? [SMALLER_STEPS_SUGGESTION]
                 : [];
             const suggestions = [...fixed, ...generated];
             if (suggestions.length === 0 || (!interrupted && abortSignal.aborted)) {
@@ -195,6 +205,9 @@ function sanitize(
             continue;
         }
         if (situation === "error" && /^(retry|try again)\b/i.test(label)) {
+            continue;
+        }
+        if (situation === "truncated" && /^(continue|resume|finish|complete|retry|try again|split|break)\b/i.test(label)) {
             continue;
         }
         const key = label.toLowerCase();

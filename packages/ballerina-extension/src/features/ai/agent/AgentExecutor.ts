@@ -19,7 +19,7 @@
 import { AICommandExecutor, AICommandConfig, AIExecutionResult } from '../executors/base/AICommandExecutor';
 import { Command, GenerateAgentCodeRequest, ProjectSource, ExecutionContext, SemanticDiff, ReviewModeData, PROJECT_KIND, LoginMethod } from '@wso2/ballerina-core';
 import { StateMachine } from '../../../stateMachine';
-import { ModelMessage, stepCountIs, streamText, TextStreamPart } from 'ai';
+import { FinishReason, ModelMessage, stepCountIs, streamText, TextStreamPart } from 'ai';
 import { getAnthropicClient, getProviderCacheControl, getProviderModelOptions, addCacheControlToMessages, ANTHROPIC_SONNET } from '../utils/ai-client';
 import { populateHistoryForAgent, getErrorMessage, getErrorCode, buildChatError } from '../utils/ai-utils';
 import { seedAiBaselines } from '../utils/project/ls-schema-notifications';
@@ -57,6 +57,7 @@ import {
     sendTelemetryException,
     TM_EVENT_BALLERINA_AI_GENERATION_COMPLETED,
     TM_EVENT_BALLERINA_AI_GENERATION_ABORTED,
+    TM_EVENT_BALLERINA_AI_GENERATION_TRUNCATED,
     TM_EVENT_BALLERINA_AI_GENERATION_FAILED,
     CMP_BALLERINA_AI_GENERATION
 } from "../../telemetry";
@@ -737,7 +738,10 @@ Generation stopped by user. The last in-progress task was not saved. Any complet
                 throw error;
 
             case "finish":
-                await this.handleStreamFinish(context);
+                // A truncated tool call never becomes a `tool-call` chunk (Anthropic leaves
+                // the block unclosed), so the SDK has nothing to feed back and quietly ends
+                // the run — indistinguishable from a clean stop without `finishReason`.
+                await this.handleStreamFinish(context, part.finishReason, part.rawFinishReason);
                 break;
 
             case "tool-call":
@@ -883,8 +887,29 @@ Generation stopped by user. The last in-progress task was not saved. Any complet
 
     /**
      * Handles stream completion - runs diagnostics and updates chat state.
+     *
+     * A truncated turn still runs everything that makes its edits reviewable and revertible.
+     * Only the "this turn succeeded" signals change: the telemetry event, the follow-up chip
+     * framing, and an incomplete marker in the transcript.
      */
-    private async handleStreamFinish(context: StreamContext): Promise<void> {
+    private async handleStreamFinish(
+        context: StreamContext,
+        finishReason?: FinishReason,
+        rawFinishReason?: string,
+    ): Promise<void> {
+        // 'length' covers both max_tokens and model_context_window_exceeded. Typed as the
+        // SDK's `FinishReason`, not `string`: the provider hands up a `{ unified, raw }`
+        // object that the SDK flattens, and an upgrade that stopped flattening it would make
+        // this silently false forever. This way it fails the build instead.
+        const wasTruncated = finishReason === 'length';
+        if (wasTruncated) {
+            console.warn(
+                `[AgentExecutor] Turn truncated at the output token limit ` +
+                `(finishReason: ${finishReason}, raw: ${rawFinishReason ?? 'n/a'}). ` +
+                `The model's last tool call was cut off mid-argument and never ran.`
+            );
+        }
+
         const finalResponse = await context.response;
         const assistantMessages = finalResponse.messages || [];
         const tempProjectPath = context.ctx.tempProjectPath!;
@@ -919,7 +944,7 @@ Generation stopped by user. The last in-progress task was not saved. Any complet
             context.toolModelUsage
         );
 
-        console.log('[AgentExecutor] Generation complete — token usage:', {
+        console.log(`[AgentExecutor] Generation ${wasTruncated ? 'truncated' : 'complete'} — token usage:`, {
             input: inputTokens,
             output: outputTokens,
             cacheRead: totalCacheRead,
@@ -929,10 +954,12 @@ Generation stopped by user. The last in-progress task was not saved. Any complet
             cost: `$${totalCost.toFixed(4)}`,
         });
 
-        // Send telemetry for generation complete
+        // Truncated turns get their own event so they cannot inflate the completion rate.
         sendTelemetryEvent(
             extension.ballerinaExtInstance,
-            TM_EVENT_BALLERINA_AI_GENERATION_COMPLETED,
+            wasTruncated
+                ? TM_EVENT_BALLERINA_AI_GENERATION_TRUNCATED
+                : TM_EVENT_BALLERINA_AI_GENERATION_COMPLETED,
             CMP_BALLERINA_AI_GENERATION,
             {
                 'message.id': context.messageId,
@@ -940,6 +967,7 @@ Generation stopped by user. The last in-progress task was not saved. Any complet
                 'generation.start_time': context.generationStartTime.toString(),
                 'generation.end_time': generationEndTime.toString(),
                 'plan_mode': isPlanModeEnabled.toString(),
+                ...(wasTruncated ? { 'generation.raw_finish_reason': rawFinishReason ?? 'unknown' } : {}),
             },
             {
                 'tokens.input': inputTokens,
@@ -972,11 +1000,19 @@ Generation stopped by user. The last in-progress task was not saved. Any complet
             }
         }
 
+        // Emitted before the review card so the marker closes the streamed text rather than
+        // trailing after it. Review state stays 'done' — the only revertible status, and a
+        // truncated turn has usually already written edits worth reverting. Same reasoning as
+        // the abort and stream-error paths above.
+        if (wasTruncated) {
+            context.eventHandler({ type: 'turn_truncated', rawFinishReason });
+        }
+
         // Emit UI events
         await this.emitReviewActions(context);
 
         // Follow-up suggestions — best-effort, non-blocking.
-        this.maybeScheduleFollowups(context, assistantMessages, 'completed');
+        this.maybeScheduleFollowups(context, assistantMessages, wasTruncated ? 'truncated' : 'completed');
 
         // TODO(auto-memory): auto-dream consolidation temporarily disabled for this release.
         // // autoDream consolidation — skipped on compaction turns (no real user activity)
