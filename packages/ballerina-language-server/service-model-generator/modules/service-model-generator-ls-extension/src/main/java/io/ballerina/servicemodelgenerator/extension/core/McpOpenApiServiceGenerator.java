@@ -25,6 +25,7 @@ import io.ballerina.mcp.core.generator.McpProjectGenerator;
 import io.ballerina.mcp.core.generator.OpenApiSpecParser;
 import io.ballerina.mcp.core.model.EndpointInfo;
 import io.ballerina.mcp.core.model.SpecInfo;
+import io.ballerina.servicemodelgenerator.extension.model.Codedata;
 import io.ballerina.servicemodelgenerator.extension.model.McpServiceDefaults;
 import io.ballerina.servicemodelgenerator.extension.model.ServiceInitModel;
 import io.ballerina.servicemodelgenerator.extension.model.Value;
@@ -50,6 +51,10 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
+import static io.ballerina.servicemodelgenerator.extension.util.Constants.ARG_TYPE_LISTENER_VAR_NAME;
+import static io.ballerina.servicemodelgenerator.extension.util.Constants.ARG_TYPE_SERVICE_BASE_PATH;
+import static io.ballerina.servicemodelgenerator.extension.util.Constants.PROPERTY_BASE_PATH;
+
 /** Generates a proxy MCP service from a selected subset of an OpenAPI contract. */
 public class McpOpenApiServiceGenerator {
 
@@ -61,6 +66,12 @@ public class McpOpenApiServiceGenerator {
     private static final String DEFAULT_VERSION = "1.0.0";
     private static final Pattern SERVICE_PATH_PATTERN =
             Pattern.compile("(service\\s+mcp:Service\\s+)\\S+(\\s+on\\s+mcpListener)");
+
+    // Only basePath/listenerVarName carry a codedata type in mcp.json, so only those resolve via resolveValue().
+    private static final String KEY_SERVICE_NAME = "serviceName";
+    private static final String KEY_VERSION = "version";
+    private static final String KEY_LISTEN_TO = "listenTo";
+    private static final String KEY_LISTENER_VAR_NAME = ServiceInitModel.KEY_LISTENER_VAR_NAME;
 
     private final Path specPath;
     private final Path projectPath;
@@ -75,14 +86,15 @@ public class McpOpenApiServiceGenerator {
         SpecInfo fullSpec = runSilently(() -> new OpenApiSpecParser().parse(specPath));
         List<EndpointInfo> endpoints = selectedEndpoints(fullSpec.getEndpoints(), model.getSelectedTools());
         McpServiceDefaults defaults = defaultsFor(fullSpec);
-        String serviceName = propValue(model, "serviceName", defaults.serviceName());
-        String version = propValue(model, "version", defaults.version());
-        int port = parsePort(propValue(model, "listenTo", String.valueOf(defaults.port())), defaults.port());
-        String listenerName = propValue(model, "listenerVarName", defaults.listenerName());
+        String serviceName = propValue(model, KEY_SERVICE_NAME, defaults.serviceName());
+        String version = propValue(model, KEY_VERSION, defaults.version());
+        int port = parsePort(propValue(model, KEY_LISTEN_TO, String.valueOf(defaults.port())), defaults.port());
+        String listenerName = resolveValue(model, KEY_LISTENER_VAR_NAME, ARG_TYPE_LISTENER_VAR_NAME,
+                defaults.listenerName());
 
         SpecInfo filteredSpec = new SpecInfo(fullSpec.getBaseUrl(), port, serviceName, version, endpoints);
         String serviceSource = runSilently(() -> new MainBalGenerator().generate(filteredSpec));
-        String basePath = propValue(model, "basePath", null);
+        String basePath = resolveValue(model, PROPERTY_BASE_PATH, ARG_TYPE_SERVICE_BASE_PATH, null);
         if (basePath != null && !basePath.isBlank()) {
             String normalized = basePath.startsWith("/") ? basePath : "/" + basePath;
             serviceSource = SERVICE_PATH_PATTERN.matcher(serviceSource)
@@ -155,6 +167,27 @@ public class McpOpenApiServiceGenerator {
     private static String propValue(ServiceInitModel model, String key, String fallback) {
         Value value = model.getProperties().get(key);
         return value == null || value.getValue() == null || value.getValue().isBlank() ? fallback : value.getValue();
+    }
+
+    /** Falls back to a codedata type/argType scan when the key is absent, so a key rename still resolves. */
+    private static String resolveValue(ServiceInitModel model, String key, String codedataType, String fallback) {
+        Map<String, Value> properties = model.getProperties();
+        Value value = properties.get(key);
+        if (value == null) {
+            value = findByCodedataType(properties, codedataType);
+        }
+        return value == null || value.getValue() == null || value.getValue().isBlank() ? fallback : value.getValue();
+    }
+
+    private static Value findByCodedataType(Map<String, Value> properties, String codedataType) {
+        for (Value field : properties.values()) {
+            Codedata codedata = field.getCodedata();
+            if (codedata != null
+                    && (codedataType.equals(codedata.getType()) || codedataType.equals(codedata.getArgType()))) {
+                return field;
+            }
+        }
+        return null;
     }
 
     private static int parsePort(String value, int fallback) {

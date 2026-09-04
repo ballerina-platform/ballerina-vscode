@@ -174,7 +174,7 @@ public class ServiceBuilderRouter {
         ServiceNodeBuilder serviceBuilder =
                 useSchemaDrivenPath(request.orgName(), request.moduleName(), request.version(),
                         request.isLocalRepository())
-                        ? new SchemaDrivenServiceBuilder()
+                        ? schemaDrivenServiceBuilder(request.moduleName())
                         : getServiceBuilder(request.moduleName());
         return serviceBuilder.getServiceInitModel(context);
     }
@@ -190,7 +190,7 @@ public class ServiceBuilderRouter {
         ServiceNodeBuilder serviceBuilder = useSchemaDrivenPath(
                         serviceInitModel.getOrgName(), serviceInitModel.getModuleName(),
                         serviceInitModel.getVersion(), serviceInitModel.isLocalRepository())
-                        ? new SchemaDrivenServiceBuilder()
+                        ? schemaDrivenServiceBuilder(serviceInitModel.getModuleName())
                         : getServiceBuilder(serviceInitModel.getModuleName());
         return serviceBuilder.addServiceInitSource(context);
     }
