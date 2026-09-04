@@ -1039,8 +1039,11 @@ public class TypesManager {
                         ? fullModulePart.substring(0, fullModulePart.indexOf('.'))
                         : fullModulePart;
                 if (importRootPackage.equals(currentPackageName)) {
+                    // Registered like an external module so the prefix this import binds is claimed, and an
+                    // external module named in the same request cannot be judged to have it free.
+                    String signature = prefixes.importSignatureFor("", fullModulePart);
                     if (!CommonUtils.importExists(rootNode, fullModulePart)) {
-                        importStmts.add(getImportStmt(fullModulePart));
+                        importStmts.add(getImportStmt(signature));
                     }
                     return;
                 }
