@@ -72,6 +72,10 @@ public final class TypeQualifierAllocator {
      * @return the qualifier, never empty
      */
     public String qualifierFor(String org, String module, ModuleInfo currentModule) {
+        // A blank organization is a module of the current package, which is how its import is written. Guarded
+        // rather than assumed: the sole caller passes a regex group that cannot be null today, and this keeps a
+        // future one from keying "null/mod" and failing on the org comparison below.
+        org = org == null ? "" : org;
         String key = org + "/" + module;
         String allocated = qualifierByModule.get(key);
         if (allocated != null) {
@@ -121,6 +125,9 @@ public final class TypeQualifierAllocator {
      * package is recorded without an organization, since that is how it has to be imported.
      */
     private static String importSignature(String org, String module, ModuleInfo currentModule) {
+        if (org.isEmpty()) {
+            return module;
+        }
         if (currentModule != null && org.equals(currentModule.org()) && isOwnPackage(module, currentModule)) {
             return module;
         }

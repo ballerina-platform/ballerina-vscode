@@ -51,7 +51,6 @@ import io.ballerina.modelgenerator.commons.ParameterMemberTypeData;
 import org.ballerinalang.langserver.common.utils.CommonUtil;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -442,7 +441,9 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
             builder.hidden = original.hidden();
             builder.modified = original.modified();
             builder.advancedValue = original.advancedValue();
-            builder.imports = original.imports() != null ? new HashMap<>(original.imports()) : null;
+            // Insertion-ordered: the allocation in Builder.imports gives the first claimant of a qualifier the
+            // natural segment, so a hashed copy could hand a round-tripped property different keys.
+            builder.imports = original.imports() != null ? new LinkedHashMap<>(original.imports()) : null;
             builder.defaultValue = original.defaultValue();
             builder.commentProperty = original.comment();
             if (original.dynamicFormFields() != null) {

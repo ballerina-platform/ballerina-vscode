@@ -96,8 +96,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -794,7 +794,10 @@ public class CommonUtils {
      * @return an Optional containing comma-separated list of import statements, or empty if no imports needed
      */
     public static Optional<String> getImportStatements(TypeSymbol typeSymbol, ModuleInfo moduleInfo) {
-        Set<String> imports = new HashSet<>();
+        // Insertion-ordered, so the joined string follows the type walk rather than hash order. A reader
+        // allocates prefixes in the order it parses them, and the first claimant keeps the natural segment --
+        // so a hashed order makes which of two colliding modules gets aliased vary between runs.
+        Set<String> imports = new LinkedHashSet<>();
         analyzeTypeSymbolForImports(imports, typeSymbol, moduleInfo);
         if (imports.isEmpty()) {
             return Optional.empty();
