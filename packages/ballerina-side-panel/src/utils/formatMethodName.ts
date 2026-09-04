@@ -17,8 +17,10 @@
  */
 
 const ACRONYMS = new Set([
-    "ACL", "API", "CSV", "DNS", "HTML", "HTTP", "HTTPS", "ID", "IP", "JSON", "JWT", "MFA",
-    "OTP", "PDF", "SMS", "SQL", "SSH", "SSO", "TLS", "TTL", "UI", "URI", "URL", "UUID", "XML",
+    "ACL", "AMQP", "API", "CSV", "DNS", "FTP", "FTPS", "GRPC", "HTML", "HTTP", "HTTPS", "ID",
+    "IMAP", "IP", "JDBC", "JMS", "JSON", "JWT", "LDAP", "MFA", "MQTT", "ODBC", "OTP", "PDF",
+    "POP3", "RPC", "SFTP", "SMS", "SMTP", "SOAP", "SQL", "SSH", "SSO", "TCP", "TLS", "TTL",
+    "UDP", "UI", "URI", "URL", "UUID", "WS", "WSS", "XML",
 ]);
 
 export interface FormatMethodNameOptions {
