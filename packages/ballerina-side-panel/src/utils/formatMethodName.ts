@@ -55,9 +55,7 @@ export function formatMethodName(methodName: string, options?: FormatMethodNameO
         return methodName;
     }
 
-    // SCREAMING_SNAKE_CASE constants (e.g. "MODEL_PROVIDER") carry no camelCase word
-    // boundaries, so every word looks like an acronym below; lower-case first and let
-    // the acronym set re-uppercase genuine acronyms during capitalization.
+    // Lower-case SCREAMING_SNAKE_CASE first so it doesn't all look like acronyms below.
     if (/^[A-Z0-9_]+$/.test(cleaned)) {
         cleaned = cleaned.toLowerCase();
     }
