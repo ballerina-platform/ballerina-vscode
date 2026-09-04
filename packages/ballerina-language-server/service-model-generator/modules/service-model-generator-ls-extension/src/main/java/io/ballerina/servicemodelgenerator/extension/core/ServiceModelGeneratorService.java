@@ -188,14 +188,60 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
         this.triggerProperties = newTriggerProperties;
     }
 
+    /**
+     * Finds the node covering the given range, or {@code null} when the range does not resolve against this
+     * document. A range a client recorded before an edit can point past the end of the document it is resolved
+     * against - deleting a function shortens the service that contained it - and resolving such a range throws,
+     * which fails the whole request and reaches the webview as an unhandled rejection.
+     */
     private static NonTerminalNode findNonTerminalNode(Codedata codedata, Document document) {
         SyntaxTree syntaxTree = document.syntaxTree();
         ModulePartNode modulePartNode = syntaxTree.rootNode();
         TextDocument textDocument = syntaxTree.textDocument();
         LineRange lineRange = codedata.getLineRange();
-        int start = textDocument.textPositionFrom(lineRange.startLine());
-        int end = textDocument.textPositionFrom(lineRange.endLine());
+        int start;
+        int end;
+        try {
+            start = textDocument.textPositionFrom(lineRange.startLine());
+            end = textDocument.textPositionFrom(lineRange.endLine());
+        } catch (IndexOutOfBoundsException | IllegalArgumentException e) {
+            return null;
+        }
+        if (end < start) {
+            return null;
+        }
         return modulePartNode.findNode(TextRange.from(start, end - start), true);
+    }
+
+    /**
+     * Finds the service declaration containing the given range's start. An edit inside a service moves its end
+     * but never its start, so the start a client recorded still falls inside the service it was taken from even
+     * once the end has gone stale. Services do not nest, so at most one can contain it.
+     */
+    private static Optional<ServiceDeclarationNode> findServiceContaining(Codedata codedata, Document document) {
+        int startLine = codedata.getLineRange().startLine().line();
+        ModulePartNode modulePartNode = document.syntaxTree().rootNode();
+        return modulePartNode.members().stream()
+                .filter(member -> member instanceof ServiceDeclarationNode)
+                .map(member -> (ServiceDeclarationNode) member)
+                .filter(service -> service.lineRange().startLine().line() <= startLine
+                        && startLine <= service.lineRange().endLine().line())
+                .findFirst();
+    }
+
+    /**
+     * Whether the service the fallback landed on is the one the client asked for. Containment on its own is not
+     * enough: text added above the open service pushes an earlier service down over the start line the client
+     * recorded, and that earlier service would then come back as a successful answer. A client that names the
+     * service it is editing - its attach point, exactly as {@code extractServicePathInfo} reported it back -
+     * has that checked; one that does not keeps the plain containment behaviour.
+     */
+    private static boolean isRequestedService(Codedata codedata, ServiceDeclarationNode serviceNode) {
+        String requestedAttachPoint = codedata.getOriginalName();
+        if (requestedAttachPoint == null || requestedAttachPoint.isBlank()) {
+            return true;
+        }
+        return requestedAttachPoint.equals(Utils.getPath(serviceNode.absoluteResourcePath()));
     }
 
     @Override
@@ -564,10 +610,20 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                 return new ServiceFromSourceResponse();
             }
             NonTerminalNode node = findNonTerminalNode(request.codedata(), document.get());
-            if (node.kind() != SyntaxKind.SERVICE_DECLARATION) {
-                return new ServiceFromSourceResponse();
+            ServiceDeclarationNode serviceNode;
+            if (node instanceof ServiceDeclarationNode serviceDeclarationNode) {
+                serviceNode = serviceDeclarationNode;
+            } else {
+                // Editing a service moves its end but never its start, so a client refreshing after its own
+                // edit sends a range whose end has gone stale. Fall back to the service it started from
+                // rather than reporting that the service it is looking at no longer exists.
+                Optional<ServiceDeclarationNode> enclosingService =
+                        findServiceContaining(request.codedata(), document.get());
+                if (enclosingService.isEmpty() || !isRequestedService(request.codedata(), enclosingService.get())) {
+                    return new ServiceFromSourceResponse();
+                }
+                serviceNode = enclosingService.get();
             }
-            ServiceDeclarationNode serviceNode = (ServiceDeclarationNode) node;
             SemanticModel semanticModel = semanticModelOp.get();
             Service service = ServiceBuilderRouter.getServiceFromSource(serviceNode, project, semanticModel,
                     workspaceManager, request.filePath());
@@ -635,6 +691,11 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
 
                 Document document = documentOpt.get();
                 NonTerminalNode node = findNonTerminalNode(request.codedata(), document);
+                if (Objects.isNull(node)) {
+                    // Without this the blank listener that processListenerNode builds for an unrecognised node
+                    // would come back as a successful model, and saving that form would wipe the real listener.
+                    return new ListenerFromSourceResponse();
+                }
                 String orgName = request.codedata().getOrgName();
 
                 ModuleInfo moduleInfo = ModuleInfo.from(document.module().descriptor());
@@ -782,7 +843,9 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                     return new CommonSourceResponse();
                 }
                 NonTerminalNode node = findNonTerminalNode(service.getCodedata(), document.get());
-                if (node.kind() != SyntaxKind.SERVICE_DECLARATION) {
+                // A write is not retargeted the way the read above is: a range that no longer resolves is
+                // reported as such rather than guessed at.
+                if (Objects.isNull(node) || node.kind() != SyntaxKind.SERVICE_DECLARATION) {
                     return new CommonSourceResponse();
                 }
                 List<ValidationResult> validations = SaveTimeValidator.validate(service.getProperties(),

@@ -55,6 +55,9 @@ public class GetServiceModelFromSourceTest extends AbstractLSTest {
 
         String sourcePath = sourceDir.resolve(testConfig.filePath()).toAbsolutePath().toString();
         Codedata codedata = new Codedata(LineRange.from(testConfig.filePath(), testConfig.start(), testConfig.end()));
+        // Optional: names the service the client is editing, so a range that has gone stale cannot resolve to
+        // a different service. Configs that omit it exercise the plain containment fallback.
+        codedata.setOriginalName(testConfig.originalName());
         CommonModelFromSourceRequest sourceRequest = new CommonModelFromSourceRequest(sourcePath, codedata);
         JsonObject jsonMap = getResponseAndCloseFile(sourceRequest, sourcePath);
         ServiceFromSourceResponse serviceFromSourceResponse = gson.fromJson(jsonMap, ServiceFromSourceResponse.class);
@@ -65,7 +68,7 @@ public class GetServiceModelFromSourceTest extends AbstractLSTest {
         if (!actualServiceModelJson.equals(testConfig.response())) {
             GetServiceModelFromSourceTest.TestConfig updatedConfig =
                     new GetServiceModelFromSourceTest.TestConfig(testConfig.filePath(), testConfig.description(),
-                            testConfig.start(), testConfig.end(), actualServiceModelJson);
+                            testConfig.start(), testConfig.end(), testConfig.originalName(), actualServiceModelJson);
 //            updateConfig(configJsonPath, updatedConfig);
             compareJsonElements(jsonMap, testConfig.response());
             Assert.fail(String.format("Failed test: '%s' (%s)", testConfig.description(), configJsonPath));
@@ -105,14 +108,15 @@ public class GetServiceModelFromSourceTest extends AbstractLSTest {
     /**
      * Represents the test configuration for the source generator test.
      *
-     * @param filePath    The path to the source file
-     * @param description The description of the test
-     * @param start       The start position of the service declaration node
-     * @param end         The end position of the service declaration node
-     * @param response    The expected response
+     * @param filePath     The path to the source file
+     * @param description  The description of the test
+     * @param start        The start position of the service declaration node
+     * @param end          The end position of the service declaration node
+     * @param originalName The service's attach point, when the request names the service it is editing
+     * @param response     The expected response
      */
     private record TestConfig(String filePath, String description, LinePosition start, LinePosition end,
-                              JsonElement response) {
+                              String originalName, JsonElement response) {
 
         public String description() {
             return description == null ? "" : description;

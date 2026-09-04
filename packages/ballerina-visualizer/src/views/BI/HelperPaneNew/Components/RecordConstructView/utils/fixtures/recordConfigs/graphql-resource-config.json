@@ -1,0 +1,190 @@
+{
+  "description": "typesManager/findMatchingType for graphql:GraphqlResourceConfig - `cacheConfig` is a `readonly & ServerCacheConfig` field and `interceptors` a `readonly & <union>` field",
+  "recordConfig": {
+    "fields": [
+      {
+        "members": [
+          {
+            "members": [
+              {
+                "members": [
+                  {
+                    "fields": [],
+                    "name": "Interceptor",
+                    "typeName": "object",
+                    "optional": false,
+                    "typeInfo": {
+                      "name": "Interceptor",
+                      "orgName": "ballerina",
+                      "moduleName": "graphql",
+                      "version": "1.16.0"
+                    },
+                    "defaultable": false,
+                    "isRestType": false,
+                    "selected": false
+                  },
+                  {
+                    "typeName": "readonly",
+                    "optional": false,
+                    "defaultable": false,
+                    "isRestType": false,
+                    "selected": false
+                  }
+                ],
+                "typeName": "intersection",
+                "optional": false,
+                "defaultable": false,
+                "isRestType": false,
+                "selected": false
+              },
+              {
+                "memberType": {
+                  "members": [
+                    {
+                      "fields": [],
+                      "name": "Interceptor",
+                      "typeName": "object",
+                      "optional": false,
+                      "typeInfo": {
+                        "name": "Interceptor",
+                        "orgName": "ballerina",
+                        "moduleName": "graphql",
+                        "version": "1.16.0"
+                      },
+                      "defaultable": false,
+                      "isRestType": false,
+                      "selected": false
+                    },
+                    {
+                      "typeName": "readonly",
+                      "optional": false,
+                      "defaultable": false,
+                      "isRestType": false,
+                      "selected": false
+                    }
+                  ],
+                  "typeName": "intersection",
+                  "optional": false,
+                  "defaultable": false,
+                  "isRestType": false,
+                  "selected": false
+                },
+                "typeName": "array",
+                "optional": false,
+                "defaultable": false,
+                "isRestType": false,
+                "selected": false
+              }
+            ],
+            "typeName": "union",
+            "optional": false,
+            "defaultable": false,
+            "isRestType": false,
+            "selected": false
+          },
+          {
+            "typeName": "readonly",
+            "optional": false,
+            "defaultable": false,
+            "isRestType": false,
+            "selected": false
+          }
+        ],
+        "name": "interceptors",
+        "typeName": "intersection",
+        "optional": false,
+        "defaultable": true,
+        "documentation": "GraphQL field level interceptors",
+        "isRestType": false,
+        "selected": false
+      },
+      {
+        "name": "prefetchMethodName",
+        "typeName": "string",
+        "optional": true,
+        "defaultable": false,
+        "documentation": "The name of the instance method to be used for prefetching",
+        "isRestType": false,
+        "selected": false
+      },
+      {
+        "members": [
+          {
+            "typeName": "readonly",
+            "optional": false,
+            "defaultable": false,
+            "isRestType": false,
+            "selected": false
+          },
+          {
+            "fields": [
+              {
+                "name": "enabled",
+                "typeName": "boolean",
+                "optional": false,
+                "defaultable": true,
+                "documentation": "",
+                "isRestType": false,
+                "selected": false
+              },
+              {
+                "name": "maxAge",
+                "typeName": "decimal",
+                "optional": false,
+                "defaultable": true,
+                "documentation": "",
+                "isRestType": false,
+                "selected": false
+              },
+              {
+                "name": "maxSize",
+                "typeName": "int",
+                "optional": false,
+                "defaultable": true,
+                "documentation": "",
+                "isRestType": false,
+                "selected": false
+              }
+            ],
+            "hasRestType": false,
+            "typeName": "record",
+            "optional": false,
+            "defaultable": false,
+            "isRestType": false,
+            "selected": false
+          }
+        ],
+        "name": "cacheConfig",
+        "typeName": "intersection",
+        "optional": true,
+        "typeInfo": {
+          "name": "ServerCacheConfig",
+          "orgName": "ballerina",
+          "moduleName": "graphql",
+          "version": "1.16.0"
+        },
+        "defaultable": false,
+        "documentation": "The cache configurations for the fields",
+        "isRestType": false,
+        "selected": false
+      },
+      {
+        "name": "complexity",
+        "typeName": "int",
+        "optional": true,
+        "defaultable": false,
+        "documentation": "The complexity value of the field",
+        "isRestType": false,
+        "selected": false
+      }
+    ],
+    "hasRestType": false,
+    "name": "GraphqlResourceConfig",
+    "typeName": "record",
+    "optional": false,
+    "defaultable": false,
+    "documentation": "Provides a set of configurations for the GraphQL resolvers.",
+    "isRestType": false,
+    "selected": true
+  }
+}

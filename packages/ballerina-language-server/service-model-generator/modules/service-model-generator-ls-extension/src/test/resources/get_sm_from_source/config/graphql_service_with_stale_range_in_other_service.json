@@ -1,0 +1,14 @@
+{
+    "filePath": "sample20/main.bal",
+    "description": "a stale range whose start has come to fall inside a different service is refused, not answered with that service",
+    "start": {
+        "line": 8,
+        "offset": 0
+    },
+    "end": {
+        "line": 200,
+        "offset": 0
+    },
+    "originalName": "/second",
+    "response": null
+}
