@@ -1,0 +1,154 @@
+{
+  "source": "data_mapper/main.bal",
+  "position": {
+    "line": 14,
+    "offset": 0
+  },
+  "description": "Root/submodule name clash in a second package. Discriminates on doc text alone so it is doc-fragile; the structural guard is function_call-central-submodule-edifact.json.",
+  "codedata": {
+    "node": "FUNCTION_CALL",
+    "org": "ballerina",
+    "module": "workflow.management",
+    "packageName": "workflow",
+    "symbol": "completeHumanTask",
+    "version": "0.8.3"
+  },
+  "output": {
+    "id": "31",
+    "metadata": {
+      "label": "completeHumanTask",
+      "description": "Completes a pending human task by sending the result back to the waiting workflow.\nThis is the preferred API location; `workflow:completeHumanTask` delegates here.\n\n```ballerina\ncheck management:completeHumanTask(taskWorkflowId, {approved: true, comment: \"LGTM\"});\n```\n",
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.8.3.png"
+    },
+    "codedata": {
+      "node": "FUNCTION_CALL",
+      "org": "ballerina",
+      "module": "workflow.management",
+      "packageName": "workflow",
+      "symbol": "completeHumanTask",
+      "version": "0.8.3",
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "taskWorkflowId": {
+        "metadata": {
+          "label": "Task Workflow Id",
+          "description": "Temporal workflow ID of the human task child workflow"
+        },
+        "types": [
+          {
+            "fieldType": "TEXT",
+            "ballerinaType": "string",
+            "selected": false
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string",
+            "selected": false
+          }
+        ],
+        "placeholder": "\"\"",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED",
+          "originalName": "taskWorkflowId"
+        }
+      },
+      "result": {
+        "metadata": {
+          "label": "Result",
+          "description": "The value to return to the workflow"
+        },
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "anydata",
+            "selected": false
+          }
+        ],
+        "placeholder": "{}",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED",
+          "originalName": "result"
+        }
+      },
+      "callerRoles": {
+        "metadata": {
+          "label": "Caller Roles",
+          "description": "Roles held by the caller; validated against the task's configured `userRoles`"
+        },
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "[string, string...]?",
+            "selected": false
+          }
+        ],
+        "placeholder": "()",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false,
+        "codedata": {
+          "kind": "DEFAULTABLE",
+          "originalName": "callerRoles"
+        },
+        "defaultValue": "()"
+      },
+      "userId": {
+        "metadata": {
+          "label": "User Id",
+          "description": "Optional user identifier stored in the audit trail (from `x-user-id` header)"
+        },
+        "types": [
+          {
+            "fieldType": "TEXT",
+            "ballerinaType": "string",
+            "selected": false
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string?",
+            "selected": false
+          }
+        ],
+        "placeholder": "()",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false,
+        "codedata": {
+          "kind": "DEFAULTABLE",
+          "originalName": "userId"
+        },
+        "defaultValue": "()"
+      },
+      "checkError": {
+        "metadata": {
+          "label": "Check Error",
+          "description": "Trigger error flow"
+        },
+        "types": [
+          {
+            "fieldType": "FLAG",
+            "selected": true
+          }
+        ],
+        "value": true,
+        "optional": false,
+        "editable": true,
+        "advanced": true,
+        "hidden": true
+      }
+    },
+    "flags": 0
+  }
+}

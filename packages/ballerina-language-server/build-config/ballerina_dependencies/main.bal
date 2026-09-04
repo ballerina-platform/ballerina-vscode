@@ -54,3 +54,4 @@ import ballerina/websocket as _;
 import ballerina/graphql as _;
 import ballerinax/trigger.google.calendar as _;
 import ballerinax/asb as _;
+import ballerinax/edifact.d03a.supplychain as _;

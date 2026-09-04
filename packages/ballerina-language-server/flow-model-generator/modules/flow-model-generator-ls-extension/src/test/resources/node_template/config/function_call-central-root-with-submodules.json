@@ -1,0 +1,259 @@
+{
+  "source": "data_mapper/main.bal",
+  "position": {
+    "line": 14,
+    "offset": 0
+  },
+  "description": "A root module function of a package that has submodules still resolves to the root, pinning the default-module fallback.",
+  "codedata": {
+    "node": "FUNCTION_CALL",
+    "org": "ballerinax",
+    "module": "edifact.d03a.supplychain",
+    "packageName": "edifact.d03a.supplychain",
+    "symbol": "fromEdiString",
+    "version": "0.9.0"
+  },
+  "output": {
+    "id": "31",
+    "metadata": {
+      "label": "fromEdiString",
+      "description": "",
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_edifact.d03a.supplychain_0.9.0.png"
+    },
+    "codedata": {
+      "node": "FUNCTION_CALL",
+      "org": "ballerinax",
+      "module": "edifact.d03a.supplychain",
+      "packageName": "edifact.d03a.supplychain",
+      "symbol": "fromEdiString",
+      "version": "0.9.0",
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "ediText": {
+        "metadata": {
+          "label": "Edi Text"
+        },
+        "types": [
+          {
+            "fieldType": "TEXT",
+            "ballerinaType": "string",
+            "selected": false
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string",
+            "selected": false
+          }
+        ],
+        "placeholder": "\"\"",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED",
+          "originalName": "ediText"
+        }
+      },
+      "ediName": {
+        "metadata": {
+          "label": "Edi Name"
+        },
+        "types": [
+          {
+            "fieldType": "SINGLE_SELECT",
+            "options": [
+              {
+                "label": "SUPRES",
+                "value": "\"SUPRES\""
+              },
+              {
+                "label": "DESADV",
+                "value": "\"DESADV\""
+              },
+              {
+                "label": "IFTSTQ",
+                "value": "\"IFTSTQ\""
+              },
+              {
+                "label": "STLRPT",
+                "value": "\"STLRPT\""
+              },
+              {
+                "label": "DOCAMR",
+                "value": "\"DOCAMR\""
+              },
+              {
+                "label": "INVRPT",
+                "value": "\"INVRPT\""
+              },
+              {
+                "label": "DESTIM",
+                "value": "\"DESTIM\""
+              },
+              {
+                "label": "DELJIT",
+                "value": "\"DELJIT\""
+              },
+              {
+                "label": "SUPCOT",
+                "value": "\"SUPCOT\""
+              },
+              {
+                "label": "PARTIN",
+                "value": "\"PARTIN\""
+              },
+              {
+                "label": "DMSTAT",
+                "value": "\"DMSTAT\""
+              },
+              {
+                "label": "DOCINF",
+                "value": "\"DOCINF\""
+              },
+              {
+                "label": "OSTRPT",
+                "value": "\"OSTRPT\""
+              },
+              {
+                "label": "ORDRSP",
+                "value": "\"ORDRSP\""
+              },
+              {
+                "label": "RECADV",
+                "value": "\"RECADV\""
+              },
+              {
+                "label": "DOCAMI",
+                "value": "\"DOCAMI\""
+              },
+              {
+                "label": "OSTENQ",
+                "value": "\"OSTENQ\""
+              },
+              {
+                "label": "SUPMAN",
+                "value": "\"SUPMAN\""
+              },
+              {
+                "label": "ICSOLI",
+                "value": "\"ICSOLI\""
+              },
+              {
+                "label": "DOCADV",
+                "value": "\"DOCADV\""
+              },
+              {
+                "label": "DELFOR",
+                "value": "\"DELFOR\""
+              },
+              {
+                "label": "DOCAPP",
+                "value": "\"DOCAPP\""
+              },
+              {
+                "label": "DOCARE",
+                "value": "\"DOCARE\""
+              },
+              {
+                "label": "ORDERS",
+                "value": "\"ORDERS\""
+              },
+              {
+                "label": "DOCAMA",
+                "value": "\"DOCAMA\""
+              },
+              {
+                "label": "ORDCHG",
+                "value": "\"ORDCHG\""
+              },
+              {
+                "label": "APERAK",
+                "value": "\"APERAK\""
+              },
+              {
+                "label": "IFTICL",
+                "value": "\"IFTICL\""
+              },
+              {
+                "label": "RECECO",
+                "value": "\"RECECO\""
+              }
+            ],
+            "selected": false
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "supplychain:EDI_NAME",
+            "selected": false
+          }
+        ],
+        "placeholder": "\"SUPRES\"",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED",
+          "originalName": "ediName"
+        }
+      },
+      "type": {
+        "metadata": {
+          "label": "Result Type",
+          "description": "Type of the variable"
+        },
+        "types": [
+          {
+            "fieldType": "TYPE",
+            "selected": true
+          }
+        ],
+        "value": "anydata",
+        "placeholder": "var",
+        "optional": false,
+        "editable": false,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {}
+      },
+      "variable": {
+        "metadata": {
+          "label": "Result",
+          "description": "Name of the result variable"
+        },
+        "types": [
+          {
+            "fieldType": "IDENTIFIER",
+            "selected": true
+          }
+        ],
+        "value": "anydataResult",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "checkError": {
+        "metadata": {
+          "label": "Check Error",
+          "description": "Trigger error flow"
+        },
+        "types": [
+          {
+            "fieldType": "FLAG",
+            "selected": true
+          }
+        ],
+        "value": true,
+        "optional": false,
+        "editable": true,
+        "advanced": true,
+        "hidden": true
+      }
+    },
+    "flags": 0
+  }
+}

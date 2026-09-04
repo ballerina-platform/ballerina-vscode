@@ -60,6 +60,7 @@ import io.ballerina.compiler.api.symbols.resourcepath.ResourcePath;
 import io.ballerina.compiler.api.values.ConstantValue;
 import io.ballerina.projects.Document;
 import io.ballerina.projects.Module;
+import io.ballerina.projects.ModuleId;
 import io.ballerina.projects.ModuleName;
 import io.ballerina.projects.Package;
 import io.ballerina.projects.PackageDescriptor;
@@ -167,12 +168,45 @@ public class FunctionDataBuilder {
         if (resolvedPackage == null) {
             return this;
         }
-        if (semanticModel == null) {
-            semanticModel(PackageUtil.getCompilation(resolvedPackage).getSemanticModel(
-                    resolvedPackage.getDefaultModule().moduleId()));
-        }
         this.resolvedPackage = resolvedPackage;
         return this;
+    }
+
+    /**
+     * Derives the semantic model from an explicitly resolved package, keeping any model the caller already supplied.
+     * <p>
+     * This is deliberately deferred to build time rather than done in {@code resolvedPackage(Package)}: the module to
+     * compile against comes from {@code moduleInfo}, which callers are free to set after the package. Deriving it
+     * eagerly in the setter would silently pin the default module for those callers.
+     */
+    private void deriveSemanticModelFromPackage() {
+        if (semanticModel != null || resolvedPackage == null) {
+            return;
+        }
+        semanticModel(PackageUtil.getCompilation(resolvedPackage)
+                .getSemanticModel(getTargetModuleId(resolvedPackage)));
+    }
+
+    /**
+     * Picks the module of the resolved package that the request targets.
+     * <p>
+     * Defaulting to {@code getDefaultModule()} makes every submodule symbol resolve against the package root, so a
+     * submodule function is either not found or silently shadowed by a same-named root function (e.g. every
+     * {@code m<MSG>} submodule of an EDI library re-exports {@code fromEdiString}).
+     *
+     * @param resolvedPackage the package the function was resolved from
+     * @return the module id matching {@code moduleInfo}, or the default module when there is no match
+     */
+    private ModuleId getTargetModuleId(Package resolvedPackage) {
+        String targetModuleName = moduleInfo == null ? null : moduleInfo.moduleName();
+        if (targetModuleName != null && !targetModuleName.isEmpty()) {
+            for (Module module : resolvedPackage.modules()) {
+                if (module.moduleName().toString().equals(targetModuleName)) {
+                    return module.moduleId();
+                }
+            }
+        }
+        return resolvedPackage.getDefaultModule().moduleId();
     }
 
     public FunctionDataBuilder name(String name) {
@@ -366,6 +400,9 @@ public class FunctionDataBuilder {
 
         // Ensure moduleInfo is updated with resolvedPackage version before any usage
         updateModuleInfo();
+
+        // Compile the resolved package now that both the package and the target module name are known
+        deriveSemanticModelFromPackage();
 
         // Check if this is a local symbol
         isCurrentModule = userModuleInfo != null && (!moduleInfo.isComplete() || userModuleInfo.equals(moduleInfo));
@@ -726,6 +763,7 @@ public class FunctionDataBuilder {
 
         // Ensure moduleInfo is updated with resolved package version before any usage
         updateModuleInfo();
+        deriveSemanticModelFromPackage();
         checkLocalModule();
 
         // Derive if the semantic model is not provided
