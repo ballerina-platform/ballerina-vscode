@@ -30,11 +30,14 @@ import { Client, GetTypeResponse, GetTypesRequest, GetTypesResponse, getTypesRes
 import { TypeDefinition, AbstractFunction, Type, RecordTypeDefinition, UnionTypeDefinition } from "./library-types";
 import {
     getClientFunctionCount,
+    getSelectableMemberCount,
     hasNothingToSelect,
     selectServices,
+    selectClassTypeDefs,
     toSelectionRequest,
     withRestoredServiceLibraries,
 } from "./library-selection";
+import { collectClassMemberTypeRefs, TYPE_CLASS } from "./class-typedefs";
 import { getAnthropicClient, ANTHROPIC_HAIKU } from "../ai-client";
 import { GenerationType } from "./libraries";
 // import { getRequiredTypesFromLibJson } from "../healthcare/healthcare";
@@ -183,9 +186,14 @@ async function getRequiredFunctions(
     // restating it; `withRestoredServiceLibraries` removes it for the libraries that do get asked about.
     const passthroughLibs = libraryList.filter(hasNothingToSelect);
     const selectableLibs = libraryList.filter((lib) => !passthroughLibs.includes(lib));
-    const passthroughResp: GetFunctionResponse[] = passthroughLibs.map((lib) => ({ name: lib.name }));
+    // A passthrough library names its own classes: nothing chose to drop them, and a library whose whole
+    // API is classes has no clients or functions for the closure to walk from.
+    const passthroughResp: GetFunctionResponse[] = passthroughLibs.map((lib) => ({
+        name: lib.name,
+        ...(lib.classes && lib.classes.length > 0 ? { classes: lib.classes.map((cls) => cls.name) } : {}),
+    }));
 
-    const largeLibs = selectableLibs.filter((lib) => getClientFunctionCount(lib.clients) >= 100);
+    const largeLibs = selectableLibs.filter((lib) => getSelectableMemberCount(lib) >= 100);
     const smallLibs = selectableLibs.filter((lib) => !largeLibs.includes(lib));
 
     console.log(
@@ -267,8 +275,10 @@ CRITICAL RULES:
 2. Your ONLY task is selection - include or exclude items, NEVER modify field values.
 3. Copy all field values EXACTLY as provided - preserve every character including backslashes and special characters.
 4. For resource functions: "accessor" and "paths" are SEPARATE fields - NEVER combine them.
-5. A library is relevant if ANY of its clients, functions, or services match the query. A service matches when its "doc" (what the service is for), its "listenerDoc" (how it is triggered), its name, or ANY ONE of its handlers under "methods", is what the query needs. List each matching service under the library's "services" field, copying its "listener" and "name" verbatim; omit the services that do not match. If a library matches ONLY via its services, still include the library in the output with empty/omitted clients and functions.
-6. "doc", "listenerDoc" and a handler's "doc" are evidence to reason over, never fields to copy: the response carries only "listener" and "name" for a service.`;
+5. A library is relevant if ANY of its clients, functions, services, classes, or annotations match the query. A service matches when its "doc" (what the service is for), its "listenerDoc" (how it is triggered), its name, or ANY ONE of its handlers under "methods", is what the query needs. List each matching service under the library's "services" field, copying its "listener" and "name" verbatim; omit the services that do not match. If a library matches ONLY via its services, still include the library in the output with empty/omitted clients and functions.
+6. "doc", "listenerDoc" and a handler's "doc" are evidence to reason over, never fields to copy: the response carries only "listener" and "name" for a service.
+7. "classes" are types the library hands back that carry callable methods (a spreadsheet's Sheet, a connection's Session). A class matches when its name, its "description", or ANY ONE of its methods under "functions" is what the query needs. List each matching class under the library's "classes" field as its NAME ONLY, copied verbatim — never as an object, and never narrowed to selected methods. A query about a class method is one of the most common kinds: if the query asks to do something to a thing the library returns, look here before concluding the library does not match.
+8. "annotations" are evidence only and have NO response field. Never emit them. If a library matches only via an annotation, include the library with its other fields empty/omitted.`;
 
     const getLibUserPrompt = `You will be provided with a list of libraries, clients, and their functions, and a user query.
 
@@ -283,16 +293,18 @@ ${JSON.stringify(libraryList)}
 To process the user query and filter the libraries, clients, services and functions, follow these steps:
 
 1. Analyze the user query to understand the specific requirements or needs.
-2. Review the provided libraries, clients, services and functions in Library_Context_JSON.
-3. Select only the libraries, clients, services and functions that directly match the query's needs.
-4. Exclude any irrelevant libraries, clients, services or functions.
-5. If no relevant functions and services are found, return an empty array for libraries.
+2. Review the provided libraries, clients, services, functions, classes and annotations in Library_Context_JSON.
+3. Select only the libraries, clients, services, functions and classes that directly match the query's needs.
+4. Exclude any irrelevant libraries, clients, services, functions or classes.
+5. If no relevant functions, services and classes are found, return an empty array for libraries.
 6. Organize the remaining relevant information.
 
 CRITICAL - Field Preservation:
 - For resource functions: "accessor" contains ONLY the HTTP method (e.g., "post", "get") - do NOT put path info in it.
 - The "paths" field is separate - do NOT merge with accessor.
 - Copy all values exactly - preserve backslashes, dots, and special characters.
+- "classes" is an array of NAME STRINGS, not objects. Do not list a class's methods in the response.
+- "annotations" has no response field. Never emit one.
 
 Return the filtered subset with IDENTICAL field values.
 
@@ -389,6 +401,9 @@ export async function toMaximizedLibrariesFromLibJson(
         const filteredClients = selectClients(originalLib.clients, funcResponse);
         const filteredFunctions = selectFunctions(originalLib.functions, funcResponse);
         const filteredServices = selectServices(originalLib.services, funcResponse);
+        // Seeded into the closure rather than filtered, so a class no selected function references still
+        // reaches the catalog.
+        const selectedClasses = selectClassTypeDefs(originalLib.typeDefs, funcResponse);
 
         const maximizedLib: Library = {
             name: funcResponse.name,
@@ -399,7 +414,7 @@ export async function toMaximizedLibrariesFromLibJson(
             // The SELECTED services, not the library's whole set: the closure is what pulls a service's
             // parameter, return, annotation and binding types into `typeDefs`, so walking dropped services
             // would keep paying the larger half of their cost after dropping the services themselves.
-            typeDefs: getOwnTypeDefsForLib(filteredClients, filteredFunctions, originalLib.typeDefs, filteredServices ? filteredServices : undefined, originalLib.annotations),
+            typeDefs: getOwnTypeDefsForLib(filteredClients, filteredFunctions, originalLib.typeDefs, filteredServices ? filteredServices : undefined, originalLib.annotations, selectedClasses),
             services: filteredServices,
             annotations: originalLib.annotations ? originalLib.annotations : null,
             instructions: originalLib.instructions ? originalLib.instructions : null,
@@ -543,7 +558,8 @@ function getOwnTypeDefsForLib(
     functions: RemoteFunction[] | undefined,
     allTypeDefs: TypeDefinition[],
     services?: Service[],
-    annotations?: Annotation[]
+    annotations?: Annotation[],
+    selectedClasses?: TypeDefinition[]
 ): TypeDefinition[] {
     const allFunctions: AbstractFunction[] = [];
 
@@ -557,7 +573,7 @@ function getOwnTypeDefsForLib(
         allFunctions.push(...functions);
     }
 
-    return getOwnRecordRefs(allFunctions, allTypeDefs, services, annotations);
+    return getOwnRecordRefs(allFunctions, allTypeDefs, services, annotations, selectedClasses);
 }
 
 /**
@@ -659,8 +675,13 @@ function collectServiceTypeRefs(service: Service): Type[] {
     return refs;
 }
 
-function getOwnRecordRefs(functions: AbstractFunction[], allTypeDefs: TypeDefinition[], services?: Service[], annotations?: Annotation[]): TypeDefinition[] {
+function getOwnRecordRefs(functions: AbstractFunction[], allTypeDefs: TypeDefinition[], services?: Service[], annotations?: Annotation[], selectedClasses?: TypeDefinition[]): TypeDefinition[] {
     const ownRecords = new Map<string, TypeDefinition>();
+
+    // Seed with the classes the model named; the TYPE_CLASS arm below then reaches what their methods name.
+    for (const typeDef of selectedClasses ?? []) {
+        ownRecords.set(typeDef.name, typeDef);
+    }
 
     // Process all functions to find type references
     for (const func of functions) {
@@ -714,6 +735,13 @@ function getOwnRecordRefs(functions: AbstractFunction[], allTypeDefs: TypeDefini
             const unionDef = typeDef as UnionTypeDefinition;
             for (const member of unionDef.members) {
                 const foundTypes = addInternalRecord(member.type, ownRecords, allTypeDefs);
+                typesToProcess.push(...foundTypes);
+            }
+        } else if (typeDef.type === TYPE_CLASS) {
+            // A class's methods name types the reader needs. Without this arm a class was a leaf, and a
+            // type reachable only through one of its methods reached the prompt undefined.
+            for (const ref of collectClassMemberTypeRefs(typeDef)) {
+                const foundTypes = addInternalRecord(ref, ownRecords, allTypeDefs);
                 typesToProcess.push(...foundTypes);
             }
         }
@@ -889,6 +917,11 @@ function getExternalTypeDefRefs(
             const unionDef = typeDef as UnionTypeDefinition;
             for (const member of unionDef.members) {
                 addExternalRecord(member.type, externalRecords);
+            }
+        } else if (typeDef.type === TYPE_CLASS) {
+            // External counterpart of the internal arm, walking the same refs so the two cannot diverge.
+            for (const ref of collectClassMemberTypeRefs(typeDef)) {
+                addExternalRecord(ref, externalRecords);
             }
         }
     }
