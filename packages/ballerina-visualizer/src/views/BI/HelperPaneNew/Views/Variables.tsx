@@ -84,6 +84,8 @@ export const VariableItem = ({ item, onItemSelect, onMoreIconClick, hideArrow }:
 
     return (
         <HelperPaneListItem
+            testId={`helper-pane-item-${item.label}`}
+            endActionTestId={`helper-pane-nav-${item.label}`}
             onClick={() => onItemSelect(item.label, item)}
             endAction={endAction}
             onClickEndAction={() => onMoreIconClick(item)}
