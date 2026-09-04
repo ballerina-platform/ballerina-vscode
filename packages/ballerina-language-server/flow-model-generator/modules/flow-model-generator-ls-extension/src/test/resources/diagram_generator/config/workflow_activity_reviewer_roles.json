@@ -1,28 +1,28 @@
 {
   "start": {
-    "line": 9,
+    "line": 53,
     "offset": 0
   },
   "end": {
-    "line": 16,
+    "line": 62,
     "offset": 1
   },
-  "source": "workflow_activity_result_bindings.bal",
-  "description": "Activity calls read back from source: a checked wildcard binding, an unchecked call binding a value, and an unchecked nil-typed binding - each given the Check Error flag and the result name carrier the creation template uses",
+  "source": "workflow_operations.bal",
+  "description": "Activity calls gated by a human review hydrate the reviewer role(s) for the form: a single role unquoted, a role list as its source",
   "diagram": {
-    "fileName": "workflow_activity_result_bindings.bal",
+    "fileName": "workflow_operations.bal",
     "nodes": [
       {
-        "id": "43370",
+        "id": "87266",
         "metadata": {
           "label": "Start",
           "data": {
             "kind": "Workflow",
-            "label": "eventWorkflow",
+            "label": "reviewedOrderWorkflow",
             "isServiceFunction": false,
             "parameters": [
               "workflow:Context ctx",
-              "string message"
+              "OrderInput input"
             ],
             "return": "error?"
           }
@@ -30,41 +30,44 @@
         "codedata": {
           "node": "EVENT_START",
           "lineRange": {
-            "fileName": "workflow_activity_result_bindings.bal",
+            "fileName": "workflow_operations.bal",
             "startLine": {
-              "line": 9,
-              "offset": 76
+              "line": 53,
+              "offset": 86
             },
             "endLine": {
-              "line": 20,
+              "line": 62,
               "offset": 1
             }
           },
-          "sourceCode": "# Workflow with a checked no-result activity call and an unchecked one\n#\n# + ctx - Workflow context\n# + message - Message to log\n# + return - An error on failure\n@workflow:Workflow\nfunction eventWorkflow(workflow:Context ctx, string message) returns error? {\n    // Activity with no return value: a wildcard binding, so no named result variable is declared\n    () _ = check ctx->callActivity(logEvent, {message: message});\n\n    // Unchecked call: the error is part of the result value\n    int|error count = ctx->callActivity(countEvents, {});\n    io:println(count);\n\n    // Unchecked call to an activity with no return value: the error itself is the named result\n    error? r = ctx->callActivity(logEvent, {message: message});\n    io:println(r);\n}"
+          "sourceCode": "# Activity calls gated by a human review, scoped to reviewer role(s)\n@workflow:Workflow\nfunction reviewedOrderWorkflow(workflow:Context ctx, OrderInput input) returns error? {\n    // Human review scoped to a single reviewer role\n    int single = check ctx->callActivity(calculateDiscount, {amount: 100.0}, retryPolicy = \"Finance\");\n    io:println(single.toString());\n\n    // Human review scoped to several reviewer roles\n    int several = check ctx->callActivity(calculateDiscount, {amount: 200.0},\n            retryPolicy = [\"finance\", \"manager\"]);\n    io:println(several.toString());\n}"
         },
         "returning": false,
+        "diagnostics": {
+          "hasDiagnostics": true
+        },
         "flags": 0
       },
       {
-        "id": "41761",
+        "id": "85364",
         "metadata": {
           "label": "Comment",
-          "description": "Activity with no return value: a wildcard binding, so no named result variable is declared"
+          "description": "Human review scoped to a single reviewer role"
         },
         "codedata": {
           "node": "COMMENT",
           "lineRange": {
-            "fileName": "workflow_activity_result_bindings.bal",
+            "fileName": "workflow_operations.bal",
             "startLine": {
-              "line": 10,
+              "line": 54,
               "offset": 0
             },
             "endLine": {
-              "line": 10,
-              "offset": 97
+              "line": 54,
+              "offset": 52
             }
           },
-          "sourceCode": "Activity with no return value: a wildcard binding, so no named result variable is declared"
+          "sourceCode": "Human review scoped to a single reviewer role"
         },
         "returning": false,
         "properties": {
@@ -79,7 +82,7 @@
                 "selected": true
               }
             ],
-            "value": "Activity with no return value: a wildcard binding, so no named result variable is declared",
+            "value": "Human review scoped to a single reviewer role",
             "optional": false,
             "editable": true,
             "advanced": false,
@@ -89,10 +92,10 @@
         "flags": 0
       },
       {
-        "id": "42845",
+        "id": "86530",
         "metadata": {
-          "label": "logEvent",
-          "description": "Activity with no return value\n",
+          "label": "calculateDiscount",
+          "description": "Activity function for calculating discount",
           "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.8.3.png"
         },
         "codedata": {
@@ -101,20 +104,20 @@
           "module": ".",
           "packageName": ".",
           "object": "Context",
-          "symbol": "logEvent",
+          "symbol": "calculateDiscount",
           "version": "0.0.0",
           "lineRange": {
-            "fileName": "workflow_activity_result_bindings.bal",
+            "fileName": "workflow_operations.bal",
             "startLine": {
-              "line": 11,
+              "line": 55,
               "offset": 4
             },
             "endLine": {
-              "line": 11,
-              "offset": 65
+              "line": 55,
+              "offset": 102
             }
           },
-          "sourceCode": "// Activity with no return value: a wildcard binding, so no named result variable is declared\n    () _ = check ctx->callActivity(logEvent, {message: message});"
+          "sourceCode": "// Human review scoped to a single reviewer role\n    int single = check ctx->callActivity(calculateDiscount, {amount: 100.0}, retryPolicy = \"Finance\");"
         },
         "returning": false,
         "properties": {
@@ -135,32 +138,26 @@
             "advanced": false,
             "hidden": false
           },
-          "message": {
+          "input": {
             "metadata": {
-              "label": "message",
+              "label": "input",
               "description": ""
             },
             "types": [
               {
-                "fieldType": "TEXT",
-                "ballerinaType": "string",
-                "selected": false
-              },
-              {
                 "fieldType": "EXPRESSION",
-                "ballerinaType": "string",
-                "selected": true
+                "ballerinaType": "record {|decimal amount; anydata...;|}",
+                "selected": false
               }
             ],
-            "value": "message",
-            "placeholder": "string",
+            "placeholder": "record {|decimal amount; anydata...;|}",
             "optional": false,
             "editable": true,
             "advanced": false,
             "hidden": false,
             "codedata": {
               "kind": "REQUIRED",
-              "originalName": "message"
+              "originalName": "input"
             }
           },
           "checkError": {
@@ -179,29 +176,7 @@
             "optional": true,
             "editable": true,
             "advanced": true,
-            "hidden": false,
-            "dynamicFormFields": {
-              "true": {},
-              "false": {
-                "variable": {
-                  "metadata": {
-                    "label": "Result",
-                    "description": "Name of the variable that receives the error the activity failed with, or nil when it succeeded"
-                  },
-                  "types": [
-                    {
-                      "fieldType": "IDENTIFIER",
-                      "selected": true
-                    }
-                  ],
-                  "value": "",
-                  "optional": false,
-                  "editable": true,
-                  "advanced": false,
-                  "hidden": false
-                }
-              }
-            }
+            "hidden": false
           },
           "retryPolicy": {
             "metadata": {
@@ -228,7 +203,7 @@
                 "selected": true
               }
             ],
-            "value": "NoRetry",
+            "value": "ManualRetry",
             "optional": false,
             "editable": true,
             "advanced": false,
@@ -401,375 +376,7 @@
                 "selected": true
               }
             ],
-            "value": "",
-            "optional": true,
-            "editable": true,
-            "advanced": false,
-            "hidden": true
-          },
-          "retryBackoff": {
-            "metadata": {
-              "label": "Retry Backoff",
-              "description": "Multiplier applied to delay after each retry (default: 2.0)"
-            },
-            "types": [
-              {
-                "fieldType": "EXPRESSION",
-                "ballerinaType": "decimal",
-                "selected": true
-              }
-            ],
-            "value": "",
-            "optional": true,
-            "editable": true,
-            "advanced": false,
-            "hidden": true
-          },
-          "maxRetryDelay": {
-            "metadata": {
-              "label": "Max Retry Delay",
-              "description": "Cap on the delay between retries, in seconds"
-            },
-            "types": [
-              {
-                "fieldType": "EXPRESSION",
-                "ballerinaType": "decimal",
-                "selected": true
-              }
-            ],
-            "value": "",
-            "optional": true,
-            "editable": true,
-            "advanced": false,
-            "hidden": true
-          },
-          "variable": {
-            "metadata": {
-              "label": "Result",
-              "description": "Name of the result variable"
-            },
-            "types": [
-              {
-                "fieldType": "IDENTIFIER",
-                "selected": true
-              }
-            ],
-            "value": "",
-            "optional": true,
-            "editable": true,
-            "advanced": false,
-            "hidden": true
-          }
-        },
-        "flags": 1
-      },
-      {
-        "id": "43739",
-        "metadata": {
-          "label": "Comment",
-          "description": "Unchecked call: the error is part of the result value"
-        },
-        "codedata": {
-          "node": "COMMENT",
-          "lineRange": {
-            "fileName": "workflow_activity_result_bindings.bal",
-            "startLine": {
-              "line": 12,
-              "offset": 0
-            },
-            "endLine": {
-              "line": 13,
-              "offset": 60
-            }
-          },
-          "sourceCode": "Unchecked call: the error is part of the result value"
-        },
-        "returning": false,
-        "properties": {
-          "comment": {
-            "metadata": {
-              "label": "Comment",
-              "description": "Comment to describe the flow"
-            },
-            "types": [
-              {
-                "fieldType": "TEXT",
-                "selected": true
-              }
-            ],
-            "value": "Unchecked call: the error is part of the result value",
-            "optional": false,
-            "editable": true,
-            "advanced": false,
-            "hidden": false
-          }
-        },
-        "flags": 0
-      },
-      {
-        "id": "45813",
-        "metadata": {
-          "label": "countEvents",
-          "description": "Activity returning a count\n",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.8.3.png"
-        },
-        "codedata": {
-          "node": "ACTIVITY_CALL",
-          "org": "$anon",
-          "module": ".",
-          "packageName": ".",
-          "object": "Context",
-          "symbol": "countEvents",
-          "version": "0.0.0",
-          "lineRange": {
-            "fileName": "workflow_activity_result_bindings.bal",
-            "startLine": {
-              "line": 14,
-              "offset": 4
-            },
-            "endLine": {
-              "line": 14,
-              "offset": 57
-            }
-          },
-          "sourceCode": "// Unchecked call: the error is part of the result value\n    int|error count = ctx->callActivity(countEvents, {});"
-        },
-        "returning": false,
-        "properties": {
-          "advanced": {
-            "metadata": {
-              "label": "Activity call configurations",
-              "description": "Activity call configurations"
-            },
-            "types": [
-              {
-                "fieldType": "ADVANCE_PARAM_LIST",
-                "selected": false
-              }
-            ],
-            "value": {},
-            "optional": false,
-            "editable": false,
-            "advanced": false,
-            "hidden": false
-          },
-          "checkError": {
-            "metadata": {
-              "label": "Check Error",
-              "description": "Add 'check' to propagate errors. Uncheck to handle errors manually."
-            },
-            "types": [
-              {
-                "fieldType": "FLAG",
-                "ballerinaType": "boolean",
-                "selected": true
-              }
-            ],
-            "value": "false",
-            "optional": true,
-            "editable": true,
-            "advanced": true,
-            "hidden": false
-          },
-          "retryPolicy": {
-            "metadata": {
-              "label": "Retry Policy",
-              "description": "Engine retry strategy when the activity fails: no automatic retry (an AI agent may still re-invoke it), automatic backoff retries, or a human review task"
-            },
-            "types": [
-              {
-                "fieldType": "DROPDOWN_CHOICE",
-                "options": [
-                  {
-                    "label": "No Automatic Retry",
-                    "value": "NoRetry"
-                  },
-                  {
-                    "label": "Auto Retry",
-                    "value": "AutoRetry"
-                  },
-                  {
-                    "label": "Human Review",
-                    "value": "ManualRetry"
-                  }
-                ],
-                "selected": true
-              }
-            ],
-            "value": "NoRetry",
-            "optional": false,
-            "editable": true,
-            "advanced": false,
-            "hidden": false,
-            "dynamicFormFields": {
-              "NoRetry": {},
-              "AutoRetry": {
-                "maxRetries": {
-                  "metadata": {
-                    "label": "Max Retries",
-                    "description": "Maximum retry attempts (default: 3)"
-                  },
-                  "types": [
-                    {
-                      "fieldType": "EXPRESSION",
-                      "ballerinaType": "int",
-                      "selected": true
-                    }
-                  ],
-                  "value": "",
-                  "optional": true,
-                  "editable": true,
-                  "advanced": false,
-                  "hidden": false
-                },
-                "retryDelay": {
-                  "metadata": {
-                    "label": "Retry Delay",
-                    "description": "Initial delay in seconds before the first retry (default: 1.0)"
-                  },
-                  "types": [
-                    {
-                      "fieldType": "EXPRESSION",
-                      "ballerinaType": "decimal",
-                      "selected": true
-                    }
-                  ],
-                  "value": "",
-                  "optional": true,
-                  "editable": true,
-                  "advanced": false,
-                  "hidden": false
-                },
-                "retryBackoff": {
-                  "metadata": {
-                    "label": "Retry Backoff",
-                    "description": "Multiplier applied to delay after each retry (default: 2.0)"
-                  },
-                  "types": [
-                    {
-                      "fieldType": "EXPRESSION",
-                      "ballerinaType": "decimal",
-                      "selected": true
-                    }
-                  ],
-                  "value": "",
-                  "optional": true,
-                  "editable": true,
-                  "advanced": false,
-                  "hidden": false
-                },
-                "maxRetryDelay": {
-                  "metadata": {
-                    "label": "Max Retry Delay",
-                    "description": "Cap on the delay between retries, in seconds"
-                  },
-                  "types": [
-                    {
-                      "fieldType": "EXPRESSION",
-                      "ballerinaType": "decimal",
-                      "selected": true
-                    }
-                  ],
-                  "value": "",
-                  "optional": true,
-                  "editable": true,
-                  "advanced": false,
-                  "hidden": false
-                }
-              },
-              "ManualRetry": {
-                "retryUserRoles": {
-                  "metadata": {
-                    "label": "Reviewer Roles",
-                    "description": "Role(s) permitted to decide the human review, e.g. \"manager\" or [\"finance\", \"manager\"]. Leave empty to allow any role."
-                  },
-                  "types": [
-                    {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
-                    },
-                    {
-                      "fieldType": "EXPRESSION",
-                      "ballerinaType": "string|string[]",
-                      "selected": false
-                    }
-                  ],
-                  "value": "",
-                  "optional": true,
-                  "editable": true,
-                  "advanced": false,
-                  "hidden": false
-                }
-              }
-            },
-            "itemOptions": [
-              {
-                "id": "NoRetry",
-                "content": "No Automatic Retry",
-                "value": "NoRetry"
-              },
-              {
-                "id": "AutoRetry",
-                "content": "Auto Retry",
-                "value": "AutoRetry"
-              },
-              {
-                "id": "ManualRetry",
-                "content": "Human Review",
-                "value": "ManualRetry"
-              }
-            ]
-          },
-          "maxRetries": {
-            "metadata": {
-              "label": "Max Retries",
-              "description": "Maximum retry attempts (default: 3)"
-            },
-            "types": [
-              {
-                "fieldType": "EXPRESSION",
-                "ballerinaType": "int",
-                "selected": true
-              }
-            ],
-            "value": "",
-            "optional": true,
-            "editable": true,
-            "advanced": false,
-            "hidden": true
-          },
-          "retryDelay": {
-            "metadata": {
-              "label": "Retry Delay",
-              "description": "Initial delay in seconds before the first retry (default: 1.0)"
-            },
-            "types": [
-              {
-                "fieldType": "EXPRESSION",
-                "ballerinaType": "decimal",
-                "selected": true
-              }
-            ],
-            "value": "",
-            "optional": true,
-            "editable": true,
-            "advanced": false,
-            "hidden": true
-          },
-          "retryUserRoles": {
-            "metadata": {
-              "label": "Reviewer Roles",
-              "description": "Role(s) permitted to decide the retry review"
-            },
-            "types": [
-              {
-                "fieldType": "EXPRESSION",
-                "ballerinaType": "string|string[]",
-                "selected": true
-              }
-            ],
-            "value": "",
+            "value": "\"Finance\"",
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -822,21 +429,21 @@
                 "selected": true
               }
             ],
-            "value": "count",
+            "value": "single",
             "optional": false,
             "editable": false,
             "advanced": false,
             "hidden": false,
             "codedata": {
               "lineRange": {
-                "fileName": "workflow_activity_result_bindings.bal",
+                "fileName": "workflow_operations.bal",
                 "startLine": {
-                  "line": 14,
-                  "offset": 14
+                  "line": 55,
+                  "offset": 8
                 },
                 "endLine": {
-                  "line": 14,
-                  "offset": 19
+                  "line": 55,
+                  "offset": 14
                 }
               }
             }
@@ -861,10 +468,13 @@
             "codedata": {}
           }
         },
-        "flags": 0
+        "diagnostics": {
+          "hasDiagnostics": true
+        },
+        "flags": 1
       },
       {
-        "id": "46770",
+        "id": "87454",
         "metadata": {
           "label": "println",
           "description": "Prints `any`, `error` or string templates value(s) to the standard output stream and terminates the line.\n```ballerina\nio:println(\"Start processing the CSV file from \", srcFileName);\n```\n",
@@ -878,17 +488,17 @@
           "symbol": "println",
           "version": "1.8.1",
           "lineRange": {
-            "fileName": "workflow_activity_result_bindings.bal",
+            "fileName": "workflow_operations.bal",
             "startLine": {
-              "line": 15,
+              "line": 56,
               "offset": 4
             },
             "endLine": {
-              "line": 15,
-              "offset": 22
+              "line": 56,
+              "offset": 34
             }
           },
-          "sourceCode": "io:println(count);"
+          "sourceCode": "io:println(single.toString());"
         },
         "returning": false,
         "properties": {
@@ -926,7 +536,7 @@
                     "selected": true
                   }
                 ],
-                "value": "count",
+                "value": "single.toString()",
                 "optional": false,
                 "editable": false,
                 "advanced": false,
@@ -947,25 +557,25 @@
         "flags": 0
       },
       {
-        "id": "47742",
+        "id": "88371",
         "metadata": {
           "label": "Comment",
-          "description": "Unchecked call to an activity with no return value: the error itself is the named result"
+          "description": "Human review scoped to several reviewer roles"
         },
         "codedata": {
           "node": "COMMENT",
           "lineRange": {
-            "fileName": "workflow_activity_result_bindings.bal",
+            "fileName": "workflow_operations.bal",
             "startLine": {
-              "line": 16,
+              "line": 57,
               "offset": 0
             },
             "endLine": {
-              "line": 17,
-              "offset": 95
+              "line": 58,
+              "offset": 52
             }
           },
-          "sourceCode": "Unchecked call to an activity with no return value: the error itself is the named result"
+          "sourceCode": "Human review scoped to several reviewer roles"
         },
         "returning": false,
         "properties": {
@@ -980,7 +590,7 @@
                 "selected": true
               }
             ],
-            "value": "Unchecked call to an activity with no return value: the error itself is the named result",
+            "value": "Human review scoped to several reviewer roles",
             "optional": false,
             "editable": true,
             "advanced": false,
@@ -990,10 +600,10 @@
         "flags": 0
       },
       {
-        "id": "49787",
+        "id": "90477",
         "metadata": {
-          "label": "logEvent",
-          "description": "Activity with no return value\n",
+          "label": "calculateDiscount",
+          "description": "Activity function for calculating discount",
           "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.8.3.png"
         },
         "codedata": {
@@ -1002,20 +612,20 @@
           "module": ".",
           "packageName": ".",
           "object": "Context",
-          "symbol": "logEvent",
+          "symbol": "calculateDiscount",
           "version": "0.0.0",
           "lineRange": {
-            "fileName": "workflow_activity_result_bindings.bal",
+            "fileName": "workflow_operations.bal",
             "startLine": {
-              "line": 18,
+              "line": 59,
               "offset": 4
             },
             "endLine": {
-              "line": 18,
-              "offset": 63
+              "line": 60,
+              "offset": 50
             }
           },
-          "sourceCode": "// Unchecked call to an activity with no return value: the error itself is the named result\n    error? r = ctx->callActivity(logEvent, {message: message});"
+          "sourceCode": "// Human review scoped to several reviewer roles\n    int several = check ctx->callActivity(calculateDiscount, {amount: 200.0},\n            retryPolicy = [\"finance\", \"manager\"]);"
         },
         "returning": false,
         "properties": {
@@ -1036,32 +646,26 @@
             "advanced": false,
             "hidden": false
           },
-          "message": {
+          "input": {
             "metadata": {
-              "label": "message",
+              "label": "input",
               "description": ""
             },
             "types": [
               {
-                "fieldType": "TEXT",
-                "ballerinaType": "string",
-                "selected": false
-              },
-              {
                 "fieldType": "EXPRESSION",
-                "ballerinaType": "string",
-                "selected": true
+                "ballerinaType": "record {|decimal amount; anydata...;|}",
+                "selected": false
               }
             ],
-            "value": "message",
-            "placeholder": "string",
+            "placeholder": "record {|decimal amount; anydata...;|}",
             "optional": false,
             "editable": true,
             "advanced": false,
             "hidden": false,
             "codedata": {
               "kind": "REQUIRED",
-              "originalName": "message"
+              "originalName": "input"
             }
           },
           "checkError": {
@@ -1076,33 +680,11 @@
                 "selected": true
               }
             ],
-            "value": "false",
+            "value": "true",
             "optional": true,
             "editable": true,
             "advanced": true,
-            "hidden": false,
-            "dynamicFormFields": {
-              "true": {},
-              "false": {
-                "variable": {
-                  "metadata": {
-                    "label": "Result",
-                    "description": "Name of the variable that receives the error the activity failed with, or nil when it succeeded"
-                  },
-                  "types": [
-                    {
-                      "fieldType": "IDENTIFIER",
-                      "selected": true
-                    }
-                  ],
-                  "value": "",
-                  "optional": false,
-                  "editable": true,
-                  "advanced": false,
-                  "hidden": false
-                }
-              }
-            }
+            "hidden": false
           },
           "retryPolicy": {
             "metadata": {
@@ -1129,7 +711,7 @@
                 "selected": true
               }
             ],
-            "value": "NoRetry",
+            "value": "ManualRetry",
             "optional": false,
             "editable": true,
             "advanced": false,
@@ -1302,7 +884,7 @@
                 "selected": true
               }
             ],
-            "value": "",
+            "value": "[\"finance\", \"manager\"]",
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -1346,8 +928,8 @@
           },
           "variable": {
             "metadata": {
-              "label": "Result",
-              "description": "Name of the result variable"
+              "label": "Variable Name",
+              "description": "Name of the variable"
             },
             "types": [
               {
@@ -1355,17 +937,52 @@
                 "selected": true
               }
             ],
-            "value": "r",
-            "optional": true,
+            "value": "several",
+            "optional": false,
+            "editable": false,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "lineRange": {
+                "fileName": "workflow_operations.bal",
+                "startLine": {
+                  "line": 59,
+                  "offset": 8
+                },
+                "endLine": {
+                  "line": 59,
+                  "offset": 15
+                }
+              }
+            }
+          },
+          "type": {
+            "metadata": {
+              "label": "Variable Type",
+              "description": "Type of the variable"
+            },
+            "types": [
+              {
+                "fieldType": "TYPE",
+                "selected": true
+              }
+            ],
+            "value": "int",
+            "placeholder": "var",
+            "optional": false,
             "editable": true,
             "advanced": false,
-            "hidden": true
+            "hidden": false,
+            "codedata": {}
           }
         },
-        "flags": 0
+        "diagnostics": {
+          "hasDiagnostics": true
+        },
+        "flags": 1
       },
       {
-        "id": "50734",
+        "id": "92415",
         "metadata": {
           "label": "println",
           "description": "Prints `any`, `error` or string templates value(s) to the standard output stream and terminates the line.\n```ballerina\nio:println(\"Start processing the CSV file from \", srcFileName);\n```\n",
@@ -1379,17 +996,17 @@
           "symbol": "println",
           "version": "1.8.1",
           "lineRange": {
-            "fileName": "workflow_activity_result_bindings.bal",
+            "fileName": "workflow_operations.bal",
             "startLine": {
-              "line": 19,
+              "line": 61,
               "offset": 4
             },
             "endLine": {
-              "line": 19,
-              "offset": 18
+              "line": 61,
+              "offset": 35
             }
           },
-          "sourceCode": "io:println(r);"
+          "sourceCode": "io:println(several.toString());"
         },
         "returning": false,
         "properties": {
@@ -1427,7 +1044,7 @@
                     "selected": true
                   }
                 ],
-                "value": "r",
+                "value": "several.toString()",
                 "optional": false,
                 "editable": false,
                 "advanced": false,

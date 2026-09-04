@@ -1,23 +1,23 @@
 {
-  "source": "durable_agent_module.bal",
-  "description": "Send Agent Data Event on a one-way channel without check binds only the error",
+  "source": "workflow_submodule/modules/ops/flows.bal",
+  "description": "Send Agent Data Event in a non-default module on a channel that declares no response stays one-way",
   "diagram": {
     "id": "1",
     "metadata": {
-      "label": "Send Agent Data Event on a channel that declares no response, without check"
+      "label": "Send Agent Data Event quotes the dropdown channel name and waits for the answer"
     },
     "codedata": {
       "node": "DURABLE_AGENT_UPDATE",
       "org": "ballerina",
       "module": "workflow",
       "lineRange": {
-        "fileName": "durable_agent_module.bal",
+        "fileName": "flows.bal",
         "startLine": {
-          "line": 16,
+          "line": 0,
           "offset": 0
         },
         "endLine": {
-          "line": 16,
+          "line": 0,
           "offset": 0
         }
       },
@@ -30,7 +30,7 @@
           "label": ""
         },
         "valueType": "SINGLE_SELECT",
-        "value": "supportAgent",
+        "value": "opsAgent",
         "optional": false,
         "editable": true,
         "advanced": false,
@@ -52,7 +52,7 @@
           "label": ""
         },
         "valueType": "SINGLE_SELECT",
-        "value": "billSubmitted",
+        "value": "opsNotice",
         "optional": false,
         "editable": true,
         "advanced": false,
@@ -63,7 +63,7 @@
           "label": ""
         },
         "valueType": "EXPRESSION",
-        "value": "{amount: 10}",
+        "value": "\"hello\"",
         "optional": false,
         "editable": true,
         "advanced": false,
@@ -85,7 +85,7 @@
           "label": ""
         },
         "valueType": "FLAG",
-        "value": false,
+        "value": true,
         "optional": true,
         "editable": true,
         "advanced": false,
@@ -96,19 +96,32 @@
     "flags": 0
   },
   "output": {
-    "durable_agent_module.bal": [
+    "workflow_submodule/modules/ops/flows.bal": [
       {
         "range": {
           "start": {
-            "line": 16,
+            "line": 0,
             "character": 0
           },
           "end": {
-            "line": 16,
+            "line": 0,
             "character": 0
           }
         },
-        "newText": "\nerror? eventToken = supportAgent.sendData(instanceId, \"billSubmitted\", {amount: 10});"
+        "newText": "import ballerina/workflow;"
+      },
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "_ = check opsAgent.sendData(instanceId, \"opsNotice\", \"hello\");"
       }
     ]
   }

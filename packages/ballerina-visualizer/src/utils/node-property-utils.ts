@@ -495,3 +495,22 @@ export function convertConfig(properties: NodeProperties, skipKeys: string[] = [
 
     return formFields;
 }
+
+/**
+ * The order the Durable Agentic Workflow creation form reads in: the agent's identity first,
+ * then the optional input payload type. `convertConfig` sorts by property key, which would
+ * otherwise interleave these ("inputType" before "model" before "role").
+ */
+export const DURABLE_AGENT_FORM_ORDER = ["functionName", "model", "role", "instructions", "inputType"];
+
+/**
+ * Reorders `fields` to follow `order`. Keys listed in `order` come first in that order (missing
+ * ones are skipped); every other field keeps its relative position after them.
+ */
+export function orderFormFields(fields: FormField[], order: string[]): FormField[] {
+    const ranked = new Set(order);
+    const leading = order
+        .map((key) => fields.find((field) => field.key === key))
+        .filter((field): field is FormField => field !== undefined);
+    return [...leading, ...fields.filter((field) => !ranked.has(field.key))];
+}

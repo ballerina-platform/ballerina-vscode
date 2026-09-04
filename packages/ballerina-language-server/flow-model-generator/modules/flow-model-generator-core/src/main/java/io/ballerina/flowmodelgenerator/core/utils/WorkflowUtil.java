@@ -54,7 +54,9 @@ import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.compiler.syntax.tree.SyntaxTree;
 import io.ballerina.flowmodelgenerator.core.Constants;
 import io.ballerina.flowmodelgenerator.core.UserFacingException;
+import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Option;
+import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
 import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.modelgenerator.commons.FileSystemUtils;
@@ -78,6 +80,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -586,46 +589,104 @@ public class WorkflowUtil {
     public static List<Option> declaredAgentEventOptions(
             org.ballerinalang.langserver.commons.workspace.WorkspaceManager workspaceManager, Path filePath,
             String targetAgent) {
-        java.util.LinkedHashSet<String> names = new java.util.LinkedHashSet<>();
-        Project project;
-        try {
-            project = workspaceManager.loadProject(filePath);
-        } catch (Exception e) {
-            LOGGER.log(Level.WARNING, "Skipping declared agent event options: failed to load the project of "
-                    + filePath, e);
-            return List.of();
-        }
-        Module module = project.currentPackage().getDefaultModule();
-        for (DocumentId documentId : module.documentIds()) {
-            Document document = module.document(documentId);
-            ModulePartNode root = document.syntaxTree().rootNode();
-            for (ModuleMemberDeclarationNode member : root.members()) {
-                if (!(member instanceof ModuleVariableDeclarationNode varDecl) || varDecl.initializer().isEmpty()) {
-                    continue;
-                }
-                String typeText = varDecl.typedBindingPattern().typeDescriptor().toSourceCode().trim();
-                if (!typeText.equals(Constants.Workflow.DURABLE_AGENT_OBJECT_CLASS_NAME)
-                        && !typeText.endsWith(":" + Constants.Workflow.DURABLE_AGENT_OBJECT_CLASS_NAME)) {
-                    continue;
-                }
-                if (targetAgent != null && !targetAgent.isBlank()
-                        && (!(varDecl.typedBindingPattern().bindingPattern()
-                                instanceof CaptureBindingPatternNode capture)
-                            || !targetAgent.equals(capture.variableName().text()))) {
-                    continue;
-                }
-                agentConfigLiteral(varDecl).ifPresent(config -> collectDeclaredEventNames(config, names));
-            }
-        }
-        return names.stream()
+        return declaredAgentEvents(workspaceManager, filePath, targetAgent).keySet().stream()
                 .map(name -> new Option(name, name))
                 .toList();
     }
 
-    // Collects the `name` field of each mapping entry in the config's `events` list.
-    private static void collectDeclaredEventNames(
+    /**
+     * The declared {@code response} type of one event channel, as written in the declaration.
+     *
+     * <p>Empty when the channel is one-way — it declares no {@code response}, or declares {@code ()},
+     * which is the field's own default — and also when the channel or the project cannot be read. A
+     * caller generating the send statement uses this to decide whether there is anything to bind.
+     *
+     * @param workspaceManager the workspace manager to resolve the project from
+     * @param filePath         the file the statement is generated into
+     * @param targetAgent      the agent variable name to scope to, or {@code null} for all agents
+     * @param eventName        the channel name, unquoted
+     * @return the response type as written, or empty for a one-way or unknown channel
+     */
+    public static Optional<String> declaredAgentEventResponseType(
+            org.ballerinalang.langserver.commons.workspace.WorkspaceManager workspaceManager, Path filePath,
+            String targetAgent, String eventName) {
+        java.util.LinkedHashMap<String, String> events =
+                declaredAgentEvents(workspaceManager, filePath, targetAgent);
+        if (!events.containsKey(eventName)) {
+            // Unknown channel: the declaration could not be read, the agent did not match, or the
+            // name was hand-typed. Answering "one-way" here would drop a declared response and emit
+            // a call that does not compile, so fall back to the turn token the send always returns.
+            return Optional.of(UNRESOLVED_RESPONSE_TYPE);
+        }
+        String response = events.get(eventName);
+        if (response == null || response.isBlank() || NIL_RESPONSE_TYPE.equals(response)) {
+            return Optional.empty();
+        }
+        return Optional.of(response);
+    }
+
+    /**
+     * What a send binds when the channel cannot be resolved. Only a channel read as declaring no
+     * {@code response} is treated as one-way; everything else keeps the previous {@code string}
+     * binding, which is wrong only in the harmless direction — naming a value that does arrive.
+     */
+    private static final String UNRESOLVED_RESPONSE_TYPE = "string";
+
+    /** The `response` value that means "this channel answers nothing"; also the field's default. */
+    private static final String NIL_RESPONSE_TYPE = "()";
+
+    /**
+     * Every event channel declared on the matching agent(s): channel name to its declared
+     * {@code response} type as written, or an empty string where the channel declares none. Source
+     * order, deduplicated by name.
+     */
+    private static java.util.LinkedHashMap<String, String> declaredAgentEvents(
+            org.ballerinalang.langserver.commons.workspace.WorkspaceManager workspaceManager, Path filePath,
+            String targetAgent) {
+        java.util.LinkedHashMap<String, String> events = new java.util.LinkedHashMap<>();
+        Project project;
+        try {
+            project = workspaceManager.loadProject(filePath);
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "Skipping declared agent events: failed to load the project of "
+                    + filePath, e);
+            return events;
+        }
+        // Every module, matching the set durableAgentOptions offers agents from: scoping this
+        // narrower than the Agent dropdown means picking an agent the dropdown offered can leave the
+        // Data Event dropdown empty, and eventName then fails requireValue on save. Only channel
+        // metadata is read here, never a bare name that would have to resolve from somewhere.
+        for (Module module : project.currentPackage().modules()) {
+            for (DocumentId documentId : module.documentIds()) {
+                Document document = module.document(documentId);
+                ModulePartNode root = document.syntaxTree().rootNode();
+                for (ModuleMemberDeclarationNode member : root.members()) {
+                    if (!(member instanceof ModuleVariableDeclarationNode varDecl)
+                            || varDecl.initializer().isEmpty()) {
+                        continue;
+                    }
+                    String typeText = varDecl.typedBindingPattern().typeDescriptor().toSourceCode().trim();
+                    if (!typeText.equals(Constants.Workflow.DURABLE_AGENT_OBJECT_CLASS_NAME)
+                            && !typeText.endsWith(":" + Constants.Workflow.DURABLE_AGENT_OBJECT_CLASS_NAME)) {
+                        continue;
+                    }
+                    if (targetAgent != null && !targetAgent.isBlank()
+                            && (!(varDecl.typedBindingPattern().bindingPattern()
+                                    instanceof CaptureBindingPatternNode capture)
+                                || !targetAgent.equals(capture.variableName().text()))) {
+                        continue;
+                    }
+                    agentConfigLiteral(varDecl).ifPresent(config -> collectDeclaredEvents(config, events));
+                }
+            }
+        }
+        return events;
+    }
+
+    // Collects the `name` and `response` fields of each mapping entry in the config's `events` list.
+    private static void collectDeclaredEvents(
             MappingConstructorExpressionNode config,
-            java.util.Set<String> names) {
+            Map<String, String> events) {
         for (MappingFieldNode field : config.fields()) {
             if (!(field instanceof SpecificFieldNode specificField)
                     || specificField.valueExpr().isEmpty()
@@ -638,19 +699,29 @@ public class WorkflowUtil {
                 if (item.kind() != SyntaxKind.MAPPING_CONSTRUCTOR) {
                     continue;
                 }
+                String name = "";
+                String response = "";
                 for (MappingFieldNode entryField
                         : ((MappingConstructorExpressionNode) item).fields()) {
-                    if (entryField instanceof SpecificFieldNode entry
-                            && entry.valueExpr().isPresent()
-                            && "name".equals(entry.fieldName().toSourceCode().trim())) {
-                        String raw = entry.valueExpr().get().toSourceCode().trim();
+                    if (!(entryField instanceof SpecificFieldNode entry) || entry.valueExpr().isEmpty()) {
+                        continue;
+                    }
+                    String fieldName = entry.fieldName().toSourceCode().trim();
+                    String raw = entry.valueExpr().get().toSourceCode().trim();
+                    if ("name".equals(fieldName)) {
                         if (raw.length() >= 2 && raw.startsWith("\"") && raw.endsWith("\"")) {
                             raw = raw.substring(1, raw.length() - 1);
                         }
-                        if (!raw.isEmpty()) {
-                            names.add(raw);
-                        }
+                        name = raw;
+                    } else if ("response".equals(fieldName)) {
+                        response = raw;
                     }
+                }
+                if (!name.isEmpty()) {
+                    // First-wins, matching the LinkedHashSet this replaced: targetAgent is null at
+                    // template time, so two agents declaring the same channel name must not collapse
+                    // onto the later one's response type.
+                    events.putIfAbsent(name, response);
                 }
             }
         }
@@ -758,6 +829,100 @@ public class WorkflowUtil {
             return trimmed;
         }
         return quoteIfPlain(trimmed);
+    }
+
+    /**
+     * Node kinds whose generated source is a field of the durable agent's declaration — an entry in
+     * its {@code activities}/{@code tools}/{@code events} list, or a field of its config literal —
+     * rather than a statement in a function body.
+     */
+    private static final Set<NodeKind> AGENT_DECLARATION_NODES = Set.of(
+            NodeKind.DURABLE_AGENT_RUN,
+            NodeKind.DURABLE_AGENT_ADD_ACTIVITY,
+            NodeKind.DURABLE_AGENT_REGISTER_TOOL,
+            NodeKind.DURABLE_AGENT_REGISTER_EVENT,
+            NodeKind.DURABLE_AGENT_HUMAN_TASK,
+            NodeKind.DURABLE_AGENT_PEER);
+
+    /**
+     * Whether the node writes into the durable agent's declaration instead of emitting a statement.
+     * A caller that reads generated source back as a statement has nothing to read for these — the
+     * edit is a list entry or a record field, and parsing it on its own describes a broken
+     * statement rather than anything wrong with the edit.
+     *
+     * @param nodeKind the node kind to test
+     * @return whether the node's source belongs to the agent declaration
+     */
+    public static boolean editsAgentDeclaration(NodeKind nodeKind) {
+        // Set.of() throws on a null probe, and Gson leaves node() null whenever the client sends a
+        // codedata.node this LS does not know (version skew), so the guard is load-bearing.
+        return nodeKind != null && AGENT_DECLARATION_NODES.contains(nodeKind);
+    }
+
+    // A role field edits one role as text, or an expression yielding a role or a list of them.
+    private static final String ROLE_TYPE = "string";
+    private static final String ROLE_UNION_TYPE = "string|string[]";
+
+    /**
+     * Declares the input modes a reviewer/user role field offers: a single role as text, and an
+     * expression producing a role or a list of them.
+     *
+     * <p>Await Human Task derives its {@code userRoles} property from {@code awaitHumanTask}'s own
+     * {@code string|string[]} parameter, where the union expansion in
+     * {@link Property.Builder#typeWithExpression} splits a union into one mode per member with the
+     * full type on the trailing expression entry. The role fields on the activity and agent forms are
+     * hand-built with no parameter symbol to derive from, so they declare the equivalent modes here
+     * instead of collapsing to expression-only — otherwise the same value is edited two different
+     * ways depending on which form it is opened from.
+     *
+     * <p>No {@code REPEATABLE_LIST} mode: {@code FieldFactory} renders only the first and last
+     * declared mode ({@code [types[0], types[types.length - 1]]}), so a list mode declared between
+     * them never reaches the user. Declaring one would advertise an editor that cannot be opened;
+     * a list is entered in the expression mode, whose type is the full union.
+     *
+     * @param builder the property builder to add the role input modes to
+     * @param <T>     the builder's step-out target
+     * @return the same builder, for fluent chaining
+     */
+    public static <T> Property.Builder<T> addRoleFieldTypes(Property.Builder<T> builder) {
+        return builder
+                .type().fieldType(Property.ValueType.TEXT).ballerinaType(ROLE_TYPE).stepOut()
+                .type().fieldType(Property.ValueType.EXPRESSION).ballerinaType(ROLE_UNION_TYPE).stepOut();
+    }
+
+    /**
+     * The role value as Ballerina source. The field is multi-mode, so the raw value is a string in
+     * expression mode and a string template in text mode; {@link Property#toSourceCode()} renders
+     * either. A value entered in expression mode is written through untouched — it may well be a
+     * list literal or a reference to one; otherwise {@link #quoteIfBareRole} quotes a bare word that
+     * arrived without a template wrapper (a value read back from source, say) while leaving a list
+     * or a qualified/called reference alone — note it does not recognise a bare identifier as a
+     * reference, which is why the mode is checked first.
+     *
+     * @param property the role property, or {@code null}
+     * @return the role expression, or an empty string when nothing was entered
+     */
+    public static String roleSource(Property property) {
+        if (property == null) {
+            return "";
+        }
+        String source = property.toSourceCode().trim();
+        if (source.isEmpty()) {
+            return "";
+        }
+        // In expression mode the value IS the expression: a bare `financeRoles` names a module-level
+        // variable, and quoting it would rewrite that reference into a role literal of the same
+        // spelling. Only a value that arrived without an expression mode selected can be a bare role
+        // name needing quotes.
+        if (isExpressionModeSelected(property)) {
+            return source;
+        }
+        return quoteIfBareRole(source);
+    }
+
+    private static boolean isExpressionModeSelected(Property property) {
+        return property.types() != null && property.types().stream()
+                .anyMatch(type -> type.fieldType() == Property.ValueType.EXPRESSION && type.selected());
     }
 
     /**

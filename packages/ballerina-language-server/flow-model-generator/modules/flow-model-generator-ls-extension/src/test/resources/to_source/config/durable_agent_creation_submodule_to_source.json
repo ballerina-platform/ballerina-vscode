@@ -1,26 +1,16 @@
 {
-  "source": "durable_agent_module.bal",
-  "position": {
-    "line": 17,
-    "offset": 0
-  },
-  "description": "Durable Agentic Workflow creation template: the Name field describes the agent identifier, not a function",
-  "codedata": {
-    "node": "DURABLE_AGENT",
-    "org": "ballerina",
-    "module": "workflow"
-  },
-  "output": {
-    "id": "31",
+  "source": "workflow_submodule/modules/ops/flows.bal",
+  "description": "Create a durable agent in a non-default module on the WSO2 default provider: the only provider in the package is declared in the default module, and a bare reference to it does not resolve here, so wso2ModelProvider is declared alongside the agent instead",
+  "diagram": {
     "metadata": {
       "label": "Durable Agentic Workflow",
       "description": "Define a durable workflow driven by an agentic model"
     },
     "codedata": {
+      "isNew": true,
       "node": "DURABLE_AGENT",
       "org": "ballerina",
-      "module": "workflow",
-      "isNew": true
+      "module": "workflow"
     },
     "returning": false,
     "properties": {
@@ -36,75 +26,7 @@
             "selected": true
           }
         ],
-        "value": "durableAgenticWorkflow",
-        "optional": false,
-        "editable": true,
-        "advanced": false,
-        "hidden": false
-      },
-      "functionNameDescription": {
-        "metadata": {
-          "label": "Description",
-          "description": "Description of the function"
-        },
-        "types": [
-          {
-            "fieldType": "DOC_TEXT",
-            "selected": true
-          }
-        ],
-        "value": "",
-        "optional": true,
-        "editable": true,
-        "advanced": false,
-        "hidden": false
-      },
-      "type": {
-        "metadata": {
-          "label": "Return Type",
-          "description": "Type of the return value"
-        },
-        "types": [
-          {
-            "fieldType": "TYPE",
-            "selected": true
-          }
-        ],
-        "value": "error?",
-        "optional": true,
-        "editable": true,
-        "advanced": false,
-        "hidden": false
-      },
-      "typeDescription": {
-        "metadata": {
-          "label": "Description",
-          "description": "Description of the return value"
-        },
-        "types": [
-          {
-            "fieldType": "DOC_TEXT",
-            "selected": true
-          }
-        ],
-        "value": "",
-        "optional": true,
-        "editable": true,
-        "advanced": false,
-        "hidden": false
-      },
-      "isPublic": {
-        "metadata": {
-          "label": "public",
-          "description": "Make visible across the project"
-        },
-        "types": [
-          {
-            "fieldType": "FLAG",
-            "selected": true
-          }
-        ],
-        "value": "false",
+        "value": "opsClaimAgent",
         "optional": false,
         "editable": true,
         "advanced": false,
@@ -122,7 +44,7 @@
             "selected": true
           }
         ],
-        "value": "",
+        "value": "check ai:getDefaultModelProvider()",
         "placeholder": "",
         "optional": false,
         "editable": true,
@@ -150,7 +72,7 @@
             "selected": false
           }
         ],
-        "value": "",
+        "value": "Expense claim assistant",
         "placeholder": "e.g., Customer Support Assistant",
         "optional": false,
         "editable": true,
@@ -178,7 +100,7 @@
             "selected": false
           }
         ],
-        "value": "",
+        "value": "Process expense claims end to end.",
         "placeholder": "e.g., You are a friendly assistant. Your goal is to...",
         "optional": false,
         "editable": true,
@@ -206,8 +128,85 @@
         "editable": true,
         "advanced": false,
         "hidden": false
+      },
+      "type": {
+        "metadata": {
+          "label": "Return Type",
+          "description": "Type of the return value"
+        },
+        "types": [
+          {
+            "fieldType": "TYPE",
+            "selected": true
+          }
+        ],
+        "value": "error?",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "isPublic": {
+        "metadata": {
+          "label": "public",
+          "description": "Make visible across the project"
+        },
+        "types": [
+          {
+            "fieldType": "FLAG",
+            "selected": true
+          }
+        ],
+        "value": "false",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
       }
     },
     "flags": 0
+  },
+  "output": {
+    "workflow_submodule/workflow.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "import ballerina/ai;"
+      },
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "import ballerina/workflow;"
+      },
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "final ai:Wso2ModelProvider wso2ModelProvider = check ai:getDefaultModelProvider();\nfinal workflow:DurableAgent opsClaimAgent = check new ({\n    systemPrompt: {\n        role: string `Expense claim assistant`,\n        instructions: string `Process expense claims end to end.`\n    },\n    model: wso2ModelProvider\n});"
+      }
+    ]
   }
 }

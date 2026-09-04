@@ -1,6 +1,6 @@
 {
   "source": "durable_agent_module.bal",
-  "description": "Send Agent Data Event quotes the dropdown channel name and binds the turn token",
+  "description": "Send Agent Data Event quotes the dropdown channel name and binds the channel's declared response type",
   "diagram": {
     "id": "1",
     "metadata": {

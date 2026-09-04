@@ -78,9 +78,14 @@
         },
         "types": [
           {
+            "fieldType": "TEXT",
+            "ballerinaType": "string",
+            "selected": false
+          },
+          {
             "fieldType": "EXPRESSION",
             "ballerinaType": "string|string[]",
-            "selected": true
+            "selected": false
           }
         ],
         "placeholder": "",
