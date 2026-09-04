@@ -34,3 +34,29 @@ export interface GetOASSpecRequest {
 export interface GetOASSpecResponse {
     spec: any | null;
 }
+
+export interface McpToolEndpoint {
+    toolName: string;
+    method: string;
+    path: string;
+    description: string;
+}
+
+export interface McpServiceDefaults {
+    serviceName: string;
+    version: string;
+    basePath: string;
+    port: number;
+    listenerName: string;
+}
+
+export interface OpenApiEndpointsRequest {
+    specPath: string;
+}
+
+export interface OpenApiEndpointsResponse {
+    endpoints: McpToolEndpoint[];
+    defaults?: McpServiceDefaults;
+    errorMsg?: string;
+    stacktrace?: string;
+}
