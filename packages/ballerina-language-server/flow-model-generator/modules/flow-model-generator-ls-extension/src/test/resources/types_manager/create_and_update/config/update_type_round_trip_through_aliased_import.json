@@ -1,0 +1,57 @@
+{
+  "filePath": "test_pack_github_roundtrip/types.bal",
+  "description": "The model the read path produces for a file with an aliased import: getTypeSignature derives the qualifier from the module name, so both members come back saying 'github:' and only their own imports maps tell them apart. Saving that back must restore each member to the prefix the file actually binds, not write two 'github:' references.",
+  "type": {
+    "name": "MyType",
+    "editable": true,
+    "metadata": {
+      "label": "",
+      "description": ""
+    },
+    "codedata": {
+      "node": "RECORD"
+    },
+    "properties": {},
+    "members": [
+      {
+        "name": "name1",
+        "type": "github:ListenerConfig",
+        "kind": "FIELD",
+        "refs": [],
+        "docs": "",
+        "imports": {
+          "github": "ballerinax/trigger.github:0.11.0"
+        }
+      },
+      {
+        "name": "name2",
+        "type": "github:GlobalAdvisoryArr",
+        "kind": "FIELD",
+        "refs": [],
+        "docs": "",
+        "imports": {
+          "github": "ballerinax/github:5.1.0"
+        }
+      }
+    ],
+    "includes": [],
+    "allowAdditionalFields": false
+  },
+  "output": {
+    "test_pack_github_roundtrip/types.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 5,
+            "character": 3
+          },
+          "end": {
+            "line": 5,
+            "character": 3
+          }
+        },
+        "newText": "\ntype MyType record {|\n\tgithub:ListenerConfig name1;\n\tgithub2:GlobalAdvisoryArr name2;\n|};"
+      }
+    ]
+  }
+}
