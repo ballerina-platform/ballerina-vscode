@@ -1,0 +1,187 @@
+{
+  "description": "Type search pagination page 2 of 2 mixing an indexed module (os=5) with a live-compiled one (grpc), verifying the live pool's skip is netted against the indexed pool's capacity rather than the raw offset",
+  "kind": "TYPE",
+  "source": "live_fallback_pagination/main.bal",
+  "queryMap": {
+    "q": "",
+    "limit": "8",
+    "offset": "8"
+  },
+  "categories": [
+    {
+      "metadata": {
+        "label": "Current Integration",
+        "description": "Components defined within the current integration",
+        "keywords": [
+          "Project",
+          "Local",
+          "Function",
+          "Types",
+          "Data Mapper"
+        ]
+      },
+      "items": []
+    },
+    {
+      "metadata": {
+        "label": "Imported Types",
+        "description": "Types imported from other integrations",
+        "keywords": [
+          "Imported",
+          "Type",
+          "Library"
+        ]
+      },
+      "items": [
+        {
+          "metadata": {
+            "label": "grpc",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "AllRetryAttemptsFailed",
+                "description": "Represents error scenario where the maximum retry attempts are done and still received an error.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_grpc_1.14.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "grpc",
+                "packageName": "grpc",
+                "symbol": "AllRetryAttemptsFailed",
+                "version": "1.14.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "AlreadyExistsError",
+                "description": "Represents error occur when attempt to create an entity which already exists.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_grpc_1.14.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "grpc",
+                "packageName": "grpc",
+                "symbol": "AlreadyExistsError",
+                "version": "1.14.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "BearerTokenConfig",
+                "description": "Represents token for Bearer token authentication.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_grpc_1.14.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "grpc",
+                "packageName": "grpc",
+                "symbol": "BearerTokenConfig",
+                "version": "1.14.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "CancelledError",
+                "description": "Represents the operation canceled(typically by the caller) error.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_grpc_1.14.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "grpc",
+                "packageName": "grpc",
+                "symbol": "CancelledError",
+                "version": "1.14.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "CertKey",
+                "description": "Represents combination of certificate, private key and private key password if encrypted.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_grpc_1.14.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "grpc",
+                "packageName": "grpc",
+                "symbol": "CertKey",
+                "version": "1.14.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "CertValidationType",
+                "description": "Represents certification validation type options.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_grpc_1.14.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "grpc",
+                "packageName": "grpc",
+                "symbol": "CertValidationType",
+                "version": "1.14.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "ClientAuthConfig",
+                "description": "Defines the authentication configurations for the HTTP client.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_grpc_1.14.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "grpc",
+                "packageName": "grpc",
+                "symbol": "ClientAuthConfig",
+                "version": "1.14.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "ClientAuthError",
+                "description": "Represents an error when client authentication error occured.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_grpc_1.14.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "grpc",
+                "packageName": "grpc",
+                "symbol": "ClientAuthError",
+                "version": "1.14.2"
+              },
+              "enabled": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "label": "Standard Library",
+        "description": "Components supported officially by Ballerina",
+        "keywords": [
+          "Ballerina",
+          "Library"
+        ]
+      },
+      "items": []
+    }
+  ]
+}

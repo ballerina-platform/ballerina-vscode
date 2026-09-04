@@ -27,16 +27,17 @@ import io.ballerina.flowmodelgenerator.core.model.Metadata;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.utils.CentralSearchUtil;
 import io.ballerina.modelgenerator.commons.CommonUtils;
-import io.ballerina.modelgenerator.commons.PackageUtil;
+import io.ballerina.modelgenerator.commons.ModuleCoordinate;
 import io.ballerina.modelgenerator.commons.SearchResult;
 import io.ballerina.projects.Document;
-import io.ballerina.projects.Package;
 import io.ballerina.projects.Project;
 import io.ballerina.tools.text.LineRange;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Represents a command to search for functions available to a module. This class extends SearchCommand and provides
@@ -66,20 +67,15 @@ class FunctionSearchCommand extends SearchCommand {
             "time", List.of("utcNow", "utcFromString"),
             "io", List.of("print", "println", "fileWriteString", "fileWriteJson", "fileReadString", "fileReadJson")
     );
+    private static final String POPULAR_FUNCTIONS_ORG = "ballerina";
     private static final String FETCH_KEY = "functions";
-    private final List<String> moduleNames;
+    private final Set<ModuleCoordinate> importedModules;
     private final Document functionsDoc;
 
     public FunctionSearchCommand(Project project, LineRange position, Map<String, String> queryMap,
                                  Document functionsDoc) {
         super(project, position, queryMap);
-
-        // Obtain the imported module names
-        Package currentPackage = project.currentPackage();
-        PackageUtil.getCompilation(currentPackage);
-        moduleNames = currentPackage.getDefaultModule().moduleDependencies().stream()
-                .map(moduleDependency -> moduleDependency.descriptor().name().packageName().value())
-                .toList();
+        this.importedModules = ImportedModules.collect(project);
         this.functionsDoc = functionsDoc;
         // TODO: Use this method when https://github.com/ballerina-platform/ballerina-lang/issues/43695 is fixed
         // List<String> moduleNames = semanticModel.moduleSymbols().stream()
@@ -92,8 +88,8 @@ class FunctionSearchCommand extends SearchCommand {
     protected List<Item> defaultView() {
         WorkspaceFunctionNodeBuilder.buildSubmoduleWorkspaceNodes(rootBuilder, project, position, query, functionsDoc);
         List<SearchResult> searchResults = new ArrayList<>();
-        if (!moduleNames.isEmpty()) {
-            searchResults.addAll(dbManager.searchFunctionsByPackages(moduleNames, List.of(), limit, offset));
+        if (!importedModules.isEmpty()) {
+            searchResults.addAll(dbManager.searchFunctionsByPackages(importedModules, List.of(), limit, offset));
         }
         searchResults.addAll(defaultViewHolder.get(this).getOrDefault(FETCH_KEY, List.of()));
 
@@ -120,11 +116,13 @@ class FunctionSearchCommand extends SearchCommand {
 
     @Override
     protected Map<String, List<SearchResult>> fetchPopularItems() {
-        List<String> packageNames = new ArrayList<>(POPULAR_BALLERINA_FUNCTIONS.keySet());
+        Set<ModuleCoordinate> popularModules = POPULAR_BALLERINA_FUNCTIONS.keySet().stream()
+                .map(moduleName -> new ModuleCoordinate(POPULAR_FUNCTIONS_ORG, moduleName))
+                .collect(Collectors.toSet());
         List<String> functionNames = POPULAR_BALLERINA_FUNCTIONS.values().stream()
                 .flatMap(List::stream)
                 .toList();
-        return Map.of(FETCH_KEY, dbManager.searchFunctionsByPackages(packageNames, functionNames, limit, offset));
+        return Map.of(FETCH_KEY, dbManager.searchFunctionsByPackages(popularModules, functionNames, limit, offset));
     }
 
     private void buildLibraryNodes(List<SearchResult> functionSearchList) {
@@ -151,16 +149,13 @@ class FunctionSearchCommand extends SearchCommand {
                     .symbol(searchResult.name())
                     .version(packageInfo.version())
                     .build();
-            Category.Builder builder;
-            if (moduleNames.contains(packageInfo.moduleName())) {
-                builder = importedFnBuilder;
-            } else {
-                builder = availableFnBuilder;
-            }
-            if (builder != null) {
-                builder.stepIn(packageInfo.moduleName(), "", List.of())
-                        .node(new AvailableNode(metadata, codedata, true));
-            }
+            // Org-aware: search() sources results from a query that spans the whole library, so a same-named
+            // package from another org must not be mistaken for the import.
+            Category.Builder builder = importedModules.contains(
+                    new ModuleCoordinate(packageInfo.org(), packageInfo.moduleName()))
+                    ? importedFnBuilder : availableFnBuilder;
+            builder.stepIn(packageInfo.moduleName(), "", List.of())
+                    .node(new AvailableNode(metadata, codedata, true));
         }
     }
 

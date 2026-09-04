@@ -1,0 +1,196 @@
+{
+  "description": "Type search pagination page 1 of 2 mixing an indexed module (os=5) with a live-compiled one (grpc), verifying the live pool's skip is netted against the indexed pool's capacity rather than the raw offset",
+  "kind": "TYPE",
+  "source": "live_fallback_pagination/main.bal",
+  "queryMap": {
+    "q": "",
+    "limit": "8",
+    "offset": "0"
+  },
+  "categories": [
+    {
+      "metadata": {
+        "label": "Current Integration",
+        "description": "Components defined within the current integration",
+        "keywords": [
+          "Project",
+          "Local",
+          "Function",
+          "Types",
+          "Data Mapper"
+        ]
+      },
+      "items": []
+    },
+    {
+      "metadata": {
+        "label": "Imported Types",
+        "description": "Types imported from other integrations",
+        "keywords": [
+          "Imported",
+          "Type",
+          "Library"
+        ]
+      },
+      "items": [
+        {
+          "metadata": {
+            "label": "os",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "Command",
+                "description": "",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_os_1.10.1.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "os",
+                "packageName": "os",
+                "symbol": "Command",
+                "version": "1.10.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "EnvProperties",
+                "description": "",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_os_1.10.1.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "os",
+                "packageName": "os",
+                "symbol": "EnvProperties",
+                "version": "1.10.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "Error",
+                "description": "Represents OS module related errors.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_os_1.10.1.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "os",
+                "packageName": "os",
+                "symbol": "Error",
+                "version": "1.10.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "Process",
+                "description": "This object contains information on a process being created from Ballerina.\nThis is returned from the `exec` function in the `os` module.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_os_1.10.1.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "os",
+                "packageName": "os",
+                "symbol": "Process",
+                "version": "1.10.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "ProcessExecError",
+                "description": "Process Execution error that returns when the os:Exec function fails.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_os_1.10.1.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "os",
+                "packageName": "os",
+                "symbol": "ProcessExecError",
+                "version": "1.10.1"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "grpc",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "AbortedError",
+                "description": "Represents error occur when operation is aborted.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_grpc_1.14.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "grpc",
+                "packageName": "grpc",
+                "symbol": "AbortedError",
+                "version": "1.14.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "AbstractClientEndpoint",
+                "description": "Represents the abstract gRPC client endpoint. This abstract object is used in the generated client.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_grpc_1.14.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "grpc",
+                "packageName": "grpc",
+                "symbol": "AbstractClientEndpoint",
+                "version": "1.14.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "AccessLogConfiguration",
+                "description": "Represents gRPC access log configuration.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_grpc_1.14.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "grpc",
+                "packageName": "grpc",
+                "symbol": "AccessLogConfiguration",
+                "version": "1.14.2"
+              },
+              "enabled": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "label": "Standard Library",
+        "description": "Components supported officially by Ballerina",
+        "keywords": [
+          "Ballerina",
+          "Library"
+        ]
+      },
+      "items": []
+    }
+  ]
+}

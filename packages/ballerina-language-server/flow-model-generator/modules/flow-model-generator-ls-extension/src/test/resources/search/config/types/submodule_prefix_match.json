@@ -262,22 +262,6 @@
           "items": [
             {
               "metadata": {
-                "label": "ForecastModelsCollection",
-                "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_microsoft.dynamics365.scm_0.2.0.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerinax",
-                "module": "microsoft.dynamics365.scm",
-                "packageName": "microsoft.dynamics365.scm",
-                "symbol": "ForecastModelsCollection",
-                "version": "0.2.0"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
                 "label": "ForecastModel",
                 "description": "",
                 "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_microsoft.dynamics365.scm_0.2.0.png"
@@ -288,6 +272,22 @@
                 "module": "microsoft.dynamics365.scm",
                 "packageName": "microsoft.dynamics365.scm",
                 "symbol": "ForecastModel",
+                "version": "0.2.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "ForecastModelsCollection",
+                "description": "",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_microsoft.dynamics365.scm_0.2.0.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerinax",
+                "module": "microsoft.dynamics365.scm",
+                "packageName": "microsoft.dynamics365.scm",
+                "symbol": "ForecastModelsCollection",
                 "version": "0.2.0"
               },
               "enabled": true
@@ -335,6 +335,22 @@
             },
             {
               "metadata": {
+                "label": "Daily",
+                "description": "Daily forecast weather data API response",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_openweathermap_1.5.1.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerinax",
+                "module": "openweathermap",
+                "packageName": "openweathermap",
+                "symbol": "Daily",
+                "version": "1.5.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
                 "label": "Hourly",
                 "description": "Hourly forecast weather data API response",
                 "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_openweathermap_1.5.1.png"
@@ -361,22 +377,6 @@
                 "module": "openweathermap",
                 "packageName": "openweathermap",
                 "symbol": "Minutely",
-                "version": "1.5.1"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "Daily",
-                "description": "Daily forecast weather data API response",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_openweathermap_1.5.1.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerinax",
-                "module": "openweathermap",
-                "packageName": "openweathermap",
-                "symbol": "Daily",
                 "version": "1.5.1"
               },
               "enabled": true

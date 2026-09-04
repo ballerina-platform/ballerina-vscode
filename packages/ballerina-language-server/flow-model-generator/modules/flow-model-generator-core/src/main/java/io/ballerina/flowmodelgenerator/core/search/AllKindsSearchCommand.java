@@ -27,11 +27,10 @@ import io.ballerina.flowmodelgenerator.core.model.Metadata;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.utils.ConnectorUtil;
 import io.ballerina.modelgenerator.commons.CommonUtils;
-import io.ballerina.modelgenerator.commons.PackageUtil;
+import io.ballerina.modelgenerator.commons.ModuleCoordinate;
 import io.ballerina.modelgenerator.commons.SearchResult;
 import io.ballerina.modelgenerator.commons.UnifiedSearchResult;
 import io.ballerina.projects.Document;
-import io.ballerina.projects.Package;
 import io.ballerina.projects.Project;
 import io.ballerina.tools.text.LineRange;
 
@@ -40,6 +39,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -62,7 +62,7 @@ import static io.ballerina.flowmodelgenerator.core.model.Category.Name.STANDARD_
 public class AllKindsSearchCommand extends SearchCommand {
 
     private final Document functionsDoc;
-    private final List<String> moduleNames;
+    private final Set<ModuleCoordinate> importedModules;
     private final ExecutorService executorService;
 
     // Database search types (fast path)
@@ -75,11 +75,7 @@ public class AllKindsSearchCommand extends SearchCommand {
                                  Document functionsDoc) {
         super(project, position, queryMap);
         this.functionsDoc = functionsDoc;
-        Package currentPackage = project.currentPackage();
-        PackageUtil.getCompilation(currentPackage);
-        this.moduleNames = currentPackage.getDefaultModule().moduleDependencies().stream()
-                .map(moduleDependency -> moduleDependency.descriptor().name().packageName().value())
-                .toList();
+        this.importedModules = ImportedModules.collect(project);
         this.executorService = Executors.newCachedThreadPool();
     }
 
@@ -185,12 +181,11 @@ public class AllKindsSearchCommand extends SearchCommand {
 
         for (SearchResult result : results) {
             String moduleName = result.packageInfo().moduleName();
-            Builder builder;
-            if (moduleNames.contains(moduleName)) {
-                builder = importedFnBuilder;
-            } else {
-                builder = stdLibBuilder;
-            }
+            // Org-aware: this pool is a global query, so a same-named package from another org must not be
+            // mistaken for the import.
+            Builder builder = importedModules.contains(
+                    new ModuleCoordinate(result.packageInfo().org(), moduleName))
+                    ? importedFnBuilder : stdLibBuilder;
             builder.stepIn(moduleName, "", List.of())
                     .node(createFunctionNode(result));
         }

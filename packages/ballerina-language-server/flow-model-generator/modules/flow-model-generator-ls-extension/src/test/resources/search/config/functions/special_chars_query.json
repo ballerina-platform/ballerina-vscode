@@ -143,31 +143,6 @@
         },
         {
           "metadata": {
-            "label": "lang.table",
-            "description": "",
-            "keywords": []
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "'map",
-                "description": "Applies a function to each member of a table and returns a table of the result.\n\n```ballerina\ntable<record {|int id; int math; int physics;|}> students = table [\n    {id: 1, math: 78, physics: 70},\n    {id: 2, math: 83, physics: 80}\n];\nstudents.map(student => {id: student.id, avg: (student.math + student.physics) / 2}) ⇒ [{\"id\":1,\"avg\":74},{\"id\":2,\"avg\":81}]\n```\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_lang.table_0.0.0.png"
-              },
-              "codedata": {
-                "node": "FUNCTION_CALL",
-                "org": "ballerina",
-                "module": "lang.table",
-                "packageName": "lang.table",
-                "symbol": "'map",
-                "version": "0.0.0"
-              },
-              "enabled": true
-            }
-          ]
-        },
-        {
-          "metadata": {
             "label": "lang.stream",
             "description": "",
             "keywords": []
@@ -184,6 +159,31 @@
                 "org": "ballerina",
                 "module": "lang.stream",
                 "packageName": "lang.stream",
+                "symbol": "'map",
+                "version": "0.0.0"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "lang.table",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "'map",
+                "description": "Applies a function to each member of a table and returns a table of the result.\n\n```ballerina\ntable<record {|int id; int math; int physics;|}> students = table [\n    {id: 1, math: 78, physics: 70},\n    {id: 2, math: 83, physics: 80}\n];\nstudents.map(student => {id: student.id, avg: (student.math + student.physics) / 2}) ⇒ [{\"id\":1,\"avg\":74},{\"id\":2,\"avg\":81}]\n```\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_lang.table_0.0.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "lang.table",
+                "packageName": "lang.table",
                 "symbol": "'map",
                 "version": "0.0.0"
               },
