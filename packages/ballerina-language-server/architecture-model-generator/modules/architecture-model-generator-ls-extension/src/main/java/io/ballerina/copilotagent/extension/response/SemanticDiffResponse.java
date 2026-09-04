@@ -31,6 +31,17 @@ import java.util.List;
 public class SemanticDiffResponse extends AbstractResponse {
     private boolean loadDesignDiagrams;
     private List<SemanticDiff> semanticDiffs;
+    // Set when the syntax-level diffs succeeded but the package failed to compile
+    // (design-model comparison). Unlike errorMsg, the diffs are still usable.
+    private String compilationError;
+
+    public String getCompilationError() {
+        return compilationError;
+    }
+
+    public void setCompilationError(String compilationError) {
+        this.compilationError = compilationError;
+    }
 
     public boolean isLoadDesignDiagrams() {
         return loadDesignDiagrams;

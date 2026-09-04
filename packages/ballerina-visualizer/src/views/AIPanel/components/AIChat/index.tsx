@@ -539,9 +539,15 @@ const AIChat: React.FC = () => {
                                     }
                                     activeScaffoldKeyRef.current = key;
                                 }
+                                // A prompt handed off from another surface (e.g. the overview) can ask
+                                // for a fresh thread; clear first, then re-apply its mode (clear resets it).
+                                if (defaultPrompt.newThread) {
+                                    await handleClearChat().catch((): void => { /* best-effort: still submit */ });
+                                    setAgentMode(defaultPrompt.planMode ? AgentMode.Plan : AgentMode.Edit);
+                                }
                                 void handleSend({
                                     input: [{ content: defaultPrompt.text }],
-                                    attachments: [],
+                                    attachments: defaultPrompt.attachments ?? [],
                                 });
                                 return;
                             }

@@ -18,7 +18,11 @@
 
 package io.ballerina.copilotagent.core.models;
 
+import io.ballerina.compiler.syntax.tree.ClassDefinitionNode;
+import io.ballerina.compiler.syntax.tree.ConstantDeclarationNode;
+import io.ballerina.compiler.syntax.tree.EnumDeclarationNode;
 import io.ballerina.compiler.syntax.tree.FunctionDefinitionNode;
+import io.ballerina.compiler.syntax.tree.ImportDeclarationNode;
 import io.ballerina.compiler.syntax.tree.ListenerDeclarationNode;
 import io.ballerina.compiler.syntax.tree.ModuleVariableDeclarationNode;
 import io.ballerina.compiler.syntax.tree.ServiceDeclarationNode;
@@ -38,6 +42,10 @@ public class STNodeRefMap {
     private final Map<String, ServiceDeclarationNode> serviceNodeMap = new HashMap<>();
     private final Map<String, TypeDefinitionNode> typeDefNodeMap = new HashMap<>();
     private final Map<String, ModuleVariableDeclarationNode> moduleVarNodeMap = new HashMap<>();
+    private final Map<String, ConstantDeclarationNode> constantNodeMap = new HashMap<>();
+    private final Map<String, EnumDeclarationNode> enumNodeMap = new HashMap<>();
+    private final Map<String, ClassDefinitionNode> classNodeMap = new HashMap<>();
+    private final Map<String, ImportDeclarationNode> importNodeMap = new HashMap<>();
 
     public Map<String, ListenerDeclarationNode> getListenerNodeMap() {
         return this.listenerNodeMap;
@@ -59,6 +67,22 @@ public class STNodeRefMap {
         return this.moduleVarNodeMap;
     }
 
+    public Map<String, ConstantDeclarationNode> getConstantNodeMap() {
+        return this.constantNodeMap;
+    }
+
+    public Map<String, EnumDeclarationNode> getEnumNodeMap() {
+        return this.enumNodeMap;
+    }
+
+    public Map<String, ClassDefinitionNode> getClassNodeMap() {
+        return this.classNodeMap;
+    }
+
+    public Map<String, ImportDeclarationNode> getImportNodeMap() {
+        return this.importNodeMap;
+    }
+
     public void putListenerNode(String key, ListenerDeclarationNode node) {
         this.listenerNodeMap.put(key, node);
     }
@@ -77,5 +101,21 @@ public class STNodeRefMap {
 
     public void putModuleVarNode(String key, ModuleVariableDeclarationNode node) {
         this.moduleVarNodeMap.put(key, node);
+    }
+
+    public void putConstantNode(String key, ConstantDeclarationNode node) {
+        this.constantNodeMap.put(key, node);
+    }
+
+    public void putEnumNode(String key, EnumDeclarationNode node) {
+        this.enumNodeMap.put(key, node);
+    }
+
+    public void putClassNode(String key, ClassDefinitionNode node) {
+        this.classNodeMap.put(key, node);
+    }
+
+    public void putImportNode(String key, ImportDeclarationNode node) {
+        this.importNodeMap.put(key, node);
     }
 }

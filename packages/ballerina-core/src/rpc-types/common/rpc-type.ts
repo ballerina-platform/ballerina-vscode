@@ -59,6 +59,7 @@ export const selectFileOrDirPath: RequestType<FileOrDirRequest, FileOrDirRespons
 export const selectProjectRelativeFile: RequestType<ProjectFileRequest, ProjectFileResponse> = { method: `${_preFix}/selectProjectRelativeFile` };
 export const selectFileOrFolderPath: RequestType<void, FileOrDirResponse> = { method: `${_preFix}/selectFileOrFolderPath` };
 export const experimentalEnabled: RequestType<void, boolean> = { method: `${_preFix}/experimentalEnabled` };
+export const getCopilotOrbTheme: RequestType<void, string> = { method: `${_preFix}/getCopilotOrbTheme` };
 export const additionalTriggerSearchEnabled: RequestType<void, boolean> = { method: `${_preFix}/additionalTriggerSearchEnabled` };
 export const isNPSupported: RequestType<void, boolean> = { method: `${_preFix}/isNPSupported` };
 export const getWorkspaceRoot: RequestType<void, WorkspaceRootResponse> = { method: `${_preFix}/getWorkspaceRoot` };

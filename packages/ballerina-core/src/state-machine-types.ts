@@ -257,6 +257,8 @@ export interface ReviewModeData {
     modifiedFiles?: string[];
     tempProjectPath?: string;
     isWorkspace?: boolean;
+    /** Compile/diff failure to surface in the review UI instead of a silent empty review. */
+    semanticDiffError?: string;
 }
 
 // --- Evalset Trace Types ---
@@ -852,6 +854,8 @@ export interface GenerationReviewState {
         semanticDiffs: object[];
         loadDesignDiagrams: boolean;
         isWorkspace: boolean;
+        /** Compile/diff failure to surface in the review UI instead of a silent empty review. */
+        semanticDiffError?: string;
     };
 }
 

@@ -27,5 +27,13 @@ public enum NodeKind {
     MODULE_FUNCTION,
     OBJECT_FUNCTION,
     TYPE_DEFINITION,
-    DATA_MAPPING_FUNCTION
+    DATA_MAPPING_FUNCTION,
+    // The kinds below have no diagram representation; the review UI renders them as
+    // source-level changes. Only append new constants — the wire format is the ordinal.
+    MODULE_VARIABLE,
+    CONSTANT,
+    LISTENER,
+    CLASS_DEFINITION,
+    ENUM_DECLARATION,
+    IMPORT_DECLARATION
 }

@@ -136,7 +136,7 @@ export const TypeField = forwardRef<HTMLInputElement, TypeFieldProps>((props, re
         });
 
         const response = await rpcClient.getBIDiagramRpcClient().getExpressionDiagnostics({
-            filePath: rootType?.codedata?.lineRange?.fileName || "types.bal",
+            filePath: Utils.joinPath(URI.file(projectPath), rootType?.codedata?.lineRange?.fileName || "types.bal").fsPath,
             context: {
                 expression: value,
                 startLine: {

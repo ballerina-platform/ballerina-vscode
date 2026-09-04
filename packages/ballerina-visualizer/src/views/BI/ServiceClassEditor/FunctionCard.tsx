@@ -153,7 +153,7 @@ export function FunctionCard(params: FunctionCardProps) {
             <AccordionHeader onClick={handleResourceImplement}>
                 <MethodSection>
                     <MethodBox color={getColorByMethod(functionModel.accessor?.value || functionModel.kind)}>
-                        {functionModel.accessor?.value?.toUpperCase() || functionModel.kind.toLowerCase()}
+                        {functionModel.accessor?.value?.toUpperCase() || functionModel.kind.toUpperCase()}
                     </MethodBox>
                     <MethodPath>{functionModel.name.value}</MethodPath>
                 </MethodSection>
