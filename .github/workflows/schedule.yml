@@ -267,6 +267,12 @@ jobs:
           gradle-version: ${{ matrix.version }}
           package-user: ${{ github.actor }}
           package-pat: ${{ secrets.GITHUB_TOKEN }}
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+          # This job checks out matrix.branch, not the ref the schedule fired on, so the
+          # upload has to be attributed explicitly — otherwise Codecov records every leg
+          # against the default branch head and no branch ever gets a baseline. It also
+          # keeps the coverage artifact name unique per leg.
+          codecov-branch: ${{ matrix.branch }}
 
   ls-windows-build:
     name: LS Windows build (${{ matrix.branch }})
@@ -378,6 +384,7 @@ jobs:
       COPILOT_ROOT_URL: ${{ secrets.COPILOT_ROOT_URL }}
       COPILOT_DEV_ROOT_URL: ${{ secrets.COPILOT_DEV_ROOT_URL }}
       APPINSIGHTS_INSTRUMENTATION_KEY: ${{ secrets.APPINSIGHTS_INSTRUMENTATION_KEY }}
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     with:
       # Pin the nightly commit SHA rather than the branch name: the branch is
       # force-pushed every run, so a name would let a concurrent run swap the tree

@@ -74,61 +74,61 @@
                 "version": "2.17.0"
               },
               "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "printDebug",
+                "description": "Prints debug logs.\n```ballerina\nlog:printDebug(\"debug message\", id = 845315)\n```\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_log_2.17.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "log",
+                "packageName": "log",
+                "symbol": "printDebug",
+                "version": "2.17.0"
+              },
+              "enabled": true
             }
           ]
         },
         {
           "metadata": {
-            "label": "edifact.d03a.logistics",
+            "label": "lang.float",
             "description": "",
             "keywords": []
           },
           "items": [
             {
               "metadata": {
-                "label": "fromEdiString",
-                "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_edifact.d03a.logistics_0.9.0.png"
+                "label": "log",
+                "description": "Returns the natural logarithm of a float value.\n\nCorresponds to IEEE log operation.\n\n```ballerina\nfloat f = 234.56;\nf.log() ⇒ 5.4577114186982865\n```\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_lang.float_0.0.0.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
-                "org": "ballerinax",
-                "module": "edifact.d03a.logistics",
-                "packageName": "edifact.d03a.logistics",
-                "symbol": "fromEdiString",
-                "version": "0.9.0"
+                "org": "ballerina",
+                "module": "lang.float",
+                "packageName": "lang.float",
+                "symbol": "log",
+                "version": "0.0.0"
               },
               "enabled": true
             },
             {
               "metadata": {
-                "label": "getEDINames",
-                "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_edifact.d03a.logistics_0.9.0.png"
+                "label": "log10",
+                "description": "Returns the base 10 logarithm of a float value.\n\nCorresponds to IEEE log10 operation.\n\n```ballerina\nfloat f = 0.1;\nf.log10() ⇒ -1.0\n```\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_lang.float_0.0.0.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
-                "org": "ballerinax",
-                "module": "edifact.d03a.logistics",
-                "packageName": "edifact.d03a.logistics",
-                "symbol": "getEDINames",
-                "version": "0.9.0"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "toEdiString",
-                "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_edifact.d03a.logistics_0.9.0.png"
-              },
-              "codedata": {
-                "node": "FUNCTION_CALL",
-                "org": "ballerinax",
-                "module": "edifact.d03a.logistics",
-                "packageName": "edifact.d03a.logistics",
-                "symbol": "toEdiString",
-                "version": "0.9.0"
+                "org": "ballerina",
+                "module": "lang.float",
+                "packageName": "lang.float",
+                "symbol": "log10",
+                "version": "0.0.0"
               },
               "enabled": true
             }

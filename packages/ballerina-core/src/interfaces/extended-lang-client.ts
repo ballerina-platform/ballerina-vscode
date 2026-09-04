@@ -854,6 +854,8 @@ export interface ProjectDiagnosticsRequest {
 
 export interface ProjectDiagnosticsResponse {
     errorDiagnosticMap?: Map<string, Diagnostic[]>;
+    /** Why diagnostics could not be produced (e.g. the package failed to compile). */
+    errorMsg?: string;
 }
 
 export interface MainFunctionParamsRequest {

@@ -25,6 +25,7 @@ import io.ballerina.servicemodelgenerator.extension.connector.ConnectorVersionRe
 import io.ballerina.servicemodelgenerator.extension.connector.ExistingListenerResolver;
 import io.ballerina.servicemodelgenerator.extension.connector.IncludedRecordBinder;
 import io.ballerina.servicemodelgenerator.extension.connector.LocalDependencyEditUtil;
+import io.ballerina.servicemodelgenerator.extension.connector.PlatformDependencyEditUtil;
 import io.ballerina.servicemodelgenerator.extension.connector.SchemaDrivenSourceGenerator;
 import io.ballerina.servicemodelgenerator.extension.connector.TriggerModelReader;
 import io.ballerina.servicemodelgenerator.extension.connector.adapter.TriggerReadOnlyMetadataAdapter;
@@ -93,6 +94,7 @@ public class SchemaDrivenServiceBuilder extends AbstractServiceBuilder {
         ServiceInitModel initModel = triggerInit.get();
         refreshListenerName(initModel, context);
         populateExistingListeners(initModel, context);
+        PlatformDependencyEditUtil.populateDriverDependencyFields(initModel, context.project());
         return initModel;
     }
 
@@ -112,6 +114,8 @@ public class SchemaDrivenServiceBuilder extends AbstractServiceBuilder {
             LocalDependencyEditUtil.addIfMissing(edits, context.project(), filledModel.getOrgName(),
                     filledModel.getPackageName(), filledModel.getVersion());
         }
+        PlatformDependencyEditUtil.addDriverDependenciesIfPresent(edits, context.project(),
+                filledModel.getProperties());
         return edits;
     }
 

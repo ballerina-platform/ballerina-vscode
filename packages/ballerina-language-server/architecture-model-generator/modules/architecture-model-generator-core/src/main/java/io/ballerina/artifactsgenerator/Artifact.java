@@ -32,6 +32,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Represents an artifact in the project tree.
@@ -114,7 +115,7 @@ public record Artifact(String id, LineRange location, String type, String name, 
             Map.entry("ftp", "FTP Integration"),
             Map.entry("file", "Local Files"),
             Map.entry("smb", "SMB Integration"),
-            Map.entry("files", "Azure Storage Files Integration"),
+            Map.entry("azure.storage.files", "Azure Files Integration"),
             Map.entry("business", "Whatsapp Event Integration"),
             Map.entry("chat", "Google Chat Event Integration"),
             Map.entry("telegram", "Telegram Event Integration")
@@ -136,8 +137,16 @@ public record Artifact(String id, LineRange location, String type, String name, 
             "postgresql", new String[]{"tables"},
             "mysql", new String[]{"tables"},
             "ftp", new String[]{"path"},
+            "smb", new String[]{"path"},
             "rabbitmq", new String[]{"queueName"}
     );
+
+    /**
+     * Modules whose service can carry its watched path in the attach point, so the entry-point label appends that
+     * path even though the service also has a type descriptor. Azure Files has no path annotation at all; SMB has
+     * one that wins whenever it is present, which leaves the attach point as its fallback.
+     */
+    private static final Set<String> attachPointNamedModules = Set.of("azure.storage.files", "smb");
 
     public static String getCategory(String type) {
         return typeCategoryMap.getOrDefault(type, CATEGORY_DEFAULT);
@@ -287,12 +296,19 @@ public record Artifact(String id, LineRange location, String type, String name, 
         }
 
         public Builder serviceNameWithPath(String path) {
+            // A string-literal attach point (`service files:Service "/invoices" on lsn`) reaches here with its
+            // quotes, unlike the identifier form (`service /invoices on lsn`).
+            String attachPoint = unquote(path);
             if (module == null || !entryPointMap.containsKey(module)) {
-                this.name = path;
+                this.name = attachPoint;
             } else {
-                this.name = entryPointMap.get(module) + " - " + path;
+                this.name = entryPointMap.get(module) + " - " + attachPoint;
             }
             return this;
+        }
+
+        public String module() {
+            return module;
         }
 
         public Builder serviceName(String name) {
@@ -347,6 +363,27 @@ public record Artifact(String id, LineRange location, String type, String name, 
                     visibility == null ? null : visibility.getValue(), icon,
                     module, new HashMap<>(children), metadata == null ? null : new HashMap<>(metadata));
         }
+    }
+
+    /**
+     * Whether the module can take its service's watched path from the attach point, as in
+     * {@code service files:Service /invoices on lsn}.
+     *
+     * <p>An entry-point label is required too, since without one {@code serviceNameWithPath} would emit a bare
+     * path with no connector name — worse than the type-descriptor label this branch pre-empts.
+     *
+     * @param module the module name the semantic model reports
+     * @return true when the attach point supplies the name
+     */
+    public static boolean usesAttachPointAsName(String module) {
+        return module != null && attachPointNamedModules.contains(module) && entryPointMap.containsKey(module);
+    }
+
+    static String unquote(String value) {
+        if (value == null || value.length() < 2 || !value.startsWith("\"") || !value.endsWith("\"")) {
+            return value;
+        }
+        return value.substring(1, value.length() - 1);
     }
 
     public static String resolveServiceName(String module, String name) {

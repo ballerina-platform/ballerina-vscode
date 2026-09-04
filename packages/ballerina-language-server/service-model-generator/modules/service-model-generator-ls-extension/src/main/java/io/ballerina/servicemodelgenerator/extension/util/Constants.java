@@ -134,6 +134,7 @@ public class Constants {
     public static final String CD_TYPE_PAYLOAD_TYPE = "PAYLOAD_TYPE";
     public static final String CD_TYPE_PAYLOAD_TYPE_INCLUDED_RECORD = "PAYLOAD_TYPE_INCLUDED_RECORD";
     public static final String CD_TYPE_PAYLOAD_MODIFIER = "PAYLOAD_MODIFIER";
+    public static final String CD_TYPE_METADATA_FLAG = "METADATA_FLAG";
     public static final String CD_TYPE_ENUM_VALUE = "ENUM_VALUE";
     public static final String CD_TYPE_LISTENER_VAR_NAME = "LISTENER_VAR_NAME";
     public static final String CD_TYPE_EXISTING_LISTENER = "KEY_EXISTING_LISTENER";

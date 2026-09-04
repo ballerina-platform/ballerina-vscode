@@ -18,7 +18,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { Uri } from 'vscode';
 import { StateMachine } from "../../../../stateMachine";
-import { ProjectSource, PROJECT_KIND } from "@wso2/ballerina-core";
+import { EnsureAiBaselineResponse, ProjectSource, PROJECT_KIND } from "@wso2/ballerina-core";
+import { mapWithConcurrency } from "../concurrency";
 
 /**
  * How the ai:// baseline works, and the Language Server behaviours every caller here depends
@@ -106,60 +107,132 @@ function seedAiBaseline(tempProjectPath: string, filePath: string): void {
   }
 }
 
+/** The baseline payload for one package: every .bal/toml file with its pre-edit content. */
+function collectBaselineFiles(project: ProjectSource): { filePath: string; content: string }[] {
+  const files: { filePath: string; content: string }[] = [];
+
+  project.sourceFiles.forEach(f => {
+    if (f.filePath.endsWith('.bal') || f.filePath.endsWith('.toml')) {
+      files.push({ filePath: f.filePath, content: f.content ?? '' });
+    }
+  });
+  project.projectModules?.forEach(module => {
+    module.sourceFiles.forEach(f => {
+      if (f.filePath.endsWith('.bal')) {
+        files.push({
+          filePath: path.join('modules', module.moduleName, f.filePath),
+          content: f.content ?? '',
+        });
+      }
+    });
+  });
+  project.projectTests?.forEach(f => {
+    if (f.filePath.endsWith('.bal')) {
+      files.push({ filePath: path.join('tests', f.filePath), content: f.content ?? '' });
+    }
+  });
+  return files;
+}
+
 /**
- * Seeds the ai:// baseline for every package in the project at generation start, via each
- * package's Ballerina.toml (one seedAiBaseline call per package is enough: dropping and
- * re-opening any of a package's documents makes the LS re-scan the whole package from disk
- * and cache it under ai://).
+ * Establishes the ai:// frozen baseline for every package from the in-hand pre-edit
+ * contents (ProjectSource), via the LS ensureAiBaseline request. Unlike the notification
+ * protocol, the LS applies everything before responding — awaiting this call guarantees
+ * the baseline is in place before the first edit can land, killing the seed↔edit race.
+ * Falls back to the legacy notification seed for a package if the request fails.
  * @param tempProjectPath The root path of the project (the real workspace/project root)
  * @param projects Array of project sources containing source files, modules, and tests
  */
-export function sendAgentDidOpenForFreshProjects(tempProjectPath: string, projects: ProjectSource[]): void {
-  const allFiles: string[] = [];
+/**
+ * Rejects an ensureAiBaseline response that failed outright or seeded only part of the
+ * baseline. A partially seeded baseline is worse than the racy didOpen fallback the callers'
+ * catch blocks run: the unseeded files would diff against post-edit disk and read as unchanged.
+ */
+function assertBaselineSeeded(res: EnsureAiBaselineResponse | undefined): void {
+  if (!res) {
+    throw new Error('ensureAiBaseline returned no response');
+  }
+  if (res.errorMsg) {
+    throw new Error(res.errorMsg);
+  }
+  if (res.failedFiles?.length) {
+    throw new Error(`could not seed ${res.failedFiles.length} file(s): ${res.failedFiles.join(', ')}`);
+  }
+}
 
-  // For workspace projects, open the workspace root Ballerina.toml first so the LSP
-  // can resolve cross-package dependencies when checking diagnostics per-package.
+export async function seedAiBaselines(tempProjectPath: string, projects: ProjectSource[]): Promise<void> {
   const isWorkspace = StateMachine.context().projectInfo?.projectKind === PROJECT_KIND.WORKSPACE_PROJECT;
+
+  // Workspace root first, so the LS can resolve cross-package dependencies.
   if (isWorkspace) {
     const workspaceTomlPath = path.join(tempProjectPath, 'Ballerina.toml');
     if (fs.existsSync(workspaceTomlPath)) {
-      allFiles.push('Ballerina.toml');
+      try {
+        const content = fs.readFileSync(workspaceTomlPath, 'utf-8');
+        const res = await StateMachine.langClient().ensureAiBaseline({
+          projectPath: tempProjectPath,
+          files: [{ filePath: 'Ballerina.toml', content }],
+        });
+        assertBaselineSeeded(res);
+      } catch (error) {
+        console.error('[AgentNotification] ensureAiBaseline failed for workspace root, falling back:', error);
+        seedAiBaseline(tempProjectPath, 'Ballerina.toml');
+      }
     }
   }
 
-  projects.forEach(project => {
-    const pkgPath = project.packagePath || ""; // Empty for single package, relative path for workspace
-
-    // Add root-level source files
-    project.sourceFiles.forEach(f => {
-      const relativePath = pkgPath ? path.join(pkgPath, f.filePath) : f.filePath;
-      allFiles.push(relativePath);
-    });
-
-    // Add module files
-    project.projectModules?.forEach(module => {
-      module.sourceFiles.forEach(f => {
-        const relativePath = pkgPath
-          ? path.join(pkgPath, 'modules', module.moduleName, f.filePath)
-          : path.join('modules', module.moduleName, f.filePath);
-        allFiles.push(relativePath);
-      });
-    });
-
-    // Add test files
-    if (project.projectTests) {
-      project.projectTests.forEach(f => {
-        const relativePath = pkgPath
-          ? path.join(pkgPath, 'tests', f.filePath)
-          : path.join('tests', f.filePath);
-        allFiles.push(relativePath);
-      });
+  // Packages are independent project roots on the LS side (per-project locks), so seed
+  // them concurrently — only the workspace-root toml above must land first. Bounded,
+  // because this runs every turn over every package in the workspace and each request
+  // rebuilds that package's ai:// project.
+  await mapWithConcurrency(projects, 4, async project => {
+    const pkgPath = project.packagePath || '';
+    const packageRoot = pkgPath ? path.join(tempProjectPath, pkgPath) : tempProjectPath;
+    const files = collectBaselineFiles(project);
+    try {
+      const res = await StateMachine.langClient().ensureAiBaseline({ projectPath: packageRoot, files });
+      assertBaselineSeeded(res);
+      console.log(`[AgentNotification] Seeded ai:// baseline (${res?.seededFileCount ?? 0} files) for: ${packageRoot}`);
+    } catch (error) {
+      // Older LS or request failure: fall back to the racy-but-working notification seed.
+      console.error(`[AgentNotification] ensureAiBaseline failed for ${packageRoot}, falling back to didOpen seed:`, error);
+      const tomlRel = pkgPath ? path.join(pkgPath, 'Ballerina.toml') : 'Ballerina.toml';
+      seedAiBaseline(tempProjectPath, tomlRel);
     }
   });
+}
 
-  const tomlFiles = allFiles.filter(f => f.endsWith('Ballerina.toml'));
-  console.log(`[AgentNotification] Sending didOpen for ${tomlFiles.length} Ballerina.toml(s) across ${projects.length} project(s)`);
-  tomlFiles.forEach(file => seedAiBaseline(tempProjectPath, file));
+/**
+ * Freezes the ai:// baseline for a package the agent just created mid-run (it wrote a new
+ * Ballerina.toml). Without this, the package has no cached ai:// project, so the first
+ * getSemanticDiff loads the baseline from post-edit disk and the whole package diffs
+ * against itself as "no changes". The baseline is the just-written toml plus explicit
+ * empty content for any .bal files this generation already wrote into the package —
+ * everything the run adds afterwards then registers as an addition.
+ * @param packageRoot Absolute path of the new package
+ * @param tomlContent The Ballerina.toml content just written
+ * @param preexistingBalFiles Package-relative .bal paths this generation already created
+ */
+export async function seedNewPackageBaseline(
+  packageRoot: string,
+  tomlContent: string,
+  preexistingBalFiles: string[]
+): Promise<void> {
+  const files = [
+    { filePath: 'Ballerina.toml', content: tomlContent },
+    ...preexistingBalFiles.map(filePath => ({ filePath, content: '' })),
+  ];
+  try {
+    const res = await StateMachine.langClient().ensureAiBaseline({ projectPath: packageRoot, files });
+    assertBaselineSeeded(res);
+    console.log(`[AgentNotification] Seeded ai:// baseline for new package: ${packageRoot}`);
+  } catch (error) {
+    // Same policy as seedAiBaselines: fall back to the notification seed. Right after the
+    // toml write the disk state is still close to the intended baseline, so a racy seed
+    // beats no baseline at all (which would make the whole package diff as unchanged).
+    console.error(`[AgentNotification] ensureAiBaseline failed for new package ${packageRoot}, falling back to didOpen seed:`, error);
+    seedAiBaseline(packageRoot, 'Ballerina.toml');
+  }
 }
 
 /**
@@ -217,9 +290,10 @@ export function sendReviewRestoreDidOpenBatch(
   modifiedFiles: string[],
   baselineProjectPath: string | undefined,
   fallbackOriginalContents?: Record<string, string>
-): void {
+): { restoredCount: number; skippedCount: number } {
   const normalizedTempRoot = path.resolve(tempProjectPath);
   const baselineAvailable = !!baselineProjectPath && fs.existsSync(baselineProjectPath);
+  let skippedCount = 0;
   const restored: { filePath: string; aiUri: string; originalContent: string }[] = [];
 
   for (const filePath of modifiedFiles) {
@@ -231,6 +305,7 @@ export function sendReviewRestoreDidOpenBatch(
       const tempFileFullPath = path.resolve(tempProjectPath, filePath);
       if (tempFileFullPath !== normalizedTempRoot && !tempFileFullPath.startsWith(normalizedTempRoot + path.sep)) {
         console.warn(`[AgentNotification] Review restore path escapes temp project, skipping: ${filePath}`);
+        skippedCount++;
         continue;
       }
 
@@ -248,13 +323,20 @@ export function sendReviewRestoreDidOpenBatch(
       } else if (baselineAvailable) {
         // The baseline is authoritative: absence means the generation created this file.
         originalContent = '';
+      } else if (fallbackOriginalContents !== undefined) {
+        // A checkpoint snapshot exists but has no entry for this file — it did not exist
+        // when the snapshot was captured, i.e. the generation created it. An empty
+        // original makes it read as an addition, matching the live-run behavior.
+        originalContent = '';
       } else {
         console.warn(`[AgentNotification] Original content unavailable, skipping review restore: ${filePath}`);
+        skippedCount++;
         continue;
       }
 
       if (!tempFileExists && !baselineFileExists && !hasFallbackOriginal) {
         console.warn(`[AgentNotification] File is absent from both review versions, skipping: ${filePath}`);
+        skippedCount++;
         continue;
       }
 
@@ -271,6 +353,9 @@ export function sendReviewRestoreDidOpenBatch(
       evictAiBaseline(tempFileFullPath);
       restored.push({ filePath, aiUri, originalContent });
     } catch (error) {
+      // Counts as skipped: without it a total failure through this path would return
+      // {restoredCount: 0, skippedCount: 0} and read as "nothing needed restoring".
+      skippedCount++;
       console.error(`[AgentNotification] Failed to restore review schemas for ${filePath}:`, error);
     }
   }
@@ -279,15 +364,23 @@ export function sendReviewRestoreDidOpenBatch(
   // the package from the live sources on disk and the rest update documents in place, so the
   // batch costs one rebuild instead of one per file — and no file's original is clobbered by
   // the next file's rebuild. See the module notes on the ai:// baseline.
+  let restoredCount = 0;
   for (const { filePath, aiUri, originalContent } of restored) {
     try {
       StateMachine.langClient().didChange({
         textDocument: { uri: aiUri, version: 2 },
         contentChanges: [{ text: originalContent }]
       });
+      restoredCount++;
       console.log(`[AgentNotification] Restored review schemas for: ${filePath}`);
     } catch (error) {
+      // A file whose baseline never landed counts as skipped, not restored — otherwise a
+      // total didChange failure would still report every file restored and suppress the
+      // caller's unavailable-originals warning.
+      skippedCount++;
       console.error(`[AgentNotification] Failed to restore the ai:// baseline for ${filePath}:`, error);
     }
   }
+
+  return { restoredCount, skippedCount };
 }

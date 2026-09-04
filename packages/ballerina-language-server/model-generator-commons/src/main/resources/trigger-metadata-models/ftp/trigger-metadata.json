@@ -31,8 +31,8 @@
             "annotations": ["$functionConfig"],
             "params": [
               {
-                "id": "$service.onFileCsv.contents",
-                "name": "contents",
+                "id": "$service.onFileCsv.content",
+                "name": "content",
                 "doc": "The parsed rows, see the csvContent data-binding rule for the batched and streamed forms.",
                 "type": [
                   { "shape": "array", "elementType": { "shape": "array", "elementType": { "name": "string", "builtin": true } } },
@@ -213,8 +213,8 @@
             "annotations": ["$functionConfig"],
             "params": [
               {
-                "id": "$service.onFileDelete.deleteFiles",
-                "name": "deleteFiles",
+                "id": "$service.onFileDelete.deletedFile",
+                "name": "deletedFile",
                 "doc": "Path of the file that was deleted.",
                 "type": { "name": "string", "builtin": true },
                 "presence": "required"
@@ -241,8 +241,8 @@
             "annotations": ["$functionConfig"],
             "params": [
               {
-                "id": "$service.onError.ftpError",
-                "name": "ftpError",
+                "id": "$service.onError.err",
+                "name": "err",
                 "doc": "The failure that interrupted processing.",
                 "type": { "name": "Error" },
                 "presence": "required"

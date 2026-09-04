@@ -47,6 +47,7 @@ import {
     StepperWrapper,
 } from "./styles";
 import { FinalIntegrationParams } from "./types";
+import { isMultiRootSelected } from "./utils";
 
 export function ImportIntegration() {
     const { wsClient, onBack } = useBiWsContext();
@@ -82,9 +83,9 @@ export function ImportIntegration() {
 
     const steps = ["Configure Source", "Report Generation", "Configure Destination", "Rule-Based Migration", "AI Enhancement"];
 
-    // isMultiProject for ConfigureProjectForm is derived from the source config (step 0 selection)
-    const boolParamKey = selectedIntegration?.parameters.find(p => p.valueType === "boolean")?.key;
-    const isMultiProjectFromConfig = boolParamKey ? importParams?.parameters?.[boolParamKey] === true : false;
+    // isMultiProject for ConfigureProjectForm is derived from the source config (step 0 selection).
+    // Resolved by parameter key, not by declaration order — see `resolveSourceLayoutParam`.
+    const isMultiProjectFromConfig = isMultiRootSelected(selectedIntegration, importParams?.parameters);
     // isMultiProject for MigrationProgressView is derived from actual migration results
     const isMultiProject = migratedProjects.length > 0;
     // Recorded in the enhancement toml so the AI migration prompts can target the source platform

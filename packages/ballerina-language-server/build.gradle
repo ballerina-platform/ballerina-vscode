@@ -431,6 +431,92 @@ task buildCommons {
     dependsOn(":model-generator-commons:build")
 }
 
+// Aggregated test coverage across every module, mirroring the createCodeCoverageReport
+// task in ballerina-lang. gradle/javaProject.gradle already makes each module's test task
+// emit JaCoCo execution data into build/coverage-reports/jacoco.exec; modules that only
+// get the base jacoco plugin from allprojects use JaCoCo's default build/jacoco/*.exec.
+// Merging both into one report gives a single coverage percentage for the language server,
+// which is what CI hands to Codecov.
+//
+// Usage: ./gradlew test createCodeCoverageReport  (or run it after a `test`/`build`, since
+// it reads existing build outputs). It deliberately declares no task dependencies so CI can
+// still publish coverage from a run where some tests failed.
+def coverageExcludedProjects = [
+        ':checkstyle',                                      // downloads the checkstyle config, no sources
+        ':langserver-stdlib',                               // Ballerina mock stdlib — a test fixture
+        ':flow-model-generator:flow-model-index-generator', // build-time index generators
+        ':service-model-generator:service-model-index-generator',
+]
+
+tasks.register('createCodeCoverageReport', JacocoReport) {
+    description 'Merges the JaCoCo execution data of all modules into a single coverage report'
+    group 'verification'
+
+    def reportDir = file("$rootDir/.jacoco/reports/jacoco")
+    def xmlReport = new File(reportDir, 'report.xml')
+
+    // Ordering only, deliberately not dependsOn: when tests are part of the same
+    // invocation the report has to come last, but `./gradlew createCodeCoverageReport`
+    // on its own — what CI runs after a suite that failed — must not rebuild or re-run
+    // anything. Without this, Gradle 8 rejects the task for reading compileJava and
+    // test outputs it never declared a dependency on.
+    mustRunAfter subprojects.collect { it.tasks.withType(JavaCompile) }
+    mustRunAfter subprojects.collect { it.tasks.withType(Test) }
+
+    // Asking for this task always produces a report and always logs the percentage;
+    // an UP-TO-DATE skip would silently print nothing. Regeneration is seconds against
+    // a suite that takes tens of minutes. JacocoReport is @CacheableTask and
+    // org.gradle.caching is on, so upToDateWhen alone is not enough: a FROM-CACHE hit
+    // would restore the report without running the doLast that logs the percentages.
+    outputs.upToDateWhen { false }
+    outputs.cacheIf { false }
+
+    subprojects.each { subproject ->
+        // fileTree resolves at execution time, so exec files written earlier in the same
+        // invocation (./gradlew test createCodeCoverageReport) are picked up too.
+        executionData fileTree(subproject.buildDir) {
+            include 'coverage-reports/*.exec', 'jacoco/*.exec'
+        }
+
+        if (coverageExcludedProjects.contains(subproject.path)) {
+            return
+        }
+        additionalClassDirs fileTree("${subproject.buildDir}/classes/java/main") {
+            exclude '**/module-info.class'
+        }
+        additionalSourceDirs files("${subproject.projectDir}/src/main/java")
+    }
+
+    reports {
+        xml.required = true
+        html.required = true
+        csv.required = false
+        xml.outputLocation = xmlReport
+        html.outputLocation = new File(reportDir, 'html')
+    }
+
+    doLast {
+        // JaCoCo's own XML carries the totals; echo them so the percentage is visible in
+        // the build log and not only on Codecov.
+        def parser = new groovy.xml.XmlSlurper()
+        parser.setFeature('http://apache.org/xml/features/nonvalidating/load-external-dtd', false)
+        parser.setFeature('http://apache.org/xml/features/disallow-doctype-decl', false)
+        def report = parser.parse(xmlReport)
+        ['INSTRUCTION', 'BRANCH', 'LINE'].each { type ->
+            def counter = report.counter.find { it.@type == type }
+            if (counter.isEmpty()) {
+                return
+            }
+            def missed = counter.@missed.toInteger()
+            def covered = counter.@covered.toInteger()
+            def total = missed + covered
+            def percentage = total == 0 ? 0.0d : (covered * 100.0d / total)
+            logger.lifecycle(String.format('%-12s coverage: %6.2f%% (%d/%d)', type, percentage, covered, total))
+        }
+        logger.lifecycle("Coverage report: ${xmlReport}")
+    }
+}
+
 publishing {
     publications {
         mavenJava(MavenPublication) { publication ->

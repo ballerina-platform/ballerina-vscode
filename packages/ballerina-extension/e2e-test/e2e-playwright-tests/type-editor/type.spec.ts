@@ -146,6 +146,67 @@ export default function createTests() {
 
         });
 
+        /**
+         * Regression coverage for the type editor's inline diagnostics
+         * (product-integrator#2181 / ballerina-vscode#961). The editor used to
+         * send a bare `types.bal` as `filePath` to
+         * `expressionEditor/diagnostics`, which the language server cannot
+         * resolve a project from, so the request failed and the field stayed
+         * silent on invalid input. Both assertions below show nothing at all
+         * before that fix.
+         */
+        test('Type Editor Field Diagnostics', async ({ }, testInfo) => {
+            const testAttempt = testInfo.retry + 1;
+            logStep(`Type editor field diagnostics — attempt ${testAttempt}`);
+
+            // The serial block's earlier tests leave the type diagram open, but this
+            // test is also useful on its own (`--grep`), and then the run starts on
+            // the integration overview instead — navigate there when that is the case.
+            let artifactWebView = await getWebview(BI_INTEGRATOR_LABEL, page);
+            const onTypeDiagram = await artifactWebView
+                .getByRole('button', { name: 'Add Type' })
+                .isVisible()
+                .catch(() => false);
+            if (!onTypeDiagram) {
+                logStep('Type diagram not open — navigating to the Type Editor');
+                await addArtifact('Type', 'type');
+                await page.page.waitForLoadState('networkidle');
+                artifactWebView = await getWebview(BI_INTEGRATOR_LABEL, page);
+            }
+            const typeUtils = new TypeEditorUtils(page.page, artifactWebView);
+            await typeUtils.waitForTypeEditor();
+
+            logStep('Opening the Add Type panel on the Create from scratch tab');
+            await typeUtils.clickAddType();
+            const panel = await typeUtils.openCreateFromScratchTab();
+            await typeUtils.setTypeName(`DiagnosticsProbe${testAttempt}`);
+
+            logStep('Adding a record field whose type does not exist in the project');
+            await typeUtils.addEmptyRecordField();
+            await typeUtils.setLastFieldName('probe');
+            await typeUtils.setLastFieldType('NoSuchTypeHere');
+
+            logStep('Verifying the undefined-type diagnostic is shown');
+            await typeUtils.verifyFieldDiagnostic(panel, "undefined type 'NoSuchTypeHere'");
+
+            logStep('Restoring a valid type and verifying the diagnostic clears');
+            await typeUtils.setLastFieldType('string');
+            await typeUtils.verifyNoFieldDiagnostic(panel);
+
+            logStep('Setting the field name to a reserved keyword');
+            await typeUtils.setLastFieldName('function');
+
+            logStep('Verifying the reserved-keyword diagnostic is shown');
+            await typeUtils.verifyFieldDiagnostic(panel, '`function` is a reserved keyword');
+
+            logStep('Correcting the field name and verifying the diagnostic clears');
+            await typeUtils.setLastFieldName('probe');
+            await typeUtils.verifyNoFieldDiagnostic(panel);
+
+            logStep('Closing the panel without saving');
+            await typeUtils.closePanel();
+        });
+
         test('Import Type from JSON', async ({ }, testInfo) => {
             const testAttempt = testInfo.retry + 1;
             logStep(`Import type from JSON — attempt ${testAttempt}`);

@@ -38,7 +38,7 @@ import {
     StepContainer,
 } from "./styles";
 import { FinalIntegrationParams, ImportIntegrationFormProps } from "./types";
-import { SELECTION_TEXT } from "./utils";
+import { resolveSourceLayoutParam, SELECTION_TEXT } from "./utils";
 
 const SOURCE_DESCRIPTIONS: Record<string, string> = {
     mulesoft: "Select your MuleSoft project directory or a directory containing multiple projects.",
@@ -71,7 +71,7 @@ export function ImportIntegrationForm({
 
     const isImportDisabled = importSourcePath.length < 2 || !selectedIntegration;
 
-    const boolParam = selectedIntegration?.parameters.find(p => p.valueType === "boolean") ?? null;
+    const boolParam = resolveSourceLayoutParam(selectedIntegration);
     const getBoolValue = (key: string): boolean => {
         const v = integrationParams[key];
         return typeof v === "string" ? v === "true" : v === true;

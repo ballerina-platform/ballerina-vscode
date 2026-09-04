@@ -7,9 +7,9 @@
   "orgName": "ballerinax",
   "packageName": "azure.storage.files",
   "moduleName": "azure.storage.files",
-  "version": "0.9.0",
+  "version": "1.0.1",
   "type": "files",
-  "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure.storage.files_0.9.0.png",
+  "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure.storage.files_1.0.1.png",
   "kind": "file",
   "listenerKind": "SINGLE_SELECT_LISTENER",
   "initProperties": {
@@ -1091,7 +1091,7 @@
           "selected": false
         }
       ],
-      "value": "\"/\"",
+      "value": "/",
       "enabled": true,
       "editable": true,
       "optional": false,
@@ -1213,7 +1213,7 @@
               "typeMembers": [
                 {
                   "type": "ServiceConfiguration",
-                  "packageInfo": "ballerinax:azure.storage.files:0.9.0",
+                  "packageInfo": "ballerinax:azure.storage.files:1.0.1",
                   "packageName": "azure.storage.files",
                   "kind": "RECORD_TYPE",
                   "selected": true
@@ -1289,22 +1289,60 @@
                 "optional": false,
                 "advanced": false,
                 "properties": {
+                  "stream": {
+                    "metadata": {
+                      "label": "Stream (Large Files)",
+                      "description": "Process the file content in chunks."
+                    },
+                    "value": false,
+                    "types": [
+                      {
+                        "fieldType": "FLAG",
+                        "selected": true,
+                        "template": "stream<{{type}}, error?>"
+                      }
+                    ],
+                    "enabled": true,
+                    "editable": true,
+                    "optional": false,
+                    "advanced": false,
+                    "codedata": {
+                      "type": "PAYLOAD_MODIFIER",
+                      "modifier": "stream",
+                      "template": "stream<{{type}}, error?>",
+                      "supersedes": [
+                        "base"
+                      ],
+                      "targetParam": "payload"
+                    }
+                  },
                   "payload": {
                     "metadata": {
                       "label": "Row Schema",
                       "description": "Create a record type describing one row of the file. Each row arrives as one record."
                     },
                     "value": "string[][]",
-                    "enabled": false,
-                    "editable": false,
+                    "enabled": true,
+                    "editable": true,
                     "optional": false,
                     "advanced": false,
                     "types": [
                       {
                         "fieldType": "PAYLOAD_TYPE",
                         "selected": true,
+                        "formats": [
+                          {
+                            "supported": [
+                              "schema",
+                              "browse",
+                              "json",
+                              "xml"
+                            ],
+                            "defaultFormat": "schema"
+                          }
+                        ],
                         "ballerinaType": "string[][]",
-                        "template": "{{type}}"
+                        "template": "{{type}}[]"
                       }
                     ],
                     "codedata": {
@@ -1628,7 +1666,7 @@
                 "afterError": {
                   "metadata": {
                     "label": "On Error",
-                    "description": "Action when the handler fails or the file content does not match the expected format."
+                    "description": "Action when the handler returns an error. Also applies when the file content does not match the expected format, unless an onError handler is declared."
                   },
                   "types": [
                     {
@@ -1820,9 +1858,9 @@
                   "payload": {
                     "metadata": {
                       "label": "Content Schema",
-                      "description": "Create a record type describing the file content. Defaults to map<json>; bare json is not supported."
+                      "description": "Create a record type describing the file content. Defaults to json."
                     },
-                    "value": "map<json>",
+                    "value": "json",
                     "enabled": true,
                     "editable": true,
                     "optional": false,
@@ -1831,7 +1869,7 @@
                       {
                         "fieldType": "PAYLOAD_TYPE",
                         "selected": true,
-                        "ballerinaType": "map<json>",
+                        "ballerinaType": "json",
                         "formats": [
                           {
                             "supported": [
@@ -1851,7 +1889,7 @@
                       "boundType": "",
                       "typeConstraint": "anydata",
                       "bindingKind": "USER_SELECTED",
-                      "defaultType": "map<json>",
+                      "defaultType": "json",
                       "template": "{{type}}"
                     }
                   }
@@ -2166,7 +2204,7 @@
                 "afterError": {
                   "metadata": {
                     "label": "On Error",
-                    "description": "Action when the handler fails or the file content does not match the expected format."
+                    "description": "Action when the handler returns an error. Also applies when the file content does not match the expected format, unless an onError handler is declared."
                   },
                   "types": [
                     {
@@ -2694,7 +2732,7 @@
                 "afterError": {
                   "metadata": {
                     "label": "On Error",
-                    "description": "Action when the handler fails or the file content does not match the expected format."
+                    "description": "Action when the handler returns an error. Also applies when the file content does not match the expected format, unless an onError handler is declared."
                   },
                   "types": [
                     {
@@ -3218,7 +3256,7 @@
                 "afterError": {
                   "metadata": {
                     "label": "On Error",
-                    "description": "Action when the handler fails or the file content does not match the expected format."
+                    "description": "Action when the handler returns an error. Also applies when the file content does not match the expected format, unless an onError handler is declared."
                   },
                   "types": [
                     {
@@ -3407,6 +3445,33 @@
                 "optional": false,
                 "advanced": false,
                 "properties": {
+                  "stream": {
+                    "metadata": {
+                      "label": "Stream (Large Files)",
+                      "description": "Process the file content in chunks."
+                    },
+                    "value": false,
+                    "types": [
+                      {
+                        "fieldType": "FLAG",
+                        "selected": true,
+                        "template": "stream<{{type}}, error?>"
+                      }
+                    ],
+                    "enabled": true,
+                    "editable": true,
+                    "optional": false,
+                    "advanced": false,
+                    "codedata": {
+                      "type": "PAYLOAD_MODIFIER",
+                      "modifier": "stream",
+                      "template": "stream<{{type}}, error?>",
+                      "supersedes": [
+                        "base"
+                      ],
+                      "targetParam": "payload"
+                    }
+                  },
                   "payload": {
                     "metadata": {
                       "label": "Content",
@@ -3742,7 +3807,7 @@
                 "afterError": {
                   "metadata": {
                     "label": "On Error",
-                    "description": "Action when the handler fails or the file content does not match the expected format."
+                    "description": "Action when the handler returns an error. Also applies when the file content does not match the expected format, unless an onError handler is declared."
                   },
                   "types": [
                     {
@@ -3881,7 +3946,7 @@
         {
           "metadata": {
             "label": "On Error",
-            "description": "Invoked when an error occurs while processing a file in the monitored directory.",
+            "description": "Invoked when a poll fails or a file's content does not match the expected format. Errors returned by the other handlers are not sent here.",
             "addLabel": "Add On Error Handler",
             "badge": "onError"
           },
@@ -3906,7 +3971,7 @@
             {
               "metadata": {
                 "label": "Azure Files Error",
-                "description": "The error that occurred while processing the file."
+                "description": "The error reported by the listener: a failed poll, or content that does not match the expected format."
               },
               "kind": "REQUIRED",
               "type": {
@@ -3930,7 +3995,7 @@
               "name": {
                 "metadata": {
                   "label": "err",
-                  "description": "The error that occurred while processing the file."
+                  "description": "The error reported by the listener: a failed poll, or content that does not match the expected format."
                 },
                 "placeholder": "err",
                 "value": "err",
@@ -4029,10 +4094,9 @@
   ],
   "readOnlyMetadata": [
     {
-      "key": "path",
+      "key": "basePath",
       "displayName": "Monitored Path",
-      "kind": "SERVICE_ANNOTATION",
-      "path": "ServiceConfig.path"
+      "kind": "SERVICE_BASE_PATH"
     }
   ],
   "importStatements": []

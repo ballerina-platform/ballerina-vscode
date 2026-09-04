@@ -385,31 +385,6 @@
         },
         {
           "metadata": {
-            "label": "edifact.d03a.services.mSLSFCT",
-            "description": "",
-            "keywords": []
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "EDI_SLSFCT_Sales_forecast_message",
-                "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_edifact.d03a.services_0.9.0.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerinax",
-                "module": "edifact.d03a.services.mSLSFCT",
-                "packageName": "edifact.d03a.services",
-                "symbol": "EDI_SLSFCT_Sales_forecast_message",
-                "version": "0.9.0"
-              },
-              "enabled": true
-            }
-          ]
-        },
-        {
-          "metadata": {
             "label": "googleapis.bigquery",
             "description": "",
             "keywords": []
