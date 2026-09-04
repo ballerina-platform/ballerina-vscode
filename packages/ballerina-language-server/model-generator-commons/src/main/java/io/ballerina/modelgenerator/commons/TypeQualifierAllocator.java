@@ -18,6 +18,7 @@
 
 package io.ballerina.modelgenerator.commons;
 
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -89,7 +90,9 @@ public final class TypeQualifierAllocator {
      * @return the accumulated imports, empty when the signature named no module outside the current one
      */
     public Map<String, String> imports() {
-        return Map.copyOf(importByQualifier);
+        // Insertion order is the order the qualifiers appear in the signature, and callers emit imports from this,
+        // so it has to survive the copy -- Map.copyOf does not preserve it.
+        return Collections.unmodifiableMap(new LinkedHashMap<>(importByQualifier));
     }
 
     /**
