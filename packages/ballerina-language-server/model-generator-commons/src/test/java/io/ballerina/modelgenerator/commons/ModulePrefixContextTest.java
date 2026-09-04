@@ -201,6 +201,20 @@ public class ModulePrefixContextTest {
     }
 
     @Test
+    public void testOrgLessImportStatementDoesNotLeakALeadingSlash() {
+        // CommonUtils.getImportStatements emits a bare, org-less entry for a module of the current package, so the
+        // composite key it registers under starts with "/". Emitting that key verbatim yields "import /pkg.sub;",
+        // which does not parse -- every diagnostic from such a probe would be an artefact of the probe.
+        ModulePrefixContext context = ModulePrefixContext.from(rootOf(""));
+        context.requalifyAuthored("sub:Person", imports("sub", "pkg.sub"));
+
+        Assert.assertEquals(List.copyOf(context.pendingImports().keySet()), List.of("/pkg.sub"),
+                "the key is composite and is not an import signature on its own");
+        Assert.assertEquals(context.pendingImportStatements(), List.of("pkg.sub"),
+                "the statement drops the empty organization");
+    }
+
+    @Test
     public void testAnEmptyImportsMapLeavesTextAlone() {
         ModulePrefixContext context = ModulePrefixContext.from(rootOf(""), CURRENT);
 

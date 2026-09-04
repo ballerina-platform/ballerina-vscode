@@ -29,7 +29,6 @@ import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.PropertyType;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
 import io.ballerina.modelgenerator.commons.CommonUtils;
-import io.ballerina.modelgenerator.commons.ModuleAliasResolver;
 import io.ballerina.modelgenerator.commons.ModulePrefixContext;
 import io.ballerina.projects.Document;
 import io.ballerina.projects.Module;
@@ -224,10 +223,12 @@ public class ExpressionEditorContext {
                 prefix = String.format("%s __reserved__ = ", ballerinaType);
             }
 
-            // Add the import statements of the dependent types, each under the prefix resolved above.
-            for (Map.Entry<String, String> pending : prefixes.pendingImports().entrySet()) {
-                Optional<TextEdit> textEdit = getImport(
-                        ModuleAliasResolver.withAliasClause(pending.getKey(), pending.getValue()));
+            // Add the import statements of the dependent types, each under the prefix resolved above. Taken as
+            // ready-made statements rather than built from the map: a key is org/module, and a module of the
+            // current package has no organization, so the key is "/pkg.sub" and emitting it verbatim yields
+            // "import /pkg.sub;" -- which does not parse, leaving every diagnostic an artefact of the probe.
+            for (String signature : prefixes.pendingImportStatements()) {
+                Optional<TextEdit> textEdit = getImport(signature);
                 if (textEdit.isPresent()) {
                     textEdits.add(textEdit.get());
                     lineOffset++;
