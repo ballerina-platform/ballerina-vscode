@@ -1,0 +1,70 @@
+{
+  "filePath": "test_pack_github_bound/types.bal",
+  "description": "The same request against a file that already imports ballerinax/trigger.github: the existing import wins outright and keeps github, so ballerinax/github is the one that gets aliased.",
+  "type": {
+    "name": "MyType",
+    "editable": true,
+    "metadata": {
+      "label": "",
+      "description": ""
+    },
+    "codedata": {
+      "node": "RECORD"
+    },
+    "properties": {},
+    "members": [
+      {
+        "name": "name1",
+        "type": "github:ReactionRollup",
+        "kind": "FIELD",
+        "refs": [],
+        "docs": "",
+        "imports": {
+          "github": "ballerinax/github:5.1.0"
+        }
+      },
+      {
+        "name": "name2",
+        "type": "github:ListenerConfig",
+        "kind": "FIELD",
+        "refs": [],
+        "docs": "",
+        "imports": {
+          "github": "ballerinax/trigger.github:0.11.0"
+        }
+      }
+    ],
+    "includes": [],
+    "allowAdditionalFields": false
+  },
+  "output": {
+    "test_pack_github_bound/types.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "\nimport ballerinax/github as github2;\n"
+      },
+      {
+        "range": {
+          "start": {
+            "line": 4,
+            "character": 3
+          },
+          "end": {
+            "line": 4,
+            "character": 3
+          }
+        },
+        "newText": "\ntype MyType record {|\n\tgithub2:ReactionRollup name1;\n\tgithub:ListenerConfig name2;\n|};"
+      }
+    ]
+  }
+}

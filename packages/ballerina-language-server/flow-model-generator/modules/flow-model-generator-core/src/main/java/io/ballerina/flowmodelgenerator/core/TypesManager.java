@@ -624,12 +624,14 @@ public class TypesManager {
 
     private List<TextEdit> updateType(TypeData typeData) {
         List<TextEdit> textEdits = new ArrayList<>();
-        // Regenerate code snippet for the type
-        SourceCodeGenerator sourceCodeGenerator = new SourceCodeGenerator();
-        String codeSnippet = sourceCodeGenerator.generateCodeSnippetForType(typeData);
-
         SyntaxTree syntaxTree = this.typeDocument.syntaxTree();
         ModulePartNode rootNode = syntaxTree.rootNode();
+
+        // Regenerate code snippet for the type
+        ModulePrefixContext prefixes = prefixesFor(rootNode);
+        SourceCodeGenerator sourceCodeGenerator = new SourceCodeGenerator(prefixes);
+        String codeSnippet = sourceCodeGenerator.generateCodeSnippetForType(typeData);
+
         LineRange lineRange = typeData.codedata().lineRange();
         if (lineRange == null) {
             textEdits.add(new TextEdit(CommonUtils.toRange(rootNode.lineRange().endLine()), codeSnippet));
@@ -637,7 +639,7 @@ public class TypesManager {
             NonTerminalNode node = CommonUtil.findNode(CommonUtils.toRange(lineRange), syntaxTree);
             textEdits.add(new TextEdit(CommonUtils.toRange(node.lineRange()), codeSnippet));
         }
-        addImportsToTextEdits(sourceCodeGenerator.getImports(), rootNode, textEdits, this.module);
+        addImportEdits(prefixes, rootNode, textEdits);
         return textEdits;
     }
 
@@ -654,16 +656,17 @@ public class TypesManager {
         ModulePartNode rootNode = syntaxTree.rootNode();
 
         List<String> codeSnippets = new ArrayList<>();
-        SourceCodeGenerator sourceCodeGenerator = new SourceCodeGenerator();
+        // One context, and so one generator, for the whole request: that is what makes two types naming the
+        // same module agree, and two types naming colliding modules get distinct prefixes.
+        ModulePrefixContext prefixes = prefixesFor(rootNode);
+        SourceCodeGenerator sourceCodeGenerator = new SourceCodeGenerator(prefixes);
         for (TypeData typeData : typeDataList) {
             String codeSnippet = sourceCodeGenerator.generateCodeSnippetForType(typeData);
             codeSnippets.add(codeSnippet);
         }
-        // The snippet has to be in the list before the imports are added: that is the edit the requalify pass
-        // rewrites onto the prefixes it decides.
         textEdits.add(new TextEdit(CommonUtils.toRange(rootNode.lineRange().endLine()),
                 String.join(System.lineSeparator(), codeSnippets)));
-        addImportsToTextEdits(sourceCodeGenerator.getImports(), rootNode, textEdits, this.module);
+        addImportEdits(prefixes, rootNode, textEdits);
         return textEdits;
     }
 
@@ -672,15 +675,16 @@ public class TypesManager {
         Map<Path, List<TextEdit>> textEditsMap = new HashMap<>();
         textEditsMap.put(filePath, textEdits);
 
-        // Generate code snippet for the type
-        SourceCodeGenerator sourceCodeGenerator = new SourceCodeGenerator();
-        String codeSnippet = sourceCodeGenerator.generateGraphqlClassType(typeData);
-
         SyntaxTree syntaxTree = this.typeDocument.syntaxTree();
         ModulePartNode rootNode = syntaxTree.rootNode();
+
+        // Generate code snippet for the type
+        ModulePrefixContext prefixes = prefixesFor(rootNode);
+        SourceCodeGenerator sourceCodeGenerator = new SourceCodeGenerator(prefixes);
+        String codeSnippet = sourceCodeGenerator.generateGraphqlClassType(typeData);
         textEdits.add(new TextEdit(CommonUtils.toRange(rootNode.lineRange().endLine()), codeSnippet));
 
-        addImportsToTextEdits(sourceCodeGenerator.getImports(), rootNode, textEdits, this.module);
+        addImportEdits(prefixes, rootNode, textEdits);
 
         return gson.toJsonTree(textEditsMap);
     }
@@ -988,83 +992,34 @@ public class TypesManager {
     }
 
     /**
-     * Converts the collected import map entries into LSP {@link TextEdit}s that prepend missing
-     * {@code import} declarations to the target document.
+     * A prefix context for the document being edited, seeded with the module that owns it so a type of that
+     * module needs no import, and a sibling module of its package is imported without an organization.
      *
-     * <p>Each value in {@code imports} must conform to the canonical format produced by
-     * {@code TypeTransformer.addRequiredImports}: {@code orgName/packageName:version} for root-module
-     * types and {@code orgName/packageName.moduleName:version} for sub-module types. Values that do
-     * not match this pattern are silently skipped.
-     *
-     * <p>Import resolution rules (evaluated in order):
-     * <ol>
-     *   <li>Same module (full dotted module path matches the current document's module) — no import.</li>
-     *   <li>Same package, different module (same org + same root package name, different sub-module)
-     *       — emit {@code import packageName.moduleName;} without an org prefix.</li>
-     *   <li>External package — emit {@code import orgName/packageName[.moduleName];} with the org
-     *       prefix.</li>
-     * </ol>
-     *
-     * @param imports   map from import alias to import-value strings
-     * @param rootNode  the root {@link ModulePartNode} of the document being modified
-     * @param textEdits mutable list to which the generated {@link TextEdit}s are appended
-     * @param module    the {@link Module} that owns the document, used to classify import origins
+     * @param rootNode the root {@link ModulePartNode} of the document being modified
+     * @return the context every qualifier in this operation is resolved against
      */
-    private static void addImportsToTextEdits(Map<String, String> imports, ModulePartNode rootNode,
-                                              List<TextEdit> textEdits, Module module) {
-        ModulePrefixContext prefixes = ModulePrefixContext.from(rootNode);
-        ModuleInfo currentModuleInfo = ModuleInfo.from(module.descriptor());
-        String currentOrg = currentModuleInfo.org();
-        // packageName() is the root-only name; moduleName() is the full dotted path (root or root.sub)
-        String currentPackageName = currentModuleInfo.packageName();
-        String currentModuleName = currentModuleInfo.moduleName();
+    private ModulePrefixContext prefixesFor(ModulePartNode rootNode) {
+        return ModulePrefixContext.from(rootNode, ModuleInfo.from(this.module.descriptor()));
+    }
 
+    /**
+     * Prepends the {@code import} declarations the generated snippets still need.
+     *
+     * <p>
+     * The prefixes are not decided here: {@link SourceCodeGenerator} already resolved every qualifier against
+     * this same context as it rendered the text, which is the only point at which a member's imports map still
+     * says which module its qualifier meant. So there is nothing left to classify or rewrite — the context
+     * simply reports what it committed to, {@code as} clauses included.
+     * </p>
+     *
+     * @param prefixes  the context the snippets were generated against
+     * @param rootNode  the root {@link ModulePartNode} of the document being modified
+     * @param textEdits mutable list to which the generated {@link TextEdit}s are prepended
+     */
+    private static void addImportEdits(ModulePrefixContext prefixes, ModulePartNode rootNode,
+                                       List<TextEdit> textEdits) {
         TreeSet<String> importStmts = new TreeSet<>();
-        imports.values().forEach(importValue -> {
-            Matcher matcher = IMPORT_PATTERN.matcher(importValue);
-            if (!matcher.matches()) {
-                // Not a valid orgName/packageName[.moduleName]:version string — skip
-                return;
-            }
-            String orgName = matcher.group(1);
-            String fullModulePart = matcher.group(2); // packageName or packageName.moduleName
-
-            if (orgName.equals(currentOrg)) {
-                // Same module — type is directly accessible, no import needed
-                if (fullModulePart.equals(currentModuleName)) {
-                    return;
-                }
-                // Same package, different module — import without org prefix
-                String importRootPackage = fullModulePart.contains(".")
-                        ? fullModulePart.substring(0, fullModulePart.indexOf('.'))
-                        : fullModulePart;
-                if (importRootPackage.equals(currentPackageName)) {
-                    // Registered like an external module so the prefix this import binds is claimed, and an
-                    // external module named in the same request cannot be judged to have it free.
-                    String signature = prefixes.importSignatureFor("", fullModulePart);
-                    if (!CommonUtils.importExists(rootNode, fullModulePart)) {
-                        importStmts.add(getImportStmt(signature));
-                    }
-                    return;
-                }
-            }
-            // External package — import with org prefix, aliased when its natural prefix is taken. The signature is
-            // asked for unconditionally so the module is registered for the requalify pass below even when its
-            // import is already there.
-            String importSignature = prefixes.importSignatureFor(orgName, fullModulePart);
-            if (!CommonUtils.importExists(rootNode, orgName, fullModulePart)) {
-                importStmts.add(getImportStmt(importSignature));
-            }
-        });
-
-        // Rewrite the generated snippets onto the prefixes decided above. This has to happen for every module that
-        // got an alias: an aliased import whose references still name the natural prefix would bind them to
-        // whichever module kept it, which is worse than not aliasing at all. requalify leaves an ambiguous natural
-        // prefix alone, and isNaturalAmbiguous is what stops such a module from being aliased in the first place.
-        if (prefixes.hasAliases()) {
-            textEdits.replaceAll(textEdit ->
-                    new TextEdit(textEdit.getRange(), prefixes.requalify(textEdit.getNewText())));
-        }
+        prefixes.pendingImportStatements().forEach(signature -> importStmts.add(getImportStmt(signature)));
 
         if (!importStmts.isEmpty()) {
             String importsStmts = String.join(System.lineSeparator(), importStmts);

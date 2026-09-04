@@ -1,6 +1,6 @@
 {
   "filePath": "test_pack_collision/types.bal",
-  "description": "Two modules sharing a natural prefix inside one request. Pins the CURRENT behaviour, which is wrong: trigger.github's import is dropped by putIfAbsent and both fields render as 'github:'. See ModulePrefixContext.isNaturalAmbiguous - the identity is lost in TypeTransformer, upstream of addImportsToTextEdits.",
+  "description": "Two members naming modules that share a natural prefix, in one request: each is resolved against the same context while its own imports map is still in scope, so both imports are emitted and the second is aliased with the generated text rewritten to match.",
   "types": [
     {
       "name": "Combined",
@@ -85,7 +85,7 @@
             "character": 0
           }
         },
-        "newText": "\nimport ballerinax/github;\n"
+        "newText": "\nimport ballerinax/github;\n\n\nimport ballerinax/trigger.github as triggerGithub;\n"
       },
       {
         "range": {
@@ -98,7 +98,7 @@
             "character": 3
           }
         },
-        "newText": "\ntype Combined record {|\n\tgithub:Client restClient;\n\tgithub:ListenerConfig listenerConfig;\n|};"
+        "newText": "\ntype Combined record {|\n\tgithub:Client restClient;\n\ttriggerGithub:ListenerConfig listenerConfig;\n|};"
       }
     ]
   }
