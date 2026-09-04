@@ -52,6 +52,23 @@ export function finalizeRevertibleGeneration(projectRootPath: string, threadId: 
 }
 
 /**
+ * Finalizes revertible generations across EVERY thread of the project, not just the one
+ * about to run. The ai:// diff baseline is a single per-package slot in the Language
+ * Server — reseeding it at generation start silently invalidates any other thread's
+ * still-open review, whose decline would then restore stale content over the new run's
+ * edits. Same policy as the same-thread implicit accept, applied project-wide.
+ *
+ * @returns true if any generation was finalized
+ */
+export function finalizeRevertibleGenerationsAllThreads(projectRootPath: string): boolean {
+    let finalizedAny = false;
+    for (const thread of chatStateStorage.listThreadsSummary(projectRootPath)) {
+        finalizedAny = finalizeRevertibleGeneration(projectRootPath, thread.id) || finalizedAny;
+    }
+    return finalizedAny;
+}
+
+/**
  * Sends a telemetry event when the user keeps an AI-generated response.
  *
  * @param messageId - The message identifier for the kept generation

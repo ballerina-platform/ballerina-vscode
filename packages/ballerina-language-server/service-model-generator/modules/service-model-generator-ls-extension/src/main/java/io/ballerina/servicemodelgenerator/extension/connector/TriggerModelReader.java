@@ -400,8 +400,7 @@ public class TriggerModelReader {
         if (metadata.isEmpty()) {
             return metadataReader.isLocallyResolvable(moduleInfo) ? Resolution.ABSENT : Resolution.UNRESOLVED;
         }
-        Optional<Package> pkg = PackageUtil.getModulePackageOffline(PackageUtil.getSampleProject(), orgName,
-                moduleName);
+        Optional<Package> pkg = PackageUtil.getModulePackageOffline(orgName, moduleName);
         if (pkg.isEmpty()) {
             return Resolution.UNRESOLVED;
         }
@@ -462,8 +461,7 @@ public class TriggerModelReader {
         try {
             String targetModule = packageInfo.moduleName() != null && !packageInfo.moduleName().isBlank()
                     ? packageInfo.moduleName() : packageInfo.packageName();
-            Optional<Package> pkg = PackageUtil.getModulePackageOffline(PackageUtil.getSampleProject(),
-                    packageInfo.org(), targetModule);
+            Optional<Package> pkg = PackageUtil.getModulePackageOffline(packageInfo.org(), targetModule);
             if (pkg.isEmpty()) {
                 return Optional.empty();
             }

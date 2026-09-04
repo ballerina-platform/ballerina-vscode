@@ -27,7 +27,7 @@ import type { AgentRunStatus } from "@wso2/ballerina-core";
 // exist (as property-access targets), not any real value.
 jest.mock("@wso2/ballerina-core", () => ({ MACHINE_VIEW: {} }));
 
-import { useAgentRunState, __resetAgentRunStatusStoreForTests } from "./shared";
+import { activeStateLabel, useAgentRunState, __resetAgentRunStatusStoreForTests } from "./shared";
 
 // react-dom/test-utils' act() requires this flag; @testing-library/react sets
 // it automatically, but nothing does here since this package doesn't depend on it.
@@ -141,5 +141,23 @@ describe("useAgentRunState", () => {
         notify(makeStatus({ state: "error" }));
 
         expect(onRender.mock.calls.length).toBe(callsBeforeUnmount);
+    });
+});
+
+describe("activeStateLabel", () => {
+    // The orb tooltip and the extension's status bar both render "<product> — <label>",
+    // so a label that names the product again stutters: "WSO2 Integration Intelligence —
+    // WSO2 Integration Intelligence needs your input".
+    it.each(["completed", "running", "awaiting-input", "error", "idle"] as const)(
+        "leaves the product name to the surface showing it (%s)",
+        (state) => {
+            expect(activeStateLabel(makeStatus({ state }))).not.toMatch(/WSO2|Integration Intelligence/);
+        }
+    );
+
+    it("prefers the live label the extension pushes", () => {
+        expect(activeStateLabel(makeStatus({ state: "running", label: "Editing service.bal…" }))).toBe(
+            "Editing service.bal…"
+        );
     });
 });

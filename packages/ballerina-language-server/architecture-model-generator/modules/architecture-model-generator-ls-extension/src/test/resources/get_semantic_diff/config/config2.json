@@ -37,6 +37,25 @@
         }
       },
       {
+        "changeType": "DELETION",
+        "nodeKind": "TYPE_DEFINITION",
+        "uri": "ai:///types.bal",
+        "lineRange": {
+          "fileName": "types.bal",
+          "startLine": {
+            "line": 0,
+            "offset": 0
+          },
+          "endLine": {
+            "line": 11,
+            "offset": 3
+          }
+        },
+        "metadata": {
+          "name": "Patient"
+        }
+      },
+      {
         "changeType": "MODIFICATION",
         "nodeKind": "TYPE_DEFINITION",
         "uri": "ai:///types.bal",
