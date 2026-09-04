@@ -179,6 +179,13 @@ public final class ModulePrefixContext {
      * Maps every registered module's natural prefix in {@code text} onto its resolved prefix, e.g.
      * {@code twilio:Foo} &rarr; {@code triggerTwilio:Foo}. Only standalone module qualifiers are
      * rewritten; unregistered modules, longer identifiers, and dotted paths are left untouched.
+     *
+     * <p>
+     * This is the <b>fallback</b> channel, for a caller holding text and no map saying which module each
+     * qualifier meant. A natural prefix two registered modules share is left alone, because a prefix on its
+     * own is not a module identity. A caller that has the map should use {@link #requalifyAuthored}, which
+     * keys on identity and so has no such blind spot.
+     * </p>
      */
     public String requalify(String text) {
         Map<String, String> effective = new LinkedHashMap<>(naturalToEmitted);
@@ -271,47 +278,6 @@ public final class ModulePrefixContext {
             return text;
         }
         return ModuleAliasResolver.requalify(text, byAuthored);
-    }
-
-    /**
-     * Whether a natural prefix is claimed by more than one registered module, making it unusable as an identity in
-     * text authored against it.
-     *
-     * <p>
-     * A caller that both emits an import and rewrites references must consult this. Aliasing a module whose natural
-     * prefix is ambiguous, without being able to rewrite the references that use it, binds those references to
-     * whichever module kept the natural prefix -- turning a redeclared-symbol error into a silent mis-binding.
-     * </p>
-     *
-     * @param naturalPrefix the last dot-segment of a module name
-     * @return true when two registered modules share this natural prefix
-     */
-    public boolean isNaturalAmbiguous(String naturalPrefix) {
-        return ambiguousNaturals.contains(naturalPrefix);
-    }
-
-    /**
-     * The import signature to emit for {@code org/module}, registering it as {@link #prefixFor} does and carrying an
-     * {@code as <prefix>} clause only where the prefix is a rename this context can also rewrite references onto.
-     *
-     * <p>
-     * For a caller whose rewriting is keyed on the <b>natural</b> prefix ({@link #requalify}), where an ambiguous
-     * natural prefix is left alone and so an alias could not be followed through: aliasing there would bind the
-     * un-rewritten references to whichever module kept the natural prefix, which is worse than the redeclared-symbol
-     * error it set out to avoid. A caller that rewrites by authored qualifier instead has no such restriction and can
-     * use {@link ModuleAliasResolver#withAliasClause} directly.
-     * </p>
-     *
-     * @param org    the organization name; blank for a module of the current package
-     * @param module the module name
-     * @return {@code org/module}, with {@code as <prefix>} appended where the prefix is a followable rename
-     */
-    public String importSignatureFor(String org, String module) {
-        String prefix = prefixFor(org, module);
-        String signature = org == null || org.isBlank() ? module : org + "/" + module;
-        return isNaturalAmbiguous(ModuleAliasResolver.selfPrefix(module))
-                ? signature
-                : ModuleAliasResolver.withAliasClause(signature, prefix);
     }
 
     /**

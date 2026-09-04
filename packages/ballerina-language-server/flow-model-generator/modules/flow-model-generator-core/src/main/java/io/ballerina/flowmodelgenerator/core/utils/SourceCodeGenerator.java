@@ -138,26 +138,8 @@ public class SourceCodeGenerator {
     }
 
     /**
-     * The import signatures still to be written, as {@code org/module -> org/module}.
-     *
-     * <p>
-     * Both consumers read only the values, so the key carries nothing; it used to be the module's natural
-     * prefix, which is exactly the collapsing that lost a module when two shared one. Modules the target file
-     * already imports are absent, since they need no statement.
-     * </p>
-     *
-     * @deprecated use {@link #getImportStatements()}, which carries the resolved {@code as} clause.
-     */
-    @Deprecated
-    public Map<String, String> getImports () {
-        Map<String, String> signatures = new LinkedHashMap<>();
-        this.prefixes.pendingImports().keySet().forEach(key -> signatures.put(key, key));
-        return signatures;
-    }
-
-    /**
      * The imports still to be written for everything generated so far, in registration order, each carrying its
-     * {@code as} clause where the prefix is a rename.
+     * {@code as} clause where the prefix is a rename. Modules the target file already imports are absent.
      */
     public List<String> getImportStatements() {
         return this.prefixes.pendingImportStatements();

@@ -89,8 +89,8 @@ public class SourceBuilder {
     /** Import signature ({@code org/module}) -> the prefix it is emitted under, null when unaliased. */
     private final Map<String, String> imports;
     private final List<TypeData> typesToGenerate;
-    /** Decides one prefix per module for {@link #filePath}; built on first use, see {@link #prefixes()}. */
-    private ModulePrefixContext prefixContext;
+    /** Decides one prefix per module, per target file; built on first use, see {@link #prefixes(Path)}. */
+    private final Map<Path, ModulePrefixContext> prefixContexts;
     private final LSClientLogger lsClientLogger;
     private Range defaultRange;
 
@@ -112,6 +112,7 @@ public class SourceBuilder {
         this.workspaceManager = workspaceManager;
         this.imports = new LinkedHashMap<>();
         this.typesToGenerate = new ArrayList<>();
+        this.prefixContexts = new HashMap<>();
         this.lsClientLogger = lsClientLogger;
 
         Codedata codedata = flowNode.codedata();
@@ -491,20 +492,31 @@ public class SourceBuilder {
      * where {@link #filePath} is still being decided.
      */
     private ModulePrefixContext prefixes() {
-        if (this.prefixContext == null) {
+        return prefixes(this.filePath);
+    }
+
+    /**
+     * The prefix ledger for one target file. One operation can write to more than one file -- a node lands in
+     * {@link #filePath} while the types it needs land in types.bal -- and a prefix is only free or taken relative
+     * to the file that will carry the import, so each file gets its own.
+     *
+     * @param path the file the edits are destined for
+     * @return that file's ledger, built on first use
+     */
+    private ModulePrefixContext prefixes(Path path) {
+        return this.prefixContexts.computeIfAbsent(path, target -> {
             ModulePartNode rootNode = null;
             try {
-                this.workspaceManager.loadProject(filePath);
-                Document document = FileSystemUtils.getDocument(workspaceManager, filePath);
+                this.workspaceManager.loadProject(target);
+                Document document = FileSystemUtils.getDocument(workspaceManager, target);
                 if (document != null && document.syntaxTree().rootNode() instanceof ModulePartNode node) {
                     rootNode = node;
                 }
             } catch (WorkspaceDocumentException | EventSyncException e) {
                 // Without a file to read, the natural prefix is the only available answer.
             }
-            this.prefixContext = ModulePrefixContext.from(rootNode);
-        }
-        return this.prefixContext;
+            return ModulePrefixContext.from(rootNode);
+        });
     }
 
     /**
@@ -922,6 +934,8 @@ public class SourceBuilder {
     }
 
     public Map<Path, List<TextEdit>> build() {
+        // The two write to different files from different prefix ledgers -- the node's imports to filePath, the
+        // generated types' to types.bal -- so this order is not load-bearing, despite reading as if it were.
         // Add the imports if exists
         addImports();
         // Add the types if exists
@@ -1030,31 +1044,31 @@ public class SourceBuilder {
         // Generate text edits for each type at the end of the file
         Range endOfFileRange = CommonUtils.toRange(rootNode.lineRange().endLine());
 
+        // One generator, and so one prefix ledger, for every type this operation writes into types.bal: that is
+        // what makes two generated types agree with each other and with what the file already imports.
+        ModulePrefixContext typePrefixes = prefixes(filePath);
+        SourceCodeGenerator sourceCodeGenerator = new SourceCodeGenerator(typePrefixes);
         for (TypeData typeData : typesToGenerate) {
-            SourceCodeGenerator sourceCodeGenerator = new SourceCodeGenerator();
             String codeSnippet = sourceCodeGenerator.generateCodeSnippetForType(typeData);
 
             if (codeSnippet != null && !codeSnippet.isEmpty()) {
                 // Add a newline before the type definition
                 String typeDefinition = System.lineSeparator() + codeSnippet;
 
-                List<TextEdit> textEdits = textEditsMap.get(filePath);
-                if (textEdits == null) {
-                    textEdits = new ArrayList<>();
-                }
+                List<TextEdit> textEdits = textEditsMap.computeIfAbsent(filePath, path -> new ArrayList<>());
                 textEdits.add(new TextEdit(endOfFileRange, typeDefinition));
-                textEditsMap.put(filePath, textEdits);
+            }
+        }
 
-                // Add imports from the type generation
-                Map<String, String> typeImports = sourceCodeGenerator.getImports();
-                if (typeImports != null) {
-                    typeImports.forEach((key, value) -> {
-                        String[] parts = value.split("/");
-                        if (parts.length > 1) {
-                            acceptImport(parts[0], parts[1].split(":")[0]);
-                        }
-                    });
-                }
+        // The imports those types need belong to types.bal, not to filePath. Emitted here rather than through the
+        // node's ledger, which addImports has already flushed by the time this runs.
+        List<String> pending = typePrefixes.pendingImportStatements();
+        if (!pending.isEmpty()) {
+            Range startOfFileRange = CommonUtils.toRange(rootNode.lineRange().startLine());
+            List<TextEdit> textEdits = textEditsMap.computeIfAbsent(filePath, path -> new ArrayList<>());
+            for (String signature : pending) {
+                textEdits.addFirst(new TextEdit(startOfFileRange,
+                        System.lineSeparator() + "import " + signature + ";" + System.lineSeparator()));
             }
         }
     }
