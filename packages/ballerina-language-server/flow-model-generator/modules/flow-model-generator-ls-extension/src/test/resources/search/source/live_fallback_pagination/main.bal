@@ -1,8 +1,8 @@
 import ballerina/grpc;
 import ballerina/os;
 
-// os is indexed (5 types) while grpc is not, so a page past the indexed pool's capacity must continue from the
-// live-compiled pool without dropping rows.
+// os is indexed (5 types) while grpc is not, so the two share one pagination window: each page draws from both,
+// and paging to the end must show every row of each exactly once.
 function useTypes(grpc:Error grpcError, os:Error osError) returns [string, string] {
     return [grpcError.message(), osError.message()];
 }

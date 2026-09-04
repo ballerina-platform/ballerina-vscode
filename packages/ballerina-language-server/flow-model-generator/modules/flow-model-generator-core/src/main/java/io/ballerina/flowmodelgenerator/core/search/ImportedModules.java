@@ -23,7 +23,6 @@ import io.ballerina.modelgenerator.commons.PackageModuleUtils;
 import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.projects.Module;
 import io.ballerina.projects.ModuleDependency;
-import io.ballerina.projects.ModuleName;
 import io.ballerina.projects.Package;
 import io.ballerina.projects.PackageDependencyScope;
 import io.ballerina.projects.Project;
@@ -31,7 +30,6 @@ import io.ballerina.projects.directory.BuildProject;
 import io.ballerina.projects.directory.WorkspaceProject;
 
 import java.util.Collections;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
@@ -70,25 +68,11 @@ final class ImportedModules {
                 if (!isDefaultScope(moduleDependency) || isWorkspaceMember(project, currentPackage, moduleDependency)) {
                     continue;
                 }
-                importedModules.add(new ModuleCoordinate(moduleDependency.descriptor().org().value(),
-                        toModuleKey(moduleDependency.descriptor().name())));
+                importedModules.add(ModuleCoordinate.of(moduleDependency.descriptor().org().value(),
+                        moduleDependency.descriptor().name()));
             }
         }
         return Collections.unmodifiableSet(importedModules);
-    }
-
-    /**
-     * Converts a {@link ModuleName} into the "packageName[.moduleNamePart]" key format the search index stores in its
-     * {@code Package.name} column.
-     *
-     * @param name the module name to convert
-     * @return the module key
-     */
-    static String toModuleKey(ModuleName name) {
-        String moduleNamePart = name.moduleNamePart();
-        return Objects.nonNull(moduleNamePart) && !moduleNamePart.isEmpty()
-                ? name.packageName().value() + "." + moduleNamePart
-                : name.packageName().value();
     }
 
     /**

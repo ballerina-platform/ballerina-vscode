@@ -31,7 +31,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -346,12 +345,6 @@ public class SearchDatabaseManager {
         List<ModuleCoordinate> moduleList = List.copyOf(modules);
         List<SearchResult> results = new ArrayList<>();
 
-        // limit/offset come straight from the client query map with no bounds checking, and SQLite treats a negative
-        // LIMIT as unlimited, so clamp both and guard the window end against overflow.
-        int safeOffset = Math.max(offset, 0);
-        int safeLimit = Math.max(limit, 0);
-        int windowEnd = (int) Math.min((long) safeOffset + safeLimit, Integer.MAX_VALUE);
-
         String rangeValuesClause = String.join(",", Collections.nCopies(moduleList.size(), "(?,?,?,?)"));
         String nameFilter = functionNameFilter(functionNames);
         String sql = "SELECT function_name, function_description, package_id, module_name, package_name, "
@@ -369,19 +362,19 @@ public class SearchDatabaseManager {
                 + "ORDER BY module_name, package_org, function_name, package_id";
 
         try (Connection conn = DriverManager.getConnection(dbPath)) {
+            // limit/offset come straight from the client query map with no bounds checking, so FairShareWindow
+            // clamps them and guards the window end against overflow.
             Map<ModuleCoordinate, Integer> counts = fetchPerPackageFunctionCounts(conn, modules, functionNames);
-            Map<ModuleCoordinate, Integer> startQuotas = computeFairShareQuotas(counts, safeOffset);
-            Map<ModuleCoordinate, Integer> endQuotas = computeFairShareQuotas(counts, windowEnd);
+            FairShareWindow.Ranges<ModuleCoordinate> ranges = FairShareWindow.rangesOf(counts, offset, limit);
 
             try (PreparedStatement stmt = conn.prepareStatement(sql)) {
                 int paramIndex = 1;
                 for (ModuleCoordinate module : moduleList) {
-                    int skip = startQuotas.getOrDefault(module, 0);
-                    int take = endQuotas.getOrDefault(module, 0) - skip;
+                    FairShareWindow.Range range = ranges.of(module);
                     stmt.setString(paramIndex++, module.org());
                     stmt.setString(paramIndex++, module.moduleName());
-                    stmt.setInt(paramIndex++, skip);
-                    stmt.setInt(paramIndex++, take);
+                    stmt.setInt(paramIndex++, range.skip());
+                    stmt.setInt(paramIndex++, range.take());
                 }
                 for (String functionName : functionNames) {
                     stmt.setString(paramIndex++, functionName);
@@ -707,8 +700,9 @@ public class SearchDatabaseManager {
     /**
      * Same as {@link #searchTypesByPackages(Set, int, int)} but restricted to types matching the given query.
      *
-     * <p>This is the imported-module tier of the query-based type search: it is paginated over its own pool, so the
-     * caller can drain it before falling through to the rest of the library and then to live compilation.</p>
+     * <p>Pages over the given modules alone, as its own pool. A caller that has to blend this pool with rows from
+     * outside the index wants {@link #searchTypesInRanges(Map, String)} instead, so that one allocation can span
+     * both.</p>
      *
      * @param modules the modules to search, each identified by organization and index module name
      * @param q       the search query string
@@ -727,14 +721,47 @@ public class SearchDatabaseManager {
         if (modules.isEmpty()) {
             return Collections.emptyList();
         }
-        List<ModuleCoordinate> moduleList = List.copyOf(modules);
-        List<SearchResult> results = new ArrayList<>();
+        // limit/offset come straight from the client query map with no bounds checking, so FairShareWindow clamps
+        // them and guards the window end against overflow.
+        Map<ModuleCoordinate, Integer> counts = indexedTypeCounts(modules, sanitizedQuery, true);
+        FairShareWindow.Ranges<ModuleCoordinate> ranges = FairShareWindow.rangesOf(counts, offset, limit);
+        Map<ModuleCoordinate, FairShareWindow.Range> moduleRanges = new HashMap<>();
+        for (ModuleCoordinate module : counts.keySet()) {
+            FairShareWindow.Range range = ranges.of(module);
+            if (range.take() > 0) {
+                moduleRanges.put(module, range);
+            }
+        }
+        return searchTypesInRanges(moduleRanges, sanitizedQuery, true);
+    }
 
-        // limit/offset come straight from the client query map with no bounds checking, and SQLite treats a negative
-        // LIMIT as unlimited, so clamp both and guard the window end against overflow.
-        int safeOffset = Math.max(offset, 0);
-        int safeLimit = Math.max(limit, 0);
-        int windowEnd = (int) Math.min((long) safeOffset + safeLimit, Integer.MAX_VALUE);
+    /**
+     * Reads one page of types, taking an explicit row range per module instead of deriving the ranges from a
+     * {@code limit}/{@code offset} of its own.
+     *
+     * <p>Type search allocates its pagination window across the modules present in the index <i>and</i> the imported
+     * modules it has to compile on demand (see {@link #indexedTypeCounts(Set, String)}), so the split can only be
+     * decided by the caller that can see both pools. Ranges are per module, so the rows this returns are each
+     * module's own best matches rather than whatever a global {@code LIMIT} happened to reach.</p>
+     *
+     * @param ranges the half-open row range to read from each module, in that module's own ranking order; modules
+     *               with an empty range may be omitted
+     * @param q      the search query string; empty matches every type of the given modules
+     * @return the rows within those ranges
+     * @throws RuntimeException if there is an error executing the search
+     */
+    public List<SearchResult> searchTypesInRanges(Map<ModuleCoordinate, FairShareWindow.Range> ranges, String q) {
+        return searchTypesInRanges(ranges, q, false);
+    }
+
+    private List<SearchResult> searchTypesInRanges(Map<ModuleCoordinate, FairShareWindow.Range> ranges, String q,
+                                                   boolean querySanitized) {
+        if (ranges.isEmpty()) {
+            return Collections.emptyList();
+        }
+        String sanitizedQuery = querySanitized ? q : sanitizeQuery(q);
+        List<ModuleCoordinate> moduleList = List.copyOf(ranges.keySet());
+        List<SearchResult> results = new ArrayList<>();
 
         String rangeValuesClause = String.join(",", Collections.nCopies(moduleList.size(), "(?,?,?,?)"));
         String sql;
@@ -773,29 +800,24 @@ public class SearchDatabaseManager {
                     + "ORDER BY match_rank, type_name, module_name, package_org";
         }
 
-        try (Connection conn = DriverManager.getConnection(dbPath)) {
-            Map<ModuleCoordinate, Integer> counts = fetchPerPackageTypeCounts(conn, modules, sanitizedQuery);
-            Map<ModuleCoordinate, Integer> startQuotas = computeFairShareQuotas(counts, safeOffset);
-            Map<ModuleCoordinate, Integer> endQuotas = computeFairShareQuotas(counts, windowEnd);
+        try (Connection conn = DriverManager.getConnection(dbPath);
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
 
-            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-                int paramIndex = 1;
-                for (ModuleCoordinate module : moduleList) {
-                    int skip = startQuotas.getOrDefault(module, 0);
-                    int take = endQuotas.getOrDefault(module, 0) - skip;
-                    stmt.setString(paramIndex++, module.org());
-                    stmt.setString(paramIndex++, module.moduleName());
-                    stmt.setInt(paramIndex++, skip);
-                    stmt.setInt(paramIndex++, take);
-                }
-                if (!sanitizedQuery.isEmpty()) {
-                    stmt.setString(paramIndex, sanitizedQuery + "*");
-                }
+            int paramIndex = 1;
+            for (ModuleCoordinate module : moduleList) {
+                FairShareWindow.Range range = ranges.get(module);
+                stmt.setString(paramIndex++, module.org());
+                stmt.setString(paramIndex++, module.moduleName());
+                stmt.setInt(paramIndex++, Math.max(range.skip(), 0));
+                stmt.setInt(paramIndex++, Math.max(range.take(), 0));
+            }
+            if (!sanitizedQuery.isEmpty()) {
+                stmt.setString(paramIndex, sanitizedQuery + "*");
+            }
 
-                try (ResultSet rs = stmt.executeQuery()) {
-                    while (rs.next()) {
-                        results.add(readTypeRow(rs));
-                    }
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    results.add(readTypeRow(rs));
                 }
             }
         } catch (SQLException e) {
@@ -878,6 +900,11 @@ public class SearchDatabaseManager {
      * Returns how many types match the given query outside the given modules, i.e. the total capacity of the pool
      * {@link #searchTypesExcludingPackages(String, Set, int, int)} pages over.
      *
+     * <p>Deliberately off the request path: this is a {@code COUNT} over the whole index (114k type rows), which is
+     * far too expensive to run per keystroke. Type search drains the library pool <i>last</i> precisely so it never
+     * needs the pool's capacity to page the tiers after it. Kept because the count is what pins the tiers'
+     * disjointness - imported plus excluded must equal the global count - which is worth asserting in a test.</p>
+     *
      * @param q               the search query string
      * @param excludedModules the modules to exclude, each identified by organization and index module name
      * @return the number of matching rows outside those modules
@@ -922,16 +949,12 @@ public class SearchDatabaseManager {
      * Returns the total number of indexed type rows across the given modules, i.e. the full capacity of the
      * fair-share pool {@link #searchTypesByPackages(Set, int, int)} pages over.
      *
-     * <p>Callers that also fall back to live compilation for modules missing from the index use this to work out how
-     * much of a combined pagination window the indexed pool has already accounted for, independent of how any single
-     * page's fair-share quotas happened to split.</p>
-     *
      * @param modules the modules to count, each identified by organization and index module name
      * @return the sum of indexed type counts across those modules
      * @throws RuntimeException if there is an error executing the query
      */
     public int countIndexedTypes(Set<ModuleCoordinate> modules) {
-        return sumPerPackageTypeCounts(modules, "");
+        return sumIndexedTypeCounts(modules, "");
     }
 
     /**
@@ -943,21 +966,13 @@ public class SearchDatabaseManager {
      * @throws RuntimeException if there is an error executing the query
      */
     public int countIndexedMatchingTypes(String q, Set<ModuleCoordinate> modules) {
-        return sumPerPackageTypeCounts(modules, sanitizeQuery(q));
+        return sumIndexedTypeCounts(modules, sanitizeQuery(q));
     }
 
-    private int sumPerPackageTypeCounts(Set<ModuleCoordinate> modules, String sanitizedQuery) {
-        if (modules.isEmpty()) {
-            return 0;
-        }
-        try (Connection conn = DriverManager.getConnection(dbPath)) {
-            return fetchPerPackageTypeCounts(conn, modules, sanitizedQuery).values().stream()
-                    .mapToInt(Integer::intValue)
-                    .sum();
-        } catch (SQLException e) {
-            LOGGER.severe("Error counting indexed types: " + e.getMessage());
-            throw new RuntimeException("Failed to count indexed types", e);
-        }
+    private int sumIndexedTypeCounts(Set<ModuleCoordinate> modules, String sanitizedQuery) {
+        return indexedTypeCounts(modules, sanitizedQuery, true).values().stream()
+                .mapToInt(Integer::intValue)
+                .sum();
     }
 
     /**
@@ -974,90 +989,52 @@ public class SearchDatabaseManager {
      * @throws RuntimeException if there is an error executing the query
      */
     public Set<ModuleCoordinate> findIndexedModules(Set<ModuleCoordinate> modules) {
+        return indexedTypeCounts(modules, "", true).keySet();
+    }
+
+    /**
+     * Returns how many types of each given module match the query, for the modules the index actually knows.
+     *
+     * <p>Presence in the returned map and the count are two different facts, and type search needs both: a module
+     * <b>present with a count of {@code 0}</b> is indexed but has nothing matching (legitimate - {@code ballerinax/np}
+     * ships in the index with no {@code Type} rows at all), whereas a module <b>absent from the map</b> isn't in the
+     * index at all and its types are reachable only by compiling it. Answering both from one {@code LEFT JOIN} keeps
+     * the two consistent, and keeps a per-keystroke search from paying two round trips to say it.</p>
+     *
+     * <p>Unpaginated: a module must not be reported as unindexed merely because paging cut its rows off.</p>
+     *
+     * @param modules the modules to look up, each identified by organization and index module name
+     * @param q       the search query string; empty counts every type of the module
+     * @return the matching type count of each of those modules present in the index, keyed by module
+     * @throws RuntimeException if there is an error executing the query
+     */
+    public Map<ModuleCoordinate, Integer> indexedTypeCounts(Set<ModuleCoordinate> modules, String q) {
+        return indexedTypeCounts(modules, q, false);
+    }
+
+    private Map<ModuleCoordinate, Integer> indexedTypeCounts(Set<ModuleCoordinate> modules, String q,
+                                                             boolean querySanitized) {
         if (modules.isEmpty()) {
-            return Collections.emptySet();
+            return Collections.emptyMap();
         }
-        Set<ModuleCoordinate> indexedModules = new HashSet<>();
-        String sql = "SELECT DISTINCT p.org AS package_org, p.name AS module_name FROM Package p "
-                + "JOIN " + modulePairsSubquery(modules.size()) + " AS q "
-                + "ON p.org = q.q_org AND p.name = q.q_name";
+        String sanitizedQuery = querySanitized ? q : sanitizeQuery(q);
+        Map<ModuleCoordinate, Integer> counts = new HashMap<>();
+
+        // LEFT JOIN rather than JOIN: an indexed module with no matching type must still come back, as a row with a
+        // count of 0, so the caller can tell "indexed, nothing matched" from "not in the index at all".
+        String matchingTypes = sanitizedQuery.isEmpty()
+                ? "Type"
+                : "(SELECT t.package_id FROM TypeFTS AS fts JOIN Type AS t ON fts.rowid = t.id "
+                        + "WHERE fts.TypeFTS MATCH ?)";
+        String sql = "SELECT p.org AS package_org, p.name AS module_name, COUNT(t.package_id) AS type_count "
+                + "FROM " + modulePairsSubquery(modules.size()) + " AS q "
+                + "JOIN Package p ON p.org = q.q_org AND p.name = q.q_name "
+                + "LEFT JOIN " + matchingTypes + " AS t ON t.package_id = p.id "
+                + "GROUP BY p.org, p.name";
 
         try (Connection conn = DriverManager.getConnection(dbPath);
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
-            bindModulePairs(stmt, 1, modules);
-
-            try (ResultSet rs = stmt.executeQuery()) {
-                while (rs.next()) {
-                    indexedModules.add(new ModuleCoordinate(rs.getString("package_org"),
-                            rs.getString("module_name")));
-                }
-            }
-        } catch (SQLException e) {
-            LOGGER.severe("Error checking indexed modules: " + e.getMessage());
-            throw new RuntimeException("Failed to check indexed modules", e);
-        }
-
-        return indexedModules;
-    }
-
-    /**
-     * Computes a max-min fair per-module row quota within the given {@code window}.
-     *
-     * <p>Modules are visited from the fewest available rows to the most, each taking the smaller of its actual count
-     * and an equal share of what's left, so slack from small modules carries over to larger ones. Quotas only grow
-     * as {@code window} grows, which the paged queries rely on to tile consistently.</p>
-     */
-    private static <K extends Comparable<K>> Map<K, Integer> computeFairShareQuotas(Map<K, Integer> counts,
-                                                                                   int window) {
-        List<Map.Entry<K, Integer>> entries = new ArrayList<>(counts.entrySet());
-        // Tie-break by key so the allocation doesn't depend on the map's iteration order.
-        entries.sort(Map.Entry.<K, Integer>comparingByValue().thenComparing(Map.Entry.comparingByKey()));
-
-        Map<K, Integer> quotas = new HashMap<>();
-        int remainingWindow = Math.max(window, 0);
-        int remainingPackages = entries.size();
-        for (Map.Entry<K, Integer> entry : entries) {
-            // Long arithmetic: a window near Integer.MAX_VALUE (a client asking for "everything") would otherwise
-            // overflow the ceiling division and hand every module a negative quota, returning an empty page.
-            long fairShare = ((long) remainingWindow + remainingPackages - 1) / remainingPackages;
-            int quota = (int) Math.min(entry.getValue(), fairShare);
-            quotas.put(entry.getKey(), quota);
-            remainingWindow -= quota;
-            remainingPackages--;
-        }
-        return quotas;
-    }
-
-    /**
-     * Returns the number of indexed types available per module name, with {@code 0} for names with no rows. Matching
-     * binds organization and module name together, same as the paged queries.
-     */
-    private Map<ModuleCoordinate, Integer> fetchPerPackageTypeCounts(Connection conn, Set<ModuleCoordinate> modules,
-                                                                     String sanitizedQuery) throws SQLException {
-        Map<ModuleCoordinate, Integer> counts = new HashMap<>();
-        for (ModuleCoordinate module : modules) {
-            counts.put(module, 0);
-        }
-
-        String sql;
-        if (sanitizedQuery.isEmpty()) {
-            sql = "SELECT p.org AS package_org, p.name AS module_name, COUNT(*) AS type_count FROM Package p "
-                    + "JOIN Type t ON p.id = t.package_id "
-                    + "JOIN " + modulePairsSubquery(modules.size()) + " AS q "
-                    + "ON p.org = q.q_org AND p.name = q.q_name "
-                    + "GROUP BY p.org, p.name";
-        } else {
-            sql = "SELECT p.org AS package_org, p.name AS module_name, COUNT(*) AS type_count FROM TypeFTS AS fts "
-                    + "JOIN Type t ON fts.rowid = t.id "
-                    + "JOIN Package p ON t.package_id = p.id "
-                    + "JOIN " + modulePairsSubquery(modules.size()) + " AS q "
-                    + "ON p.org = q.q_org AND p.name = q.q_name "
-                    + "WHERE fts.TypeFTS MATCH ? "
-                    + "GROUP BY p.org, p.name";
-        }
-
-        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
             int paramIndex = bindModulePairs(stmt, 1, modules);
             if (!sanitizedQuery.isEmpty()) {
                 stmt.setString(paramIndex, sanitizedQuery + "*");
@@ -1069,6 +1046,9 @@ public class SearchDatabaseManager {
                             rs.getInt("type_count"));
                 }
             }
+        } catch (SQLException e) {
+            LOGGER.severe("Error counting indexed types: " + e.getMessage());
+            throw new RuntimeException("Failed to count indexed types", e);
         }
 
         return counts;
@@ -1077,6 +1057,11 @@ public class SearchDatabaseManager {
     /**
      * Builds a joinable {@code (org, name)} pair list. Uses the {@code SELECT column1 AS ... FROM (VALUES ...)} form
      * rather than a {@code (VALUES ...) AS t(a, b)} table alias, which SQLite does not support.
+     *
+     * <p>SQLite parses a multi-row {@code VALUES} as a compound select, so this caps out at
+     * {@code SQLITE_MAX_COMPOUND_SELECT} (500 by default) modules in one statement. That is far beyond what a single
+     * Ballerina package's modules can import between them; if a project ever does reach it, chunk the module set
+     * rather than raising the limit.</p>
      */
     private static String modulePairsSubquery(int size) {
         return "(SELECT column1 AS q_org, column2 AS q_name FROM (VALUES "
@@ -1250,7 +1235,18 @@ public class SearchDatabaseManager {
         return results;
     }
 
-    private static String sanitizeQuery(String q) {
+    /**
+     * Normalizes a raw client query into the form the index is queried with.
+     *
+     * <p>Exposed so scoring done outside SQL - type search's live-compilation fallback - starts from the same string
+     * the indexed tiers do. Otherwise a query the index reduces to "match everything" (say {@code "!!!"}) would
+     * instead be matched literally against the live pool, and the same keystroke would mean two different things
+     * depending on whether a module happens to be indexed.</p>
+     *
+     * @param q the raw query string
+     * @return the sanitized query, empty if the query carries no usable term
+     */
+    public static String sanitizeQuery(String q) {
         if (q == null || q.trim().isEmpty()) {
             return "";
         }

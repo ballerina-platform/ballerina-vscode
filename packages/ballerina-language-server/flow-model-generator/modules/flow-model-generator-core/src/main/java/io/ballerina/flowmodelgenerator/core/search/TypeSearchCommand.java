@@ -40,9 +40,11 @@ import io.ballerina.flowmodelgenerator.core.model.Metadata;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.utils.CentralSearchUtil;
 import io.ballerina.modelgenerator.commons.CommonUtils;
+import io.ballerina.modelgenerator.commons.FairShareWindow;
 import io.ballerina.modelgenerator.commons.ModuleCoordinate;
 import io.ballerina.modelgenerator.commons.PackageModuleUtils;
 import io.ballerina.modelgenerator.commons.PackageUtil;
+import io.ballerina.modelgenerator.commons.SearchDatabaseManager;
 import io.ballerina.modelgenerator.commons.SearchResult;
 import io.ballerina.projects.Module;
 import io.ballerina.projects.Package;
@@ -57,11 +59,13 @@ import org.ballerinalang.langserver.common.utils.SymbolUtil;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -100,49 +104,14 @@ class TypeSearchCommand extends SearchCommand {
     @Override
     protected List<Item> defaultView() {
         buildWorkspaceNodes();
-        List<SearchResult> searchResults = new ArrayList<>();
-        int indexedCapacity = 0;
-        if (!importedModules.isEmpty()) {
-            searchResults.addAll(dbManager.searchTypesByPackages(importedModules, limit, offset));
-            indexedCapacity = dbManager.countIndexedTypes(importedModules);
-        }
-
-        int importedCount = buildLibraryNodes(searchResults);
-        // The fair-share indexed pool has a fixed capacity that can be exhausted well before offset catches up, so
-        // only the portion of offset beyond that capacity should be skipped from the live-compiled fallback pool.
-        // Netting against this page's actual indexed row count instead would drop rows once the pool runs dry.
-        buildLiveDependencyTypes(importedCount, Math.max(0, offset - indexedCapacity));
+        buildImportedNodes(false);
         return rootBuilder.build().items();
     }
 
-    /**
-     * Runs the query against three sequentially-drained pools: the imported modules present in the index, the rest of
-     * the library, and finally live compilation for imported modules the index doesn't know about.
-     *
-     * <p>Each pool is skipped by the <i>stable capacity</i> of the pools before it rather than by how many rows they
-     * happened to return for this page. A pool that runs dry mid-page contributes fewer rows than its share of the
-     * limit, and a later page - computed statelessly, with no memory of that - would otherwise skip past rows that
-     * were never shown.</p>
-     */
     @Override
     protected List<Item> search() {
         buildWorkspaceNodes();
-
-        // Tier 1: imported modules that are indexed, fair-shared across those modules.
-        List<SearchResult> importedMatches =
-                dbManager.searchTypesByPackagesMatching(importedModules, query, limit, offset);
-        int importedCapacity = dbManager.countIndexedMatchingTypes(query, importedModules);
-        buildLibraryNodes(importedMatches);
-
-        // Tier 2: everything else in the index matching the query.
-        List<SearchResult> libraryMatches = dbManager.searchTypesExcludingPackages(query, importedModules,
-                Math.max(0, limit - importedMatches.size()), Math.max(0, offset - importedCapacity));
-        int libraryCapacity = dbManager.countTypesExcludingPackages(query, importedModules);
-        buildLibraryNodes(libraryMatches);
-
-        // Tier 3: imported modules missing from the index, resolved by compiling them on demand.
-        buildLiveDependencyTypes(importedMatches.size() + libraryMatches.size(),
-                Math.max(0, offset - importedCapacity - libraryCapacity));
+        buildImportedNodes(true);
         return rootBuilder.build().items();
     }
 
@@ -164,10 +133,13 @@ class TypeSearchCommand extends SearchCommand {
         return rootBuilder.build().items();
     }
 
+    /**
+     * {@code EnumSymbol} extends {@code TypeDefinitionSymbol}, so enums are already picked up by the filter; what
+     * they need is the kind remap below, because their own {@code kind()} reports {@code TYPE_DEFINITION}.
+     */
     private List<TypeSymbolEntry> getTypes(SemanticModel semanticModel) {
         return semanticModel.moduleSymbols().stream()
-                .filter(symbol -> symbol instanceof TypeDefinitionSymbol || symbol instanceof ClassSymbol
-                        || symbol instanceof EnumSymbol)
+                .filter(symbol -> symbol instanceof TypeDefinitionSymbol || symbol instanceof ClassSymbol)
                 .map(symbol -> new TypeSymbolEntry(symbol,
                         symbol instanceof EnumSymbol ? SymbolKind.ENUM : symbol.kind()))
                 .toList();
@@ -319,25 +291,69 @@ class TypeSearchCommand extends SearchCommand {
     }
 
     /**
-     * Falls back to the compiled semantic model for imported modules missing from the search index - for example a
-     * connector published too recently to have been indexed, which is otherwise invisible to type search entirely.
+     * Builds the imported-types category for one page, and optionally the standard-library category after it.
      *
-     * <p>Matches from every missing module are ranked together before paging, so a strong match in one module isn't
-     * pushed to a later page by weaker matches from a module that happened to be visited first.</p>
+     * <p>The imported pool spans <b>both</b> the modules the search index knows and the ones reachable only by
+     * compiling them on demand - a connector published too recently to have been indexed is otherwise invisible to
+     * type search entirely. One {@link FairShareWindow} allocation covers all of them, so each imported module gets
+     * its share of the page regardless of which pool it came from.</p>
      *
-     * @param consumedFromIndexed how many result slots the indexed pools already filled for this page
-     * @param liveSkip            how many matches to skip within the live-compiled pool, i.e. the portion of the
-     *                            page's offset not already accounted for by the indexed pools' capacity
+     * <p>Giving the live pool only the slots the indexed pools leave over does not work, and is what made the
+     * original fix ineffective in a real project: one imported module the size of {@code ballerina/http} (330
+     * indexed types) fills a 20-row page on its own, so an unindexed connector's types first appeared around page 17
+     * of the browse view - and, when the library tier was drained ahead of them too, only after every one of the
+     * thousands of library rows a common query matches.</p>
+     *
+     * @param includeLibrary whether to also page the rest of the index into the standard-library category, which the
+     *                       browse view (empty query) deliberately leaves out
      */
-    private void buildLiveDependencyTypes(int consumedFromIndexed, int liveSkip) {
-        int remainingLimit = limit - consumedFromIndexed;
-        if (importedModules.isEmpty() || remainingLimit <= 0) {
-            return;
+    private void buildImportedNodes(boolean includeLibrary) {
+        // One query answers both "which imported modules does the index know" (the keys) and "how many of their
+        // types match" (the values); a module absent from the map isn't indexed and has to be compiled.
+        Map<ModuleCoordinate, Integer> indexedCounts = dbManager.indexedTypeCounts(importedModules, query);
+        Map<ModuleCoordinate, List<LiveTypeMatch>> liveMatches = collectLiveMatches(indexedCounts.keySet());
+
+        Map<ModuleCoordinate, Integer> pool = new HashMap<>(indexedCounts);
+        liveMatches.forEach((module, matches) -> pool.put(module, matches.size()));
+        FairShareWindow.Ranges<ModuleCoordinate> ranges = FairShareWindow.rangesOf(pool, offset, limit);
+
+        Map<ModuleCoordinate, FairShareWindow.Range> indexedRanges = new HashMap<>();
+        for (ModuleCoordinate module : indexedCounts.keySet()) {
+            FairShareWindow.Range range = ranges.of(module);
+            if (range.take() > 0) {
+                indexedRanges.put(module, range);
+            }
         }
 
-        // Unpaginated, and not joined to Type: a module can be indexed with zero types, and treating that as
-        // "missing" would force a full live compilation on every request.
-        Set<ModuleCoordinate> indexedModules = dbManager.findIndexedModules(importedModules);
+        // Called unconditionally, and before anything else: it is what creates the imported and standard-library
+        // categories, which stay in the response even when a page puts nothing in them.
+        List<SearchResult> indexedMatches = dbManager.searchTypesInRanges(indexedRanges, query);
+        buildLibraryNodes(indexedMatches);
+        int emitted = indexedMatches.size() + buildLiveTypeNodes(liveMatches, ranges);
+
+        if (!includeLibrary) {
+            return;
+        }
+        // The whole imported pool is drained before the library tier, so the library's skip nets off that pool's
+        // total capacity rather than the rows this particular page took from it - a pool that runs dry mid-page
+        // contributes less than its share of the limit, and a later page, computed statelessly with no memory of
+        // that, would otherwise skip past library rows that were never shown.
+        int importedCapacity = pool.values().stream().mapToInt(Integer::intValue).sum();
+        buildLibraryNodes(dbManager.searchTypesExcludingPackages(query, importedModules,
+                Math.max(0, limit - emitted), Math.max(0, offset - importedCapacity)));
+    }
+
+    /**
+     * Compiles the imported modules the index doesn't know about and scores their public types against the query.
+     *
+     * <p>Matches are ranked within each module rather than pooled across modules, to match how the indexed side is
+     * paged: a page takes each module's own best matches, so no module's weaker matches can push another module's
+     * stronger ones onto a later page.</p>
+     *
+     * @param indexedModules the imported modules the index does know, which need no compilation
+     * @return the ranked matches of each module that had to be compiled, keyed by module
+     */
+    private Map<ModuleCoordinate, List<LiveTypeMatch>> collectLiveMatches(Set<ModuleCoordinate> indexedModules) {
         Set<ModuleCoordinate> missingModules = new HashSet<>();
         for (ModuleCoordinate module : importedModules) {
             if (!indexedModules.contains(module)) {
@@ -345,12 +361,12 @@ class TypeSearchCommand extends SearchCommand {
             }
         }
         if (missingModules.isEmpty()) {
-            return;
+            return Map.of();
         }
 
         Package currentPackage = project.currentPackage();
         if (currentPackage.getResolution() == null || currentPackage.getResolution().dependencyGraph() == null) {
-            return;
+            return Map.of();
         }
 
         // getNodes() returns a HashMap keySet ordered by a UUID-derived hash, so it isn't stable across
@@ -359,8 +375,7 @@ class TypeSearchCommand extends SearchCommand {
                 new ArrayList<>(currentPackage.getResolution().dependencyGraph().getNodes());
         Collections.sort(sortedDependencies);
 
-        List<LiveTypeMatch> allMatches = new ArrayList<>();
-        Set<ModuleCoordinate> resolvedModules = new HashSet<>();
+        Map<ModuleCoordinate, List<LiveTypeMatch>> matches = new HashMap<>();
         outer:
         for (ResolvedPackageDependency dependency : sortedDependencies) {
             Package dependencyPackage = dependency.packageInstance();
@@ -370,57 +385,79 @@ class TypeSearchCommand extends SearchCommand {
             for (Module module : dependencyPackage.modules()) {
                 // Match on organization as well as name: a same-named module from another organization is a
                 // different module, and resolving it here would surface the wrong package's types.
-                ModuleCoordinate coordinate = new ModuleCoordinate(dependencyPackage.packageOrg().value(),
-                        ImportedModules.toModuleKey(module.moduleName()));
-                if (missingModules.contains(coordinate) && resolvedModules.add(coordinate)) {
-                    allMatches.addAll(collectLiveModuleTypes(module, coordinate.moduleName(), dependencyPackage));
-                    if (resolvedModules.size() >= missingModules.size()) {
-                        break outer;
-                    }
+                ModuleCoordinate coordinate =
+                        ModuleCoordinate.of(dependencyPackage.packageOrg().value(), module.moduleName());
+                if (!missingModules.contains(coordinate) || matches.containsKey(coordinate)) {
+                    continue;
+                }
+                matches.put(coordinate, collectLiveModuleTypes(module, coordinate.moduleName(), dependencyPackage));
+                if (matches.size() >= missingModules.size()) {
+                    break outer;
                 }
             }
         }
-
-        allMatches.sort(Comparator.comparingInt(LiveTypeMatch::score).reversed()
-                .thenComparing(LiveTypeMatch::typeName));
-
-        Category.Builder importedTypesBuilder = rootBuilder.stepIn(Category.Name.IMPORTED_TYPES);
-        int remainingToSkip = liveSkip;
-        int remaining = remainingLimit;
-        for (LiveTypeMatch match : allMatches) {
-            if (remainingToSkip > 0) {
-                remainingToSkip--;
-                continue;
-            }
-            if (remaining <= 0) {
-                break;
-            }
-            String icon = CommonUtils.generateIcon(match.orgName(), match.packageName(), match.version());
-            Metadata metadata = new Metadata.Builder<>(null)
-                    .label(match.typeName())
-                    .description(match.description())
-                    .icon(icon)
-                    .build();
-            Codedata codedata = new Codedata.Builder<>(null)
-                    .node(NodeKind.TYPEDESC)
-                    .org(match.orgName())
-                    .module(match.moduleName())
-                    .packageName(match.packageName())
-                    .symbol(match.typeName())
-                    .version(match.version())
-                    .build();
-            importedTypesBuilder.stepIn(match.moduleName(), "", List.of())
-                    .node(new AvailableNode(metadata, codedata, true));
-            remaining--;
-        }
+        return matches;
     }
 
     /**
-     * Scores the public types of one live-compiled dependency module.
+     * Emits each live-compiled module's slice of the page into the imported-types category.
+     *
+     * @param liveMatches the ranked matches of each compiled module
+     * @param ranges      the page's allocation across the whole imported pool, indexed modules included
+     * @return how many nodes were emitted
+     */
+    private int buildLiveTypeNodes(Map<ModuleCoordinate, List<LiveTypeMatch>> liveMatches,
+                                   FairShareWindow.Ranges<ModuleCoordinate> ranges) {
+        if (liveMatches.isEmpty()) {
+            return 0;
+        }
+        Category.Builder importedTypesBuilder = rootBuilder.stepIn(Category.Name.IMPORTED_TYPES);
+        int emitted = 0;
+        // Ordered by coordinate so the emitted order doesn't depend on the map's iteration order.
+        for (ModuleCoordinate module : new TreeSet<>(liveMatches.keySet())) {
+            List<LiveTypeMatch> moduleMatches = liveMatches.get(module);
+            FairShareWindow.Range range = ranges.of(module);
+            int end = Math.min(range.skip() + range.take(), moduleMatches.size());
+            for (int i = Math.max(range.skip(), 0); i < end; i++) {
+                LiveTypeMatch match = moduleMatches.get(i);
+                String icon = CommonUtils.generateIcon(match.orgName(), match.packageName(), match.version());
+                Metadata metadata = new Metadata.Builder<>(null)
+                        .label(match.typeName())
+                        .description(match.description())
+                        .icon(icon)
+                        .build();
+                Codedata codedata = new Codedata.Builder<>(null)
+                        // TYPEDESC to match what the indexed tiers emit: the index stores no type-kind column, so
+                        // resolving the real kind here would make an imported type's node depend on whether its
+                        // module happens to be indexed.
+                        .node(NodeKind.TYPEDESC)
+                        .org(match.orgName())
+                        .module(match.moduleName())
+                        .packageName(match.packageName())
+                        .symbol(match.typeName())
+                        .version(match.version())
+                        .build();
+                importedTypesBuilder.stepIn(match.moduleName(), "", List.of())
+                        .node(new AvailableNode(metadata, codedata, true));
+                emitted++;
+            }
+        }
+        return emitted;
+    }
+
+    /**
+     * Scores the public types of one live-compiled dependency module, ranked best match first.
      *
      * <p>Client classes are excluded: those are connectors rather than types, mirroring what the index generator
      * itself leaves out. Enums are included, since {@code EnumSymbol} is a {@code TypeDefinitionSymbol} and the
      * index stores enums as types.</p>
+     *
+     * <p>Scoring starts from the same sanitized query the indexed tiers are given, but it is deliberately
+     * <i>wider</i> than they are: the index is queried by FTS token prefix, while this scores substring and
+     * Levenshtein matches too. A live module can therefore answer a query the indexed ones would not - searching
+     * {@code CompressionType} also surfaces a live {@code Compression}. Narrowing it to token prefixes would mean
+     * reimplementing FTS5 tokenization in Java for a pool that is meant to be forgiving, so the asymmetry is
+     * accepted; widening the indexed side instead is the change to make if the two must agree exactly.</p>
      */
     private List<LiveTypeMatch> collectLiveModuleTypes(Module module, String moduleName, Package dependencyPackage) {
         SemanticModel semanticModel;
@@ -428,8 +465,8 @@ class TypeSearchCommand extends SearchCommand {
             semanticModel = PackageUtil.getCompilation(module.packageInstance()).getSemanticModel(module.moduleId());
         } catch (RuntimeException e) {
             // Expected for generated/testonly modules with no semantic model, but this also catches genuine compiler
-            // errors, so leave a breadcrumb rather than failing completely silently.
-            LOGGER.log(Level.FINE, "Failed to compile dependency module for live type search: " + moduleName, e);
+            // errors - which silently cost the user every type in the module, so say so at a level that is on.
+            LOGGER.log(Level.WARNING, "Failed to compile dependency module for live type search: " + moduleName, e);
             return List.of();
         }
         if (semanticModel == null) {
@@ -439,6 +476,7 @@ class TypeSearchCommand extends SearchCommand {
         String orgName = dependencyPackage.packageOrg().toString();
         String packageName = dependencyPackage.packageName().toString();
         String version = dependencyPackage.packageVersion().toString();
+        String liveQuery = SearchDatabaseManager.sanitizeQuery(query);
 
         List<LiveTypeMatch> matches = new ArrayList<>();
         for (Symbol symbol : semanticModel.moduleSymbols()) {
@@ -459,12 +497,15 @@ class TypeSearchCommand extends SearchCommand {
             String typeName = symbol.getName().get();
             String description = symbol instanceof Documentable documentable
                     ? documentable.documentation().flatMap(Documentation::description).orElse("") : "";
-            int score = RelevanceCalculator.calculateFuzzyRelevanceScore(typeName, description, query);
+            int score = RelevanceCalculator.calculateFuzzyRelevanceScore(typeName, description, liveQuery);
             if (score > 0) {
                 matches.add(new LiveTypeMatch(moduleName, orgName, packageName, version, typeName, description,
                         score));
             }
         }
+        // An empty query scores every type 1, so this settles into alphabetical order for the browse view.
+        matches.sort(Comparator.comparingInt(LiveTypeMatch::score).reversed()
+                .thenComparing(LiveTypeMatch::typeName));
         return matches;
     }
 

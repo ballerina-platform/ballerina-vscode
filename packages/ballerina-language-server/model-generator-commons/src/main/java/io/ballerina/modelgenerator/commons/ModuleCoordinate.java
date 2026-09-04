@@ -18,6 +18,8 @@
 
 package io.ballerina.modelgenerator.commons;
 
+import io.ballerina.projects.ModuleName;
+
 import java.util.Objects;
 
 /**
@@ -39,6 +41,26 @@ public record ModuleCoordinate(String org, String moduleName) implements Compara
     public ModuleCoordinate {
         Objects.requireNonNull(org, "org cannot be null");
         Objects.requireNonNull(moduleName, "moduleName cannot be null");
+    }
+
+    /**
+     * Builds a coordinate from a resolved {@link ModuleName}, converting it into the
+     * {@code packageName[.moduleNamePart]} key format the index stores in its {@code Package.name} column.
+     *
+     * <p>The conversion lives here rather than at the call sites because it <i>is</i> the index's key format, and
+     * every lookup has to spell it the same way for a submodule such as {@code oraclefusion.erp.integrations} to be
+     * recognised as indexed.</p>
+     *
+     * @param org  the organization that resolved the module
+     * @param name the resolved module name
+     * @return the coordinate identifying that module in the index
+     */
+    public static ModuleCoordinate of(String org, ModuleName name) {
+        String moduleNamePart = name.moduleNamePart();
+        String moduleName = Objects.nonNull(moduleNamePart) && !moduleNamePart.isEmpty()
+                ? name.packageName().value() + "." + moduleNamePart
+                : name.packageName().value();
+        return new ModuleCoordinate(org, moduleName);
     }
 
     /**

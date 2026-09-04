@@ -1,5 +1,5 @@
 {
-  "description": "Type search pagination page 1 of 2 mixing an indexed module (os=5) with a live-compiled one (grpc), verifying the live pool's skip is netted against the indexed pool's capacity rather than the raw offset",
+  "description": "Type search pagination page 1 of 2 mixing an indexed module (os=5) with a live-compiled one (grpc): one fair-share allocation spans both pools, so each takes 4 of the 8 rows rather than the live pool getting only what os leaves over",
   "kind": "TYPE",
   "source": "live_fallback_pagination/main.bal",
   "queryMap": {
@@ -103,22 +103,6 @@
                 "version": "1.10.1"
               },
               "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "ProcessExecError",
-                "description": "Process Execution error that returns when the os:Exec function fails.",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_os_1.10.1.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerina",
-                "module": "os",
-                "packageName": "os",
-                "symbol": "ProcessExecError",
-                "version": "1.10.1"
-              },
-              "enabled": true
             }
           ]
         },
@@ -173,6 +157,22 @@
                 "module": "grpc",
                 "packageName": "grpc",
                 "symbol": "AccessLogConfiguration",
+                "version": "1.14.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "AllRetryAttemptsFailed",
+                "description": "Represents error scenario where the maximum retry attempts are done and still received an error.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_grpc_1.14.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "grpc",
+                "packageName": "grpc",
+                "symbol": "AllRetryAttemptsFailed",
                 "version": "1.14.2"
               },
               "enabled": true

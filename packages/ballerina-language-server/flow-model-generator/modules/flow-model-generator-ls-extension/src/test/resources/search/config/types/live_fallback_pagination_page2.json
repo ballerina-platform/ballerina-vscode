@@ -1,5 +1,5 @@
 {
-  "description": "Type search pagination page 2 of 2 mixing an indexed module (os=5) with a live-compiled one (grpc), verifying the live pool's skip is netted against the indexed pool's capacity rather than the raw offset",
+  "description": "Type search pagination page 2 of 2 mixing an indexed module (os=5) with a live-compiled one (grpc): os contributes its last remaining type and grpc the other 7, so the two pages together show all 5 of os's types exactly once",
   "kind": "TYPE",
   "source": "live_fallback_pagination/main.bal",
   "queryMap": {
@@ -35,27 +35,36 @@
       "items": [
         {
           "metadata": {
-            "label": "grpc",
+            "label": "os",
             "description": "",
             "keywords": []
           },
           "items": [
             {
               "metadata": {
-                "label": "AllRetryAttemptsFailed",
-                "description": "Represents error scenario where the maximum retry attempts are done and still received an error.",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_grpc_1.14.2.png"
+                "label": "ProcessExecError",
+                "description": "Process Execution error that returns when the os:Exec function fails.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_os_1.10.1.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
                 "org": "ballerina",
-                "module": "grpc",
-                "packageName": "grpc",
-                "symbol": "AllRetryAttemptsFailed",
-                "version": "1.14.2"
+                "module": "os",
+                "packageName": "os",
+                "symbol": "ProcessExecError",
+                "version": "1.10.1"
               },
               "enabled": true
-            },
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "grpc",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
             {
               "metadata": {
                 "label": "AlreadyExistsError",
