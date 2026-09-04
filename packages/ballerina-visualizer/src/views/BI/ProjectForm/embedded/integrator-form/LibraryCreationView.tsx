@@ -556,7 +556,7 @@ export function LibraryCreationView({ onBack, ballerinaUnavailable, projectConte
                                         onClick={handleCreate}
                                         appearance="primary"
                                     >
-                                        {isCreating ? "Creating..." : isValidating ? "Validating..." : "Create Library"}
+                                        {isCreating ? "Creating..." : isValidating ? "Validating..." : "Create"}
                                     </Button>
                                 </span>
                             </FormFooter>

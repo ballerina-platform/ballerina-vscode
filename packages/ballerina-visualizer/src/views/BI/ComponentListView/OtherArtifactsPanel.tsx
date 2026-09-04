@@ -45,10 +45,13 @@ export function OtherArtifactsPanel(props: OtherArtifactsPanelProps) {
 
     const showNaturalFunctions = isNPSupported && experimentalEnabled;
 
-    const panelTitle = isLibrary ? "Library Artifacts" : "Other Artifacts";
-    const panelDescription = isLibrary
-        ? "Create reusable artifacts for your library."
-        : "Create supportive artifacts for your integration.";
+    // In library scope this is the only panel on the page, and the page's own
+    // TitleBar already states "Library Artifacts" / the equivalent subtitle,
+    // so a section header here would just repeat it. Outside library scope
+    // this panel is one of several stacked sections and needs its own header
+    // to distinguish it from the others.
+    const panelTitle = "Other Artifacts";
+    const panelDescription = "Create supportive artifacts for your integration.";
 
     const handleClick = async (key: DIRECTORY_MAP) => {
         if (key === DIRECTORY_MAP.CONNECTION) {
@@ -128,12 +131,14 @@ export function OtherArtifactsPanel(props: OtherArtifactsPanelProps) {
 
     return (
         <PanelViewMore>
-            <TitleWrapper>
-                <Title variant="h2">{panelTitle}</Title>
-                <BodyText>
-                    {panelDescription}
-                </BodyText>
-            </TitleWrapper>
+            {!isLibrary && (
+                <TitleWrapper>
+                    <Title variant="h2">{panelTitle}</Title>
+                    <BodyText>
+                        {panelDescription}
+                    </BodyText>
+                </TitleWrapper>
+            )}
             <CardGrid>
                 {cards.map((card) => (
                     <ButtonCard

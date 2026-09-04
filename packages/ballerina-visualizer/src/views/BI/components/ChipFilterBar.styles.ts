@@ -39,19 +39,28 @@ export const FilterBarBase = styled.div`
 export const ChipRow = styled.div`
     display: flex;
     gap: 6px;
-    /* Take the row, leaving the compact search box pinned to the right. */
-    flex: 1;
+    /* Size to the chips' own content instead of claiming a flex:1 share of the
+       bar — with a fixed-width search box that left a dead gap between the
+       last chip and the search box. Still shrinks (with its own horizontal
+       scroll) before it ever pushes the search box below its min-width. */
+    flex: 0 1 auto;
     min-width: 0;
     overflow-x: auto;
     /* Keep chips on a single scrollable line. */
     flex-wrap: nowrap;
 `;
 
-/** Holds the search box on the right of the chip row — narrow and de-emphasized
- *  so it doesn't compete with surrounding fields. */
+/** Holds the search box, which grows to fill whatever space the chip row
+ *  doesn't need — so it visibly tracks the bar's width instead of sitting at
+ *  a fixed size — capped by a max-width so it never sprawls on a wide bar.
+ *  margin-left: auto claims any space left over once it hits that cap, so
+ *  the search box stays pinned to the right edge while the chip row (or
+ *  nothing, in library mode) stays put on the left. */
 export const SearchSlot = styled.div`
-    flex-shrink: 0;
-    width: 220px;
+    flex: 1 1 auto;
+    min-width: 160px;
+    max-width: 320px;
+    margin-left: auto;
 `;
 
 export const Chip = styled.button<{ active?: boolean }>`
