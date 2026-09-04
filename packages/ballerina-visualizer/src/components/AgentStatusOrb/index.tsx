@@ -294,7 +294,8 @@ export function AgentStatusOrb() {
     }
 
     const state = status.state;
-    const label = state === "idle" ? "Chat with WSO2 Integration Intelligence" : activeStateLabel(status);
+    // Idle has nothing to report, so the tooltip falls back to the bare product name.
+    const label = state === "idle" ? undefined : activeStateLabel(status);
     const dragging = dragPos !== null && !snapping;
     // Active states keep the pill visible the whole time. Idle shows the
     // invitation input; dismissing only collapses it into the orb — hovering
