@@ -17,8 +17,10 @@
  */
 
 const ACRONYMS = new Set([
-    "ACL", "API", "CSV", "DNS", "HTML", "HTTP", "HTTPS", "ID", "IP", "JSON", "JWT", "MFA",
-    "OTP", "PDF", "SMS", "SQL", "SSH", "SSO", "TLS", "TTL", "UI", "URI", "URL", "UUID", "XML",
+    "ACL", "AMQP", "API", "CSV", "DNS", "FTP", "FTPS", "GRPC", "HTML", "HTTP", "HTTPS", "ID",
+    "IMAP", "IP", "JDBC", "JMS", "JSON", "JWT", "LDAP", "MFA", "MQTT", "ODBC", "OTP", "PDF",
+    "POP3", "RPC", "SFTP", "SMS", "SMTP", "SOAP", "SQL", "SSH", "SSO", "TCP", "TLS", "TTL",
+    "UDP", "UI", "URI", "URL", "UUID", "WS", "WSS", "XML",
 ]);
 
 export interface FormatMethodNameOptions {
@@ -51,6 +53,11 @@ export function formatMethodName(methodName: string, options?: FormatMethodNameO
     // Handle edge case where all characters were special
     if (!cleaned) {
         return methodName;
+    }
+
+    // Lower-case SCREAMING_SNAKE_CASE first so it doesn't all look like acronyms below.
+    if (/^[A-Z0-9_]+$/.test(cleaned)) {
+        cleaned = cleaned.toLowerCase();
     }
 
     // Convert camelCase and snake_case to space-separated words
