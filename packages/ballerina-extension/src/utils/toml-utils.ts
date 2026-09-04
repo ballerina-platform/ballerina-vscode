@@ -29,6 +29,134 @@ export function isPlaceholderValue(value: string | undefined | null): boolean {
     return typeof value === "string" && /^\$\{[^}]+\}$/.test(value);
 }
 
+/**
+ * Normalizes a Ballerina configurable type string for dispatching: strips
+ * `readonly` intersections and grouping parentheses, so `string[] & readonly`,
+ * `(string[] & readonly)`, and `readonly & string[]` all become `string[]`.
+ */
+export function normalizeConfigType(varType: string | undefined): string {
+    if (!varType) {
+        return "string";
+    }
+    const stripped = varType
+        .replace(/\breadonly\b/g, "")
+        .replace(/&/g, "")
+        .replace(/[()]/g, "")
+        .trim();
+    return stripped || "string";
+}
+
+const PRIMITIVE_ARRAY_ELEMENT_TYPES = new Set(["string", "int", "byte", "float", "decimal", "boolean"]);
+
+/**
+ * True only for arrays of primitive configurable types (`string[]`,
+ * `int[] & readonly`, ...) — the only array shapes the collector can parse
+ * from flat text input. `json[]`, `anydata[]`, record arrays, and nested
+ * arrays fall through to the scalar path so a mistyped value fails loudly at
+ * startup instead of being silently coerced to strings.
+ */
+export function isArrayConfigType(varType: string | undefined): boolean {
+    const normalized = normalizeConfigType(varType);
+    if (!normalized.endsWith("[]")) {
+        return false;
+    }
+    return PRIMITIVE_ARRAY_ELEMENT_TYPES.has(normalized.slice(0, -2).trim());
+}
+
+function stripMatchingQuotes(value: string): string {
+    if (value.length >= 2) {
+        const first = value[0];
+        const last = value[value.length - 1];
+        if ((first === '"' && last === '"') || (first === "'" && last === "'")) {
+            return value.slice(1, -1);
+        }
+    }
+    return value;
+}
+
+/**
+ * Parses a user-entered array configurable value into a real JS array so the
+ * TOML writer emits a TOML array (e.g. `scopes = ["a", "b"]`) instead of a
+ * quoted scalar, which Ballerina rejects at runtime with
+ * "expected type 'string[] & readonly', but found 'string'".
+ *
+ * Accepts a JSON-style array (`["a", "b"]`) or comma-separated values
+ * (`a, b`), coercing each element to the array's element type. Only arrays of
+ * primitives are supported — nested array/map element types fall through to
+ * the string path, matching the collect form, which only offers flat input.
+ */
+export function parseArrayConfigValue(
+    raw: string,
+    varType: string | undefined,
+    variableName: string
+): (string | number | boolean)[] {
+    const elementType = normalizeConfigType(varType).replace(/\[\]$/, "").trim() || "string";
+    const trimmed = raw.trim();
+
+    let items: string[];
+    if (trimmed.startsWith("[")) {
+        let parsed: unknown;
+        try {
+            parsed = JSON.parse(trimmed);
+        } catch {
+            throw new Error(
+                `Invalid array value for ${variableName}: expected a JSON array (e.g. ["a", "b"]) or comma-separated values`
+            );
+        }
+        if (!Array.isArray(parsed)) {
+            throw new Error(
+                `Invalid array value for ${variableName}: expected a JSON array (e.g. ["a", "b"]) or comma-separated values`
+            );
+        }
+        items = parsed.map((item) => {
+            if (typeof item !== "string" && typeof item !== "number" && typeof item !== "boolean") {
+                throw new Error(
+                    `Invalid array element for ${variableName}: only string, number, and boolean elements are supported`
+                );
+            }
+            return String(item);
+        });
+    } else {
+        items = trimmed.split(",");
+    }
+
+    const elements = items.map((item) => stripMatchingQuotes(item.trim())).filter((item) => item !== "");
+
+    if (elementType === "int" || elementType === "byte") {
+        return elements.map((item) => {
+            // Strict decimal digits only — Number() would also admit hex/exponent
+            // forms ("0x10", "1e3"), which are surprising in a config value.
+            if (!/^[+-]?\d+$/.test(item)) {
+                throw new Error(`Invalid integer element '${item}' in array value for ${variableName}`);
+            }
+            return Number(item);
+        });
+    }
+    if (elementType === "decimal" || elementType === "float") {
+        return elements.map((item) => {
+            const num = Number(item);
+            if (isNaN(num)) {
+                throw new Error(`Invalid decimal element '${item}' in array value for ${variableName}`);
+            }
+            return num;
+        });
+    }
+    if (elementType === "boolean") {
+        return elements.map((item) => {
+            if (item !== "true" && item !== "false") {
+                throw new Error(`Invalid boolean element '${item}' in array value for ${variableName}`);
+            }
+            return item === "true";
+        });
+    }
+    return elements;
+}
+
+function isNumericElementType(varType: string | undefined): boolean {
+    const elementType = normalizeConfigType(varType).replace(/\[\]$/, "").trim();
+    return elementType === "int" || elementType === "byte" || elementType === "decimal" || elementType === "float";
+}
+
 function readTomlSection(
     configPath: string,
     orgName: string,
@@ -58,7 +186,12 @@ export function getAllConfigStatus(
         return status;
     }
     for (const [key, value] of Object.entries(section)) {
-        if (value !== null && typeof value !== "object") {
+        // Arrays of primitives are legitimate configurable values (e.g. string[]
+        // OAuth scopes); inline tables, nested sections, and arrays of tables
+        // stay excluded, as before.
+        const isPrimitiveArray = Array.isArray(value) &&
+            value.every((item) => item !== null && typeof item !== "object");
+        if (value !== null && (typeof value !== "object" || isPrimitiveArray)) {
             status[key] = "filled";
         }
     }
@@ -95,9 +228,17 @@ export function writeConfigValuesToConfig(
     }
 
     const numericKeys = new Set<string>();
+    const numericArrayKeys = new Set<string>();
     for (const [variableName, value] of Object.entries(configValues)) {
-        const varType = typeMap.get(variableName) || "string";
-        if (varType === "int" || varType === "byte") {
+        // Normalize so readonly-intersected types (`int & readonly`) dispatch to
+        // their base-type branch instead of falling through to the string default.
+        const varType = normalizeConfigType(typeMap.get(variableName));
+        if (isArrayConfigType(varType)) {
+            section[variableName] = parseArrayConfigValue(value, varType, variableName);
+            if (isNumericElementType(varType)) {
+                numericArrayKeys.add(variableName);
+            }
+        } else if (varType === "int" || varType === "byte") {
             const intValue = parseInt(value, 10);
             if (isNaN(intValue)) {
                 throw new Error(`Invalid integer value for ${variableName}`);
@@ -126,10 +267,11 @@ export function writeConfigValuesToConfig(
 
         let tomlContent = stringify(config);
 
-        // @iarna/toml formats large numbers with underscores (e.g. 8_080); Ballerina requires plain digits.
-        // Scope replacements to the [org.name] section only to avoid touching identically-named keys
-        // in other sections of the same file.
-        if (numericKeys.size > 0) {
+        // @iarna/toml formats large numbers with underscores (e.g. 8_080) — inside arrays too
+        // ([ 8_080, 9_090 ]); Ballerina requires plain digits. Scope replacements to the
+        // [org.name] section only to avoid touching identically-named keys in other sections
+        // of the same file.
+        if (numericKeys.size > 0 || numericArrayKeys.size > 0) {
             const sectionHeader = `[${orgName}.${packageName}]`;
             const sectionStart = tomlContent.indexOf(sectionHeader);
             if (sectionStart !== -1) {
@@ -145,6 +287,14 @@ export function writeConfigValuesToConfig(
                         const pattern = new RegExp(`^(\\s*${escapedKey}\\s*=\\s*)[0-9][0-9_]*(?:\\.[0-9]+)?`, "gm");
                         sectionSlice = sectionSlice.replace(pattern, `$1${numValue}`);
                     }
+                }
+                for (const key of numericArrayKeys) {
+                    // Purely numeric arrays: safe to strip digit-group underscores across the
+                    // whole bracketed value (no string elements can contain `]` or digit_digit).
+                    const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+                    const pattern = new RegExp(`^(\\s*${escapedKey}\\s*=\\s*)\\[([^\\]]*)\\]`, "gm");
+                    sectionSlice = sectionSlice.replace(pattern, (_match, prefix: string, body: string) =>
+                        `${prefix}[${body.replace(/(\d)_(?=\d)/g, "$1")}]`);
                 }
                 tomlContent = tomlContent.slice(0, sectionStart) + sectionSlice + tomlContent.slice(sectionEnd);
             }
@@ -180,6 +330,15 @@ export function readExistingConfigValues(
                 existingValues[name] = value;
             } else if (typeof value === "number") {
                 existingValues[name] = value.toString();
+            } else if (Array.isArray(value) && value.every((item) => item !== null && typeof item !== "object")) {
+                // Round-trip primitive arrays as JSON so the collect form pre-fills
+                // them and parseArrayConfigValue accepts the same text back on
+                // resubmit; arrays of tables stay excluded like other tables.
+                // (@iarna/toml surfaces very large TOML integers as BigInt, which
+                // JSON.stringify rejects — stringify those elements first.)
+                const safeElements = value.map((item) =>
+                    typeof item === "bigint" ? item.toString() : item);
+                existingValues[name] = JSON.stringify(safeElements);
             }
         }
     }

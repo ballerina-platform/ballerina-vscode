@@ -32,6 +32,7 @@ import {
     PopupContent,
     PopupFooter,
 } from "../../../BI/Connection/styles";
+import { getFieldConfig } from "./fieldConfig";
 
 // ─── Styled components ────────────────────────────────────────────────────────
 
@@ -245,69 +246,8 @@ const LoadingContainer = styled.div`
     color: ${ThemeColors.ON_SURFACE_VARIANT};
 `;
 
-// ─── Field type config (single source of truth) ───────────────────────────────
-//
-// To add a new Ballerina type: add an entry here. No other code needs to change.
-
-type InputKind = "text" | "number" | "select";
-
-interface SelectOption {
-    label: string;
-    value: string;
-}
-
-interface FieldConfig {
-    inputKind: InputKind;
-    placeholder?: string;
-    selectOptions?: SelectOption[];
-    defaultValue?: string;
-    validate: (value: string) => string | null;
-}
-
-const NUMERIC_INT_TYPES = new Set(["int", "byte"]);
-const NUMERIC_FLOAT_TYPES = new Set(["decimal", "float"]);
-
-function getFieldConfig(type: string | undefined): FieldConfig {
-    if (NUMERIC_INT_TYPES.has(type ?? "")) {
-        return {
-            inputKind: "number",
-            placeholder: "Enter integer",
-            validate: (v) => {
-                if (!v.trim()) return null;
-                if (isNaN(parseInt(v, 10)) || !Number.isInteger(parseFloat(v))) return "Enter a valid integer";
-                return null;
-            },
-        };
-    }
-    if (NUMERIC_FLOAT_TYPES.has(type ?? "")) {
-        return {
-            inputKind: "number",
-            placeholder: "Enter number",
-            validate: (v) => {
-                if (!v.trim()) return null;
-                if (isNaN(parseFloat(v))) return "Enter a valid number";
-                return null;
-            },
-        };
-    }
-    if (type === "boolean") {
-        return {
-            inputKind: "select",
-            defaultValue: "true",
-            selectOptions: [
-                { label: "true", value: "true" },
-                { label: "false", value: "false" },
-            ],
-            validate: () => null, // select always holds a valid option
-        };
-    }
-    // Default: string, records, arrays, maps, or any unknown LS type
-    return {
-        inputKind: "text",
-        placeholder: "Enter value",
-        validate: () => null,
-    };
-}
+// Field type config (single source of truth) lives in ./fieldConfig so it can
+// be unit-tested; to add a new Ballerina type, extend getFieldConfig there.
 
 function isPlaceholderValue(value: string | undefined | null): boolean {
     return typeof value === "string" && /^\$\{[^}]+\}$/.test(value);
