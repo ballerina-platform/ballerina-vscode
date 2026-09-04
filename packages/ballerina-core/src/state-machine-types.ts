@@ -403,6 +403,7 @@ export type ChatNotify = (
     | CompactionStartEvent
     | CompactionEndEvent
     | CompactionDisabledEvent
+    | TurnTruncatedEvent
     | ConfigChangeEvent
     | MigrationProgressEvent
     | FollowupSuggestionsEvent
@@ -671,6 +672,19 @@ export interface CompactionEndEvent {
 /** Fired once per session when compaction is disabled because the codebase floor exceeds the trigger */
 export interface CompactionDisabledEvent {
     type: 'compaction_disabled';
+}
+
+/**
+ * Fired when the model hit its per-response output token limit instead of finishing. A tool
+ * call truncated mid-argument is never dispatched, so the edit it carried never reached disk
+ * and earlier edits from the same turn can be left inconsistent.
+ *
+ * Emitted just before the run's `stop`, which still does the teardown.
+ */
+export interface TurnTruncatedEvent {
+    type: 'turn_truncated';
+    /** Raw provider stop reason, when the provider supplied one. For diagnostics only. */
+    rawFinishReason?: string;
 }
 
 /** Fired when a VS Code configuration setting relevant to the AI panel changes */
