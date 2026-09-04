@@ -249,6 +249,8 @@ export function TopNavigationBar(props: TopNavigationBarProps) {
             MACHINE_VIEW.BIDataMapperForm,
             MACHINE_VIEW.AddConnectionWizard,
             MACHINE_VIEW.EditConnectionWizard,
+            MACHINE_VIEW.AddAgent,
+            MACHINE_VIEW.AddAgentDefinition,
             MACHINE_VIEW.BIWelcome,
             MACHINE_VIEW.BIProjectForm,
             MACHINE_VIEW.BIAddProjectForm,
