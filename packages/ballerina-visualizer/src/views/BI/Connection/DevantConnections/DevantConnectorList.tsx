@@ -34,7 +34,13 @@ import {
     SectionHeader,
     SectionTitle,
 } from "../AddConnectionPopup/styles";
-import { DevantConnectionFlow, getKnownAvailableNode, ProgressWrap } from "./utils";
+import { DevantConnectionFlow, filterConnectionMarketplaceItems, getKnownAvailableNode, ProgressWrap } from "./utils";
+
+// Target number of connections to show. Knowledge base services can only be filtered out client-side
+// (the marketplace tag filter is include-only), so over-fetch and trim to this size so filtered-out
+// KBs don't shrink the visible connections list (or search results).
+const CONNECTIONS_PAGE_SIZE = 24;
+const MARKETPLACE_OVERFETCH_LIMIT = 100;
 
 interface DevantConnectorListProps {
     onItemSelect: (
@@ -131,7 +137,7 @@ export function DevantConnectorList(props: DevantConnectorListProps) {
     };
 
     const getMarketPlaceParams: GetMarketplaceItemsParams = {
-        limit: 24,
+        limit: MARKETPLACE_OVERFETCH_LIMIT,
         offset: 0,
         networkVisibilityFilter: "all",
         networkVisibilityprojectId: platformExtState?.selectedContext?.project?.id,
@@ -159,12 +165,12 @@ export function DevantConnectorList(props: DevantConnectorListProps) {
             filterType !== "databases" && platformExtState.isLoggedIn && !!platformExtState?.selectedContext?.project,
         select: (data) => ({
             ...data,
-            data: data.data.filter((item) => {
-                if (filterType === "internal-services") {
-                    return item.component?.componentId !== platformExtState?.selectedComponent?.metadata?.id;
-                }
-                return true;
-            }),
+            data: filterConnectionMarketplaceItems(
+                data.data,
+                filterType,
+                platformExtState?.selectedComponent?.metadata?.id,
+                CONNECTIONS_PAGE_SIZE,
+            ),
         }),
     });
 
