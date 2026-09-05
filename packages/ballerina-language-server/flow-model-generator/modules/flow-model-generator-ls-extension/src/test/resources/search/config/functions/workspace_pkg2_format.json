@@ -125,31 +125,6 @@
       "items": [
         {
           "metadata": {
-            "label": "health.hl7v2",
-            "description": "",
-            "keywords": []
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "encode",
-                "description": "Encodes HL7 message model to encoded wire format.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.hl7v2_3.0.9.png"
-              },
-              "codedata": {
-                "node": "FUNCTION_CALL",
-                "org": "ballerinax",
-                "module": "health.hl7v2",
-                "packageName": "health.hl7v2",
-                "symbol": "encode",
-                "version": "3.0.9"
-              },
-              "enabled": true
-            }
-          ]
-        },
-        {
-          "metadata": {
             "label": "graphql",
             "description": "",
             "keywords": []
@@ -168,122 +143,6 @@
                 "packageName": "graphql",
                 "symbol": "getSdlString",
                 "version": "1.17.0"
-              },
-              "enabled": true
-            }
-          ]
-        },
-        {
-          "metadata": {
-            "label": "financial.swiftmtToIso20022",
-            "description": "",
-            "keywords": []
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "toIso20022Xml",
-                "description": "Converts a SWIFT message in string format to its corresponding ISO 20022 XML format.\n\nThe function uses a map of transformation functions corresponding to different SWIFT MT message types \nand applies the appropriate transformation based on the parsed message type.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_financial.swiftmtToIso20022_2.0.3.png"
-              },
-              "codedata": {
-                "node": "FUNCTION_CALL",
-                "org": "ballerinax",
-                "module": "financial.swiftmtToIso20022",
-                "packageName": "financial.swiftmtToIso20022",
-                "symbol": "toIso20022Xml",
-                "version": "2.0.3"
-              },
-              "enabled": true
-            }
-          ]
-        },
-        {
-          "metadata": {
-            "label": "confluent.cavroserdes",
-            "description": "",
-            "keywords": []
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "serialize",
-                "description": "Serializes the given data according to the Avro format and registers the schema into the schema registry.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_confluent.cavroserdes_1.0.3.png"
-              },
-              "codedata": {
-                "node": "FUNCTION_CALL",
-                "org": "ballerinax",
-                "module": "confluent.cavroserdes",
-                "packageName": "confluent.cavroserdes",
-                "symbol": "serialize",
-                "version": "1.0.3"
-              },
-              "enabled": true
-            }
-          ]
-        },
-        {
-          "metadata": {
-            "label": "health.dicom",
-            "description": "",
-            "keywords": []
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "parseDate",
-                "description": "Parses a DICOM Date string (DA VR) into a structured `DicomDate` record.\nThe DA VR format is `YYYYMMDD`.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.dicom_0.1.0.png"
-              },
-              "codedata": {
-                "node": "FUNCTION_CALL",
-                "org": "ballerinax",
-                "module": "health.dicom",
-                "packageName": "health.dicom",
-                "symbol": "parseDate",
-                "version": "0.1.0"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "parseTime",
-                "description": "Parses a DICOM Time string (TM VR) into a structured `DicomTime` record.\nThe TM VR format is `HHMMSS.FFFFFF` (only HH is required; the rest are optional).\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.dicom_0.1.0.png"
-              },
-              "codedata": {
-                "node": "FUNCTION_CALL",
-                "org": "ballerinax",
-                "module": "health.dicom",
-                "packageName": "health.dicom",
-                "symbol": "parseTime",
-                "version": "0.1.0"
-              },
-              "enabled": true
-            }
-          ]
-        },
-        {
-          "metadata": {
-            "label": "financial.iso20022",
-            "description": "",
-            "keywords": []
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "toXml",
-                "description": "Converts the given ISO 20022 record into XML format.\n\nThis function takes a Ballerina record representing an ISO 20022 message and converts it\ninto the corresponding XML format. It leverages the structure of the provided record\nto generate a valid XML representation that complies with the ISO 20022 standard.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_financial.iso20022_2.0.2.png"
-              },
-              "codedata": {
-                "node": "FUNCTION_CALL",
-                "org": "ballerinax",
-                "module": "financial.iso20022",
-                "packageName": "financial.iso20022",
-                "symbol": "toXml",
-                "version": "2.0.2"
               },
               "enabled": true
             }
@@ -494,31 +353,6 @@
         },
         {
           "metadata": {
-            "label": "financial.iso20022ToSwiftmt",
-            "description": "",
-            "keywords": []
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "toSwiftMtMessage",
-                "description": "Converts an ISO 20022 XML message to its corresponding SWIFT MT message format.\n\nThe function uses a map of transformation functions for different ISO 20022 message types\nand applies the appropriate transformation based on the provided XML content and target SWIFT MT message type.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_financial.iso20022ToSwiftmt_1.0.4.png"
-              },
-              "codedata": {
-                "node": "FUNCTION_CALL",
-                "org": "ballerinax",
-                "module": "financial.iso20022ToSwiftmt",
-                "packageName": "financial.iso20022ToSwiftmt",
-                "symbol": "toSwiftMtMessage",
-                "version": "1.0.4"
-              },
-              "enabled": true
-            }
-          ]
-        },
-        {
-          "metadata": {
             "label": "lang.int",
             "description": "",
             "keywords": []
@@ -537,6 +371,184 @@
                 "packageName": "lang.int",
                 "symbol": "fromHexString",
                 "version": "0.0.0"
+              },
+              "enabled": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "label": "Extended Library",
+        "description": "Components from the ballerinax organization",
+        "keywords": [
+          "Ballerinax",
+          "Library"
+        ]
+      },
+      "items": [
+        {
+          "metadata": {
+            "label": "health.hl7v2",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "encode",
+                "description": "Encodes HL7 message model to encoded wire format.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.hl7v2_3.0.9.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "health.hl7v2",
+                "packageName": "health.hl7v2",
+                "symbol": "encode",
+                "version": "3.0.9"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "financial.swiftmtToIso20022",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "toIso20022Xml",
+                "description": "Converts a SWIFT message in string format to its corresponding ISO 20022 XML format.\n\nThe function uses a map of transformation functions corresponding to different SWIFT MT message types \nand applies the appropriate transformation based on the parsed message type.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_financial.swiftmtToIso20022_2.0.3.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "financial.swiftmtToIso20022",
+                "packageName": "financial.swiftmtToIso20022",
+                "symbol": "toIso20022Xml",
+                "version": "2.0.3"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "confluent.cavroserdes",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "serialize",
+                "description": "Serializes the given data according to the Avro format and registers the schema into the schema registry.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_confluent.cavroserdes_1.0.3.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "confluent.cavroserdes",
+                "packageName": "confluent.cavroserdes",
+                "symbol": "serialize",
+                "version": "1.0.3"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "health.dicom",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "parseDate",
+                "description": "Parses a DICOM Date string (DA VR) into a structured `DicomDate` record.\nThe DA VR format is `YYYYMMDD`.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.dicom_0.1.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "health.dicom",
+                "packageName": "health.dicom",
+                "symbol": "parseDate",
+                "version": "0.1.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "parseTime",
+                "description": "Parses a DICOM Time string (TM VR) into a structured `DicomTime` record.\nThe TM VR format is `HHMMSS.FFFFFF` (only HH is required; the rest are optional).\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.dicom_0.1.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "health.dicom",
+                "packageName": "health.dicom",
+                "symbol": "parseTime",
+                "version": "0.1.0"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "financial.iso20022",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "toXml",
+                "description": "Converts the given ISO 20022 record into XML format.\n\nThis function takes a Ballerina record representing an ISO 20022 message and converts it\ninto the corresponding XML format. It leverages the structure of the provided record\nto generate a valid XML representation that complies with the ISO 20022 standard.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_financial.iso20022_2.0.2.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "financial.iso20022",
+                "packageName": "financial.iso20022",
+                "symbol": "toXml",
+                "version": "2.0.2"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "financial.iso20022ToSwiftmt",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "toSwiftMtMessage",
+                "description": "Converts an ISO 20022 XML message to its corresponding SWIFT MT message format.\n\nThe function uses a map of transformation functions for different ISO 20022 message types\nand applies the appropriate transformation based on the provided XML content and target SWIFT MT message type.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_financial.iso20022ToSwiftmt_1.0.4.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "financial.iso20022ToSwiftmt",
+                "packageName": "financial.iso20022ToSwiftmt",
+                "symbol": "toSwiftMtMessage",
+                "version": "1.0.4"
               },
               "enabled": true
             }
