@@ -16,16 +16,19 @@
  * under the License.
  */
 
-import { FormField } from "@wso2/ballerina-core";
+// Structural so both FormField and TypeField parameter trees can share these.
+export interface OptionalityAware {
+    optional?: boolean;
+}
 
 // Only `field?` is optional. A defaultable field (`field = <default>`) reads as a normal field, so it
 // carries no label — calling it optional wrongly implies no value is applied when it is left out.
-export function getOptionalityLabel(param: FormField): string {
+export function getOptionalityLabel(param: OptionalityAware): string {
     return param.optional ? " (Optional)" : "";
 }
 
 // Grouping mirrors the label: only `field?` belongs under the collapsible "Optional fields" section. A
 // defaultable field is an ordinary field with a fallback, so it stays in the main list.
-export function isOptionalParam(param: FormField): boolean {
+export function isOptionalParam(param: OptionalityAware): boolean {
     return !!param.optional;
 }

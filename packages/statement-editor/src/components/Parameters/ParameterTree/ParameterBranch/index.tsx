@@ -23,7 +23,7 @@ import { Button } from "@wso2/ui-toolkit";
 
 import { TypeProps } from "..";
 import { useStmtEditorHelperPanelStyles } from "../../../styles";
-import { isAnyFieldSelected, isRequiredParam } from "../utils";
+import { isAnyFieldSelected, isOptionalParam } from "../utils";
 
 import * as Types from "./../Types";
 
@@ -39,7 +39,7 @@ export function ParameterBranch(props: ParameterBranchProps) {
 
     const [showOptionalParams, setShowOptionalParams] = useState(isAnyFieldSelected(parameters));
 
-    const requiredParams: JSX.Element[] = [];
+    const inlineParams: JSX.Element[] = []; // required and defaultable fields
     const optionalParams: JSX.Element[] = [];
 
     parameters?.forEach((param: TypeField, index: number) => {
@@ -52,10 +52,10 @@ export function ParameterBranch(props: ParameterBranchProps) {
         if (!TypeComponent) {
             TypeComponent = (Types as any).custom;
         }
-        if (isRequiredParam(param)) {
-            requiredParams.push(<TypeComponent key={index} {...typeProps} />);
-        } else {
+        if (isOptionalParam(param)) {
             optionalParams.push(<TypeComponent key={index} {...typeProps} />);
+        } else {
+            inlineParams.push(<TypeComponent key={index} {...typeProps} />);
         }
     });
 
@@ -65,7 +65,7 @@ export function ParameterBranch(props: ParameterBranchProps) {
 
     return (
         <div data-testid="parameter-branch">
-            {requiredParams}
+            {inlineParams}
             {optionalParams.length > 0 && (
                 <div className={stmtEditorHelperClasses.listOptionalWrapper}>
                     <div className={stmtEditorHelperClasses.listOptionalHeader}>Optional fields </div>

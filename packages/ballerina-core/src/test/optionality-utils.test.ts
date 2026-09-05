@@ -16,8 +16,8 @@
  * under the License.
  */
 
-import { FormField } from "@wso2/ballerina-core";
-import { getOptionalityLabel, isOptionalParam } from "./optionality";
+import { FormField } from "../interfaces/config-spec";
+import { getOptionalityLabel, isOptionalParam } from "../utils/optionality-utils";
 
 const field = (overrides: Partial<FormField>): FormField =>
     ({ typeName: "string", optional: false, defaultable: false, selected: false, ...overrides } as FormField);

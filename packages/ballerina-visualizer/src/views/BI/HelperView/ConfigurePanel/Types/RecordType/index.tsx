@@ -24,7 +24,7 @@ import { Typography } from "@wso2/ui-toolkit";
 import { TypeProps } from "../../index";
 import { useStmtEditorHelperPanelStyles } from "../../styles";
 import { MemoizedParameterBranch } from "../../index";
-import { isRequiredParam } from "../../utils";
+import { getOptionalityLabel, isRequiredParam } from "../../utils";
 
 export default function RecordType(props: TypeProps) {
     const { param, depth, onChange } = props;
@@ -64,7 +64,7 @@ export default function RecordType(props: TypeProps) {
                             variant="body3"
                             data-testid="arg-type"
                         >
-                            {(param.optional || param.defaultable) && " (Optional)"} {param.typeInfo.name}
+                            {getOptionalityLabel(param)} {param.typeInfo.name}
                         </Typography>
                     )}
                 </div>
