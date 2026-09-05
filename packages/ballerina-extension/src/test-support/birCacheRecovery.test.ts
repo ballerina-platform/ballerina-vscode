@@ -19,20 +19,26 @@
 /**
  * @jest-environment node
  *
- *  A corrupt cached BIR makes projects load empty. The LS sends a
+ * A corrupt cached BIR makes projects load empty. The LS sends a
  * `projectService/corruptBirCache` notification with the affected module's coordinates and the
  * running distribution version; the client clears that module's compiled cache under
- * cache-<distVersion>. These L1 tests pin three invariants: (1) only a well-formed module
- * coordinate is accepted (a malformed/hostile payload can never become an fs path); (2) the clear
- * removes ONLY the affected module's compiled cache and only under the active distribution's
- * cache-<distVersion> — never other distributions, the pulled bala/, other modules or versions, or
- * the distribution itself.
+ * cache-<distVersion>. These L1 tests pin two invariants: (1) only a well-formed module coordinate
+ * is accepted (a malformed/hostile payload can never become an fs path); (2) the clear removes ONLY
+ * the affected module's compiled cache and only under the active distribution's cache-<distVersion>
+ * — never other distributions, the pulled bala/, other modules or versions, or the distribution
+ * itself.
+ *
+ * The clear invariant is table-driven from JSON fixtures under fixtures/bir-cache/ (see
+ * docs/TEST_PLAN.md §5). Each fixture materializes a realistic ~/.ballerina tree in a temp home,
+ * runs the real clear against it, and asserts what is resolved, removed, and kept. Add a fixture
+ * (e.g. issue-2251.json) to guard a new case.
  */
 
 import * as os from "os";
 import * as path from "path";
 import * as fs from "fs/promises";
-import { isValidModule, resolveModuleCacheDirs, clearModuleBirCache } from "../utils/bir-cache-recovery";
+import { loadFixtures } from "@wso2/test-config/fixtures";
+import { CorruptModule, isValidModule, resolveModuleCacheDirs, clearModuleBirCache } from "../utils/bir-cache-recovery";
 
 describe("isValidModule", () => {
     it("accepts a well-formed coordinate", () => {
@@ -55,93 +61,66 @@ describe("isValidModule", () => {
     });
 });
 
-describe("clearModuleBirCache (targeted, cache-only)", () => {
-    let home: string;
-    const reposFor = (h: string) => path.join(h, ".ballerina", "repositories");
+// A single clear scenario: seed `tree` under a temp ~/.ballerina, clear `module` (optionally scoped
+// to `distVersion`), then assert the resolved/removed/kept paths. All paths are relative to the
+// .ballerina root and use "/" separators (normalized per-OS below).
+interface BirCacheFixture {
+    description?: string;
+    module: CorruptModule;
+    distVersion?: string;
+    tree: string[];
+    expectedResolved?: string[];
+    expectedRemoved: string[];
+    expectedKept: string[];
+}
 
-    // Build a realistic ~/.ballerina tree under a temp home.
-    async function seed(h: string): Promise<void> {
-        const files = [
-            // target: two distribution caches for the corrupt module+version
-            "repositories/central.ballerina.io/cache-2201.13.5/ballerina/ai/1.14.1/bir/ai.bir",
-            "repositories/central.ballerina.io/cache-2201.13.4/ballerina/ai/1.14.1/bir/ai.bir",
-            // keep: other version of same module
-            "repositories/central.ballerina.io/cache-2201.13.5/ballerina/ai/1.13.0/bir/ai.bir",
-            // keep: other module
-            "repositories/central.ballerina.io/cache-2201.13.5/ballerina/io/1.6.0/bir/io.bir",
-            // keep: pulled bala source (never cleared)
-            "repositories/central.ballerina.io/bala/ballerina/ai/1.14.1/java21/pkg.json",
-            // keep: the distribution itself
-            "distributions/ballerina-2201.13.5/bin/bal",
-        ];
-        for (const rel of files) {
-            const full = path.join(h, ".ballerina", rel);
-            await fs.mkdir(path.dirname(full), { recursive: true });
-            await fs.writeFile(full, "x");
-        }
-    }
+const fixtures = loadFixtures<BirCacheFixture>(__dirname, "fixtures", "bir-cache");
 
-    const exists = async (rel: string): Promise<boolean> => {
+describe("clearModuleBirCache (targeted, cache-only) — fixtures", () => {
+    const toOsPath = (rel: string): string => path.join(...rel.split("/"));
+
+    it("has fixtures to run", () => {
+        expect(fixtures.length).toBeGreaterThan(0);
+    });
+
+    it.each(fixtures.map((f) => [f.name, f.data] as [string, BirCacheFixture]))("%s", async (_name, fx) => {
+        const home = await fs.mkdtemp(path.join(os.tmpdir(), "bir-cache-test-"));
+        const ballerinaDir = path.join(home, ".ballerina");
+        const reposDir = path.join(ballerinaDir, "repositories");
+        const relToBallerina = (abs: string): string => path.relative(ballerinaDir, abs);
+        const exists = async (rel: string): Promise<boolean> => {
+            try {
+                await fs.stat(path.join(ballerinaDir, toOsPath(rel)));
+                return true;
+            } catch {
+                return false;
+            }
+        };
+
         try {
-            await fs.stat(path.join(home, ".ballerina", rel));
-            return true;
-        } catch {
-            return false;
+            // Seed the realistic ~/.ballerina tree.
+            for (const rel of fx.tree) {
+                const full = path.join(ballerinaDir, toOsPath(rel));
+                await fs.mkdir(path.dirname(full), { recursive: true });
+                await fs.writeFile(full, "x");
+            }
+
+            if (fx.expectedResolved) {
+                const resolved = await resolveModuleCacheDirs(reposDir, fx.module, fx.distVersion);
+                expect(resolved.map(relToBallerina).sort()).toEqual(fx.expectedResolved.map(toOsPath).sort());
+            }
+
+            const removed = await clearModuleBirCache(fx.module, { distVersion: fx.distVersion, homeDir: home });
+            expect(removed.map(relToBallerina).sort()).toEqual(fx.expectedRemoved.map(toOsPath).sort());
+
+            for (const rel of fx.expectedRemoved) {
+                expect(await exists(rel)).toBe(false);
+            }
+            for (const rel of fx.expectedKept) {
+                expect(await exists(rel)).toBe(true);
+            }
+        } finally {
+            await fs.rm(home, { recursive: true, force: true });
         }
-    };
-
-    beforeEach(async () => {
-        home = await fs.mkdtemp(path.join(os.tmpdir(), "bir-cache-test-"));
-        await seed(home);
-    });
-
-    afterEach(async () => {
-        await fs.rm(home, { recursive: true, force: true });
-    });
-
-    it("scopes to the active distribution's cache-<distVersion> only", async () => {
-        const dirs = await resolveModuleCacheDirs(
-            reposFor(home),
-            { org: "ballerina", name: "ai", version: "1.14.1" },
-            "2201.13.5"
-        );
-        const rels = dirs.map((d) => path.relative(reposFor(home), d));
-        expect(rels).toEqual([path.join("central.ballerina.io", "cache-2201.13.5", "ballerina", "ai", "1.14.1")]);
-    });
-
-    it("considers every cache-* dir when no distVersion is given", async () => {
-        const dirs = await resolveModuleCacheDirs(reposFor(home), { org: "ballerina", name: "ai", version: "1.14.1" });
-        const rels = dirs.map((d) => path.relative(reposFor(home), d)).sort();
-        expect(rels).toEqual([
-            path.join("central.ballerina.io", "cache-2201.13.4", "ballerina", "ai", "1.14.1"),
-            path.join("central.ballerina.io", "cache-2201.13.5", "ballerina", "ai", "1.14.1"),
-        ]);
-    });
-
-    it("removes the corrupt module's cache only under the active distribution, nothing else", async () => {
-        const removed = await clearModuleBirCache(
-            { org: "ballerina", name: "ai", version: "1.14.1" },
-            { distVersion: "2201.13.5", homeDir: home }
-        );
-
-        expect(removed).toHaveLength(1);
-        // target gone from the active distribution's cache
-        expect(await exists("repositories/central.ballerina.io/cache-2201.13.5/ballerina/ai/1.14.1")).toBe(false);
-        // OTHER distribution's cache for the same module is left intact
-        expect(await exists("repositories/central.ballerina.io/cache-2201.13.4/ballerina/ai/1.14.1/bir/ai.bir")).toBe(true);
-        // everything else intact
-        expect(await exists("repositories/central.ballerina.io/cache-2201.13.5/ballerina/ai/1.13.0/bir/ai.bir")).toBe(true);
-        expect(await exists("repositories/central.ballerina.io/cache-2201.13.5/ballerina/io/1.6.0/bir/io.bir")).toBe(true);
-        expect(await exists("repositories/central.ballerina.io/bala/ballerina/ai/1.14.1/java21/pkg.json")).toBe(true);
-        expect(await exists("distributions/ballerina-2201.13.5/bin/bal")).toBe(true);
-    });
-
-    it("removes nothing when the module is not cached", async () => {
-        const removed = await clearModuleBirCache(
-            { org: "ballerina", name: "nope", version: "9.9.9" },
-            { distVersion: "2201.13.5", homeDir: home }
-        );
-        expect(removed).toEqual([]);
-        expect(await exists("repositories/central.ballerina.io/cache-2201.13.5/ballerina/ai/1.14.1/bir/ai.bir")).toBe(true);
     });
 });

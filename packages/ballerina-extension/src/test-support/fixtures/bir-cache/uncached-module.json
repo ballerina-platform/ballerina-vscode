@@ -1,0 +1,12 @@
+{
+    "description": "Module not present in any cache: nothing is resolved or removed and the existing tree is left intact",
+    "module": { "org": "ballerina", "name": "nope", "version": "9.9.9" },
+    "distVersion": "2201.13.5",
+    "tree": [
+        "repositories/central.ballerina.io/cache-2201.13.5/ballerina/ai/1.14.1/bir/ai.bir"
+    ],
+    "expectedRemoved": [],
+    "expectedKept": [
+        "repositories/central.ballerina.io/cache-2201.13.5/ballerina/ai/1.14.1/bir/ai.bir"
+    ]
+}
