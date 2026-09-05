@@ -321,6 +321,7 @@ import { debug, handlePullModuleProgress } from "../utils";
 import { CMP_LS_CLIENT_COMPLETIONS, CMP_LS_CLIENT_DIAGNOSTICS, getMessageObject, sendTelemetryEvent, TM_EVENT_LANG_CLIENT } from "../features/telemetry";
 import { DefinitionParams, InitializeParams, InitializeResult, Location, LocationLink, TextDocumentPositionParams } from 'vscode-languageserver-protocol';
 import { updateProjectArtifacts } from "../utils/project-artifacts";
+import { CorruptBirCachePayload, promptClearCorruptBirCache } from "../utils/bir-cache-recovery";
 import { RPCLayer } from "../../src/RPCLayer";
 import { VisualizerWebview } from "../../src/views/visualizer/webview";
 
@@ -535,7 +536,8 @@ enum EXTENDED_APIS {
     MULE_TO_BI = 'projectService/importMule',
     MIGRATION_TOOL_STATE = 'projectService/stateCallback',
     MIGRATION_TOOL_LOG = 'projectService/logCallback',
-    PUSH_MIGRATED_PROJECT = 'projectService/pushMigratedProject'
+    PUSH_MIGRATED_PROJECT = 'projectService/pushMigratedProject',
+    CORRUPT_BIR_CACHE = 'projectService/corruptBirCache'
 }
 
 enum EXTENDED_APIS_ORG {
@@ -654,6 +656,14 @@ export class ExtendedLangClient extends LanguageClient implements ExtendedLangCl
             } catch (error) {
                 console.error("Error in PUBLISH_ARTIFACTS handler:", error);
             }
+        });
+    }
+
+    registerCorruptBirCache(): void {
+        // A corrupt/incompatible cached BIR makes the project load empty. The LS
+        // reports the affected module here; offer to clear just that module's cache and reload.
+        this.onNotification(EXTENDED_APIS.CORRUPT_BIR_CACHE, (res: CorruptBirCachePayload) => {
+            void promptClearCorruptBirCache(res);
         });
     }
 
