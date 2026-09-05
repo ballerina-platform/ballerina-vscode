@@ -607,9 +607,16 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
             }
             String moduleName = (request.codedata().getModuleName() != null) ?
                     request.codedata().getModuleName() : DEFAULT;
-            Function function = FunctionBuilderRouter.getFunctionFromSource(moduleName, semanticModelOp.get(),
-                    functionDefinitionNode);
-            return new FunctionFromSourceResponse(function);
+            try {
+                Function function = FunctionBuilderRouter.getFunctionFromSource(moduleName, semanticModelOp.get(),
+                        functionDefinitionNode);
+                return new FunctionFromSourceResponse(function);
+            } catch (Exception e) {
+                // Matches updateFunction and getServiceFromSource: an unexpected failure here should
+                // reach the client as an error-carrying response, not an escaped RuntimeException
+                // that becomes an opaque JSON-RPC InternalError.
+                return new FunctionFromSourceResponse(e);
+            }
         });
     }
 

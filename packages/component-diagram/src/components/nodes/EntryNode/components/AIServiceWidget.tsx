@@ -18,7 +18,8 @@
 
 import React, { useState } from "react";
 import styled from "@emotion/styled";
-import { CDService } from "@wso2/ballerina-core";
+import { PortWidget } from "@projectstorm/react-diagrams-core";
+import { AI_CHAT_RESOURCE_NAME, AI_DECISION_RESOURCE_NAME, CDResourceFunction, CDService } from "@wso2/ballerina-core";
 import { Item, Menu, MenuItem, Popover, Icon, ThemeColors } from "@wso2/ui-toolkit";
 import { useDiagramContext } from "../../../DiagramContext";
 import { MoreVertIcon } from "../../../../resources/icons/nodes/MoreVertIcon";
@@ -35,7 +36,11 @@ import {
     IconWrapper,
     MenuButton,
     TopPortWidget,
-    BottomPortWidget
+    BottomPortWidget,
+    FunctionBoxWrapper,
+    StyledServiceBox,
+    RowIconWrapper,
+    EventTypeText
 } from "./styles";
 
 type NodeStyleProp = { hovered: boolean };
@@ -98,11 +103,54 @@ const getNodeDescription = (model: EntryNodeModel) => {
         "";
 };
 
+// A single subordinate capability row, used for `chat` and for `decision`. Neither is rendered as a
+// resource with a method badge: both are fixed, code-generated surface (see AiChatServiceBuilder),
+// not something the user designs from scratch the way an HTTP resource is, so they read as
+// capabilities of the agent rather than peer endpoints.
+function AgentCapabilityBox(props: {
+    func: CDResourceFunction;
+    model: EntryNodeModel;
+    engine: any;
+    readonly?: boolean;
+    icon: string;
+    label: string;
+    tag: string;
+    title: string;
+}) {
+    const { func, model, engine, readonly, icon, label, tag, title } = props;
+    const [isHovered, setIsHovered] = useState(false);
+    const { onFunctionSelect } = useDiagramContext();
+
+    const handleOnClick = () => {
+        onFunctionSelect(func);
+    };
+
+    return (
+        <FunctionBoxWrapper>
+            <StyledServiceBox
+                hovered={isHovered}
+                onClick={() => !readonly ? handleOnClick() : undefined}
+                onMouseEnter={() => !readonly && setIsHovered(true)}
+                onMouseLeave={() => !readonly && setIsHovered(false)}
+                readonly={readonly}
+                title={title}
+            >
+                <RowIconWrapper>
+                    <Icon name={icon} sx={{ fontSize: 16, width: 16, height: 16 }} />
+                </RowIconWrapper>
+                <Title hovered={isHovered}>{label}</Title>
+                <EventTypeText>{tag}</EventTypeText>
+            </StyledServiceBox>
+            <PortWidget port={model.getPort(getEntryNodeFunctionPortName(func))!} engine={engine} />
+        </FunctionBoxWrapper>
+    );
+}
+
 export function AIServiceWidget({ model, engine }: BaseNodeWidgetProps) {
     const [isHovered, setIsHovered] = useState(false);
     const [menuAnchorEl, setMenuAnchorEl] = useState<HTMLElement | SVGSVGElement>(null);
 
-    const { onFunctionSelect, onDeleteComponent, readonly } = useDiagramContext();
+    const { onServiceSelect, onDeleteComponent, readonly } = useDiagramContext();
     const isMenuOpen = Boolean(menuAnchorEl);
 
     const serviceFunctions = [];
@@ -113,10 +161,18 @@ export function AIServiceWidget({ model, engine }: BaseNodeWidgetProps) {
         serviceFunctions.push(...(model.node as CDService).resourceFunctions);
     }
 
+    const resourceFunctions = (model.node as CDService).resourceFunctions ?? [];
+    // Resolve by path rather than array position — `serviceFunctions[0]` only happened to be
+    // `chat` because of incidental ordering upstream; matching the generated name is correct
+    // regardless of how many resources the service ends up with.
+    const chatFunction = resourceFunctions.find(fn => fn.path === AI_CHAT_RESOURCE_NAME) ?? serviceFunctions[0];
+    const decisionFunction = resourceFunctions.find(fn => fn.path === AI_DECISION_RESOURCE_NAME);
+
+    // The outer box always opens the service's resource listing, exactly as a REST service node
+    // does. Deliberately independent of whether HITL is wired: a node whose click target silently
+    // changed once a `decision` resource appeared would be unpredictable.
     const handleOnClick = () => {
-        if (serviceFunctions.length > 0) {
-            onFunctionSelect(serviceFunctions[0]);
-        }
+        onServiceSelect(model.node as CDService);
     };
 
     const { handleMouseDown, handleMouseUp } = useClickWithDragTolerance(handleOnClick);
@@ -179,6 +235,30 @@ export function AIServiceWidget({ model, engine }: BaseNodeWidgetProps) {
                         <MoreVertIcon />
                     </MenuButton>
                 </ServiceBox>
+                {chatFunction && (
+                    <AgentCapabilityBox
+                        func={chatFunction}
+                        model={model}
+                        engine={engine}
+                        readonly={readonly}
+                        icon="bi-chat"
+                        label="Agent Chat"
+                        tag="Chat"
+                        title="Handles a single conversational turn with the agent"
+                    />
+                )}
+                {decisionFunction && (
+                    <AgentCapabilityBox
+                        func={decisionFunction}
+                        model={model}
+                        engine={engine}
+                        readonly={readonly}
+                        icon="user-fill"
+                        label="Human Decision"
+                        tag="Decision"
+                        title="Resumes a paused run once a human approves or rejects a pending tool call"
+                    />
+                )}
             </BoxComponent>
 
             <Popover
@@ -198,12 +278,8 @@ export function AIServiceWidget({ model, engine }: BaseNodeWidgetProps) {
             </Popover>
 
             <BottomPortWidget port={model.getPort("out")!} engine={engine} />
-            {serviceFunctions.length > 0 && (
-                <BottomPortWidget
-                    port={model.getPort(getEntryNodeFunctionPortName(serviceFunctions[0]))!}
-                    engine={engine}
-                />
-            )}
+            {/* Every resource now has a visible row carrying its own inline PortWidget, so there is
+                no anonymous chat port here — registering the same port twice would conflict. */}
         </Node>
     );
 }

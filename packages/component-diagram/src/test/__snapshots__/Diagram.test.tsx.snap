@@ -13,7 +13,7 @@ exports[`Component Diagram - Snapshot Tests renders ai agent complex correctly: 
 .css-9 {margin-top: -3px;}
 .css-5 {position: relative; cursor: move; overflow: hidden;}
 .css-20 {display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; color: var(--vscode-foreground);}
-.css-36 {border-radius: 5px;}
+.css-39 {border-radius: 5px;}
 .css-1 {display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; padding: 8px; border-radius: 4px; background-color: var(--vscode-sideBar-background); fill: var(--vscode-foreground); width: 32px; height: 32px; cursor: pointer;}
 .css-1:active {background-color: var(--vscode-editor-inactiveSelectionBackground);}
 .css-1:hover {background-color: var(--vscode-editor-inactiveSelectionBackground);}
@@ -23,8 +23,8 @@ exports[`Component Diagram - Snapshot Tests renders ai agent complex correctly: 
 .css-3>*:last-child {border-top-left-radius: 0; border-top-right-radius: 0;}
 .css-3>*:not(:first-child):not(:last-child) {border-radius: 0;}
 .css-3>*:not(:last-child) {border-bottom: 1px solid var(--vscode-dropdown-border);}
-.css-35 svg {fill: var(--vscode-foreground);}
-.css-35 {padding: 4px;}
+.css-38 svg {fill: var(--vscode-foreground);}
+.css-38 {padding: 4px;}
 .css-31 {display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; color: var(--vscode-contrastBorder, var(--vscode-button-background)); height: 40px; width: 100%; cursor: pointer; font-family: "GilmerMedium"; font-size: 14px;}
 .css-31:hover {border: 1px solid var(--vscode-contrastActiveBorder, var(--vscode-button-background)); border-radius: 8px;}
 .css-19 {margin-bottom: -2px;}
@@ -32,20 +32,21 @@ exports[`Component Diagram - Snapshot Tests renders ai agent complex correctly: 
 .css-12 svg {fill: var(--vscode-foreground);}
 .css-12 {width: 24px; height: 24px; font-size: 24px;}
 .css-28 {font-size: 12px; text-transform: uppercase; font-family: "GilmerBold"; background-color: #3d7eff; color: #FFF; padding: 4px 8px; border-radius: 4px; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; min-width: 60px; text-align: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; font-weight: bold;}
-.css-40::part(indeterminate-indicator-1) {stroke: var(--vscode-contrastBorder, var(--vscode-button-background));}
+.css-43::part(indeterminate-indicator-1) {stroke: var(--vscode-contrastBorder, var(--vscode-button-background));}
 .css-16 {font-size: 12px; max-width: 136px; overflow: hidden; text-overflow: ellipsis; font-family: monospace; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; color: var(--vscode-foreground); opacity: 0.7;}
 .css-25 {font-size: 14px; max-width: 160px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: "GilmerMedium"; color: var(--vscode-foreground); opacity: 1;}
-.css-39 {-webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; height: 100%; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; width: 100%; background-color: var(--vscode-menu-background); z-index: 1000;}
-.css-37 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-align-items: flex-end; -webkit-box-align: flex-end; -ms-flex-align: flex-end; align-items: flex-end; gap: 6px;}
-.css-33 {display: flex; -webkit-flex-direction: row-reverse; -ms-flex-direction: row-reverse; flex-direction: row-reverse; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 12px; cursor: pointer;}
+.css-42 {-webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; height: 100%; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; width: 100%; background-color: var(--vscode-menu-background); z-index: 1000;}
+.css-40 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-align-items: flex-end; -webkit-box-align: flex-end; -ms-flex-align: flex-end; align-items: flex-end; gap: 6px;}
+.css-36 {display: flex; -webkit-flex-direction: row-reverse; -ms-flex-direction: row-reverse; flex-direction: row-reverse; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 12px; cursor: pointer;}
 .css-11 {display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; width: 64px; height: 64px; border: 1.5px solid var(--vscode-dropdown-border); border-radius: 50%; background-color: var(--vscode-menu-background); color: var(--vscode-foreground); aspect-ratio: 1/1;}
 .css-2 {height: 16px; width: 16px; cursor: pointer; font-size: 16px;}
-.css-38 {font-size: 14px; max-width: 136px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: "GilmerMedium"; color: var(--vscode-foreground); opacity: 1;}
+.css-33 {height: 16px; width: 16px; cursor: pointer; font-size: 16px;}
+.css-41 {font-size: 14px; max-width: 136px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: "GilmerMedium"; color: var(--vscode-foreground); opacity: 1;}
 .css-23 >div:first-child {width: 24px; height: 24px; font-size: 24px;}
 .css-23 svg {fill: var(--vscode-foreground);}
 .css-23 {padding: 4px; max-width: 32px;}
 .css-17 {border-radius: 5px;}
-.css-34 {display: flex; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; width: 64px; height: 64px; border: 1.5px solid var(--vscode-dropdown-border); border-radius: 50%; background-color: var(--vscode-menu-background); color: var(--vscode-foreground);}
+.css-37 {display: flex; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; width: 64px; height: 64px; border: 1.5px solid var(--vscode-dropdown-border); border-radius: 50%; background-color: var(--vscode-menu-background); color: var(--vscode-foreground);}
 .css-22 {display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-box-pack: start; -ms-flex-pack: start; -webkit-justify-content: flex-start; justify-content: flex-start; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 10px; width: 240px; height: 56px; cursor: pointer;}
 .css-22:hover {background-color: var(--vscode-sideBar-background); border-radius: 8px;}
 .css-29 {font-size: 12px; text-transform: uppercase; font-family: "GilmerBold"; background-color: #49cc90; color: #FFF; padding: 4px 8px; border-radius: 4px; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; min-width: 60px; text-align: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; font-weight: bold;}
@@ -55,8 +56,12 @@ exports[`Component Diagram - Snapshot Tests renders ai agent complex correctly: 
 .css-15 {font-size: 14px; max-width: 150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: "GilmerMedium"; color: var(--vscode-foreground); opacity: 1;}
 .css-13 {height: 16px; width: 14px; cursor: pointer;}
 .css-24 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: flex-start; -webkit-box-align: flex-start; -ms-flex-align: flex-start; align-items: flex-start; gap: 6px; width: 100%; cursor: pointer;}
-.css-32 {display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-box-pack: end; -ms-flex-pack: end; -webkit-justify-content: flex-end; justify-content: flex-end; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; height: 64px; width: 200px; color: var(--vscode-foreground);}
+.css-35 {display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-box-pack: end; -ms-flex-pack: end; -webkit-justify-content: flex-end; justify-content: flex-end; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; height: 64px; width: 200px; color: var(--vscode-foreground);}
 .css-0 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; gap: 8px; position: absolute; left: 12px; bottom: 12px; z-index: 1000;}
+.css-32 >div:first-child {width: 16px; height: 16px; font-size: 16px;}
+.css-32 svg {fill: var(--vscode-foreground);}
+.css-32 {display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center;}
+.css-34 {font-size: 12px; margin-left: auto; max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: monospace; color: var(--vscode-foreground); opacity: 0.7;}
 .css-10 {display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-box-pack: start; -ms-flex-pack: start; -webkit-justify-content: flex-start; justify-content: flex-start; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 12px; width: 100%; cursor: pointer;}
 
 /* DOM */
@@ -559,15 +564,45 @@ exports[`Component Diagram - Snapshot Tests renders ai agent complex correctly: 
                   </vscode-button>
                 </div>
               </div>
+              <div
+                class="css-20"
+              >
+                <div
+                  class="css-27"
+                  title="Handles a single conversational turn with the agent"
+                >
+                  <div
+                    class="css-32"
+                  >
+                    <div
+                      class="css-33"
+                    >
+                      <i
+                        class="fw-bi-chat"
+                      />
+                    </div>
+                  </div>
+                  <div
+                    class="css-25"
+                  >
+                    Agent Chat
+                  </div>
+                  <div
+                    class="css-34"
+                  >
+                    Chat
+                  </div>
+                </div>
+                <div
+                  class="port "
+                  data-name="post-chat"
+                />
+              </div>
             </div>
             <div />
             <div
               class="port css-19"
               data-name="out"
-            />
-            <div
-              class="port css-19"
-              data-name="post-chat"
             />
           </div>
         </div>
@@ -652,20 +687,20 @@ exports[`Component Diagram - Snapshot Tests renders ai agent complex correctly: 
           style="top: 332px; left: 250px;"
         >
           <div
-            class="css-32"
+            class="css-35"
           >
             <div
-              class="css-33"
+              class="css-36"
             >
               <div
-                class="css-34"
+                class="css-37"
               >
                 <div
                   class="port css-9"
                   data-name="in"
                 />
                 <div
-                  class="css-35"
+                  class="css-38"
                 >
                   <svg
                     height="24"
@@ -690,7 +725,7 @@ exports[`Component Diagram - Snapshot Tests renders ai agent complex correctly: 
                 />
               </div>
               <div
-                class="css-36 css-18"
+                class="css-39 css-18"
               >
                 <vscode-button>
                   <svg
@@ -711,10 +746,10 @@ exports[`Component Diagram - Snapshot Tests renders ai agent complex correctly: 
                 </vscode-button>
               </div>
               <div
-                class="css-37"
+                class="css-40"
               >
                 <div
-                  class="css-38"
+                  class="css-41"
                 />
                 <div
                   class="css-16"
@@ -731,20 +766,20 @@ exports[`Component Diagram - Snapshot Tests renders ai agent complex correctly: 
           style="top: 100px; left: 250px;"
         >
           <div
-            class="css-32"
+            class="css-35"
           >
             <div
-              class="css-33"
+              class="css-36"
             >
               <div
-                class="css-34"
+                class="css-37"
               >
                 <div
                   class="port css-9"
                   data-name="in"
                 />
                 <div
-                  class="css-35"
+                  class="css-38"
                 >
                   <svg
                     height="24"
@@ -769,7 +804,7 @@ exports[`Component Diagram - Snapshot Tests renders ai agent complex correctly: 
                 />
               </div>
               <div
-                class="css-36 css-18"
+                class="css-39 css-18"
               >
                 <vscode-button>
                   <svg
@@ -790,10 +825,10 @@ exports[`Component Diagram - Snapshot Tests renders ai agent complex correctly: 
                 </vscode-button>
               </div>
               <div
-                class="css-37"
+                class="css-40"
               >
                 <div
-                  class="css-38"
+                  class="css-41"
                 />
                 <div
                   class="css-16"
@@ -814,11 +849,11 @@ exports[`Component Diagram - Snapshot Tests renders ai agent complex correctly: 
           color="var(--vscode-foreground)"
         >
           <div
-            class="css-39"
+            class="css-42"
           >
             <vscode-progress-ring
               aria-live="assertive"
-              class="css-40"
+              class="css-43"
               color="var(--vscode-contrastBorder, var(--vscode-button-background))"
               role="alert"
             />
@@ -1666,11 +1701,11 @@ exports[`Component Diagram - Snapshot Tests renders graphql complex correctly: g
 .css-4 svg:first-child {z-index: 1;}
 .css-4 {height: 100%; -webkit-background-size: 16px 16px; background-size: 16px 16px; display: flex; background-image: radial-gradient(var(--vscode-editor-inactiveSelectionBackground) 10%, transparent 0px); font-family: "GilmerRegular";}
 .css-26 {font-size: 12px; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: monospace; color: var(--vscode-foreground); opacity: 0.7;}
-.css-31 {display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; width: 100%;}
+.css-34 {display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; width: 100%;}
 .css-9 {margin-top: -3px;}
 .css-5 {position: relative; cursor: move; overflow: hidden;}
 .css-20 {display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; color: var(--vscode-foreground);}
-.css-37 {border-radius: 5px;}
+.css-40 {border-radius: 5px;}
 .css-1 {display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; padding: 8px; border-radius: 4px; background-color: var(--vscode-sideBar-background); fill: var(--vscode-foreground); width: 32px; height: 32px; cursor: pointer;}
 .css-1:active {background-color: var(--vscode-editor-inactiveSelectionBackground);}
 .css-1:hover {background-color: var(--vscode-editor-inactiveSelectionBackground);}
@@ -1680,42 +1715,47 @@ exports[`Component Diagram - Snapshot Tests renders graphql complex correctly: g
 .css-3>*:last-child {border-top-left-radius: 0; border-top-right-radius: 0;}
 .css-3>*:not(:first-child):not(:last-child) {border-radius: 0;}
 .css-3>*:not(:last-child) {border-bottom: 1px solid var(--vscode-dropdown-border);}
-.css-36 svg {fill: var(--vscode-foreground);}
-.css-36 {padding: 4px;}
-.css-32 {display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; color: var(--vscode-contrastBorder, var(--vscode-button-background)); height: 40px; width: 100%; cursor: pointer; font-family: "GilmerMedium"; font-size: 14px;}
-.css-32:hover {border: 1px solid var(--vscode-contrastActiveBorder, var(--vscode-button-background)); border-radius: 8px;}
+.css-39 svg {fill: var(--vscode-foreground);}
+.css-39 {padding: 4px;}
+.css-35 {display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; color: var(--vscode-contrastBorder, var(--vscode-button-background)); height: 40px; width: 100%; cursor: pointer; font-family: "GilmerMedium"; font-size: 14px;}
+.css-35:hover {border: 1px solid var(--vscode-contrastActiveBorder, var(--vscode-button-background)); border-radius: 8px;}
 .css-19 {margin-bottom: -2px;}
 .css-18 {display: flex; height: fit-content; width: fit-content;}
 .css-12 svg {fill: var(--vscode-foreground);}
 .css-12 {width: 24px; height: 24px; font-size: 24px;}
-.css-29 {font-size: 12px; text-transform: uppercase; font-family: "GilmerBold"; background-color: #3d7eff; color: #FFF; padding: 4px 8px; border-radius: 4px; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; min-width: 60px; text-align: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; font-weight: bold;}
-.css-41::part(indeterminate-indicator-1) {stroke: var(--vscode-contrastBorder, var(--vscode-button-background));}
+.css-32 {font-size: 12px; text-transform: uppercase; font-family: "GilmerBold"; background-color: #3d7eff; color: #FFF; padding: 4px 8px; border-radius: 4px; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; min-width: 60px; text-align: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; font-weight: bold;}
+.css-44::part(indeterminate-indicator-1) {stroke: var(--vscode-contrastBorder, var(--vscode-button-background));}
 .css-16 {font-size: 12px; max-width: 136px; overflow: hidden; text-overflow: ellipsis; font-family: monospace; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; color: var(--vscode-foreground); opacity: 0.7;}
 .css-25 {font-size: 14px; max-width: 160px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: "GilmerMedium"; color: var(--vscode-foreground); opacity: 1;}
-.css-40 {-webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; height: 100%; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; width: 100%; background-color: var(--vscode-menu-background); z-index: 1000;}
-.css-38 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-align-items: flex-end; -webkit-box-align: flex-end; -ms-flex-align: flex-end; align-items: flex-end; gap: 6px;}
-.css-34 {display: flex; -webkit-flex-direction: row-reverse; -ms-flex-direction: row-reverse; flex-direction: row-reverse; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 12px; cursor: pointer;}
+.css-43 {-webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; height: 100%; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; width: 100%; background-color: var(--vscode-menu-background); z-index: 1000;}
+.css-41 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-align-items: flex-end; -webkit-box-align: flex-end; -ms-flex-align: flex-end; align-items: flex-end; gap: 6px;}
+.css-37 {display: flex; -webkit-flex-direction: row-reverse; -ms-flex-direction: row-reverse; flex-direction: row-reverse; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 12px; cursor: pointer;}
 .css-11 {display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; width: 64px; height: 64px; border: 1.5px solid var(--vscode-dropdown-border); border-radius: 50%; background-color: var(--vscode-menu-background); color: var(--vscode-foreground); aspect-ratio: 1/1;}
 .css-2 {height: 16px; width: 16px; cursor: pointer; font-size: 16px;}
-.css-39 {font-size: 14px; max-width: 136px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: "GilmerMedium"; color: var(--vscode-foreground); opacity: 1;}
+.css-29 {height: 16px; width: 16px; cursor: pointer; font-size: 16px;}
+.css-42 {font-size: 14px; max-width: 136px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: "GilmerMedium"; color: var(--vscode-foreground); opacity: 1;}
 .css-23 >div:first-child {width: 24px; height: 24px; font-size: 24px;}
 .css-23 svg {fill: var(--vscode-foreground);}
 .css-23 {padding: 4px; max-width: 32px;}
 .css-17 {border-radius: 5px;}
-.css-35 {display: flex; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; width: 64px; height: 64px; border: 1.5px solid var(--vscode-dropdown-border); border-radius: 50%; background-color: var(--vscode-menu-background); color: var(--vscode-foreground);}
+.css-38 {display: flex; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; width: 64px; height: 64px; border: 1.5px solid var(--vscode-dropdown-border); border-radius: 50%; background-color: var(--vscode-menu-background); color: var(--vscode-foreground);}
 .css-22 {display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-box-pack: start; -ms-flex-pack: start; -webkit-justify-content: flex-start; justify-content: flex-start; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 10px; width: 240px; height: 56px; cursor: pointer;}
 .css-22:hover {background-color: var(--vscode-sideBar-background); border-radius: 8px;}
-.css-30 {font-size: 12px; text-transform: uppercase; font-family: "GilmerBold"; background-color: #49cc90; color: #FFF; padding: 4px 8px; border-radius: 4px; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; min-width: 60px; text-align: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; font-weight: bold;}
-.css-28 {display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-box-pack: start; -ms-flex-pack: start; -webkit-justify-content: flex-start; justify-content: flex-start; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 10px; width: 240px; height: 40px; cursor: pointer; padding: 0 12px; border: 1.5px solid var(--vscode-dropdown-border); border-radius: 8px; background-color: var(--vscode-menu-background);}
-.css-28:hover {background-color: var(--vscode-sideBar-background); border-radius: 8px;}
+.css-33 {font-size: 12px; text-transform: uppercase; font-family: "GilmerBold"; background-color: #49cc90; color: #FFF; padding: 4px 8px; border-radius: 4px; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; min-width: 60px; text-align: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; font-weight: bold;}
+.css-27 {display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-box-pack: start; -ms-flex-pack: start; -webkit-justify-content: flex-start; justify-content: flex-start; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 10px; width: 240px; height: 40px; cursor: pointer; padding: 0 12px; border: 1.5px solid var(--vscode-dropdown-border); border-radius: 8px; background-color: var(--vscode-menu-background);}
+.css-27:hover {background-color: var(--vscode-sideBar-background); border-radius: 8px;}
 .css-7 {position: absolute; -webkit-touch-callout: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; cursor: move; pointer-events: all;}
 .css-15 {font-size: 14px; max-width: 150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: "GilmerMedium"; color: var(--vscode-foreground); opacity: 1;}
 .css-13 {height: 16px; width: 14px; cursor: pointer;}
 .css-24 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: flex-start; -webkit-box-align: flex-start; -ms-flex-align: flex-start; align-items: flex-start; gap: 6px; width: 100%; cursor: pointer;}
-.css-33 {display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-box-pack: end; -ms-flex-pack: end; -webkit-justify-content: flex-end; justify-content: flex-end; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; height: 64px; width: 200px; color: var(--vscode-foreground);}
+.css-36 {display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-box-pack: end; -ms-flex-pack: end; -webkit-justify-content: flex-end; justify-content: flex-end; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; height: 64px; width: 200px; color: var(--vscode-foreground);}
 .css-0 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; gap: 8px; position: absolute; left: 12px; bottom: 12px; z-index: 1000;}
+.css-28 >div:first-child {width: 16px; height: 16px; font-size: 16px;}
+.css-28 svg {fill: var(--vscode-foreground);}
+.css-28 {display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center;}
+.css-30 {font-size: 12px; margin-left: auto; max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: monospace; color: var(--vscode-foreground); opacity: 0.7;}
 .css-10 {display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-box-pack: start; -ms-flex-pack: start; -webkit-justify-content: flex-start; justify-content: flex-start; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 12px; width: 100%; cursor: pointer;}
-.css-27 {height: 16px; width: 14px; cursor: pointer; color: #e535ab;}
+.css-31 {height: 16px; width: 14px; cursor: pointer; color: #e535ab;}
 
 /* DOM */
 <div>
@@ -2139,15 +2179,45 @@ exports[`Component Diagram - Snapshot Tests renders graphql complex correctly: g
                   </vscode-button>
                 </div>
               </div>
+              <div
+                class="css-20"
+              >
+                <div
+                  class="css-27"
+                  title="Handles a single conversational turn with the agent"
+                >
+                  <div
+                    class="css-28"
+                  >
+                    <div
+                      class="css-29"
+                    >
+                      <i
+                        class="fw-bi-chat"
+                      />
+                    </div>
+                  </div>
+                  <div
+                    class="css-25"
+                  >
+                    Agent Chat
+                  </div>
+                  <div
+                    class="css-30"
+                  >
+                    Chat
+                  </div>
+                </div>
+                <div
+                  class="port "
+                  data-name="post-chat"
+                />
+              </div>
             </div>
             <div />
             <div
               class="port css-19"
               data-name="out"
-            />
-            <div
-              class="port css-19"
-              data-name="post-chat"
             />
           </div>
         </div>
@@ -2172,7 +2242,7 @@ exports[`Component Diagram - Snapshot Tests renders graphql complex correctly: g
                   class="css-23"
                 >
                   <div
-                    class="css-27"
+                    class="css-31"
                   >
                     <i
                       class="fw-bi-graphql"
@@ -2290,10 +2360,10 @@ exports[`Component Diagram - Snapshot Tests renders graphql complex correctly: g
                 class="css-20"
               >
                 <div
-                  class="css-28"
+                  class="css-27"
                 >
                   <div
-                    class="css-29"
+                    class="css-32"
                     color="#3d7eff"
                   >
                     get
@@ -2313,10 +2383,10 @@ exports[`Component Diagram - Snapshot Tests renders graphql complex correctly: g
                 class="css-20"
               >
                 <div
-                  class="css-28"
+                  class="css-27"
                 >
                   <div
-                    class="css-30"
+                    class="css-33"
                     color="#49cc90"
                   >
                     post
@@ -2333,10 +2403,10 @@ exports[`Component Diagram - Snapshot Tests renders graphql complex correctly: g
                 />
               </div>
               <div
-                class="css-31"
+                class="css-34"
               >
                 <div
-                  class="css-32"
+                  class="css-35"
                 >
                   Show More Resources
                 </div>
@@ -2434,20 +2504,20 @@ exports[`Component Diagram - Snapshot Tests renders graphql complex correctly: g
           style="top: 100px; left: 250px;"
         >
           <div
-            class="css-33"
+            class="css-36"
           >
             <div
-              class="css-34"
+              class="css-37"
             >
               <div
-                class="css-35"
+                class="css-38"
               >
                 <div
                   class="port css-9"
                   data-name="in"
                 />
                 <div
-                  class="css-36"
+                  class="css-39"
                 >
                   <svg
                     height="24"
@@ -2472,7 +2542,7 @@ exports[`Component Diagram - Snapshot Tests renders graphql complex correctly: g
                 />
               </div>
               <div
-                class="css-37 css-18"
+                class="css-40 css-18"
               >
                 <vscode-button>
                   <svg
@@ -2493,10 +2563,10 @@ exports[`Component Diagram - Snapshot Tests renders graphql complex correctly: g
                 </vscode-button>
               </div>
               <div
-                class="css-38"
+                class="css-41"
               >
                 <div
-                  class="css-39"
+                  class="css-42"
                 />
                 <div
                   class="css-16"
@@ -2513,20 +2583,20 @@ exports[`Component Diagram - Snapshot Tests renders graphql complex correctly: g
           style="top: 244px; left: 250px;"
         >
           <div
-            class="css-33"
+            class="css-36"
           >
             <div
-              class="css-34"
+              class="css-37"
             >
               <div
-                class="css-35"
+                class="css-38"
               >
                 <div
                   class="port css-9"
                   data-name="in"
                 />
                 <div
-                  class="css-36"
+                  class="css-39"
                 >
                   <svg
                     height="24"
@@ -2551,7 +2621,7 @@ exports[`Component Diagram - Snapshot Tests renders graphql complex correctly: g
                 />
               </div>
               <div
-                class="css-37 css-18"
+                class="css-40 css-18"
               >
                 <vscode-button>
                   <svg
@@ -2572,10 +2642,10 @@ exports[`Component Diagram - Snapshot Tests renders graphql complex correctly: g
                 </vscode-button>
               </div>
               <div
-                class="css-38"
+                class="css-41"
               >
                 <div
-                  class="css-39"
+                  class="css-42"
                 />
                 <div
                   class="css-16"
@@ -2592,20 +2662,20 @@ exports[`Component Diagram - Snapshot Tests renders graphql complex correctly: g
           style="top: 340px; left: 250px;"
         >
           <div
-            class="css-33"
+            class="css-36"
           >
             <div
-              class="css-34"
+              class="css-37"
             >
               <div
-                class="css-35"
+                class="css-38"
               >
                 <div
                   class="port css-9"
                   data-name="in"
                 />
                 <div
-                  class="css-36"
+                  class="css-39"
                 >
                   <svg
                     height="24"
@@ -2630,7 +2700,7 @@ exports[`Component Diagram - Snapshot Tests renders graphql complex correctly: g
                 />
               </div>
               <div
-                class="css-37 css-18"
+                class="css-40 css-18"
               >
                 <vscode-button>
                   <svg
@@ -2651,10 +2721,10 @@ exports[`Component Diagram - Snapshot Tests renders graphql complex correctly: g
                 </vscode-button>
               </div>
               <div
-                class="css-38"
+                class="css-41"
               >
                 <div
-                  class="css-39"
+                  class="css-42"
                 />
                 <div
                   class="css-16"
@@ -2675,11 +2745,11 @@ exports[`Component Diagram - Snapshot Tests renders graphql complex correctly: g
           color="var(--vscode-foreground)"
         >
           <div
-            class="css-40"
+            class="css-43"
           >
             <vscode-progress-ring
               aria-live="assertive"
-              class="css-41"
+              class="css-44"
               color="var(--vscode-contrastBorder, var(--vscode-button-background))"
               role="alert"
             />
@@ -2700,11 +2770,11 @@ exports[`Component Diagram - Snapshot Tests renders multiple connections complex
 .css-4 svg:first-child {z-index: 1;}
 .css-4 {height: 100%; -webkit-background-size: 16px 16px; background-size: 16px 16px; display: flex; background-image: radial-gradient(var(--vscode-editor-inactiveSelectionBackground) 10%, transparent 0px); font-family: "GilmerRegular";}
 .css-26 {font-size: 12px; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: monospace; color: var(--vscode-foreground); opacity: 0.7;}
-.css-31 {display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; width: 100%;}
+.css-34 {display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; width: 100%;}
 .css-9 {margin-top: -3px;}
 .css-5 {position: relative; cursor: move; overflow: hidden;}
 .css-20 {display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; color: var(--vscode-foreground);}
-.css-37 {border-radius: 5px;}
+.css-40 {border-radius: 5px;}
 .css-1 {display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; padding: 8px; border-radius: 4px; background-color: var(--vscode-sideBar-background); fill: var(--vscode-foreground); width: 32px; height: 32px; cursor: pointer;}
 .css-1:active {background-color: var(--vscode-editor-inactiveSelectionBackground);}
 .css-1:hover {background-color: var(--vscode-editor-inactiveSelectionBackground);}
@@ -2714,42 +2784,47 @@ exports[`Component Diagram - Snapshot Tests renders multiple connections complex
 .css-3>*:last-child {border-top-left-radius: 0; border-top-right-radius: 0;}
 .css-3>*:not(:first-child):not(:last-child) {border-radius: 0;}
 .css-3>*:not(:last-child) {border-bottom: 1px solid var(--vscode-dropdown-border);}
-.css-36 svg {fill: var(--vscode-foreground);}
-.css-36 {padding: 4px;}
-.css-32 {display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; color: var(--vscode-contrastBorder, var(--vscode-button-background)); height: 40px; width: 100%; cursor: pointer; font-family: "GilmerMedium"; font-size: 14px;}
-.css-32:hover {border: 1px solid var(--vscode-contrastActiveBorder, var(--vscode-button-background)); border-radius: 8px;}
+.css-39 svg {fill: var(--vscode-foreground);}
+.css-39 {padding: 4px;}
+.css-35 {display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; color: var(--vscode-contrastBorder, var(--vscode-button-background)); height: 40px; width: 100%; cursor: pointer; font-family: "GilmerMedium"; font-size: 14px;}
+.css-35:hover {border: 1px solid var(--vscode-contrastActiveBorder, var(--vscode-button-background)); border-radius: 8px;}
 .css-19 {margin-bottom: -2px;}
 .css-18 {display: flex; height: fit-content; width: fit-content;}
 .css-12 svg {fill: var(--vscode-foreground);}
 .css-12 {width: 24px; height: 24px; font-size: 24px;}
-.css-29 {font-size: 12px; text-transform: uppercase; font-family: "GilmerBold"; background-color: #3d7eff; color: #FFF; padding: 4px 8px; border-radius: 4px; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; min-width: 60px; text-align: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; font-weight: bold;}
-.css-41::part(indeterminate-indicator-1) {stroke: var(--vscode-contrastBorder, var(--vscode-button-background));}
+.css-32 {font-size: 12px; text-transform: uppercase; font-family: "GilmerBold"; background-color: #3d7eff; color: #FFF; padding: 4px 8px; border-radius: 4px; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; min-width: 60px; text-align: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; font-weight: bold;}
+.css-44::part(indeterminate-indicator-1) {stroke: var(--vscode-contrastBorder, var(--vscode-button-background));}
 .css-16 {font-size: 12px; max-width: 136px; overflow: hidden; text-overflow: ellipsis; font-family: monospace; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; color: var(--vscode-foreground); opacity: 0.7;}
 .css-25 {font-size: 14px; max-width: 160px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: "GilmerMedium"; color: var(--vscode-foreground); opacity: 1;}
-.css-40 {-webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; height: 100%; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; width: 100%; background-color: var(--vscode-menu-background); z-index: 1000;}
-.css-38 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-align-items: flex-end; -webkit-box-align: flex-end; -ms-flex-align: flex-end; align-items: flex-end; gap: 6px;}
-.css-34 {display: flex; -webkit-flex-direction: row-reverse; -ms-flex-direction: row-reverse; flex-direction: row-reverse; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 12px; cursor: pointer;}
+.css-43 {-webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; height: 100%; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; width: 100%; background-color: var(--vscode-menu-background); z-index: 1000;}
+.css-41 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-align-items: flex-end; -webkit-box-align: flex-end; -ms-flex-align: flex-end; align-items: flex-end; gap: 6px;}
+.css-37 {display: flex; -webkit-flex-direction: row-reverse; -ms-flex-direction: row-reverse; flex-direction: row-reverse; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 12px; cursor: pointer;}
 .css-11 {display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; width: 64px; height: 64px; border: 1.5px solid var(--vscode-dropdown-border); border-radius: 50%; background-color: var(--vscode-menu-background); color: var(--vscode-foreground); aspect-ratio: 1/1;}
 .css-2 {height: 16px; width: 16px; cursor: pointer; font-size: 16px;}
-.css-39 {font-size: 14px; max-width: 136px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: "GilmerMedium"; color: var(--vscode-foreground); opacity: 1;}
+.css-29 {height: 16px; width: 16px; cursor: pointer; font-size: 16px;}
+.css-42 {font-size: 14px; max-width: 136px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: "GilmerMedium"; color: var(--vscode-foreground); opacity: 1;}
 .css-23 >div:first-child {width: 24px; height: 24px; font-size: 24px;}
 .css-23 svg {fill: var(--vscode-foreground);}
 .css-23 {padding: 4px; max-width: 32px;}
 .css-17 {border-radius: 5px;}
-.css-35 {display: flex; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; width: 64px; height: 64px; border: 1.5px solid var(--vscode-dropdown-border); border-radius: 50%; background-color: var(--vscode-menu-background); color: var(--vscode-foreground);}
+.css-38 {display: flex; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; width: 64px; height: 64px; border: 1.5px solid var(--vscode-dropdown-border); border-radius: 50%; background-color: var(--vscode-menu-background); color: var(--vscode-foreground);}
 .css-22 {display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-box-pack: start; -ms-flex-pack: start; -webkit-justify-content: flex-start; justify-content: flex-start; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 10px; width: 240px; height: 56px; cursor: pointer;}
 .css-22:hover {background-color: var(--vscode-sideBar-background); border-radius: 8px;}
-.css-30 {font-size: 12px; text-transform: uppercase; font-family: "GilmerBold"; background-color: #49cc90; color: #FFF; padding: 4px 8px; border-radius: 4px; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; min-width: 60px; text-align: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; font-weight: bold;}
-.css-28 {display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-box-pack: start; -ms-flex-pack: start; -webkit-justify-content: flex-start; justify-content: flex-start; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 10px; width: 240px; height: 40px; cursor: pointer; padding: 0 12px; border: 1.5px solid var(--vscode-dropdown-border); border-radius: 8px; background-color: var(--vscode-menu-background);}
-.css-28:hover {background-color: var(--vscode-sideBar-background); border-radius: 8px;}
+.css-33 {font-size: 12px; text-transform: uppercase; font-family: "GilmerBold"; background-color: #49cc90; color: #FFF; padding: 4px 8px; border-radius: 4px; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; min-width: 60px; text-align: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; font-weight: bold;}
+.css-27 {display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-box-pack: start; -ms-flex-pack: start; -webkit-justify-content: flex-start; justify-content: flex-start; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 10px; width: 240px; height: 40px; cursor: pointer; padding: 0 12px; border: 1.5px solid var(--vscode-dropdown-border); border-radius: 8px; background-color: var(--vscode-menu-background);}
+.css-27:hover {background-color: var(--vscode-sideBar-background); border-radius: 8px;}
 .css-7 {position: absolute; -webkit-touch-callout: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; cursor: move; pointer-events: all;}
 .css-15 {font-size: 14px; max-width: 150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: "GilmerMedium"; color: var(--vscode-foreground); opacity: 1;}
 .css-13 {height: 16px; width: 14px; cursor: pointer;}
 .css-24 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: flex-start; -webkit-box-align: flex-start; -ms-flex-align: flex-start; align-items: flex-start; gap: 6px; width: 100%; cursor: pointer;}
-.css-33 {display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-box-pack: end; -ms-flex-pack: end; -webkit-justify-content: flex-end; justify-content: flex-end; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; height: 64px; width: 200px; color: var(--vscode-foreground);}
+.css-36 {display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-box-pack: end; -ms-flex-pack: end; -webkit-justify-content: flex-end; justify-content: flex-end; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; height: 64px; width: 200px; color: var(--vscode-foreground);}
 .css-0 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; gap: 8px; position: absolute; left: 12px; bottom: 12px; z-index: 1000;}
+.css-28 >div:first-child {width: 16px; height: 16px; font-size: 16px;}
+.css-28 svg {fill: var(--vscode-foreground);}
+.css-28 {display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center;}
+.css-30 {font-size: 12px; margin-left: auto; max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: monospace; color: var(--vscode-foreground); opacity: 0.7;}
 .css-10 {display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-box-pack: start; -ms-flex-pack: start; -webkit-justify-content: flex-start; justify-content: flex-start; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 12px; width: 100%; cursor: pointer;}
-.css-27 {height: 16px; width: 14px; cursor: pointer; color: #e535ab;}
+.css-31 {height: 16px; width: 14px; cursor: pointer; color: #e535ab;}
 
 /* DOM */
 <div>
@@ -3173,15 +3248,45 @@ exports[`Component Diagram - Snapshot Tests renders multiple connections complex
                   </vscode-button>
                 </div>
               </div>
+              <div
+                class="css-20"
+              >
+                <div
+                  class="css-27"
+                  title="Handles a single conversational turn with the agent"
+                >
+                  <div
+                    class="css-28"
+                  >
+                    <div
+                      class="css-29"
+                    >
+                      <i
+                        class="fw-bi-chat"
+                      />
+                    </div>
+                  </div>
+                  <div
+                    class="css-25"
+                  >
+                    Agent Chat
+                  </div>
+                  <div
+                    class="css-30"
+                  >
+                    Chat
+                  </div>
+                </div>
+                <div
+                  class="port "
+                  data-name="post-chat"
+                />
+              </div>
             </div>
             <div />
             <div
               class="port css-19"
               data-name="out"
-            />
-            <div
-              class="port css-19"
-              data-name="post-chat"
             />
           </div>
         </div>
@@ -3206,7 +3311,7 @@ exports[`Component Diagram - Snapshot Tests renders multiple connections complex
                   class="css-23"
                 >
                   <div
-                    class="css-27"
+                    class="css-31"
                   >
                     <i
                       class="fw-bi-graphql"
@@ -3324,10 +3429,10 @@ exports[`Component Diagram - Snapshot Tests renders multiple connections complex
                 class="css-20"
               >
                 <div
-                  class="css-28"
+                  class="css-27"
                 >
                   <div
-                    class="css-29"
+                    class="css-32"
                     color="#3d7eff"
                   >
                     get
@@ -3347,10 +3452,10 @@ exports[`Component Diagram - Snapshot Tests renders multiple connections complex
                 class="css-20"
               >
                 <div
-                  class="css-28"
+                  class="css-27"
                 >
                   <div
-                    class="css-30"
+                    class="css-33"
                     color="#49cc90"
                   >
                     post
@@ -3367,10 +3472,10 @@ exports[`Component Diagram - Snapshot Tests renders multiple connections complex
                 />
               </div>
               <div
-                class="css-31"
+                class="css-34"
               >
                 <div
-                  class="css-32"
+                  class="css-35"
                 >
                   Show More Resources
                 </div>
@@ -3468,20 +3573,20 @@ exports[`Component Diagram - Snapshot Tests renders multiple connections complex
           style="top: 100px; left: 250px;"
         >
           <div
-            class="css-33"
+            class="css-36"
           >
             <div
-              class="css-34"
+              class="css-37"
             >
               <div
-                class="css-35"
+                class="css-38"
               >
                 <div
                   class="port css-9"
                   data-name="in"
                 />
                 <div
-                  class="css-36"
+                  class="css-39"
                 >
                   <svg
                     height="24"
@@ -3506,7 +3611,7 @@ exports[`Component Diagram - Snapshot Tests renders multiple connections complex
                 />
               </div>
               <div
-                class="css-37 css-18"
+                class="css-40 css-18"
               >
                 <vscode-button>
                   <svg
@@ -3527,10 +3632,10 @@ exports[`Component Diagram - Snapshot Tests renders multiple connections complex
                 </vscode-button>
               </div>
               <div
-                class="css-38"
+                class="css-41"
               >
                 <div
-                  class="css-39"
+                  class="css-42"
                 />
                 <div
                   class="css-16"
@@ -3547,20 +3652,20 @@ exports[`Component Diagram - Snapshot Tests renders multiple connections complex
           style="top: 244px; left: 250px;"
         >
           <div
-            class="css-33"
+            class="css-36"
           >
             <div
-              class="css-34"
+              class="css-37"
             >
               <div
-                class="css-35"
+                class="css-38"
               >
                 <div
                   class="port css-9"
                   data-name="in"
                 />
                 <div
-                  class="css-36"
+                  class="css-39"
                 >
                   <svg
                     height="24"
@@ -3585,7 +3690,7 @@ exports[`Component Diagram - Snapshot Tests renders multiple connections complex
                 />
               </div>
               <div
-                class="css-37 css-18"
+                class="css-40 css-18"
               >
                 <vscode-button>
                   <svg
@@ -3606,10 +3711,10 @@ exports[`Component Diagram - Snapshot Tests renders multiple connections complex
                 </vscode-button>
               </div>
               <div
-                class="css-38"
+                class="css-41"
               >
                 <div
-                  class="css-39"
+                  class="css-42"
                 />
                 <div
                   class="css-16"
@@ -3626,20 +3731,20 @@ exports[`Component Diagram - Snapshot Tests renders multiple connections complex
           style="top: 340px; left: 250px;"
         >
           <div
-            class="css-33"
+            class="css-36"
           >
             <div
-              class="css-34"
+              class="css-37"
             >
               <div
-                class="css-35"
+                class="css-38"
               >
                 <div
                   class="port css-9"
                   data-name="in"
                 />
                 <div
-                  class="css-36"
+                  class="css-39"
                 >
                   <svg
                     height="24"
@@ -3664,7 +3769,7 @@ exports[`Component Diagram - Snapshot Tests renders multiple connections complex
                 />
               </div>
               <div
-                class="css-37 css-18"
+                class="css-40 css-18"
               >
                 <vscode-button>
                   <svg
@@ -3685,10 +3790,10 @@ exports[`Component Diagram - Snapshot Tests renders multiple connections complex
                 </vscode-button>
               </div>
               <div
-                class="css-38"
+                class="css-41"
               >
                 <div
-                  class="css-39"
+                  class="css-42"
                 />
                 <div
                   class="css-16"
@@ -3709,11 +3814,11 @@ exports[`Component Diagram - Snapshot Tests renders multiple connections complex
           color="var(--vscode-foreground)"
         >
           <div
-            class="css-40"
+            class="css-43"
           >
             <vscode-progress-ring
               aria-live="assertive"
-              class="css-41"
+              class="css-44"
               color="var(--vscode-contrastBorder, var(--vscode-button-background))"
               role="alert"
             />

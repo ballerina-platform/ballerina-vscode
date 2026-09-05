@@ -444,7 +444,10 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
     let isAutomation = parentMetadata?.kind === "Function" && parentMetadata?.label === "main";
     let isResource = parentMetadata?.kind === "Resource";
     let isRemote = parentMetadata?.kind === "Remote Function";
-    let isAgent = parentMetadata?.kind === "Chat Agent Service" && parentMetadata?.label === "chat";
+    // The language server reports this kind for every resource of an ai:Listener service — chat
+    // and decision alike (CodeAnalyzer#isAgent checks the service's listener type, not the resource
+    // name) — so both get the same Tracing/Chat title bar treatment.
+    let isAgent = parentMetadata?.kind === "Chat Agent Service";
     let isInitFunction = parentMetadata?.kind === "Function" && parentMetadata?.label === "init";
     let isWorkflow = parentMetadata?.kind === "Workflow";
     let isDurableAgent = parentMetadata?.kind === "Durable Agentic Workflow";

@@ -278,6 +278,13 @@ function convertConfig(service: ServiceModel): FormField[] {
         if (key === "readOnlyMetadata") {
             continue;
         }
+        // A property with no input type has nothing renderable — it's metadata the language server
+        // carries for its own use (e.g. an add-time-only input echoed back on the edit model).
+        // FieldFactory throws outright on a type-less field, which would take the whole
+        // configuration view down, so drop it here rather than hand it to the renderer.
+        if (!getPrimaryInputType(expression.types)?.fieldType) {
+            continue;
+        }
         const formField: FormField = {
             key: key,
             label: expression?.metadata.label || key.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, str => str.toUpperCase()),

@@ -420,22 +420,16 @@ async function getEntryValue(artifact: BaseArtifact, projectPath: string, icon: 
             entryValue.iconLight = serviceIcon?.light;
             entryValue.iconDark = serviceIcon?.dark;
             entryValue.kind = serviceIcon?.kind;
-            if (artifact.module === "ai") {
-                entryValue.resources = [];
-                const aiResourceLocation = Object.values(artifact.children).find(child => child.type === DIRECTORY_MAP.RESOURCE)?.location;
-                entryValue.position = {
-                    endColumn: aiResourceLocation.endLine.offset,
-                    endLine: aiResourceLocation.endLine.line,
-                    startColumn: aiResourceLocation.startLine.offset,
-                    startLine: aiResourceLocation.startLine.line
-                };
-            } else {
-                // Get the children of the service
-                const resourceFunctions = await getComponents(artifact.children, projectPath, DIRECTORY_MAP.RESOURCE, icon, artifact.module);
-                const remoteFunctions = await getComponents(artifact.children, projectPath, DIRECTORY_MAP.REMOTE, icon, artifact.module);
-                const privateFunctions = await getComponents(artifact.children, projectPath, DIRECTORY_MAP.FUNCTION, icon, artifact.module);
-                entryValue.resources = [...resourceFunctions, ...remoteFunctions, ...privateFunctions];
-            }
+            // Chat agent services (module `ai`) carry their resources (`chat`, and now the
+            // human-in-the-loop `decision` resource) as real children exactly like any other
+            // service, so they're listed the same way — no special-casing needed. Position-based
+            // click routing resolves an individual resource via its own entry in `resources`
+            // below, so the service's own position also stays untouched (its true declaration
+            // range), matching every other module.
+            const resourceFunctions = await getComponents(artifact.children, projectPath, DIRECTORY_MAP.RESOURCE, icon, artifact.module);
+            const remoteFunctions = await getComponents(artifact.children, projectPath, DIRECTORY_MAP.REMOTE, icon, artifact.module);
+            const privateFunctions = await getComponents(artifact.children, projectPath, DIRECTORY_MAP.FUNCTION, icon, artifact.module);
+            entryValue.resources = [...resourceFunctions, ...remoteFunctions, ...privateFunctions];
             break;
         case DIRECTORY_MAP.TYPE:
             if (artifact.children && Object.keys(artifact.children).length > 0) {
