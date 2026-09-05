@@ -78,6 +78,8 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static io.ballerina.projects.util.ProjectUtils.getAccessTokenOfCLI;
@@ -288,6 +290,13 @@ public class PullModuleExecutor implements LSCommandExecutor {
                         clientLogger.logError(LSContextOperation.WS_EXEC_CMD,
                                 "Pull modules failed for project: " + project.sourceRoot().toString(),
                                 t, null, (Position) null);
+                        Optional<CorruptBirCacheParams> corruptBir = detectCorruptBirCache(t);
+                        if (corruptBir.isPresent()) {
+                            CorruptBirCacheParams params = corruptBir.get();
+                            params.setProjectUri(project.sourceRoot().toUri().toString());
+                            params.setDistVersion(RepoUtils.getBallerinaShortVersion());
+                            languageClient.corruptBirCache(params);
+                        }
                         if (t.getCause() instanceof UserErrorException) {
                             String errorMessage = t.getCause().getMessage();
                             CommandUtil.notifyClient(languageClient, MessageType.Error, errorMessage);
@@ -322,6 +331,34 @@ public class PullModuleExecutor implements LSCommandExecutor {
                     languageClient.notifyProgress(new ProgressParams(Either.forLeft(taskId),
                             Either.forLeft(endNotification)));
                 });
+    }
+
+    // The compiler's BIR reader throws with this signature when a cached BIR is corrupt/incompatible,
+    // e.g. "failed to load the module 'ballerina/ai:1.14.1' from its BIR due to: invalid magic number [...]".
+    private static final Pattern CORRUPT_BIR_MODULE_PATTERN = Pattern.compile(
+            "failed to load the module\\s+'([^'/:]+)/([^'/:]+):([^'/:\\s]+)'", Pattern.CASE_INSENSITIVE);
+
+    /**
+     * Detects a corrupt/incompatible cached-BIR failure anywhere in the throwable's cause chain and,
+     * when found, returns the coordinates of the affected module (best-effort; coordinates may be
+     * {@code null} if they cannot be parsed from the message).
+     *
+     * @param throwable the completion throwable to inspect
+     * @return the corrupt-BIR parameters, or empty if this is not a corrupt-BIR failure
+     */
+    static Optional<CorruptBirCacheParams> detectCorruptBirCache(Throwable throwable) {
+        for (Throwable cause = throwable; cause != null && cause != cause.getCause(); cause = cause.getCause()) {
+            String message = cause.getMessage();
+            if (message == null || !message.contains("invalid magic number") || !message.contains("BIR")) {
+                continue;
+            }
+            Matcher matcher = CORRUPT_BIR_MODULE_PATTERN.matcher(message);
+            if (matcher.find()) {
+                return Optional.of(new CorruptBirCacheParams(matcher.group(1), matcher.group(2), matcher.group(3)));
+            }
+            return Optional.of(new CorruptBirCacheParams(null, null, null));
+        }
+        return Optional.empty();
     }
 
     /**

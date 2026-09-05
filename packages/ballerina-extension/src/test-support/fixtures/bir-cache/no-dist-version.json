@@ -1,0 +1,20 @@
+{
+    "description": "No distVersion given: every cache-* directory holding the corrupt module is resolved and cleared across all distributions, but other versions of the module are left intact",
+    "module": { "org": "ballerina", "name": "ai", "version": "1.14.1" },
+    "tree": [
+        "repositories/central.ballerina.io/cache-2201.13.5/ballerina/ai/1.14.1/bir/ai.bir",
+        "repositories/central.ballerina.io/cache-2201.13.4/ballerina/ai/1.14.1/bir/ai.bir",
+        "repositories/central.ballerina.io/cache-2201.13.5/ballerina/ai/1.13.0/bir/ai.bir"
+    ],
+    "expectedResolved": [
+        "repositories/central.ballerina.io/cache-2201.13.4/ballerina/ai/1.14.1",
+        "repositories/central.ballerina.io/cache-2201.13.5/ballerina/ai/1.14.1"
+    ],
+    "expectedRemoved": [
+        "repositories/central.ballerina.io/cache-2201.13.4/ballerina/ai/1.14.1",
+        "repositories/central.ballerina.io/cache-2201.13.5/ballerina/ai/1.14.1"
+    ],
+    "expectedKept": [
+        "repositories/central.ballerina.io/cache-2201.13.5/ballerina/ai/1.13.0/bir/ai.bir"
+    ]
+}

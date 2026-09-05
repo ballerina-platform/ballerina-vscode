@@ -573,6 +573,8 @@ const stateMachine = createMachine<MachineContext>(
                 try {
                     // Register the event driven listener to get the artifact changes
                     context.langClient.registerPublishArtifacts();
+                    // Register the corrupt-BIR-cache listener to recover from corrupted BIR cache failures
+                    context.langClient.registerCorruptBirCache();
                     // IF the project info is not set, we don't need to build the project structure
                     if (context.projectInfo) {
 
