@@ -426,10 +426,12 @@ async function getEntryValue(artifact: BaseArtifact, projectPath: string, icon: 
             // click routing resolves an individual resource via its own entry in `resources`
             // below, so the service's own position also stays untouched (its true declaration
             // range), matching every other module.
-            const resourceFunctions = await getComponents(artifact.children, projectPath, DIRECTORY_MAP.RESOURCE, icon, artifact.module);
-            const remoteFunctions = await getComponents(artifact.children, projectPath, DIRECTORY_MAP.REMOTE, icon, artifact.module);
-            const privateFunctions = await getComponents(artifact.children, projectPath, DIRECTORY_MAP.FUNCTION, icon, artifact.module);
-            entryValue.resources = [...resourceFunctions, ...remoteFunctions, ...privateFunctions];
+            {
+                const serviceResourceFunctions = await getComponents(artifact.children, projectPath, DIRECTORY_MAP.RESOURCE, icon, artifact.module);
+                const serviceRemoteFunctions = await getComponents(artifact.children, projectPath, DIRECTORY_MAP.REMOTE, icon, artifact.module);
+                const servicePrivateFunctions = await getComponents(artifact.children, projectPath, DIRECTORY_MAP.FUNCTION, icon, artifact.module);
+                entryValue.resources = [...serviceResourceFunctions, ...serviceRemoteFunctions, ...servicePrivateFunctions];
+            }
             break;
         case DIRECTORY_MAP.TYPE:
             if (artifact.children && Object.keys(artifact.children).length > 0) {
