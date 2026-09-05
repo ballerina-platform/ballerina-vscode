@@ -346,7 +346,7 @@ public class PullModuleExecutor implements LSCommandExecutor {
      * @param throwable the completion throwable to inspect
      * @return the corrupt-BIR parameters, or empty if this is not a corrupt-BIR failure
      */
-    private static Optional<CorruptBirCacheParams> detectCorruptBirCache(Throwable throwable) {
+    static Optional<CorruptBirCacheParams> detectCorruptBirCache(Throwable throwable) {
         for (Throwable cause = throwable; cause != null && cause != cause.getCause(); cause = cause.getCause()) {
             String message = cause.getMessage();
             if (message == null || !message.contains("invalid magic number") || !message.contains("BIR")) {
