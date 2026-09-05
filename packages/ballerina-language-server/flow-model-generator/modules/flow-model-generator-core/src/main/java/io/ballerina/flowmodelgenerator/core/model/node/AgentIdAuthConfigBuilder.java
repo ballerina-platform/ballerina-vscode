@@ -123,7 +123,7 @@ public class AgentIdAuthConfigBuilder extends NodeBuilder {
                     .metadata().label(label).description(description).stepOut()
                     .placeholder(placeholder)
                     .editable()
-                    .defaultable(isOptional);
+                    .optional(isOptional);
 
             if (fieldName.equals(SCOPES_FIELD)) {
                 builder.type()
