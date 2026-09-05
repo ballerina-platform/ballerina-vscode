@@ -251,6 +251,22 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
     /** A turn can reach both the finish and abort paths; suggestions must be scheduled once. */
     private _followupsScheduled = false;
 
+    /**
+     * Store key for every `chatStateStorage` call, mirroring the precedence in
+     * `AICommandExecutor.run()`. Prefers `chatStorage.projectRootPath` — the key
+     * `addGeneration` and `getChatHistoryForLLM` use — because a caller may scope
+     * `executionContext` to a sub-package (the migration wizard passes the package path
+     * with `workspacePath: undefined`). Deriving the key from `executionContext` instead
+     * would address a different store than the one holding the generation, and every
+     * write would silently no-op on a missing generation ID.
+     */
+    private get chatStoreKey(): string {
+        return this.config.chatStorage?.projectRootPath
+            || this.config.executionContext.workspacePath
+            || this.config.executionContext.projectPath
+            || '';
+    }
+
     constructor(config: AICommandConfig<GenerateAgentCodeRequest>) {
         super(config);
     }
@@ -338,9 +354,9 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
             const projectRootPath = this.config.executionContext.workspacePath || this.config.executionContext.projectPath || '';
             const agentsMd = await prepareAgentsMdForTurn(workspaceId || '', threadId);
             if (agentsMd.hashToPersist !== undefined) {
-                const generation = chatStateStorage.getGeneration(projectRootPath, threadId, this.config.generationId);
+                const generation = chatStateStorage.getGeneration(this.chatStoreKey, threadId, this.config.generationId);
                 if (generation) {
-                    chatStateStorage.updateGeneration(projectRootPath, threadId, this.config.generationId, {
+                    chatStateStorage.updateGeneration(this.chatStoreKey, threadId, this.config.generationId, {
                         metadata: {
                             ...generation.metadata,
                             agentsMdLastReadHash: agentsMd.hashToPersist,
@@ -475,7 +491,7 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
                     const stepMessages = step.response?.messages ?? [];
                     if (stepMessages.length > 0) {
                         console.log(`[AgentExecutor] Step ${step.stepNumber} saving ${stepMessages.length} message(s) to chat storage`);
-                        chatStateStorage.updateGeneration(workspaceId, threadId, this.config.generationId, {
+                        chatStateStorage.updateGeneration(this.chatStoreKey, threadId, this.config.generationId, {
                             modelMessages: [
                                 { role: "user", content: userMessageContent },
                                 ...stepMessages,
@@ -622,7 +638,7 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
                         console.warn("[AgentExecutor] Could not retrieve partial response messages:", e);
                     }
 
-                    const projectRootPath = this.config.executionContext.workspacePath || this.config.executionContext.projectPath || '';
+                    const projectRootPath = this.chatStoreKey;
                     if (partialLLMMessages.length > 0) {
                         chatStateStorage.updateGeneration(projectRootPath, threadId, this.config.generationId, {
                             modelMessages: [
@@ -816,7 +832,7 @@ Generation stopped by user. The last in-progress task was not saved. Any complet
 
         // Leave any live edits in place — the user may want to continue from them. Only an
         // explicit revert (revertGeneration) restores the checkpoint.
-        const projectRootPath = context.ctx.workspacePath || context.ctx.projectPath || '';
+        const projectRootPath = this.chatStoreKey;
         const threadId = this.config.chatStorage?.threadId ?? 'default';
         const erroredGeneration = chatStateStorage.getGeneration(projectRootPath, threadId, context.messageId);
 
@@ -1001,7 +1017,7 @@ Generation stopped by user. The last in-progress task was not saved. Any complet
         this._followupsScheduled = startFollowupSuggestions({
             situation,
             messageId: context.messageId,
-            projectRootPath: context.ctx.workspacePath || context.ctx.projectPath || '',
+            projectRootPath: this.chatStoreKey,
             threadId: this.config.chatStorage.threadId,
             assistantMessages,
             userQuery: this.config.params.usecase ?? '',
@@ -1020,7 +1036,7 @@ Generation stopped by user. The last in-progress task was not saved. Any complet
         assistantMessages: any[],
         tempProjectPath: string
     ): Promise<void> {
-        const projectRootPath = context.ctx.workspacePath || context.ctx.projectPath || '';
+        const projectRootPath = this.chatStoreKey;
         const threadId = this.config.chatStorage?.threadId ?? 'default';
 
         const generationModifiedFiles = Array.from(new Set([...context.allModifiedFiles, ...context.modifiedFiles]));
@@ -1065,7 +1081,7 @@ Generation stopped by user. The last in-progress task was not saved. Any complet
      * Emits review actions and chat save events to UI.
      */
     private async emitReviewActions(context: StreamContext): Promise<void> {
-        const workspaceId = context.ctx.workspacePath || context.ctx.projectPath;
+        const workspaceId = this.chatStoreKey;
         const threadId = this.config.chatStorage?.threadId ?? 'default';
 
         const currentGeneration = chatStateStorage.getGeneration(workspaceId, threadId, context.messageId);
