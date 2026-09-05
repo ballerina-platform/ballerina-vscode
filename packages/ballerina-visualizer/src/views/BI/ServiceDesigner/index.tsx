@@ -18,6 +18,7 @@
 
 import styled from "@emotion/styled";
 import {
+    AI_DECISION_RESOURCE_NAME,
     DIRECTORY_MAP,
     EVENT_TYPE,
     FunctionModel,
@@ -198,6 +199,11 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
     const [isMcpService, setIsMcpService] = useState<boolean>(false);
     const [isFtpService, setIsFtpService] = useState<boolean>(false);
     const [isCdcService, setIsCdcService] = useState<boolean>(false);
+    // A chat agent service's resources (`chat`, `decision`) are HTTP-payload-shaped exactly like
+    // an http:Service resource, so they're listed the same way (see the Resources section below).
+    // They're kept out of `isHttpService` itself so the http-only "Export OpenAPI Spec" option and
+    // free-form "Add Resource" affordance don't leak onto a chat agent's fixed chat/decision pair.
+    const [isAiService, setIsAiService] = useState<boolean>(false);
 
     // ----- handler/method/resource listings (populated by setServiceMetaInfo on each fetch) -----
     const [enabledHandlers, setEnabledHandlers] = useState<FunctionModel[]>([]);
@@ -368,6 +374,7 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
             setIsHttpService(service.moduleName === "http");
             setIsMcpService(service.moduleName === "mcp");
             setIsCdcService(service.moduleName === "mssql" || service.moduleName === "postgresql");
+            setIsAiService(service.moduleName === "ai");
         }
 
         // Extract object methods if available (for service classes)
@@ -501,6 +508,19 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
     const handleQuickAddTriggerHandler = (functionModel: FunctionModel) => {
         setShowFunctionConfigForm(false);
         handleFunctionSubmit(functionModel, false, true);
+    };
+
+    /**
+     * Opts an existing chat agent into human-in-the-loop by generating its `decision` resource.
+     * The generated resource is complete boilerplate (it forwards the human's decisions into the
+     * agent run), so there is nothing to configure first and nothing to implement afterwards —
+     * hence the quick-add, which leaves the user here watching the new row appear.
+     */
+    const handleEnableHitl = () => {
+        if (!addableDecisionHandler) {
+            return;
+        }
+        handleQuickAddTriggerHandler(addableDecisionHandler);
     };
 
     const getTriggerHandlerTitle = () => {
@@ -919,6 +939,19 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
         ? (serviceModel?.name || "").replace(/\s*-\s*\/$/, "")
         : serviceModel?.name;
 
+    // The chat agent service model carries `decision` as a disabled RESOURCE function until the user
+    // opts into human-in-the-loop; once it exists in source the language server flips it to enabled
+    // and it drops out of `unusedHandlers`. Membership there is therefore the "not yet wired" signal.
+    // The artifact check is a second opinion, so an LS that under-reports `enabled` can't make us
+    // offer to generate a resource that is already in the file.
+    const addableDecisionHandler = isAiService
+        ? unusedHandlers.find((fn) => fn.name?.value === AI_DECISION_RESOURCE_NAME)
+        : undefined;
+    const hasDecisionResource = resources.some(
+        (resource) => resource.type === DIRECTORY_MAP.RESOURCE && resource.name === AI_DECISION_RESOURCE_NAME
+    );
+    const canEnableHitl = Boolean(addableDecisionHandler) && !hasDecisionResource;
+
     const resourcesCount = resources
         .filter((resource) => resource.type === DIRECTORY_MAP.RESOURCE)
         .filter((resource) => {
@@ -1059,20 +1092,33 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
                             )}
 
 
-                            {/* Listing Resources in HTTP */}
-                            {isHttpService && (
+                            {/* Listing Resources in HTTP (and, read-only for adding, a chat agent's fixed chat/decision pair) */}
+                            {(isHttpService || isAiService) && (
                                 <>
 
                                     <>
                                         <SectionHeader
                                             title="Resources"
-                                            subtitle={`${resourcesCount === 0 ? `` : 'Define how the service responds to HTTP requests'}`}
+                                            subtitle={`${resourcesCount === 0 ? `` : isAiService
+                                                ? 'The agent\'s fixed chat and human-approval resources'
+                                                : 'Define how the service responds to HTTP requests'}`}
                                         >
                                             <ActionGroup>
                                                 {resources.length > 10 && (
                                                     <TextField placeholder="Search..." sx={{ width: 200 }} onChange={handleSearch} value={searchValue} />
                                                 )}
-                                                {!haveServiceTypeName && resourcesCount > 0 && (
+                                                {canEnableHitl && (
+                                                    <Button
+                                                        appearance="primary"
+                                                        tooltip="Add a decision resource so a human can approve or reject the agent's gated tool calls"
+                                                        onClick={handleEnableHitl}
+                                                        disabled={isSaving}
+                                                    >
+                                                        <Codicon name="add" sx={{ marginRight: 8 }} />
+                                                        <ButtonText>Human-in-the-Loop</ButtonText>
+                                                    </Button>
+                                                )}
+                                                {!isAiService && !haveServiceTypeName && resourcesCount > 0 && (
                                                     <Button appearance="primary" tooltip="Add Resource" onClick={handleNewResourceFunction}>
                                                         <Codicon name="add" sx={{ marginRight: 8 }} /> <ButtonText>Resource</ButtonText>
                                                     </Button>
@@ -1095,7 +1141,11 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
                                                             key={`${index}-${resource.name}`}
                                                             resource={resource}
                                                             readOnly={serviceModel.properties.hasOwnProperty('serviceTypeName')}
-                                                            onEditResource={handleFunctionEdit}
+                                                            // A chat agent's chat/decision pair is fixed, generated surface (see
+                                                            // AiChatServiceBuilder) rather than something the user hand-edits
+                                                            // through the generic HTTP resource form, so editing is disabled —
+                                                            // deleting is still allowed, same as any other resource here.
+                                                            onEditResource={isAiService ? null : handleFunctionEdit}
                                                             onDeleteResource={handleFunctionDelete}
                                                             onResourceImplement={handleOpenDiagram}
                                                             deletionTypeLabel="resource"
@@ -1103,7 +1153,7 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
                                                     ))}
                                             </FunctionsContainer>
                                         )}
-                                        {resourcesCount === 0 && (
+                                        {resourcesCount === 0 && !isAiService && (
                                             <EmptyReadmeContainer>
                                                 <Description variant="body2">
                                                     No resources found. Add a new resource.
@@ -1121,7 +1171,7 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
                             )}
 
                             {/* Listing service type bound functions (event/file handlers, MCP tools, ...) */}
-                            {!isHttpService && (
+                            {!isHttpService && !isAiService && (
                                 <>
                                     <SectionHeader
                                         title={isFileService ? "File Handlers" : isMcpService ? "Tools" : "Event Handlers"}

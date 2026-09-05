@@ -4028,11 +4028,13 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
 
     const flowModel = originalModel && suggestedModel ? suggestedModel : model;
 
-    // Hide "Chat" button on agent nodes when already inside a chat agent flow diagram
+    // Hide "Chat" button on agent nodes when already inside a chat agent service's flow diagram
+    // (chat or decision — the language server reports this kind for every resource of an
+    // ai:Listener service, not just chat), since the title bar already offers the same action.
     const isChatAgentFlow = (() => {
         const eventStartNode = flowModel?.nodes.find((node) => node.codedata.node === "EVENT_START");
         const meta = eventStartNode?.metadata?.data as { kind?: string; label?: string } | undefined;
-        return meta?.kind === "Chat Agent Service" && meta?.label === "chat";
+        return meta?.kind === "Chat Agent Service";
     })();
 
     // Durable Agentic Workflow agent-only view: the LS flow model carries the synthetic
