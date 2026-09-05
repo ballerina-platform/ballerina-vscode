@@ -23,7 +23,7 @@ import { Typography } from "@wso2/ui-toolkit";
 
 import { TypeProps } from "../../index";
 import { useStmtEditorHelperPanelStyles } from "../../styles";
-import { isRequiredParam } from "../../utils";
+import { getOptionalityLabel, isRequiredParam } from "../../utils";
 
 export default function CustomType(props: TypeProps) {
     const { param, onChange } = props;
@@ -62,7 +62,7 @@ export default function CustomType(props: TypeProps) {
                         variant="body3"
                         data-testid="arg-type"
                     >
-                        {param.optional || param.defaultable ? param.typeName + " (Optional)" : param.typeName}
+                        {param.typeName + getOptionalityLabel(param)}
                     </Typography>
                 </div>
                 {param.documentation && (

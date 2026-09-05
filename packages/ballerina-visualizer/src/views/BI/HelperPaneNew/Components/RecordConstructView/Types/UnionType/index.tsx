@@ -24,7 +24,7 @@ import { Codicon, Dropdown, Tooltip, Typography } from "@wso2/ui-toolkit";
 import { TypeProps } from "../../ParameterBranch";
 import { useHelperPaneStyles } from "../../styles";
 import { ParameterBranch } from "../../ParameterBranch";
-import { getSelectedUnionMember, isRequiredParam, updateFieldsSelection, resetFieldValues } from "../../utils";
+import { getOptionalityLabel, getSelectedUnionMember, isRequiredParam, updateFieldsSelection, resetFieldValues } from "../../utils";
 
 export default function UnionType(props: TypeProps) {
     const { param, depth, onChange } = props;
@@ -217,13 +217,13 @@ export default function UnionType(props: TypeProps) {
                     >
                         {param.name}
                     </Typography>
-                    {(param.optional || param.defaultable) && (
+                    {param.optional && (
                         <Typography
                             className={helperStyleClass.suggestionDataType}
                             variant="body3"
                             data-testid="arg-type"
                         >
-                            {"(Optional)"}
+                            {getOptionalityLabel(param).trim()}
                         </Typography>
                     )}
                     {param.documentation && (
