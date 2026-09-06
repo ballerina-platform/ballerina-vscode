@@ -56,7 +56,7 @@ under the License.
             <class name="io.ballerina.servicemodelgenerator.extension.connector.TriggerLayoutTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.connector.AnnotationEmitterTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.connector.TriggerImportTest"/>
-            <class name="io.ballerina.servicemodelgenerator.extension.util.ModuleAliasResolverTest"/>
+            <class name="io.ballerina.servicemodelgenerator.extension.util.AnnotationPrefixRenderingTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.connector.SchemaDrivenSourceGeneratorTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.connector.ListenerArgsTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.connector.PropertyValueAdapterTest"/>

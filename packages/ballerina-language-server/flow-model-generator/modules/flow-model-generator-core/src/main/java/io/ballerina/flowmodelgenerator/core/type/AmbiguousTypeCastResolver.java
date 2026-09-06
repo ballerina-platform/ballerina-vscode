@@ -27,6 +27,7 @@ import io.ballerina.compiler.syntax.tree.SpecificFieldNode;
 import io.ballerina.compiler.syntax.tree.SyntaxTree;
 import io.ballerina.flowmodelgenerator.core.model.Codedata;
 import io.ballerina.modelgenerator.commons.CommonUtils;
+import io.ballerina.modelgenerator.commons.ImportPrefixReader;
 import io.ballerina.projects.Document;
 import io.ballerina.projects.ModuleDescriptor;
 import io.ballerina.projects.Project;
@@ -275,7 +276,8 @@ public final class AmbiguousTypeCastResolver {
                 if (isInOwnModule(document, orgName, moduleName)) {
                     return typeName;
                 }
-                return CommonUtils.getDefaultModulePrefix(moduleName) + ":" + typeName;
+                return ImportPrefixReader.boundPrefix(document.syntaxTree().rootNode(), orgName, moduleName,
+                        ownOrgOf(document)) + ":" + typeName;
             }
             return typeName == null ? "" : typeName;
         }
@@ -342,7 +344,9 @@ public final class AmbiguousTypeCastResolver {
         }
         if (codedata != null && codedata.module() != null && !codedata.module().isEmpty()) {
             return isInOwnModule(document, codedata.org(), codedata.module())
-                    ? recordName : CommonUtils.getClassType(codedata.module(), recordName);
+                    ? recordName
+                    : ImportPrefixReader.boundPrefix(document.syntaxTree().rootNode(), codedata.org(),
+                            codedata.module(), ownOrgOf(document)) + ":" + recordName;
         }
         return recordName;
     }
@@ -352,6 +356,11 @@ public final class AmbiguousTypeCastResolver {
      * (including its submodules). A {@code null} {@code org} is treated as matching (the member carries no org
      * information).
      */
+    /** The organization owning the file, so an org-less import in it is not matched for a foreign module. */
+    private static String ownOrgOf(Document document) {
+        return document.module().descriptor().org().value();
+    }
+
     private static boolean isInOwnModule(Document document, String org, String moduleName) {
         ModuleDescriptor ownDescriptor = document.module().descriptor();
         String ownOrg = ownDescriptor.org().value();

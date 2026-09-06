@@ -225,7 +225,7 @@
             "character": 0
           }
         },
-        "newText": "\nimport ballerinax/nats;"
+        "newText": "\nimport ballerina/http;"
       },
       {
         "range": {
@@ -238,7 +238,7 @@
             "character": 0
           }
         },
-        "newText": "import ballerina/http;"
+        "newText": "import ballerinax/nats;"
       },
       {
         "range": {

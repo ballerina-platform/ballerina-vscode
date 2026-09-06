@@ -939,7 +939,7 @@
               "character": 0
             }
           },
-          "newText": "import ballerina/mcp;"
+          "newText": "import ballerina/http;"
         },
         {
           "range": {
@@ -952,7 +952,7 @@
               "character": 0
             }
           },
-          "newText": "import ballerina/http;"
+          "newText": "import ballerina/mcp;"
         },
         {
           "range": {

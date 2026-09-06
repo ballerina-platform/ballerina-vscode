@@ -193,10 +193,12 @@ public class DataMapperCreationBuilder extends NodeBuilder {
         if (returnType.isEmpty() || returnType.get().value().toString().isEmpty()) {
             throw new IllegalStateException("The return type should be defined");
         }
+        // The written form follows the target file's prefixes; the resolution below stays on the authored form,
+        // which is what the property's imports map is keyed by.
         String returnTypeString = returnType.get().value().toString();
         sourceBuilder.token()
                 .keyword(SyntaxKind.RETURNS_KEYWORD)
-                .name(returnTypeString);
+                .name(sourceBuilder.requalifiedType(returnType.get()));
 
         Optional<String> returnBody =
                 sourceBuilder.getExpressionBodyText(returnTypeString, returnType.get().imports());

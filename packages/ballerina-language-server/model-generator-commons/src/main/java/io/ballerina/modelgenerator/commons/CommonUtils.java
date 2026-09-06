@@ -96,8 +96,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -117,6 +117,8 @@ public class CommonUtils {
     private static final String CENTRAL_ICON_URL = "https://bcentral-packageicons.azureedge.net/images/%s_%s_%s.png";
     private static final Pattern FULLY_QUALIFIED_MODULE_ID_PATTERN =
             Pattern.compile("(\\w+)/([\\w.]+):([^:]+):(\\w+)[|]?");
+    /** Separates a qualifier from its module in an encoded {@code importStatements} entry. */
+    public static final String IMPORT_QUALIFIER_SEPARATOR = "=";
     private static final String KNOWLEDGE_BASE_TYPE_NAME = "KnowledgeBase";
     private static final String EMBEDDING_PROVIDER_TYPE_NAME = "EmbeddingProvider";
     private static final String MODEL_PROVIDER_TYPE_NAME = "ModelProvider";
@@ -183,25 +185,42 @@ public class CommonUtils {
      */
     public static String getTypeSignature(SemanticModel semanticModel, TypeSymbol typeSymbol, boolean ignoreError,
                                           ModuleInfo moduleInfo) {
+        return getTypeSignature(semanticModel, typeSymbol, ignoreError, moduleInfo, null);
+    }
+
+    /**
+     * Retrieves the type signature, rendering every module qualifier through {@code allocator} so that each one
+     * names exactly one module. The allocator spans the whole signature, union members and type parameters
+     * included, since a qualifier is only unambiguous relative to the entire text it appears in.
+     *
+     * @param allocator the qualifier allocator, or null to render each module under its own natural segment as
+     *                  before, which is ambiguous when two modules share one
+     * @see TypeQualifierAllocator
+     */
+    public static String getTypeSignature(SemanticModel semanticModel, TypeSymbol typeSymbol, boolean ignoreError,
+                                          ModuleInfo moduleInfo, TypeQualifierAllocator allocator) {
         return switch (typeSymbol.typeKind()) {
             case COMPILATION_ERROR -> UNKNOWN_TYPE;
             case UNION -> {
                 UnionTypeSymbol unionTypeSymbol = (UnionTypeSymbol) typeSymbol;
                 yield unionTypeSymbol.memberTypeDescriptors().stream()
                         .filter(memberType -> !ignoreError || !memberType.subtypeOf(semanticModel.types().ERROR))
-                        .map(type -> getTypeSignature(semanticModel, type, ignoreError, moduleInfo))
+                        .map(type -> getTypeSignature(semanticModel, type, ignoreError, moduleInfo, allocator))
                         .reduce((s1, s2) -> s1 + "|" + s2)
-                        .orElse(getTypeSignature(unionTypeSymbol, moduleInfo));
+                        // orElseGet, not orElse: the fallback renders the whole union, error members included, and
+                        // would otherwise record every module in it against a text that never used them.
+                        .orElseGet(() -> getTypeSignature(unionTypeSymbol, moduleInfo, allocator));
             }
             // TODO: This only address how type descriptors work with dependent types. Need to extend this to improve
             //  on handling cases where functions take type descriptors as parameters.
             case TYPEDESC -> {
                 TypeDescTypeSymbol typeDescTypeSymbol = (TypeDescTypeSymbol) typeSymbol;
                 yield typeDescTypeSymbol.typeParameter()
-                        .map(typeParameter -> getTypeSignature(semanticModel, typeParameter, ignoreError, null))
-                        .orElse(getTypeSignature(typeDescTypeSymbol, moduleInfo));
+                        .map(typeParameter ->
+                                getTypeSignature(semanticModel, typeParameter, ignoreError, null, allocator))
+                        .orElseGet(() -> getTypeSignature(typeDescTypeSymbol, moduleInfo, allocator));
             }
-            default -> getTypeSignature(typeSymbol, moduleInfo);
+            default -> getTypeSignature(typeSymbol, moduleInfo, allocator);
         };
     }
 
@@ -227,6 +246,21 @@ public class CommonUtils {
      * @return the processed type signature
      */
     public static String getTypeSignature(TypeSymbol typeSymbol, ModuleInfo moduleInfo) {
+        return getTypeSignature(typeSymbol, moduleInfo, null);
+    }
+
+    /**
+     * Returns the processed type signature of the type symbol, rendering each module qualifier through
+     * {@code allocator} when one is given. See {@link TypeQualifierAllocator} for why the natural segment alone is
+     * not a usable qualifier.
+     *
+     * @param typeSymbol the type symbol
+     * @param moduleInfo the default module name descriptor
+     * @param allocator  the qualifier allocator, or null for the natural segment
+     * @return the processed type signature
+     */
+    public static String getTypeSignature(TypeSymbol typeSymbol, ModuleInfo moduleInfo,
+                                          TypeQualifierAllocator allocator) {
         String text = typeSymbol.signature();
         StringBuilder newText = new StringBuilder();
         Matcher matcher = FULLY_QUALIFIED_MODULE_ID_PATTERN.matcher(text);
@@ -235,7 +269,9 @@ public class CommonUtils {
             // Append up-to start of the match
             newText.append(text, nextStart, matcher.start(1));
 
-            String modPart = matcher.group(2);
+            String orgPart = matcher.group(1);
+            String fullModulePart = matcher.group(2);
+            String modPart = fullModulePart;
             int last = modPart.lastIndexOf(".");
             if (last != -1) {
                 modPart = modPart.substring(last + 1);
@@ -244,7 +280,10 @@ public class CommonUtils {
             String typeName = matcher.group(4);
 
             if (moduleInfo == null || !modPart.equals(moduleInfo.packageName())) {
-                newText.append(modPart);
+                // The allocator may hand back something other than the natural segment, which is what keeps two
+                // modules ending in the same segment from rendering under one qualifier.
+                newText.append(allocator == null ? modPart
+                        : allocator.qualifierFor(orgPart, fullModulePart, moduleInfo));
                 newText.append(":");
             }
             newText.append(typeName);
@@ -755,7 +794,10 @@ public class CommonUtils {
      * @return an Optional containing comma-separated list of import statements, or empty if no imports needed
      */
     public static Optional<String> getImportStatements(TypeSymbol typeSymbol, ModuleInfo moduleInfo) {
-        Set<String> imports = new HashSet<>();
+        // Insertion-ordered, so the joined string follows the type walk rather than hash order. A reader
+        // allocates prefixes in the order it parses them, and the first claimant keeps the natural segment --
+        // so a hashed order makes which of two colliding modules gets aliased vary between runs.
+        Set<String> imports = new LinkedHashSet<>();
         analyzeTypeSymbolForImports(imports, typeSymbol, moduleInfo);
         if (imports.isEmpty()) {
             return Optional.empty();
@@ -838,6 +880,85 @@ public class CommonUtils {
 
     private static boolean isAnnotationLangLib(String orgName, String packageName) {
         return orgName.equals(CommonUtil.BALLERINA_ORG_NAME) && packageName.equals("lang.annotations");
+    }
+
+    /**
+     * Renders an imports map back into the {@code importStatements} string carried by {@link FunctionData} and
+     * {@link ParameterData}, as {@code prefix=org/module} entries.
+     *
+     * <p>
+     * The qualifier is written out with the module because it is not derivable from it: two modules ending in the
+     * same dot-segment share a natural qualifier, so the one a signature was actually rendered under has to be
+     * stated. An entry without a qualifier still parses — see {@link #parseImportStatements} — which is what lets
+     * index-generated strings keep working unchanged.
+     * </p>
+     *
+     * @param imports qualifier -> {@code org/module}
+     * @return the encoded string, or null when there is nothing to import
+     */
+    public static String encodeImportStatements(Map<String, String> imports) {
+        if (imports == null || imports.isEmpty()) {
+            return null;
+        }
+        return imports.entrySet().stream()
+                .map(entry -> {
+                    // Only a renamed qualifier is written out. One that is the module's own last dot-segment is
+                    // what a reader derives anyway, so leaving it implicit keeps every entry that names no
+                    // colliding module in the shape it has always had -- the index included.
+                    String signature = entry.getValue().split(":")[0];
+                    String module = signature.contains("/")
+                            ? signature.substring(signature.indexOf('/') + 1) : signature;
+                    return entry.getKey().equals(ModuleAliasResolver.selfPrefix(module))
+                            ? entry.getValue()
+                            : entry.getKey() + IMPORT_QUALIFIER_SEPARATOR + entry.getValue();
+                })
+                .collect(Collectors.joining(","));
+    }
+
+    /**
+     * Parses an {@code importStatements} string into the {@code prefix -> org/module} map the model carries.
+     *
+     * <p>
+     * Accepts both shapes. A {@code prefix=org/module} entry keeps the qualifier the type text was rendered under,
+     * so the two agree. A bare {@code org/module} entry — everything the index holds today — falls back to the
+     * module's natural dot-segment, and to an allocated one if that is already claimed by another module in the same
+     * string, which keeps the second module from displacing the first and losing its import.
+     * </p>
+     *
+     * @param importStatements the encoded imports, may be null
+     * @return qualifier -> {@code org/module}, never null
+     */
+    public static Map<String, String> parseImportStatements(String importStatements) {
+        Map<String, String> imports = new LinkedHashMap<>();
+        if (importStatements == null || importStatements.isBlank()) {
+            return imports;
+        }
+        for (String entry : importStatements.split(",")) {
+            String importStatement = entry.trim();
+            if (importStatement.isEmpty()) {
+                continue;
+            }
+            int separator = importStatement.indexOf(IMPORT_QUALIFIER_SEPARATOR);
+            if (separator > 0) {
+                imports.put(importStatement.substring(0, separator),
+                        importStatement.substring(separator + 1));
+                continue;
+            }
+            // The entry is kept verbatim, version and all: a value may carry one -- the client echoes back the
+            // module id it was given -- and the pull path reads it to resolve the package without asking Central
+            // which version is latest. Only the prefix is derived here, and that derivation ignores the tail.
+            String signature = importStatement.split(":")[0];
+            String module = signature.contains("/")
+                    ? signature.substring(signature.indexOf('/') + 1) : signature;
+            if (module.isEmpty()) {
+                continue;
+            }
+            if (imports.containsValue(importStatement)) {
+                continue;
+            }
+            imports.put(ModuleAliasResolver.allocatePrefix(module, imports.keySet()), importStatement);
+        }
+        return imports;
     }
 
     /**

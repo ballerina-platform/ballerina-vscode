@@ -38,7 +38,9 @@ import io.ballerina.flowmodelgenerator.core.utils.SourceCodeGenerator;
 import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.modelgenerator.commons.DefaultValueGeneratorUtil;
 import io.ballerina.modelgenerator.commons.FileSystemUtils;
+import io.ballerina.modelgenerator.commons.ModuleAliasResolver;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
+import io.ballerina.modelgenerator.commons.ModulePrefixContext;
 import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.modelgenerator.commons.ParameterData;
 import io.ballerina.projects.Document;
@@ -65,6 +67,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -83,8 +86,11 @@ public class SourceBuilder {
     public final FlowNode flowNode;
     public final WorkspaceManager workspaceManager;
     private final Map<Path, List<TextEdit>> textEditsMap;
-    private final Set<String> imports;
+    /** Import signature ({@code org/module}) -> the prefix it is emitted under, null when unaliased. */
+    private final Map<String, String> imports;
     private final List<TypeData> typesToGenerate;
+    /** Decides one prefix per module, per target file; built on first use, see {@link #prefixes(Path)}. */
+    private final Map<Path, ModulePrefixContext> prefixContexts;
     private final LSClientLogger lsClientLogger;
     private Range defaultRange;
 
@@ -104,8 +110,9 @@ public class SourceBuilder {
         this.textEditsMap = new HashMap<>();
         this.flowNode = flowNode;
         this.workspaceManager = workspaceManager;
-        this.imports = new HashSet<>();
+        this.imports = new LinkedHashMap<>();
         this.typesToGenerate = new ArrayList<>();
+        this.prefixContexts = new HashMap<>();
         this.lsClientLogger = lsClientLogger;
 
         Codedata codedata = flowNode.codedata();
@@ -220,7 +227,7 @@ public class SourceBuilder {
 
         // Derive the type name form the inferred type
         Property type = optionalType.get();
-        String typeName = type.value().toString();
+        String typeName = requalifiedType(type);
         if (flowNode.codedata().inferredReturnType() != null) {
             typeName = getTypeNameForInferredParam(variable.get(), typeName);
         }
@@ -299,7 +306,7 @@ public class SourceBuilder {
         Optional<Property> variable = getProperty(Property.VARIABLE_KEY);
 
         if (type.isPresent() && variable.isPresent()) {
-            tokenBuilder.expressionWithType(type.get(), variable.get())
+            tokenBuilder.expressionWithType(requalifiedType(type.get()), variable.get())
                     .keyword(SyntaxKind.EQUAL_TOKEN);
         }
         return this;
@@ -332,7 +339,7 @@ public class SourceBuilder {
         property.ifPresent(prop -> {
             Map<String, String> propImports = prop.imports();
             if (propImports != null) {
-                propImports.values().forEach(propImport -> imports.add(propImport.split(":")[0]));
+                propImports.values().forEach(propImport -> acceptImportSignature(propImport.split(":")[0]));
             }
         });
         return property;
@@ -347,8 +354,21 @@ public class SourceBuilder {
 
     // TODO: This should be removed once the codedata is refactored to capture the module name
     public SourceBuilder addImport(String text) {
-        imports.add(text);
+        acceptImportSignature(text);
         return this;
+    }
+
+    /**
+     * Records an import already rendered as {@code org/module} text, resolving its prefix against the target file
+     * so a signature that arrived this way is aliased on the same terms as any other.
+     */
+    private void acceptImportSignature(String importSignature) {
+        String[] parts = importSignature.split("/", 2);
+        if (parts.length < 2) {
+            imports.putIfAbsent(importSignature, null);
+            return;
+        }
+        imports.put(importSignature, prefixes().prefixFor(parts[0], parts[1]));
     }
 
     public SourceBuilder acceptImport(String org, String module) {
@@ -356,23 +376,165 @@ public class SourceBuilder {
     }
 
     public SourceBuilder acceptImport(String org, String module, boolean defaultNamespace) {
-        if (org == null || module == null || org.equals(CommonUtil.BALLERINA_ORG_NAME) &&
-                CommonUtil.PRE_DECLARED_LANG_LIBS.contains(module)) {
-            return this;
+        importPrefix(org, module, defaultNamespace);
+        return this;
+    }
+
+    /**
+     * Records the import of {@code org/module} and returns the prefix it will be emitted under, so a reference
+     * generated for the module quotes the same prefix as the import statement that enables it. Reuses the prefix
+     * the target file already binds the module to, and otherwise allocates one that cannot collide with a prefix
+     * the file already uses.
+     *
+     * @return the resolved prefix, empty when nothing is imported
+     */
+    public String importPrefix(String org, String module) {
+        return importPrefix(org, module, false);
+    }
+
+    /** The node's own module as a reference qualifier, or empty when the node names no module. */
+    public String importQualifier() {
+        Codedata codedata = flowNode.codedata();
+        String prefix = codedata == null ? "" : importPrefix(codedata.org(), codedata.module());
+        return prefix.isEmpty() ? "" : prefix + ":";
+    }
+
+    private String importPrefix(String org, String module, boolean defaultNamespace) {
+        if (org == null || module == null) {
+            return "";
+        }
+        if (org.equals(CommonUtil.BALLERINA_ORG_NAME) && CommonUtil.PRE_DECLARED_LANG_LIBS.contains(module)) {
+            // A pre-declared lang lib is bound without an import, so it needs no import statement but a reference
+            // to it is still qualified -- `string:length(s)`.
+            return ModuleAliasResolver.selfPrefix(module);
         }
         try {
             this.workspaceManager.loadProject(filePath);
         } catch (WorkspaceDocumentException | EventSyncException e) {
-            return this;
+            // Without a project the file's bindings are unknown; the natural prefix is the only answer, and is the
+            // one the module would be imported under anyway.
+            return ModuleAliasResolver.selfPrefix(module);
         }
 
         // Generate the import signature
         String importSignature = CommonUtils.getImportStatement(org, module, module);
         if (defaultNamespace) {
-            importSignature += " as _";
+            // A default-namespace import binds no prefix, so it takes no part in prefix resolution.
+            imports.putIfAbsent(importSignature + " as _", null);
+            return "";
         }
-        imports.add(importSignature);
-        return this;
+        String prefix = prefixes().prefixFor(org, module);
+        imports.put(importSignature, prefix);
+        return prefix;
+    }
+
+    /**
+     * The property's type text with every module qualifier rewritten onto the prefix the target file binds that
+     * module to.
+     *
+     * <p>
+     * The qualifiers in the text are the ones the signature was rendered under, and the property's imports map
+     * says which module each of them stands for. Neither is a prefix the target file necessarily binds: the file
+     * may already import the module under an alias, or already bind that qualifier to a different module, and two
+     * modules in this one operation may want the same one. So each is resolved through the shared ledger and the
+     * text rewritten to match, which is what keeps a reference and the import that enables it in agreement.
+     * </p>
+     *
+     * @param type the type property to render
+     * @return the type text to write
+     */
+    public String requalifiedType(Property type) {
+        return prefixes().requalifyAuthored(type.toSourceCode(), type.imports());
+    }
+
+    /**
+     * A property's value with its module qualifiers rewritten onto the prefixes the target file binds, for a node
+     * being created.
+     *
+     * <p>
+     * A new node's values are the model's own text, authored against the qualifiers its imports map records, so
+     * they need the same resolution a type does: two of its parameters may name modules whose names end in the same
+     * segment, and only one of them can keep that segment in this file.
+     * </p>
+     *
+     * <p>
+     * A node read back from source is left alone. Its values were copied out of the file and so already use whatever
+     * that file binds, while its imports map is rebuilt from the model -- so the map's qualifiers and the value's
+     * qualifiers are not the same vocabulary, and rewriting by them would corrupt text that is already correct.
+     * </p>
+     *
+     * @param property the property whose value is being written
+     * @return the value to write
+     */
+    public String requalifiedValue(Property property) {
+        if (!isNewNode()) {
+            return property.toSourceCode();
+        }
+        return prefixes().requalifyAuthoredValue(property.toSourceCode(), property.imports());
+    }
+
+    /** Whether the node is being created rather than edited, i.e. whether its values are the model's own text. */
+    private boolean isNewNode() {
+        Codedata codedata = flowNode.codedata();
+        return codedata != null
+                && (Boolean.TRUE.equals(codedata.isNew()) || codedata.lineRange() == null);
+    }
+
+    /** The bare module name of an {@code org/module[:version]} entry, as a project's module ids are named. */
+    private static String moduleNameOf(String importSignature) {
+        String withoutVersion = importSignature.split(":")[0];
+        return withoutVersion.substring(withoutVersion.indexOf('/') + 1);
+    }
+
+    /**
+     * The prefix ledger for {@link #filePath}, seeded with the prefixes that file already binds. Built on first use
+     * rather than in the constructor, since resolving a prefix needs the target document and the constructor is
+     * where {@link #filePath} is still being decided.
+     */
+    private ModulePrefixContext prefixes() {
+        return prefixes(this.filePath);
+    }
+
+    /**
+     * The prefix ledger for one target file. One operation can write to more than one file -- a node lands in
+     * {@link #filePath} while the types it needs land in types.bal -- and a prefix is only free or taken relative
+     * to the file that will carry the import, so each file gets its own.
+     *
+     * @param path the file the edits are destined for
+     * @return that file's ledger, built on first use
+     */
+    private ModulePrefixContext prefixes(Path path) {
+        return prefixes(path, null);
+    }
+
+    /**
+     * As {@link #prefixes(Path)}, but told which module owns the file.
+     *
+     * <p>
+     * Without it every module classifies as external, so a type naming the file's own module is registered and
+     * gets {@code import <org>/<pkg>;} written into that package's own file, and a sibling submodule gets its
+     * import written with an organization it must not carry. That filtering used to live in
+     * {@code TypesManager.addImportsToTextEdits}; it now lives in the context, and only runs when it is told.
+     * </p>
+     *
+     * @param path          the file the edits are destined for
+     * @param currentModule the module owning that file, or null to classify every module as external
+     * @return that file's ledger, built on first use
+     */
+    private ModulePrefixContext prefixes(Path path, ModuleInfo currentModule) {
+        return this.prefixContexts.computeIfAbsent(path, target -> {
+            ModulePartNode rootNode = null;
+            try {
+                this.workspaceManager.loadProject(target);
+                Document document = FileSystemUtils.getDocument(workspaceManager, target);
+                if (document != null && document.syntaxTree().rootNode() instanceof ModulePartNode node) {
+                    rootNode = node;
+                }
+            } catch (WorkspaceDocumentException | EventSyncException e) {
+                // Without a file to read, the natural prefix is the only available answer.
+            }
+            return ModulePrefixContext.from(rootNode, currentModule);
+        });
     }
 
     /**
@@ -391,6 +553,12 @@ public class SourceBuilder {
         return typeModel.name();
     }
 
+    /**
+     * Resolves {@code typeName} and returns an expression that produces a value of it.
+     *
+     * @param typeName the type text as the model authored it, qualified by the keys of {@code imports}
+     * @param imports  the property's imports map, qualifier -> {@code org/module}
+     */
     public Optional<String> getExpressionBodyText(String typeName, Map<String, String> imports) {
         Project project = PackageUtil.loadProject(workspaceManager, filePath);
         Document document = FileSystemUtils.getDocument(workspaceManager, filePath);
@@ -408,14 +576,17 @@ public class SourceBuilder {
             subModuleIdMap.put(subModuleId, moduleId);
         });
 
-        // Obtain the symbols of the imports
+        // Obtain the symbols of the imports, keyed by the qualifier the type text actually uses. That is the
+        // map's own key, not a prefix re-derived from the package: where two of this property's modules end in
+        // the same segment one of them was recorded under a different key, and re-deriving would look up a
+        // qualifier the text never spells.
         Map<String, BLangPackage> packageMap = new HashMap<>();
         if (imports != null) {
-            imports.values().forEach(moduleId -> {
+            imports.forEach((qualifier, moduleId) -> {
                 ModuleInfo moduleInfo = ModuleInfo.from(moduleId);
                 if (!subModuleIds.contains(moduleInfo.packageName())) {
                     PackageUtil.pullModuleAndNotify(lsClientLogger, moduleInfo).ifPresent(pkg ->
-                            packageMap.put(CommonUtils.getDefaultModulePrefix(pkg.packageName().value()),
+                            packageMap.put(qualifier,
                                     PackageUtil.getCompilation(pkg).defaultModuleBLangPackage())
                     );
                 }
@@ -437,7 +608,13 @@ public class SourceBuilder {
                 return Optional.empty();
             }
 
-            String fullModuleName = packageName + "." + typeNameParts[0];
+            // The qualifier names a module only through the imports map; taken literally it is the submodule's
+            // name only while nothing forced it to be renamed.
+            String qualifier = typeNameParts[0];
+            String importedModule = imports == null ? null : imports.get(qualifier);
+            String fullModuleName = importedModule == null
+                    ? packageName + "." + qualifier
+                    : moduleNameOf(importedModule);
             ModuleId moduleId = subModuleIdMap.get(fullModuleName);
             if (moduleId == null) {
                 return Optional.empty();
@@ -489,7 +666,7 @@ public class SourceBuilder {
         Optional<Property> variable = getProperty(Property.VARIABLE_KEY);
 
         if (type.isPresent() && variable.isPresent()) {
-            tokenBuilder.expressionWithType(type.get(), variable.get());
+            tokenBuilder.expressionWithType(requalifiedType(type.get()), variable.get());
         }
         return this;
     }
@@ -542,7 +719,7 @@ public class SourceBuilder {
         Optional<Property> onErrorType = onFailureBranch.getProperty(Property.ON_ERROR_TYPE_KEY);
         Optional<Property> onErrorValue = onFailureBranch.getProperty(Property.ON_ERROR_VARIABLE_KEY);
         if (onErrorType.isPresent() && onErrorValue.isPresent()) {
-            tokenBuilder.expressionWithType(onErrorType.get(), onErrorValue.get());
+            tokenBuilder.expressionWithType(requalifiedType(onErrorType.get()), onErrorValue.get());
         }
 
         // Build the body
@@ -775,6 +952,8 @@ public class SourceBuilder {
     }
 
     public Map<Path, List<TextEdit>> build() {
+        // The two write to different files from different prefix ledgers -- the node's imports to filePath, the
+        // generated types' to types.bal -- so this order is not load-bearing, despite reading as if it were.
         // Add the imports if exists
         addImports();
         // Add the types if exists
@@ -813,7 +992,7 @@ public class SourceBuilder {
     }
 
     private void cleanImportsForModuleImportsInSamePackage(String orgName, String moduleName) {
-        for (String importStmt : new HashSet<>(imports)) {
+        for (String importStmt : new ArrayList<>(imports.keySet())) {
             String[] parts = importStmt.split("/");
             if (parts.length > 1) {
                 String importOrg = parts[0];
@@ -830,8 +1009,8 @@ public class SourceBuilder {
 
                 String moduleNamePrefix = moduleName + ".";
                 if (importModule.startsWith(moduleNamePrefix)) {
-                    imports.remove(importStmt);
-                    imports.add(moduleNamePrefix + importModule.substring(moduleName.length() + 1));
+                    String prefix = imports.remove(importStmt);
+                    imports.put(moduleNamePrefix + importModule.substring(moduleName.length() + 1), prefix);
                 }
             }
         }
@@ -849,10 +1028,10 @@ public class SourceBuilder {
     }
 
     private void generateImportsTextEdits(Path filePath, Range startLineRange) {
-        for (String moduleImport : imports) {
+        for (Map.Entry<String, String> moduleImport : imports.entrySet()) {
             tokenBuilder
                     .keyword(SyntaxKind.IMPORT_KEYWORD)
-                    .name(moduleImport)
+                    .name(ModuleAliasResolver.withAliasClause(moduleImport.getKey(), moduleImport.getValue()))
                     .endOfStatement();
             textEdit(SourceKind.IMPORT, filePath, startLineRange);
         }
@@ -883,31 +1062,31 @@ public class SourceBuilder {
         // Generate text edits for each type at the end of the file
         Range endOfFileRange = CommonUtils.toRange(rootNode.lineRange().endLine());
 
+        // One generator, and so one prefix ledger, for every type this operation writes into types.bal: that is
+        // what makes two generated types agree with each other and with what the file already imports.
+        ModulePrefixContext typePrefixes = prefixes(filePath, ModuleInfo.from(document.module().descriptor()));
+        SourceCodeGenerator sourceCodeGenerator = new SourceCodeGenerator(typePrefixes);
         for (TypeData typeData : typesToGenerate) {
-            SourceCodeGenerator sourceCodeGenerator = new SourceCodeGenerator();
             String codeSnippet = sourceCodeGenerator.generateCodeSnippetForType(typeData);
 
             if (codeSnippet != null && !codeSnippet.isEmpty()) {
                 // Add a newline before the type definition
                 String typeDefinition = System.lineSeparator() + codeSnippet;
 
-                List<TextEdit> textEdits = textEditsMap.get(filePath);
-                if (textEdits == null) {
-                    textEdits = new ArrayList<>();
-                }
+                List<TextEdit> textEdits = textEditsMap.computeIfAbsent(filePath, path -> new ArrayList<>());
                 textEdits.add(new TextEdit(endOfFileRange, typeDefinition));
-                textEditsMap.put(filePath, textEdits);
+            }
+        }
 
-                // Add imports from the type generation
-                Map<String, String> typeImports = sourceCodeGenerator.getImports();
-                if (typeImports != null) {
-                    typeImports.forEach((key, value) -> {
-                        String[] parts = value.split("/");
-                        if (parts.length > 1) {
-                            acceptImport(parts[0], parts[1].split(":")[0]);
-                        }
-                    });
-                }
+        // The imports those types need belong to types.bal, not to filePath. Emitted here rather than through the
+        // node's ledger, which addImports has already flushed by the time this runs.
+        List<String> pending = typePrefixes.pendingImportStatements();
+        if (!pending.isEmpty()) {
+            Range startOfFileRange = CommonUtils.toRange(rootNode.lineRange().startLine());
+            List<TextEdit> textEdits = textEditsMap.computeIfAbsent(filePath, path -> new ArrayList<>());
+            for (String signature : pending) {
+                textEdits.addFirst(new TextEdit(startOfFileRange,
+                        System.lineSeparator() + "import " + signature + ";" + System.lineSeparator()));
             }
         }
     }
@@ -957,20 +1136,31 @@ public class SourceBuilder {
         }
 
         public TokenBuilder expression(Property property) {
-            sb.append(property.toSourceCode());
+            sb.append(valueOf(property));
             return this;
         }
 
         public TokenBuilder param(Property property) {
-            sb.append(CommonUtils.escapeIdentifierFromFormField(property.toSourceCode()));
+            // Requalified like its named-arg counterpart: a positional argument naming an aliased module needs the
+            // same rewrite, and writing it raw bound it to whichever module kept the natural prefix.
+            sb.append(CommonUtils.escapeIdentifierFromFormField(valueOf(property)));
             return this;
         }
 
         public TokenBuilder namedArg(Property property) {
             sb.append(CommonUtils.escapeIdentifierFromFormField(property.codedata().originalName())).append(WHITE_SPACE)
                     .append(SyntaxKind.EQUAL_TOKEN.stringValue()).append(WHITE_SPACE)
-                    .append(property.toSourceCode());
+                    .append(valueOf(property));
             return this;
+        }
+
+        /**
+         * The value to write for a property, requalified when this builder belongs to a SourceBuilder. A standalone
+         * TokenBuilder has no target file to resolve against and writes the value as it stands.
+         */
+        private String valueOf(Property property) {
+            SourceBuilder sourceBuilder = stepOut();
+            return sourceBuilder == null ? property.toSourceCode() : sourceBuilder.requalifiedValue(property);
         }
 
         public TokenBuilder expression(String exprAsStr) {
@@ -978,11 +1168,8 @@ public class SourceBuilder {
             return this;
         }
 
-        public TokenBuilder expressionWithType(Property type, Property variable) {
-            sb.append(type.toSourceCode()).append(WHITE_SPACE).append(variable.toSourceCode()).append(WHITE_SPACE);
-            return this;
-        }
-
+        // Note there is deliberately no Property overload: a type must be rendered through
+        // SourceBuilder.requalifiedType so its module qualifiers follow the target file's imports.
         public TokenBuilder expressionWithType(String type, Property variable) {
             sb.append(type).append(WHITE_SPACE).append(variable.toSourceCode()).append(WHITE_SPACE);
             return this;

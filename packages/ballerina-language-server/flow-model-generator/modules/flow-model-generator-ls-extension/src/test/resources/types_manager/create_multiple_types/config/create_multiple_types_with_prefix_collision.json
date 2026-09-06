@@ -1,0 +1,158 @@
+{
+  "filePath": "test_pack_github/types.bal",
+  "description": "Create multiple types where a member's module collides with a prefix the file already binds",
+  "types": [
+    {
+      "name": "Watcher",
+      "editable": true,
+      "metadata": {
+        "label": "Watcher",
+        "description": ""
+      },
+      "codedata": {
+        "node": "RECORD"
+      },
+      "properties": {
+        "name": {
+          "metadata": {
+            "label": "Type name",
+            "description": "Unique name to identify the type"
+          },
+          "valueType": "IDENTIFIER",
+          "value": "Watcher",
+          "optional": false,
+          "editable": false,
+          "advanced": false
+        },
+        "isPublic": {
+          "metadata": {
+            "label": "public",
+            "description": "Is this public"
+          },
+          "valueType": "FLAG",
+          "value": "false",
+          "optional": true,
+          "editable": true,
+          "advanced": false
+        },
+        "description": {
+          "metadata": {
+            "label": "Type description",
+            "description": "Detailed description about the type"
+          },
+          "valueType": "STRING",
+          "value": "",
+          "optional": false,
+          "editable": true,
+          "advanced": false
+        }
+      },
+      "members": [
+        {
+          "kind": "FIELD",
+          "refs": [],
+          "type": "string",
+          "name": "watcherName",
+          "docs": ""
+        },
+        {
+          "kind": "FIELD",
+          "refs": [],
+          "type": "github:Client",
+          "name": "client",
+          "docs": "",
+          "imports": {
+            "github": "ballerinax/github:1.0.0"
+          }
+        }
+      ],
+      "includes": []
+    },
+    {
+      "name": "WatcherGroup",
+      "editable": true,
+      "metadata": {
+        "label": "WatcherGroup",
+        "description": ""
+      },
+      "codedata": {
+        "node": "RECORD"
+      },
+      "properties": {
+        "name": {
+          "metadata": {
+            "label": "Type name",
+            "description": "Unique name to identify the type"
+          },
+          "valueType": "IDENTIFIER",
+          "value": "WatcherGroup",
+          "optional": false,
+          "editable": false,
+          "advanced": false
+        },
+        "isPublic": {
+          "metadata": {
+            "label": "public",
+            "description": "Is this public"
+          },
+          "valueType": "FLAG",
+          "value": "false",
+          "optional": true,
+          "editable": true,
+          "advanced": false
+        },
+        "description": {
+          "metadata": {
+            "label": "Type description",
+            "description": "Detailed description about the type"
+          },
+          "valueType": "STRING",
+          "value": "",
+          "optional": false,
+          "editable": true,
+          "advanced": false
+        }
+      },
+      "members": [
+        {
+          "kind": "FIELD",
+          "refs": [],
+          "type": "string",
+          "name": "groupName",
+          "docs": ""
+        }
+      ],
+      "includes": []
+    }
+  ],
+  "output": {
+    "test_pack_github/types.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "\nimport ballerinax/github as github2;\n"
+      },
+      {
+        "range": {
+          "start": {
+            "line": 4,
+            "character": 3
+          },
+          "end": {
+            "line": 4,
+            "character": 3
+          }
+        },
+        "newText": "\ntype Watcher record {|\n\tstring watcherName;\n\tgithub2:Client 'client;\n|};\n\ntype WatcherGroup record {|\n\tstring groupName;\n|};"
+      }
+    ]
+  }
+}

@@ -73,9 +73,7 @@ public class FunctionCall extends CallBuilder {
                     .build();
         }
 
-        String module = flowNode.codedata().module();
-        String methodCallPrefix = (module != null) ? module.substring(module.lastIndexOf('.') + 1) + ":" : "";
-        String methodCall = methodCallPrefix + flowNode.metadata().label();
+        String methodCall = sourceBuilder.importQualifier() + flowNode.metadata().label();
 
         return sourceBuilder.token()
                 .name(methodCall)

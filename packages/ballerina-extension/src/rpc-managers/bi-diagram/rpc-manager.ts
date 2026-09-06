@@ -2015,13 +2015,15 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
 
     async updateImports(params: UpdateImportsRequest): Promise<UpdateImportsResponse> {
         return new Promise((resolve, reject) => {
+            // The offset shifts the expression editor's cursor past the text the import added, so it has
+            // to measure the statement that was actually sent. Measuring the untrimmed one counted the
+            // surrounding whitespace of the completion's text edit - typically a trailing newline - and
+            // drifted the cursor by that much on every accepted completion.
+            const importStatement = params.importStatement.trim();
             StateMachine.langClient()
-                .updateImports({
-                    ...params,
-                    importStatement: params.importStatement.trim()
-                })
+                .updateImports({ ...params, importStatement })
                 .then((response) => {
-                    resolve({ ...response, importStatementOffset: params.importStatement.length });
+                    resolve({ ...response, importStatementOffset: importStatement.length });
                 })
                 .catch((error) => {
                     console.error('Error updating imports', error);

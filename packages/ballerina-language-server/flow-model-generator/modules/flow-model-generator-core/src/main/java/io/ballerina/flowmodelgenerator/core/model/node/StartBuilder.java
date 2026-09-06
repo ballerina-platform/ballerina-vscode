@@ -54,7 +54,7 @@ public class StartBuilder extends NodeBuilder {
         Optional<Property> variable = sourceBuilder.getProperty(Property.VARIABLE_KEY);
         if (type.isPresent() && variable.isPresent()) {
             sourceBuilder.token()
-                    .expressionWithType(type.get(), variable.get())
+                    .expressionWithType(sourceBuilder.requalifiedType(type.get()), variable.get())
                     .keyword(SyntaxKind.EQUAL_TOKEN);
         }
 

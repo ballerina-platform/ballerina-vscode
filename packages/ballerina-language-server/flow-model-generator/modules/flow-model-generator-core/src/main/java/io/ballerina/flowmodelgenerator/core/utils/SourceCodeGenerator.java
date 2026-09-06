@@ -27,10 +27,13 @@ import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.TypeData;
 import io.ballerina.modelgenerator.commons.CommonUtils;
+import io.ballerina.modelgenerator.commons.ModulePrefixContext;
 import org.ballerinalang.langserver.common.utils.CommonUtil;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Deque;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -42,14 +45,56 @@ import static io.ballerina.flowmodelgenerator.core.converters.utils.DataMappingM
 /**
  * Code snippet generator.
  *
+ * <p>
+ * Module qualifiers in the generated text are resolved against {@link ModulePrefixContext}, which decides one
+ * prefix per module for the file the snippet is destined for. The resolution happens where a member's own
+ * imports map is still in scope, because that map is the only place the qualifier's module identity survives:
+ * merging several members' maps under their natural prefixes is what loses it.
+ * </p>
+ *
  * @since 1.0.0
  */
 public class SourceCodeGenerator {
 
     private final Gson gson = new Gson();
-    private final Map<String, String> imports = new HashMap<>();
+    private final ModulePrefixContext prefixes;
+    /**
+     * The imports in scope at the current point of the walk, innermost last. Each frame overlays its member's
+     * map on its parent, so a nested member shadows an outer entry on the same qualifier and inherits the rest
+     * when it carries no map of its own.
+     */
+    private final Deque<Map<String, String>> importScopes = new ArrayDeque<>();
 
     private static final String LS = System.lineSeparator();
+
+    /** Resolves every module qualifier against the file the generated edits are for. */
+    public SourceCodeGenerator(ModulePrefixContext prefixes) {
+        this.prefixes = prefixes;
+        this.importScopes.push(Map.of());
+    }
+
+    /** No file knowledge: every module keeps its natural prefix. */
+    public SourceCodeGenerator() {
+        this(ModulePrefixContext.from(null));
+    }
+
+    /**
+     * Enters a member's import scope. The caller must {@link #popScope()} in a finally block, so a throw from
+     * an unsupported type descriptor cannot leave the stack skewed.
+     */
+    private void pushScope(Map<String, String> memberImports) {
+        if (memberImports == null || memberImports.isEmpty()) {
+            importScopes.push(importScopes.peek());
+            return;
+        }
+        Map<String, String> scope = new LinkedHashMap<>(importScopes.peek());
+        scope.putAll(memberImports);
+        importScopes.push(scope);
+    }
+
+    private void popScope() {
+        importScopes.pop();
+    }
 
     public String generateCodeSnippetForType(TypeData typeData) {
         NodeKind nodeKind = typeData.codedata().node();
@@ -96,10 +141,18 @@ public class SourceCodeGenerator {
         );
     }
 
-    public Map<String, String> getImports () {
-        return this.imports;
+    /**
+     * The imports still to be written for everything generated so far, in registration order, each carrying its
+     * {@code as} clause where the prefix is a rename. Modules the target file already imports are absent.
+     */
+    public List<String> getImportStatements() {
+        return this.prefixes.pendingImportStatements();
     }
 
+    /**
+     * Enum members are emitted verbatim and contribute no imports; a qualified default value there is not
+     * resolved. Pre-existing, and out of scope for the qualifier work.
+     */
     private String generateEnumCodeSnippet(TypeData typeData) {
         String docs = generateDocs(typeData.metadata().description(), "");
 
@@ -132,10 +185,8 @@ public class SourceCodeGenerator {
         String annots = "";
         List<AnnotationAttachment> annotationAttachments = typeData.annotationAttachments();
         if (annotationAttachments != null && !annotationAttachments.isEmpty()) {
-            annotationAttachments.forEach(this::addCodedataImports);
-
             annots = annotationAttachments.stream()
-                    .map(annot -> annot.toString() + LS)
+                    .map(annot -> annotationSource(annot) + LS)
                     .collect(Collectors.joining());
         }
         String typeDescriptor = generateTypeDescriptor(typeData);
@@ -164,16 +215,18 @@ public class SourceCodeGenerator {
                                                    List<AnnotationAttachment> annotAttachments) {
         StringBuilder annotationsBuilder = new StringBuilder();
         for (AnnotationAttachment annot : annotAttachments) {
-            annotationsBuilder.append(annot.toString()).append(" ");
-            addCodedataImports(annot);
+            annotationsBuilder.append(annotationSource(annot)).append(" ");
         }
 
         return annotationsBuilder + generateTypeDescriptor(typeData);
     }
 
     private String generateTypeDescriptor(Object typeDescriptor) {
-        if (typeDescriptor instanceof String) { // Type reference or in-line type as string
-            return (String) typeDescriptor;
+        if (typeDescriptor instanceof String text) { // Type reference or in-line type as string
+            // The one place an authored `prefix:Type` reaches the output, so the one place it has to be
+            // resolved. Every structural branch below either recurses here or joins children already resolved,
+            // which is what keeps each qualifier rewritten exactly once.
+            return prefixes.requalifyAuthored(text, importScopes.peek());
         }
 
         TypeData typeData = toTypeData(typeDescriptor);
@@ -252,36 +305,40 @@ public class SourceCodeGenerator {
     }
 
     private String generateFieldMember(Member member, boolean withDefaultValue) {
-        // Add the imports
-        addImports(member.imports());
-
-        StringBuilder stringBuilder = new StringBuilder();
-        String docs = generateDocs(member.docs(), "\t");
-        stringBuilder
-                .append(docs)
-                .append("\t")
-                .append(generateMember(member, withDefaultValue))
-                .append(";");
-        return stringBuilder.toString();
+        // generateMember enters this same scope again; overlaying a map on itself is a no-op.
+        pushScope(member.imports());
+        try {
+            StringBuilder stringBuilder = new StringBuilder();
+            String docs = generateDocs(member.docs(), "\t");
+            stringBuilder
+                    .append(docs)
+                    .append("\t")
+                    .append(generateMember(member, withDefaultValue))
+                    .append(";");
+            return stringBuilder.toString();
+        } finally {
+            popScope();
+        }
     }
 
     private String generateAnnotatedFieldMember(Member member, boolean withDefaultValue) {
-        // Add the imports
-        addImports(member.imports());
+        pushScope(member.imports());
+        try {
+            // Docs
+            String docs = generateDocs(member.docs(), "\t");
 
-        // Docs
-        String docs = generateDocs(member.docs(), "\t");
+            // Annotation
+            StringBuilder annotationsBuilder = new StringBuilder();
+            for (AnnotationAttachment annot : getAnnotationAttachments(member)) {
+                annotationsBuilder.append("\t").append(annotationSource(annot)).append(LS);
+            }
 
-        // Annotation
-        StringBuilder annotationsBuilder = new StringBuilder();
-        for (AnnotationAttachment annot : getAnnotationAttachments(member)) {
-            addCodedataImports(annot);
-            annotationsBuilder.append("\t").append(annot.toString()).append(LS);
+            return docs +
+                    annotationsBuilder +
+                    "\t" + generateMember(member, withDefaultValue) + ";";
+        } finally {
+            popScope();
         }
-
-        return docs +
-                annotationsBuilder +
-                "\t" + generateMember(member, withDefaultValue) + ";";
     }
 
     private String generateTableTypeDescriptor(TypeData typeData) {
@@ -437,11 +494,12 @@ public class SourceCodeGenerator {
     }
 
     private String generateTypeFromMember(Member member) {
-        // Add the imports
-        addImports(member.imports());
-
-        // Generate the type descriptor
-        return generateTypeDescriptor(member.type());
+        pushScope(member.imports());
+        try {
+            return generateTypeDescriptor(member.type());
+        } finally {
+            popScope();
+        }
     }
 
     private String generateDocs(String docs, String indent) {
@@ -451,25 +509,28 @@ public class SourceCodeGenerator {
     }
 
     private String generateFunctionParameter(Member member, boolean withDefaultValue) {
-        // Add the imports
-        addImports(member.imports());
+        pushScope(member.imports());
+        try {
+            // Annotation and type descriptor
+            List<AnnotationAttachment> copyOfAnnotAttachments = getAnnotationAttachments(member);
+            String annotatedTypeDesc = generateAnnotatedTypeDescriptor(member.type(), copyOfAnnotAttachments);
 
-        // Annotation and type descriptor
-        List<AnnotationAttachment> copyOfAnnotAttachments = getAnnotationAttachments(member);
-        String annotatedTypeDesc = generateAnnotatedTypeDescriptor(member.type(), copyOfAnnotAttachments);
+            // Param name
+            String paramName = CommonUtil.escapeReservedKeyword(member.name());
+            if (member.optional()) {
+                paramName = paramName + "?";
+            }
 
-        // Param name
-        String paramName = CommonUtil.escapeReservedKeyword(member.name());
-        if (member.optional()) {
-            paramName = paramName + "?";
+            // Default value
+            String defaultValue =
+                    (withDefaultValue && member.defaultValue() != null && !member.defaultValue().isEmpty())
+                            ? " = " + member.defaultValue() : "";
+
+            String template = "%s %s%s"; // <type descriptor> <identifier>[ = <default value>]
+            return template.formatted(annotatedTypeDesc, paramName, defaultValue);
+        } finally {
+            popScope();
         }
-
-        // Default value
-        String defaultValue = (withDefaultValue && member.defaultValue() != null && !member.defaultValue().isEmpty())
-                ? " = " + member.defaultValue() : "";
-
-        String template = "%s %s%s"; // <type descriptor> <identifier>[ = <default value>]
-        return template.formatted(annotatedTypeDesc, paramName, defaultValue);
     }
 
     private static List<AnnotationAttachment> getAnnotationAttachments(Member member) {
@@ -529,9 +590,15 @@ public class SourceCodeGenerator {
     }
 
     private String generateResourceFunction(Function function) {
-        // Add the imports
-        addImports(function.imports());
+        pushScope(function.imports());
+        try {
+            return generateResourceFunctionSource(function);
+        } finally {
+            popScope();
+        }
+    }
 
+    private String generateResourceFunctionSource(Function function) {
         String docs = generateDocs(function.description(), "\t");
 
         StringJoiner paramJoiner = new StringJoiner(", ");
@@ -597,29 +664,30 @@ public class SourceCodeGenerator {
     }
 
     /**
-     * Helper method to add imports derived from an {@link AnnotationAttachment} to the imports map.
-     * Skips local annotations (where modulePrefix is null or empty) to avoid self-imports.
+     * The source of an annotation attachment, rendered under the prefix its module resolves to in the target
+     * file, and registering that module for import. A local annotation (no module prefix) is emitted as-is.
      *
-     * @param annot The annotation attachment whose imports need to be added
+     * <p>
+     * The annotation's <em>property values</em> are emitted verbatim, so a qualified constant reference inside
+     * one is not resolved. Pre-existing, and out of scope here.
+     * </p>
+     *
+     * @param annot the attachment to render
+     * @return its source text
      */
-    private void addCodedataImports(AnnotationAttachment annot) {
-        if (annot == null || annot.modulePrefix() == null || annot.modulePrefix().isEmpty()) {
-            return;
+    private String annotationSource(AnnotationAttachment annot) {
+        if (annot == null) {
+            return "";
+        }
+        if (annot.modulePrefix() == null || annot.modulePrefix().isEmpty()) {
+            return annot.toString();
         }
         Codedata codedata = annot.codedata();
-        if (codedata != null && codedata.org() != null && codedata.module() != null) {
-            this.imports.putIfAbsent(annot.codedata().module(), codedata.getImportSignature());
+        if (codedata == null || codedata.org() == null || codedata.module() == null) {
+            return annot.toString();
         }
-    }
-
-    /**
-     * Helper method to add imports.
-     *
-     * @param imports The imports need to be added
-     */
-    private void addImports(Map<String, String> imports) {
-        if (Objects.nonNull(imports)) {
-            imports.forEach(this.imports::putIfAbsent);
-        }
+        // An empty prefix is the answer for an annotation of the file's own module, which needs no qualifier.
+        // Falling back to the model's stored prefix there would emit `@pkg:Ann` for a module nothing imports.
+        return annot.toSourceCode(prefixes.prefixFor(codedata.org(), codedata.module()));
     }
 }

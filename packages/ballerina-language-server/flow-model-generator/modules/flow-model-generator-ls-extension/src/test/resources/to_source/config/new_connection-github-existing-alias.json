@@ -1,0 +1,92 @@
+{
+  "source": "new_connection-github-existing-alias/main.bal",
+  "description": "A connection whose module the file already imports under an alias, committed when the file first resolved this same collision: the generator reuses it rather than allocating another",
+  "diagram": {
+    "id": "31",
+    "metadata": {
+      "label": "New Connection",
+      "description": "GitHub connector"
+    },
+    "codedata": {
+      "node": "NEW_CONNECTION",
+      "org": "ballerinax",
+      "module": "github",
+      "object": "Client",
+      "symbol": "init",
+      "id": 3077,
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "config": {
+        "metadata": {
+          "label": "config",
+          "description": "Connection configuration"
+        },
+        "valueType": "EXPRESSION",
+        "valueTypeConstraint": "github:ConnectionConfig",
+        "value": " {}",
+        "optional": false,
+        "editable": true,
+        "codedata": {
+          "kind": "REQUIRED",
+          "originalName": "config"
+        },
+        "imports": {
+          "github": "ballerinax/github"
+        }
+      },
+      "type": {
+        "metadata": {
+          "label": "Variable Type",
+          "description": "Type of the variable"
+        },
+        "valueType": "TYPE",
+        "value": "github:Client",
+        "optional": false,
+        "editable": true,
+        "imports": {
+          "github": "ballerinax/github"
+        }
+      },
+      "variable": {
+        "metadata": {
+          "label": "Variable Name",
+          "description": "Name of the variable"
+        },
+        "valueType": "IDENTIFIER",
+        "value": "githubClient",
+        "optional": false,
+        "editable": true
+      },
+      "scope": {
+        "metadata": {
+          "label": "Connection Scope",
+          "description": "Scope of the connection, Global or Local"
+        },
+        "valueType": "ENUM",
+        "value": "Global",
+        "optional": false,
+        "editable": true
+      }
+    },
+    "flags": 0
+  },
+  "output": {
+    "new_connection-github-existing-alias/connections.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 1,
+            "character": 37
+          },
+          "end": {
+            "line": 1,
+            "character": 37
+          }
+        },
+        "newText": "\nfinal ghClient:Client githubClient = check new ({});"
+      }
+    ]
+  }
+}
