@@ -107,14 +107,19 @@ function agentNodeFromArtifact(
         role: connection?.role ?? "",
         toolCount: connection?.dependentFunctions?.length ?? 0,
         chips: buildToolChips(connection, uuidToConnection),
-        typed: artifact.isDefinition || (artifact.moduleName != null && artifact.moduleName !== AI_MODULE),
+        typed: artifact.moduleName != null && artifact.moduleName !== AI_MODULE,
         orphan: false,
         filePath: artifact.path,
         position: connection?.location?.startLine ?? { line: artifact.startLine, offset: 0 },
     };
 }
 
-// An agent the design model sees but the artifact list doesn't (e.g. a non-default-module
+// LSP4J sends the scope enum as its ordinal (GLOBAL = 1); Gson in tests sends the name.
+function isModuleLevel(connection: CDConnection): boolean {
+    return String(connection.scope) === "GLOBAL" || String(connection.scope) === "1";
+}
+
+// A module-level agent the design model sees but the artifact list doesn't (e.g. a non-default-module
 // caller's target) still gets a node, keyed by its own location.
 function agentNodeFromConnection(
     connection: CDConnection,
@@ -144,10 +149,13 @@ function buildAgentNodes(
     const uuidToConnection = new Map(connections.map((connection) => [connection.uuid, connection]));
     const uuidToNodeId = new Map<string, string>();
 
-    const nodes = agents.map((artifact) => agentNodeFromArtifact(artifact, connections, uuidToConnection, uuidToNodeId));
+    // Cards are agent instances: a definition (class) is not one, and neither is the field it holds inside.
+    const nodes = agents
+        .filter((artifact) => !artifact.isDefinition)
+        .map((artifact) => agentNodeFromArtifact(artifact, connections, uuidToConnection, uuidToNodeId));
 
     connections
-        .filter((connection) => connection.kind === AGENT_KIND && !uuidToNodeId.has(connection.uuid))
+        .filter((connection) => connection.kind === AGENT_KIND && isModuleLevel(connection) && !uuidToNodeId.has(connection.uuid))
         .forEach((connection) => nodes.push(agentNodeFromConnection(connection, uuidToConnection, uuidToNodeId)));
 
     return { nodes, uuidToNodeId };

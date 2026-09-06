@@ -286,6 +286,27 @@ describe("buildTopology", () => {
         expect(graph.edges.find((e) => e.sourceId === triggerId && e.kind === "stem").chips).toEqual([{ kind: "sequence", text: "2" }]);
     });
 
+    it("draws typed-agent instances but neither their definition nor the field inside it", () => {
+        const DEFS_BAL = "/proj/agent_definitions.bal";
+        const field = agentConnection("fld", "agent", DEFS_BAL, 6, { scope: 0 as unknown as string });
+        const team = agentConnection("team", "teamCalendarAgent", AGENTS_BAL, 2, { scope: 1 as unknown as string });
+        const personal = agentConnection("pers", "personalCalendarAgent", AGENTS_BAL, 3);
+        const chat = service(MAIN_BAL, 1, "ai:Service", "/calendar", ["team"], [resourceFn("post", "chat", MAIN_BAL, 2, ["team"], [{ connection: "team", line: 3 }])]);
+
+        const graph = buildTopology({
+            model: modelOf([field, team, personal], [chat]),
+            agents: [
+                artifact("teamCalendarAgent", AGENTS_BAL, 2, { moduleName: "typed_agents" }),
+                artifact("personalCalendarAgent", AGENTS_BAL, 3, { moduleName: "typed_agents" }),
+                artifact("CalendarAssistant", DEFS_BAL, 4, { isDefinition: true, moduleName: "typed_agents" }),
+            ],
+        });
+
+        expect(graph.agents.map((agent) => agent.name).sort()).toEqual(["personalCalendarAgent", "teamCalendarAgent"]);
+        expect(graph.agents.every((agent) => agent.typed)).toBe(true);
+        expect(graph.edges.find((edge) => edge.targetId === agentId(AGENTS_BAL, 2))).toBeDefined();
+    });
+
     it("marks an agent reachable from nothing as orphan", () => {
         const orphan = agentConnection("orph", "orphanAgent", AGENTS_BAL, 1);
         const graph = buildTopology({
