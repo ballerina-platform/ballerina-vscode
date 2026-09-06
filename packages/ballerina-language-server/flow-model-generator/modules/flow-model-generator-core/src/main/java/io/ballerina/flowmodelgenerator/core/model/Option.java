@@ -24,12 +24,17 @@ import java.util.Set;
 /**
  * Represents an option in a PropertyType.
  *
- * @param label the label of the option
- * @param value the value of the option
+ * @param label    the label of the option
+ * @param value    the value of the option
+ * @param typeInfo the type the value belongs to, if the value has to be qualified with a module prefix
  *
  * @since 1.5.0
  */
-public record Option(String label, String value) {
+public record Option(String label, String value, PropertyTypeMemberInfo typeInfo) {
+
+    public Option(String label, String value) {
+        this(label, value, null);
+    }
 
     public static List<Option> of(List<String> values) {
         return values.stream().map(value -> new Option(value, value)).toList();

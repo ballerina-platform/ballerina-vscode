@@ -38,16 +38,16 @@
             "fieldType": "SINGLE_SELECT",
             "options": [
               {
-                "label": "PENDING",
-                "value": "\"PENDING\""
+                "label": "ACTIVE",
+                "value": "ACTIVE"
               },
               {
                 "label": "INACTIVE",
-                "value": "\"INACTIVE\""
+                "value": "INACTIVE"
               },
               {
-                "label": "ACTIVE",
-                "value": "\"ACTIVE\""
+                "label": "PENDING",
+                "value": "PENDING"
               }
             ],
             "selected": false

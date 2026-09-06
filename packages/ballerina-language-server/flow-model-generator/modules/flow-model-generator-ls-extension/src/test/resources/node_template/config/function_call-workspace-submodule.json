@@ -71,12 +71,26 @@
             "fieldType": "SINGLE_SELECT",
             "options": [
               {
-                "label": "friendly",
-                "value": "\"friendly\""
+                "label": "FRIENDLY",
+                "value": "FRIENDLY",
+                "typeInfo": {
+                  "type": "GreetingStyle",
+                  "packageInfo": "wso2:pkgB.helpers:0.1.0",
+                  "packageName": "pkgB",
+                  "kind": "ENUM_TYPE",
+                  "selected": false
+                }
               },
               {
-                "label": "formal",
-                "value": "\"formal\""
+                "label": "FORMAL",
+                "value": "FORMAL",
+                "typeInfo": {
+                  "type": "GreetingStyle",
+                  "packageInfo": "wso2:pkgB.helpers:0.1.0",
+                  "packageName": "pkgB",
+                  "kind": "ENUM_TYPE",
+                  "selected": false
+                }
               }
             ],
             "selected": false

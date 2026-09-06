@@ -135,27 +135,69 @@
               "options": [
                 {
                   "label": "HTML_HEADER",
-                  "value": "\"HTML_HEADER\""
-                },
-                {
-                  "label": "CHARACTER",
-                  "value": "\"CHARACTER\""
-                },
-                {
-                  "label": "WORD",
-                  "value": "\"WORD\""
-                },
-                {
-                  "label": "SENTENCE",
-                  "value": "\"SENTENCE\""
-                },
-                {
-                  "label": "HTML_LINE",
-                  "value": "\"HTML_LINE\""
+                  "value": "HTML_HEADER",
+                  "typeInfo": {
+                    "type": "HtmlChunkStrategy",
+                    "packageInfo": "ballerina:ai:1.13.0",
+                    "packageName": "ai",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
                   "label": "HTML_PARAGRAPH",
-                  "value": "\"HTML_PARAGRAPH\""
+                  "value": "HTML_PARAGRAPH",
+                  "typeInfo": {
+                    "type": "HtmlChunkStrategy",
+                    "packageInfo": "ballerina:ai:1.13.0",
+                    "packageName": "ai",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
+                },
+                {
+                  "label": "HTML_LINE",
+                  "value": "HTML_LINE",
+                  "typeInfo": {
+                    "type": "HtmlChunkStrategy",
+                    "packageInfo": "ballerina:ai:1.13.0",
+                    "packageName": "ai",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
+                },
+                {
+                  "label": "SENTENCE",
+                  "value": "SENTENCE",
+                  "typeInfo": {
+                    "type": "HtmlChunkStrategy",
+                    "packageInfo": "ballerina:ai:1.13.0",
+                    "packageName": "ai",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
+                },
+                {
+                  "label": "WORD",
+                  "value": "WORD",
+                  "typeInfo": {
+                    "type": "HtmlChunkStrategy",
+                    "packageInfo": "ballerina:ai:1.13.0",
+                    "packageName": "ai",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
+                },
+                {
+                  "label": "CHARACTER",
+                  "value": "CHARACTER",
+                  "typeInfo": {
+                    "type": "HtmlChunkStrategy",
+                    "packageInfo": "ballerina:ai:1.13.0",
+                    "packageName": "ai",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 }
               ],
               "selected": false

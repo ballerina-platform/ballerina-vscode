@@ -230,6 +230,16 @@
             },
             "types": [
               {
+                "fieldType": "SINGLE_SELECT",
+                "options": [
+                  {
+                    "label": "INFER_TOOL_COUNT",
+                    "value": "\"INFER_TOOL_COUNT\""
+                  }
+                ],
+                "selected": false
+              },
+              {
                 "fieldType": "NUMBER",
                 "ballerinaType": "int",
                 "selected": false
@@ -313,11 +323,25 @@
                 "options": [
                   {
                     "label": "NO_FILTER",
-                    "value": "\"NO_FILTER\""
+                    "value": "NO_FILTER",
+                    "typeInfo": {
+                      "type": "ToolLoadingStrategy",
+                      "packageInfo": "ballerina:ai:1.13.0",
+                      "packageName": "ai",
+                      "kind": "ENUM_TYPE",
+                      "selected": false
+                    }
                   },
                   {
                     "label": "LLM_FILTER",
-                    "value": "\"LLM_FILTER\""
+                    "value": "LLM_FILTER",
+                    "typeInfo": {
+                      "type": "ToolLoadingStrategy",
+                      "packageInfo": "ballerina:ai:1.13.0",
+                      "packageName": "ai",
+                      "kind": "ENUM_TYPE",
+                      "selected": false
+                    }
                   }
                 ],
                 "selected": false
@@ -852,6 +876,16 @@
             },
             "types": [
               {
+                "fieldType": "SINGLE_SELECT",
+                "options": [
+                  {
+                    "label": "INFER_TOOL_COUNT",
+                    "value": "\"INFER_TOOL_COUNT\""
+                  }
+                ],
+                "selected": false
+              },
+              {
                 "fieldType": "NUMBER",
                 "ballerinaType": "int",
                 "selected": false
@@ -934,12 +968,26 @@
                 "fieldType": "SINGLE_SELECT",
                 "options": [
                   {
-                    "label": "LLM_FILTER",
-                    "value": "\"LLM_FILTER\""
+                    "label": "NO_FILTER",
+                    "value": "NO_FILTER",
+                    "typeInfo": {
+                      "type": "ToolLoadingStrategy",
+                      "packageInfo": "ballerina:ai:1.13.0",
+                      "packageName": "ai",
+                      "kind": "ENUM_TYPE",
+                      "selected": false
+                    }
                   },
                   {
-                    "label": "NO_FILTER",
-                    "value": "\"NO_FILTER\""
+                    "label": "LLM_FILTER",
+                    "value": "LLM_FILTER",
+                    "typeInfo": {
+                      "type": "ToolLoadingStrategy",
+                      "packageInfo": "ballerina:ai:1.13.0",
+                      "packageName": "ai",
+                      "kind": "ENUM_TYPE",
+                      "selected": false
+                    }
                   }
                 ],
                 "selected": false

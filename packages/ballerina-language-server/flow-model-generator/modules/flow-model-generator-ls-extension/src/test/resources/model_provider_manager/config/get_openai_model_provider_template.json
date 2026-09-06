@@ -104,116 +104,312 @@
               "fieldType": "SINGLE_SELECT",
               "options": [
                 {
-                  "label": "gpt-4o-audio-preview",
-                  "value": "\"gpt-4o-audio-preview\""
+                  "label": "GPT_4O",
+                  "value": "GPT_4O",
+                  "typeInfo": {
+                    "type": "OPEN_AI_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.openai:1.3.5",
+                    "packageName": "ai.openai",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "chatgpt-4o-latest",
-                  "value": "\"chatgpt-4o-latest\""
+                  "label": "GPT_4O_2024_11_20",
+                  "value": "GPT_4O_2024_11_20",
+                  "typeInfo": {
+                    "type": "OPEN_AI_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.openai:1.3.5",
+                    "packageName": "ai.openai",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "gpt-4.1-nano-2025-04-14",
-                  "value": "\"gpt-4.1-nano-2025-04-14\""
+                  "label": "GPT_4O_2024_08_06",
+                  "value": "GPT_4O_2024_08_06",
+                  "typeInfo": {
+                    "type": "OPEN_AI_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.openai:1.3.5",
+                    "packageName": "ai.openai",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "gpt-4.1-nano",
-                  "value": "\"gpt-4.1-nano\""
+                  "label": "GPT_4O_2024_05_13",
+                  "value": "GPT_4O_2024_05_13",
+                  "typeInfo": {
+                    "type": "OPEN_AI_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.openai:1.3.5",
+                    "packageName": "ai.openai",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "gpt-4.1-mini",
-                  "value": "\"gpt-4.1-mini\""
+                  "label": "GPT_4O_MINI",
+                  "value": "GPT_4O_MINI",
+                  "typeInfo": {
+                    "type": "OPEN_AI_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.openai:1.3.5",
+                    "packageName": "ai.openai",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "gpt-4.1-mini-2025-04-14",
-                  "value": "\"gpt-4.1-mini-2025-04-14\""
+                  "label": "GPT_4O_MINI_2024_07_18",
+                  "value": "GPT_4O_MINI_2024_07_18",
+                  "typeInfo": {
+                    "type": "OPEN_AI_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.openai:1.3.5",
+                    "packageName": "ai.openai",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "gpt-4.1",
-                  "value": "\"gpt-4.1\""
+                  "label": "GPT_4_TURBO",
+                  "value": "GPT_4_TURBO",
+                  "typeInfo": {
+                    "type": "OPEN_AI_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.openai:1.3.5",
+                    "packageName": "ai.openai",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "gpt-4.1-2025-04-14",
-                  "value": "\"gpt-4.1-2025-04-14\""
+                  "label": "GPT_4_TURBO_2024_04_09",
+                  "value": "GPT_4_TURBO_2024_04_09",
+                  "typeInfo": {
+                    "type": "OPEN_AI_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.openai:1.3.5",
+                    "packageName": "ai.openai",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "gpt-3.5-turbo-0125",
-                  "value": "\"gpt-3.5-turbo-0125\""
+                  "label": "GPT_4_0125_PREVIEW",
+                  "value": "GPT_4_0125_PREVIEW",
+                  "typeInfo": {
+                    "type": "OPEN_AI_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.openai:1.3.5",
+                    "packageName": "ai.openai",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "gpt-3.5-turbo-1106",
-                  "value": "\"gpt-3.5-turbo-1106\""
+                  "label": "GPT_4_TURBO_PREVIEW",
+                  "value": "GPT_4_TURBO_PREVIEW",
+                  "typeInfo": {
+                    "type": "OPEN_AI_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.openai:1.3.5",
+                    "packageName": "ai.openai",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "gpt-3.5-turbo-16k",
-                  "value": "\"gpt-3.5-turbo-16k\""
+                  "label": "GPT_4_1106_PREVIEW",
+                  "value": "GPT_4_1106_PREVIEW",
+                  "typeInfo": {
+                    "type": "OPEN_AI_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.openai:1.3.5",
+                    "packageName": "ai.openai",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "gpt-3.5-turbo",
-                  "value": "\"gpt-3.5-turbo\""
+                  "label": "GPT_4_0613",
+                  "value": "GPT_4_0613",
+                  "typeInfo": {
+                    "type": "OPEN_AI_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.openai:1.3.5",
+                    "packageName": "ai.openai",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "o1-pro",
-                  "value": "\"o1-pro\""
+                  "label": "O1",
+                  "value": "O1",
+                  "typeInfo": {
+                    "type": "OPEN_AI_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.openai:1.3.5",
+                    "packageName": "ai.openai",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "o1-pro-2025-03-19",
-                  "value": "\"o1-pro-2025-03-19\""
+                  "label": "O1_2024_12_17",
+                  "value": "O1_2024_12_17",
+                  "typeInfo": {
+                    "type": "OPEN_AI_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.openai:1.3.5",
+                    "packageName": "ai.openai",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "o1-2024-12-17",
-                  "value": "\"o1-2024-12-17\""
+                  "label": "O1_PRO_2025_03_19",
+                  "value": "O1_PRO_2025_03_19",
+                  "typeInfo": {
+                    "type": "OPEN_AI_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.openai:1.3.5",
+                    "packageName": "ai.openai",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "o1",
-                  "value": "\"o1\""
+                  "label": "O1_PRO",
+                  "value": "O1_PRO",
+                  "typeInfo": {
+                    "type": "OPEN_AI_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.openai:1.3.5",
+                    "packageName": "ai.openai",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "gpt-4-0613",
-                  "value": "\"gpt-4-0613\""
+                  "label": "GPT_3_5_TURBO",
+                  "value": "GPT_3_5_TURBO",
+                  "typeInfo": {
+                    "type": "OPEN_AI_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.openai:1.3.5",
+                    "packageName": "ai.openai",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "gpt-4-1106-preview",
-                  "value": "\"gpt-4-1106-preview\""
+                  "label": "GPT_3_5_TURBO_16K",
+                  "value": "GPT_3_5_TURBO_16K",
+                  "typeInfo": {
+                    "type": "OPEN_AI_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.openai:1.3.5",
+                    "packageName": "ai.openai",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "gpt-4-turbo-preview",
-                  "value": "\"gpt-4-turbo-preview\""
+                  "label": "GPT_3_5_TURBO_1106",
+                  "value": "GPT_3_5_TURBO_1106",
+                  "typeInfo": {
+                    "type": "OPEN_AI_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.openai:1.3.5",
+                    "packageName": "ai.openai",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "gpt-4-0125-preview",
-                  "value": "\"gpt-4-0125-preview\""
+                  "label": "GPT_3_5_TURBO_0125",
+                  "value": "GPT_3_5_TURBO_0125",
+                  "typeInfo": {
+                    "type": "OPEN_AI_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.openai:1.3.5",
+                    "packageName": "ai.openai",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "gpt-4-turbo-2024-04-09",
-                  "value": "\"gpt-4-turbo-2024-04-09\""
+                  "label": "GPT_4_1_2025_04_14",
+                  "value": "GPT_4_1_2025_04_14",
+                  "typeInfo": {
+                    "type": "OPEN_AI_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.openai:1.3.5",
+                    "packageName": "ai.openai",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "gpt-4-turbo",
-                  "value": "\"gpt-4-turbo\""
+                  "label": "GPT_4_1",
+                  "value": "GPT_4_1",
+                  "typeInfo": {
+                    "type": "OPEN_AI_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.openai:1.3.5",
+                    "packageName": "ai.openai",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "gpt-4o-mini-2024-07-18",
-                  "value": "\"gpt-4o-mini-2024-07-18\""
+                  "label": "GPT_4_1_MINI_2025_04_14",
+                  "value": "GPT_4_1_MINI_2025_04_14",
+                  "typeInfo": {
+                    "type": "OPEN_AI_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.openai:1.3.5",
+                    "packageName": "ai.openai",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "gpt-4o-mini",
-                  "value": "\"gpt-4o-mini\""
+                  "label": "GPT_4_1_MINI",
+                  "value": "GPT_4_1_MINI",
+                  "typeInfo": {
+                    "type": "OPEN_AI_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.openai:1.3.5",
+                    "packageName": "ai.openai",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "gpt-4o-2024-05-13",
-                  "value": "\"gpt-4o-2024-05-13\""
+                  "label": "GPT_4_1_NANO",
+                  "value": "GPT_4_1_NANO",
+                  "typeInfo": {
+                    "type": "OPEN_AI_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.openai:1.3.5",
+                    "packageName": "ai.openai",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "gpt-4o-2024-08-06",
-                  "value": "\"gpt-4o-2024-08-06\""
+                  "label": "GPT_4_1_NANO_2025_04_14",
+                  "value": "GPT_4_1_NANO_2025_04_14",
+                  "typeInfo": {
+                    "type": "OPEN_AI_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.openai:1.3.5",
+                    "packageName": "ai.openai",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "gpt-4o-2024-11-20",
-                  "value": "\"gpt-4o-2024-11-20\""
+                  "label": "CHATGPT_4O_LATEST",
+                  "value": "CHATGPT_4O_LATEST",
+                  "typeInfo": {
+                    "type": "OPEN_AI_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.openai:1.3.5",
+                    "packageName": "ai.openai",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "gpt-4o",
-                  "value": "\"gpt-4o\""
+                  "label": "GPT_4O_AUDIO_PREVIEW",
+                  "value": "GPT_4O_AUDIO_PREVIEW",
+                  "typeInfo": {
+                    "type": "OPEN_AI_MODEL_NAMES",
+                    "packageInfo": "ballerinax:ai.openai:1.3.5",
+                    "packageName": "ai.openai",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 }
               ],
               "selected": false
@@ -328,16 +524,37 @@
               "fieldType": "SINGLE_SELECT",
               "options": [
                 {
-                  "label": "2.0",
-                  "value": "\"2.0\""
+                  "label": "HTTP_1_0",
+                  "value": "HTTP_1_0",
+                  "typeInfo": {
+                    "type": "HttpVersion",
+                    "packageInfo": "ballerina:http:2.16.6",
+                    "packageName": "http",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "1.1",
-                  "value": "\"1.1\""
+                  "label": "HTTP_1_1",
+                  "value": "HTTP_1_1",
+                  "typeInfo": {
+                    "type": "HttpVersion",
+                    "packageInfo": "ballerina:http:2.16.6",
+                    "packageName": "http",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "1.0",
-                  "value": "\"1.0\""
+                  "label": "HTTP_2_0",
+                  "value": "HTTP_2_0",
+                  "typeInfo": {
+                    "type": "HttpVersion",
+                    "packageInfo": "ballerina:http:2.16.6",
+                    "packageName": "http",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 }
               ],
               "selected": false

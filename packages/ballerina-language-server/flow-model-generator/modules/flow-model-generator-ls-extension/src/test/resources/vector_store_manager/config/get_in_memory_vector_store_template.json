@@ -76,16 +76,37 @@
               "fieldType": "SINGLE_SELECT",
               "options": [
                 {
-                  "label": "DOT_PRODUCT",
-                  "value": "\"DOT_PRODUCT\""
+                  "label": "COSINE",
+                  "value": "COSINE",
+                  "typeInfo": {
+                    "type": "SimilarityMetric",
+                    "packageInfo": "ballerina:ai:1.13.0",
+                    "packageName": "ai",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
                   "label": "EUCLIDEAN",
-                  "value": "\"EUCLIDEAN\""
+                  "value": "EUCLIDEAN",
+                  "typeInfo": {
+                    "type": "SimilarityMetric",
+                    "packageInfo": "ballerina:ai:1.13.0",
+                    "packageName": "ai",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "COSINE",
-                  "value": "\"COSINE\""
+                  "label": "DOT_PRODUCT",
+                  "value": "DOT_PRODUCT",
+                  "typeInfo": {
+                    "type": "SimilarityMetric",
+                    "packageInfo": "ballerina:ai:1.13.0",
+                    "packageName": "ai",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 }
               ],
               "selected": false

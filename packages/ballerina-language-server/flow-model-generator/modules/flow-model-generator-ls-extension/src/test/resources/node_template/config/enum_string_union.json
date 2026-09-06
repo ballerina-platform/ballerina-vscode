@@ -4,19 +4,19 @@
     "line": 2,
     "offset": 15
   },
-  "description": "Function call with enum parameter default value",
+  "description": "Function call with a union of an enum and a string parameter",
   "codedata": {
     "node": "FUNCTION_CALL",
     "org": "$anon",
     "module": ".",
     "packageName": ".",
-    "symbol": "function2",
+    "symbol": "function7",
     "version": "0.0.0"
   },
   "output": {
     "id": "31",
     "metadata": {
-      "label": "function2",
+      "label": "function7",
       "description": "",
       "icon": "https://bcentral-packageicons.azureedge.net/images/$anon_._0.0.0.png"
     },
@@ -25,7 +25,7 @@
       "org": "$anon",
       "module": ".",
       "packageName": ".",
-      "symbol": "function2",
+      "symbol": "function7",
       "version": "0.0.0",
       "isNew": true
     },
@@ -40,16 +40,16 @@
             "fieldType": "SINGLE_SELECT",
             "options": [
               {
-                "label": "Wednesday",
-                "value": "Wednesday"
-              },
-              {
                 "label": "Monday",
                 "value": "Monday"
               },
               {
                 "label": "Tuesday",
                 "value": "Tuesday"
+              },
+              {
+                "label": "Wednesday",
+                "value": "Wednesday"
               },
               {
                 "label": "Thursday",
@@ -71,8 +71,13 @@
             "selected": false
           },
           {
+            "fieldType": "TEXT",
+            "ballerinaType": "string",
+            "selected": false
+          },
+          {
             "fieldType": "EXPRESSION",
-            "ballerinaType": "Day",
+            "ballerinaType": "Day|string",
             "selected": false
           }
         ],
@@ -85,7 +90,7 @@
           "kind": "DEFAULTABLE",
           "originalName": "day"
         },
-        "defaultValue": "Wednesday"
+        "defaultValue": "\"Monday\""
       }
     },
     "flags": 0

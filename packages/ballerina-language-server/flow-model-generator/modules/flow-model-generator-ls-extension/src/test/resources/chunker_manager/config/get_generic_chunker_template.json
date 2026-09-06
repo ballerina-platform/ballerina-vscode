@@ -135,23 +135,58 @@
               "options": [
                 {
                   "label": "PARAGRAPH",
-                  "value": "\"PARAGRAPH\""
-                },
-                {
-                  "label": "SENTENCE",
-                  "value": "\"SENTENCE\""
-                },
-                {
-                  "label": "LINE",
-                  "value": "\"LINE\""
-                },
-                {
-                  "label": "WORD",
-                  "value": "\"WORD\""
+                  "value": "PARAGRAPH",
+                  "typeInfo": {
+                    "type": "RecursiveChunkStrategy",
+                    "packageInfo": "ballerina:ai:1.13.0",
+                    "packageName": "ai",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
                   "label": "CHARACTER",
-                  "value": "\"CHARACTER\""
+                  "value": "CHARACTER",
+                  "typeInfo": {
+                    "type": "RecursiveChunkStrategy",
+                    "packageInfo": "ballerina:ai:1.13.0",
+                    "packageName": "ai",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
+                },
+                {
+                  "label": "WORD",
+                  "value": "WORD",
+                  "typeInfo": {
+                    "type": "RecursiveChunkStrategy",
+                    "packageInfo": "ballerina:ai:1.13.0",
+                    "packageName": "ai",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
+                },
+                {
+                  "label": "LINE",
+                  "value": "LINE",
+                  "typeInfo": {
+                    "type": "RecursiveChunkStrategy",
+                    "packageInfo": "ballerina:ai:1.13.0",
+                    "packageName": "ai",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
+                },
+                {
+                  "label": "SENTENCE",
+                  "value": "SENTENCE",
+                  "typeInfo": {
+                    "type": "RecursiveChunkStrategy",
+                    "packageInfo": "ballerina:ai:1.13.0",
+                    "packageName": "ai",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 }
               ],
               "selected": false

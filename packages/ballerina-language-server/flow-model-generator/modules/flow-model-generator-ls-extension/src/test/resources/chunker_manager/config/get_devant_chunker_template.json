@@ -186,20 +186,48 @@
               "fieldType": "SINGLE_SELECT",
               "options": [
                 {
-                  "label": "recursive",
-                  "value": "\"recursive\""
+                  "label": "RECURSIVE",
+                  "value": "RECURSIVE",
+                  "typeInfo": {
+                    "type": "ChunkStrategy",
+                    "packageInfo": "ballerinax:ai.devant:1.0.4",
+                    "packageName": "ai.devant",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "character",
-                  "value": "\"character\""
+                  "label": "SENTENCE",
+                  "value": "SENTENCE",
+                  "typeInfo": {
+                    "type": "ChunkStrategy",
+                    "packageInfo": "ballerinax:ai.devant:1.0.4",
+                    "packageName": "ai.devant",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "paragraph",
-                  "value": "\"paragraph\""
+                  "label": "PARAGRAPH",
+                  "value": "PARAGRAPH",
+                  "typeInfo": {
+                    "type": "ChunkStrategy",
+                    "packageInfo": "ballerinax:ai.devant:1.0.4",
+                    "packageName": "ai.devant",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "sentence",
-                  "value": "\"sentence\""
+                  "label": "CHARACTER",
+                  "value": "CHARACTER",
+                  "typeInfo": {
+                    "type": "ChunkStrategy",
+                    "packageInfo": "ballerinax:ai.devant:1.0.4",
+                    "packageName": "ai.devant",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 }
               ],
               "selected": false
@@ -231,16 +259,37 @@
               "fieldType": "SINGLE_SELECT",
               "options": [
                 {
-                  "label": "2.0",
-                  "value": "\"2.0\""
+                  "label": "HTTP_1_0",
+                  "value": "HTTP_1_0",
+                  "typeInfo": {
+                    "type": "HttpVersion",
+                    "packageInfo": "ballerina:http:2.16.6",
+                    "packageName": "http",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "1.1",
-                  "value": "\"1.1\""
+                  "label": "HTTP_1_1",
+                  "value": "HTTP_1_1",
+                  "typeInfo": {
+                    "type": "HttpVersion",
+                    "packageInfo": "ballerina:http:2.16.6",
+                    "packageName": "http",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 },
                 {
-                  "label": "1.0",
-                  "value": "\"1.0\""
+                  "label": "HTTP_2_0",
+                  "value": "HTTP_2_0",
+                  "typeInfo": {
+                    "type": "HttpVersion",
+                    "packageInfo": "ballerina:http:2.16.6",
+                    "packageName": "http",
+                    "kind": "ENUM_TYPE",
+                    "selected": false
+                  }
                 }
               ],
               "selected": false

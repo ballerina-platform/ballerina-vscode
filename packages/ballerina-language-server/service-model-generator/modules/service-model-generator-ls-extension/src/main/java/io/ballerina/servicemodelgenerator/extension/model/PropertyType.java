@@ -30,8 +30,11 @@ import com.google.gson.reflect.TypeToken;
 import io.ballerina.compiler.api.ModuleID;
 import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.api.symbols.ArrayTypeSymbol;
+import io.ballerina.compiler.api.symbols.ConstantSymbol;
+import io.ballerina.compiler.api.symbols.EnumSymbol;
 import io.ballerina.compiler.api.symbols.MapTypeSymbol;
 import io.ballerina.compiler.api.symbols.TypeDescKind;
+import io.ballerina.compiler.api.symbols.TypeReferenceTypeSymbol;
 import io.ballerina.compiler.api.symbols.TypeSymbol;
 import io.ballerina.compiler.api.symbols.UnionTypeSymbol;
 import io.ballerina.compiler.syntax.tree.BindingPatternNode;
@@ -47,10 +50,12 @@ import org.ballerinalang.langserver.common.utils.CommonUtil;
 
 import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Represents the type configuration of a property in the flow model.
@@ -58,6 +63,8 @@ import java.util.Optional;
  * @since 1.5.0
  */
 public class PropertyType {
+
+    public static final String ENUM_TYPE_KIND = "ENUM_TYPE";
 
     @JsonAdapter(FieldTypeSerializer.class)
     private final Value.FieldType fieldType;
@@ -119,38 +126,55 @@ public class PropertyType {
         TypeSymbol rawType = CommonUtil.getRawType(typeSymbol);
         // Handle union of singleton types as single-select options
         if (!success && rawType instanceof UnionTypeSymbol unionTypeSymbol) {
-            List<TypeSymbol> typeSymbols = unionTypeSymbol.memberTypeDescriptors();
             List<Option> options = new ArrayList<>();
-            boolean allSingletons = true;
-            for (TypeSymbol symbol : typeSymbols) {
-                if (CommonUtil.getRawType(symbol).typeKind() == TypeDescKind.SINGLETON) {
-                    String label = CommonUtils.removeQuotes(symbol.signature());
-                    Option option = new Option(label, symbol.signature());
-                    options.add(option);
-                } else {
-                    allSingletons = false;
-                    break;
+            List<TypeSymbol> otherTypes = new ArrayList<>();
+
+            // A union flattens its enum members into their singletons, hence the enums are resolved from the user
+            // specified members before the singletons are collected below.
+            Set<String> enumMemberTypes = new HashSet<>();
+            List<TypeSymbol> unionMembers = getEnumSymbol(typeSymbol).isPresent() ? List.of(typeSymbol)
+                    : unionTypeSymbol.userSpecifiedMemberTypes();
+            for (TypeSymbol member : unionMembers) {
+                getEnumSymbol(member).ifPresent(enumSymbol ->
+                        addEnumOptions(member, enumSymbol, moduleInfo, options, enumMemberTypes));
+            }
+
+            for (TypeSymbol symbol : unionTypeSymbol.memberTypeDescriptors()) {
+                TypeDescKind memberTypeKind = CommonUtil.getRawType(symbol).typeKind();
+                if (memberTypeKind == TypeDescKind.SINGLETON) {
+                    // Skip the singletons that are already covered by the options of an enum
+                    if (!enumMemberTypes.contains(symbol.signature())) {
+                        String label = CommonUtils.removeQuotes(symbol.signature());
+                        options.add(new Option(label, symbol.signature()));
+                    }
+                } else if (memberTypeKind != TypeDescKind.NIL) {
+                    // The nil member is conveyed by the `optional` flag of the property
+                    otherTypes.add(symbol);
                 }
             }
 
-            // If all the member types are singletons, treat it as a single-select option
-            if (allSingletons) {
+            // The singleton members (e.g. the members of an enum) become single-select options, even when the
+            // union holds other member types as well.
+            if (!options.isEmpty()) {
                 PropertyType propType = new Builder()
                         .fieldType(Value.FieldType.SINGLE_SELECT)
                         .options(options)
                         .ballerinaType(ballerinaType)
                         .build();
                 propertyTypes.add(propType);
-            } else {
-                // Handle union of primitive types by defining an input type for each primitive type
-                for (TypeSymbol ts : typeSymbols) {
+            }
+
+            if (!otherTypes.isEmpty()) {
+                // Handle the remaining member types by defining an input type for each of them
+                for (TypeSymbol ts : otherTypes) {
                     handlePrimitiveType(ts, CommonUtils.getTypeSignature(ts, moduleInfo), semanticModel, moduleInfo,
                             valueBuilder, propertyTypes);
                 }
                 // group by the fieldType
                 propertyTypes.stream()
                         .filter(pt -> !(pt.fieldType() == Value.FieldType.REPEATABLE_LIST
-                                || pt.fieldType() == Value.FieldType.REPEATABLE_MAP))
+                                || pt.fieldType() == Value.FieldType.REPEATABLE_MAP
+                                || pt.fieldType() == Value.FieldType.SINGLE_SELECT))
                         .collect(java.util.stream.Collectors.groupingBy(PropertyType::fieldType))
                         .forEach((fieldType, groupedTypes) -> {
                             if (groupedTypes.size() > 1) {
@@ -238,6 +262,64 @@ public class PropertyType {
             }
         }
         valueBuilder.types(propertyTypes);
+    }
+
+    /**
+     * Returns the enum definition the given type refers to, if any.
+     *
+     * @param typeSymbol the type to resolve
+     * @return the enum definition, or empty if the type does not refer to an enum
+     */
+    private static Optional<EnumSymbol> getEnumSymbol(TypeSymbol typeSymbol) {
+        if (typeSymbol instanceof TypeReferenceTypeSymbol typeRefSymbol
+                && typeRefSymbol.definition() instanceof EnumSymbol enumSymbol) {
+            return Optional.of(enumSymbol);
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Adds an option for each member of the given enum. A member is referred to by its name (e.g. `HIGH`), since
+     * the value a member holds can differ from its name. An option of a member of an imported enum carries the
+     * type it belongs to, so that the module prefix to qualify the name with can be derived from the imports of
+     * the document instead of being hard coded here.
+     *
+     * @param enumTypeSymbol  the type referring to the enum
+     * @param enumSymbol      the enum definition
+     * @param moduleInfo      the module of the document being analyzed
+     * @param options         the options to append to
+     * @param enumMemberTypes collects the signatures of the singleton types covered by the added options
+     */
+    private static void addEnumOptions(TypeSymbol enumTypeSymbol, EnumSymbol enumSymbol, ModuleInfo moduleInfo,
+                                       List<Option> options, Set<String> enumMemberTypes) {
+        PropertyTypeMemberInfo typeInfo = buildEnumTypeInfo(enumTypeSymbol, moduleInfo);
+
+        // The members are returned in the reverse order of their declaration
+        for (ConstantSymbol enumMember : enumSymbol.members().reversed()) {
+            enumMemberTypes.add(enumMember.typeDescriptor().signature());
+            enumMember.getName().ifPresent(name -> options.add(new Option(name, name, typeInfo)));
+        }
+    }
+
+    /**
+     * Builds the member info of an enum defined in an imported module, which allows the module prefix of the enum
+     * members to be derived. Returns null for an enum of the current module, since its members are referred to
+     * without a prefix.
+     *
+     * @param enumTypeSymbol the type referring to the enum
+     * @param moduleInfo     the module of the document being analyzed
+     * @return the member info of the enum, or null if the enum does not belong to an imported module
+     */
+    private static PropertyTypeMemberInfo buildEnumTypeInfo(TypeSymbol enumTypeSymbol, ModuleInfo moduleInfo) {
+        String typeSignature = CommonUtils.getTypeSignature(enumTypeSymbol, moduleInfo);
+        if (typeSignature.lastIndexOf(':') == -1 || enumTypeSymbol.getModule().isEmpty()) {
+            // The enum belongs to the current module, hence its members need no prefix
+            return null;
+        }
+        ModuleID id = enumTypeSymbol.getModule().get().id();
+        String packageInfo = "%s:%s:%s".formatted(id.orgName(), id.moduleName(), id.version());
+        return new PropertyTypeMemberInfo(typeSignature.substring(typeSignature.lastIndexOf(':') + 1), packageInfo,
+                id.packageName(), ENUM_TYPE_KIND, false);
     }
 
     private static boolean handlePrimitiveType(TypeSymbol typeSymbol, String ballerinaType,
