@@ -20,7 +20,6 @@ import React, { useState } from "react";
 import styled from "@emotion/styled";
 import { Button } from "@wso2/ui-toolkit";
 
-const QUOTA_CONTACT_EMAIL = "support@wso2.com";
 const NOTE_MAX_LENGTH = 2000;
 
 const Overlay = styled.div`
@@ -142,7 +141,7 @@ const QuotaRequestDialog: React.FC<QuotaRequestDialogProps> = ({ submitting, err
                 aria-describedby="quota-request-desc"
             >
                 <Title id="quota-request-title">Request additional quota</Title>
-                <Text id="quota-request-desc">Let the team know you'd like more Integrator Copilot quota this week.</Text>
+                <Text id="quota-request-desc">Let the team know you'd like more quota this week.</Text>
                 <TextArea
                     value={note}
                     onChange={(e) => setNote(e.target.value)}
@@ -152,10 +151,7 @@ const QuotaRequestDialog: React.FC<QuotaRequestDialogProps> = ({ submitting, err
                     autoFocus
                 />
                 <Notice>
-                    Your WSO2 account email will be included with this request so the team can follow up.
-                </Notice>
-                <Notice>
-                    Reach us at {QUOTA_CONTACT_EMAIL}.
+                    Your account email will be included with this request so the team can follow up.
                 </Notice>
                 {error && <ErrorText role="alert">{error}</ErrorText>}
                 <ButtonContainer>
