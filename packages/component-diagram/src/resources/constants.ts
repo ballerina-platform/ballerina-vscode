@@ -20,9 +20,13 @@ export enum NodeTypes {
     LISTENER_NODE = "listener-node",
     ENTRY_NODE = "entry-node",
     CONNECTION_NODE = "connection-node",
+    AGENT_CARD_NODE = "agent-card-node",
+    TRIGGER_NODE = "trigger-node",
+    SPLIT_NODE = "split-node",
 }
 
 export const NODE_LINK = "node-link";
+export const TOPOLOGY_LINK = "topology-link";
 export const NODE_PORT = "node-port";
 export const LOADING_OVERLAY = "loading-overlay";
 
@@ -44,3 +48,26 @@ export const NODE_PADDING = 8;
 // position
 export const NODE_GAP_Y = 100;
 export const NODE_GAP_X = 160;
+
+// agent topology
+export const AGENT_CARD_WIDTH = 280;
+export const AGENT_CARD_MIN_HEIGHT = 104;
+export const TRIGGER_SIZE = 56;
+export const TRIGGER_LABEL_WIDTH = 232;
+export const TRIGGER_LABEL_GAP = 14;
+export const TRIGGER_NODE_WIDTH = TRIGGER_LABEL_WIDTH + TRIGGER_LABEL_GAP + TRIGGER_SIZE;
+export const TRIGGER_LABEL_BLOCK_HEIGHT = 34;
+export const TRIGGER_STACKED_HEIGHT = TRIGGER_LABEL_BLOCK_HEIGHT + TRIGGER_LABEL_GAP + TRIGGER_SIZE;
+export const TOPOLOGY_GAP_X = 160;
+export const TOPOLOGY_GAP_X_MAX = 520;
+export const TOPOLOGY_GAP_Y = 64;
+export const SPLIT_SIZE = 36;
+export const SPLIT_STEM_X = 80;
+export const SPLIT_STEP_X = 240;
+export const SPLIT_GAP_X_MIN = 400;
+export const TOPOLOGY_ROW_GAP = 120;
+export const TOPOLOGY_COLUMN_GAP = 48;
+export const SPLIT_STEM_Y = 56;
+export const SPLIT_STEP_Y = 100;
+export const SPLIT_GAP_Y_MIN = 200;
+export const LAYOUT_FIT_MARGIN = 40;

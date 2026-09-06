@@ -346,7 +346,14 @@ public class CommonUtils {
 
     public static ConnectionKind getConnectionKind(TypeSymbol typeSymbol) {
         String typeName = getTypeName(typeSymbol);
-        return CONNECTION_KIND_MAP.getOrDefault(typeName, ConnectionKind.CONNECTION);
+        ConnectionKind mapped = CONNECTION_KIND_MAP.get(typeName);
+        if (mapped != null) {
+            return mapped;
+        }
+        if (isAiFixedTypedAgent(typeSymbol) || isAiDependentlyTypedAgent(typeSymbol)) {
+            return ConnectionKind.AGENT;
+        }
+        return ConnectionKind.CONNECTION;
     }
 
     /**

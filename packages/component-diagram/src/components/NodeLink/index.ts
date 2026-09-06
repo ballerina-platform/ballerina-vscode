@@ -19,3 +19,6 @@
 export * from "./NodeLinkModel";
 export * from "./NodeLinkWidget";
 export * from "./NodeLinkFactory";
+export * from "./TopologyLinkModel";
+export * from "./TopologyLinkWidget";
+export * from "./TopologyLinkFactory";

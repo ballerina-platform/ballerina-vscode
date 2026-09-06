@@ -30,18 +30,22 @@ import {
     isSamePath,
 } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
+import { AgentSelection, TriggerSelection } from "@wso2/component-diagram";
 import { Button, Codicon, Icon, Menu, MenuItem, Popover, ProgressRing, ThemeColors } from "@wso2/ui-toolkit";
 import { PageHeader } from "../components/PageHeader";
 import { TopNavigationBar } from "../../../components/TopNavigationBar";
 import { usePlatformExtContext } from "../../../providers/platform-ext-ctx-provider";
 import { getIntegrationTypes, validateComponentName, useProjectContentRefresh } from "../PackageOverview/utils";
 import { useTracingStatus } from "../../../hooks/useProductMode";
-import { AgentTabs, agentKey } from "./AgentTabs";
+import { agentKey } from "./AgentTabs";
 import { EmptyState } from "./EmptyState";
+import { landingLevel, OverviewLevel } from "./landingLevel";
+import { openTrigger } from "../AgentTopology/topologyNavigation";
 
 const LazyFocusFlowDiagram = React.lazy(() =>
     import("../FocusFlowDiagram").then((m) => ({ default: m.BIFocusFlowDiagram }))
 );
+const LazyAgentTopology = React.lazy(() => import("../AgentTopology"));
 const LazyAddAgentPopup = React.lazy(() => import("../AIChatAgent/AddAgentPopup"));
 const LazyAddLibraryArtifactPopup = React.lazy(() => import("./AddLibraryArtifactPopup"));
 
@@ -121,6 +125,93 @@ const CenteredSlot = styled.div`
     padding: 24px;
 `;
 
+const Strip = styled.div`
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+    min-width: 0;
+    height: 40px;
+    padding: 0 8px 0 12px;
+    background-color: var(--vscode-sideBar-background, var(--vscode-panel-background));
+    border-bottom: 1px solid ${ThemeColors.OUTLINE_VARIANT};
+`;
+
+const BreadcrumbLabel = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    height: 100%;
+    font-size: 13px;
+    color: var(--vscode-foreground);
+`;
+
+const BreadcrumbLink = styled.button`
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    height: 26px;
+    padding: 0 8px 0 4px;
+    margin-left: -6px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font: inherit;
+    font-size: 13px;
+    line-height: 1;
+    color: var(--vscode-textLink-foreground);
+    border-radius: 5px;
+
+    &:hover {
+        background-color: var(--vscode-toolbar-hoverBackground);
+    }
+
+    &:focus-visible {
+        outline: 1px solid var(--vscode-focusBorder);
+        outline-offset: -1px;
+    }
+`;
+
+const BreadcrumbSeparator = styled.span`
+    display: inline-flex;
+    align-items: center;
+    color: var(--vscode-descriptionForeground);
+    line-height: 1;
+`;
+
+const BreadcrumbName = styled.span`
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 280px;
+    font-family: var(--vscode-editor-font-family, monospace);
+    font-size: 12.5px;
+`;
+
+const BreadcrumbRoot = styled.span`
+    color: var(--vscode-descriptionForeground);
+`;
+
+const AddAgentButton = styled.button`
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 12px;
+    height: 100%;
+    border: none;
+    border-left: 1px solid ${ThemeColors.OUTLINE_VARIANT};
+    background: none;
+    cursor: pointer;
+    font: inherit;
+    font-size: 13px;
+    color: var(--vscode-foreground);
+
+    &:hover {
+        background-color: var(--vscode-toolbar-hoverBackground);
+    }
+`;
+
 const TracingState = styled.div`
     display: inline-grid;
     justify-items: start;
@@ -171,10 +262,91 @@ export interface AgentFocusRequest {
 }
 
 const rememberedKeys = new Map<string, string>();
+// Only recorded once the package actually has ≥2 agents, so a single-agent package's forced
+// "agent" level never poses as a deliberate drill-in once a second agent appears.
+const rememberedLevel = new Map<string, OverviewLevel>();
 
 interface AgentBuilderOverviewProps {
     projectPath: string;
     agentFocus?: AgentFocusRequest;
+}
+
+interface AgentBreadcrumbProps {
+    level: OverviewLevel;
+    agentCount: number;
+    selectedAgentName?: string;
+    onBack: () => void;
+}
+
+function AgentBreadcrumb({ level, agentCount, selectedAgentName, onBack }: AgentBreadcrumbProps) {
+    if (level === "overview") {
+        return <BreadcrumbLabel>Agents</BreadcrumbLabel>;
+    }
+    const separator = (
+        <BreadcrumbSeparator aria-hidden="true">
+            <Codicon name="chevron-right" iconSx={{ fontSize: 14, display: "flex" }} />
+        </BreadcrumbSeparator>
+    );
+    if (agentCount >= 2) {
+        return (
+            <BreadcrumbLabel>
+                <BreadcrumbLink onClick={onBack} title="Back to all agents (Esc)">
+                    <Codicon name="chevron-left" iconSx={{ fontSize: 16, display: "flex" }} />
+                    Agents
+                </BreadcrumbLink>
+                {separator}
+                <BreadcrumbName>{selectedAgentName}</BreadcrumbName>
+            </BreadcrumbLabel>
+        );
+    }
+    return (
+        <BreadcrumbLabel>
+            <BreadcrumbRoot>Agents</BreadcrumbRoot>
+            {separator}
+            <BreadcrumbName>{selectedAgentName}</BreadcrumbName>
+        </BreadcrumbLabel>
+    );
+}
+
+interface AgentCanvasContentProps {
+    level: OverviewLevel;
+    projectPath: string;
+    agents: ProjectStructureArtifactResponse[];
+    agentDefinitions: ProjectStructureArtifactResponse[];
+    selectedAgent?: ProjectStructureArtifactResponse;
+    onOpenAgent: (agent: AgentSelection) => void;
+    onOpenTrigger: (trigger: TriggerSelection) => void;
+    onFocusReady: () => void;
+}
+
+function AgentCanvasContent(props: AgentCanvasContentProps) {
+    const { level, projectPath, agents, agentDefinitions, selectedAgent, onOpenAgent, onOpenTrigger, onFocusReady } = props;
+    if (level === "overview") {
+        return (
+            <LazyAgentTopology
+                projectPath={projectPath}
+                agents={agents}
+                agentDefinitions={agentDefinitions}
+                onOpenAgent={onOpenAgent}
+                onOpenTrigger={onOpenTrigger}
+            />
+        );
+    }
+    if (!selectedAgent) {
+        return null;
+    }
+    return (
+        <LazyFocusFlowDiagram
+            key={agentKey(selectedAgent)}
+            embedded={true}
+            projectPath={projectPath}
+            filePath={selectedAgent.path}
+            position={selectedAgent.position}
+            view={selectedAgent.moduleName === "ai" ? FOCUS_FLOW_DIAGRAM_VIEW.AGENT : FOCUS_FLOW_DIAGRAM_VIEW.TYPED_AGENT}
+            onUpdate={() => { }}
+            onReady={onFocusReady}
+        />
+    );
 }
 
 export function AgentBuilderOverview({ projectPath, agentFocus }: AgentBuilderOverviewProps) {
@@ -183,6 +355,8 @@ export function AgentBuilderOverview({ projectPath, agentFocus }: AgentBuilderOv
     const [projectStructure, setProjectStructure] = useState<ProjectStructure>();
     const [isInProject, setIsInProject] = useState(false);
     const [selectedKey, setSelectedKeyState] = useState<string | undefined>(() => rememberedKeys.get(projectPath));
+    const [level, setLevelState] = useState<OverviewLevel>(() => rememberedLevel.get(projectPath) ?? "overview");
+    const previousAgentCountRef = useRef<number>(-1);
     const pendingRenameRef = useRef<{ artifact: ProjectStructureArtifactResponse; agentsAtStash: ProjectStructureArtifactResponse[] }>();
     const [showAddAgent, setShowAddAgent] = useState(false);
     const [showAddLibraryArtifact, setShowAddLibraryArtifact] = useState(false);
@@ -219,11 +393,23 @@ export function AgentBuilderOverview({ projectPath, agentFocus }: AgentBuilderOv
         () => projectStructure?.directoryMap?.[DIRECTORY_MAP.AGENT] ?? [],
         [projectStructure]
     );
+    const agentDefinitions = useMemo(
+        () => projectStructure?.directoryMap?.[DIRECTORY_MAP.AGENT_DEFINITION] ?? [],
+        [projectStructure]
+    );
+    const hasAgents = agents.length > 0;
 
     const setSelectedKey = useCallback((key: string) => {
         rememberedKeys.set(projectPath, key);
         setSelectedKeyState(key);
     }, [projectPath]);
+
+    const setLevel = useCallback((next: OverviewLevel) => {
+        if (agents.length >= 2) {
+            rememberedLevel.set(projectPath, next);
+        }
+        setLevelState(next);
+    }, [projectPath, agents.length]);
 
     const isLibrary = projectStructure?.isLibrary ?? false;
 
@@ -238,6 +424,16 @@ export function AgentBuilderOverview({ projectPath, agentFocus }: AgentBuilderOv
         }
     }, [agents, selectedKey, setSelectedKey]);
 
+    // Landing rule: 0/1 agents force the single-agent page; ≥2 restores the last level this
+    // package was drilled to this session, defaulting to the overview on a fresh open.
+    useEffect(() => {
+        if (previousAgentCountRef.current === agents.length) {
+            return;
+        }
+        previousAgentCountRef.current = agents.length;
+        setLevel(landingLevel(agents.length, rememberedLevel.get(projectPath)));
+    }, [agents.length, projectPath, setLevel]);
+
     useEffect(() => rpcClient.onIdentifierUpdated((artifacts) => {
         const renamed = artifacts?.find((artifact) => artifact.type === DIRECTORY_MAP.AGENT);
         if (renamed) {
@@ -247,14 +443,20 @@ export function AgentBuilderOverview({ projectPath, agentFocus }: AgentBuilderOv
 
     useEffect(() => {
         const pending = pendingRenameRef.current;
-        if (!pending || pending.agentsAtStash === agents) {
+        const staleSelection = selectedKey && !agents.some((agent) => agentKey(agent) === selectedKey);
+        if (pending && pending.agentsAtStash !== agents) {
+            pendingRenameRef.current = undefined;
+            if (staleSelection) {
+                setSelectedKey(agentKey(pending.artifact));
+            }
             return;
         }
-        pendingRenameRef.current = undefined;
-        if (selectedKey && !agents.some((agent) => agentKey(agent) === selectedKey)) {
-            setSelectedKey(agentKey(pending.artifact));
+        // No rename in flight: a stale selection while drilled means the agent was deleted
+        // elsewhere. Land back on the overview rather than silently focusing another agent.
+        if (!pending && staleSelection && level === "agent" && agents.length >= 2) {
+            setLevel("overview");
         }
-    }, [agents, selectedKey, setSelectedKey]);
+    }, [agents, selectedKey, setSelectedKey, level, setLevel]);
 
     const appliedFocusRef = useRef<number>();
 
@@ -270,10 +472,25 @@ export function AgentBuilderOverview({ projectPath, agentFocus }: AgentBuilderOv
         }
         appliedFocusRef.current = agentFocus.requestId;
         setSelectedKey(agentKey(match));
+        setLevel("agent");
         setShowAddAgent(false);
-    }, [agents, agentFocus, setSelectedKey]);
+    }, [agents, agentFocus, setSelectedKey, setLevel]);
 
-    if (projectStructure && !selectedAgent) {
+    useEffect(() => {
+        if (level !== "agent" || agents.length < 2) {
+            return;
+        }
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.key !== "Escape" || showAddAgent || showAddLibraryArtifact || deployAnchor) {
+                return;
+            }
+            setLevel("overview");
+        };
+        document.addEventListener("keydown", onKeyDown);
+        return () => document.removeEventListener("keydown", onKeyDown);
+    }, [level, agents.length, showAddAgent, showAddLibraryArtifact, deployAnchor, setLevel]);
+
+    if (projectStructure && !hasAgents) {
         sawEmptyRef.current = true;
     }
     const canvasVisible = canvasReady || !sawEmptyRef.current;
@@ -289,7 +506,7 @@ export function AgentBuilderOverview({ projectPath, agentFocus }: AgentBuilderOv
         if (!projectStructure) {
             return;
         }
-        if (!selectedAgent) {
+        if (!hasAgents) {
             clearTimeout(revealTimerRef.current);
             setCanvasReady(false);
             setEmptyMounted(true);
@@ -300,7 +517,7 @@ export function AgentBuilderOverview({ projectPath, agentFocus }: AgentBuilderOv
         }
         const fallback = setTimeout(() => setCanvasReady(true), READY_FALLBACK_MS);
         return () => clearTimeout(fallback);
-    }, [projectStructure, selectedAgent]);
+    }, [projectStructure, hasAgents]);
 
     useEffect(() => {
         if (!canvasVisible) {
@@ -325,6 +542,20 @@ export function AgentBuilderOverview({ projectPath, agentFocus }: AgentBuilderOv
         },
         [projectPath, rpcClient]
     );
+
+    const handleOpenAgentFromCanvas = useCallback((agent: AgentSelection) => {
+        const match = agents.find(
+            (candidate) => isSamePath(candidate.path, agent.path) && (candidate.position?.startLine ?? 0) === agent.startLine
+        );
+        if (match) {
+            setSelectedKey(agentKey(match));
+        }
+        setLevel("agent");
+    }, [agents, setSelectedKey, setLevel]);
+
+    const handleOpenTrigger = useCallback((trigger: TriggerSelection) => {
+        openTrigger(rpcClient, trigger);
+    }, [rpcClient]);
 
     const handleConfigure = () => {
         rpcClient.getVisualizerRpcClient().openView({
@@ -473,14 +704,20 @@ export function AgentBuilderOverview({ projectPath, agentFocus }: AgentBuilderOv
                 <MainContent>
                     <Panel bordered={canvasVisible}>
                         <Stage>
-                            {selectedAgent && (
+                            {hasAgents && (
                                 <Layer $show={canvasVisible}>
-                                    <AgentTabs
-                                        agents={agents}
-                                        selectedKey={agentKey(selectedAgent)}
-                                        onSelect={(agent) => setSelectedKey(agentKey(agent))}
-                                        onAdd={() => setShowAddAgent(true)}
-                                    />
+                                    <Strip>
+                                        <AgentBreadcrumb
+                                            level={level}
+                                            agentCount={agents.length}
+                                            selectedAgentName={selectedAgent?.name}
+                                            onBack={() => setLevel("overview")}
+                                        />
+                                        <AddAgentButton onClick={() => setShowAddAgent(true)} title="Add an agent to this project">
+                                            <Icon name="bi-plus" sx={{ fontSize: 16, width: 16, height: 16 }} />
+                                            Add Agent
+                                        </AddAgentButton>
+                                    </Strip>
                                     <CanvasSlot>
                                         <React.Suspense
                                             fallback={
@@ -489,25 +726,21 @@ export function AgentBuilderOverview({ projectPath, agentFocus }: AgentBuilderOv
                                                 </CenteredSlot>
                                             }
                                         >
-                                            <LazyFocusFlowDiagram
-                                                key={agentKey(selectedAgent)}
-                                                embedded={true}
+                                            <AgentCanvasContent
+                                                level={level}
                                                 projectPath={projectPath}
-                                                filePath={selectedAgent.path}
-                                                position={selectedAgent.position}
-                                                view={
-                                                    selectedAgent.moduleName === "ai"
-                                                        ? FOCUS_FLOW_DIAGRAM_VIEW.AGENT
-                                                        : FOCUS_FLOW_DIAGRAM_VIEW.TYPED_AGENT
-                                                }
-                                                onUpdate={() => { }}
-                                                onReady={handleCanvasReady}
+                                                agents={agents}
+                                                agentDefinitions={agentDefinitions}
+                                                selectedAgent={selectedAgent}
+                                                onOpenAgent={handleOpenAgentFromCanvas}
+                                                onOpenTrigger={handleOpenTrigger}
+                                                onFocusReady={handleCanvasReady}
                                             />
                                         </React.Suspense>
                                     </CanvasSlot>
                                 </Layer>
                             )}
-                            {(!selectedAgent || emptyMounted) && (
+                            {(!hasAgents || emptyMounted) && (
                                 <Layer $show={!canvasVisible}>
                                     <EmptyState
                                         isLibrary={isLibrary}

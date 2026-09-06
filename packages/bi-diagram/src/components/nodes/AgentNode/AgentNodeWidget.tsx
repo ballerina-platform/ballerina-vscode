@@ -432,11 +432,12 @@ type AgentNodePresentation = {
     toolsReadOnly: boolean;
 };
 
-const USAGE_TEXT_RIGHT_X = 190;
+const USAGE_TEXT_RIGHT_X = 238;
 const USAGE_LABEL_CHAR_WIDTH = 7.4;
 const USAGE_SERVICE_CHAR_WIDTH = 7.2;
+const USAGE_SERVICE_LABEL_MAX = 32;
 const USAGE_MENU_SIZE = 24;
-const USAGE_ROW_HIT_RIGHT_X = 243;
+const USAGE_ROW_HIT_RIGHT_X = 291;
 const USAGE_ROW_HIT_HEIGHT = 48;
 const TOOL_LABEL_X = 110;
 const TOOL_ROW_RIGHT_X = 300;
@@ -902,7 +903,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
             Math.min(text.length, limit) + (text.length > limit ? 3 : 0);
         const labelWidth = chars(usage.label, 20) * USAGE_LABEL_CHAR_WIDTH;
         const serviceWidth = usage.serviceLabel
-            ? chars(usage.serviceLabel, 24) * USAGE_SERVICE_CHAR_WIDTH
+            ? chars(usage.serviceLabel, USAGE_SERVICE_LABEL_MAX) * USAGE_SERVICE_CHAR_WIDTH
             : 0;
         return Math.max(labelWidth, serviceWidth);
     };
@@ -953,7 +954,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                 data-testid="agent-usage-column"
                 width={AGENT_USAGE_COLUMN_WIDTH + 10}
                 height={model.node.viewState?.ch}
-                viewBox={`0 0 300 ${containerHeight}`}
+                viewBox={`0 0 348 ${containerHeight}`}
                 style={{ marginRight: "-10px", position: "relative", zIndex: 1 }}
             >
                 {usages.map((usage: AgentUsage, index: number) => {
@@ -999,7 +1000,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                             {/* Square marks an inbound caller; tools and the model stay circles. */}
                             <rect
                                 className="usage-square"
-                                x="198"
+                                x="246"
                                 y="2"
                                 width="44"
                                 height="44"
@@ -1012,7 +1013,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                             `}
                             />
                             <rect
-                                x="198"
+                                x="246"
                                 y="2"
                                 width="44"
                                 height="44"
@@ -1024,13 +1025,13 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                     pointer-events: none;
                                     opacity: ${isRowActive ? 1 : 0};
                                     transition: opacity 0.4s ease-out;
-                                    transform-origin: 220px 24px;
+                                    transform-origin: 268px 24px;
                                     transform: scale(1.03);
                                     animation: ${syncPulseAnimation} 1.5s ease-in-out infinite alternate;
                                 `}
                             />
                             <foreignObject
-                                x="208"
+                                x="256"
                                 y="12"
                                 width="44"
                                 height="44"
@@ -1050,7 +1051,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                 dominantBaseline="middle"
                             >
                                 {usage.label.length > 20 ? `${usage.label.slice(0, 20)}...` : usage.label}
-                                <title>{[usage.label, usage.serviceLabel, usage.typeLabel].filter(Boolean).join(" — ")}</title>
+                                <title>{[usage.label, usage.serviceLabel ?? usage.typeLabel].filter(Boolean).join(" — ")}</title>
                             </text>
                             {usage.serviceLabel && (
                                 <text
@@ -1062,16 +1063,16 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                     fontFamily="monospace"
                                     dominantBaseline="middle"
                                 >
-                                    {usage.serviceLabel.length > 24
-                                        ? `${usage.serviceLabel.slice(0, 24)}...`
+                                    {usage.serviceLabel.length > USAGE_SERVICE_LABEL_MAX
+                                        ? `${usage.serviceLabel.slice(0, USAGE_SERVICE_LABEL_MAX)}...`
                                         : usage.serviceLabel}
                                 </text>
                             )}
 
                             <line
-                                x1="243"
+                                x1="291"
                                 y1="25"
-                                x2="300"
+                                x2="348"
                                 y2="25"
                                 style={{
                                     stroke: ThemeColors.ON_SURFACE,
@@ -1082,9 +1083,9 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                 }}
                             />
                             <line
-                                x1="243"
+                                x1="291"
                                 y1="25"
-                                x2="300"
+                                x2="348"
                                 y2="25"
                                 style={{
                                     stroke: aiColor,
@@ -1137,7 +1138,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
 
                 {hiddenUsageCount > 0 && (
                     <text
-                        x="242"
+                        x="290"
                         y={usages.length * AGENT_USAGE_ROW_PITCH + 24}
                         textAnchor="end"
                         fill={ThemeColors.ON_SURFACE_VARIANT}

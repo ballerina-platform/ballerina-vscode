@@ -28,6 +28,7 @@ import io.ballerina.compiler.api.symbols.Symbol;
 import io.ballerina.compiler.api.symbols.TypeSymbol;
 import io.ballerina.compiler.api.symbols.VariableSymbol;
 import io.ballerina.compiler.syntax.tree.AssignmentStatementNode;
+import io.ballerina.compiler.syntax.tree.BasicLiteralNode;
 import io.ballerina.compiler.syntax.tree.CheckExpressionNode;
 import io.ballerina.compiler.syntax.tree.ExplicitNewExpressionNode;
 import io.ballerina.compiler.syntax.tree.ExpressionNode;
@@ -65,6 +66,9 @@ import java.util.Optional;
  * @since 1.0.0
  */
 public class ConnectionFinder {
+
+    private static final String SYSTEM_PROMPT_FIELD = "systemPrompt";
+    private static final String ROLE_FIELD = "role";
 
     private final SemanticModel semanticModel;
     private final Map<String, ModulePartNode> documentMap;
@@ -107,8 +111,10 @@ public class ConnectionFinder {
                         LineRange lineRange = node.lineRange();
                         String sortText = lineRange.fileName() + lineRange.startLine().line();
                         String icon = CommonUtils.generateIcon(classFieldSymbol.typeDescriptor());
+                        TypeSymbol rawType = CommonUtils.getRawType(classFieldSymbol.typeDescriptor());
                         Connection connection = new Connection(objectFieldNode.fieldName().text(),
-                                sortText, getLocation(lineRange), Connection.Scope.LOCAL, icon);
+                                sortText, getLocation(lineRange), Connection.Scope.LOCAL, icon, false,
+                                CommonUtils.getConnectionKind(rawType));
                         for (String refLocation : referenceLocations) {
                             intermediateModel.connectionMap.put(String.valueOf(refLocation), connection);
                             intermediateModel.uuidToConnectionMap.put(connection.getUuid(), connection);
@@ -130,14 +136,15 @@ public class ConnectionFinder {
                             LineRange lineRange = node.lineRange();
                             String sortText = lineRange.fileName() + lineRange.startLine().line();
                             String icon = CommonUtils.generateIcon(classFieldSymbol.typeDescriptor());
+                            TypeSymbol rawType = CommonUtils.getRawType(classFieldSymbol.typeDescriptor());
                             Connection connection = new Connection(symbol.getName().get(), sortText,
-                                    getLocation(lineRange), Connection.Scope.LOCAL, icon);
+                                    getLocation(lineRange), Connection.Scope.LOCAL, icon, false,
+                                    CommonUtils.getConnectionKind(rawType));
                             for (String refLocation : referenceLocations) {
                                 intermediateModel.connectionMap.put(String.valueOf(refLocation), connection);
                                 intermediateModel.uuidToConnectionMap.put(connection.getUuid(), connection);
                             }
                             // Process constructor arguments to find dependent connections
-                            TypeSymbol rawType = CommonUtils.getRawType(classFieldSymbol.typeDescriptor());
                             if (rawType instanceof ClassSymbol) {
                                 ExpressionNode expressionNode = assignmentStatementNode.expression();
                                 if (expressionNode instanceof CheckExpressionNode checkExpressionNode) {
@@ -145,6 +152,7 @@ public class ConnectionFinder {
                                 }
                                 if (expressionNode instanceof NewExpressionNode newExpressionNode) {
                                     SeparatedNodeList<FunctionArgumentNode> argList = getArgList(newExpressionNode);
+                                    extractRole(connection, argList);
                                     List<ExpressionNode> argExprs = getInitMethodArgExprs(argList);
                                     for (ExpressionNode argExpr : argExprs) {
                                         handleInitMethodArgs(connection, argExpr);
@@ -187,7 +195,8 @@ public class ConnectionFinder {
                             String sortText = lineRange.fileName() + lineRange.startLine().line();
                             String icon = CommonUtils.generateIcon(variableSymbol.typeDescriptor());
                             Connection connection = new Connection(symbol.getName().get(), sortText,
-                                    getLocation(lineRange), Connection.Scope.LOCAL, icon, true);
+                                    getLocation(lineRange), Connection.Scope.LOCAL, icon, true,
+                                    CommonUtils.getConnectionKind(typeSymbol));
                             for (String refLocation : referenceLocations) {
                                 intermediateModel.connectionMap.put(String.valueOf(refLocation), connection);
                                 intermediateModel.uuidToConnectionMap.put(connection.getUuid(), connection);
@@ -205,8 +214,10 @@ public class ConnectionFinder {
                         if (isNewConnection(assignmentStatementNode.expression())) {
                             LineRange lineRange = node.lineRange();
                             String sortText = lineRange.fileName() + lineRange.startLine().line();
+                            TypeSymbol rawType = CommonUtils.getRawType(variableSymbol.typeDescriptor());
                             Connection connection = new Connection(symbol.getName().get(), sortText,
-                                    getLocation(lineRange), Connection.Scope.LOCAL, "");
+                                    getLocation(lineRange), Connection.Scope.LOCAL, "", false,
+                                    CommonUtils.getConnectionKind(rawType));
                             for (String refLocation : referenceLocations) {
                                 intermediateModel.connectionMap.put(String.valueOf(refLocation), connection);
                                 intermediateModel.uuidToConnectionMap.put(connection.getUuid(), connection);
@@ -281,10 +292,12 @@ public class ConnectionFinder {
             }
         } else if (expressionNode instanceof MappingConstructorExpressionNode mappingConstructorExpressionNode) {
             for (Node expr : mappingConstructorExpressionNode.fields()) {
-                if (expr instanceof SpecificFieldNode specificFieldNode) {
-                    if (specificFieldNode.valueExpr().isPresent()) {
-                        handleInitMethodArgs(connection, specificFieldNode.valueExpr().get());
-                    }
+                if (expr instanceof SpecificFieldNode specificFieldNode
+                        && specificFieldNode.valueExpr().isPresent()) {
+                    ExpressionNode fieldValue = specificFieldNode.valueExpr().get();
+                    recordRoleIfSystemPrompt(connection, specificFieldNode.fieldName().toSourceCode().trim(),
+                            fieldValue);
+                    handleInitMethodArgs(connection, fieldValue);
                 }
             }
         } else if (expressionNode instanceof SimpleNameReferenceNode varRef) {
@@ -302,6 +315,44 @@ public class ConnectionFinder {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    /**
+     * Finds the agent's {@code systemPrompt: {role: "...", ...}} argument among the {@code new(...)}
+     * call's named arguments and records its role. Handles agent construction, which passes each
+     * config field as its own named argument rather than one aggregate mapping literal (the shape
+     * {@link #handleInitMethodArgs} otherwise expects).
+     */
+    public void extractRole(Connection connection, SeparatedNodeList<FunctionArgumentNode> argList) {
+        for (Node argument : argList) {
+            if (argument instanceof NamedArgumentNode namedArgumentNode
+                    && SYSTEM_PROMPT_FIELD.equals(namedArgumentNode.argumentName().name().text())
+                    && namedArgumentNode.expression() instanceof MappingConstructorExpressionNode systemPrompt) {
+                setRoleFromSystemPrompt(connection, systemPrompt);
+                return;
+            }
+        }
+    }
+
+    private void recordRoleIfSystemPrompt(Connection connection, String fieldName, ExpressionNode fieldValue) {
+        if (SYSTEM_PROMPT_FIELD.equals(fieldName)
+                && fieldValue instanceof MappingConstructorExpressionNode systemPrompt) {
+            setRoleFromSystemPrompt(connection, systemPrompt);
+        }
+    }
+
+    private void setRoleFromSystemPrompt(Connection connection, MappingConstructorExpressionNode systemPrompt) {
+        for (Node field : systemPrompt.fields()) {
+            if (field instanceof SpecificFieldNode roleField
+                    && ROLE_FIELD.equals(roleField.fieldName().toSourceCode().trim())
+                    && roleField.valueExpr().isPresent()
+                    && roleField.valueExpr().get() instanceof BasicLiteralNode literal
+                    && literal.kind() == SyntaxKind.STRING_LITERAL) {
+                String text = literal.literalToken().text();
+                connection.setRole(text.substring(1, text.length() - 1));
+                return;
             }
         }
     }

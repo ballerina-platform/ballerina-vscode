@@ -7,7 +7,7 @@
         {
           "symbol": "tool2Client",
           "location": {
-            "filePath": "/Users/lakshanweerasinghe/Documents/repos/ballerina-platform/ballerina-dev-tools/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_4/chatAgent.bal",
+            "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_4/chatAgent.bal",
             "startLine": {
               "line": 3,
               "offset": 0
@@ -18,17 +18,18 @@
             }
           },
           "scope": "GLOBAL",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.14.1.png",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.6.png",
           "dependentFunctions": [],
           "dependentConnection": [],
-          "uuid": "f94fdeac-eeee-0615-16e9-43357fc6dbf0",
+          "kind": "Connection",
+          "uuid": "0262198b-79f3-1bb4-0224-336889e690c3",
           "enableFlowModel": true,
           "sortText": "chatAgent.bal3"
         },
         {
           "symbol": "agent1",
           "location": {
-            "filePath": "/Users/lakshanweerasinghe/Documents/repos/ballerina-platform/ballerina-dev-tools/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_4/chatAgent.bal",
+            "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_4/chatAgent.bal",
             "startLine": {
               "line": 5,
               "offset": 0
@@ -45,14 +46,19 @@
             "tool1"
           ],
           "dependentConnection": [],
-          "uuid": "06267175-e7dc-a2a6-a8f8-f58f773736e8",
+          "kind": "Agent",
+          "toolConnections": [
+            "0262198b-79f3-1bb4-0224-336889e690c3",
+            "96ea9bf0-e738-0ec8-194d-62d8736f0ccc"
+          ],
+          "uuid": "63961867-7288-acc7-33df-feb5efd84866",
           "enableFlowModel": true,
           "sortText": "chatAgent.bal5"
         },
         {
           "symbol": "agent2",
           "location": {
-            "filePath": "/Users/lakshanweerasinghe/Documents/repos/ballerina-platform/ballerina-dev-tools/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_4/chatAgent.bal",
+            "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_4/chatAgent.bal",
             "startLine": {
               "line": 11,
               "offset": 0
@@ -66,14 +72,15 @@
           "icon": "https://bcentral-packageicons.azureedge.net/images/wso2_imported_listener_0.1.0.png",
           "dependentFunctions": [],
           "dependentConnection": [],
-          "uuid": "b981fc79-57ef-a4f1-bcc9-956ab22e81d8",
+          "kind": "Agent",
+          "uuid": "a6735f08-8e53-63c3-247c-c587f1519949",
           "enableFlowModel": true,
           "sortText": "chatAgent.bal11"
         },
         {
           "symbol": "tool1Client",
           "location": {
-            "filePath": "/Users/lakshanweerasinghe/Documents/repos/ballerina-platform/ballerina-dev-tools/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_4/chatAgent.bal",
+            "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_4/chatAgent.bal",
             "startLine": {
               "line": 2,
               "offset": 0
@@ -84,10 +91,11 @@
             }
           },
           "scope": "GLOBAL",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.14.1.png",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.6.png",
           "dependentFunctions": [],
           "dependentConnection": [],
-          "uuid": "40be904c-7784-426c-1d56-07c4545d01cd",
+          "kind": "Connection",
+          "uuid": "96ea9bf0-e738-0ec8-194d-62d8736f0ccc",
           "enableFlowModel": true,
           "sortText": "chatAgent.bal2"
         }
@@ -96,7 +104,36 @@
         {
           "symbol": "ANON",
           "location": {
-            "filePath": "/Users/lakshanweerasinghe/Documents/repos/ballerina-platform/ballerina-dev-tools/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_4/chatAgent.bal",
+            "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_4/chatAgent.bal",
+            "startLine": {
+              "line": 21,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 26,
+              "offset": 1
+            }
+          },
+          "attachedServices": [
+            "99db571f-b317-91c1-ac47-f8064a427f1e"
+          ],
+          "kind": "ANON",
+          "type": "http:Listener",
+          "args": [
+            {
+              "key": "port",
+              "value": "9090"
+            }
+          ],
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.6.png",
+          "uuid": "839e60bf-ebc1-1893-1dff-1f8a4f93ac62",
+          "enableFlowModel": false,
+          "sortText": "chatAgent.bal21"
+        },
+        {
+          "symbol": "ANON",
+          "location": {
+            "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_4/chatAgent.bal",
             "startLine": {
               "line": 14,
               "offset": 0
@@ -107,7 +144,7 @@
             }
           },
           "attachedServices": [
-            "60c112ac-7677-d9c5-3ce8-171006cbe20f"
+            "085235e5-5c09-3cf0-53ef-e3e2a4bae3d0"
           ],
           "kind": "ANON",
           "type": "http:Listener",
@@ -117,45 +154,16 @@
               "value": "8080"
             }
           ],
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.14.1.png",
-          "uuid": "d0329c06-6207-8508-8947-63a8da763629",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.6.png",
+          "uuid": "fc77976f-c9a5-2ca9-8f9e-c5ef102bea43",
           "enableFlowModel": false,
           "sortText": "chatAgent.bal14"
-        },
-        {
-          "symbol": "ANON",
-          "location": {
-            "filePath": "/Users/lakshanweerasinghe/Documents/repos/ballerina-platform/ballerina-dev-tools/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_4/chatAgent.bal",
-            "startLine": {
-              "line": 21,
-              "offset": 0
-            },
-            "endLine": {
-              "line": 26,
-              "offset": 1
-            }
-          },
-          "attachedServices": [
-            "4b99d491-f0c1-3162-96f1-bc13933da4cb"
-          ],
-          "kind": "ANON",
-          "type": "http:Listener",
-          "args": [
-            {
-              "key": "port",
-              "value": "9090"
-            }
-          ],
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.14.1.png",
-          "uuid": "16d93690-c598-9112-cbbe-dfb7d1cf7077",
-          "enableFlowModel": false,
-          "sortText": "chatAgent.bal21"
         }
       ],
       "services": [
         {
           "location": {
-            "filePath": "/Users/lakshanweerasinghe/Documents/repos/ballerina-platform/ballerina-dev-tools/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_4/chatAgent.bal",
+            "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_4/chatAgent.bal",
             "startLine": {
               "line": 21,
               "offset": 0
@@ -166,11 +174,12 @@
             }
           },
           "attachedListeners": [
-            "16d93690-c598-9112-cbbe-dfb7d1cf7077"
+            "839e60bf-ebc1-1893-1dff-1f8a4f93ac62"
           ],
           "connections": [
-            "b981fc79-57ef-a4f1-bcc9-956ab22e81d8"
+            "a6735f08-8e53-63c3-247c-c587f1519949"
           ],
+          "workflows": [],
           "functions": [],
           "remoteFunctions": [],
           "resourceFunctions": [
@@ -178,7 +187,7 @@
               "accessor": "post",
               "path": "chat",
               "location": {
-                "filePath": "/Users/lakshanweerasinghe/Documents/repos/ballerina-platform/ballerina-dev-tools/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_4/chatAgent.bal",
+                "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_4/chatAgent.bal",
                 "startLine": {
                   "line": 23,
                   "offset": 4
@@ -189,20 +198,29 @@
                 }
               },
               "connections": [
-                "b981fc79-57ef-a4f1-bcc9-956ab22e81d8"
+                "a6735f08-8e53-63c3-247c-c587f1519949"
+              ],
+              "workflows": [],
+              "workflowSendData": {},
+              "invalidWorkflowSendData": [],
+              "agentCalls": [
+                {
+                  "connection": "a6735f08-8e53-63c3-247c-c587f1519949",
+                  "line": 24
+                }
               ]
             }
           ],
           "absolutePath": "/tool2Service ",
           "type": "http:Service",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.14.1.png",
-          "uuid": "4b99d491-f0c1-3162-96f1-bc13933da4cb",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.6.png",
+          "uuid": "99db571f-b317-91c1-ac47-f8064a427f1e",
           "enableFlowModel": true,
           "sortText": "chatAgent.bal21"
         },
         {
           "location": {
-            "filePath": "/Users/lakshanweerasinghe/Documents/repos/ballerina-platform/ballerina-dev-tools/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_4/chatAgent.bal",
+            "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_4/chatAgent.bal",
             "startLine": {
               "line": 14,
               "offset": 0
@@ -213,13 +231,14 @@
             }
           },
           "attachedListeners": [
-            "d0329c06-6207-8508-8947-63a8da763629"
+            "fc77976f-c9a5-2ca9-8f9e-c5ef102bea43"
           ],
           "connections": [
-            "40be904c-7784-426c-1d56-07c4545d01cd",
-            "f94fdeac-eeee-0615-16e9-43357fc6dbf0",
-            "06267175-e7dc-a2a6-a8f8-f58f773736e8"
+            "0262198b-79f3-1bb4-0224-336889e690c3",
+            "63961867-7288-acc7-33df-feb5efd84866",
+            "96ea9bf0-e738-0ec8-194d-62d8736f0ccc"
           ],
+          "workflows": [],
           "functions": [],
           "remoteFunctions": [],
           "resourceFunctions": [
@@ -227,7 +246,7 @@
               "accessor": "post",
               "path": "chat",
               "location": {
-                "filePath": "/Users/lakshanweerasinghe/Documents/repos/ballerina-platform/ballerina-dev-tools/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_4/chatAgent.bal",
+                "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_4/chatAgent.bal",
                 "startLine": {
                   "line": 16,
                   "offset": 4
@@ -238,20 +257,31 @@
                 }
               },
               "connections": [
-                "40be904c-7784-426c-1d56-07c4545d01cd",
-                "f94fdeac-eeee-0615-16e9-43357fc6dbf0",
-                "06267175-e7dc-a2a6-a8f8-f58f773736e8"
+                "0262198b-79f3-1bb4-0224-336889e690c3",
+                "63961867-7288-acc7-33df-feb5efd84866",
+                "96ea9bf0-e738-0ec8-194d-62d8736f0ccc"
+              ],
+              "workflows": [],
+              "workflowSendData": {},
+              "invalidWorkflowSendData": [],
+              "agentCalls": [
+                {
+                  "connection": "63961867-7288-acc7-33df-feb5efd84866",
+                  "line": 17
+                }
               ]
             }
           ],
           "absolutePath": "/tool1Service ",
           "type": "http:Service",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.14.1.png",
-          "uuid": "60c112ac-7677-d9c5-3ce8-171006cbe20f",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.6.png",
+          "uuid": "085235e5-5c09-3cf0-53ef-e3e2a4bae3d0",
           "enableFlowModel": true,
           "sortText": "chatAgent.bal14"
         }
-      ]
+      ],
+      "workflows": [],
+      "activities": []
     }
   }
 }

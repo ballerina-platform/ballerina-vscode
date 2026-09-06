@@ -39,6 +39,9 @@ public class Connection extends DesignGraphNode {
     private final Set<String> dependentConnection;
     private String kind = ConnectionKind.CONNECTION.toString();
     private Map<String, Object> metadata;
+    private String role;
+    private Set<String> delegatesTo;
+    private Set<String> toolConnections;
 
     public Connection(String symbol, String sortText, Location location, Scope scope, String icon) {
         super(sortText);
@@ -134,6 +137,36 @@ public class Connection extends DesignGraphNode {
             this.metadata = new HashMap<>();
         }
         this.metadata.put(key, value);
+    }
+
+    public String getRole() {
+        return role;
+    }
+
+    public void setRole(String role) {
+        this.role = role;
+    }
+
+    public Set<String> getDelegatesTo() {
+        return delegatesTo;
+    }
+
+    public void addDelegatesTo(String agentUuid) {
+        if (this.delegatesTo == null) {
+            this.delegatesTo = new HashSet<>();
+        }
+        this.delegatesTo.add(agentUuid);
+    }
+
+    public Set<String> getToolConnections() {
+        return toolConnections;
+    }
+
+    public void addToolConnection(String connectionUuid) {
+        if (this.toolConnections == null) {
+            this.toolConnections = new HashSet<>();
+        }
+        this.toolConnections.add(connectionUuid);
     }
 
     private void collectTransitiveDependencies(Map<String, Connection> uuidToConnectionMap,

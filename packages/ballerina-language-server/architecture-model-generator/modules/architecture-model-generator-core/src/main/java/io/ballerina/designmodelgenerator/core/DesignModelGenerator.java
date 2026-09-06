@@ -44,6 +44,7 @@ import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.designmodelgenerator.core.model.Activity;
 import io.ballerina.designmodelgenerator.core.model.Automation;
 import io.ballerina.designmodelgenerator.core.model.Connection;
+import io.ballerina.designmodelgenerator.core.model.ConnectionKind;
 import io.ballerina.designmodelgenerator.core.model.DesignModel;
 import io.ballerina.designmodelgenerator.core.model.Function;
 import io.ballerina.designmodelgenerator.core.model.Listener;
@@ -119,10 +120,11 @@ public class DesignModelGenerator {
 
         if (intermediateModel.functionModelMap.containsKey(MAIN_FUNCTION_NAME)) {
             IntermediateModel.FunctionModel main = intermediateModel.functionModelMap.get(MAIN_FUNCTION_NAME);
+            foldToolFunctionsFromConnections(intermediateModel, main);
             buildConnectionAndWorkflowGraph(intermediateModel, main, null);
             Automation automation = new Automation(AUTOMATION, main.displayName, "Z", main.location,
                     main.allDependentConnections.stream().toList(),
-                    main.allDependentWorkflows.stream().toList());
+                    main.allDependentWorkflows.stream().toList(), main.agentCalls);
             for (String workflowUuid : main.allDependentWorkflows) {
                 Workflow workflow = intermediateModel.uuidToWorkflowMap.get(workflowUuid);
                 if (workflow != null) {
@@ -149,7 +151,7 @@ public class DesignModelGenerator {
                 functions.add(new Function(otherFunction.name, otherFunction.location,
                         otherFunction.allDependentConnections, otherFunction.allDependentWorkflows,
                         otherFunction.allDependentWorkflowSendData,
-                        otherFunction.allDependentInvalidWorkflowSendData));
+                        otherFunction.allDependentInvalidWorkflowSendData, otherFunction.agentCalls));
             });
 
             List<Function> remoteFunctions = new ArrayList<>();
@@ -159,7 +161,7 @@ public class DesignModelGenerator {
                 remoteFunctions.add(new Function(remoteFunction.name, remoteFunction.location,
                         remoteFunction.allDependentConnections, remoteFunction.allDependentWorkflows,
                         remoteFunction.allDependentWorkflowSendData,
-                        remoteFunction.allDependentInvalidWorkflowSendData));
+                        remoteFunction.allDependentInvalidWorkflowSendData, remoteFunction.agentCalls));
             });
 
             List<ResourceFunction> resourceFunctions = new ArrayList<>();
@@ -169,7 +171,7 @@ public class DesignModelGenerator {
                 resourceFunctions.add(new ResourceFunction(resourceFunction.name, resourceFunction.path,
                         resourceFunction.location, resourceFunction.allDependentConnections,
                         resourceFunction.allDependentWorkflows, resourceFunction.allDependentWorkflowSendData,
-                        resourceFunction.allDependentInvalidWorkflowSendData));
+                        resourceFunction.allDependentInvalidWorkflowSendData, resourceFunction.agentCalls));
             });
             List<Listener> allAttachedListeners = serviceModel.anonListeners;
             for (String listener : serviceModel.namedListeners) {
@@ -213,12 +215,54 @@ public class DesignModelGenerator {
             }
         }
 
+        linkAgentToolTargets(intermediateModel);
+
         return builder
                 .setListeners(intermediateModel.listeners.values().stream().toList())
                 .setConnections(intermediateModel.connectionMap.values().stream().toList())
                 .setWorkflows(intermediateModel.workflowMap.values().stream().toList())
                 .setActivities(intermediateModel.activityMap.values().stream().toList())
                 .build();
+    }
+
+    /**
+     * For every agent connection, resolves its tool functions' own connections and splits them into
+     * {@code delegatesTo} (other agents, the agent-as-tool pattern) and {@code toolConnections} (everything
+     * else, e.g. an HTTP client a tool calls) so the overview can draw both without a per-agent flow read.
+     * Runs over every agent regardless of whether it is reached from an entry point, so an otherwise
+     * unreachable agent still resolves its own delegation edges.
+     */
+    private void linkAgentToolTargets(IntermediateModel intermediateModel) {
+        for (Connection connection : intermediateModel.uuidToConnectionMap.values()) {
+            if (!ConnectionKind.AGENT.toString().equals(connection.getKind())) {
+                continue;
+            }
+            for (String toolFunctionName : connection.getDependentFunctions()) {
+                IntermediateModel.FunctionModel tool = intermediateModel.functionModelMap.get(toolFunctionName);
+                if (tool == null) {
+                    continue;
+                }
+                if (!tool.analyzed) {
+                    buildConnectionAndWorkflowGraph(intermediateModel, tool, null);
+                }
+                classifyToolConnections(intermediateModel, connection, tool);
+            }
+        }
+    }
+
+    private void classifyToolConnections(IntermediateModel intermediateModel, Connection agent,
+                                         IntermediateModel.FunctionModel tool) {
+        for (String dependentConnectionUuid : tool.allDependentConnections) {
+            Connection dependentConnection = intermediateModel.uuidToConnectionMap.get(dependentConnectionUuid);
+            if (dependentConnection == null) {
+                continue;
+            }
+            if (ConnectionKind.AGENT.toString().equals(dependentConnection.getKind())) {
+                agent.addDelegatesTo(dependentConnectionUuid);
+            } else {
+                agent.addToolConnection(dependentConnectionUuid);
+            }
+        }
     }
 
     /**
@@ -231,19 +275,29 @@ public class DesignModelGenerator {
                                         Set<String> connections, Set<String> workflows,
                                         Map<String, Set<String>> serviceSendData,
                                         Set<String> serviceInvalidSendData) {
-        functionModel.connections.forEach(connection -> {
-            Connection conn = intermediateModel.uuidToConnectionMap.get(connection);
+        foldToolFunctionsFromConnections(intermediateModel, functionModel);
+        buildConnectionAndWorkflowGraph(intermediateModel, functionModel, serviceModel);
+        connections.addAll(functionModel.allDependentConnections);
+        workflows.addAll(functionModel.allDependentWorkflows);
+        mergeSendData(serviceSendData, functionModel.allDependentWorkflowSendData);
+        serviceInvalidSendData.addAll(functionModel.allDependentInvalidWorkflowSendData);
+    }
+
+    /**
+     * Folds a connection's own dependent functions (e.g. an agent's tool functions) into the calling
+     * function's dependency walk, so a resource that only calls {@code agent.run(...)} still picks up
+     * whatever connections those tool functions use.
+     */
+    private void foldToolFunctionsFromConnections(IntermediateModel intermediateModel,
+                                                  IntermediateModel.FunctionModel functionModel) {
+        functionModel.connections.forEach(connectionUuid -> {
+            Connection conn = intermediateModel.uuidToConnectionMap.get(connectionUuid);
             if (conn != null) {
                 functionModel.dependentFuncs.addAll(conn.getDependentFunctions());
                 functionModel.allDependentConnections.addAll(
                         conn.getAllTransitiveDependentConnections(intermediateModel.uuidToConnectionMap));
             }
         });
-        buildConnectionAndWorkflowGraph(intermediateModel, functionModel, serviceModel);
-        connections.addAll(functionModel.allDependentConnections);
-        workflows.addAll(functionModel.allDependentWorkflows);
-        mergeSendData(serviceSendData, functionModel.allDependentWorkflowSendData);
-        serviceInvalidSendData.addAll(functionModel.allDependentInvalidWorkflowSendData);
     }
 
     private void mergeSendData(Map<String, Set<String>> target, Map<String, Set<String>> source) {

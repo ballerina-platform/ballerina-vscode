@@ -83,6 +83,12 @@ function serviceTypeLabel(type?: string): string | undefined {
     return SERVICE_TYPE_LABELS[modulePart] ?? `${modulePart.charAt(0).toUpperCase()}${modulePart.slice(1)} Service`;
 }
 
+function serviceSubLabel(service: CDService): string {
+    const label = serviceLabel(service);
+    const typeLabel = serviceTypeLabel(service.type);
+    return typeLabel && label.startsWith("/") ? `${typeLabel} · ${label}` : label;
+}
+
 function resourcePath(path: string): string {
     return unescapePath(path === "." ? "/" : path.startsWith("/") ? path : `/${path}`);
 }
@@ -171,6 +177,7 @@ function usagesForService(
     scope?: AgentTriggerDeletionScope
 ): AgentUsage[] {
     const label = serviceLabel(service);
+    const subLabel = serviceSubLabel(service);
     const name = serviceName(service);
     const isAgentChat = modulePrefix(service.type) === "ai";
     const trigger = scope ? triggerFor(model, service) : undefined;
@@ -187,7 +194,7 @@ function usagesForService(
             const rowLabel = isAgentChat ? "Agent Chat" : resourceLabel(resource.accessor, resource.path);
             usages.push({
                 label: rowLabel,
-                serviceLabel: label,
+                serviceLabel: subLabel,
                 serviceName: name,
                 functionName: resourcePath(resource.path),
                 type: service.type,
@@ -207,7 +214,7 @@ function usagesForService(
         if (fn.connections?.includes(uuid)) {
             usages.push({
                 label: fn.name,
-                serviceLabel: label,
+                serviceLabel: subLabel,
                 serviceName: name,
                 functionName: fn.name,
                 type: service.type,

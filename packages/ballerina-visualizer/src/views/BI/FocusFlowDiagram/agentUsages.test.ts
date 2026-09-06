@@ -164,7 +164,7 @@ describe("findAgentUsages", () => {
 
         expect(usages.map((u) => u.label)).toEqual(["POST /chat", "main"]);
         expect(usages[0]).toMatchObject({
-            serviceLabel: "/mathService",
+            serviceLabel: "HTTP Service · /mathService",
             type: "http:Service",
             documentUri: SERVICES_BAL,
             position: { startLine: 7, startColumn: 0, endLine: 8, endColumn: 1 },
@@ -189,21 +189,21 @@ describe("findAgentUsages", () => {
         const usages = findAgentUsages(escaped, { filePath: AGENTS_BAL, startLine: 4 });
         expect(usages[0]).toMatchObject({
             label: "POST /sub-chat",
-            serviceLabel: "/math-tutor-agent",
+            serviceLabel: "HTTP Service · /math-tutor-agent",
         });
     });
 
     it("excludes services that do not call the agent", () => {
         const usages = findAgentUsages(model, { filePath: AGENTS_BAL, startLine: 4 });
-        expect(usages.some((u) => u.serviceLabel === "/healthService")).toBe(false);
-        expect(usages.some((u) => u.serviceLabel === "/supportService")).toBe(false);
+        expect(usages.some((u) => u.serviceLabel === "HTTP Service · /healthService")).toBe(false);
+        expect(usages.some((u) => u.serviceLabel === "HTTP Service · /supportService")).toBe(false);
     });
 
     it("does not confuse the agent with the model provider declared beside it", () => {
         const usages = findAgentUsages(model, { filePath: AGENTS_BAL, startLine: 2 });
         expect(usages.map((u) => u.serviceLabel)).toEqual([
-            "/mathService",
-            "/supportService",
+            "HTTP Service · /mathService",
+            "HTTP Service · /supportService",
             undefined,
         ]);
     });

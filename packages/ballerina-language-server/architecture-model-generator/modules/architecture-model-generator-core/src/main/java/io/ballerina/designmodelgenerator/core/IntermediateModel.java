@@ -19,6 +19,7 @@
 package io.ballerina.designmodelgenerator.core;
 
 import io.ballerina.designmodelgenerator.core.model.Activity;
+import io.ballerina.designmodelgenerator.core.model.AgentCall;
 import io.ballerina.designmodelgenerator.core.model.Connection;
 import io.ballerina.designmodelgenerator.core.model.Listener;
 import io.ballerina.designmodelgenerator.core.model.Location;
@@ -106,9 +107,19 @@ public class IntermediateModel {
         // or does not match any event declared by the workflow function
         protected final Set<String> invalidWorkflowSendData = new HashSet<>();
         protected final Set<String> allDependentInvalidWorkflowSendData = new HashSet<>();
+        protected final List<AgentCall> agentCalls = new ArrayList<>();
 
         protected void addSentEvent(String workflowUuid, String eventName) {
             this.workflowSendData.computeIfAbsent(workflowUuid, k -> new HashSet<>()).add(eventName);
+        }
+
+        // Belt-and-suspenders against a node being visited twice (see the FunctionBodyBlockNode
+        // traversal note in CodeAnalyzer): a duplicate call at the same source line is dropped.
+        protected void addAgentCall(AgentCall agentCall) {
+            boolean alreadyRecorded = agentCalls.stream().anyMatch(existing -> existing.line() == agentCall.line());
+            if (!alreadyRecorded) {
+                agentCalls.add(agentCall);
+            }
         }
 
         public FunctionModel(String name) {
