@@ -367,7 +367,7 @@ export const ExpressionField: React.FC<ExpressionFieldProps> = (props: Expressio
             completions={completions}
             onChange={onChange}
             onBlur={onBlur}
-            value={value}
+            value={typeof value === "string" || value == null ? value : String(value)}
             sanitizedExpression={sanitizedExpression}
             rawExpression={rawExpression}
             fileName={fileName}
