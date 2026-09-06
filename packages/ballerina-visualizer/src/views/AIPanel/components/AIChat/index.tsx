@@ -599,7 +599,7 @@ const AIChat: React.FC = () => {
             if (result) {
                 setUsage({
                     ...result,
-                    resetsAtMs: result.resetsIn !== -1 ? Date.now() + result.resetsIn * 1000 : undefined,
+                    resetsAtMs: result.resetsIn > 0 ? Date.now() + result.resetsIn * 1000 : undefined,
                 });
                 setIsUsageExceeded(result.resetsIn !== -1 && result.remainingUsagePercentage < USAGE_EXCEEDED_THRESHOLD_PERCENT);
             } else {
