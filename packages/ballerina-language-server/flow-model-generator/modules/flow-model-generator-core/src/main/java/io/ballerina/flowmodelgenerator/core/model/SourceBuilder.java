@@ -504,6 +504,24 @@ public class SourceBuilder {
      * @return that file's ledger, built on first use
      */
     private ModulePrefixContext prefixes(Path path) {
+        return prefixes(path, null);
+    }
+
+    /**
+     * As {@link #prefixes(Path)}, but told which module owns the file.
+     *
+     * <p>
+     * Without it every module classifies as external, so a type naming the file's own module is registered and
+     * gets {@code import <org>/<pkg>;} written into that package's own file, and a sibling submodule gets its
+     * import written with an organization it must not carry. That filtering used to live in
+     * {@code TypesManager.addImportsToTextEdits}; it now lives in the context, and only runs when it is told.
+     * </p>
+     *
+     * @param path          the file the edits are destined for
+     * @param currentModule the module owning that file, or null to classify every module as external
+     * @return that file's ledger, built on first use
+     */
+    private ModulePrefixContext prefixes(Path path, ModuleInfo currentModule) {
         return this.prefixContexts.computeIfAbsent(path, target -> {
             ModulePartNode rootNode = null;
             try {
@@ -515,7 +533,7 @@ public class SourceBuilder {
             } catch (WorkspaceDocumentException | EventSyncException e) {
                 // Without a file to read, the natural prefix is the only available answer.
             }
-            return ModulePrefixContext.from(rootNode);
+            return ModulePrefixContext.from(rootNode, currentModule);
         });
     }
 
@@ -1046,7 +1064,7 @@ public class SourceBuilder {
 
         // One generator, and so one prefix ledger, for every type this operation writes into types.bal: that is
         // what makes two generated types agree with each other and with what the file already imports.
-        ModulePrefixContext typePrefixes = prefixes(filePath);
+        ModulePrefixContext typePrefixes = prefixes(filePath, ModuleInfo.from(document.module().descriptor()));
         SourceCodeGenerator sourceCodeGenerator = new SourceCodeGenerator(typePrefixes);
         for (TypeData typeData : typesToGenerate) {
             String codeSnippet = sourceCodeGenerator.generateCodeSnippetForType(typeData);

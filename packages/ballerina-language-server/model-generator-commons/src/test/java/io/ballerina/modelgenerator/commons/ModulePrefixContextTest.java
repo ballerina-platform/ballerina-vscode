@@ -109,6 +109,28 @@ public class ModulePrefixContextTest {
                 "with no file knowledge the own module cannot be recognised, which is today's behaviour");
     }
 
+    @Test
+    public void testWithoutModuleInfoAModuleWouldBeImportedIntoItself() {
+        // Why a generator writing into a package's own file must pass the ModuleInfo: without it the own module
+        // is registered like any other and its import is emitted, so the package imports itself. The sibling
+        // submodule is wrong too -- its import must not carry an organization. This is the contract
+        // SourceBuilder.prefixes(Path, ModuleInfo) and TypesManager.prefixesFor both rely on.
+        ModulePrefixContext blind = ModulePrefixContext.from(rootOf(""));
+        blind.prefixFor("testorg", "test_pack");
+        blind.prefixFor("testorg", "test_pack.records");
+
+        Assert.assertEquals(blind.pendingImportStatements(),
+                List.of("testorg/test_pack", "testorg/test_pack.records"),
+                "a context with no file knowledge emits a self-import and an org-carrying sibling import");
+
+        ModulePrefixContext informed = ModulePrefixContext.from(rootOf(""), CURRENT);
+        informed.prefixFor("testorg", "test_pack");
+        informed.prefixFor("testorg", "test_pack.records");
+
+        Assert.assertEquals(informed.pendingImportStatements(), List.of("test_pack.records"),
+                "told which module owns the file, the own module needs no import and the sibling drops the org");
+    }
+
     // -------- pending imports --------
 
     @Test
