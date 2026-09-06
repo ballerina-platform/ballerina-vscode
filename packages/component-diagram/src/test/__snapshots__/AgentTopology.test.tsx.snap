@@ -8,6 +8,11 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders an empty package with no 
 .css-9 svg:first-child {z-index: 1;}
 .css-9 {height: 100%; -webkit-background-size: 16px 16px; background-size: 16px 16px; display: flex; background-image: radial-gradient(var(--vscode-editor-inactiveSelectionBackground) 10%, transparent 0px); font-family: "GilmerRegular";}
 .css-3 {height: 16px; width: 16px; cursor: pointer; font-size: 16px; -webkit-transform: rotate(90deg); -moz-transform: rotate(90deg); -ms-transform: rotate(90deg); transform: rotate(90deg);}
+.css-8 .node {-webkit-transition: none; transition: none;}
+.css-8 {height: 100%;}
+.css-8>div>div>* {-webkit-transition: none; transition: none;}
+.css-8>div>div>svg {opacity: 1; -webkit-transition: opacity 160ms ease-out; transition: opacity 160ms ease-out;}
+.css-8>div>div>svg:nth-of-type(2) {z-index: 2; pointer-events: none;}
 .css-10 {position: relative; cursor: move; overflow: hidden;}
 .css-2 {display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; padding: 8px; border-radius: 4px; background-color: var(--vscode-sideBar-background); fill: var(--vscode-foreground); width: 32px; height: 32px; cursor: pointer;}
 .css-2:active {background-color: var(--vscode-editor-inactiveSelectionBackground);}
@@ -22,10 +27,6 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders an empty package with no 
 .css-0 {position: relative; width: 100%; height: 100%;}
 .css-12 {-webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; height: 100%; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; width: 100%; background-color: var(--vscode-menu-background); z-index: 1000;}
 .css-4 {height: 16px; width: 16px; cursor: pointer; font-size: 16px;}
-.css-8 .node {-webkit-transition: none; transition: none;}
-.css-8 {height: 100%;}
-.css-8>div>div>* {-webkit-transition: none; transition: none;}
-.css-8>div>div>svg {opacity: 1; -webkit-transition: opacity 160ms ease-out; transition: opacity 160ms ease-out;}
 .css-1 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; gap: 8px; position: absolute; left: 12px; bottom: 12px; z-index: 1000;}
 
 /* DOM */
@@ -125,6 +126,17 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders an empty package with no 
 				1
 			);"
           />
+          <svg
+            class="css-11"
+            style="transform: translate(
+				0px,
+				0px)
+			scale(
+				1
+			);"
+          >
+            <g />
+          </svg>
           <div
             class="css-11"
           >
@@ -161,6 +173,11 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the Help Desk shape: help
 .css-3 {height: 16px; width: 16px; cursor: pointer; font-size: 16px; -webkit-transform: rotate(90deg); -moz-transform: rotate(90deg); -ms-transform: rotate(90deg); transform: rotate(90deg);}
 .css-20 {position: absolute; right: -6px; top: 50%; -webkit-transform: translateY(-50%); -moz-transform: translateY(-50%); -ms-transform: translateY(-50%); transform: translateY(-50%);}
 .css-30 {display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; -webkit-box-pack: start; -ms-flex-pack: start; -webkit-justify-content: flex-start; justify-content: flex-start; gap: 14px; width: 302px; height: 56px; cursor: pointer; outline: none;}
+.css-13 .node {-webkit-transition: none; transition: none;}
+.css-13 {height: 100%;}
+.css-13>div>div>* {-webkit-transition: none; transition: none;}
+.css-13>div>div>svg {opacity: 1; -webkit-transition: opacity 160ms ease-out; transition: opacity 160ms ease-out;}
+.css-13>div>div>svg:nth-of-type(2) {z-index: 2; pointer-events: none;}
 .css-15 {position: relative; cursor: move; overflow: hidden;}
 .css-32 {font-family: "GilmerMedium"; font-size: 14px; line-height: 18px; color: var(--vscode-foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
 .css-2 {display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; padding: 8px; border-radius: 4px; background-color: var(--vscode-sideBar-background); fill: var(--vscode-foreground); width: 32px; height: 32px; cursor: pointer;}
@@ -193,10 +210,6 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the Help Desk shape: help
 .css-7 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; gap: 6px; padding: 8px 10px; border-radius: 6px; background-color: var(--vscode-sideBar-background); border: 1px solid var(--vscode-dropdown-border); font-family: "GilmerRegular"; font-size: 11px; color: var(--vscode-foreground);}
 .css-4 {height: 16px; width: 16px; cursor: pointer; font-size: 16px;}
 .css-12 {position: relative; width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--vscode-foreground); background-color: var(--vscode-sideBar-background); display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; font-size: 9px; font-weight: 700;}
-.css-13 .node {-webkit-transition: none; transition: none;}
-.css-13 {height: 100%;}
-.css-13>div>div>* {-webkit-transition: none; transition: none;}
-.css-13>div>div>svg {opacity: 1; -webkit-transition: opacity 160ms ease-out; transition: opacity 160ms ease-out;}
 .css-28 {display: flex; -webkit-box-flex-wrap: wrap; -webkit-flex-wrap: wrap; -ms-flex-wrap: wrap; flex-wrap: wrap; gap: 6px; min-width: 0;}
 .css-17 {position: absolute; -webkit-touch-callout: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; cursor: move; pointer-events: all;}
 .css-21 {display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 10px; min-width: 0;}
@@ -337,13 +350,13 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the Help Desk shape: help
                 pointer-events="all"
               >
                 <path
-                  d="M 400 300 C 440 300, 360 300, 400 300"
+                  d="M 400 300 L 400 300"
                   fill="none"
                   stroke="transparent"
                   stroke-width="16"
                 />
                 <path
-                  d="M 400 300 C 440 300, 360 300, 400 300"
+                  d="M 400 300 L 400 300"
                   fill="none"
                   stroke="var(--vscode-foreground)"
                   stroke-width="1.5"
@@ -371,13 +384,13 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the Help Desk shape: help
                 pointer-events="all"
               >
                 <path
-                  d="M 400 300 C 440 300, 398 220, 438 220 C 478 220, 360 300, 400 300"
+                  d="M 400 300 L 428 300 Q 438 300 438 290 L 438 290 Q 438 280 428 280 L 400 280"
                   fill="none"
                   stroke="transparent"
                   stroke-width="16"
                 />
                 <path
-                  d="M 400 300 C 440 300, 398 220, 438 220 C 478 220, 360 300, 400 300"
+                  d="M 400 300 L 428 300 Q 438 300 438 290 L 438 290 Q 438 280 428 280 L 400 280"
                   fill="none"
                   stroke="var(--vscode-foreground)"
                   stroke-width="1.5"
@@ -397,22 +410,6 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the Help Desk shape: help
                     />
                   </marker>
                 </defs>
-                <foreignobject
-                  height="32"
-                  width="32"
-                  x="422"
-                  y="204"
-                >
-                  <div
-                    style="display: flex; justify-content: center; align-items: center; height: 32px;"
-                  >
-                    <div
-                      style="width: 24px; height: 24px; box-sizing: border-box; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; line-height: 1; user-select: none;"
-                    >
-                      1
-                    </div>
-                  </div>
-                </foreignobject>
               </g>
             </g>
             <g
@@ -421,13 +418,13 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the Help Desk shape: help
                 pointer-events="all"
               >
                 <path
-                  d="M 400 300 C 440 300, 360 300, 400 300"
+                  d="M 400 300 L 400 300"
                   fill="none"
                   stroke="transparent"
                   stroke-width="16"
                 />
                 <path
-                  d="M 400 300 C 440 300, 360 300, 400 300"
+                  d="M 400 300 L 400 300"
                   fill="none"
                   stroke="var(--vscode-foreground)"
                   stroke-width="1.5"
@@ -447,22 +444,6 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the Help Desk shape: help
                     />
                   </marker>
                 </defs>
-                <foreignobject
-                  height="32"
-                  width="32"
-                  x="384"
-                  y="284"
-                >
-                  <div
-                    style="display: flex; justify-content: center; align-items: center; height: 32px;"
-                  >
-                    <div
-                      style="width: 24px; height: 24px; box-sizing: border-box; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; line-height: 1; user-select: none;"
-                    >
-                      2
-                    </div>
-                  </div>
-                </foreignobject>
               </g>
             </g>
             <g
@@ -471,13 +452,13 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the Help Desk shape: help
                 pointer-events="all"
               >
                 <path
-                  d="M 400 300 C 440 300, 360 300, 400 300"
+                  d="M 400 300 L 400 300"
                   fill="none"
                   stroke="transparent"
                   stroke-width="16"
                 />
                 <path
-                  d="M 400 300 C 440 300, 360 300, 400 300"
+                  d="M 400 300 L 400 300"
                   fill="none"
                   stroke="var(--vscode-foreground)"
                   stroke-dasharray="6 5"
@@ -506,13 +487,13 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the Help Desk shape: help
                 pointer-events="all"
               >
                 <path
-                  d="M 400 300 C 440 300, 360 300, 400 300"
+                  d="M 400 300 L 400 300"
                   fill="none"
                   stroke="transparent"
                   stroke-width="16"
                 />
                 <path
-                  d="M 400 300 C 440 300, 360 300, 400 300"
+                  d="M 400 300 L 400 300"
                   fill="none"
                   stroke="var(--vscode-foreground)"
                   stroke-dasharray="6 5"
@@ -541,13 +522,13 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the Help Desk shape: help
                 pointer-events="all"
               >
                 <path
-                  d="M 400 300 C 440 300, 360 300, 400 300"
+                  d="M 400 300 L 772 300 Q 782 300 782 310 L 782 310 Q 782 320 772 320 L 400 320"
                   fill="none"
                   stroke="transparent"
                   stroke-width="16"
                 />
                 <path
-                  d="M 400 300 C 440 300, 360 300, 400 300"
+                  d="M 400 300 L 772 300 Q 782 300 782 310 L 782 310 Q 782 320 772 320 L 400 320"
                   fill="none"
                   stroke="var(--vscode-foreground)"
                   stroke-dasharray="6 5"
@@ -973,6 +954,50 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the Help Desk shape: help
               </div>
             </div>
           </div>
+          <svg
+            class="css-16"
+            style="transform: translate(
+				0px,
+				0px)
+			scale(
+				1
+			);"
+          >
+            <g>
+              <foreignobject
+                height="32"
+                width="32"
+                x="654"
+                y="132"
+              >
+                <div
+                  style="display: flex; justify-content: center; align-items: center; height: 32px;"
+                >
+                  <div
+                    style="width: 24px; height: 24px; box-sizing: border-box; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; line-height: 1; user-select: none;"
+                  >
+                    1
+                  </div>
+                </div>
+              </foreignobject>
+              <foreignobject
+                height="32"
+                width="32"
+                x="1273"
+                y="152"
+              >
+                <div
+                  style="display: flex; justify-content: center; align-items: center; height: 32px;"
+                >
+                  <div
+                    style="width: 24px; height: 24px; box-sizing: border-box; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; line-height: 1; user-select: none;"
+                  >
+                    2
+                  </div>
+                </div>
+              </foreignobject>
+            </g>
+          </svg>
           <div
             class="css-16"
           >

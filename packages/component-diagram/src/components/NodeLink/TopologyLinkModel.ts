@@ -36,7 +36,7 @@ export class TopologyLinkModel extends DefaultLinkModel {
     arrow = true;
     chips: EdgeChip[] = [];
     bow = 0;
-    // Lane waypoints from the layout for an edge that skips a column.
+    // Where the layout bends this edge.
     via: { x: number; y: number }[] = [];
     // Ports face each other vertically when the topology is laid out top to bottom.
     vertical = false;

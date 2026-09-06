@@ -23,6 +23,7 @@ import { ThemeColors } from "@wso2/ui-toolkit";
 import { Controls } from "../Controls";
 import { DiagramCanvas } from "../DiagramCanvas";
 import { OverlayLayerModel } from "../OverlayLayer";
+import { ChipLayerModel } from "../ChipLayer";
 import { TopologyLinkModel } from "../NodeLink";
 import { AgentCardNodeModel } from "../nodes/AgentCardNode";
 import { TriggerNodeModel } from "../nodes/TriggerNode";
@@ -87,8 +88,9 @@ const TopLeft = styled.div`
     gap: 8px;
 `;
 
-// While an orientation change settles, nodes and the canvas glide to their new places and the link layer
-// (the canvas's first svg) is hidden; it fades back in once the ports have been re-measured.
+// While an orientation change settles, nodes and the canvas glide to their new places and the svg layers (links,
+// then chips) are hidden until the ports are re-measured. The canvas lifts the link svg to z-index 1, so the chip
+// svg goes above it and lets clicks through.
 const Glide = styled.div<{ settling: boolean }>`
     height: 100%;
     & .node {
@@ -100,6 +102,10 @@ const Glide = styled.div<{ settling: boolean }>`
     & > div > div > svg {
         opacity: ${(props) => (props.settling ? 0 : 1)};
         transition: ${(props) => (props.settling ? "none" : "opacity 160ms ease-out")};
+    }
+    & > div > div > svg:nth-of-type(2) {
+        z-index: 2;
+        pointer-events: none;
     }
 `;
 
@@ -204,6 +210,7 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
             }
         };
         newModel.registerListener({ zoomUpdated: markUserAdjusted, offsetUpdated: markUserAdjusted });
+        newModel.addLayer(new ChipLayerModel());
         newModel.addLayer(new OverlayLayerModel());
         newModel.addAll(...nodeModels.values(), ...linkModels.values());
 

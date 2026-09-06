@@ -326,7 +326,7 @@ describe("buildTopology", () => {
         expect(graph.agents.find((agent) => agent.name === "specialistAgent").orphan).toBe(false);
     });
 
-    it("bows a sequence step and a delegation between the same two agents apart", () => {
+    it("spreads a sequence step and a delegation that arrive at the same agent", () => {
         const order = agentConnection("ord", "orderAgent", AGENTS_BAL, 1, { delegatesTo: ["ship"] });
         const shipping = agentConnection("ship", "shippingRatesAgent", AGENTS_BAL, 5);
         const quotes = resourceFn("post", "quotes", SERVICES_BAL, 3, ["ord", "ship"], [

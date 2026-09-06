@@ -29,6 +29,7 @@ export const NODE_LINK = "node-link";
 export const TOPOLOGY_LINK = "topology-link";
 export const NODE_PORT = "node-port";
 export const LOADING_OVERLAY = "loading-overlay";
+export const TOPOLOGY_CHIP_LAYER = "topology-chip-layer";
 
 export const AUTOMATION_LISTENER = "automation-listener";
 
@@ -63,11 +64,13 @@ export const TOPOLOGY_GAP_X_MAX = 520;
 export const TOPOLOGY_GAP_Y = 64;
 export const SPLIT_SIZE = 36;
 export const SPLIT_STEM_X = 80;
-export const SPLIT_STEP_X = 240;
-export const SPLIT_GAP_X_MIN = 400;
+export const SPLIT_STEP_X = 320;
+export const SPLIT_GAP_X_MIN = 460;
 export const TOPOLOGY_ROW_GAP = 120;
 export const TOPOLOGY_COLUMN_GAP = 48;
 export const SPLIT_STEM_Y = 56;
-export const SPLIT_STEP_Y = 100;
-export const SPLIT_GAP_Y_MIN = 200;
+export const SPLIT_STEP_Y = 160;
+export const SPLIT_GAP_Y_MIN = 280;
+// Vertical splits carry their label and loop header to the right; also keeps the triggers above them apart.
+export const SPLIT_LABEL_GAP_Y = 250;
 export const LAYOUT_FIT_MARGIN = 40;

@@ -20,6 +20,7 @@ import {
     AGENT_CARD_MIN_HEIGHT,
     AGENT_CARD_WIDTH,
     SPLIT_GAP_X_MIN,
+    SPLIT_LABEL_GAP_Y,
     SPLIT_SIZE,
     SPLIT_STEM_X,
     SPLIT_STEP_X,
@@ -190,6 +191,33 @@ describe("layoutTopology", () => {
         Object.values(layout.splitPositions).forEach((p) => expect(p.x + SPLIT_SIZE).toBeLessThan(agentX));
     });
 
+    it("re-centres only the triggers that collided, so a lone trigger stays centred on its own agent", () => {
+        const tall = agent("a", { chips: Array.from({ length: 42 }, (_, i) => ({ key: `c${i}`, label: `c${i}` })) });
+        const graph = graphOf([tall, agent("b")], [trigger("t1"), trigger("t2"), trigger("t3")], [edge("t1", "a"), edge("t2", "a"), edge("t3", "b")]);
+        const layout = layoutTopology(graph);
+        const centreOf = (y: number, h: number) => y + h / 2;
+        const t = (id: string) => centreOf(layout.triggerPositions[id].y, TRIGGER_SIZE);
+        expect((t("t1") + t("t2")) / 2).toBeCloseTo(centreOf(layout.agentPositions["a"].y, layout.cardHeights["a"]));
+        expect(t("t3")).toBeCloseTo(centreOf(layout.agentPositions["b"].y, layout.cardHeights["b"]));
+    });
+
+    it("moves a nested split off an edge that passes through its layer", () => {
+        const splits: TopologySplitNode[] = [
+            { id: "t::S1", kind: "if", triggerId: "t", parentId: "t", depth: 1 },
+            { id: "t::S3", kind: "if", triggerId: "t", parentId: "t::S1", depth: 2 },
+        ];
+        const graph = graphOf(
+            [agent("a1"), agent("a2"), agent("a3")],
+            [trigger("t")],
+            [edge("t", "t::S1", "stem"), edge("t::S1", "a2"), edge("t::S1", "t::S3", "stem"), edge("t::S3", "a1"), edge("t::S3", "a3")],
+            splits
+        );
+        const layout = layoutTopology(graph);
+        const inner = layout.splitPositions["t::S3"];
+        const laneY = layout.agentPositions["a2"].y + layout.cardHeights["a2"] / 2;
+        expect(Math.abs(inner.y + SPLIT_SIZE / 2 - laneY)).toBeGreaterThanOrEqual(SPLIT_SIZE / 2 + 20);
+    });
+
     it("widens only the trigger gap for a split; agent columns keep the regular gap", () => {
         const split: TopologySplitNode = { id: "t1::split", kind: "match", triggerId: "t1", parentId: "t1", depth: 1 };
         const graph = graphOf(
@@ -216,8 +244,21 @@ describe("layoutTopology", () => {
         expect(via.x).toBeGreaterThan(layout.triggerPositions["t1"].x + TRIGGER_NODE_WIDTH);
         expect(via.y).toBeCloseTo(b.y + layout.cardHeights["b"] / 2);
         expect(via.y < a.y || via.y > a.y + layout.cardHeights["a"]).toBe(true);
-        expect(layout.edgeVias["t2->a"]).toBeUndefined();
-        expect(layout.edgeVias["a=>b"]).toBeUndefined();
+        const [short] = layout.edgeVias["t2->a"];
+        expect(short.x).toBeGreaterThan(layout.triggerPositions["t2"].x + TRIGGER_NODE_WIDTH);
+        expect(short.x).toBeLessThan(a.x);
+        expect(layout.edgeVias["a->b"][0].x).toBeGreaterThan(a.x + AGENT_CARD_WIDTH);
+    });
+
+    it("staggers the bends of sources that share a layer so their fans do not merge", () => {
+        const graph = graphOf(
+            [agent("s1"), agent("s2"), agent("x"), agent("y"), agent("z")],
+            [trigger("t1"), trigger("t2")],
+            [edge("t1", "s1"), edge("t2", "s2"), edge("s1", "x", "delegation"), edge("s1", "y", "delegation"), edge("s2", "y", "delegation"), edge("s2", "z", "delegation")]
+        );
+        const layout = layoutTopology(graph);
+        expect(layout.edgeVias["s1->x"][0].x).toBe(layout.edgeVias["s1->y"][0].x);
+        expect(layout.edgeVias["s1->y"][0].x).not.toBe(layout.edgeVias["s2->y"][0].x);
     });
 
     it("starts the drawn bounds where a short trigger label starts, not at the blank label block", () => {
@@ -346,6 +387,25 @@ describe("layoutTopology (vertical)", () => {
         );
         const layout = layoutTopology(graph, vertical);
         expect(layout.agentPositions["next"].y).toBe(layout.agentPositions["tall"].y + layout.cardHeights["tall"] + TOPOLOGY_ROW_GAP);
+    });
+
+    it("keeps vertical splits far enough apart for their labels, and each trigger over its own split", () => {
+        const splits: TopologySplitNode[] = [
+            { id: "t1::L", kind: "foreach", triggerId: "t1", parentId: "t1", depth: 1, header: "item in payload.orders" },
+            { id: "t2::W", kind: "while", triggerId: "t2", parentId: "t2", depth: 1, header: "attempts < 3" },
+        ];
+        const graph = graphOf(
+            [agent("a1"), agent("a2")],
+            [trigger("t1"), trigger("t2")],
+            [edge("t1", "t1::L", "stem"), edge("t1::L", "a1"), edge("t1::L", "a2"), edge("t2", "t2::W", "stem"), edge("t2::W", "a1"), edge("t2::W", "a2")],
+            splits
+        );
+        const layout = layoutTopology(graph, vertical);
+        const loop = layout.splitPositions["t1::L"];
+        const loopWhile = layout.splitPositions["t2::W"];
+        expect(Math.abs(loopWhile.x - loop.x)).toBeGreaterThanOrEqual(SPLIT_SIZE + SPLIT_LABEL_GAP_Y);
+        expect(layout.triggerPositions["t1"].x + TRIGGER_LABEL_WIDTH / 2).toBeCloseTo(loop.x + SPLIT_SIZE / 2);
+        expect(layout.triggerPositions["t2"].x + TRIGGER_LABEL_WIDTH / 2).toBeCloseTo(loopWhile.x + SPLIT_SIZE / 2);
     });
 
     it("runs a long edge through the skipped row at its target's x", () => {

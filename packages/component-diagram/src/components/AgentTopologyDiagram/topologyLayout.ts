@@ -22,6 +22,7 @@ import {
     LAYOUT_FIT_MARGIN,
     SPLIT_GAP_X_MIN,
     SPLIT_GAP_Y_MIN,
+    SPLIT_LABEL_GAP_Y,
     SPLIT_SIZE,
     SPLIT_STEM_X,
     SPLIT_STEM_Y,
@@ -46,6 +47,8 @@ const LABEL1_CHAR_WIDTH = 8.5;
 const LABEL2_CHAR_WIDTH = 7.2;
 const LANE_CLEARANCE = 28;
 const LANE_LEAD = 24;
+const BEND_OFFSET = 40;
+const BEND_STAGGER = 14;
 
 export function estimateAgentCardHeight(chipCount: number, orphan = false): number {
     const extraRows = chipCount <= CHIPS_PER_ROW ? 0 : Math.ceil((chipCount - CHIPS_PER_ROW) / CHIPS_PER_ROW);
@@ -60,6 +63,17 @@ export function triggerLabelSlack(triggers: TopologyTriggerNode[]): number {
 
 type Adjacency = Map<string, string[]>;
 
+// Sources in one layer would otherwise share a bus line; stagger their bends so fans stay apart.
+function bendOffsets(layers: string[][], placement: Placement): Map<string, number> {
+    const offsets = new Map<string, number>();
+    layers.forEach((ids) =>
+        [...ids]
+            .sort((a, b) => placement.cross.get(a) - placement.cross.get(b))
+            .forEach((id, k) => offsets.set(id, BEND_OFFSET + (k % 3) * BEND_STAGGER))
+    );
+    return offsets;
+}
+
 // An edge that skips a rank runs straight through it at its target's cross position.
 function skipsRanks(edge: TopologyEdge, rank: Map<string, number>): boolean {
     return (rank.get(edge.targetId) ?? 0) - (rank.get(edge.sourceId) ?? 0) > 1;
@@ -73,7 +87,7 @@ function laneCentres(column: number, longEdges: TopologyEdge[], rank: Map<string
 }
 
 // Nodes that would sit under a lane move past it, and the nodes after them follow.
-function avoidLanes(ids: string[], lanes: number[], placement: Placement): void {
+function avoidLanes(ids: string[], lanes: number[], placement: Placement, gap = placement.gap): void {
     const ordered = [...ids].sort((a, b) => placement.cross.get(a) - placement.cross.get(b));
     let cursor = -Infinity;
     ordered.forEach((id) => {
@@ -85,8 +99,16 @@ function avoidLanes(ids: string[], lanes: number[], placement: Placement): void 
             }
         });
         placement.cross.set(id, top);
-        cursor = bottom() + placement.gap;
+        cursor = bottom() + gap;
     });
+}
+
+// Edges from shallower sources to deeper targets run through a split layer at their target's cross position.
+function passingLanes(depth: number, graph: TopologyGraph, depthOf: (id: string) => number, placement: Placement): number[] {
+    return graph.edges
+        .filter((edge) => depthOf(edge.sourceId) < depth && depthOf(edge.targetId) > depth)
+        .map((edge) => centre(edge.targetId, placement))
+        .sort((a, b) => a - b);
 }
 
 interface Gaps {
@@ -111,6 +133,7 @@ interface Extent {
 interface Frame {
     vertical: boolean;
     crossGap: number;
+    splitGap: number;
     extents: Record<string, Extent>;
     main(rank: number): number;
     splitMain(depth: number): number;
@@ -218,7 +241,7 @@ function horizontalFrame(graph: TopologyGraph, cardHeights: Record<string, numbe
     graph.agents.forEach((agent) => (extents[agent.id] = { width: AGENT_CARD_WIDTH, height: cardHeights[agent.id] }));
     graph.triggers.forEach((trigger) => (extents[trigger.id] = { width: TRIGGER_NODE_WIDTH, height: TRIGGER_SIZE }));
     graph.splits.forEach((split) => (extents[split.id] = { width: SPLIT_SIZE, height: SPLIT_SIZE }));
-    return { vertical: false, crossGap: TOPOLOGY_GAP_Y, extents, main: (rank) => columnX(rank, gaps), splitMain: splitX };
+    return { vertical: false, crossGap: TOPOLOGY_GAP_Y, splitGap: TOPOLOGY_GAP_Y, extents, main: (rank) => columnX(rank, gaps), splitMain: splitX };
 }
 
 // Rows are as tall as their tallest card; the trigger row leaves room for split stems and pills.
@@ -242,7 +265,7 @@ function verticalFrame(graph: TopologyGraph, cardHeights: Record<string, number>
         return offset;
     };
     const splitMain = (d: number): number => TRIGGER_STACKED_HEIGHT + SPLIT_STEM_Y + (d - 1) * SPLIT_STEP_Y;
-    return { vertical: true, crossGap: TOPOLOGY_COLUMN_GAP, extents, main, splitMain };
+    return { vertical: true, crossGap: TOPOLOGY_COLUMN_GAP, splitGap: SPLIT_LABEL_GAP_Y, extents, main, splitMain };
 }
 
 function mean(values: number[]): number {
@@ -279,31 +302,52 @@ function orderRanks(ranks: Map<number, string[]>, maxRank: number, parents: Adja
     return provisional;
 }
 
+interface Wishes {
+    desired: Map<string, number>;
+    constrained: Set<string>;
+}
+
+// Nodes that pushed each other apart move back as one block towards where they wanted to be, so two
+// triggers sharing one agent straddle it; the block never climbs into the block before it.
+function settleCluster(cluster: string[], wishes: Wishes, final: Placement, gap: number, floor: number): number {
+    const wanting = cluster.filter((id) => wishes.constrained.has(id));
+    const shift = wanting.length ? mean(wanting.map((id) => wishes.desired.get(id) - final.cross.get(id))) : 0;
+    const bounded = Math.max(shift, floor - final.cross.get(cluster[0]));
+    cluster.forEach((id) => final.cross.set(id, final.cross.get(id) + bounded));
+    const last = cluster[cluster.length - 1];
+    return final.cross.get(last) + final.sizes[last] + gap;
+}
+
 // Backward pass: a node with children sits at the centre of its children's block; a node
-// without keeps its provisional slot. Overlaps push along, then the constrained block is re-centred
-// so two triggers sharing one agent straddle it instead of both sliding past it.
-function placeRank(ids: string[], children: Adjacency, provisional: Placement, final: Placement): void {
-    const desired = new Map<string, number>();
-    const constrained = new Set<string>();
+// without keeps its provisional slot. Overlaps push along, cluster by cluster.
+function placeRank(ids: string[], children: Adjacency, provisional: Placement, final: Placement, gap = final.gap): void {
+    const wishes: Wishes = { desired: new Map(), constrained: new Set() };
     ids.forEach((id) => {
         const placed = (children.get(id) ?? []).filter((child) => final.cross.has(child));
         if (placed.length) {
-            desired.set(id, mean(placed.map((child) => centre(child, final))) - final.sizes[id] / 2);
-            constrained.add(id);
+            wishes.desired.set(id, mean(placed.map((child) => centre(child, final))) - final.sizes[id] / 2);
+            wishes.constrained.add(id);
         } else {
-            desired.set(id, provisional.cross.get(id) ?? 0);
+            wishes.desired.set(id, provisional.cross.get(id) ?? 0);
         }
     });
-    const ordered = ids.map((id, index) => ({ id, index })).sort((a, b) => desired.get(a.id) - desired.get(b.id) || a.index - b.index);
+    const ordered = ids.map((id, index) => ({ id, index })).sort((a, b) => wishes.desired.get(a.id) - wishes.desired.get(b.id) || a.index - b.index);
     let cursor = -Infinity;
+    let floor = -Infinity;
+    let cluster: string[] = [];
     ordered.forEach(({ id }) => {
-        const top = Math.max(desired.get(id), cursor);
+        const want = wishes.desired.get(id);
+        if (cluster.length && want >= cursor) {
+            floor = settleCluster(cluster, wishes, final, gap, floor);
+            cluster = [];
+        }
+        const top = Math.max(want, cursor);
         final.cross.set(id, top);
-        cursor = top + final.sizes[id] + final.gap;
+        cluster.push(id);
+        cursor = top + final.sizes[id] + gap;
     });
-    if (constrained.size) {
-        const shift = mean([...constrained].map((id) => desired.get(id) - final.cross.get(id)));
-        ids.forEach((id) => final.cross.set(id, final.cross.get(id) + shift));
+    if (cluster.length) {
+        settleCluster(cluster, wishes, final, gap, floor);
     }
 }
 
@@ -336,19 +380,32 @@ export function layoutTopology(graph: TopologyGraph, options: LayoutOptions = {}
         avoidLanes(ranks.get(r) ?? [], laneCentres(r, longEdges, rank, final), final);
     }
     const splitDepth = new Map(graph.splits.map((split) => [split.id, split.depth]));
+    const depthOf = (id: string): number => splitDepth.get(id) ?? (rank.get(id) === 0 ? 0 : Infinity);
     for (let d = Math.max(0, ...splitDepth.values()); d >= 1; d--) {
-        placeRank([...splitDepth.keys()].filter((id) => splitDepth.get(id) === d), children, provisional, final);
+        const layer = [...splitDepth.keys()].filter((id) => splitDepth.get(id) === d);
+        placeRank(layer, children, provisional, final, frame.splitGap);
+        avoidLanes(layer, passingLanes(d, graph, depthOf, final), final, frame.splitGap);
     }
     placeRank(ranks.get(0) ?? [], children, provisional, final);
 
     const place = (main: number, cross: number): NodePosition => (frame.vertical ? { x: cross, y: main } : { x: main, y: cross });
+    const mainOf = (id: string): number => (splitDepth.has(id) ? frame.splitMain(splitDepth.get(id)) : frame.main(rank.get(id) ?? 1));
     const positions = new Map<string, NodePosition>();
-    final.cross.forEach((cross, id) => {
-        const depth = splitDepth.get(id);
-        positions.set(id, place(depth ? frame.splitMain(depth) : frame.main(rank.get(id) ?? 1), cross));
-    });
+    final.cross.forEach((cross, id) => positions.set(id, place(mainOf(id), cross)));
+
+    const splitLayers = [...new Set(splitDepth.values())].map((d) => [...splitDepth.keys()].filter((id) => splitDepth.get(id) === d));
+    const offsets = bendOffsets([...ranks.values(), ...splitLayers], final);
+    const longIds = new Set(longEdges.map((edge) => edge.id));
+    const triggerOfSplit = new Map(graph.splits.map((split) => [split.id, split.triggerId]));
     const vias = new Map<string, NodePosition>();
-    longEdges.forEach((edge) => vias.set(edge.id, place(frame.main(rank.get(edge.sourceId) + 1) - LANE_LEAD, centre(edge.targetId, final))));
+    graph.edges.forEach((edge) => {
+        const source = edge.sourceId;
+        const extent = frame.extents[source];
+        const bend = longIds.has(edge.id)
+            ? frame.main(rank.get(triggerOfSplit.get(source) ?? source) + 1) - LANE_LEAD
+            : mainOf(source) + (frame.vertical ? extent.height : extent.width) + offsets.get(source);
+        vias.set(edge.id, place(bend, centre(longIds.has(edge.id) ? edge.targetId : source, final)));
+    });
     return collectLayout(graph, positions, vias, frame, cardHeights);
 }
 
