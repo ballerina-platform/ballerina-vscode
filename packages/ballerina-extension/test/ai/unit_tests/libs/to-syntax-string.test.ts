@@ -3403,13 +3403,35 @@ suite("toSyntaxString", () => {
             // otherwise be shown only the HTTP one with nothing saying the other exists.
             const result = renderService(service({
                 listener: { name: "mcp:StreamableHttpListener", parameters: [] },
-                alternativeListeners: ["mcp:Listener"],
+                alternativeListeners: [{ name: "mcp:Listener" }],
             }));
             assert.strictEqual(line(result, "may attach to").trim(),
                 "# This service type may attach to `mcp:Listener` instead of "
                 + "`mcp:StreamableHttpListener`, which the declaration below uses.");
             // One entry, not one per listener: the two would differ by a single token.
             assert.strictEqual(result.split("\n").filter((l) => l.startsWith("service ")).length, 1);
+            // A non-deprecated alternative states nothing further.
+            noLine(result, "is deprecated:");
+        });
+
+        test("§2/§5.3: a deprecated alternative listener states why it is superseded", () => {
+            // mcp's `Listener` is exactly this case: it hosts the same service types as
+            // `StreamableHttpListener` but is deprecated in its favour, so it lands in `alternativeListeners`
+            // rather than the `on new …` clause. Only the primary listener's deprecation reaches
+            // `renderDeprecationSection`, so without this the retired transport reads as an equal choice.
+            const result = renderService(service({
+                listener: { name: "mcp:StreamableHttpListener", parameters: [] },
+                alternativeListeners: [{
+                    name: "mcp:Listener",
+                    deprecated: "Renamed to make the transport explicit. Use mcp:StreamableHttpListener instead.",
+                }],
+            }));
+            assert.strictEqual(line(result, "may attach to").trim(),
+                "# This service type may attach to `mcp:Listener` instead of "
+                + "`mcp:StreamableHttpListener`, which the declaration below uses.");
+            assert.strictEqual(line(result, "is deprecated:").trim(),
+                "# `mcp:Listener` is deprecated: Renamed to make the transport explicit. "
+                + "Use mcp:StreamableHttpListener instead.");
         });
 
         test("§2: a single-listener document states nothing, which is every other library", () => {

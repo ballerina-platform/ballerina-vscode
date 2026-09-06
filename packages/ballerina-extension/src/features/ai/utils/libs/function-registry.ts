@@ -71,10 +71,11 @@ const TYPE_CONSTRUCTOR = 'Constructor';
  * **What overflows is the response, not the request.** A selection reply echoes every kept function — its
  * name, its parameter names and its return type — so it scales with how much the query matches, not with
  * how large the library is. At the previous 8192 a broad query against a large connector ("wire up GitHub
- * issues, PRs, releases and webhooks") could exceed it, and the failure is the worst shape available: the
+ * issues, PRs, releases and webhooks") could exceed it, and the failure was the worst shape available: the
  * JSON is truncated mid-token, `generateObject` rejects it against the schema, the throw unwinds to
- * `LibraryGetTool`'s catch, and the agent is handed `[]` — indistinguishable from a library that matched
- * nothing. It then has no API documentation and a system prompt forbidding it to invent any.
+ * `LibraryGetTool`'s catch, and the agent was handed `[]` — indistinguishable from a library that matched
+ * nothing, with no API documentation and a system prompt forbidding it to invent any. The tool now reports
+ * a fetch failure explicitly, but the fetch still fails — the cap is what keeps it from failing at all.
  *
  * Raised rather than removed, and to 16384 rather than to the model's own ceiling, because these are
  * NON-streaming `generateObject` calls: a cap high enough to permit a multi-minute generation trades a
@@ -82,13 +83,13 @@ const TYPE_CONSTRUCTOR = 'Constructor';
  */
 const SELECTION_MAX_OUTPUT_TOKENS = 16384;
 
-export async function selectRequiredFunctions(prompt: string, selectedLibNames: string[], generationType: GenerationType): Promise<{ libraries: Library[], usage: ModelUsage[] }> {
+export async function selectRequiredFunctions(prompt: string, selectedLibNames: string[], generationType: GenerationType, abortSignal?: AbortSignal): Promise<{ libraries: Library[], usage: ModelUsage[] }> {
     const selectedLibs: Library[] = await getMaximizedSelectedLibs(selectedLibNames);
-    const { functionsResponse, usage: functionsUsage } = await getRequiredFunctions(selectedLibNames, prompt, selectedLibs, generationType);
+    const { functionsResponse, usage: functionsUsage } = await getRequiredFunctions(selectedLibNames, prompt, selectedLibs, generationType, abortSignal);
     let typeLibraries: Library[] = [];
     const allUsages: ModelUsage[] = [...functionsUsage];
     if (generationType === GenerationType.HEALTHCARE_GENERATION) {
-        const { types: resp, usage } = await getRequiredTypesFromLibJson(selectedLibNames, prompt, selectedLibs);
+        const { types: resp, usage } = await getRequiredTypesFromLibJson(selectedLibNames, prompt, selectedLibs, abortSignal);
         typeLibraries = toTypesToLibraries(resp, selectedLibs);
         allUsages.push(usage);
     }
@@ -161,7 +162,8 @@ async function getRequiredFunctions(
     libraries: string[],
     prompt: string,
     librariesJson: Library[],
-    generationType: GenerationType
+    generationType: GenerationType,
+    abortSignal?: AbortSignal
 ): Promise<{ functionsResponse: GetFunctionResponse[], usage: ModelUsage[] }> {
     if (librariesJson.length === 0) {
         return { functionsResponse: [], usage: [] };
@@ -199,12 +201,12 @@ async function getRequiredFunctions(
 
     // Create promises for large libraries (each processed individually)
     const largeLiberiesPromises = largeLibs.map((funcItem) =>
-        getSuggestedFunctions(prompt, [funcItem])
+        getSuggestedFunctions(prompt, [funcItem], abortSignal)
     );
 
     // Create promise for small libraries (processed in bulk)
     const smallLibrariesPromise =
-        smallLibs.length !== 0 ? getSuggestedFunctions(prompt, smallLibs) : Promise.resolve({ libraries: [] as GetFunctionResponse[], usage: { model: ANTHROPIC_HAIKU, inputTokens: 0, outputTokens: 0 } });
+        smallLibs.length !== 0 ? getSuggestedFunctions(prompt, smallLibs, abortSignal) : Promise.resolve({ libraries: [] as GetFunctionResponse[], usage: { model: ANTHROPIC_HAIKU, inputTokens: 0, outputTokens: 0 } });
 
     console.log(
         `[Parallel Execution Start] Starting ${largeLiberiesPromises.length} large library requests + 1 small libraries bulk request`
@@ -249,7 +251,8 @@ async function getRequiredFunctions(
 
 async function getSuggestedFunctions(
     prompt: string,
-    libraryList: GetFunctionsRequest[]
+    libraryList: GetFunctionsRequest[],
+    abortSignal?: AbortSignal
 ): Promise<{ libraries: GetFunctionResponse[], usage: ModelUsage }> {
     const startTime = Date.now();
     const libraryNames = libraryList.map((lib) => lib.name).join(", ");
@@ -310,7 +313,7 @@ Now, based on the provided libraries and the user query, please filter and retur
             temperature: 0,
             messages: messages,
             schema: getFunctionsResponseSchema,
-            abortSignal: new AbortController().signal,
+            abortSignal,
         });
 
         const libList = object as GetFunctionsResponse;
@@ -324,7 +327,7 @@ Now, based on the provided libraries and the user query, please filter and retur
 
         const callUsage: ModelUsage = { model: ANTHROPIC_HAIKU, inputTokens: usage.inputTokens || 0, outputTokens: usage.outputTokens || 0 };
         console.log(
-            `[AI Request Complete] Libraries: [${libraryNames}], Duration: ${duration}s, Selected Functions: ${libList.libraries.reduce(
+            `[AI Request Complete] Libraries: [${libraryNames}], Duration: ${duration}s, Selected Functions: ${filteredLibList.reduce(
                 (total, lib) =>
                     total +
                     (lib.clients?.reduce((clientTotal, client) => clientTotal + client.functions.length, 0) || 0) +
@@ -422,7 +425,10 @@ function mergeLibrariesWithoutDuplicates(maximizedLibraries: Library[], typeLibr
     for (const typeLib of typeLibraries) {
         const finalLib = findLibraryByName(typeLib.name, finalLibraries);
         if (finalLib) {
-            finalLib.typeDefs.push(...typeLib.typeDefs);
+            // A type selected by both the function closure and the healthcare type selection must not
+            // be declared twice in the rendered catalog.
+            const existingNames = new Set(finalLib.typeDefs.map((def) => def.name));
+            finalLib.typeDefs.push(...typeLib.typeDefs.filter((def) => !existingNames.has(def.name)));
         } else {
             finalLibraries.push(typeLib);
         }
@@ -999,7 +1005,8 @@ async function getExternalRecords(
 export async function getRequiredTypesFromLibJson(
     libraries: string[],
     prompt: string,
-    librariesJson: Library[]
+    librariesJson: Library[],
+    abortSignal?: AbortSignal
 ): Promise<{ types: GetTypeResponse[], usage: ModelUsage }> {
     const emptyUsage: ModelUsage = { model: ANTHROPIC_HAIKU, inputTokens: 0, outputTokens: 0 };
     if (librariesJson.length === 0) {
@@ -1066,7 +1073,7 @@ Think step-by-step to choose the required types in order to solve the given ques
             temperature: 0,
             messages: messages,
             schema: getTypesResponseSchema,
-            abortSignal: new AbortController().signal,
+            abortSignal,
         });
 
         const callUsage: ModelUsage = { model: ANTHROPIC_HAIKU, inputTokens: usage.inputTokens || 0, outputTokens: usage.outputTokens || 0 };

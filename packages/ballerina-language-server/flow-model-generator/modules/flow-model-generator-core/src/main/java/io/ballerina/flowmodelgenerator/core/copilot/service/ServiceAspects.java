@@ -19,6 +19,7 @@
 package io.ballerina.flowmodelgenerator.core.copilot.service;
 
 import io.ballerina.compiler.api.symbols.ClassSymbol;
+import io.ballerina.flowmodelgenerator.core.copilot.model.AlternativeListener;
 import io.ballerina.flowmodelgenerator.core.copilot.model.Listener;
 import io.ballerina.flowmodelgenerator.core.copilot.model.NativeLibrary;
 import io.ballerina.flowmodelgenerator.core.copilot.model.Parameter;
@@ -30,9 +31,11 @@ import io.ballerina.modelgenerator.commons.trigger.models.TriggerMetadataModel;
 import io.ballerina.modelgenerator.commons.trigger.utils.TypeRefResolver;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * The service tier: everything stated once per service entry. Constraints are {@link ConstraintAspect}, the
@@ -236,7 +239,7 @@ final class ServiceAspects {
     void listener(TriggerScope scope, ServiceDraft draft) {
         Object key = scope.listener() != null ? scope.listener() : scope.listenerClass();
         draft.setListener(builtListeners.computeIfAbsent(key, unused -> buildListener(scope)));
-        draft.setAlternativeListeners(alternativeListenerNames(scope));
+        draft.setAlternativeListeners(alternativeListeners(scope));
         // The listener is still emitted either way — a consumer needs its types even when the service is
         // written some other way, and the type closure reaches them through it.
         if (scope.document() != null
@@ -258,14 +261,20 @@ final class ServiceAspects {
      * <p>Init parameters are deliberately <b>not</b> carried. The alternative is a pointer — "this also
      * works" — and a second full parameter list per service entry would double the listener surface of
      * every mcp service to say something the reader can read off the library's own listener class.
+     *
+     * <p>The document's {@code deprecated} <b>is</b> carried, because a superseded listener is still offered
+     * here and the reason travels with it or nowhere: the primary listener renders its own deprecation, but
+     * an alternative that dropped it would present {@code mcp:Listener} as an equal transport to
+     * {@code mcp:StreamableHttpListener} with nothing saying it is retired.
      */
-    private static List<String> alternativeListenerNames(TriggerScope scope) {
+    private static List<AlternativeListener> alternativeListeners(TriggerScope scope) {
         if (scope.document() == null) {
             return List.of();
         }
         String primary = TypeRefResolver.moduleAlias(scope.packageName()) + ":"
                 + scope.listenerClass().getName().orElse(DEFAULT_LISTENER_NAME);
-        List<String> names = new ArrayList<>();
+        List<AlternativeListener> alternatives = new ArrayList<>();
+        Set<String> seen = new HashSet<>();
         for (TriggerMetadataModel.Listener alternative : ListenerPairingResolver.alternativeHosts(
                 scope.document().listeners(), scope.serviceType(), scope.listener())) {
             String declared = alternative.type() == null ? null : alternative.type().name();
@@ -278,11 +287,16 @@ final class ServiceAspects {
             // Two document entries can resolve to one class — `resolveListenerClass` falls back to the
             // canonical `Listener` for an unnamed one — and an alternative identical to the primary is not
             // an alternative at all.
-            if (!name.equals(primary) && !names.contains(name)) {
-                names.add(name);
+            if (name.equals(primary) || !seen.add(name)) {
+                continue;
             }
+            AlternativeListener entry = new AlternativeListener(name);
+            if (alternative.deprecated() != null && !alternative.deprecated().isBlank()) {
+                entry.setDeprecationNote(alternative.deprecated());
+            }
+            alternatives.add(entry);
         }
-        return names;
+        return alternatives;
     }
 
     private static Listener buildListener(TriggerScope scope) {

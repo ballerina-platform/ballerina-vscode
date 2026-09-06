@@ -69,18 +69,20 @@ export async function LibraryGetTool(
     generationType: GenerationType,
     eventHandler: CopilotEventHandler,
     toolModelUsage: ToolModelUsage,
-    toolCallId: string
+    toolCallId: string,
+    abortSignal?: AbortSignal
 ): Promise<Library[]> {
     try {
         // Emit tool_call event with ID from AI SDK
         eventHandler({
             type: "tool_call",
             toolName: LIBRARY_GET_TOOL,
+            toolInput: { libraryNames: params.libraryNames },
             toolCallId
         });
 
         const startTime = Date.now();
-        const { libraries, usage } = await selectRequiredFunctions(params.userPrompt, params.libraryNames, generationType);
+        const { libraries, usage } = await selectRequiredFunctions(params.userPrompt, params.libraryNames, generationType, abortSignal);
         console.log(
             `[LibraryGetTool] Fetched ${libraries.length} libraries: ${libraries
                 .map((lib) => lib.name)
@@ -96,7 +98,7 @@ export async function LibraryGetTool(
     } catch (error) {
         console.error(`[LibraryGetTool] Error fetching libraries: ${error}`);
 
-        // Emit error result with same ID
+        // Emit error result with same ID so the UI closes this tool call's spinner
         eventHandler({
             type: "tool_result",
             toolName: LIBRARY_GET_TOOL,
@@ -104,7 +106,9 @@ export async function LibraryGetTool(
             toolCallId
         });
 
-        return [];
+        // Rethrow rather than return []: an empty result is a legitimate outcome of selection, and the
+        // caller must be able to tell "nothing matched" from "the fetch failed" to report each honestly.
+        throw error;
     }
 }
 
@@ -136,19 +140,46 @@ name, description, type definitions (records, objects, enums, type aliases), cli
 
 `,
         inputSchema: LibraryGetToolSchema,
-        execute: async (input: { libraryNames: string[]; userPrompt: string }, context?: { toolCallId?: string }) => {
+        execute: async (
+            input: { libraryNames: string[]; userPrompt: string },
+            context?: { toolCallId?: string; abortSignal?: AbortSignal }
+        ) => {
             // Extract toolCallId from AI SDK context
             const toolCallId = context?.toolCallId || `fallback-${Date.now()}`;
 
+            // The model occasionally repeats a name; a duplicate would be fetched, selected over
+            // and rendered twice.
+            const libraryNames = [...new Set(input.libraryNames.map((name) => name.trim()).filter(Boolean))];
+
             console.log(
-                `[LibraryGetTool] Called with ${input.libraryNames.length} libraries: ${input.libraryNames.join(
+                `[LibraryGetTool] Called with ${libraryNames.length} libraries: ${libraryNames.join(
                     ", "
                 )} and prompt: ${input.userPrompt} [toolCallId: ${toolCallId}]`
             );
-            const rawLibraries: Library[] = await LibraryGetTool(input, generationType, eventHandler, toolModelUsage, toolCallId);
-            const afterContent = toSyntaxString(rawLibraries);
-
-            return afterContent;
+            try {
+                const rawLibraries: Library[] = await LibraryGetTool(
+                    { libraryNames, userPrompt: input.userPrompt },
+                    generationType,
+                    eventHandler,
+                    toolModelUsage,
+                    toolCallId,
+                    context?.abortSignal
+                );
+                if (rawLibraries.length === 0) {
+                    // An empty string here reads as a blank tool result the model can make nothing of.
+                    return `No relevant functions, clients, services, or types were found in the requested libraries (${libraryNames.join(", ")}) for this query. Verify each name is in 'organization/libraryName' format and appeared in the LibrarySearchTool results; if so, retry with a more specific userPrompt or select different libraries.`;
+                }
+                return toSyntaxString(rawLibraries);
+            } catch (error) {
+                // A cancelled run must keep unwinding so the SDK can wind the step down.
+                if (context?.abortSignal?.aborted) {
+                    throw error;
+                }
+                // Tell the model the fetch FAILED — returning nothing here is indistinguishable from
+                // "these libraries matched nothing", and the agent is forbidden to invent API in that gap.
+                const message = error instanceof Error ? error.message : String(error);
+                return `Fetching library documentation for (${libraryNames.join(", ")}) failed: ${message}. This was an internal failure, not evidence the libraries are empty or missing — retry this tool call, and if it keeps failing, say so instead of inventing API details.`;
+            }
         },
     });
 }

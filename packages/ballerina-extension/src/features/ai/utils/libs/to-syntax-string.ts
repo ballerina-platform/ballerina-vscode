@@ -1851,9 +1851,21 @@ function renderAlternativeListenerNote(service: Service): string[] {
     if (alternatives.length === 0) {
         return [];
     }
-    const names = alternatives.map((name) => `\`${name}\``).join(", ");
-    return [`# This service type may attach to ${names} instead of `
+    const names = alternatives.map((alt) => `\`${alt.name}\``).join(", ");
+    const lines = [`# This service type may attach to ${names} instead of `
         + `\`${service.listener.name}\`, which the declaration below uses.`];
+    // A superseded listener is still offered above, so its deprecation is stated here or nowhere — the
+    // `on new …` clause names the primary listener, and only that one's deprecation reaches
+    // `renderDeprecationSection`. mcp's `Listener` is the corpus case: without this it would read as an
+    // equal transport to `StreamableHttpListener`. One line per deprecated alternative, since the reason
+    // is specific to each.
+    for (const alt of alternatives) {
+        if (alt.deprecated && alt.deprecated.trim() !== "") {
+            lines.push(`# \`${alt.name}\` is deprecated: `
+                + `${alt.deprecated.split("\n").map((l) => l.trim()).join(" ")}`);
+        }
+    }
+    return lines;
 }
 
 /**

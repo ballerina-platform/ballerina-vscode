@@ -299,6 +299,16 @@ export interface Listener {
     deprecated?: string;
 }
 
+// Spec §2 `listeners[].services`: one other listener a service type may attach to, leaner than
+// `Listener` because an alternative is a pointer rather than a declaration — it carries no init
+// parameters and no `doc`, which the reader reads off the library's own listener class. `deprecated`
+// is carried: mcp's `Listener` is offered here but superseded by `StreamableHttpListener`, and the
+// reason has nowhere else to travel. Absent means the alternative is not deprecated.
+export interface AlternativeListener {
+    name: string;
+    deprecated?: string;
+}
+
 // Spec §2 `listeners[].requiredImports`: an import the generated code needs for its runtime side
 // effect even though nothing references it by name (bound to `_`). Scoped to the service that uses
 // the listener, not to the library.
@@ -421,7 +431,12 @@ export interface Service {
     // choice the reader may want to make differently. `ballerina/mcp` is the corpus case — all four of its
     // service types are listed under both `StreamableHttpListener` and `Listener` — and it is the only one,
     // so the field is absent for every other library.
-    alternativeListeners?: string[];
+    //
+    // Each entry is an `AlternativeListener`, not a bare name: a superseded listener is still offered here,
+    // and its `deprecated` reason travels with it. mcp's `Listener` is deprecated in favour of
+    // `StreamableHttpListener`, and it is exactly the transport that lands here rather than in the
+    // `on new …` clause — so the name alone would present a retired listener as an equal choice.
+    alternativeListeners?: AlternativeListener[];
     requiredImports?: RequiredImport[];
     // Spec §8: the annotations this service type must or may carry.
     annotations?: ServiceAnnotationRef[];
