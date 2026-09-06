@@ -76,13 +76,16 @@ export function AutoCompleteEditor(props: AutoCompleteEditorProps) {
                 items={field.items}
                 allowItemCreate={field.allowItemCreate ?? true}
                 required={!field.optional}
+                nullable={field.optional}
                 disabled={!field.editable}
                 onValueChange={(val: string) => {
-                    // Preserve existing value when Combobox fires with empty on blur (e.g., click away without selecting)
+                    // For optional fields, `nullable` makes the combobox send us `undefined` as soon as
+                    // the user clears the input. That is a real, intentional clear, so we let it through.
+                    // An empty string means something different: the combobox just fell back to it on
+                    // blur because the field was never touched (e.g. clicked in and out without typing).
+                    // Only that case should restore the old value, otherwise a real clear never sticks.
                     const currentValue = value ?? getValueForDropdown(field) ?? field.value;
-                    const newVal = (val === "" || val === undefined || val === null) && currentValue
-                        ? currentValue
-                        : val;
+                    const newVal = val === "" && currentValue ? currentValue : (val ?? "");
                     setValue(field.key, newVal);
                     field.onValueChange?.(newVal);
                     liveDiagnostics.onValueChange(newVal);
