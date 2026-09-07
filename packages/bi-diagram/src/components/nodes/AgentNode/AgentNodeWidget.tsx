@@ -461,6 +461,9 @@ const usageFadeIn = (delay: number) => css`
 
 function UsageIcon(props: { usage: AgentUsage; codedata?: FlowNode["codedata"] }) {
     const { usage, codedata } = props;
+    if (usage.parentAgent) {
+        return <Icon name="bi-ai-agent" sx={{ fontSize: 24, width: 24, height: 24 }} />;
+    }
     const modulePart = usage.type?.includes(":") ? usage.type.split(":")[0] : usage.type;
 
     const typeGlyph = resolveEntryTypeGlyph(modulePart);
@@ -1079,6 +1082,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                 style={{
                                     stroke: ThemeColors.ON_SURFACE,
                                     strokeWidth: 1.5,
+                                    strokeDasharray: usage.parentAgent ? "6 5" : undefined,
                                     markerEnd: `url(#${model.node.id}-arrow-head-usage)`,
                                     opacity: isRowActive ? 0 : 1,
                                     transition: "opacity 0.4s ease-out",

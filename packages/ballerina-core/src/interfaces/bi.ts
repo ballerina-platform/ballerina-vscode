@@ -170,6 +170,8 @@ export type AgentUsage = {
     position: NodePosition;
     trigger?: AgentUsageTrigger;
     tryIt?: AgentUsageTryIt;
+    // The caller is another agent that uses this one as a tool, not an entry point.
+    parentAgent?: boolean;
 };
 
 export type AgentUsageTryIt = {

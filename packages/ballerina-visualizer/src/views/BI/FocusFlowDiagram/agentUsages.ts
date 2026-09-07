@@ -22,6 +22,7 @@ import {
     AgentUsageTrigger,
     AgentUsageTriggerListener,
     AgentUsageTryIt,
+    CDAgentCall,
     CDFunction,
     CDLocation,
     CDModel,
@@ -163,6 +164,39 @@ function tryItFor(model: CDModel, service: CDService): AgentUsageTryIt | undefin
     return { basePath: service.absolutePath?.trim() || "/", listener };
 }
 
+type AgentCaller = { connections?: string[]; agentCalls?: CDAgentCall[] };
+
+// A caller's connections fold in what its agents delegate to; only its own calls make it a trigger.
+function callsDirectly(fn: AgentCaller, uuid: string, delegated: Set<string>): boolean {
+    const called = fn.agentCalls ?? [];
+    if (called.length > 0) {
+        return called.some((call) => call.connection === uuid);
+    }
+    return Boolean(fn.connections?.includes(uuid)) && !delegated.has(uuid);
+}
+
+function delegatedAgentUuids(model: CDModel): Set<string> {
+    return new Set((model.connections ?? []).flatMap((connection) => (connection.kind === "Agent" ? connection.delegatesTo ?? [] : [])));
+}
+
+function mentionedByHandler(service: CDService, uuid: string): boolean {
+    return [...(service.resourceFunctions ?? []), ...(service.remoteFunctions ?? [])].some((fn) => fn.connections?.includes(uuid));
+}
+
+function parentAgentUsages(model: CDModel, uuid: string): AgentUsage[] {
+    return (model.connections ?? [])
+        .filter((connection) => connection.kind === "Agent" && connection.delegatesTo?.includes(uuid))
+        .map((parent) => ({
+            label: parent.symbol,
+            serviceLabel: "uses as a tool",
+            type: "agent",
+            typeLabel: "Agent",
+            documentUri: parent.location.filePath,
+            position: toPosition(parent.location),
+            parentAgent: true,
+        }));
+}
+
 function agentCallSite(service: CDService, uuid: string, entryPoints: number): CDLocation | undefined {
     if (entryPoints !== 1) {
         return undefined;
@@ -175,6 +209,7 @@ function usagesForService(
     model: CDModel,
     service: CDService,
     uuid: string,
+    delegated: Set<string>,
     scope?: AgentTriggerDeletionScope
 ): AgentUsage[] {
     const label = serviceLabel(service);
@@ -191,7 +226,7 @@ function usagesForService(
     const usages: AgentUsage[] = [];
 
     for (const resource of service.resourceFunctions ?? []) {
-        if (resource.connections?.includes(uuid)) {
+        if (callsDirectly(resource, uuid, delegated)) {
             const rowLabel = isAgentChat ? "Agent Chat" : resourceLabel(resource.accessor, resource.path);
             usages.push({
                 label: rowLabel,
@@ -212,7 +247,7 @@ function usagesForService(
     }
 
     for (const fn of service.remoteFunctions ?? []) {
-        if (fn.connections?.includes(uuid)) {
+        if (callsDirectly(fn, uuid, delegated)) {
             usages.push({
                 label: fn.name,
                 serviceLabel: subLabel,
@@ -235,7 +270,7 @@ function usagesForService(
         usages[0].position = toPosition(callSite);
     }
 
-    if (usages.length === 0) {
+    if (usages.length === 0 && !mentionedByHandler(service, uuid)) {
         usages.push({
             label,
             serviceName: name,
@@ -292,11 +327,12 @@ export function findAgentUsages(
         .filter((service) => service.connections?.includes(uuid))
         .filter((service) => !isGeneratedChatService(service.location?.filePath));
 
+    const delegated = delegatedAgentUuids(model);
     const usages = groupByChannel(services).flatMap((service) =>
-        usagesForService(model, service, uuid, triggerScopes?.get(modulePrefix(service.type))));
+        usagesForService(model, service, uuid, delegated, triggerScopes?.get(modulePrefix(service.type))));
 
     const automation = model.automation;
-    if (automation?.connections?.includes(uuid)) {
+    if (automation && callsDirectly(automation, uuid, delegated)) {
         usages.push({
             label: automation.displayName || automation.name,
             type: "automation",
@@ -305,6 +341,7 @@ export function findAgentUsages(
             position: toPosition(automation.location),
         });
     }
+    usages.push(...parentAgentUsages(model, uuid));
 
     return usages;
 }

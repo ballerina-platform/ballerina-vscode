@@ -1056,3 +1056,62 @@ describe("clearing an agent call from a handler", () => {
         expect(deleteByComponentInfo).not.toHaveBeenCalled();
     });
 });
+
+describe("agents used as tools", () => {
+    const CEO = "ceo-uuid";
+    const MANAGER = "manager-uuid";
+    const chat = {
+        accessor: "post",
+        path: "chat",
+        location: { filePath: SERVICES_BAL, ...range(2) },
+        connections: [CEO, MANAGER],
+        agentCalls: [{ connection: CEO, line: 3 }],
+    };
+    const nested = {
+        connections: [
+            { symbol: "ceoAgent", location: { filePath: AGENTS_BAL, ...range(2) }, scope: "GLOBAL", kind: "Agent", uuid: CEO, delegatesTo: [MANAGER], enableFlowModel: false, sortText: "agents.bal2" },
+            { symbol: "engineeringManagerAgent", location: { filePath: AGENTS_BAL, ...range(6) }, scope: "GLOBAL", kind: "Agent", uuid: MANAGER, enableFlowModel: false, sortText: "agents.bal6" },
+        ],
+        listeners: [],
+        services: [{
+            location: { filePath: SERVICES_BAL, ...range(1) },
+            attachedListeners: [],
+            connections: [CEO, MANAGER],
+            functions: [],
+            remoteFunctions: [],
+            resourceFunctions: [chat],
+            absolutePath: "/company",
+            type: "ai:Service",
+            icon: "",
+            uuid: "company-service",
+            enableFlowModel: true,
+            sortText: "services.bal1",
+        }],
+    } as unknown as CDModel;
+
+    it("shows the parent agent instead of the parent's trigger on a sub-agent", () => {
+        const rows = findAgentUsages(nested, { filePath: AGENTS_BAL, startLine: 6 });
+        expect(rows).toEqual([
+            expect.objectContaining({
+                label: "ceoAgent",
+                serviceLabel: "uses as a tool",
+                parentAgent: true,
+                documentUri: AGENTS_BAL,
+                position: expect.objectContaining({ startLine: 2 }),
+            }),
+        ]);
+    });
+
+    it("keeps the trigger on the parent agent", () => {
+        expect(findAgentUsages(nested, { filePath: AGENTS_BAL, startLine: 2 }).map((row) => row.label)).toEqual(["Agent Chat"]);
+    });
+
+    it("excludes delegated agents from the fold when a handler records no direct calls", () => {
+        const helperOnly = {
+            ...nested,
+            services: [{ ...nested.services[0], resourceFunctions: [{ ...chat, agentCalls: undefined }] }],
+        } as unknown as CDModel;
+        expect(findAgentUsages(helperOnly, { filePath: AGENTS_BAL, startLine: 6 }).map((row) => row.label)).toEqual(["ceoAgent"]);
+        expect(findAgentUsages(helperOnly, { filePath: AGENTS_BAL, startLine: 2 }).map((row) => row.label)).toEqual(["Agent Chat"]);
+    });
+});
