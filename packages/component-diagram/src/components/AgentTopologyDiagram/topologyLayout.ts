@@ -351,6 +351,31 @@ function placeRank(ids: string[], children: Adjacency, provisional: Placement, f
     }
 }
 
+// Top-down: a node whose only parent is a trigger or agent moves under that parent when its row has room,
+// so the edge runs straight instead of bending because the parent was pushed aside by a neighbour.
+function straightenUnderParents(ranks: Map<number, string[]>, parents: Adjacency, final: Placement, lanesOf: (rank: number) => number[]): void {
+    ranks.forEach((ids, r) => {
+        if (r === 0) {
+            return;
+        }
+        const row = [...ids].sort((a, b) => final.cross.get(a) - final.cross.get(b));
+        const lanes = lanesOf(r);
+        row.forEach((id, i) => {
+            const only = parents.get(id);
+            if (only?.length !== 1) {
+                return;
+            }
+            const want = centre(only[0], final) - final.sizes[id] / 2;
+            const low = i > 0 ? final.cross.get(row[i - 1]) + final.sizes[row[i - 1]] + final.gap : -Infinity;
+            const high = i < row.length - 1 ? final.cross.get(row[i + 1]) - final.gap - final.sizes[id] : Infinity;
+            const clear = lanes.every((lane) => want + final.sizes[id] <= lane - LANE_CLEARANCE || want >= lane + LANE_CLEARANCE);
+            if (want >= low && want <= high && clear) {
+                final.cross.set(id, want);
+            }
+        });
+    });
+}
+
 export function layoutTopology(graph: TopologyGraph, options: LayoutOptions = {}): TopologyLayout {
     const edges = collapseSplits(graph);
     const rank = computeRanks(graph, edges);
@@ -387,6 +412,9 @@ export function layoutTopology(graph: TopologyGraph, options: LayoutOptions = {}
         avoidLanes(layer, passingLanes(d, graph, depthOf, final), final, frame.splitGap);
     }
     placeRank(ranks.get(0) ?? [], children, provisional, final);
+    const splitIds = new Set(splitDepth.keys());
+    const directParents = adjacency(graph.edges.filter((edge) => !splitIds.has(edge.sourceId)), "targetId", "sourceId");
+    straightenUnderParents(ranks, directParents, final, (r) => laneCentres(r, longEdges, rank, final));
 
     const place = (main: number, cross: number): NodePosition => (frame.vertical ? { x: cross, y: main } : { x: main, y: cross });
     const mainOf = (id: string): number => (splitDepth.has(id) ? frame.splitMain(splitDepth.get(id)) : frame.main(rank.get(id) ?? 1));

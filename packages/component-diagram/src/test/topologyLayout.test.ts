@@ -218,6 +218,23 @@ describe("layoutTopology", () => {
         expect(Math.abs(inner.y + SPLIT_SIZE / 2 - laneY)).toBeGreaterThanOrEqual(SPLIT_SIZE / 2 + 20);
     });
 
+    it("moves an agent under its only trigger when the row has room, so the edge is straight (support_desk shape)", () => {
+        const graph = graphOf(
+            [agent("supportSup"), agent("salesSup"), agent("billing"), agent("technical"), agent("order"), agent("shipping"), agent("quote")],
+            [trigger("chat"), trigger("quotes"), trigger("ask")],
+            [
+                edge("chat", "supportSup"), edge("quotes", "order"), edge("order", "shipping"), edge("ask", "salesSup"),
+                edge("supportSup", "billing", "delegation"), edge("supportSup", "technical", "delegation"), edge("supportSup", "order", "delegation"),
+                edge("salesSup", "technical", "delegation"), edge("salesSup", "quote", "delegation"),
+            ]
+        );
+        const layout = layoutTopology(graph, { orientation: "vertical" });
+        const agentCentre = (id: string) => layout.agentPositions[id].x + AGENT_CARD_WIDTH / 2;
+        const triggerCentre = (id: string) => layout.triggerPositions[id].x + TRIGGER_LABEL_WIDTH / 2;
+        expect(agentCentre("supportSup")).toBeCloseTo(triggerCentre("chat"));
+        expect(agentCentre("salesSup")).toBeCloseTo(triggerCentre("ask"));
+    });
+
     it("widens only the trigger gap for a split; agent columns keep the regular gap", () => {
         const split: TopologySplitNode = { id: "t1::split", kind: "match", triggerId: "t1", parentId: "t1", depth: 1 };
         const graph = graphOf(
