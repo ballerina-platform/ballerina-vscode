@@ -193,7 +193,7 @@ function applyGroupedChildIcons(group: PanelCategory, rawItems: any[], groupIcon
         const childNode = child as PanelNode;
         const codedata = childNode.metadata?.codedata;
         const childIconUrl: string | undefined = childNode.metadata?.metadata?.icon;
-        const hasClassIcon = Boolean(childIconUrl) && childIconUrl !== packageIconUrl;
+        const hasClassIcon = !groupIconFactory && Boolean(childIconUrl) && childIconUrl !== packageIconUrl;
         child.icon = hasClassIcon ? (
             resolveChildBadgeIcon(codedata, childIconUrl)
         ) : (
@@ -375,14 +375,14 @@ export function convertCategoriesToSidePanelCategoriesWithIcon(
 export function convertDataLoaderCategoriesToSidePanelCategories(categories: Category[]): PanelCategory[] {
     return convertCategoriesToSidePanelCategoriesWithIcon(categories, (codedata, iconUrl) => {
         if (iconUrl && codedata?.module !== "ai" && codedata?.module !== "ai.devant") return <img src={iconUrl} style={{ width: 24, height: 24 }} />;
-        return <NodeIcon type={codedata?.node} size={24} />;
+        return <NodeIcon type="DATA_LOADER" size={24} />;
     });
 }
 
 export function convertChunkerCategoriesToSidePanelCategories(categories: Category[]): PanelCategory[] {
     return convertCategoriesToSidePanelCategoriesWithIcon(categories, (codedata, iconUrl) => {
         if (iconUrl && codedata?.module !== "ai" && codedata?.module !== "ai.devant") return <img src={iconUrl} style={{ width: 24, height: 24 }} />;
-        return <NodeIcon type={codedata?.node} size={24} />;
+        return <NodeIcon type="CHUNKER" size={24} />;
     });
 }
 

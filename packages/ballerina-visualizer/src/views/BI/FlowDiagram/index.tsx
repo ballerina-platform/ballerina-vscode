@@ -358,6 +358,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     // list) is up: once the toolkit variable is created, it is registered on this agent.
     const pendingDurableMcpAgentRef = useRef<{ agentVar: string | null; insertBefore: any } | null>(null);
     const initialCategoriesRef = useRef<any[]>([]);
+    const instanceListCategoriesRef = useRef<Partial<Record<SearchKind, PanelCategory[]>>>({});
     const showEditForm = useRef<boolean>(false);
     // True while the call form open is step 3 of the create-activity-from-connection wizard.
     const selectedNodeMetadata = useRef<{ nodeId: string; metadata: any; fileName: string }>();
@@ -613,7 +614,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 if (superseded()) {
                     return;
                 }
-                setCategories(convertModelProviderCategoriesToSidePanelCategories(response.categories as Category[]));
+                const modelProviderCategories = convertModelProviderCategoriesToSidePanelCategories(response.categories as Category[]);
+                instanceListCategoriesRef.current["MODEL_PROVIDER"] = modelProviderCategories;
+                setCategories(modelProviderCategories);
                 setSidePanelView(SidePanelView.MODEL_PROVIDER_LIST);
                 setShowSidePanel(true);
             } catch (error) {
@@ -642,9 +645,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 if (superseded()) {
                     return;
                 }
-                setCategories(
-                    convertVectorStoreCategoriesToSidePanelCategories(response.categories as Category[])
-                );
+                const vectorStoreCategories = convertVectorStoreCategoriesToSidePanelCategories(response.categories as Category[]);
+                instanceListCategoriesRef.current["VECTOR_STORE"] = vectorStoreCategories;
+                setCategories(vectorStoreCategories);
                 setSidePanelView(SidePanelView.VECTOR_STORE_LIST);
                 setShowSidePanel(true);
             } catch (error) {
@@ -673,9 +676,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 if (superseded()) {
                     return;
                 }
-                setCategories(
-                    convertEmbeddingProviderCategoriesToSidePanelCategories(response.categories as Category[])
-                );
+                const embeddingProviderCategories = convertEmbeddingProviderCategoriesToSidePanelCategories(response.categories as Category[]);
+                instanceListCategoriesRef.current["EMBEDDING_PROVIDER"] = embeddingProviderCategories;
+                setCategories(embeddingProviderCategories);
                 setSidePanelView(SidePanelView.EMBEDDING_PROVIDER_LIST);
                 setShowSidePanel(true);
             } catch (error) {
@@ -704,9 +707,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 if (superseded()) {
                     return;
                 }
-                setCategories(
-                    convertKnowledgeBaseCategoriesToSidePanelCategories(response.categories as Category[])
-                );
+                const knowledgeBaseCategories = convertKnowledgeBaseCategoriesToSidePanelCategories(response.categories as Category[]);
+                instanceListCategoriesRef.current["KNOWLEDGE_BASE"] = knowledgeBaseCategories;
+                setCategories(knowledgeBaseCategories);
                 setSidePanelView(SidePanelView.KNOWLEDGE_BASE_LIST);
                 setShowSidePanel(true);
             } catch (error) {
@@ -800,7 +803,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 if (superseded()) {
                     return;
                 }
-                setCategories(convertDataLoaderCategoriesToSidePanelCategories(response.categories as Category[]));
+                const dataLoaderCategories = convertDataLoaderCategoriesToSidePanelCategories(response.categories as Category[]);
+                instanceListCategoriesRef.current["DATA_LOADER"] = dataLoaderCategories;
+                setCategories(dataLoaderCategories);
                 setSidePanelView(SidePanelView.DATA_LOADER_LIST);
                 setShowSidePanel(true);
             } catch (error) {
@@ -825,7 +830,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                     position: targetRef.current.startLine,
                     filePath: model?.fileName,
                 });
-                setCategories(convertChunkerCategoriesToSidePanelCategories(response.categories as Category[]));
+                const chunkerCategories = convertChunkerCategoriesToSidePanelCategories(response.categories as Category[]);
+                instanceListCategoriesRef.current["CHUNKER"] = chunkerCategories;
+                setCategories(chunkerCategories);
                 setSidePanelView(SidePanelView.CHUNKER_LIST);
                 setShowSidePanel(true);
             } catch (error) {
@@ -1746,28 +1753,32 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         await handleSearch(searchText, functionType, "ACTIVITY_CALL");
     };
 
-    const handleSearchModelProvider = async (_searchText: string, _functionType: FUNCTION_TYPE) => {
-        // await handleSearch(searchText, functionType, "MODEL_PROVIDER");
+    const searchInstanceList = (searchKind: SearchKind, searchText: string) => {
+        setCategories(filterCategoriesLocally(instanceListCategoriesRef.current[searchKind] ?? [], searchText));
     };
 
-    const handleSearchVectorStore = async (_searchText: string, _functionType: FUNCTION_TYPE) => {
-        // await handleSearch(searchText, functionType, "VECTOR_STORE");
+    const handleSearchModelProvider = async (searchText: string, _functionType: FUNCTION_TYPE) => {
+        searchInstanceList("MODEL_PROVIDER", searchText);
     };
 
-    const handleSearchEmbeddingProvider = async (_searchText: string, _functionType: FUNCTION_TYPE) => {
-        // await handleSearch(searchText, functionType, "EMBEDDING_PROVIDER");
+    const handleSearchVectorStore = async (searchText: string, _functionType: FUNCTION_TYPE) => {
+        searchInstanceList("VECTOR_STORE", searchText);
     };
 
-    const handleSearchVectorKnowledgeBase = async (_searchText: string, _functionType: FUNCTION_TYPE) => {
-        // await handleSearch(searchText, functionType, "KNOWLEDGE_BASE");
+    const handleSearchEmbeddingProvider = async (searchText: string, _functionType: FUNCTION_TYPE) => {
+        searchInstanceList("EMBEDDING_PROVIDER", searchText);
     };
 
-    const handleSearchDataLoader = async (_searchText: string, _functionType: FUNCTION_TYPE) => {
-        // await handleSearch(searchText, functionType, "DATA_LOADER");
+    const handleSearchVectorKnowledgeBase = async (searchText: string, _functionType: FUNCTION_TYPE) => {
+        searchInstanceList("KNOWLEDGE_BASE", searchText);
     };
 
-    const handleSearchChunker = async (_searchText: string, _functionType: FUNCTION_TYPE) => {
-        // await handleSearch(searchText, functionType, "CHUNKER");
+    const handleSearchDataLoader = async (searchText: string, _functionType: FUNCTION_TYPE) => {
+        searchInstanceList("DATA_LOADER", searchText);
+    };
+
+    const handleSearchChunker = async (searchText: string, _functionType: FUNCTION_TYPE) => {
+        searchInstanceList("CHUNKER", searchText);
     };
 
     const handleSearchTextChange = (text: string) => {
@@ -2294,12 +2305,12 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                         filePath: model?.fileName || fileName,
                     })
                     .then((response) => {
-                        setCategories(
-                            convertFunctionCategoriesToSidePanelCategories(
-                                response.categories as Category[],
-                                FUNCTION_TYPE.REGULAR
-                            )
+                        const modelProviderCategories = convertFunctionCategoriesToSidePanelCategories(
+                            response.categories as Category[],
+                            FUNCTION_TYPE.REGULAR
                         );
+                        instanceListCategoriesRef.current["MODEL_PROVIDER"] = modelProviderCategories;
+                        setCategories(modelProviderCategories);
                         setSidePanelView(SidePanelView.MODEL_PROVIDER_LIST);
                         setShowSidePanel(true);
                     })
@@ -2317,12 +2328,12 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                         filePath: model?.fileName || fileName,
                     })
                     .then((response) => {
-                        setCategories(
-                            convertFunctionCategoriesToSidePanelCategories(
-                                response.categories as Category[],
-                                FUNCTION_TYPE.REGULAR
-                            )
+                        const vectorStoreCategories = convertFunctionCategoriesToSidePanelCategories(
+                            response.categories as Category[],
+                            FUNCTION_TYPE.REGULAR
                         );
+                        instanceListCategoriesRef.current["VECTOR_STORE"] = vectorStoreCategories;
+                        setCategories(vectorStoreCategories);
                         setSidePanelView(SidePanelView.VECTOR_STORE_LIST);
                         setShowSidePanel(true);
                     })
@@ -2340,12 +2351,12 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                         filePath: model?.fileName || fileName,
                     })
                     .then((response) => {
-                        setCategories(
-                            convertFunctionCategoriesToSidePanelCategories(
-                                response.categories as Category[],
-                                FUNCTION_TYPE.REGULAR
-                            )
+                        const embeddingProviderCategories = convertFunctionCategoriesToSidePanelCategories(
+                            response.categories as Category[],
+                            FUNCTION_TYPE.REGULAR
                         );
+                        instanceListCategoriesRef.current["EMBEDDING_PROVIDER"] = embeddingProviderCategories;
+                        setCategories(embeddingProviderCategories);
                         setSidePanelView(SidePanelView.EMBEDDING_PROVIDER_LIST);
                         setShowSidePanel(true);
                     })
@@ -2363,9 +2374,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                         filePath: model?.fileName || fileName,
                     })
                     .then((response) => {
-                        setCategories(
-                            convertKnowledgeBaseCategoriesToSidePanelCategories(response.categories as Category[])
-                        );
+                        const knowledgeBaseCategories = convertKnowledgeBaseCategoriesToSidePanelCategories(response.categories as Category[]);
+                        instanceListCategoriesRef.current["KNOWLEDGE_BASE"] = knowledgeBaseCategories;
+                        setCategories(knowledgeBaseCategories);
                         setSidePanelView(SidePanelView.KNOWLEDGE_BASE_LIST);
                         setShowSidePanel(true);
                     })
@@ -2383,7 +2394,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                         filePath: model?.fileName || fileName,
                     })
                     .then((response) => {
-                        setCategories(convertDataLoaderCategoriesToSidePanelCategories(response.categories as Category[]));
+                        const dataLoaderCategories = convertDataLoaderCategoriesToSidePanelCategories(response.categories as Category[]);
+                        instanceListCategoriesRef.current["DATA_LOADER"] = dataLoaderCategories;
+                        setCategories(dataLoaderCategories);
                         setSidePanelView(SidePanelView.DATA_LOADER_LIST);
                         setShowSidePanel(true);
                     })
@@ -2401,7 +2414,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                         filePath: model?.fileName || fileName,
                     })
                     .then((response) => {
-                        setCategories(convertChunkerCategoriesToSidePanelCategories(response.categories as Category[]));
+                        const chunkerCategories = convertChunkerCategoriesToSidePanelCategories(response.categories as Category[]);
+                        instanceListCategoriesRef.current["CHUNKER"] = chunkerCategories;
+                        setCategories(chunkerCategories);
                         setSidePanelView(SidePanelView.CHUNKER_LIST);
                         setShowSidePanel(true);
                     })
