@@ -444,6 +444,8 @@ const TOOL_ROW_RIGHT_X = 300;
 const TOOL_MENU_SIZE = 24;
 const TOOL_MENU_GAP = 6;
 const NODE_EDGE_LEFT_X = 300;
+// The usage column is 48 px wider than the tool rail, so the node's left edge sits further right inside its SVG.
+const USAGE_COLUMN_RIGHT_X = 348;
 const NODE_EDGE_RIGHT_X = 0;
 const EDGE_ADD_DOT_R = 3;
 const EDGE_ADD_LINE_END = 22;
@@ -954,7 +956,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                 data-testid="agent-usage-column"
                 width={AGENT_USAGE_COLUMN_WIDTH + 10}
                 height={model.node.viewState?.ch}
-                viewBox={`0 0 348 ${containerHeight}`}
+                viewBox={`0 0 ${USAGE_COLUMN_RIGHT_X} ${containerHeight}`}
                 style={{ marginRight: "-10px", position: "relative", zIndex: 1 }}
             >
                 {usages.map((usage: AgentUsage, index: number) => {
@@ -1072,7 +1074,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                             <line
                                 x1="291"
                                 y1="25"
-                                x2="348"
+                                x2={USAGE_COLUMN_RIGHT_X}
                                 y2="25"
                                 style={{
                                     stroke: ThemeColors.ON_SURFACE,
@@ -1085,7 +1087,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                             <line
                                 x1="291"
                                 y1="25"
-                                x2="348"
+                                x2={USAGE_COLUMN_RIGHT_X}
                                 y2="25"
                                 style={{
                                     stroke: aiColor,
@@ -1187,7 +1189,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                     <EdgeAddButton
                         key={addTileRow}
                         testId="agent-add-trigger"
-                        anchorX={NODE_EDGE_LEFT_X}
+                        anchorX={USAGE_COLUMN_RIGHT_X}
                         y={addTileY + 24}
                         side="left"
                         label="Add Trigger"
