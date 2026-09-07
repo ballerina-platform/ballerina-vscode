@@ -661,6 +661,7 @@ describe("try it on a rail row", () => {
         );
 
         expect(rows[0].label).toBe("Agent Chat");
+        expect(rows[0].serviceLabel).toBe("/agent-chat");
         expect(rows[0].tryIt).toEqual({ basePath: "/agent\\-chat", listener: "agentChatListener" });
     });
 

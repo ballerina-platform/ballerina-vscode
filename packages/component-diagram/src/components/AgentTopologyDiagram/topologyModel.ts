@@ -249,7 +249,7 @@ function triggerLabelsFor(service: CDService, fn: CDFunction | CDResourceFunctio
     const label2 = serviceSubLabel(service, modulePrefix);
     const icon = service.icon || undefined;
     if (modulePrefix === AI_MODULE) {
-        return { label1: "Agent Chat", label2, glyphType: AI_MODULE, icon };
+        return { label1: "Agent Chat", label2: serviceLabel(service), glyphType: AI_MODULE, icon };
     }
     if (isResource) {
         const resourceFn = fn as CDResourceFunction;

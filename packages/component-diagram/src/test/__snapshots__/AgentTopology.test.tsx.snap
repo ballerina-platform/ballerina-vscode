@@ -1044,7 +1044,7 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the Help Desk shape: help
               <div
                 class="css-33"
                 tabindex="0"
-                title="Agent Chat — AI Chat Service · /helpDesk"
+                title="Agent Chat — /helpDesk"
               >
                 <div
                   class="css-34"
@@ -1057,7 +1057,7 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the Help Desk shape: help
                   <div
                     class="css-36"
                   >
-                    AI Chat Service · /helpDesk
+                    /helpDesk
                   </div>
                 </div>
                 <div

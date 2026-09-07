@@ -83,9 +83,10 @@ function serviceTypeLabel(type?: string): string | undefined {
     return SERVICE_TYPE_LABELS[modulePart] ?? `${modulePart.charAt(0).toUpperCase()}${modulePart.slice(1)} Service`;
 }
 
+// An Agent Chat row already names the service kind, so its sublabel is the bare path.
 function serviceSubLabel(service: CDService): string {
     const label = serviceLabel(service);
-    const typeLabel = serviceTypeLabel(service.type);
+    const typeLabel = modulePrefix(service.type) === "ai" ? undefined : serviceTypeLabel(service.type);
     return typeLabel && label.startsWith("/") ? `${typeLabel} · ${label}` : label;
 }
 
