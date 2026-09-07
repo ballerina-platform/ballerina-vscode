@@ -45,14 +45,16 @@ import { nodeHasError } from "../../../utils/node";
 import { css } from "@emotion/react";
 import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
 import {
+    AgentToolTarget,
     AgentUsage,
     DEFAULT_MODEL_PROVIDER_LABEL,
-    NodeMetadata,
     isDefaultModelProviderExpr,
+    NodeMetadata,
     resolveBrandIcon,
     resolveEntryTypeGlyph,
     resolveKindDefaultIcon,
     triggerScopeNoun,
+    VisualizerLocation,
 } from "@wso2/ballerina-core";
 import ReactMarkdown from "react-markdown";
 
@@ -458,6 +460,63 @@ const usageFadeIn = (delay: number) => css`
     animation: ${usageRowFadeIn} 260ms ease-out both;
     animation-delay: ${delay}ms;
 `;
+
+// The tool circle opens the tool's own flow, so the jump to the agent it hands off to lives under the label.
+function ToolTargetLink({ target, openView }: { target: AgentToolTarget; openView?: (location: VisualizerLocation) => void }) {
+    return (
+        <span
+            className="tool-target"
+            title={`Open ${target.name}`}
+            onClick={(event) => {
+                event.stopPropagation();
+                openView?.({ documentUri: target.documentUri, position: target.position });
+            }}
+            css={css`
+                min-width: 0;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                font-family: var(--vscode-editor-font-family, monospace);
+                font-size: 12px;
+                color: ${ThemeColors.ON_SURFACE_VARIANT};
+                cursor: pointer;
+                pointer-events: all;
+                &:hover {
+                    color: ${ThemeColors.PRIMARY};
+                    text-decoration: underline;
+                }
+            `}
+        >
+            ↗ {target.name}
+        </span>
+    );
+}
+
+function ToolLabel({ tool, openView }: { tool: ToolData; openView?: (location: VisualizerLocation) => void }) {
+    return (
+        <div css={css`display: flex; flex-direction: column; min-width: 0;`}>
+            <span
+                className="tool-label"
+                title={tool.name}
+                css={css`
+                    min-width: 0;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
+                    color: ${ThemeColors.ON_SURFACE};
+                `}
+            >
+                {tool.name}
+            </span>
+            {tool.targetAgent && <ToolTargetLink target={tool.targetAgent} openView={openView} />}
+        </div>
+    );
+}
+
+// A parent agent's row is drawn like the overview's delegation edge: dashed.
+function usageDash(usage: AgentUsage): string | undefined {
+    return usage.parentAgent ? "6 5" : undefined;
+}
 
 function UsageIcon(props: { usage: AgentUsage; codedata?: FlowNode["codedata"] }) {
     const { usage, codedata } = props;
@@ -1082,7 +1141,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                 style={{
                                     stroke: ThemeColors.ON_SURFACE,
                                     strokeWidth: 1.5,
-                                    strokeDasharray: usage.parentAgent ? "6 5" : undefined,
+                                    strokeDasharray: usageDash(usage),
                                     markerEnd: `url(#${model.node.id}-arrow-head-usage)`,
                                     opacity: isRowActive ? 0 : 1,
                                     transition: "opacity 0.4s ease-out",
@@ -1610,16 +1669,16 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                 cursor: not-allowed;
                             ` : css`
                             cursor: ${readOnly ? "default" : "pointer"};
-                            &:hover circle:first-of-type {
+                            &:hover:not(:has(.tool-target:hover)) circle:first-of-type {
                                 stroke: ${ThemeColors.SECONDARY};
                             }
-                            &:hover foreignObject .connector-icon path {
+                            &:hover:not(:has(.tool-target:hover)) foreignObject .connector-icon path {
                                 fill: ${ThemeColors.SECONDARY};
                             }
-                            &:hover .tool-label {
+                            &:hover:not(:has(.tool-target:hover)) .tool-label {
                                 color: ${ThemeColors.SECONDARY};
                             }
-                            &:hover .tool-tooltip {
+                            &:hover:not(:has(.tool-target:hover)) .tool-tooltip {
                                 opacity: 1;
                                 visibility: visible;
                             }
@@ -1713,19 +1772,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                         font-size: 14px;
                                     `}
                                 >
-                                    <span
-                                        className="tool-label"
-                                        title={tool.name}
-                                        css={css`
-                                            min-width: 0;
-                                            overflow: hidden;
-                                            text-overflow: ellipsis;
-                                            white-space: nowrap;
-                                            color: ${ThemeColors.ON_SURFACE};
-                                        `}
-                                    >
-                                        {tool.name}
-                                    </span>
+                                    <ToolLabel tool={tool} openView={openView} />
                                     {!toolsReadOnly && (
                                         <NodeStyles.MenuButton
                                             appearance="icon"

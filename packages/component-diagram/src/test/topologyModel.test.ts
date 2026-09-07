@@ -348,7 +348,7 @@ describe("buildTopology", () => {
             memory: { symbol: "chatMemory", type: "MessageWindowChatMemory" },
             dependentFunctions: ["lookupOrder", "initiateReturn", "shippingRatesAgentTool"],
             delegatesTo: ["ship"],
-            agentTools: ["shippingRatesAgentTool"],
+            agentTools: { shippingRatesAgentTool: "ship" },
         });
         const inline = agentConnection("b", "inlineAgent", AGENTS_BAL, 7, { memory: { type: "MessageWindowChatMemory" }, typeName: "Agent" });
         const typed = agentConnection("c", "calendar", AGENTS_BAL, 11, { typeName: "CalendarAssistant" });

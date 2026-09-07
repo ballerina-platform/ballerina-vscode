@@ -117,7 +117,8 @@ export type CDConnection = {
     modelProvider?: CDModelProvider;
     memory?: CDMemoryStore;
     // Tool functions that hand the request to another agent; the rest of dependentFunctions are plain tools.
-    agentTools?: string[];
+    // Tool name -> uuid of the agent that tool hands off to.
+    agentTools?: Record<string, string>;
     // The agent's class name, e.g. Agent or a definition such as CalendarAssistant.
     typeName?: string;
 };

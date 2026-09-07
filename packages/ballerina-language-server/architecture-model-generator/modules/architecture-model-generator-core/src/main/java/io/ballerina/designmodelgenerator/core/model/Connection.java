@@ -42,8 +42,8 @@ public class Connection extends DesignGraphNode {
     private String role;
     private Set<String> delegatesTo;
     private Set<String> toolConnections;
-    // Tool functions that hand the request to another agent, by name; the rest of dependentFunctions are plain tools.
-    private Set<String> agentTools;
+    // Tool functions that hand the request to another agent: tool name to that agent's uuid.
+    private Map<String, String> agentTools;
     private ModelProvider modelProvider;
     private MemoryStore memory;
     private String typeName;
@@ -210,15 +210,15 @@ public class Connection extends DesignGraphNode {
         return toolConnections;
     }
 
-    public Set<String> getAgentTools() {
+    public Map<String, String> getAgentTools() {
         return agentTools;
     }
 
-    public void addAgentTool(String toolFunctionName) {
+    public void addAgentTool(String toolFunctionName, String agentUuid) {
         if (this.agentTools == null) {
-            this.agentTools = new HashSet<>();
+            this.agentTools = new HashMap<>();
         }
-        this.agentTools.add(toolFunctionName);
+        this.agentTools.put(toolFunctionName, agentUuid);
     }
 
     public void addToolConnection(String connectionUuid) {

@@ -17,6 +17,7 @@
  */
 
 import {
+    AgentToolTarget,
     AgentTriggerDeletionScope,
     AgentUsage,
     AgentUsageTrigger,
@@ -346,7 +347,31 @@ export function findAgentUsages(
     return usages;
 }
 
+// Which agent each agent-tool hands off to, so the rail can offer a jump to it.
+export function findAgentToolTargets(model: CDModel, agent: AgentRef): Record<string, AgentToolTarget> {
+    const uuid = model && findAgentUuid(model, agent);
+    const connections = model?.connections ?? [];
+    const own = connections.find((connection) => connection.uuid === uuid);
+    const targets: Record<string, AgentToolTarget> = {};
+    for (const [tool, targetUuid] of Object.entries(own?.agentTools ?? {})) {
+        const target = connections.find((connection) => connection.uuid === targetUuid);
+        if (target) {
+            targets[tool] = { name: target.symbol, documentUri: target.location.filePath, position: toPosition(target.location) };
+        }
+    }
+    return targets;
+}
+
 const usageCache = new Map<string, AgentUsage[]>();
+const toolTargetCache = new Map<string, Record<string, AgentToolTarget>>();
+
+export function getCachedToolTargets(key: string): Record<string, AgentToolTarget> | undefined {
+    return toolTargetCache.get(key);
+}
+
+export function setCachedToolTargets(key: string, targets: Record<string, AgentToolTarget>): void {
+    toolTargetCache.set(key, targets);
+}
 
 export function usageCacheKey(projectPath: string, filePath: string, agentName: string): string {
     return `${projectPath}::${filePath}::${agentName}`;

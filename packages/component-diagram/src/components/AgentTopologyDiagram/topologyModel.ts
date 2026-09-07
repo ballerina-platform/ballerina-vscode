@@ -104,7 +104,7 @@ function typeLabel(connection: CDConnection | undefined): string {
 
 // An agent's tools are its dependent functions; the design model names the ones that hand off to another agent.
 function toolFacts(connection: CDConnection | undefined): Pick<TopologyAgentNode, "toolCount" | "functionTools" | "agentTools" | "tools"> {
-    const handoffs = new Set(connection?.agentTools ?? []);
+    const handoffs = new Set(Object.keys(connection?.agentTools ?? {}));
     const tools: TopologyTool[] = (connection?.dependentFunctions ?? []).map((name) => ({ name, kind: handoffs.has(name) ? "agent" : "function" }));
     const agentTools = tools.filter((tool) => tool.kind === "agent").length;
     return { toolCount: tools.length, functionTools: tools.length - agentTools, agentTools, tools };

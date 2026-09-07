@@ -267,7 +267,7 @@ public class DesignModelGenerator {
             }
             if (ConnectionKind.AGENT.toString().equals(dependentConnection.getKind())) {
                 agent.addDelegatesTo(uuid);
-                agent.addAgentTool(toolName);
+                agent.addAgentTool(toolName, uuid);
                 continue;
             }
             if (dependentConnection.isFlowModelEnabled()) {

@@ -64,8 +64,11 @@ import {
     findAgentUsages,
     findListenerPosition,
     getAgentTriggerScopes,
+    findAgentToolTargets,
+    getCachedToolTargets,
     getCachedUsages,
     resolveTriggerScopes,
+    setCachedToolTargets,
     setCachedUsages,
     usageCacheKey,
 } from "./agentUsages";
@@ -344,16 +347,19 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                     return;
                 }
                 const usages = findAgentUsages(response.designModel, agentRef, triggerScopes);
+                const toolTargets = findAgentToolTargets(response.designModel, agentRef);
                 usagesDirtyRef.current = false;
                 const previous = getCachedUsages(key);
+                const sameTargets = JSON.stringify(getCachedToolTargets(key)) === JSON.stringify(toolTargets);
                 setCachedUsages(key, usages);
+                setCachedToolTargets(key, toolTargets);
                 setUsagesLoading(false);
-                if (previous && JSON.stringify(previous) === JSON.stringify(usages)) {
+                if (previous && sameTargets && JSON.stringify(previous) === JSON.stringify(usages)) {
                     return;
                 }
                 setModel({
                     ...flow,
-                    nodes: [withAgentUsages(renderNode, usages, !previous || !sameUsages(previous, usages))],
+                    nodes: [withAgentUsages(renderNode, usages, !previous || !sameUsages(previous, usages), toolTargets)],
                 });
             } catch (error) {
                 console.error(">>> agent focus: failed to load agent usages", error);
@@ -499,11 +505,10 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
 
             const connections = fetchedFlow?.connections || [];
             const projectKey = location?.projectPath ?? projectPath ?? "";
-            const cachedUsages = kind === "AGENT"
-                ? getCachedUsages(usageCacheKey(projectKey, filePath, String(agentDecl.properties?.variable?.value ?? "")))
-                : undefined;
+            const cacheKey = usageCacheKey(projectKey, filePath, String(agentDecl.properties?.variable?.value ?? ""));
+            const cachedUsages = kind === "AGENT" ? getCachedUsages(cacheKey) : undefined;
             const renderNode: FlowNode = kind === "AGENT"
-                ? withAgentUsages(buildAgentRenderNode(agentDecl, connections), cachedUsages ?? [], false)
+                ? withAgentUsages(buildAgentRenderNode(agentDecl, connections), cachedUsages ?? [], false, getCachedToolTargets(cacheKey))
                 : {
                     ...agentDecl,
                     id: agentDecl.id || "agent-type-focus-node",

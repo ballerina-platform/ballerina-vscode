@@ -45,6 +45,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * Tests for getting the design model for a package.
@@ -251,12 +252,17 @@ public class DesignModelGeneratorTest extends AbstractLSTest {
                             != sizeOf(expectedConnection.getToolConnections())
                     || !Objects.equals(actualConnection.getModelProvider(), expectedConnection.getModelProvider())
                     || !Objects.equals(actualConnection.getMemory(), expectedConnection.getMemory())
-                    || !Objects.equals(actualConnection.getAgentTools(), expectedConnection.getAgentTools())
+                    || !Objects.equals(agentToolNames(actualConnection), agentToolNames(expectedConnection))
                     || !Objects.equals(actualConnection.getTypeName(), expectedConnection.getTypeName())) {
                 return false;
             }
         }
         return true;
+    }
+
+    // The map's values are agent uuids, which change on every run; the tool names are what is stable.
+    private static Set<String> agentToolNames(Connection connection) {
+        return connection.getAgentTools() == null ? Set.of() : connection.getAgentTools().keySet();
     }
 
     private boolean assertListeners(List<Listener> actual, List<Listener> expected) {

@@ -22,6 +22,7 @@ import {
     agentCallerProtocols,
     clearAgentCallFromHandler,
     deleteEachResolved,
+    findAgentToolTargets,
     findAgentUsages,
     findListenerPosition,
     findServiceHelperPosition,
@@ -1069,7 +1070,7 @@ describe("agents used as tools", () => {
     };
     const nested = {
         connections: [
-            { symbol: "ceoAgent", location: { filePath: AGENTS_BAL, ...range(2) }, scope: "GLOBAL", kind: "Agent", uuid: CEO, delegatesTo: [MANAGER], enableFlowModel: false, sortText: "agents.bal2" },
+            { symbol: "ceoAgent", location: { filePath: AGENTS_BAL, ...range(2) }, scope: "GLOBAL", kind: "Agent", uuid: CEO, delegatesTo: [MANAGER], agentTools: { engineeringManagerAgentTool: MANAGER }, enableFlowModel: false, sortText: "agents.bal2" },
             { symbol: "engineeringManagerAgent", location: { filePath: AGENTS_BAL, ...range(6) }, scope: "GLOBAL", kind: "Agent", uuid: MANAGER, enableFlowModel: false, sortText: "agents.bal6" },
         ],
         listeners: [],
@@ -1104,6 +1105,13 @@ describe("agents used as tools", () => {
 
     it("keeps the trigger on the parent agent", () => {
         expect(findAgentUsages(nested, { filePath: AGENTS_BAL, startLine: 2 }).map((row) => row.label)).toEqual(["Agent Chat"]);
+    });
+
+    it("resolves which agent each agent-tool hands off to", () => {
+        expect(findAgentToolTargets(nested, { filePath: AGENTS_BAL, startLine: 2 })).toEqual({
+            engineeringManagerAgentTool: { name: "engineeringManagerAgent", documentUri: AGENTS_BAL, position: expect.objectContaining({ startLine: 6 }) },
+        });
+        expect(findAgentToolTargets(nested, { filePath: AGENTS_BAL, startLine: 6 })).toEqual({});
     });
 
     it("excludes delegated agents from the fold when a handler records no direct calls", () => {
