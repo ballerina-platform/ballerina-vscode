@@ -36,10 +36,11 @@ export interface AgentTopologyProps {
     agentDefinitions?: ProjectStructureArtifactResponse[];
     onOpenAgent: (agent: AgentSelection) => void;
     onOpenTrigger: (trigger: TriggerSelection) => void;
+    onAddTrigger?: (agent: AgentSelection) => void;
 }
 
 export default function AgentTopology(props: AgentTopologyProps) {
-    const { projectPath, agents, agentDefinitions, onOpenAgent, onOpenTrigger } = props;
+    const { projectPath, agents, agentDefinitions, onOpenAgent, onOpenTrigger, onAddTrigger } = props;
     const input = useAgentTopology(projectPath, agents, agentDefinitions);
 
     if (!input) {
@@ -50,5 +51,5 @@ export default function AgentTopology(props: AgentTopologyProps) {
         );
     }
 
-    return <AgentTopologyDiagram input={input} onAgentSelect={onOpenAgent} onTriggerSelect={onOpenTrigger} />;
+    return <AgentTopologyDiagram input={input} onAgentSelect={onOpenAgent} onTriggerSelect={onOpenTrigger} onAddTrigger={onAddTrigger} />;
 }

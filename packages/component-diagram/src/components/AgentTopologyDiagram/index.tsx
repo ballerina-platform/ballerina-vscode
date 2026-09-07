@@ -39,6 +39,7 @@ export interface AgentTopologyDiagramProps {
     input: TopologyInput;
     onAgentSelect: (agent: AgentSelection) => void;
     onTriggerSelect: (trigger: TriggerSelection) => void;
+    onAddTrigger?: (agent: AgentSelection) => void;
     readonly?: boolean;
 }
 
@@ -121,7 +122,7 @@ const EmptyNote = styled.div`
 `;
 
 export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
-    const { input, onAgentSelect, onTriggerSelect, readonly } = props;
+    const { input, onAgentSelect, onTriggerSelect, onAddTrigger, readonly } = props;
     const [diagramEngine] = useState(() => generateTopologyEngine());
     const [diagramModel, setDiagramModel] = useState<DiagramModel | null>(null);
     const [legendKinds, setLegendKinds] = useState<ReturnType<typeof buildTopology>["legendKinds"]>([]);
@@ -296,8 +297,8 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
     }, [orientation, applyLayout, reportPorts, fitToLayout]);
 
     const context = useMemo(
-        () => ({ readonly, orientation, onAgentSelect, onTriggerSelect }),
-        [readonly, orientation, onAgentSelect, onTriggerSelect]
+        () => ({ readonly, orientation, onAgentSelect, onTriggerSelect, onAddTrigger }),
+        [readonly, orientation, onAgentSelect, onTriggerSelect, onAddTrigger]
     );
 
     return (
@@ -306,7 +307,7 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
             <TopLeft>
                 <Legend kinds={legendKinds} />
                 {wiredNothing && (
-                    <EmptyNote>Nothing runs yet. Add a trigger to an agent, or make one agent a tool of another.</EmptyNote>
+                    <EmptyNote>No triggers yet. Agents only run when a trigger calls them. Select Add Trigger on an agent card.</EmptyNote>
                 )}
             </TopLeft>
             {diagramEngine && diagramModel && (

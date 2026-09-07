@@ -41,6 +41,7 @@ import { agentKey } from "./AgentTabs";
 import { EmptyState } from "./EmptyState";
 import { landingLevel, OverviewLevel } from "./landingLevel";
 import { openTrigger } from "../AgentTopology/topologyNavigation";
+import { openAddAgentTrigger } from "../AIChatAgent/utils";
 
 const LazyFocusFlowDiagram = React.lazy(() =>
     import("../FocusFlowDiagram").then((m) => ({ default: m.BIFocusFlowDiagram }))
@@ -316,11 +317,12 @@ interface AgentCanvasContentProps {
     selectedAgent?: ProjectStructureArtifactResponse;
     onOpenAgent: (agent: AgentSelection) => void;
     onOpenTrigger: (trigger: TriggerSelection) => void;
+    onAddTrigger: (agent: AgentSelection) => void;
     onFocusReady: () => void;
 }
 
 function AgentCanvasContent(props: AgentCanvasContentProps) {
-    const { level, projectPath, agents, agentDefinitions, selectedAgent, onOpenAgent, onOpenTrigger, onFocusReady } = props;
+    const { level, projectPath, agents, agentDefinitions, selectedAgent, onOpenAgent, onOpenTrigger, onAddTrigger, onFocusReady } = props;
     if (level === "overview") {
         return (
             <LazyAgentTopology
@@ -329,6 +331,7 @@ function AgentCanvasContent(props: AgentCanvasContentProps) {
                 agentDefinitions={agentDefinitions}
                 onOpenAgent={onOpenAgent}
                 onOpenTrigger={onOpenTrigger}
+                onAddTrigger={onAddTrigger}
             />
         );
     }
@@ -557,6 +560,13 @@ export function AgentBuilderOverview({ projectPath, agentFocus }: AgentBuilderOv
         openTrigger(rpcClient, trigger);
     }, [rpcClient]);
 
+    // The trigger generator calls a plain ai:Agent with `.` and a typed agent with `->`, keyed on the agent's org.
+    const handleAddTriggerFromCanvas = useCallback(async (agent: AgentSelection) => {
+        const isPlainAgent = !agent.moduleName || agent.moduleName === "ai";
+        const toml = isPlainAgent ? undefined : await rpcClient.getCommonRpcClient().getCurrentProjectTomlValues();
+        openAddAgentTrigger(rpcClient, agent.name, isPlainAgent ? "ballerina" : toml?.package?.org);
+    }, [rpcClient]);
+
     const handleConfigure = () => {
         rpcClient.getVisualizerRpcClient().openView({
             type: EVENT_TYPE.OPEN_VIEW,
@@ -734,6 +744,7 @@ export function AgentBuilderOverview({ projectPath, agentFocus }: AgentBuilderOv
                                                 selectedAgent={selectedAgent}
                                                 onOpenAgent={handleOpenAgentFromCanvas}
                                                 onOpenTrigger={handleOpenTrigger}
+                                                onAddTrigger={handleAddTriggerFromCanvas}
                                                 onFocusReady={handleCanvasReady}
                                             />
                                         </React.Suspense>

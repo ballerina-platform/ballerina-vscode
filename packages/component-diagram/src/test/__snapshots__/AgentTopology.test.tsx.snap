@@ -95,7 +95,7 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders an empty package with no 
       <div
         class="css-7"
       >
-        Nothing runs yet. Add a trigger to an agent, or make one agent a tool of another.
+        No triggers yet. Agents only run when a trigger calls them. Select Add Trigger on an agent card.
       </div>
     </div>
     <div

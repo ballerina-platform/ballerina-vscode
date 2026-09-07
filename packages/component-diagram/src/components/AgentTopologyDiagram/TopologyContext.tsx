@@ -24,6 +24,8 @@ export interface TopologyContextState {
     orientation: TopologyOrientation;
     onAgentSelect: (agent: AgentSelection) => void;
     onTriggerSelect: (trigger: TriggerSelection) => void;
+    // An orphan card's "Add Trigger" link; falls back to opening the agent when absent.
+    onAddTrigger?: (agent: AgentSelection) => void;
 }
 
 export const TopologyContext = React.createContext<TopologyContextState>({

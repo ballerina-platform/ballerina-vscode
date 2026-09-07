@@ -111,6 +111,7 @@ function agentNodeFromArtifact(
         orphan: false,
         filePath: artifact.path,
         position: connection?.location?.startLine ?? { line: artifact.startLine, offset: 0 },
+        moduleName: artifact.moduleName,
     };
 }
 

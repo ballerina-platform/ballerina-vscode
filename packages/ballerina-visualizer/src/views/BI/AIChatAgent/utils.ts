@@ -530,12 +530,16 @@ export const startAddAgentTrigger = (node: FlowNode, rpcClient: BallerinaRpcClie
         console.error("Cannot add an agent trigger: missing agent variable name");
         return;
     }
+    openAddAgentTrigger(rpcClient, agentVarName, node.codedata?.org);
+};
+
+export const openAddAgentTrigger = (rpcClient: BallerinaRpcClient, agentName: string, agentOrgName?: string) => {
     void rpcClient.getVisualizerRpcClient().openView({
         type: EVENT_TYPE.OPEN_VIEW,
         isPopup: true,
         location: {
             view: MACHINE_VIEW.BIAddAgentTrigger,
-            artifactInfo: { agentName: agentVarName, agentOrgName: node.codedata?.org },
+            artifactInfo: { agentName, agentOrgName },
         },
     });
 };

@@ -139,6 +139,11 @@ const OrphanFooter = styled.div`
 
     u {
         cursor: pointer;
+        outline: none;
+    }
+    u:focus-visible {
+        outline: 1px solid ${WARNING_COLOR};
+        outline-offset: 2px;
     }
 `;
 
@@ -212,18 +217,22 @@ interface AgentCardNodeWidgetProps {
 
 export function AgentCardNodeWidget(props: AgentCardNodeWidgetProps) {
     const { model, engine } = props;
-    const { onAgentSelect, readonly, orientation } = useTopologyContext();
+    const { onAgentSelect, onAddTrigger, readonly, orientation } = useTopologyContext();
     const vertical = orientation === "vertical";
     const InPort = vertical ? TopPortWidget : LeftPortWidget;
     const OutPort = vertical ? BottomPortWidget : RightPortWidget;
     const [isHovered, setIsHovered] = useState(false);
 
-    const handleClick = () => {
-        onAgentSelect({
-            path: model.node.filePath,
-            startLine: model.node.position.line,
-            name: model.node.name,
-        });
+    const selection = () => ({
+        path: model.node.filePath,
+        startLine: model.node.position.line,
+        name: model.node.name,
+        moduleName: model.node.moduleName,
+    });
+    const handleClick = () => onAgentSelect(selection());
+    const handleAddTrigger = (event: React.SyntheticEvent) => {
+        event.stopPropagation();
+        (onAddTrigger ?? onAgentSelect)(selection());
     };
 
     const { handleMouseDown, handleMouseUp } = useClickWithDragTolerance(handleClick);
@@ -274,7 +283,17 @@ export function AgentCardNodeWidget(props: AgentCardNodeWidgetProps) {
             </Footer>
             {model.node.orphan && (
                 <OrphanFooter>
-                    No trigger yet · <u>Add Trigger</u>
+                    No trigger yet ·{" "}
+                    <u
+                        role="button"
+                        tabIndex={readonly ? -1 : 0}
+                        onMouseDown={(event) => event.stopPropagation()}
+                        onMouseUp={(event) => event.stopPropagation()}
+                        onClick={readonly ? undefined : handleAddTrigger}
+                        onKeyDown={(event) => !readonly && (event.key === "Enter" || event.key === " ") && handleAddTrigger(event)}
+                    >
+                        Add Trigger
+                    </u>
                 </OrphanFooter>
             )}
         </Card>

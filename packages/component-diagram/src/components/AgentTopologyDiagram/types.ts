@@ -68,6 +68,7 @@ export interface TopologyAgentNode {
     orphan: boolean;
     filePath: string;
     position: LinePosition;
+    moduleName?: string;
 }
 
 export interface TopologyTriggerNode {
