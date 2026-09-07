@@ -333,6 +333,9 @@ export function convertModelProviderCategoriesToSidePanelCategories(categories: 
 
 export function convertVectorStoreCategoriesToSidePanelCategories(categories: Category[]): PanelCategory[] {
     return convertCategoriesToSidePanelCategoriesWithIcon(categories, (codedata, iconUrl) => {
+        if (codedata?.module === "ai") {
+            return <NodeIcon type="VECTOR_STORE" size={24} />;
+        }
         return <AIModelIcon type={codedata?.module} codedata={codedata} iconUrl={iconUrl} />;
     });
 }

@@ -2305,9 +2305,8 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                         filePath: model?.fileName || fileName,
                     })
                     .then((response) => {
-                        const modelProviderCategories = convertFunctionCategoriesToSidePanelCategories(
-                            response.categories as Category[],
-                            FUNCTION_TYPE.REGULAR
+                        const modelProviderCategories = convertModelProviderCategoriesToSidePanelCategories(
+                            response.categories as Category[]
                         );
                         instanceListCategoriesRef.current["MODEL_PROVIDER"] = modelProviderCategories;
                         setCategories(modelProviderCategories);
@@ -2328,9 +2327,8 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                         filePath: model?.fileName || fileName,
                     })
                     .then((response) => {
-                        const vectorStoreCategories = convertFunctionCategoriesToSidePanelCategories(
-                            response.categories as Category[],
-                            FUNCTION_TYPE.REGULAR
+                        const vectorStoreCategories = convertVectorStoreCategoriesToSidePanelCategories(
+                            response.categories as Category[]
                         );
                         instanceListCategoriesRef.current["VECTOR_STORE"] = vectorStoreCategories;
                         setCategories(vectorStoreCategories);
@@ -2351,9 +2349,8 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                         filePath: model?.fileName || fileName,
                     })
                     .then((response) => {
-                        const embeddingProviderCategories = convertFunctionCategoriesToSidePanelCategories(
-                            response.categories as Category[],
-                            FUNCTION_TYPE.REGULAR
+                        const embeddingProviderCategories = convertEmbeddingProviderCategoriesToSidePanelCategories(
+                            response.categories as Category[]
                         );
                         instanceListCategoriesRef.current["EMBEDDING_PROVIDER"] = embeddingProviderCategories;
                         setCategories(embeddingProviderCategories);
