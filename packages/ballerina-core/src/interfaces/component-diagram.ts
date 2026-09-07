@@ -114,6 +114,24 @@ export type CDConnection = {
     role?: string;
     delegatesTo?: string[];
     toolConnections?: string[];
+    modelProvider?: CDModelProvider;
+    memory?: CDMemoryStore;
+    // Tool functions that hand the request to another agent; the rest of dependentFunctions are plain tools.
+    agentTools?: string[];
+    // The agent's class name, e.g. Agent or a definition such as CalendarAssistant.
+    typeName?: string;
+};
+
+// The provider an agent is constructed with; `symbol` is absent for an inline expression.
+export type CDModelProvider = {
+    symbol?: string;
+    type: string;
+    icon?: string;
+};
+
+export type CDMemoryStore = {
+    symbol?: string;
+    type: string;
 };
 
 export type CDListener = {

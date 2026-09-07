@@ -60,7 +60,9 @@ import io.ballerina.projects.Package;
 import io.ballerina.tools.text.LineRange;
 
 import java.nio.file.Path;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -245,23 +247,33 @@ public class DesignModelGenerator {
                 if (!tool.analyzed) {
                     buildConnectionAndWorkflowGraph(intermediateModel, tool, null);
                 }
-                classifyToolConnections(intermediateModel, connection, tool);
+                classifyToolConnections(intermediateModel, connection, toolFunctionName, tool);
             }
         }
     }
 
-    private void classifyToolConnections(IntermediateModel intermediateModel, Connection agent,
+    // A tool's connections are the clients it uses itself; what a delegated agent uses (its memory, its
+    // store, its own tools' clients) belongs on that agent's card, so the walk stops at agents. Hidden AI
+    // objects (providers, memories) are not connections.
+    private void classifyToolConnections(IntermediateModel intermediateModel, Connection agent, String toolName,
                                          IntermediateModel.FunctionModel tool) {
-        for (String dependentConnectionUuid : tool.allDependentConnections) {
-            Connection dependentConnection = intermediateModel.uuidToConnectionMap.get(dependentConnectionUuid);
-            if (dependentConnection == null) {
+        Set<String> seen = new HashSet<>();
+        Deque<String> pending = new ArrayDeque<>(tool.connections);
+        while (!pending.isEmpty()) {
+            String uuid = pending.pop();
+            Connection dependentConnection = intermediateModel.uuidToConnectionMap.get(uuid);
+            if (dependentConnection == null || !seen.add(uuid)) {
                 continue;
             }
             if (ConnectionKind.AGENT.toString().equals(dependentConnection.getKind())) {
-                agent.addDelegatesTo(dependentConnectionUuid);
-            } else {
-                agent.addToolConnection(dependentConnectionUuid);
+                agent.addDelegatesTo(uuid);
+                agent.addAgentTool(toolName);
+                continue;
             }
+            if (dependentConnection.isFlowModelEnabled()) {
+                agent.addToolConnection(uuid);
+            }
+            pending.addAll(dependentConnection.getDependentConnection());
         }
     }
 
@@ -597,9 +609,12 @@ public class DesignModelGenerator {
                             persistClassSymbol = cs;
                             icon = getPersistDatabaseIcon(cs).orElse(icon);
                         }
+                        ConnectionKind kind = CommonUtils.getConnectionKind(objectTypeSymbol);
                         Connection connection = new Connection(variableSymbol.getName().get(), sortText,
-                                getLocation(lineRange), Connection.Scope.GLOBAL, icon, showConnection,
-                                CommonUtils.getConnectionKind(objectTypeSymbol));
+                                getLocation(lineRange), Connection.Scope.GLOBAL, icon, showConnection, kind);
+                        if (kind == ConnectionKind.AGENT) {
+                            connection.setTypeName(CommonUtils.getTypeName(objectTypeSymbol));
+                        }
                         if (persistClassSymbol != null) {
                             connection.addMetadata(CONNECTOR_TYPE, PERSIST);
                             getPersistModelFilePath(rootPath, persistClassSymbol)

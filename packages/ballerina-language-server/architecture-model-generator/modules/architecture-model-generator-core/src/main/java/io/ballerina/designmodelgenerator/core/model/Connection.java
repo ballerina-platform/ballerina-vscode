@@ -42,6 +42,11 @@ public class Connection extends DesignGraphNode {
     private String role;
     private Set<String> delegatesTo;
     private Set<String> toolConnections;
+    // Tool functions that hand the request to another agent, by name; the rest of dependentFunctions are plain tools.
+    private Set<String> agentTools;
+    private ModelProvider modelProvider;
+    private MemoryStore memory;
+    private String typeName;
 
     public Connection(String symbol, String sortText, Location location, Scope scope, String icon) {
         super(sortText);
@@ -151,6 +156,49 @@ public class Connection extends DesignGraphNode {
         return delegatesTo;
     }
 
+    public ModelProvider getModelProvider() {
+        return modelProvider;
+    }
+
+    public void setModelProvider(ModelProvider modelProvider) {
+        this.modelProvider = modelProvider;
+    }
+
+    public MemoryStore getMemory() {
+        return memory;
+    }
+
+    public void setMemory(MemoryStore memory) {
+        this.memory = memory;
+    }
+
+    public String getTypeName() {
+        return typeName;
+    }
+
+    public void setTypeName(String typeName) {
+        this.typeName = typeName;
+    }
+
+    /**
+     * The memory store an agent is constructed with.
+     *
+     * @param symbol the memory variable's name, absent for an inline expression
+     * @param type   the memory class name, e.g. MessageWindowChatMemory
+     */
+    public record MemoryStore(String symbol, String type) {
+    }
+
+    /**
+     * The model provider an agent is constructed with.
+     *
+     * @param symbol the provider variable's name, absent for an inline expression
+     * @param type   the provider class name, e.g. Wso2ModelProvider or OpenAiProvider
+     * @param icon   the provider module's icon URL, absent for an inline default provider
+     */
+    public record ModelProvider(String symbol, String type, String icon) {
+    }
+
     public void addDelegatesTo(String agentUuid) {
         if (this.delegatesTo == null) {
             this.delegatesTo = new HashSet<>();
@@ -160,6 +208,17 @@ public class Connection extends DesignGraphNode {
 
     public Set<String> getToolConnections() {
         return toolConnections;
+    }
+
+    public Set<String> getAgentTools() {
+        return agentTools;
+    }
+
+    public void addAgentTool(String toolFunctionName) {
+        if (this.agentTools == null) {
+            this.agentTools = new HashSet<>();
+        }
+        this.agentTools.add(toolFunctionName);
     }
 
     public void addToolConnection(String connectionUuid) {

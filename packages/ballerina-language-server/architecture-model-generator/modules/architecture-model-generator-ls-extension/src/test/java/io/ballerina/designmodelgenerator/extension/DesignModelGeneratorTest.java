@@ -244,9 +244,15 @@ public class DesignModelGeneratorTest extends AbstractLSTest {
             Connection expectedConnection = expectedBySymbol.get(actualConnection.getSymbol());
             if (expectedConnection == null
                     || !Objects.equals(actualConnection.getRole(), expectedConnection.getRole())
+                    || !Objects.equals(actualConnection.getDependentFunctions(),
+                            expectedConnection.getDependentFunctions())
                     || sizeOf(actualConnection.getDelegatesTo()) != sizeOf(expectedConnection.getDelegatesTo())
                     || sizeOf(actualConnection.getToolConnections())
-                            != sizeOf(expectedConnection.getToolConnections())) {
+                            != sizeOf(expectedConnection.getToolConnections())
+                    || !Objects.equals(actualConnection.getModelProvider(), expectedConnection.getModelProvider())
+                    || !Objects.equals(actualConnection.getMemory(), expectedConnection.getMemory())
+                    || !Objects.equals(actualConnection.getAgentTools(), expectedConnection.getAgentTools())
+                    || !Objects.equals(actualConnection.getTypeName(), expectedConnection.getTypeName())) {
                 return false;
             }
         }

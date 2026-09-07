@@ -22,7 +22,7 @@
           "dependentFunctions": [],
           "dependentConnection": [],
           "kind": "Connection",
-          "uuid": "0262198b-79f3-1bb4-0224-336889e690c3",
+          "uuid": "83147bcb-6fff-31cb-ce5f-9cb2d2250696",
           "enableFlowModel": true,
           "sortText": "chatAgent.bal3"
         },
@@ -48,10 +48,11 @@
           "dependentConnection": [],
           "kind": "Agent",
           "toolConnections": [
-            "0262198b-79f3-1bb4-0224-336889e690c3",
-            "96ea9bf0-e738-0ec8-194d-62d8736f0ccc"
+            "f2ca2d27-c903-d2b8-1299-029417157f1a",
+            "83147bcb-6fff-31cb-ce5f-9cb2d2250696"
           ],
-          "uuid": "63961867-7288-acc7-33df-feb5efd84866",
+          "typeName": "Agent",
+          "uuid": "8b53af5e-2e48-3d9c-a1fa-01585782eca8",
           "enableFlowModel": true,
           "sortText": "chatAgent.bal5"
         },
@@ -73,7 +74,8 @@
           "dependentFunctions": [],
           "dependentConnection": [],
           "kind": "Agent",
-          "uuid": "a6735f08-8e53-63c3-247c-c587f1519949",
+          "typeName": "Agent",
+          "uuid": "3d2b6c44-c0cc-d514-e181-e9b6308e3673",
           "enableFlowModel": true,
           "sortText": "chatAgent.bal11"
         },
@@ -95,7 +97,7 @@
           "dependentFunctions": [],
           "dependentConnection": [],
           "kind": "Connection",
-          "uuid": "96ea9bf0-e738-0ec8-194d-62d8736f0ccc",
+          "uuid": "f2ca2d27-c903-d2b8-1299-029417157f1a",
           "enableFlowModel": true,
           "sortText": "chatAgent.bal2"
         }
@@ -115,7 +117,7 @@
             }
           },
           "attachedServices": [
-            "99db571f-b317-91c1-ac47-f8064a427f1e"
+            "90f5f0bd-8670-a591-4b61-1f192b5191fd"
           ],
           "kind": "ANON",
           "type": "http:Listener",
@@ -126,7 +128,7 @@
             }
           ],
           "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.6.png",
-          "uuid": "839e60bf-ebc1-1893-1dff-1f8a4f93ac62",
+          "uuid": "5dffb3a8-25ea-e349-e6c7-dbb3edb0d53f",
           "enableFlowModel": false,
           "sortText": "chatAgent.bal21"
         },
@@ -144,7 +146,7 @@
             }
           },
           "attachedServices": [
-            "085235e5-5c09-3cf0-53ef-e3e2a4bae3d0"
+            "579271c1-30dc-57dd-c4c1-716f13c48472"
           ],
           "kind": "ANON",
           "type": "http:Listener",
@@ -155,7 +157,7 @@
             }
           ],
           "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.6.png",
-          "uuid": "fc77976f-c9a5-2ca9-8f9e-c5ef102bea43",
+          "uuid": "39402b20-682e-d664-ea2a-aa467b8a7037",
           "enableFlowModel": false,
           "sortText": "chatAgent.bal14"
         }
@@ -174,10 +176,10 @@
             }
           },
           "attachedListeners": [
-            "839e60bf-ebc1-1893-1dff-1f8a4f93ac62"
+            "5dffb3a8-25ea-e349-e6c7-dbb3edb0d53f"
           ],
           "connections": [
-            "a6735f08-8e53-63c3-247c-c587f1519949"
+            "3d2b6c44-c0cc-d514-e181-e9b6308e3673"
           ],
           "workflows": [],
           "functions": [],
@@ -198,15 +200,16 @@
                 }
               },
               "connections": [
-                "a6735f08-8e53-63c3-247c-c587f1519949"
+                "3d2b6c44-c0cc-d514-e181-e9b6308e3673"
               ],
               "workflows": [],
               "workflowSendData": {},
               "invalidWorkflowSendData": [],
               "agentCalls": [
                 {
-                  "connection": "a6735f08-8e53-63c3-247c-c587f1519949",
-                  "line": 24
+                  "connection": "3d2b6c44-c0cc-d514-e181-e9b6308e3673",
+                  "line": 24,
+                  "groups": []
                 }
               ]
             }
@@ -214,7 +217,7 @@
           "absolutePath": "/tool2Service ",
           "type": "http:Service",
           "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.6.png",
-          "uuid": "99db571f-b317-91c1-ac47-f8064a427f1e",
+          "uuid": "90f5f0bd-8670-a591-4b61-1f192b5191fd",
           "enableFlowModel": true,
           "sortText": "chatAgent.bal21"
         },
@@ -231,12 +234,12 @@
             }
           },
           "attachedListeners": [
-            "fc77976f-c9a5-2ca9-8f9e-c5ef102bea43"
+            "39402b20-682e-d664-ea2a-aa467b8a7037"
           ],
           "connections": [
-            "0262198b-79f3-1bb4-0224-336889e690c3",
-            "63961867-7288-acc7-33df-feb5efd84866",
-            "96ea9bf0-e738-0ec8-194d-62d8736f0ccc"
+            "8b53af5e-2e48-3d9c-a1fa-01585782eca8",
+            "f2ca2d27-c903-d2b8-1299-029417157f1a",
+            "83147bcb-6fff-31cb-ce5f-9cb2d2250696"
           ],
           "workflows": [],
           "functions": [],
@@ -257,17 +260,18 @@
                 }
               },
               "connections": [
-                "0262198b-79f3-1bb4-0224-336889e690c3",
-                "63961867-7288-acc7-33df-feb5efd84866",
-                "96ea9bf0-e738-0ec8-194d-62d8736f0ccc"
+                "8b53af5e-2e48-3d9c-a1fa-01585782eca8",
+                "f2ca2d27-c903-d2b8-1299-029417157f1a",
+                "83147bcb-6fff-31cb-ce5f-9cb2d2250696"
               ],
               "workflows": [],
               "workflowSendData": {},
               "invalidWorkflowSendData": [],
               "agentCalls": [
                 {
-                  "connection": "63961867-7288-acc7-33df-feb5efd84866",
-                  "line": 17
+                  "connection": "8b53af5e-2e48-3d9c-a1fa-01585782eca8",
+                  "line": 17,
+                  "groups": []
                 }
               ]
             }
@@ -275,7 +279,7 @@
           "absolutePath": "/tool1Service ",
           "type": "http:Service",
           "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.6.png",
-          "uuid": "085235e5-5c09-3cf0-53ef-e3e2a4bae3d0",
+          "uuid": "579271c1-30dc-57dd-c4c1-716f13c48472",
           "enableFlowModel": true,
           "sortText": "chatAgent.bal14"
         }

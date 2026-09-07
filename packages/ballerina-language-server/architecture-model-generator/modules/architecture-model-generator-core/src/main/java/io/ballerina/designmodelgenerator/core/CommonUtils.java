@@ -353,6 +353,13 @@ public class CommonUtils {
         if (isAiFixedTypedAgent(typeSymbol) || isAiDependentlyTypedAgent(typeSymbol)) {
             return ConnectionKind.AGENT;
         }
+        // Providers outside ballerina/ai (OpenAI, Anthropic, Azure, ...) include the ai:ModelProvider type.
+        if (io.ballerina.modelgenerator.commons.CommonUtils.isAiModelProvider(typeSymbol)) {
+            return ConnectionKind.MODEL_PROVIDER;
+        }
+        if (io.ballerina.modelgenerator.commons.CommonUtils.isAiEmbeddingProvider(typeSymbol)) {
+            return ConnectionKind.EMBEDDING_PROVIDER;
+        }
         return ConnectionKind.CONNECTION;
     }
 

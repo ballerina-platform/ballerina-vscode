@@ -19,9 +19,12 @@
 package io.ballerina.designmodelgenerator.core;
 
 import io.ballerina.compiler.api.SemanticModel;
+import io.ballerina.compiler.api.symbols.AnnotationAttachmentSymbol;
 import io.ballerina.compiler.api.symbols.ClassFieldSymbol;
 import io.ballerina.compiler.api.symbols.ClassSymbol;
 import io.ballerina.compiler.api.symbols.FunctionSymbol;
+import io.ballerina.compiler.api.symbols.MethodSymbol;
+import io.ballerina.compiler.api.symbols.ModuleSymbol;
 import io.ballerina.compiler.api.symbols.ObjectTypeSymbol;
 import io.ballerina.compiler.api.symbols.Qualifier;
 import io.ballerina.compiler.api.symbols.Symbol;
@@ -33,6 +36,7 @@ import io.ballerina.compiler.syntax.tree.CheckExpressionNode;
 import io.ballerina.compiler.syntax.tree.ExplicitNewExpressionNode;
 import io.ballerina.compiler.syntax.tree.ExpressionNode;
 import io.ballerina.compiler.syntax.tree.FunctionArgumentNode;
+import io.ballerina.compiler.syntax.tree.FunctionCallExpressionNode;
 import io.ballerina.compiler.syntax.tree.ImplicitNewExpressionNode;
 import io.ballerina.compiler.syntax.tree.ListConstructorExpressionNode;
 import io.ballerina.compiler.syntax.tree.MappingConstructorExpressionNode;
@@ -51,6 +55,7 @@ import io.ballerina.compiler.syntax.tree.SpecificFieldNode;
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.compiler.syntax.tree.VariableDeclarationNode;
 import io.ballerina.designmodelgenerator.core.model.Connection;
+import io.ballerina.designmodelgenerator.core.model.ConnectionKind;
 import io.ballerina.tools.diagnostics.Location;
 import io.ballerina.tools.text.LineRange;
 
@@ -69,6 +74,11 @@ public class ConnectionFinder {
 
     private static final String SYSTEM_PROMPT_FIELD = "systemPrompt";
     private static final String ROLE_FIELD = "role";
+    private static final String MODEL_FIELD = "model";
+    private static final String MEMORY_FIELD = "memory";
+    private static final String DEFAULT_MODEL_PROVIDER_FUNCTION = "getDefaultModelProvider";
+    private static final String WSO2_MODEL_PROVIDER = "Wso2ModelProvider";
+    private static final String AGENT_TOOL_ANNOTATION = "AgentTool";
 
     private final SemanticModel semanticModel;
     private final Map<String, ModulePartNode> documentMap;
@@ -153,6 +163,8 @@ public class ConnectionFinder {
                                 if (expressionNode instanceof NewExpressionNode newExpressionNode) {
                                     SeparatedNodeList<FunctionArgumentNode> argList = getArgList(newExpressionNode);
                                     extractRole(connection, argList);
+                                    extractAgentConfig(connection, argList);
+                                    extractTypedAgentTools(connection, rawType);
                                     List<ExpressionNode> argExprs = getInitMethodArgExprs(argList);
                                     for (ExpressionNode argExpr : argExprs) {
                                         handleInitMethodArgs(connection, argExpr);
@@ -295,7 +307,7 @@ public class ConnectionFinder {
                 if (expr instanceof SpecificFieldNode specificFieldNode
                         && specificFieldNode.valueExpr().isPresent()) {
                     ExpressionNode fieldValue = specificFieldNode.valueExpr().get();
-                    recordRoleIfSystemPrompt(connection, specificFieldNode.fieldName().toSourceCode().trim(),
+                    recordAgentConfigField(connection, specificFieldNode.fieldName().toSourceCode().trim(),
                             fieldValue);
                     handleInitMethodArgs(connection, fieldValue);
                 }
@@ -336,10 +348,88 @@ public class ConnectionFinder {
         }
     }
 
-    private void recordRoleIfSystemPrompt(Connection connection, String fieldName, ExpressionNode fieldValue) {
+    /**
+     * Records what the agent is constructed with: the {@code model = ...} and {@code memory = ...} named
+     * arguments of an {@code ai:Agent}, or a positional argument of provider type, as a typed agent's class takes it.
+     */
+    public void extractAgentConfig(Connection connection, SeparatedNodeList<FunctionArgumentNode> argList) {
+        for (Node argument : argList) {
+            if (argument instanceof NamedArgumentNode namedArgumentNode) {
+                recordAgentConfigField(connection, namedArgumentNode.argumentName().name().text(),
+                        namedArgumentNode.expression());
+            } else if (argument instanceof PositionalArgumentNode positionalArgumentNode) {
+                setModelProvider(connection, positionalArgumentNode.expression());
+            }
+        }
+    }
+
+    // A typed agent's tools are its methods annotated @ai:AgentTool, as the flow model lists them.
+    public void extractTypedAgentTools(Connection connection, TypeSymbol rawType) {
+        if (!(rawType instanceof ClassSymbol classSymbol)) {
+            return;
+        }
+        if (!CommonUtils.isAiFixedTypedAgent(classSymbol) && !CommonUtils.isAiDependentlyTypedAgent(classSymbol)) {
+            return;
+        }
+        for (MethodSymbol method : classSymbol.methods().values()) {
+            if (method.annotAttachments().stream().anyMatch(ConnectionFinder::isAgentToolAnnotation)) {
+                method.getName().ifPresent(connection::addDependentFunction);
+            }
+        }
+    }
+
+    private static boolean isAgentToolAnnotation(AnnotationAttachmentSymbol annotation) {
+        return annotation.typeDescriptor().nameEquals(AGENT_TOOL_ANNOTATION)
+                && annotation.typeDescriptor().getModule()
+                .map(ModuleSymbol::id)
+                .filter(id -> CommonUtils.isAiModule(id.orgName(), id.packageName()))
+                .isPresent();
+    }
+
+    private void setMemory(Connection connection, ExpressionNode expression) {
+        ExpressionNode expr = expression instanceof CheckExpressionNode check ? check.expression() : expression;
+        Optional<TypeSymbol> type = this.semanticModel.typeOf(expr);
+        if (type.isEmpty()) {
+            return;
+        }
+        TypeSymbol rawType = CommonUtils.getRawType(type.get());
+        if (!(rawType instanceof ClassSymbol)) {
+            return;
+        }
+        String symbol = expr instanceof SimpleNameReferenceNode varRef ? varRef.name().text() : null;
+        connection.setMemory(new Connection.MemoryStore(symbol, CommonUtils.getTypeName(rawType)));
+    }
+
+    // A named variable resolves through its type; an inline `ai:getDefaultModelProvider()` has no variable
+    // and a union return type, so it is recognised by name.
+    private void setModelProvider(Connection connection, ExpressionNode expression) {
+        ExpressionNode expr = expression instanceof CheckExpressionNode check ? check.expression() : expression;
+        if (expr instanceof FunctionCallExpressionNode call
+                && call.functionName().toSourceCode().trim().endsWith(DEFAULT_MODEL_PROVIDER_FUNCTION)) {
+            connection.setModelProvider(new Connection.ModelProvider(null, WSO2_MODEL_PROVIDER, null));
+            return;
+        }
+        Optional<TypeSymbol> type = this.semanticModel.typeOf(expr);
+        if (type.isEmpty()) {
+            return;
+        }
+        TypeSymbol rawType = CommonUtils.getRawType(type.get());
+        if (CommonUtils.getConnectionKind(rawType) != ConnectionKind.MODEL_PROVIDER) {
+            return;
+        }
+        String symbol = expr instanceof SimpleNameReferenceNode varRef ? varRef.name().text() : null;
+        connection.setModelProvider(new Connection.ModelProvider(symbol, CommonUtils.getTypeName(rawType),
+                CommonUtils.generateIcon(rawType)));
+    }
+
+    private void recordAgentConfigField(Connection connection, String fieldName, ExpressionNode fieldValue) {
         if (SYSTEM_PROMPT_FIELD.equals(fieldName)
                 && fieldValue instanceof MappingConstructorExpressionNode systemPrompt) {
             setRoleFromSystemPrompt(connection, systemPrompt);
+        } else if (MODEL_FIELD.equals(fieldName)) {
+            setModelProvider(connection, fieldValue);
+        } else if (MEMORY_FIELD.equals(fieldName)) {
+            setMemory(connection, fieldValue);
         }
     }
 

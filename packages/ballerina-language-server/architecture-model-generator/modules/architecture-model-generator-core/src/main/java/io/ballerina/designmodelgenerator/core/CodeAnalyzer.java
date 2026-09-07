@@ -759,6 +759,8 @@ public class CodeAnalyzer extends NodeVisitor {
                         SeparatedNodeList<FunctionArgumentNode> argList =
                                 connectionFinder.getArgList(newExpressionNode);
                         connectionFinder.extractRole(connection, argList);
+                        connectionFinder.extractAgentConfig(connection, argList);
+                        connectionFinder.extractTypedAgentTools(connection, rawType);
                         List<ExpressionNode> argExprs = connectionFinder.getInitMethodArgExprs(argList);
                         for (ExpressionNode argExpr : argExprs) {
                             connectionFinder.handleInitMethodArgs(connection, argExpr);

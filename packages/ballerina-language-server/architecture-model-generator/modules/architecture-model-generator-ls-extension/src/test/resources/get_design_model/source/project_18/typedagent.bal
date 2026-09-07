@@ -9,9 +9,20 @@ class CustomSupportAgent {
     public function init(ai:ModelProvider model) returns error? {
         self.agent = check new (
             systemPrompt = {role: string ``, instructions: string ``},
-            tools = [],
+            tools = [self.lookupTicket, self.escalate],
             model = model
         );
+    }
+
+    @ai:AgentTool
+    isolated function lookupTicket(string id) returns string {
+        return string `ticket ${id}`;
+    }
+
+    // Uses an http:Client from a class-method tool -- exercises toolConnections on a typed agent.
+    @ai:AgentTool
+    isolated function escalate(string id) returns string|error {
+        return billingClient->get(string `/escalate/${id}`);
     }
 }
 
