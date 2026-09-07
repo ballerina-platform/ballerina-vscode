@@ -23,7 +23,7 @@ import { ThemeColors } from "@wso2/ui-toolkit";
 import { CardPopover, PopoverRow } from "../AgentTopologyDiagram/CardPopover";
 import { TopologyLinkModel } from "../NodeLink/TopologyLinkModel";
 import { Point, linkRoute } from "../NodeLink/topologyRoute";
-import { RECEDED_OPACITY } from "../NodeLink/TopologyLinkWidget";
+import { FOCUS_FADE, RECEDED_OPACITY } from "../NodeLink/TopologyLinkWidget";
 import { useTopologyContext } from "../AgentTopologyDiagram/TopologyContext";
 
 const CHIP_BOX_WIDTH = 260;
@@ -128,7 +128,7 @@ export function ChipLayerWidget({ engine }: ChipLayerWidgetProps) {
                 const { chipPoint, pillPoint } = linkRoute(link);
                 const opacity = focus && !focus.edges.has(link.edgeId) ? RECEDED_OPACITY : 1;
                 return (
-                    <g key={link.getID()} opacity={opacity} style={{ transition: "opacity 150ms ease-out" }}>
+                    <g key={link.getID()} style={{ opacity, transition: `opacity ${FOCUS_FADE}` }}>
                         {link.chips.slice(0, 2).map((chip, index) =>
                             chip.kind === "sequence" ? (
                                 <SequenceChip key={index} point={chipPoint} text={chip.text} steps={chip.steps ?? []} zoom={zoom} />

@@ -21,14 +21,14 @@ import styled from "@emotion/styled";
 import { DiagramEngine, PortWidget } from "@projectstorm/react-diagrams-core";
 import { ThemeColors } from "@wso2/ui-toolkit";
 import { SplitNodeModel } from "./SplitNodeModel";
-import { SPLIT_SIZE } from "../../../resources/constants";
+import { FOCUS_FADE_MS, SPLIT_SIZE } from "../../../resources/constants";
 import { SplitGlyph } from "../../AgentTopologyDiagram/SplitGlyph";
 import { SPLIT_LABEL } from "../../AgentTopologyDiagram/types";
 import { useTopologyContext } from "../../AgentTopologyDiagram/TopologyContext";
 
 const Box = styled.div<{ receded: boolean }>`
     opacity: ${(props) => (props.receded ? 0.55 : 1)};
-    transition: opacity 150ms ease-out;
+    transition: opacity ${FOCUS_FADE_MS}ms ease;
     position: relative;
     width: ${SPLIT_SIZE}px;
     height: ${SPLIT_SIZE}px;

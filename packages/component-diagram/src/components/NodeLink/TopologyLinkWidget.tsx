@@ -22,8 +22,10 @@ import { ThemeColors } from "@wso2/ui-toolkit";
 import { TopologyLinkModel } from "./TopologyLinkModel";
 import { linkRoute, roundedPath } from "./topologyRoute";
 import { useTopologyContext } from "../AgentTopologyDiagram/TopologyContext";
+import { FOCUS_FADE_MS } from "../../resources/constants";
 
 export const RECEDED_OPACITY = 0.18;
+export const FOCUS_FADE = `${FOCUS_FADE_MS}ms ease`;
 
 interface TopologyLinkWidgetProps {
     link: TopologyLinkModel;
@@ -43,13 +45,13 @@ export function TopologyLinkWidget({ link }: TopologyLinkWidgetProps) {
     const markerId = `${link.getID()}-arrow`;
 
     return (
-        <g pointerEvents="all" opacity={opacity} style={{ transition: "opacity 150ms ease-out" }} onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)}>
+        <g pointerEvents="all" style={{ opacity, transition: `opacity ${FOCUS_FADE}` }} onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)}>
             <path d={path} fill="none" stroke="transparent" strokeWidth={16} />
             <path
                 id={link.getID()}
                 d={path}
                 fill="none"
-                stroke={color}
+                style={{ stroke: color, transition: `stroke ${FOCUS_FADE}` }}
                 strokeWidth={1.5}
                 strokeDasharray={link.dashed ? "6 5" : undefined}
                 markerEnd={link.arrow ? `url(#${markerId})` : undefined}
@@ -64,7 +66,7 @@ export function TopologyLinkWidget({ link }: TopologyLinkWidgetProps) {
                     orient="auto"
                     id={markerId}
                 >
-                    <polygon points={`0,0 0,${ARROW_SIZE} ${ARROW_SIZE},${ARROW_SIZE / 2}`} fill={color} />
+                    <polygon points={`0,0 0,${ARROW_SIZE} ${ARROW_SIZE},${ARROW_SIZE / 2}`} style={{ fill: color, transition: `fill ${FOCUS_FADE}` }} />
                 </marker>
             </defs>
         </g>

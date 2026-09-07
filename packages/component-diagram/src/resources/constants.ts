@@ -53,6 +53,8 @@ export const NODE_GAP_X = 160;
 // agent topology
 export const AGENT_CARD_WIDTH = 280;
 export const AGENT_CARD_MIN_HEIGHT = 112;
+// One fade for everything hover focus lights or recedes: links, chips and nodes.
+export const FOCUS_FADE_MS = 260;
 export const TRIGGER_SIZE = 56;
 export const TRIGGER_LABEL_WIDTH = 232;
 export const TRIGGER_LABEL_GAP = 14;

@@ -24,6 +24,7 @@ import { resolveBrandIcon, resolveEntryTypeGlyph } from "@wso2/ballerina-core";
 import { ConnectorIcon } from "@wso2/bi-diagram";
 import { TriggerNodeModel } from "./TriggerNodeModel";
 import {
+    FOCUS_FADE_MS,
     NODE_BORDER_WIDTH,
     TRIGGER_LABEL_GAP,
     TRIGGER_LABEL_WIDTH,
@@ -39,7 +40,7 @@ import { useClickWithDragTolerance } from "../../../hooks/useClickWithDragTolera
 const Wrapper = styled.div<{ readonly?: boolean; vertical: boolean; receded: boolean }>`
     display: flex;
     opacity: ${(props) => (props.receded ? 0.55 : 1)};
-    transition: opacity 150ms ease-out;
+    transition: opacity ${FOCUS_FADE_MS}ms ease;
     flex-direction: ${(props) => (props.vertical ? "column" : "row")};
     align-items: center;
     justify-content: ${(props) => (props.vertical ? "flex-end" : "flex-start")};

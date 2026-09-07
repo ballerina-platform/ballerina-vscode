@@ -46,7 +46,7 @@ export interface AgentTopologyDiagramProps {
 
 const FIT_MARGIN = 40;
 const GLIDE_MS = 240;
-const HOVER_FOCUS_DELAY_MS = 150;
+const HOVER_FOCUS_DELAY_MS = 60;
 // Ports are re-measured only once the nodes have finished gliding.
 const SETTLE_MS = GLIDE_MS + 60;
 

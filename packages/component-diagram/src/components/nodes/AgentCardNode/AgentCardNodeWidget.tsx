@@ -23,7 +23,7 @@ import { Icon, ThemeColors, getAIModuleIcon } from "@wso2/ui-toolkit";
 import { NodeIcon } from "@wso2/bi-diagram";
 import { resolveBrandIconFromUrl } from "@wso2/ballerina-core";
 import { AgentCardNodeModel } from "./AgentCardNodeModel";
-import { AGENT_CARD_MIN_HEIGHT, AGENT_CARD_WIDTH, NODE_BORDER_WIDTH } from "../../../resources/constants";
+import { AGENT_CARD_MIN_HEIGHT, AGENT_CARD_WIDTH, FOCUS_FADE_MS, NODE_BORDER_WIDTH } from "../../../resources/constants";
 import { useTopologyContext } from "../../AgentTopologyDiagram/TopologyContext";
 import { CardPopover, PopoverRow } from "../../AgentTopologyDiagram/CardPopover";
 import { useClickWithDragTolerance } from "../../../hooks/useClickWithDragTolerance";
@@ -54,7 +54,7 @@ const Card = styled.div<{ hovered: boolean; orphan: boolean; receded: boolean; r
     cursor: ${(props) => (props.readonly ? "default" : "pointer")};
     position: relative;
     opacity: ${(props) => (props.receded ? 0.55 : 1)};
-    transition: border-color 0.2s ease-out, opacity 150ms ease-out;
+    transition: border-color 0.2s ease-out, opacity ${FOCUS_FADE_MS}ms ease;
 
     &:focus-visible {
         outline: 2px solid ${ThemeColors.HIGHLIGHT};
