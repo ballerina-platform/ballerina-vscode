@@ -133,7 +133,7 @@ const Strip = styled.div`
     flex-shrink: 0;
     min-width: 0;
     height: 40px;
-    padding: 0 8px 0 12px;
+    padding-inline: 12px 0;
     background-color: var(--vscode-sideBar-background, var(--vscode-panel-background));
     border-bottom: 1px solid ${ThemeColors.OUTLINE_VARIANT};
 `;
@@ -141,44 +141,45 @@ const Strip = styled.div`
 const BreadcrumbLabel = styled.div`
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 16px;
     min-width: 0;
     height: 100%;
     font-size: 13px;
     color: var(--vscode-foreground);
 `;
 
-const BreadcrumbLink = styled.button`
+// A bordered pill so the back control reads as a control, not as a label beside the title.
+const BackButton = styled.button`
     display: inline-flex;
     align-items: center;
-    gap: 2px;
+    gap: 6px;
     height: 26px;
-    padding: 0 8px 0 4px;
-    margin-left: -6px;
-    border: none;
+    padding-block: 0;
+    padding-inline: 6px 10px;
+    border: 1px solid ${ThemeColors.OUTLINE_VARIANT};
+    border-radius: 5px;
     background: none;
     cursor: pointer;
     font: inherit;
     font-size: 13px;
     line-height: 1;
-    color: var(--vscode-textLink-foreground);
-    border-radius: 5px;
+    color: var(--vscode-foreground);
+    transition-property: background-color, transform;
+    transition-duration: 120ms;
+    transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
 
     &:hover {
         background-color: var(--vscode-toolbar-hoverBackground);
+    }
+
+    &:active {
+        transform: scale(0.96);
     }
 
     &:focus-visible {
         outline: 1px solid var(--vscode-focusBorder);
         outline-offset: -1px;
     }
-`;
-
-const BreadcrumbSeparator = styled.span`
-    display: inline-flex;
-    align-items: center;
-    color: var(--vscode-descriptionForeground);
-    line-height: 1;
 `;
 
 const BreadcrumbName = styled.span`
@@ -190,18 +191,14 @@ const BreadcrumbName = styled.span`
     font-size: 12.5px;
 `;
 
-const BreadcrumbRoot = styled.span`
-    color: var(--vscode-descriptionForeground);
-`;
-
 const AddAgentButton = styled.button`
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 0 12px;
+    padding-inline: 12px;
     height: 100%;
     border: none;
-    border-left: 1px solid ${ThemeColors.OUTLINE_VARIANT};
+    border-inline-start: 1px solid ${ThemeColors.OUTLINE_VARIANT};
     background: none;
     cursor: pointer;
     font: inherit;
@@ -279,31 +276,22 @@ interface AgentBreadcrumbProps {
     onBack: () => void;
 }
 
+const OVERVIEW_TITLE = "Agent Overview";
+
+// Overview: the title. One agent: its name (there is no overview to return to). Otherwise a back
+// button to the overview, then the agent's name as the title.
 function AgentBreadcrumb({ level, agentCount, selectedAgentName, onBack }: AgentBreadcrumbProps) {
     if (level === "overview") {
-        return <BreadcrumbLabel>Agents</BreadcrumbLabel>;
-    }
-    const separator = (
-        <BreadcrumbSeparator aria-hidden="true">
-            <Codicon name="chevron-right" iconSx={{ fontSize: 14, display: "flex" }} />
-        </BreadcrumbSeparator>
-    );
-    if (agentCount >= 2) {
-        return (
-            <BreadcrumbLabel>
-                <BreadcrumbLink onClick={onBack} title="Back to all agents (Esc)">
-                    <Codicon name="chevron-left" iconSx={{ fontSize: 16, display: "flex" }} />
-                    Agents
-                </BreadcrumbLink>
-                {separator}
-                <BreadcrumbName>{selectedAgentName}</BreadcrumbName>
-            </BreadcrumbLabel>
-        );
+        return <BreadcrumbLabel>{OVERVIEW_TITLE}</BreadcrumbLabel>;
     }
     return (
         <BreadcrumbLabel>
-            <BreadcrumbRoot>Agents</BreadcrumbRoot>
-            {separator}
+            {agentCount >= 2 && (
+                <BackButton onClick={onBack} title="Back to the agent overview (Esc)">
+                    <Codicon name="arrow-left" iconSx={{ fontSize: 14, display: "flex" }} />
+                    {OVERVIEW_TITLE}
+                </BackButton>
+            )}
             <BreadcrumbName>{selectedAgentName}</BreadcrumbName>
         </BreadcrumbLabel>
     );
