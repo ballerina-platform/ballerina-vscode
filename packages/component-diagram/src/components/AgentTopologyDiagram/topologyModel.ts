@@ -29,10 +29,14 @@ import {
 import {
     EdgeChip,
     LegendKind,
+    SPLIT_LABEL,
     SplitKind,
     ToolChip,
     TopologyAgentArtifact,
     TopologyAgentNode,
+    TopologyMemoryStore,
+    TopologyModelProvider,
+    TopologyTool,
     TopologyEdge,
     TopologyEdgeKind,
     TopologyGraph,
@@ -72,12 +76,46 @@ function agentNodeId(filePath: string, startLine: number): string {
     return `${filePath}::${startLine}`;
 }
 
+const MODEL_PROVIDER_KIND = "Model Provider";
+const DEFAULT_MODEL_PROVIDER_TYPE = "Wso2ModelProvider";
+const DEFAULT_MODEL_PROVIDER_LABEL = "Default WSO2 Model Provider";
+
+function buildModelProvider(connection: CDConnection | undefined): TopologyModelProvider | undefined {
+    const provider = connection?.modelProvider;
+    if (!provider) {
+        return undefined;
+    }
+    const fallback = provider.type === DEFAULT_MODEL_PROVIDER_TYPE ? DEFAULT_MODEL_PROVIDER_LABEL : provider.type;
+    return { label: provider.symbol ?? fallback, type: provider.type, icon: provider.icon };
+}
+
+function buildMemory(connection: CDConnection | undefined): TopologyMemoryStore | undefined {
+    const memory = connection?.memory;
+    return memory ? { label: memory.symbol ?? memory.type, type: memory.type } : undefined;
+}
+
+const PLAIN_AGENT_TYPE = "Agent";
+const PLAIN_AGENT_LABEL = "AI Agent";
+
+function typeLabel(connection: CDConnection | undefined): string {
+    const typeName = connection?.typeName;
+    return typeName && typeName !== PLAIN_AGENT_TYPE ? typeName : PLAIN_AGENT_LABEL;
+}
+
+// An agent's tools are its dependent functions; the design model names the ones that hand off to another agent.
+function toolFacts(connection: CDConnection | undefined): Pick<TopologyAgentNode, "toolCount" | "functionTools" | "agentTools" | "tools"> {
+    const handoffs = new Set(connection?.agentTools ?? []);
+    const tools: TopologyTool[] = (connection?.dependentFunctions ?? []).map((name) => ({ name, kind: handoffs.has(name) ? "agent" : "function" }));
+    const agentTools = tools.filter((tool) => tool.kind === "agent").length;
+    return { toolCount: tools.length, functionTools: tools.length - agentTools, agentTools, tools };
+}
+
 function buildToolChips(connection: CDConnection | undefined, uuidToConnection: Map<string, CDConnection>): ToolChip[] {
     const chips: ToolChip[] = [];
     const seen = new Set<string>();
     for (const uuid of connection?.toolConnections ?? []) {
         const toolConnection = uuidToConnection.get(uuid);
-        if (!toolConnection) {
+        if (!toolConnection || toolConnection.kind === MODEL_PROVIDER_KIND) {
             continue;
         }
         const key = toolConnection.icon || toolConnection.symbol;
@@ -104,9 +142,12 @@ function agentNodeFromArtifact(
     return {
         id,
         name: artifact.name,
+        typeName: typeLabel(connection),
         role: connection?.role ?? "",
-        toolCount: connection?.dependentFunctions?.length ?? 0,
+        ...toolFacts(connection),
         chips: buildToolChips(connection, uuidToConnection),
+        modelProvider: buildModelProvider(connection),
+        memory: buildMemory(connection),
         typed: artifact.moduleName != null && artifact.moduleName !== AI_MODULE,
         orphan: false,
         filePath: artifact.path,
@@ -132,9 +173,12 @@ function agentNodeFromConnection(
     return {
         id,
         name: connection.symbol,
+        typeName: typeLabel(connection),
         role: connection.role ?? "",
-        toolCount: connection.dependentFunctions?.length ?? 0,
+        ...toolFacts(connection),
         chips: buildToolChips(connection, uuidToConnection),
+        modelProvider: buildModelProvider(connection),
+        memory: buildMemory(connection),
         typed: false,
         orphan: false,
         filePath: connection.location.filePath,
@@ -173,6 +217,7 @@ interface TriggerLabels {
     label1: string;
     label2: string;
     glyphType: string;
+    icon?: string;
 }
 
 function serviceLabel(service: CDService): string {
@@ -202,14 +247,15 @@ function serviceSubLabel(service: CDService, modulePrefix: string): string {
 function triggerLabelsFor(service: CDService, fn: CDFunction | CDResourceFunction, isResource: boolean): TriggerLabels {
     const modulePrefix = (service.type ?? "").split(":")[0] || "http";
     const label2 = serviceSubLabel(service, modulePrefix);
+    const icon = service.icon || undefined;
     if (modulePrefix === AI_MODULE) {
-        return { label1: "Agent Chat", label2, glyphType: AI_MODULE };
+        return { label1: "Agent Chat", label2, glyphType: AI_MODULE, icon };
     }
     if (isResource) {
         const resourceFn = fn as CDResourceFunction;
-        return { label1: `${resourceFn.accessor.toUpperCase()} ${resourcePath(resourceFn.path)}`, label2, glyphType: modulePrefix };
+        return { label1: `${resourceFn.accessor.toUpperCase()} ${resourcePath(resourceFn.path)}`, label2, glyphType: modulePrefix, icon };
     }
-    return { label1: (fn as CDFunction).name, label2, glyphType: modulePrefix };
+    return { label1: (fn as CDFunction).name, label2, glyphType: modulePrefix, icon };
 }
 
 // One "item" is either a plain sequence step (one agent, no group) or a whole if/match/fork
@@ -228,12 +274,16 @@ function branchChips(group: CDAgentCallGroup | undefined): EdgeChip[] {
     return group && (group.kind === "if" || group.kind === "match") ? [{ kind: "condition", text: group.label }] : [];
 }
 
+function sequenceChip(step: number, steps: string[]): EdgeChip {
+    return { kind: "sequence", text: String(step), steps };
+}
+
 class HandlerBuilder {
     readonly edges = new Map<string, TopologyEdge>();
     readonly splits = new Map<string, TopologySplitNode>();
     readonly topLevel: string[] = [];
 
-    constructor(private readonly triggerId: string) {}
+    constructor(private readonly triggerId: string, private readonly names: Map<string, string>) {}
 
     // Walks the call's enclosing constructs, outermost first, creating a split per construct and the
     // edges between them; the last edge reaches the agent.
@@ -275,17 +325,19 @@ class HandlerBuilder {
         if (this.topLevel.length < 2) {
             return;
         }
+        const steps = this.topLevel.map((id) => this.names.get(id) ?? SPLIT_LABEL[this.splits.get(id).kind]);
         this.topLevel.forEach((targetId, index) => {
-            this.edges.get(`${this.triggerId}->${targetId}`).chips.unshift({ kind: "sequence", text: String(index + 1) });
+            this.edges.get(`${this.triggerId}->${targetId}`).chips.unshift(sequenceChip(index + 1, steps));
         });
     }
 }
 
 // A handler that only runs agents one after another is drawn as a chain: trigger → first → second …
-function buildSequenceChain(triggerId: string, agentIds: string[]): TopologyEdge[] {
+function buildSequenceChain(triggerId: string, agentIds: string[], names: Map<string, string>): TopologyEdge[] {
+    const steps = agentIds.map((id) => names.get(id));
     return agentIds.map((agentId, index) => {
         const sourceId = index === 0 ? triggerId : agentIds[index - 1];
-        return { id: `${sourceId}->${agentId}`, sourceId, targetId: agentId, kind: "trigger" as const, chips: [{ kind: "sequence" as const, text: String(index + 1) }] };
+        return { id: `${sourceId}->${agentId}`, sourceId, targetId: agentId, kind: "trigger" as const, chips: [sequenceChip(index + 1, steps)] };
     });
 }
 
@@ -298,7 +350,8 @@ function buildHandlerEdges(
     triggerId: string,
     agentIds: string[],
     agentCalls: CDAgentCall[] | undefined,
-    uuidToNodeId: Map<string, string>
+    uuidToNodeId: Map<string, string>,
+    names: Map<string, string>
 ): HandlerEdges {
     const calls = (agentCalls ?? [])
         .map((call) => ({ agentId: uuidToNodeId.get(call.connection), groups: call.groups ?? [] }))
@@ -309,9 +362,9 @@ function buildHandlerEdges(
     }
     const distinctAgents = [...new Set(calls.map((call) => call.agentId))];
     if (distinctAgents.length >= 2 && calls.every((call) => call.groups.length === 0)) {
-        return { edges: buildSequenceChain(triggerId, distinctAgents), splits: [] };
+        return { edges: buildSequenceChain(triggerId, distinctAgents, names), splits: [] };
     }
-    const builder = new HandlerBuilder(triggerId);
+    const builder = new HandlerBuilder(triggerId, names);
     calls.forEach((call) => builder.addCall(call.agentId, call.groups));
     builder.numberTopLevel();
     return { edges: [...builder.edges.values()], splits: [...builder.splits.values()] };
@@ -339,6 +392,11 @@ function delegatedAgentUuids(model: CDModel): Set<string> {
     return delegated;
 }
 
+interface AgentIndex {
+    uuidToNodeId: Map<string, string>;
+    names: Map<string, string>;
+}
+
 interface AgentCallSite {
     location: { startLine: { line: number; offset: number } };
     connections?: string[];
@@ -351,6 +409,7 @@ function buildTriggerFromFunction(
     filePath: string,
     fn: AgentCallSite,
     uuidToNodeId: Map<string, string>,
+    names: Map<string, string>,
     delegated: Set<string>,
     edges: TopologyEdge[],
     splits: TopologySplitNode[]
@@ -360,7 +419,7 @@ function buildTriggerFromFunction(
         return undefined;
     }
     const agentIds = agentUuids.map((uuid) => uuidToNodeId.get(uuid));
-    const handler = buildHandlerEdges(triggerId, agentIds, fn.agentCalls, uuidToNodeId);
+    const handler = buildHandlerEdges(triggerId, agentIds, fn.agentCalls, uuidToNodeId, names);
     edges.push(...handler.edges);
     splits.push(...handler.splits);
     return {
@@ -368,12 +427,14 @@ function buildTriggerFromFunction(
         label1: labels.label1,
         label2: labels.label2,
         glyphType: labels.glyphType,
+        icon: labels.icon,
         filePath,
         position: fn.location.startLine,
     };
 }
 
-function buildServiceTriggers(model: CDModel, uuidToNodeId: Map<string, string>, edges: TopologyEdge[], splits: TopologySplitNode[]): TopologyTriggerNode[] {
+function buildServiceTriggers(model: CDModel, index: AgentIndex, edges: TopologyEdge[], splits: TopologySplitNode[]): TopologyTriggerNode[] {
+    const { uuidToNodeId, names } = index;
     const triggers: TopologyTriggerNode[] = [];
     const delegated = delegatedAgentUuids(model);
     for (const service of model.services ?? []) {
@@ -387,7 +448,7 @@ function buildServiceTriggers(model: CDModel, uuidToNodeId: Map<string, string>,
         for (const { fn, isResource } of functions) {
             const triggerId = agentNodeId(service.location.filePath, fn.location.startLine.line);
             const labels = triggerLabelsFor(service, fn, isResource);
-            const trigger = buildTriggerFromFunction(triggerId, labels, service.location.filePath, fn, uuidToNodeId, delegated, edges, splits);
+            const trigger = buildTriggerFromFunction(triggerId, labels, service.location.filePath, fn, uuidToNodeId, names, delegated, edges, splits);
             if (trigger) {
                 triggers.push(trigger);
             }
@@ -396,7 +457,7 @@ function buildServiceTriggers(model: CDModel, uuidToNodeId: Map<string, string>,
     return triggers;
 }
 
-function buildAutomationTrigger(model: CDModel, uuidToNodeId: Map<string, string>, edges: TopologyEdge[], splits: TopologySplitNode[]): TopologyTriggerNode | undefined {
+function buildAutomationTrigger(model: CDModel, index: AgentIndex, edges: TopologyEdge[], splits: TopologySplitNode[]): TopologyTriggerNode | undefined {
     const automation: CDAutomation | undefined = model.automation;
     if (!automation) {
         return undefined;
@@ -407,7 +468,8 @@ function buildAutomationTrigger(model: CDModel, uuidToNodeId: Map<string, string
         { label1: "main", label2: "automation", glyphType: "automation" },
         automation.location.filePath,
         automation,
-        uuidToNodeId,
+        index.uuidToNodeId,
+        index.names,
         delegatedAgentUuids(model),
         edges,
         splits
@@ -498,8 +560,9 @@ export function buildTopology(input: TopologyInput): TopologyGraph {
 
     const triggerEdges: TopologyEdge[] = [];
     const splits: TopologySplitNode[] = [];
-    const triggers = buildServiceTriggers(model, uuidToNodeId, triggerEdges, splits);
-    const automationTrigger = buildAutomationTrigger(model, uuidToNodeId, triggerEdges, splits);
+    const index: AgentIndex = { uuidToNodeId, names: new Map(agentNodes.map((node) => [node.id, node.name])) };
+    const triggers = buildServiceTriggers(model, index, triggerEdges, splits);
+    const automationTrigger = buildAutomationTrigger(model, index, triggerEdges, splits);
     if (automationTrigger) {
         triggers.push(automationTrigger);
     }

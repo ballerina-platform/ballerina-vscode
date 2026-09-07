@@ -23,10 +23,12 @@ import { ThemeColors } from "@wso2/ui-toolkit";
 import { SplitNodeModel } from "./SplitNodeModel";
 import { SPLIT_SIZE } from "../../../resources/constants";
 import { SplitGlyph } from "../../AgentTopologyDiagram/SplitGlyph";
-import { SplitKind } from "../../AgentTopologyDiagram/types";
+import { SPLIT_LABEL } from "../../AgentTopologyDiagram/types";
 import { useTopologyContext } from "../../AgentTopologyDiagram/TopologyContext";
 
-const Box = styled.div`
+const Box = styled.div<{ receded: boolean }>`
+    opacity: ${(props) => (props.receded ? 0.55 : 1)};
+    transition: opacity 150ms ease-out;
     position: relative;
     width: ${SPLIT_SIZE}px;
     height: ${SPLIT_SIZE}px;
@@ -91,7 +93,6 @@ const BottomPortWidget = styled(PortWidget)`
     transform: translateX(-50%);
 `;
 
-const LABEL: Record<SplitKind, string> = { if: "If", match: "Match", fork: "Fork", while: "While", foreach: "Foreach" };
 
 interface SplitNodeWidgetProps {
     model: SplitNodeModel;
@@ -99,16 +100,17 @@ interface SplitNodeWidgetProps {
 }
 
 export function SplitNodeWidget({ model, engine }: SplitNodeWidgetProps) {
-    const vertical = useTopologyContext().orientation === "vertical";
+    const { orientation, focus } = useTopologyContext();
+    const vertical = orientation === "vertical";
     const InPort = vertical ? TopPortWidget : LeftPortWidget;
     const OutPort = vertical ? BottomPortWidget : RightPortWidget;
     return (
-        <Box title={[LABEL[model.node.kind], model.node.header].filter(Boolean).join(" · ")}>
+        <Box receded={focus !== undefined && !focus.nodes.has(model.getID())} title={[SPLIT_LABEL[model.node.kind], model.node.header].filter(Boolean).join(" · ")}>
             <InPort port={model.getInPort()} engine={engine} />
             <OutPort port={model.getOutPort()} engine={engine} />
             <SplitGlyph kind={model.node.kind} size={SPLIT_SIZE} />
             <Label vertical={vertical}>
-                {LABEL[model.node.kind]}
+                {SPLIT_LABEL[model.node.kind]}
                 {model.node.header && <Header>{model.node.header}</Header>}
             </Label>
         </Box>

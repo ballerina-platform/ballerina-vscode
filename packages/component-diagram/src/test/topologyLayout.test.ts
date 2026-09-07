@@ -37,7 +37,10 @@ import { estimateAgentCardHeight, layoutTopology } from "../components/AgentTopo
 import { TopologyAgentNode, TopologyEdge, TopologyGraph, TopologySplitNode, TopologyTriggerNode } from "../components/AgentTopologyDiagram/types";
 
 function agent(id: string, extra: Partial<TopologyAgentNode> = {}): TopologyAgentNode {
-    return { id, name: id, role: "", toolCount: 0, chips: [], typed: false, orphan: false, filePath: "/proj/agents.bal", position: { line: 1, offset: 0 }, ...extra };
+    return {
+        id, name: id, typeName: "AI Agent", role: "", toolCount: 0, functionTools: 0, agentTools: 0, tools: [], chips: [],
+        typed: false, orphan: false, filePath: "/proj/agents.bal", position: { line: 1, offset: 0 }, ...extra,
+    };
 }
 
 function trigger(id: string, extra: Partial<TopologyTriggerNode> = {}): TopologyTriggerNode {
@@ -191,14 +194,18 @@ describe("layoutTopology", () => {
         Object.values(layout.splitPositions).forEach((p) => expect(p.x + SPLIT_SIZE).toBeLessThan(agentX));
     });
 
-    it("re-centres only the triggers that collided, so a lone trigger stays centred on its own agent", () => {
-        const tall = agent("a", { chips: Array.from({ length: 42 }, (_, i) => ({ key: `c${i}`, label: `c${i}` })) });
-        const graph = graphOf([tall, agent("b")], [trigger("t1"), trigger("t2"), trigger("t3")], [edge("t1", "a"), edge("t2", "a"), edge("t3", "b")]);
+    it("re-centres only the triggers that collided, so a lone trigger stays centred on its own agents", () => {
+        const graph = graphOf(
+            [agent("a"), agent("b"), agent("c")],
+            [trigger("t1"), trigger("t2"), trigger("t3")],
+            [edge("t1", "a"), edge("t2", "a"), edge("t3", "b"), edge("t3", "c")]
+        );
         const layout = layoutTopology(graph);
         const centreOf = (y: number, h: number) => y + h / 2;
         const t = (id: string) => centreOf(layout.triggerPositions[id].y, TRIGGER_SIZE);
-        expect((t("t1") + t("t2")) / 2).toBeCloseTo(centreOf(layout.agentPositions["a"].y, layout.cardHeights["a"]));
-        expect(t("t3")).toBeCloseTo(centreOf(layout.agentPositions["b"].y, layout.cardHeights["b"]));
+        const a = (id: string) => centreOf(layout.agentPositions[id].y, layout.cardHeights[id]);
+        expect((t("t1") + t("t2")) / 2).toBeCloseTo(a("a"));
+        expect(t("t3")).toBeCloseTo((a("b") + a("c")) / 2);
     });
 
     it("moves a nested split off an edge that passes through its layer", () => {
@@ -344,10 +351,8 @@ describe("layoutTopology", () => {
     });
 
     it("grows the card height once tool chips overflow the first row, and stacks the next card below it", () => {
-        expect(estimateAgentCardHeight(0)).toBe(AGENT_CARD_MIN_HEIGHT);
-        expect(estimateAgentCardHeight(6)).toBe(AGENT_CARD_MIN_HEIGHT);
-        expect(estimateAgentCardHeight(7)).toBeGreaterThan(AGENT_CARD_MIN_HEIGHT);
-        expect(estimateAgentCardHeight(0, true)).toBeGreaterThan(AGENT_CARD_MIN_HEIGHT);
+        expect(estimateAgentCardHeight()).toBe(AGENT_CARD_MIN_HEIGHT);
+        expect(estimateAgentCardHeight(true)).toBeGreaterThan(AGENT_CARD_MIN_HEIGHT);
 
         const tall = agent("tall", { chips: Array.from({ length: 7 }, (_, i) => ({ key: String(i), label: `c${i}` })) });
         const short = agent("short");

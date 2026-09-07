@@ -17,7 +17,7 @@
  */
 
 import React from "react";
-import { AgentSelection, TopologyOrientation, TriggerSelection } from "./types";
+import { AgentSelection, TopologyFocus, TopologyOrientation, TriggerSelection } from "./types";
 
 export interface TopologyContextState {
     readonly?: boolean;
@@ -26,6 +26,9 @@ export interface TopologyContextState {
     onTriggerSelect: (trigger: TriggerSelection) => void;
     // An orphan card's "Add Trigger" link; falls back to opening the agent when absent.
     onAddTrigger?: (agent: AgentSelection) => void;
+    // Set while a node is hovered: what it is connected to lights up, everything else recedes.
+    focus?: TopologyFocus;
+    setHovered?: (id?: string) => void;
 }
 
 export const TopologyContext = React.createContext<TopologyContextState>({

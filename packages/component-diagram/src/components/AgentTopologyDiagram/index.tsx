@@ -31,6 +31,7 @@ import { SplitNodeModel } from "../nodes/SplitNode";
 import { generateTopologyEngine } from "./engine";
 import { buildTopology } from "./topologyModel";
 import { layoutTopology } from "./topologyLayout";
+import { focusAround } from "./topologyFocus";
 import { TopologyContextProvider } from "./TopologyContext";
 import { Legend } from "./Legend";
 import { AgentSelection, TopologyEdge, TopologyGraph, TopologyInput, TopologyLayout, TopologyOrientation, TriggerSelection } from "./types";
@@ -45,6 +46,7 @@ export interface AgentTopologyDiagramProps {
 
 const FIT_MARGIN = 40;
 const GLIDE_MS = 240;
+const HOVER_FOCUS_DELAY_MS = 150;
 // Ports are re-measured only once the nodes have finished gliding.
 const SETTLE_MS = GLIDE_MS + 60;
 
@@ -64,7 +66,7 @@ function createLink(edge: TopologyEdge, nodeModels: Map<string, TopologyNodeMode
     if (!sourcePort || !targetPort) {
         return null;
     }
-    const link = new TopologyLinkModel({ dashed: edge.kind === "delegation", arrow: edge.kind !== "stem", chips: edge.chips, bow: edge.bow });
+    const link = new TopologyLinkModel({ edgeId: edge.id, dashed: edge.kind === "delegation", arrow: edge.kind !== "stem", chips: edge.chips, bow: edge.bow });
     link.setSourcePort(sourcePort);
     link.setTargetPort(targetPort);
     sourcePort.addLink(link);
@@ -126,6 +128,8 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
     const [diagramEngine] = useState(() => generateTopologyEngine());
     const [diagramModel, setDiagramModel] = useState<DiagramModel | null>(null);
     const [legendKinds, setLegendKinds] = useState<ReturnType<typeof buildTopology>["legendKinds"]>([]);
+    const [hoveredId, setHoveredId] = useState<string>();
+    const hoverTimerRef = useRef<ReturnType<typeof setTimeout>>();
     const [wiredNothing, setWiredNothing] = useState(false);
     const [previousNodeKey, setPreviousNodeKey] = useState<string>("");
     const [orientation, setOrientation] = useState<TopologyOrientation>(lastOrientation);
@@ -262,6 +266,17 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
         return () => observer.disconnect();
     }, [diagramEngine, diagramModel, applyLayout, fitToLayout]);
 
+    // Passing the pointer over a card on the way elsewhere should not make the canvas flicker.
+    const setHovered = useCallback((id?: string) => {
+        clearTimeout(hoverTimerRef.current);
+        if (id === undefined) {
+            setHoveredId(undefined);
+            return;
+        }
+        hoverTimerRef.current = setTimeout(() => setHoveredId(id), HOVER_FOCUS_DELAY_MS);
+    }, []);
+    useEffect(() => () => clearTimeout(hoverTimerRef.current), []);
+
     const toggleOrientation = useCallback(() => {
         setSettling(true);
         setOrientation((current) => (current === "vertical" ? "horizontal" : "vertical"));
@@ -297,8 +312,17 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
     }, [orientation, applyLayout, reportPorts, fitToLayout]);
 
     const context = useMemo(
-        () => ({ readonly, orientation, onAgentSelect, onTriggerSelect, onAddTrigger }),
-        [readonly, orientation, onAgentSelect, onTriggerSelect, onAddTrigger]
+        () => ({
+            readonly,
+            orientation,
+            onAgentSelect,
+            onTriggerSelect,
+            onAddTrigger,
+            focus: hoveredId && graphRef.current ? focusAround(graphRef.current, hoveredId) : undefined,
+            setHovered,
+        }),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [readonly, orientation, onAgentSelect, onTriggerSelect, onAddTrigger, hoveredId, input, setHovered]
     );
 
     return (

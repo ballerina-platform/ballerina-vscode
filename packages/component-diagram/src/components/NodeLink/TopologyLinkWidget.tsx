@@ -21,6 +21,9 @@ import { DiagramEngine } from "@projectstorm/react-diagrams-core";
 import { ThemeColors } from "@wso2/ui-toolkit";
 import { TopologyLinkModel } from "./TopologyLinkModel";
 import { linkRoute, roundedPath } from "./topologyRoute";
+import { useTopologyContext } from "../AgentTopologyDiagram/TopologyContext";
+
+export const RECEDED_OPACITY = 0.18;
 
 interface TopologyLinkWidgetProps {
     link: TopologyLinkModel;
@@ -31,13 +34,16 @@ const ARROW_SIZE = 8;
 
 export function TopologyLinkWidget({ link }: TopologyLinkWidgetProps) {
     const [isHovered, setIsHovered] = useState(false);
-    const color = isHovered ? ThemeColors.PRIMARY : ThemeColors.ON_SURFACE;
+    const { focus } = useTopologyContext();
+    const focused = focus?.edges.has(link.edgeId) ?? false;
+    const color = isHovered || focused ? ThemeColors.PRIMARY : ThemeColors.ON_SURFACE;
+    const opacity = focus && !focused ? RECEDED_OPACITY : 1;
 
     const path = roundedPath(linkRoute(link).points);
     const markerId = `${link.getID()}-arrow`;
 
     return (
-        <g pointerEvents="all" onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)}>
+        <g pointerEvents="all" opacity={opacity} style={{ transition: "opacity 150ms ease-out" }} onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)}>
             <path d={path} fill="none" stroke="transparent" strokeWidth={16} />
             <path
                 id={link.getID()}

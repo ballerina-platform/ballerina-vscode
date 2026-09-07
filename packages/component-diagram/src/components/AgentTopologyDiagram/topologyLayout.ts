@@ -40,8 +40,6 @@ import {
 } from "../../resources/constants";
 import { LayoutOptions, NodePosition, TopologyEdge, TopologyGraph, TopologyLayout, TopologyTriggerNode } from "./types";
 
-const CHIPS_PER_ROW = 6;
-const CHIP_ROW_HEIGHT = 28;
 const ORPHAN_FOOTER_HEIGHT = 26;
 const LABEL1_CHAR_WIDTH = 8.5;
 const LABEL2_CHAR_WIDTH = 7.2;
@@ -50,9 +48,8 @@ const LANE_LEAD = 24;
 const BEND_OFFSET = 40;
 const BEND_STAGGER = 14;
 
-export function estimateAgentCardHeight(chipCount: number, orphan = false): number {
-    const extraRows = chipCount <= CHIPS_PER_ROW ? 0 : Math.ceil((chipCount - CHIPS_PER_ROW) / CHIPS_PER_ROW);
-    return AGENT_CARD_MIN_HEIGHT + extraRows * CHIP_ROW_HEIGHT + (orphan ? ORPHAN_FOOTER_HEIGHT : 0);
+export function estimateAgentCardHeight(orphan = false): number {
+    return AGENT_CARD_MIN_HEIGHT + (orphan ? ORPHAN_FOOTER_HEIGHT : 0);
 }
 
 // Trigger labels are right-aligned in a fixed block; short labels leave its left part blank.
@@ -382,7 +379,7 @@ export function layoutTopology(graph: TopologyGraph, options: LayoutOptions = {}
     const longEdges = edges.filter((edge) => skipsRanks(edge, rank));
 
     const cardHeights: Record<string, number> = {};
-    graph.agents.forEach((agent) => (cardHeights[agent.id] = estimateAgentCardHeight(agent.chips.length, agent.orphan)));
+    graph.agents.forEach((agent) => (cardHeights[agent.id] = estimateAgentCardHeight(agent.orphan)));
 
     const ranks = new Map<number, string[]>();
     [...graph.triggers, ...graph.agents].forEach((node) => {

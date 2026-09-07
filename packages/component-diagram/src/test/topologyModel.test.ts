@@ -18,6 +18,7 @@
 
 import { CDAgentCall, CDAutomation, CDConnection, CDModel, CDResourceFunction, CDService } from "@wso2/ballerina-core";
 import { buildTopology } from "../components/AgentTopologyDiagram/topologyModel";
+import { focusAround } from "../components/AgentTopologyDiagram/topologyFocus";
 import { TopologyAgentArtifact, TopologyInput } from "../components/AgentTopologyDiagram/types";
 
 const AGENTS_BAL = "/proj/agents.bal";
@@ -125,9 +126,10 @@ describe("buildTopology", () => {
         const orderEdge = graph.edges.find((edge) => edge.kind === "trigger" && edge.targetId === agentId(AGENTS_BAL, 13));
         const shipEdge = graph.edges.find((edge) => edge.kind === "trigger" && edge.targetId === agentId(AGENTS_BAL, 17));
         expect(orderEdge.sourceId).toBe(graph.triggers[0].id);
-        expect(orderEdge.chips).toEqual([{ kind: "sequence", text: "1" }]);
+        const steps = ["orderAgent", "shippingRatesAgent"];
+        expect(orderEdge.chips).toEqual([{ kind: "sequence", text: "1", steps }]);
         expect(shipEdge.sourceId).toBe(agentId(AGENTS_BAL, 13));
-        expect(shipEdge.chips).toEqual([{ kind: "sequence", text: "2" }]);
+        expect(shipEdge.chips).toEqual([{ kind: "sequence", text: "2", steps }]);
 
         // Nothing triggers or delegates to the supervisor itself -- it only calls out.
         const supervisorNode = graph.agents.find((agent) => agent.name === "supportSupervisorAgent");
@@ -270,6 +272,17 @@ describe("buildTopology", () => {
         expect(graph.edges.filter((e) => e.sourceId === triggerId)).toHaveLength(1);
     });
 
+    it("carries the service module's icon on the trigger for modules without a brand glyph", () => {
+        const agent = agentConnection("a", "aiAgent", AGENTS_BAL, 1);
+        const fn = resourceFn("post", "message", SERVICES_BAL, 1, ["a"], [{ connection: "a", line: 2 }]);
+        const chat = { ...service(SERVICES_BAL, 1, "chat:ChatService", "", ["a"], [fn]), icon: "https://central/ballerinax_googleapis.gchat_1.0.0.png" };
+
+        const graph = buildTopology({ model: modelOf([agent], [chat]), agents: [artifact("aiAgent", AGENTS_BAL, 1)] });
+
+        expect(graph.triggers[0].glyphType).toBe("chat");
+        expect(graph.triggers[0].icon).toBe("https://central/ballerinax_googleapis.gchat_1.0.0.png");
+    });
+
     it("numbers the edges from the trigger when a plain call and a split run in order", () => {
         const first = agentConnection("a", "firstAgent", AGENTS_BAL, 1);
         const second = agentConnection("b", "secondAgent", AGENTS_BAL, 5);
@@ -282,8 +295,9 @@ describe("buildTopology", () => {
         const graph = buildTopology({ model: modelOf([first, second], [svc]), agents: [artifact("firstAgent", AGENTS_BAL, 1), artifact("secondAgent", AGENTS_BAL, 5)] });
 
         const triggerId = graph.triggers[0].id;
-        expect(graph.edges.find((e) => e.sourceId === triggerId && e.targetId === agentId(AGENTS_BAL, 1)).chips).toEqual([{ kind: "sequence", text: "1" }]);
-        expect(graph.edges.find((e) => e.sourceId === triggerId && e.kind === "stem").chips).toEqual([{ kind: "sequence", text: "2" }]);
+        const steps = ["firstAgent", "If"];
+        expect(graph.edges.find((e) => e.sourceId === triggerId && e.targetId === agentId(AGENTS_BAL, 1)).chips).toEqual([{ kind: "sequence", text: "1", steps }]);
+        expect(graph.edges.find((e) => e.sourceId === triggerId && e.kind === "stem").chips).toEqual([{ kind: "sequence", text: "2", steps }]);
     });
 
     it("draws typed-agent instances but neither their definition nor the field inside it", () => {
@@ -305,6 +319,83 @@ describe("buildTopology", () => {
         expect(graph.agents.map((agent) => agent.name).sort()).toEqual(["personalCalendarAgent", "teamCalendarAgent"]);
         expect(graph.agents.every((agent) => agent.typed)).toBe(true);
         expect(graph.edges.find((edge) => edge.targetId === agentId(AGENTS_BAL, 2))).toBeDefined();
+    });
+
+    it("carries the agent's model provider and keeps it out of the tool chips", () => {
+        const provider = agentConnection("mdl", "deskModel", AGENTS_BAL, 1, { kind: "Model Provider", icon: "https://x/ballerina_ai_1.13.0.png?wso2_icon" });
+        const named = agentConnection("a", "namedAgent", AGENTS_BAL, 3, {
+            modelProvider: { symbol: "deskModel", type: "Wso2ModelProvider", icon: "https://x/ballerina_ai_1.13.0.png?wso2_icon" },
+            toolConnections: ["mdl"],
+        });
+        const inline = agentConnection("b", "inlineAgent", AGENTS_BAL, 7, { modelProvider: { type: "Wso2ModelProvider" } });
+        const openAi = agentConnection("c", "openAiAgent", AGENTS_BAL, 11, { modelProvider: { symbol: "gpt", type: "OpenAiProvider", icon: "https://x/openai.png" } });
+
+        const graph = buildTopology({
+            model: modelOf([provider, named, inline, openAi], []),
+            agents: [artifact("namedAgent", AGENTS_BAL, 3), artifact("inlineAgent", AGENTS_BAL, 7), artifact("openAiAgent", AGENTS_BAL, 11)],
+        });
+
+        const byName = new Map(graph.agents.map((agent) => [agent.name, agent]));
+        expect(byName.get("namedAgent").modelProvider).toEqual({ label: "deskModel", type: "Wso2ModelProvider", icon: "https://x/ballerina_ai_1.13.0.png?wso2_icon" });
+        expect(byName.get("namedAgent").chips).toEqual([]);
+        expect(byName.get("inlineAgent").modelProvider).toEqual({ label: "Default WSO2 Model Provider", type: "Wso2ModelProvider", icon: undefined });
+        expect(byName.get("openAiAgent").modelProvider.label).toBe("gpt");
+        expect(graph.agents.map((agent) => agent.name)).not.toContain("deskModel");
+    });
+
+    it("carries the memory store, the agent's type label and the tool kinds", () => {
+        const named = agentConnection("a", "namedAgent", AGENTS_BAL, 3, {
+            memory: { symbol: "chatMemory", type: "MessageWindowChatMemory" },
+            dependentFunctions: ["lookupOrder", "initiateReturn", "shippingRatesAgentTool"],
+            delegatesTo: ["ship"],
+            agentTools: ["shippingRatesAgentTool"],
+        });
+        const inline = agentConnection("b", "inlineAgent", AGENTS_BAL, 7, { memory: { type: "MessageWindowChatMemory" }, typeName: "Agent" });
+        const typed = agentConnection("c", "calendar", AGENTS_BAL, 11, { typeName: "CalendarAssistant" });
+
+        const graph = buildTopology({
+            model: modelOf([named, inline, typed], []),
+            agents: [artifact("namedAgent", AGENTS_BAL, 3), artifact("inlineAgent", AGENTS_BAL, 7), artifact("calendar", AGENTS_BAL, 11, { moduleName: "typed_agents" })],
+        });
+
+        const byName = new Map(graph.agents.map((agent) => [agent.name, agent]));
+        expect(byName.get("namedAgent")).toMatchObject({ memory: { label: "chatMemory", type: "MessageWindowChatMemory" }, toolCount: 3, functionTools: 2, agentTools: 1, typeName: "AI Agent" });
+        expect(byName.get("namedAgent").tools).toEqual([
+            { name: "lookupOrder", kind: "function" },
+            { name: "initiateReturn", kind: "function" },
+            { name: "shippingRatesAgentTool", kind: "agent" },
+        ]);
+        expect(byName.get("inlineAgent")).toMatchObject({ memory: { label: "MessageWindowChatMemory", type: "MessageWindowChatMemory" }, typeName: "AI Agent", toolCount: 0 });
+        expect(byName.get("calendar").typeName).toBe("CalendarAssistant");
+    });
+
+    it("focuses the whole flow through a node: upstream to its triggers, downstream to the leaves", () => {
+        const billing = agentConnection("bil", "billingAgent", AGENTS_BAL, 1, { delegatesTo: ["aud"] });
+        const technical = agentConnection("tech", "technicalAgent", AGENTS_BAL, 5);
+        const audit = agentConnection("aud", "auditAgent", AGENTS_BAL, 9);
+        const route = resourceFn("post", "route", SERVICES_BAL, 1, ["bil", "tech"], [
+            { connection: "bil", line: 2, groups: [{ kind: "if", id: "g1", label: "billing" }] },
+            { connection: "tech", line: 4, groups: [{ kind: "if", id: "g1", label: "else" }] },
+        ]);
+        const svc = service(SERVICES_BAL, 1, "http:Service", "/route", ["bil", "tech"], [route]);
+        const graph = buildTopology({
+            model: modelOf([billing, technical, audit], [svc]),
+            agents: [artifact("billingAgent", AGENTS_BAL, 1), artifact("technicalAgent", AGENTS_BAL, 5), artifact("auditAgent", AGENTS_BAL, 9)],
+        });
+        const triggerId = graph.triggers[0].id;
+        const splitId = graph.splits[0].id;
+
+        const onBilling = focusAround(graph, agentId(AGENTS_BAL, 1));
+        expect([...onBilling.nodes].sort()).toEqual([agentId(AGENTS_BAL, 1), agentId(AGENTS_BAL, 9), splitId, triggerId].sort());
+        expect(onBilling.nodes.has(agentId(AGENTS_BAL, 5))).toBe(false);
+        expect([...onBilling.edges].sort()).toEqual([`${triggerId}->${splitId}`, `${splitId}->${agentId(AGENTS_BAL, 1)}`, `${agentId(AGENTS_BAL, 1)}=>${agentId(AGENTS_BAL, 9)}`].sort());
+
+        const onTrigger = focusAround(graph, triggerId);
+        expect([...onTrigger.nodes].sort()).toEqual([triggerId, splitId, agentId(AGENTS_BAL, 1), agentId(AGENTS_BAL, 5), agentId(AGENTS_BAL, 9)].sort());
+
+        const onSubAgent = focusAround(graph, agentId(AGENTS_BAL, 9));
+        expect([...onSubAgent.nodes].sort()).toEqual([agentId(AGENTS_BAL, 9), agentId(AGENTS_BAL, 1), splitId, triggerId].sort());
+        expect(onSubAgent.nodes.has(agentId(AGENTS_BAL, 5))).toBe(false);
     });
 
     it("marks an agent reachable from nothing as orphan", () => {

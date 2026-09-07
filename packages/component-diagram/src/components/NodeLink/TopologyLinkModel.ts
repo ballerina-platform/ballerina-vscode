@@ -22,6 +22,7 @@ import { TOPOLOGY_LINK } from "../../resources/constants";
 import { EdgeChip } from "../AgentTopologyDiagram/types";
 
 export interface TopologyLinkModelOptions {
+    edgeId?: string;
     dashed?: boolean;
     arrow?: boolean;
     chips?: EdgeChip[];
@@ -32,6 +33,7 @@ export interface TopologyLinkModelOptions {
 // condition text) are the only labels a link carries; numbers mean order, text means
 // condition, dashed means delegation -- nothing else on the canvas is dashed.
 export class TopologyLinkModel extends DefaultLinkModel {
+    edgeId = "";
     dashed = false;
     arrow = true;
     chips: EdgeChip[] = [];
@@ -49,6 +51,7 @@ export class TopologyLinkModel extends DefaultLinkModel {
             selectedColor: ThemeColors.PRIMARY,
             curvyness: 0,
         });
+        this.edgeId = options.edgeId ?? "";
         this.dashed = Boolean(options.dashed);
         this.arrow = options.arrow !== false;
         this.chips = options.chips ?? [];

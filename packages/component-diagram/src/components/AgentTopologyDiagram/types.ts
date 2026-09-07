@@ -43,9 +43,13 @@ export type TopologyEdgeKind = "trigger" | "delegation" | "stem";
 
 export type SplitKind = "if" | "match" | "fork" | "while" | "foreach";
 
+export const SPLIT_LABEL: Record<SplitKind, string> = { if: "If", match: "Match", fork: "Fork", while: "While", foreach: "Foreach" };
+
 export interface EdgeChip {
     kind: "sequence" | "condition";
     text: string;
+    // Every step of the handler in order, so a sequence chip can list them.
+    steps?: string[];
 }
 
 export interface TopologyEdge {
@@ -58,12 +62,36 @@ export interface TopologyEdge {
     bow?: number;
 }
 
+export interface TopologyModelProvider {
+    label: string;
+    type: string;
+    icon?: string;
+}
+
+export interface TopologyMemoryStore {
+    label: string;
+    type: string;
+}
+
+// A tool the agent can call: a plain function, or a function that hands the request to another agent.
+export interface TopologyTool {
+    name: string;
+    kind: "function" | "agent";
+}
+
 export interface TopologyAgentNode {
     id: string;
     name: string;
+    // What the eyebrow says: "AI Agent", or the definition's name for a typed agent.
+    typeName: string;
     role: string;
     toolCount: number;
+    functionTools: number;
+    agentTools: number;
+    tools: TopologyTool[];
     chips: ToolChip[];
+    modelProvider?: TopologyModelProvider;
+    memory?: TopologyMemoryStore;
     typed: boolean;
     orphan: boolean;
     filePath: string;
@@ -76,6 +104,8 @@ export interface TopologyTriggerNode {
     label1: string;
     label2: string;
     glyphType: string;
+    // The service module's Central icon, for triggers whose module has no brand glyph of its own.
+    icon?: string;
     filePath: string;
     position: LinePosition;
 }
@@ -119,6 +149,12 @@ export interface TopologyLayout {
     left: number;
     width: number;
     height: number;
+}
+
+// What lights up when a node is hovered: the node, everything one hop away, and the split chains between them.
+export interface TopologyFocus {
+    nodes: Set<string>;
+    edges: Set<string>;
 }
 
 // Horizontal ranks left to right (triggers in the first column); vertical ranks top to bottom.

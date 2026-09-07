@@ -52,7 +52,7 @@ export const NODE_GAP_X = 160;
 
 // agent topology
 export const AGENT_CARD_WIDTH = 280;
-export const AGENT_CARD_MIN_HEIGHT = 104;
+export const AGENT_CARD_MIN_HEIGHT = 112;
 export const TRIGGER_SIZE = 56;
 export const TRIGGER_LABEL_WIDTH = 232;
 export const TRIGGER_LABEL_GAP = 14;

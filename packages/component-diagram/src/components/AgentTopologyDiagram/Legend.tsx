@@ -41,30 +41,35 @@ const Row = styled.div`
     gap: 8px;
 `;
 
-const Line = styled.div<{ dashed?: boolean }>`
-    width: 20px;
-    height: 0;
-    border-top: 1.5px ${(props) => (props.dashed ? "dashed" : "solid")} ${ThemeColors.ON_SURFACE};
-`;
+const SWATCH_W = 24;
+const SWATCH_H = 16;
+const TIP = 6;
+
+function Line({ dashed = false }: { dashed?: boolean }) {
+    const y = SWATCH_H / 2;
+    return (
+        <svg width={SWATCH_W} height={SWATCH_H} style={{ flex: "none", overflow: "visible" }}>
+            <line x1={0} y1={y} x2={SWATCH_W - TIP} y2={y} stroke="currentColor" strokeWidth={1.5} strokeDasharray={dashed ? "4 3" : undefined} />
+            <polygon points={`${SWATCH_W - TIP},${y - TIP / 2} ${SWATCH_W},${y} ${SWATCH_W - TIP},${y + TIP / 2}`} fill="currentColor" />
+        </svg>
+    );
+}
 
 const SequenceSwatch = styled.div`
     position: relative;
-    width: 20px;
-    height: 16px;
+    width: ${SWATCH_W}px;
+    height: ${SWATCH_H}px;
     display: flex;
     align-items: center;
     justify-content: center;
-    &::before {
-        content: "";
+    & > svg {
         position: absolute;
-        left: 0;
-        right: 0;
-        top: 50%;
-        border-top: 1.5px solid ${ThemeColors.ON_SURFACE};
+        inset: 0;
     }
 `;
 
 const NumberSwatch = styled.div`
+    position: relative;
     position: relative;
     width: 16px;
     height: 16px;
@@ -79,7 +84,7 @@ const NumberSwatch = styled.div`
 `;
 
 const GlyphSwatch = styled.div`
-    width: 20px;
+    width: 24px;
     display: flex;
     justify-content: center;
 `;
@@ -100,6 +105,7 @@ const LEGEND_ROWS: Record<LegendKind, { label: string; explain: string; swatch: 
         explain: "The same handler runs these agents in this order.",
         swatch: (
             <SequenceSwatch>
+                <Line />
                 <NumberSwatch>2</NumberSwatch>
             </SequenceSwatch>
         ),

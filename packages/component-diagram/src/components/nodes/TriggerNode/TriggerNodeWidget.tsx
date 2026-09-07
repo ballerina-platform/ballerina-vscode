@@ -21,6 +21,7 @@ import styled from "@emotion/styled";
 import { DiagramEngine, PortWidget } from "@projectstorm/react-diagrams-core";
 import { Icon, ThemeColors } from "@wso2/ui-toolkit";
 import { resolveBrandIcon, resolveEntryTypeGlyph } from "@wso2/ballerina-core";
+import { ConnectorIcon } from "@wso2/bi-diagram";
 import { TriggerNodeModel } from "./TriggerNodeModel";
 import {
     NODE_BORDER_WIDTH,
@@ -35,8 +36,10 @@ import { useClickWithDragTolerance } from "../../../hooks/useClickWithDragTolera
 
 // The label is part of the node box so zoom-to-fit and the layout account for it. It sits left of
 // the square when the flow runs left to right and above it when the flow runs top to bottom.
-const Wrapper = styled.div<{ readonly?: boolean; vertical: boolean }>`
+const Wrapper = styled.div<{ readonly?: boolean; vertical: boolean; receded: boolean }>`
     display: flex;
+    opacity: ${(props) => (props.receded ? 0.55 : 1)};
+    transition: opacity 150ms ease-out;
     flex-direction: ${(props) => (props.vertical ? "column" : "row")};
     align-items: center;
     justify-content: ${(props) => (props.vertical ? "flex-end" : "flex-start")};
@@ -110,21 +113,25 @@ interface TriggerNodeWidgetProps {
     engine: DiagramEngine;
 }
 
-function resolveGlyphName(glyphType: string): { name: string; isCodicon?: boolean } {
+const GLYPH_SX = { width: 24, height: 24, fontSize: 24 };
+
+// Same order as the focus diagram's usage tile: entry kind, brand glyph, the module's Central icon, then the globe.
+function TriggerGlyph({ glyphType, icon }: { glyphType: string; icon?: string }) {
     const entryGlyph = resolveEntryTypeGlyph(glyphType);
     if (entryGlyph) {
-        return { name: entryGlyph.glyph, isCodicon: entryGlyph.isCodicon };
+        return <Icon name={entryGlyph.glyph} isCodicon={entryGlyph.isCodicon} sx={GLYPH_SX} iconSx={{ fontSize: 24 }} />;
     }
     const brandGlyph = resolveBrandIcon(glyphType);
     if (brandGlyph) {
-        return { name: brandGlyph.glyph };
+        return <Icon name={brandGlyph.glyph} sx={GLYPH_SX} iconSx={{ fontSize: 24 }} />;
     }
-    return { name: "bi-globe" };
+    const globe = <Icon name="bi-globe" sx={GLYPH_SX} iconSx={{ fontSize: 24 }} />;
+    return icon ? <ConnectorIcon url={icon} style={GLYPH_SX} fallbackIcon={globe} /> : globe;
 }
 
 export function TriggerNodeWidget(props: TriggerNodeWidgetProps) {
     const { model, engine } = props;
-    const { onTriggerSelect, readonly, orientation } = useTopologyContext();
+    const { onTriggerSelect, readonly, orientation, focus, setHovered } = useTopologyContext();
     const vertical = orientation === "vertical";
     const OutPort = vertical ? BottomPortWidget : RightPortWidget;
     const [isHovered, setIsHovered] = useState(false);
@@ -135,17 +142,27 @@ export function TriggerNodeWidget(props: TriggerNodeWidgetProps) {
     };
 
     const { handleMouseDown, handleMouseUp } = useClickWithDragTolerance(handleClick);
-    const glyph = resolveGlyphName(model.node.glyphType);
     const tooltip = [model.node.label1, model.node.label2].filter(Boolean).join(" — ");
 
     return (
         <Wrapper
             readonly={readonly}
             vertical={vertical}
+            receded={focus !== undefined && !focus.nodes.has(model.getID())}
             tabIndex={0}
             title={tooltip}
-            onMouseEnter={() => !readonly && setIsHovered(true)}
-            onMouseLeave={() => !readonly && setIsHovered(false)}
+            onMouseEnter={() => {
+                setHovered?.(model.getID());
+                if (!readonly) {
+                    setIsHovered(true);
+                }
+            }}
+            onMouseLeave={() => {
+                setHovered?.(undefined);
+                if (!readonly) {
+                    setIsHovered(false);
+                }
+            }}
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
             onMouseDown={!readonly ? handleMouseDown : undefined}
@@ -161,7 +178,7 @@ export function TriggerNodeWidget(props: TriggerNodeWidgetProps) {
                 {model.node.label2 && <Label2>{model.node.label2}</Label2>}
             </LabelBlock>
             <Square hovered={isHovered} focused={isFocused}>
-                <Icon name={glyph.name} isCodicon={glyph.isCodicon} sx={{ width: 24, height: 24, fontSize: 24 }} iconSx={{ fontSize: 24 }} />
+                <TriggerGlyph glyphType={model.node.glyphType} icon={model.node.icon} />
                 <OutPort port={model.getPort("out")!} engine={engine} />
             </Square>
         </Wrapper>

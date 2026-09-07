@@ -165,58 +165,63 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders an empty package with no 
 
 exports[`AgentTopologyDiagram - Snapshot Tests renders the Help Desk shape: help-desk-shape 1`] = `
 "/* Emotion Styles */
-.css-26 {font-family: "GilmerRegular"; font-size: 12px; line-height: 16px; color: var(--vscode-descriptionForeground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
-.css-16 {top: 0; left: 0; right: 0; bottom: 0; position: absolute; pointer-events: none; transform-origin: 0 0; width: 100%; height: 100%; overflow: visible;}
-.css-14 >* {height: 100%; min-height: 100%; width: 100%;}
-.css-14 svg:first-child {z-index: 1;}
-.css-14 {height: 100%; -webkit-background-size: 16px 16px; background-size: 16px 16px; display: flex; background-image: radial-gradient(var(--vscode-editor-inactiveSelectionBackground) 10%, transparent 0px); font-family: "GilmerRegular";}
+.css-14 {top: 0; left: 0; right: 0; bottom: 0; position: absolute; pointer-events: none; transform-origin: 0 0; width: 100%; height: 100%; overflow: visible;}
+.css-19 {min-width: 0; display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column;}
+.css-12 >* {height: 100%; min-height: 100%; width: 100%;}
+.css-12 svg:first-child {z-index: 1;}
+.css-12 {height: 100%; -webkit-background-size: 16px 16px; background-size: 16px 16px; display: flex; background-image: radial-gradient(var(--vscode-editor-inactiveSelectionBackground) 10%, transparent 0px); font-family: "GilmerRegular";}
 .css-3 {height: 16px; width: 16px; cursor: pointer; font-size: 16px; -webkit-transform: rotate(90deg); -moz-transform: rotate(90deg); -ms-transform: rotate(90deg); transform: rotate(90deg);}
-.css-20 {position: absolute; right: -6px; top: 50%; -webkit-transform: translateY(-50%); -moz-transform: translateY(-50%); -ms-transform: translateY(-50%); transform: translateY(-50%);}
-.css-30 {display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; -webkit-box-pack: start; -ms-flex-pack: start; -webkit-justify-content: flex-start; justify-content: flex-start; gap: 14px; width: 302px; height: 56px; cursor: pointer; outline: none;}
-.css-13 .node {-webkit-transition: none; transition: none;}
-.css-13 {height: 100%;}
-.css-13>div>div>* {-webkit-transition: none; transition: none;}
-.css-13>div>div>svg {opacity: 1; -webkit-transition: opacity 160ms ease-out; transition: opacity 160ms ease-out;}
-.css-13>div>div>svg:nth-of-type(2) {z-index: 2; pointer-events: none;}
-.css-15 {position: relative; cursor: move; overflow: hidden;}
-.css-32 {font-family: "GilmerMedium"; font-size: 14px; line-height: 18px; color: var(--vscode-foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
+.css-18 {position: absolute; right: -6px; top: 50%; -webkit-transform: translateY(-50%); -moz-transform: translateY(-50%); -ms-transform: translateY(-50%); transform: translateY(-50%);}
+.css-11 .node {-webkit-transition: none; transition: none;}
+.css-11 {height: 100%;}
+.css-11>div>div>* {-webkit-transition: none; transition: none;}
+.css-11>div>div>svg {opacity: 1; -webkit-transition: opacity 160ms ease-out; transition: opacity 160ms ease-out;}
+.css-11>div>div>svg:nth-of-type(2) {z-index: 2; pointer-events: none;}
+.css-16 {display: grid; grid-template-columns: 1fr 56px; gap: 12px; width: 280px; min-height: 112px; box-sizing: border-box; padding: 14px 10px 12px 16px; border-radius: 10px; border-width: 1.5px; border-style: solid; border-color: var(--vscode-dropdown-border); background-color: var(--vscode-menu-background); color: var(--vscode-foreground); cursor: pointer; position: relative; opacity: 1; -webkit-transition: border-color 0.2s ease-out,opacity 150ms ease-out; transition: border-color 0.2s ease-out,opacity 150ms ease-out;}
+.css-16:focus-visible {outline: 2px solid var(--vscode-contrastActiveBorder, var(--vscode-button-background)); outline-offset: 2px;}
+.css-13 {position: relative; cursor: move; overflow: hidden;}
+.css-35 {font-family: "GilmerMedium"; font-size: 14px; line-height: 18px; color: var(--vscode-foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
 .css-2 {display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; padding: 8px; border-radius: 4px; background-color: var(--vscode-sideBar-background); fill: var(--vscode-foreground); width: 32px; height: 32px; cursor: pointer;}
 .css-2:active {background-color: var(--vscode-editor-inactiveSelectionBackground);}
 .css-2:hover {background-color: var(--vscode-editor-inactiveSelectionBackground);}
-.css-10 {width: 20px; height: 0; border-top: 1.5px dashed var(--vscode-foreground);}
 .css-5 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; gap: 0;}
 .css-5>*:first-child {border-bottom-left-radius: 0; border-bottom-right-radius: 0;}
 .css-5>*:last-child {border-top-left-radius: 0; border-top-right-radius: 0;}
 .css-5>*:not(:first-child):not(:last-child) {border-radius: 0;}
 .css-5>*:not(:last-child) {border-bottom: 1px solid var(--vscode-dropdown-border);}
-.css-11 {position: relative; width: 20px; height: 16px; display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center;}
-.css-11::before {content: ""; position: absolute; left: 0; right: 0; top: 50%; border-top: 1.5px solid var(--vscode-foreground);}
-.css-22 svg {fill: var(--vscode-terminal-ansiCyan);}
-.css-27 {display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 6px; margin-top: 12px; min-height: 22px;}
-.css-24 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; min-width: 0; gap: 1px;}
+.css-26 {display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 6px; margin-top: auto; padding-top: 12px; min-width: 0; height: 22px; box-sizing: content-box; font-family: "GilmerRegular"; font-size: 12px; color: var(--vscode-descriptionForeground);}
+.css-24 {font-family: "GilmerRegular"; font-size: 11px; line-height: 14px; color: var(--vscode-descriptionForeground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
+.css-21 svg {fill: var(--vscode-terminal-ansiCyan);}
+.css-29 {display: grid; -webkit-align-content: start; -ms-flex-line-pack: start; align-content: start; gap: 10px; padding-left: 10px; border-left: 1px solid var(--vscode-dropdown-border);}
+.css-9 {position: relative; width: 24px; height: 16px; display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center;}
+.css-9>svg {position: absolute; inset: 0;}
+.css-27 {display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 6px;}
 .css-8 {display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 8px;}
 .css-6 {position: absolute; top: 12px; left: 12px; z-index: 1000; display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-align-items: flex-start; -webkit-box-align: flex-start; -ms-flex-align: flex-start; align-items: flex-start; gap: 8px;}
-.css-31 {width: 232px; min-width: 0; text-align: right;}
-.css-35 {height: 24px; width: 24px; cursor: pointer; font-size: 24px;}
-.css-19 {position: absolute; left: -6px; top: 50%; -webkit-transform: translateY(-50%); -moz-transform: translateY(-50%); -ms-transform: translateY(-50%); transform: translateY(-50%);}
-.css-33 {font-family: var(--vscode-editor-font-family, monospace); font-size: 12px; line-height: 16px; color: var(--vscode-descriptionForeground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
-.css-37::part(indeterminate-indicator-1) {stroke: var(--vscode-contrastBorder, var(--vscode-button-background));}
-.css-34 {position: relative; -webkit-flex: none; -ms-flex: none; flex: none; width: 56px; height: 56px; box-sizing: border-box; border-radius: 10px; border: 1.5px solid var(--vscode-dropdown-border); background-color: var(--vscode-menu-background); color: var(--vscode-foreground); display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-transition: border-color 0.2s ease-out; transition: border-color 0.2s ease-out; outline: none; outline-offset: 2px;}
-.css-25 {font-family: "GilmerMedium"; font-size: 14px; line-height: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
-.css-18 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; width: 280px; box-sizing: border-box; padding: 14px 16px 12px; gap: 2px; border-radius: 10px; border-width: 1.5px; border-style: solid; border-color: var(--vscode-dropdown-border); background-color: var(--vscode-menu-background); color: var(--vscode-foreground); cursor: pointer; position: relative; -webkit-transition: border-color 0.2s ease-out; transition: border-color 0.2s ease-out;}
-.css-18:focus-visible {outline: 2px solid var(--vscode-contrastActiveBorder, var(--vscode-button-background)); outline-offset: 2px;}
+.css-34 {width: 232px; min-width: 0; text-align: right;}
+.css-38 {height: 24px; width: 24px; cursor: pointer; font-size: 24px;}
+.css-31 {font-family: "GilmerRegular"; font-size: 10px; line-height: 12px; color: var(--vscode-descriptionForeground);}
+.css-17 {position: absolute; left: -6px; top: 50%; -webkit-transform: translateY(-50%); -moz-transform: translateY(-50%); -ms-transform: translateY(-50%); transform: translateY(-50%);}
+.css-25 {font-family: var(--vscode-editor-font-family, monospace); font-size: 13px; font-weight: 500; line-height: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
+.css-36 {font-family: var(--vscode-editor-font-family, monospace); font-size: 12px; line-height: 16px; color: var(--vscode-descriptionForeground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
+.css-41::part(indeterminate-indicator-1) {stroke: var(--vscode-contrastBorder, var(--vscode-button-background));}
+.css-28 {color: var(--vscode-foreground); white-space: nowrap;}
+.css-39 {width: 24px; height: 24px; box-sizing: border-box; border-radius: 50%; display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-flex: none; -ms-flex: none; flex: none; background-color: var(--vscode-editor-background); border: 1.5px solid var(--vscode-foreground); color: var(--vscode-foreground); font-size: 12px; font-weight: 700; line-height: 1; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none;}
+.css-33 {display: flex; opacity: 1; -webkit-transition: opacity 150ms ease-out; transition: opacity 150ms ease-out; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; -webkit-box-pack: start; -ms-flex-pack: start; -webkit-justify-content: flex-start; justify-content: flex-start; gap: 14px; width: 302px; height: 56px; cursor: pointer; outline: none;}
+.css-37 {position: relative; -webkit-flex: none; -ms-flex: none; flex: none; width: 56px; height: 56px; box-sizing: border-box; border-radius: 10px; border: 1.5px solid var(--vscode-dropdown-border); background-color: var(--vscode-menu-background); color: var(--vscode-foreground); display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-transition: border-color 0.2s ease-out; transition: border-color 0.2s ease-out; outline: none; outline-offset: 2px;}
 .css-0 {position: relative; width: 100%; height: 100%;}
-.css-36 {-webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; height: 100%; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; width: 100%; background-color: var(--vscode-menu-background); z-index: 1000;}
+.css-40 {-webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; height: 100%; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; width: 100%; background-color: var(--vscode-menu-background); z-index: 1000;}
 .css-7 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; gap: 6px; padding: 8px 10px; border-radius: 6px; background-color: var(--vscode-sideBar-background); border: 1px solid var(--vscode-dropdown-border); font-family: "GilmerRegular"; font-size: 11px; color: var(--vscode-foreground);}
 .css-4 {height: 16px; width: 16px; cursor: pointer; font-size: 16px;}
-.css-12 {position: relative; width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--vscode-foreground); background-color: var(--vscode-sideBar-background); display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; font-size: 9px; font-weight: 700;}
-.css-28 {display: flex; -webkit-box-flex-wrap: wrap; -webkit-flex-wrap: wrap; -ms-flex-wrap: wrap; flex-wrap: wrap; gap: 6px; min-width: 0;}
-.css-17 {position: absolute; -webkit-touch-callout: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; cursor: move; pointer-events: all;}
-.css-21 {display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 10px; min-width: 0;}
+.css-23 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; min-width: 0;}
+.css-30 {display: grid; justify-items: center; gap: 4px; min-width: 0;}
+.css-15 {position: absolute; -webkit-touch-callout: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; cursor: move; pointer-events: all;}
+.css-20 {display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 10px; min-width: 0;}
 .css-1 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; gap: 8px; position: absolute; left: 12px; bottom: 12px; z-index: 1000;}
-.css-29 {font-family: monospace; font-size: 11px; color: var(--vscode-descriptionForeground); margin-left: auto; white-space: nowrap;}
-.css-9 {width: 20px; height: 0; border-top: 1.5px solid var(--vscode-foreground);}
-.css-23 {height: 24px; width: 24px; cursor: pointer; font-size: 24px; color: var(--vscode-terminal-ansiCyan);}
+.css-32 svg,.css-32 img {width: 14px; height: 14px; object-fit: contain;}
+.css-32 {display: inline-flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-flex: none; -ms-flex: none; flex: none; width: 22px; height: 22px; box-sizing: border-box; border-radius: 50%; border: 1.5px dashed var(--vscode-dropdown-border); background-color: var(--vscode-editor-background); color: var(--vscode-descriptionForeground); font-size: 12px; overflow: hidden;}
+.css-22 {height: 24px; width: 24px; cursor: pointer; font-size: 24px; color: var(--vscode-terminal-ansiCyan);}
+.css-10 {position: relative; width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--vscode-foreground); background-color: var(--vscode-sideBar-background); display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; font-size: 9px; font-weight: 700;}
 
 /* DOM */
 <div>
@@ -288,9 +293,24 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the Help Desk shape: help
           class="css-8"
           title="A trigger (an HTTP resource, a remote function, or main) runs this agent."
         >
-          <div
-            class="css-9"
-          />
+          <svg
+            height="16"
+            style="flex: 0 0 auto; overflow: visible;"
+            width="24"
+          >
+            <line
+              stroke="currentColor"
+              stroke-width="1.5"
+              x1="0"
+              x2="18"
+              y1="8"
+              y2="8"
+            />
+            <polygon
+              fill="currentColor"
+              points="18,5 24,8 18,11"
+            />
+          </svg>
           <span>
             Runs the agent
           </span>
@@ -299,9 +319,25 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the Help Desk shape: help
           class="css-8"
           title="This agent uses the other agent as a tool."
         >
-          <div
-            class="css-10"
-          />
+          <svg
+            height="16"
+            style="flex: 0 0 auto; overflow: visible;"
+            width="24"
+          >
+            <line
+              stroke="currentColor"
+              stroke-dasharray="4 3"
+              stroke-width="1.5"
+              x1="0"
+              x2="18"
+              y1="8"
+              y2="8"
+            />
+            <polygon
+              fill="currentColor"
+              points="18,5 24,8 18,11"
+            />
+          </svg>
           <span>
             Delegates to
           </span>
@@ -311,10 +347,28 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the Help Desk shape: help
           title="The same handler runs these agents in this order."
         >
           <div
-            class="css-11"
+            class="css-9"
           >
+            <svg
+              height="16"
+              style="flex: 0 0 auto; overflow: visible;"
+              width="24"
+            >
+              <line
+                stroke="currentColor"
+                stroke-width="1.5"
+                x1="0"
+                x2="18"
+                y1="8"
+                y2="8"
+              />
+              <polygon
+                fill="currentColor"
+                points="18,5 24,8 18,11"
+              />
+            </svg>
             <div
-              class="css-12"
+              class="css-10"
             >
               2
             </div>
@@ -326,17 +380,17 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the Help Desk shape: help
       </div>
     </div>
     <div
-      class="css-13"
+      class="css-11"
     >
       <div
-        class="css-14"
+        class="css-12"
         color="var(--vscode-foreground)"
       >
         <div
-          class="css-15"
+          class="css-13"
         >
           <svg
-            class="css-16"
+            class="css-14"
             style="transform: translate(
 				0px,
 				0px)
@@ -347,7 +401,9 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the Help Desk shape: help
             <g
             >
               <g
+                opacity="1"
                 pointer-events="all"
+                style="transition: opacity 150ms ease-out;"
               >
                 <path
                   d="M 400 300 L 400 300"
@@ -381,7 +437,9 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the Help Desk shape: help
             <g
             >
               <g
+                opacity="1"
                 pointer-events="all"
+                style="transition: opacity 150ms ease-out;"
               >
                 <path
                   d="M 400 300 L 428 300 Q 438 300 438 290 L 438 290 Q 438 280 428 280 L 400 280"
@@ -415,7 +473,9 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the Help Desk shape: help
             <g
             >
               <g
+                opacity="1"
                 pointer-events="all"
+                style="transition: opacity 150ms ease-out;"
               >
                 <path
                   d="M 400 300 L 400 300"
@@ -449,7 +509,9 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the Help Desk shape: help
             <g
             >
               <g
+                opacity="1"
                 pointer-events="all"
+                style="transition: opacity 150ms ease-out;"
               >
                 <path
                   d="M 400 300 L 400 300"
@@ -484,7 +546,9 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the Help Desk shape: help
             <g
             >
               <g
+                opacity="1"
                 pointer-events="all"
+                style="transition: opacity 150ms ease-out;"
               >
                 <path
                   d="M 400 300 L 400 300"
@@ -519,7 +583,9 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the Help Desk shape: help
             <g
             >
               <g
+                opacity="1"
                 pointer-events="all"
+                style="transition: opacity 150ms ease-out;"
               >
                 <path
                   d="M 400 300 L 772 300 Q 782 300 782 310 L 782 310 Q 782 320 772 320 L 400 320"
@@ -553,7 +619,7 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the Help Desk shape: help
             </g>
           </svg>
           <div
-            class="css-16"
+            class="css-14"
             style="transform: translate(
 				0px,
 				0px)
@@ -562,343 +628,443 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the Help Desk shape: help
 			);"
           >
             <div
-              class="node css-17"
-              style="top: 268px; left: 462px;"
+              class="node css-15"
+              style="top: 278px; left: 462px;"
             >
               <div
-                class="css-18"
+                class="css-16"
                 tabindex="0"
               >
                 <div
-                  class="port css-19"
+                  class="port css-17"
                   data-name="in"
                 />
                 <div
-                  class="port css-20"
+                  class="port css-18"
                   data-name="out"
                 />
                 <div
-                  class="css-21"
+                  class="css-19"
                 >
                   <div
-                    class="css-22"
-                    color="var(--vscode-terminal-ansiCyan)"
+                    class="css-20"
                   >
                     <div
-                      class="css-23"
+                      class="css-21"
+                      color="var(--vscode-terminal-ansiCyan)"
                     >
-                      <i
-                        class="fw-bi-ai-agent"
-                      />
+                      <div
+                        class="css-22"
+                      >
+                        <i
+                          class="fw-bi-ai-agent"
+                        />
+                      </div>
+                    </div>
+                    <div
+                      class="css-23"
+                      title="supportSupervisorAgent"
+                    >
+                      <div
+                        class="css-24"
+                      >
+                        AI Agent
+                      </div>
+                      <div
+                        class="css-25"
+                      >
+                        supportSupervisorAgent
+                      </div>
                     </div>
                   </div>
                   <div
-                    class="css-24"
+                    class="css-26"
                   >
                     <div
-                      class="css-25"
-                      title="supportSupervisorAgent"
+                      class="css-27"
                     >
-                      supportSupervisorAgent
-                    </div>
-                    <div
-                      class="css-26"
-                      title="Supervisor"
-                    >
-                      Supervisor
+                      <span
+                        class="css-28"
+                      >
+                        No tools
+                      </span>
                     </div>
                   </div>
                 </div>
                 <div
-                  class="css-27"
+                  class="css-29"
                 >
                   <div
-                    class="css-28"
-                  />
-                  <div
-                    class="css-29"
+                    class="css-30"
                   >
-                    No tools
+                    <span
+                      class="css-31"
+                    >
+                      Model
+                    </span>
+                    <span
+                      class="css-32"
+                    />
                   </div>
                 </div>
               </div>
             </div>
             <div
-              class="node css-17"
+              class="node css-15"
               style="top: 0px; left: 902px;"
             >
               <div
-                class="css-18"
+                class="css-16"
                 tabindex="0"
               >
                 <div
-                  class="port css-19"
+                  class="port css-17"
                   data-name="in"
                 />
                 <div
-                  class="port css-20"
+                  class="port css-18"
                   data-name="out"
                 />
                 <div
-                  class="css-21"
+                  class="css-19"
                 >
                   <div
-                    class="css-22"
-                    color="var(--vscode-terminal-ansiCyan)"
+                    class="css-20"
                   >
+                    <div
+                      class="css-21"
+                      color="var(--vscode-terminal-ansiCyan)"
+                    >
+                      <div
+                        class="css-22"
+                      >
+                        <i
+                          class="fw-bi-ai-agent"
+                        />
+                      </div>
+                    </div>
                     <div
                       class="css-23"
-                    >
-                      <i
-                        class="fw-bi-ai-agent"
-                      />
-                    </div>
-                  </div>
-                  <div
-                    class="css-24"
-                  >
-                    <div
-                      class="css-25"
                       title="billingAgent"
                     >
-                      billingAgent
+                      <div
+                        class="css-24"
+                      >
+                        AI Agent
+                      </div>
+                      <div
+                        class="css-25"
+                      >
+                        billingAgent
+                      </div>
                     </div>
+                  </div>
+                  <div
+                    class="css-26"
+                  >
                     <div
-                      class="css-26"
-                      title="Billing"
+                      class="css-27"
                     >
-                      Billing
+                      <span
+                        class="css-28"
+                      >
+                        No tools
+                      </span>
                     </div>
                   </div>
                 </div>
                 <div
-                  class="css-27"
+                  class="css-29"
                 >
                   <div
-                    class="css-28"
-                  />
-                  <div
-                    class="css-29"
+                    class="css-30"
                   >
-                    No tools
+                    <span
+                      class="css-31"
+                    >
+                      Model
+                    </span>
+                    <span
+                      class="css-32"
+                    />
                   </div>
                 </div>
               </div>
             </div>
             <div
-              class="node css-17"
-              style="top: 336px; left: 902px;"
+              class="node css-15"
+              style="top: 352px; left: 902px;"
             >
               <div
-                class="css-18"
+                class="css-16"
                 tabindex="0"
               >
                 <div
-                  class="port css-19"
+                  class="port css-17"
                   data-name="in"
                 />
                 <div
-                  class="port css-20"
+                  class="port css-18"
                   data-name="out"
                 />
                 <div
-                  class="css-21"
+                  class="css-19"
                 >
                   <div
-                    class="css-22"
-                    color="var(--vscode-terminal-ansiCyan)"
+                    class="css-20"
                   >
+                    <div
+                      class="css-21"
+                      color="var(--vscode-terminal-ansiCyan)"
+                    >
+                      <div
+                        class="css-22"
+                      >
+                        <i
+                          class="fw-bi-ai-agent"
+                        />
+                      </div>
+                    </div>
                     <div
                       class="css-23"
-                    >
-                      <i
-                        class="fw-bi-ai-agent"
-                      />
-                    </div>
-                  </div>
-                  <div
-                    class="css-24"
-                  >
-                    <div
-                      class="css-25"
                       title="technicalSupportAgent"
                     >
-                      technicalSupportAgent
+                      <div
+                        class="css-24"
+                      >
+                        AI Agent
+                      </div>
+                      <div
+                        class="css-25"
+                      >
+                        technicalSupportAgent
+                      </div>
                     </div>
+                  </div>
+                  <div
+                    class="css-26"
+                  >
                     <div
-                      class="css-26"
-                      title="Technical"
+                      class="css-27"
                     >
-                      Technical
+                      <span
+                        class="css-28"
+                      >
+                        No tools
+                      </span>
                     </div>
                   </div>
                 </div>
                 <div
-                  class="css-27"
+                  class="css-29"
                 >
                   <div
-                    class="css-28"
-                  />
-                  <div
-                    class="css-29"
+                    class="css-30"
                   >
-                    No tools
+                    <span
+                      class="css-31"
+                    >
+                      Model
+                    </span>
+                    <span
+                      class="css-32"
+                    />
                   </div>
                 </div>
               </div>
             </div>
             <div
-              class="node css-17"
-              style="top: 168px; left: 902px;"
+              class="node css-15"
+              style="top: 176px; left: 902px;"
             >
               <div
-                class="css-18"
+                class="css-16"
                 tabindex="0"
               >
                 <div
-                  class="port css-19"
+                  class="port css-17"
                   data-name="in"
                 />
                 <div
-                  class="port css-20"
+                  class="port css-18"
                   data-name="out"
                 />
                 <div
-                  class="css-21"
+                  class="css-19"
                 >
                   <div
-                    class="css-22"
-                    color="var(--vscode-terminal-ansiCyan)"
+                    class="css-20"
                   >
+                    <div
+                      class="css-21"
+                      color="var(--vscode-terminal-ansiCyan)"
+                    >
+                      <div
+                        class="css-22"
+                      >
+                        <i
+                          class="fw-bi-ai-agent"
+                        />
+                      </div>
+                    </div>
                     <div
                       class="css-23"
-                    >
-                      <i
-                        class="fw-bi-ai-agent"
-                      />
-                    </div>
-                  </div>
-                  <div
-                    class="css-24"
-                  >
-                    <div
-                      class="css-25"
                       title="orderAgent"
                     >
-                      orderAgent
+                      <div
+                        class="css-24"
+                      >
+                        AI Agent
+                      </div>
+                      <div
+                        class="css-25"
+                      >
+                        orderAgent
+                      </div>
                     </div>
+                  </div>
+                  <div
+                    class="css-26"
+                  >
                     <div
-                      class="css-26"
-                      title="Order"
+                      class="css-27"
                     >
-                      Order
+                      <span
+                        class="css-28"
+                      >
+                        No tools
+                      </span>
                     </div>
                   </div>
                 </div>
                 <div
-                  class="css-27"
+                  class="css-29"
                 >
                   <div
-                    class="css-28"
-                  />
-                  <div
-                    class="css-29"
+                    class="css-30"
                   >
-                    No tools
+                    <span
+                      class="css-31"
+                    >
+                      Model
+                    </span>
+                    <span
+                      class="css-32"
+                    />
                   </div>
                 </div>
               </div>
             </div>
             <div
-              class="node css-17"
-              style="top: 168px; left: 1342px;"
+              class="node css-15"
+              style="top: 176px; left: 1342px;"
             >
               <div
-                class="css-18"
+                class="css-16"
                 tabindex="0"
               >
                 <div
-                  class="port css-19"
+                  class="port css-17"
                   data-name="in"
                 />
                 <div
-                  class="port css-20"
+                  class="port css-18"
                   data-name="out"
                 />
                 <div
-                  class="css-21"
+                  class="css-19"
                 >
                   <div
-                    class="css-22"
-                    color="var(--vscode-terminal-ansiCyan)"
+                    class="css-20"
                   >
                     <div
-                      class="css-23"
+                      class="css-21"
+                      color="var(--vscode-terminal-ansiCyan)"
                     >
-                      <i
-                        class="fw-bi-ai-agent"
-                      />
+                      <div
+                        class="css-22"
+                      >
+                        <i
+                          class="fw-bi-ai-agent"
+                        />
+                      </div>
+                    </div>
+                    <div
+                      class="css-23"
+                      title="shippingRatesAgent"
+                    >
+                      <div
+                        class="css-24"
+                      >
+                        AI Agent
+                      </div>
+                      <div
+                        class="css-25"
+                      >
+                        shippingRatesAgent
+                      </div>
                     </div>
                   </div>
                   <div
-                    class="css-24"
+                    class="css-26"
                   >
                     <div
-                      class="css-25"
-                      title="shippingRatesAgent"
+                      class="css-27"
                     >
-                      shippingRatesAgent
-                    </div>
-                    <div
-                      class="css-26"
-                      title="Shipping"
-                    >
-                      Shipping
+                      <span
+                        class="css-28"
+                      >
+                        No tools
+                      </span>
                     </div>
                   </div>
                 </div>
                 <div
-                  class="css-27"
+                  class="css-29"
                 >
                   <div
-                    class="css-28"
-                  />
-                  <div
-                    class="css-29"
+                    class="css-30"
                   >
-                    No tools
+                    <span
+                      class="css-31"
+                    >
+                      Model
+                    </span>
+                    <span
+                      class="css-32"
+                    />
                   </div>
                 </div>
               </div>
             </div>
             <div
-              class="node css-17"
-              style="top: 292px; left: 0px;"
+              class="node css-15"
+              style="top: 306px; left: 0px;"
             >
               <div
-                class="css-30"
+                class="css-33"
                 tabindex="0"
                 title="Agent Chat — AI Chat Service · /helpDesk"
               >
-                <div
-                  class="css-31"
-                >
-                  <div
-                    class="css-32"
-                  >
-                    Agent Chat
-                  </div>
-                  <div
-                    class="css-33"
-                  >
-                    AI Chat Service · /helpDesk
-                  </div>
-                </div>
                 <div
                   class="css-34"
                 >
                   <div
                     class="css-35"
+                  >
+                    Agent Chat
+                  </div>
+                  <div
+                    class="css-36"
+                  >
+                    AI Chat Service · /helpDesk
+                  </div>
+                </div>
+                <div
+                  class="css-37"
+                >
+                  <div
+                    class="css-38"
                   >
                     <i
                       class="codicon codicon-comment-discussion"
@@ -906,40 +1072,40 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the Help Desk shape: help
                     />
                   </div>
                   <div
-                    class="port css-20"
+                    class="port css-18"
                     data-name="out"
                   />
                 </div>
               </div>
             </div>
             <div
-              class="node css-17"
-              style="top: 172px; left: 0px;"
+              class="node css-15"
+              style="top: 186px; left: 0px;"
             >
               <div
-                class="css-30"
+                class="css-33"
                 tabindex="0"
                 title="POST /quotes — HTTP Service · /shipping-api"
               >
-                <div
-                  class="css-31"
-                >
-                  <div
-                    class="css-32"
-                  >
-                    POST /quotes
-                  </div>
-                  <div
-                    class="css-33"
-                  >
-                    HTTP Service · /shipping-api
-                  </div>
-                </div>
                 <div
                   class="css-34"
                 >
                   <div
                     class="css-35"
+                  >
+                    POST /quotes
+                  </div>
+                  <div
+                    class="css-36"
+                  >
+                    HTTP Service · /shipping-api
+                  </div>
+                </div>
+                <div
+                  class="css-37"
+                >
+                  <div
+                    class="css-38"
                   >
                     <i
                       class="fw-bi-globe"
@@ -947,7 +1113,7 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the Help Desk shape: help
                     />
                   </div>
                   <div
-                    class="port css-20"
+                    class="port css-18"
                     data-name="out"
                   />
                 </div>
@@ -955,7 +1121,7 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the Help Desk shape: help
             </div>
           </div>
           <svg
-            class="css-16"
+            class="css-14"
             style="transform: translate(
 				0px,
 				0px)
@@ -964,53 +1130,81 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the Help Desk shape: help
 			);"
           >
             <g>
-              <foreignobject
-                height="32"
-                width="32"
-                x="654"
-                y="132"
+              <g
+                opacity="1"
+                style="transition: opacity 150ms ease-out;"
+              />
+              <g
+                opacity="1"
+                style="transition: opacity 150ms ease-out;"
               >
-                <div
-                  style="display: flex; justify-content: center; align-items: center; height: 32px;"
+                <foreignobject
+                  height="32"
+                  width="32"
+                  x="654"
+                  y="140"
                 >
                   <div
-                    style="width: 24px; height: 24px; box-sizing: border-box; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; line-height: 1; user-select: none;"
+                    style="display: flex; justify-content: center; align-items: center; height: 32px;"
                   >
-                    1
+                    <div
+                      class="css-39"
+                      style="pointer-events: auto;"
+                    >
+                      1
+                    </div>
                   </div>
-                </div>
-              </foreignobject>
-              <foreignobject
-                height="32"
-                width="32"
-                x="1273"
-                y="152"
+                </foreignobject>
+              </g>
+              <g
+                opacity="1"
+                style="transition: opacity 150ms ease-out;"
               >
-                <div
-                  style="display: flex; justify-content: center; align-items: center; height: 32px;"
+                <foreignobject
+                  height="32"
+                  width="32"
+                  x="1273"
+                  y="160"
                 >
                   <div
-                    style="width: 24px; height: 24px; box-sizing: border-box; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; line-height: 1; user-select: none;"
+                    style="display: flex; justify-content: center; align-items: center; height: 32px;"
                   >
-                    2
+                    <div
+                      class="css-39"
+                      style="pointer-events: auto;"
+                    >
+                      2
+                    </div>
                   </div>
-                </div>
-              </foreignobject>
+                </foreignobject>
+              </g>
+              <g
+                opacity="1"
+                style="transition: opacity 150ms ease-out;"
+              />
+              <g
+                opacity="1"
+                style="transition: opacity 150ms ease-out;"
+              />
+              <g
+                opacity="1"
+                style="transition: opacity 150ms ease-out;"
+              />
             </g>
           </svg>
           <div
-            class="css-16"
+            class="css-14"
           >
             <div
-              class="css-14"
+              class="css-12"
               color="var(--vscode-foreground)"
             >
               <div
-                class="css-36"
+                class="css-40"
               >
                 <vscode-progress-ring
                   aria-live="assertive"
-                  class="css-37"
+                  class="css-41"
                   color="var(--vscode-contrastBorder, var(--vscode-button-background))"
                   role="alert"
                 />
