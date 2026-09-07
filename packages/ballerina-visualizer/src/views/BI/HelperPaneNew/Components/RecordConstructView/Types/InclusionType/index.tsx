@@ -71,6 +71,8 @@ export default function InclusionType(props: TypeProps) {
                         {...(requiredParam && !isAllIncludedParamDefaultable && { disabled: true })}
                         onClick={toggleParamCheck}
                         className={helperStyleClass.parameterCheckbox}
+                        aria-label={param.name}
+                        data-testid={`record-field-checkbox-${param.name}`}
                     />
                     <Typography
                         variant="body3"

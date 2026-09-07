@@ -107,3 +107,30 @@ export async function verifyRecordFields(
         expect(fieldDeclared, `Field '${fieldName}' not declared in record '${typeName}'`).toBe(true);
     }
 }
+
+/**
+ * Polls a generated source file until it contains `expected`.
+ *
+ * Asserting against source is what catches a save that was silently dropped:
+ * the webview can keep showing an edit the language server never wrote.
+ */
+export async function pollGeneratedSource(
+    generatedFileName: string,
+    expected: string,
+    timeout = 30000
+): Promise<void> {
+    const generatedFilePath = path.join(newProjectPath, generatedFileName);
+    const deadline = Date.now() + timeout;
+    let content = '';
+
+    while (Date.now() < deadline) {
+        content = fs.existsSync(generatedFilePath) ? fs.readFileSync(generatedFilePath, 'utf-8') : '';
+        if (content.includes(expected)) {
+            return;
+        }
+        await new Promise(resolve => setTimeout(resolve, 500));
+    }
+
+    throw new Error(`${generatedFileName} never contained "${expected}" within ${timeout}ms.\n` +
+        `Current content:\n${content}`);
+}
