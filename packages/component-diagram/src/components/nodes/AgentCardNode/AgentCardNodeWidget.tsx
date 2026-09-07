@@ -230,14 +230,6 @@ const OrphanFooter = styled.div`
     }
 `;
 
-const OpenHint = styled.div`
-    position: absolute;
-    top: 10px;
-    right: 12px;
-    font-size: 11px;
-    color: ${ThemeColors.SECONDARY};
-`;
-
 const LeftPortWidget = styled(PortWidget)`
     position: absolute;
     left: -6px;
@@ -435,7 +427,6 @@ export function AgentCardNodeWidget(props: AgentCardNodeWidgetProps) {
         >
             <InPort port={model.getPort("in")!} engine={engine} />
             <OutPort port={model.getPort("out")!} engine={engine} />
-            {isHovered && !readonly && <OpenHint>Open ↗</OpenHint>}
             <Body>
                 <HeaderRow>
                     <NodeIcon type="AGENT" size={24} />
