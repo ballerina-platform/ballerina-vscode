@@ -66,7 +66,7 @@ function createLink(edge: TopologyEdge, nodeModels: Map<string, TopologyNodeMode
     if (!sourcePort || !targetPort) {
         return null;
     }
-    const link = new TopologyLinkModel({ edgeId: edge.id, dashed: edge.kind === "delegation", arrow: edge.kind !== "stem", chips: edge.chips, bow: edge.bow });
+    const link = new TopologyLinkModel({ edgeId: edge.id, dashed: edge.kind === "delegation", arrow: edge.kind !== "stem", chips: edge.chips });
     link.setSourcePort(sourcePort);
     link.setTargetPort(targetPort);
     sourcePort.addLink(link);
@@ -161,6 +161,7 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
         place(layout.splitPositions);
         linkModelsRef.current.forEach((link, edgeId) => {
             link.via = layout.edgeVias[edgeId] ?? [];
+            link.bow = layout.edgeBows[edgeId] ?? 0;
             link.vertical = orientation === "vertical";
         });
     }, [canvasWidth, orientation]);

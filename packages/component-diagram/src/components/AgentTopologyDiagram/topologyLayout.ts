@@ -45,6 +45,8 @@ const LABEL1_CHAR_WIDTH = 8.5;
 const LABEL2_CHAR_WIDTH = 7.2;
 const LANE_CLEARANCE = 28;
 const LANE_LEAD = 24;
+// How far past the cards a back edge (a delegation cycle) wraps around.
+const BACK_EDGE_CLEARANCE = 24;
 const BEND_OFFSET = 40;
 const BEND_STAGGER = 14;
 
@@ -161,41 +163,64 @@ function adjacency(edges: TopologyEdge[], from: "sourceId" | "targetId", to: "so
     return map;
 }
 
-// Bounded Bellman-Ford relaxation so a delegation cycle converges instead of looping.
-function relaxRanks(rank: Map<string, number>, edges: TopologyEdge[], bound: number): void {
-    for (let i = 0; i < bound; i++) {
-        let changed = false;
-        for (const edge of edges) {
-            const sourceRank = rank.get(edge.sourceId);
-            if (sourceRank === undefined) {
-                continue;
-            }
-            const candidate = sourceRank + 1;
-            if (candidate > (rank.get(edge.targetId) ?? -1)) {
-                rank.set(edge.targetId, candidate);
-                changed = true;
+// Longest path from the seeds. An edge back into the path being walked closes a delegation
+// cycle and does not lengthen it, so the cycle's members stay in adjacent ranks.
+function relaxRanks(rank: Map<string, number>, children: Adjacency, seeds: string[]): void {
+    const walking = new Set<string>();
+    const visit = (id: string): void => {
+        walking.add(id);
+        for (const target of children.get(id) ?? []) {
+            const candidate = rank.get(id) + 1;
+            if (!walking.has(target) && candidate > (rank.get(target) ?? -1)) {
+                rank.set(target, candidate);
+                visit(target);
             }
         }
-        if (!changed) {
-            return;
-        }
-    }
+        walking.delete(id);
+    };
+    seeds.forEach(visit);
 }
 
 // Rank = longest path from a trigger. Agents nothing reaches start in the first agent rank
 // and pull their own delegates along, so an untriggered supervisor still fans out.
 function computeRanks(graph: TopologyGraph, edges: TopologyEdge[]): Map<string, number> {
     const rank = new Map<string, number>();
-    const bound = graph.agents.length + graph.triggers.length + 1;
+    const children = adjacency(edges, "sourceId", "targetId");
     graph.triggers.forEach((trigger) => rank.set(trigger.id, 0));
-    relaxRanks(rank, edges, bound);
-    graph.agents.forEach((agent) => {
-        if (!rank.has(agent.id)) {
-            rank.set(agent.id, 1);
+    relaxRanks(rank, children, graph.triggers.map((trigger) => trigger.id));
+    const orphans = graph.agents.filter((agent) => !rank.has(agent.id));
+    orphans.forEach((agent) => rank.set(agent.id, 1));
+    // An orphan that another orphan's walk already pulled along is not a root of its own.
+    orphans.forEach((agent) => {
+        if (rank.get(agent.id) === 1) {
+            relaxRanks(rank, children, [agent.id]);
         }
     });
-    relaxRanks(rank, edges, bound);
     return rank;
+}
+
+// Edges arriving at one node spread across its port side, at most ±1 step apart.
+function spreadArrivals(edges: TopologyEdge[]): Record<string, number> {
+    const groups = new Map<string, TopologyEdge[]>();
+    edges.forEach((edge) => groups.set(edge.targetId, [...(groups.get(edge.targetId) ?? []), edge]));
+    const bows: Record<string, number> = {};
+    groups.forEach((group) => {
+        const scale = Math.min(1, 2 / Math.max(1, group.length - 1));
+        group.forEach((edge, index) => (bows[edge.id] = (index - (group.length - 1) / 2) * scale));
+    });
+    return bows;
+}
+
+// A delegation back to an earlier rank (or to the agent itself) leaves the source's out port, wraps
+// around below the cards and comes back into the target's in port.
+function backEdgeVias(edge: TopologyEdge, frame: Frame, final: Placement, mainOf: (id: string) => number, offset: number): NodePosition[] {
+    const mainSize = (id: string): number => (frame.vertical ? frame.extents[id].height : frame.extents[id].width);
+    const place = (main: number, cross: number): NodePosition => (frame.vertical ? { x: cross, y: main } : { x: main, y: cross });
+    const { sourceId: source, targetId: target } = edge;
+    const start = mainOf(source) + mainSize(source) + offset;
+    const finish = mainOf(target) - BEND_OFFSET;
+    const clear = Math.max(final.cross.get(source) + final.sizes[source], final.cross.get(target) + final.sizes[target]) + BACK_EDGE_CLEARANCE;
+    return [place(start, centre(source, final)), place(start, clear), place(finish, clear), place(finish, centre(target, final))];
 }
 
 // Columns spread across the canvas when there is room, but never closer than the default gap
@@ -422,25 +447,31 @@ export function layoutTopology(graph: TopologyGraph, options: LayoutOptions = {}
     const offsets = bendOffsets([...ranks.values(), ...splitLayers], final);
     const longIds = new Set(longEdges.map((edge) => edge.id));
     const triggerOfSplit = new Map(graph.splits.map((split) => [split.id, split.triggerId]));
-    const vias = new Map<string, NodePosition>();
+    const vias = new Map<string, NodePosition[]>();
+    const isBackEdge = (edge: TopologyEdge): boolean => !splitIds.has(edge.sourceId) && rank.get(edge.targetId) <= rank.get(edge.sourceId);
     graph.edges.forEach((edge) => {
         const source = edge.sourceId;
+        if (isBackEdge(edge)) {
+            vias.set(edge.id, backEdgeVias(edge, frame, final, mainOf, offsets.get(source)));
+            return;
+        }
         const extent = frame.extents[source];
         const bend = longIds.has(edge.id)
             ? frame.main(rank.get(triggerOfSplit.get(source) ?? source) + 1) - LANE_LEAD
             : mainOf(source) + (frame.vertical ? extent.height : extent.width) + offsets.get(source);
-        vias.set(edge.id, place(bend, centre(longIds.has(edge.id) ? edge.targetId : source, final)));
+        vias.set(edge.id, [place(bend, centre(longIds.has(edge.id) ? edge.targetId : source, final))]);
     });
-    return collectLayout(graph, positions, vias, frame, cardHeights);
+    const edgeBows = spreadArrivals(graph.edges.filter((edge) => !isBackEdge(edge)));
+    return { ...collectLayout(graph, positions, vias, frame, cardHeights), edgeBows };
 }
 
 function collectLayout(
     graph: TopologyGraph,
     positions: Map<string, NodePosition>,
-    vias: Map<string, NodePosition>,
+    vias: Map<string, NodePosition[]>,
     frame: Frame,
     cardHeights: Record<string, number>
-): TopologyLayout {
+): Omit<TopologyLayout, "edgeBows"> {
     const xs = [...positions.values()].map((position) => position.x);
     const ys = [...positions.values()].map((position) => position.y);
     const minX = xs.length ? Math.min(...xs) : 0;
@@ -460,7 +491,14 @@ function collectLayout(
         right = Math.max(right, normalised.x + frame.extents[id].width);
         height = Math.max(height, normalised.y + frame.extents[id].height);
     });
-    vias.forEach((via, edgeId) => (edgeVias[edgeId] = [{ x: via.x - minX, y: via.y - minY }]));
+    vias.forEach((points, edgeId) => {
+        edgeVias[edgeId] = points.map((via) => ({ x: via.x - minX, y: via.y - minY }));
+        // A wrapped back edge is part of the drawn bounds.
+        edgeVias[edgeId].forEach((via) => {
+            right = Math.max(right, via.x);
+            height = Math.max(height, via.y);
+        });
+    });
     const left = !frame.vertical && graph.triggers.length ? triggerLabelSlack(graph.triggers) : 0;
     return { agentPositions, triggerPositions, splitPositions, cardHeights, edgeVias, left, width: right - left, height };
 }

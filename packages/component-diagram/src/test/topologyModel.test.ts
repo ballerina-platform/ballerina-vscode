@@ -438,7 +438,7 @@ describe("buildTopology", () => {
         expect(graph.agents.find((agent) => agent.name === "specialistAgent").orphan).toBe(false);
     });
 
-    it("spreads a sequence step and a delegation that arrive at the same agent", () => {
+    it("keeps both a sequence step and a delegation between the same two agents", () => {
         const order = agentConnection("ord", "orderAgent", AGENTS_BAL, 1, { delegatesTo: ["ship"] });
         const shipping = agentConnection("ship", "shippingRatesAgent", AGENTS_BAL, 5);
         const quotes = resourceFn("post", "quotes", SERVICES_BAL, 3, ["ord", "ship"], [
@@ -454,9 +454,6 @@ describe("buildTopology", () => {
 
         const between = graph.edges.filter((edge) => edge.sourceId === agentId(AGENTS_BAL, 1) && edge.targetId === agentId(AGENTS_BAL, 5));
         expect(between.map((edge) => edge.kind).sort()).toEqual(["delegation", "trigger"]);
-        expect(between.map((edge) => edge.bow).sort()).toEqual([-0.5, 0.5]);
-        const fromTrigger = graph.edges.find((edge) => edge.sourceId === graph.triggers[0].id);
-        expect(fromTrigger.bow).toBe(0);
     });
 
     it("draws a plain edge with no chips when the function has connections but no agentCalls", () => {

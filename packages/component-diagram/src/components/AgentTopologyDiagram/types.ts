@@ -58,8 +58,6 @@ export interface TopologyEdge {
     targetId: string;
     kind: TopologyEdgeKind;
     chips: EdgeChip[];
-    // Offset across the flow, in steps, when several edges arrive at the same node.
-    bow?: number;
 }
 
 export interface TopologyModelProvider {
@@ -145,6 +143,8 @@ export interface TopologyLayout {
     cardHeights: Record<string, number>;
     // Where each edge bends, keyed by edge id: just past its source, or just before the first rank a long edge skips.
     edgeVias: Record<string, NodePosition[]>;
+    // Offset across the flow, in steps, for edges that arrive at one node together; wrapped back edges are not counted.
+    edgeBows: Record<string, number>;
     // Where the drawing starts: past the blank part of the trigger label block.
     left: number;
     width: number;

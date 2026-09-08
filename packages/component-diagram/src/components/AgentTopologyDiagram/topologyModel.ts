@@ -522,15 +522,6 @@ function markReachability(agents: TopologyAgentNode[], triggers: TopologyTrigger
 }
 
 // Edges into the same node would share their final run; spread them across it, at most one step each way.
-function spreadParallelEdges(edges: TopologyEdge[]): void {
-    const groups = new Map<string, TopologyEdge[]>();
-    edges.forEach((edge) => groups.set(edge.targetId, [...(groups.get(edge.targetId) ?? []), edge]));
-    groups.forEach((group) => {
-        const scale = Math.min(1, 2 / Math.max(1, group.length - 1));
-        group.forEach((edge, index) => (edge.bow = (index - (group.length - 1) / 2) * scale));
-    });
-}
-
 function computeLegendKinds(triggers: TopologyTriggerNode[], splits: TopologySplitNode[], edges: TopologyEdge[]): LegendKind[] {
     const kinds: LegendKind[] = [];
     if (triggers.length > 0) {
@@ -568,7 +559,6 @@ export function buildTopology(input: TopologyInput): TopologyGraph {
     }
     const delegationEdges = buildDelegationEdges(model, uuidToNodeId);
     const edges = [...triggerEdges, ...delegationEdges];
-    spreadParallelEdges(edges);
 
     markReachability(agentNodes, triggers, edges);
 

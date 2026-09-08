@@ -323,15 +323,59 @@ describe("layoutTopology", () => {
         expect(second).toEqual(first);
     });
 
-    it("does not hang on a rank cycle and still assigns finite positions", () => {
+    it("keeps an untriggered delegation cycle in two adjacent columns", () => {
         const graph = graphOf(
             [agent("a"), agent("b")],
             [],
             [edge("a", "b", "delegation"), edge("b", "a", "delegation")]
         );
+        const chain = layoutTopology(graphOf([agent("a"), agent("b")], [], [edge("a", "b", "delegation")]));
         const layout = layoutTopology(graph);
-        expect(Number.isFinite(layout.agentPositions["a"].x)).toBe(true);
-        expect(Number.isFinite(layout.agentPositions["b"].x)).toBe(true);
+        expect(layout.agentPositions["b"].x - layout.agentPositions["a"].x).toBe(chain.agentPositions["b"].x - chain.agentPositions["a"].x);
+    });
+
+    it("keeps a triggered delegation cycle in adjacent columns and wraps the back edge below the cards", () => {
+        const graph = graphOf(
+            [agent("a"), agent("b")],
+            [trigger("t1")],
+            [edge("t1", "a"), edge("a", "b", "delegation"), edge("b", "a", "delegation")]
+        );
+        const chain = layoutTopology(graphOf([agent("a"), agent("b")], [trigger("t1")], [edge("t1", "a"), edge("a", "b", "delegation")]));
+        const layout = layoutTopology(graph);
+        expect(layout.agentPositions["b"].x - layout.agentPositions["a"].x).toBe(chain.agentPositions["b"].x - chain.agentPositions["a"].x);
+        const back = layout.edgeVias["b->a"];
+        const bottom = Math.max(layout.agentPositions["a"].y + layout.cardHeights["a"], layout.agentPositions["b"].y + layout.cardHeights["b"]);
+        expect(back).toHaveLength(4);
+        expect(back[0].x).toBeGreaterThan(layout.agentPositions["b"].x);
+        expect(back[1].y).toBeGreaterThan(bottom);
+        expect(back[2].y).toBe(back[1].y);
+        expect(back[3].x).toBeLessThan(layout.agentPositions["a"].x);
+        expect(layout.edgeVias["a->b"]).toHaveLength(1);
+        expect(layout.height).toBeGreaterThanOrEqual(back[1].y);
+    });
+
+    it("spreads the edges that arrive at one agent and leaves a lone arrival straight", () => {
+        const both = { ...edge("a", "b", "delegation"), id: "a~>b" };
+        const graph = graphOf([agent("a"), agent("b")], [trigger("t1")], [edge("t1", "a"), edge("a", "b"), both]);
+        const layout = layoutTopology(graph);
+        expect([layout.edgeBows["a->b"], layout.edgeBows["a~>b"]].sort()).toEqual([-0.5, 0.5]);
+        expect(layout.edgeBows["t1->a"]).toBe(0);
+    });
+
+    it("does not count a wrapped back edge when spreading arrivals", () => {
+        const graph = graphOf([agent("a"), agent("b")], [trigger("t1")], [edge("t1", "a"), edge("a", "b", "delegation"), edge("b", "a", "delegation")]);
+        const layout = layoutTopology(graph);
+        expect(layout.edgeBows["t1->a"]).toBe(0);
+        expect(layout.edgeBows["b->a"]).toBeUndefined();
+    });
+
+    it("draws a self-delegation as a loop below the card without adding a column", () => {
+        const graph = graphOf([agent("a")], [trigger("t1")], [edge("t1", "a"), edge("a", "a", "delegation")]);
+        const plain = layoutTopology(graphOf([agent("a")], [trigger("t1")], [edge("t1", "a")]));
+        const layout = layoutTopology(graph);
+        expect(layout.agentPositions["a"].x).toBe(plain.agentPositions["a"].x);
+        expect(layout.edgeVias["a->a"]).toHaveLength(4);
+        expect(layout.edgeVias["a->a"][1].y).toBeGreaterThan(layout.agentPositions["a"].y + layout.cardHeights["a"]);
     });
 
     it("still lays out a large package (20 agents) without breaking (search/zoom is deferred, not layout correctness)", () => {

@@ -39,10 +39,17 @@ function toPoint(main: number, cross: number, vertical: boolean): Point {
 }
 
 // Flow axis to the bend, across, flow axis into the target; the bow moves only the leg into the target.
-export function route(source: Point, target: Point, via: Point | undefined, bow: number, vertical: boolean): Route {
+// A layout that hands over several vias (a back edge wrapping around the cards) is drawn through all of them.
+export function route(source: Point, target: Point, via: Point[], bow: number, vertical: boolean): Route {
     const main = (point: Point) => (vertical ? point.y : point.x);
     const cross = (point: Point) => (vertical ? point.x : point.y);
-    const bend = via ? main(via) : (main(source) + main(target)) / 2;
+    if (via.length >= 2) {
+        const first = toPoint(main(via[0]), cross(source), vertical);
+        const last = toPoint(main(via[via.length - 1]), cross(target), vertical);
+        const points = [source, first, ...via.slice(1, -1), last, target];
+        return { points, run: [last, target] };
+    }
+    const bend = via.length ? main(via[0]) : (main(source) + main(target)) / 2;
     const start = toPoint(main(source), cross(source), vertical);
     if (Math.abs(cross(target) + bow - cross(source)) < STRAIGHT_TOLERANCE) {
         const finish = toPoint(main(target), cross(source), vertical);
@@ -67,13 +74,22 @@ export function midpoint(a: Point, b: Point): Point {
 }
 
 export function roundedPath(points: Point[]): string {
-    const [p0, p1, p2, p3] = points;
-    if (points.length === 2) {
-        return `M ${p0.x} ${p0.y} L ${p1.x} ${p1.y}`;
-    }
-    const r = Math.min(CORNER_RADIUS, distance(p0, p1), distance(p1, p2) / 2, distance(p2, p3));
-    const [a, b, c, d] = [towards(p1, p0, r), towards(p1, p2, r), towards(p2, p1, r), towards(p2, p3, r)];
-    return `M ${p0.x} ${p0.y} L ${a.x} ${a.y} Q ${p1.x} ${p1.y} ${b.x} ${b.y} L ${c.x} ${c.y} Q ${p2.x} ${p2.y} ${d.x} ${d.y} L ${p3.x} ${p3.y}`;
+    const [first, ...rest] = points;
+    const last = points[points.length - 1];
+    let path = `M ${first.x} ${first.y}`;
+    rest.slice(0, -1).forEach((corner, index) => {
+        const previous = points[index];
+        const next = points[index + 2];
+        const r = Math.min(CORNER_RADIUS, distance(previous, corner) / 2, distance(corner, next) / 2);
+        if (r === 0) {
+            path += ` L ${corner.x} ${corner.y}`;
+            return;
+        }
+        const a = towards(corner, previous, r);
+        const b = towards(corner, next, r);
+        path += ` L ${a.x} ${a.y} Q ${corner.x} ${corner.y} ${b.x} ${b.y}`;
+    });
+    return `${path} L ${last.x} ${last.y}`;
 }
 
 export interface LinkChips {
@@ -84,7 +100,7 @@ export interface LinkChips {
 
 export function linkRoute(link: TopologyLinkModel): Route & LinkChips {
     const bow = link.bow * BOW_PX;
-    const drawn = route(link.getFirstPoint().getPosition(), link.getLastPoint().getPosition(), link.via[0], bow, link.vertical);
+    const drawn = route(link.getFirstPoint().getPosition(), link.getLastPoint().getPosition(), link.via, bow, link.vertical);
     const chipPoint = midpoint(drawn.run[0], drawn.run[1]);
     const pillPoint = link.vertical ? { x: chipPoint.x, y: chipPoint.y + bow } : chipPoint;
     return { ...drawn, chipPoint, pillPoint };
