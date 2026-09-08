@@ -23,11 +23,26 @@ import { ThemeColors } from "@wso2/ui-toolkit";
 import { CardPopover, PopoverRow } from "../AgentTopologyDiagram/CardPopover";
 import { TopologyLinkModel } from "../NodeLink/TopologyLinkModel";
 import { Point, linkRoute } from "../NodeLink/topologyRoute";
+import { EdgeChip } from "../AgentTopologyDiagram/types";
 import { FOCUS_FADE, RECEDED_OPACITY } from "../NodeLink/TopologyLinkWidget";
 import { useTopologyContext } from "../AgentTopologyDiagram/TopologyContext";
 
 const CHIP_BOX_WIDTH = 260;
 const CHIP_BOX_HEIGHT = 32;
+// Two handlers numbering the same edge: their chips sit side by side along the run.
+const SEQUENCE_CHIP_PITCH = 30;
+
+function alongRun(run: [Point, Point], from: Point, distance: number): Point {
+    const length = Math.hypot(run[1].x - run[0].x, run[1].y - run[0].y) || 1;
+    return { x: from.x + ((run[1].x - run[0].x) / length) * distance, y: from.y + ((run[1].y - run[0].y) / length) * distance };
+}
+
+// The edge's numbers grouped by value, in order; two handlers that agree on a number share one circle.
+function sequenceGroups(chips: EdgeChip[]): EdgeChip[][] {
+    const byText = new Map<string, EdgeChip[]>();
+    chips.filter((chip) => chip.kind === "sequence").forEach((chip) => byText.set(chip.text, [...(byText.get(chip.text) ?? []), chip]));
+    return [...byText.entries()].sort((a, b) => Number(a[0]) - Number(b[0])).map(([, group]) => group);
+}
 
 // Same pill the flow diagram paints on its branch links (NodeLinkWidget): 1.5 px border, 20 px radius,
 // 2/10 padding, 13 px text; the foreignObject is taller than the pill so no border edge gets clipped.
@@ -89,20 +104,32 @@ const StepCircle = styled.div`
 `;
 
 // The first step names what follows it; every later step names what ran before it.
-function stepRow(step: number, steps: string[]): PopoverRow {
+// One handler's reading of the number: what runs before or after, then which handler and how many steps.
+function stepRows(chip: EdgeChip): PopoverRow[] {
+    const steps = chip.steps ?? [];
+    const step = Number(chip.text);
+    if (steps.length < 2) {
+        return [];
+    }
     const prefix = step === 1 ? "Runs before" : "Runs after";
     const other = step === 1 ? steps[1] : steps[step - 2];
-    return { key: "step", glyph: <StepCircle>{step}</StepCircle>, prefix, label: other };
+    const where = chip.handler ? ` in ${chip.handler}` : "";
+    return [
+        { key: `${chip.triggerId}-step`, glyph: <StepCircle>{step}</StepCircle>, prefix, label: other },
+        { key: `${chip.triggerId}-where`, label: `Step ${step} of ${steps.length}${where}`, muted: true },
+    ];
 }
 
-function SequenceChip({ point, text, steps, zoom }: { point: Point; text: string; steps: string[]; zoom: number }) {
+// Chips that share a number on one edge draw as one circle; the popover lists each handler's reading.
+function SequenceChip({ point, chips, faded, zoom }: { point: Point; chips: EdgeChip[]; faded: boolean; zoom: number }) {
     const [anchor, setAnchor] = useState<DOMRect>();
-    const rows = steps.length >= 2 ? [stepRow(Number(text), steps)] : [];
+    const rows = chips.flatMap(stepRows);
+    const text = chips[0].text;
     return (
         <foreignObject x={point.x - CHIP_BOX_HEIGHT / 2} y={point.y - CHIP_BOX_HEIGHT / 2} width={CHIP_BOX_HEIGHT} height={CHIP_BOX_HEIGHT}>
             <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: CHIP_BOX_HEIGHT }}>
                 <StepCircle
-                    style={{ pointerEvents: "auto" }}
+                    style={{ pointerEvents: "auto", opacity: faded ? RECEDED_OPACITY : 1, transition: `opacity ${FOCUS_FADE}` }}
                     onMouseEnter={(event) => setAnchor(event.currentTarget.getBoundingClientRect())}
                     onMouseLeave={() => setAnchor(undefined)}
                 >
@@ -125,17 +152,24 @@ export function ChipLayerWidget({ engine }: ChipLayerWidgetProps) {
     return (
         <g>
             {links.map((link) => {
-                const { chipPoint, pillPoint } = linkRoute(link);
+                const { chipPoint, pillPoint, run } = linkRoute(link);
                 const opacity = focus && !focus.edges.has(link.edgeId) ? RECEDED_OPACITY : 1;
+                const groups = sequenceGroups(link.chips);
+                const pill = link.chips.find((chip) => chip.kind === "condition");
+                // While a flow is lit, numbers that belong to a handler outside it recede with the other edges.
+                const faded = (group: EdgeChip[]): boolean => Boolean(focus) && !group.some((chip) => !chip.triggerId || focus.nodes.has(chip.triggerId));
                 return (
                     <g key={link.getID()} style={{ opacity, transition: `opacity ${FOCUS_FADE}` }}>
-                        {link.chips.slice(0, 2).map((chip, index) =>
-                            chip.kind === "sequence" ? (
-                                <SequenceChip key={index} point={chipPoint} text={chip.text} steps={chip.steps ?? []} zoom={zoom} />
-                            ) : (
-                                <ConditionChip key={index} point={pillPoint} text={chip.text} color={ThemeColors.ON_SURFACE} />
-                            )
-                        )}
+                        {groups.map((group, index) => (
+                            <SequenceChip
+                                key={group[0].text}
+                                point={alongRun(run, chipPoint, (index - (groups.length - 1) / 2) * SEQUENCE_CHIP_PITCH)}
+                                chips={group}
+                                faded={faded(group)}
+                                zoom={zoom}
+                            />
+                        ))}
+                        {pill && <ConditionChip point={pillPoint} text={pill.text} color={ThemeColors.ON_SURFACE} />}
                     </g>
                 );
             })}

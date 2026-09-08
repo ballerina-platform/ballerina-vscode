@@ -50,6 +50,9 @@ export interface EdgeChip {
     text: string;
     // Every step of the handler in order, so a sequence chip can list them.
     steps?: string[];
+    // The handler a sequence number belongs to: its trigger node and its label ("POST /verified").
+    triggerId?: string;
+    handler?: string;
 }
 
 export interface TopologyEdge {

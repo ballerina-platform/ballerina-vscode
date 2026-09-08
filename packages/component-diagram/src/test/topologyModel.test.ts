@@ -19,7 +19,7 @@
 import { CDAgentCall, CDAutomation, CDConnection, CDModel, CDResourceFunction, CDService } from "@wso2/ballerina-core";
 import { buildTopology } from "../components/AgentTopologyDiagram/topologyModel";
 import { focusAround } from "../components/AgentTopologyDiagram/topologyFocus";
-import { TopologyAgentArtifact, TopologyInput } from "../components/AgentTopologyDiagram/types";
+import { TopologyAgentArtifact, TopologyEdge, TopologyInput } from "../components/AgentTopologyDiagram/types";
 
 const AGENTS_BAL = "/proj/agents.bal";
 const SERVICES_BAL = "/proj/services.bal";
@@ -127,9 +127,9 @@ describe("buildTopology", () => {
         const shipEdge = graph.edges.find((edge) => edge.kind === "trigger" && edge.targetId === agentId(AGENTS_BAL, 17));
         expect(orderEdge.sourceId).toBe(graph.triggers[0].id);
         const steps = ["orderAgent", "shippingRatesAgent"];
-        expect(orderEdge.chips).toEqual([{ kind: "sequence", text: "1", steps }]);
+        expect(orderEdge.chips).toEqual([expect.objectContaining({ kind: "sequence", text: "1", steps })]);
         expect(shipEdge.sourceId).toBe(agentId(AGENTS_BAL, 13));
-        expect(shipEdge.chips).toEqual([{ kind: "sequence", text: "2", steps }]);
+        expect(shipEdge.chips).toEqual([expect.objectContaining({ kind: "sequence", text: "2", steps })]);
 
         // Nothing triggers or delegates to the supervisor itself -- it only calls out.
         const supervisorNode = graph.agents.find((agent) => agent.name === "supportSupervisorAgent");
@@ -283,7 +283,76 @@ describe("buildTopology", () => {
         expect(graph.triggers[0].icon).toBe("https://central/ballerinax_googleapis.gchat_1.0.0.png");
     });
 
-    it("numbers the edges from the trigger when a plain call and a split run in order", () => {
+    it("chains the steps through a split: the split hangs off the previous step and the next step leaves it", () => {
+        const outline = agentConnection("o", "outlineAgent", AGENTS_BAL, 1);
+        const rewrite = agentConnection("r", "rewriteAgent", AGENTS_BAL, 5);
+        const draft = agentConnection("d", "draftAgent", AGENTS_BAL, 9);
+        const polish = agentConnection("p", "polishAgent", AGENTS_BAL, 13);
+        const fn = resourceFn("post", "gated", SERVICES_BAL, 1, ["o", "r", "d", "p"], [
+            { connection: "o", line: 2, groups: [] },
+            { connection: "r", line: 4, groups: [{ kind: "if", id: "g1", label: "!passesGate(outline)" }] },
+            { connection: "d", line: 6, groups: [] },
+            { connection: "p", line: 7, groups: [] },
+        ]);
+        const svc = service(SERVICES_BAL, 1, "http:Service", "/content", ["o", "r", "d", "p"], [fn]);
+        const graph = buildTopology({
+            model: modelOf([outline, rewrite, draft, polish], [svc]),
+            agents: [artifact("outlineAgent", AGENTS_BAL, 1), artifact("rewriteAgent", AGENTS_BAL, 5), artifact("draftAgent", AGENTS_BAL, 9), artifact("polishAgent", AGENTS_BAL, 13)],
+        });
+
+        const triggerId = graph.triggers[0].id;
+        const steps = ["outlineAgent", "If", "draftAgent", "polishAgent"];
+        const chip = (edge: TopologyEdge) => edge.chips.find((c) => c.kind === "sequence");
+        const edge = (sourceId: string, targetId: string) => graph.edges.find((e) => e.sourceId === sourceId && e.targetId === targetId);
+        const splitId = `${triggerId}::g1`;
+        expect(chip(edge(triggerId, agentId(AGENTS_BAL, 1)))).toEqual(expect.objectContaining({ kind: "sequence", text: "1", steps }));
+        expect(edge(agentId(AGENTS_BAL, 1), splitId).kind).toBe("stem");
+        expect(chip(edge(agentId(AGENTS_BAL, 1), splitId))).toEqual(expect.objectContaining({ kind: "sequence", text: "2", steps }));
+        expect(edge(splitId, agentId(AGENTS_BAL, 5)).chips).toEqual([{ kind: "condition", text: "!passesGate(outline)" }]);
+        expect(chip(edge(splitId, agentId(AGENTS_BAL, 9)))).toEqual(expect.objectContaining({ kind: "sequence", text: "3", steps }));
+        expect(chip(edge(agentId(AGENTS_BAL, 9), agentId(AGENTS_BAL, 13)))).toEqual(expect.objectContaining({ kind: "sequence", text: "4", steps }));
+        expect(graph.edges.filter((e) => e.sourceId === triggerId)).toHaveLength(1);
+        expect(graph.splits[0].parentId).toBe(agentId(AGENTS_BAL, 1));
+    });
+
+    it("draws a step two handlers share once, with both handlers' numbers", () => {
+        const draft = agentConnection("d", "draftAgent", AGENTS_BAL, 1);
+        const check = agentConnection("c", "factCheckAgent", AGENTS_BAL, 5);
+        const outline = agentConnection("o", "outlineAgent", AGENTS_BAL, 9);
+        const pipeline = resourceFn("post", "pipeline", SERVICES_BAL, 1, ["o", "d", "c"], [
+            { connection: "o", line: 2 },
+            { connection: "d", line: 3 },
+            { connection: "c", line: 4 },
+        ]);
+        const verified = resourceFn("post", "verified", SERVICES_BAL, 6, ["d", "c"], [
+            { connection: "d", line: 7 },
+            { connection: "c", line: 8 },
+        ]);
+        const svc = service(SERVICES_BAL, 1, "http:Service", "/content", ["o", "d", "c"], [pipeline, verified]);
+        const graph = buildTopology({ model: modelOf([draft, check, outline], [svc]), agents: [artifact("draftAgent", AGENTS_BAL, 1), artifact("factCheckAgent", AGENTS_BAL, 5), artifact("outlineAgent", AGENTS_BAL, 9)] });
+
+        const shared = graph.edges.filter((e) => e.sourceId === agentId(AGENTS_BAL, 1) && e.targetId === agentId(AGENTS_BAL, 5));
+        expect(shared).toHaveLength(1);
+        expect(shared[0].chips.map((chip) => [chip.text, chip.handler])).toEqual([["3", "POST /pipeline"], ["2", "POST /verified"]]);
+        expect(shared[0].chips.map((chip) => chip.triggerId)).toEqual(graph.triggers.map((trigger) => trigger.id));
+    });
+
+    it("merges two conditions that lead to the same agent into one pill", () => {
+        const billing = agentConnection("b", "billingAgent", AGENTS_BAL, 1);
+        const general = agentConnection("g", "generalAgent", AGENTS_BAL, 5);
+        const fn = resourceFn("post", "ticket", SERVICES_BAL, 1, ["b", "g"], [
+            { connection: "b", line: 2, groups: [{ kind: "if", id: "g1", label: 'kind == "refund"' }] },
+            { connection: "b", line: 4, groups: [{ kind: "if", id: "g1", label: 'kind == "chargeback"' }] },
+            { connection: "g", line: 6, groups: [{ kind: "if", id: "g1", label: "else" }] },
+        ]);
+        const svc = service(SERVICES_BAL, 1, "http:Service", "/hub", ["b", "g"], [fn]);
+        const graph = buildTopology({ model: modelOf([billing, general], [svc]), agents: [artifact("billingAgent", AGENTS_BAL, 1), artifact("generalAgent", AGENTS_BAL, 5)] });
+
+        const toBilling = graph.edges.find((e) => e.targetId === agentId(AGENTS_BAL, 1));
+        expect(toBilling.chips).toEqual([{ kind: "condition", text: 'kind == "refund" | kind == "chargeback"' }]);
+    });
+
+    it("hangs a split that follows a plain call off that agent and numbers both steps", () => {
         const first = agentConnection("a", "firstAgent", AGENTS_BAL, 1);
         const second = agentConnection("b", "secondAgent", AGENTS_BAL, 5);
         const fn = resourceFn("post", "run", SERVICES_BAL, 1, ["a", "b"], [
@@ -296,8 +365,8 @@ describe("buildTopology", () => {
 
         const triggerId = graph.triggers[0].id;
         const steps = ["firstAgent", "If"];
-        expect(graph.edges.find((e) => e.sourceId === triggerId && e.targetId === agentId(AGENTS_BAL, 1)).chips).toEqual([{ kind: "sequence", text: "1", steps }]);
-        expect(graph.edges.find((e) => e.sourceId === triggerId && e.kind === "stem").chips).toEqual([{ kind: "sequence", text: "2", steps }]);
+        expect(graph.edges.find((e) => e.sourceId === triggerId && e.targetId === agentId(AGENTS_BAL, 1)).chips).toEqual([expect.objectContaining({ kind: "sequence", text: "1", steps })]);
+        expect(graph.edges.find((e) => e.sourceId === agentId(AGENTS_BAL, 1) && e.kind === "stem").chips).toEqual([expect.objectContaining({ kind: "sequence", text: "2", steps })]);
     });
 
     it("draws typed-agent instances but neither their definition nor the field inside it", () => {

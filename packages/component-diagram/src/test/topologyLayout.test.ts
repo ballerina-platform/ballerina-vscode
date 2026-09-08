@@ -242,6 +242,29 @@ describe("layoutTopology", () => {
         expect(agentCentre("salesSup")).toBeCloseTo(triggerCentre("ask"));
     });
 
+    it("places a split that hangs off an agent a stem past that card and widens only that column's gap", () => {
+        const split: TopologySplitNode = { id: "t1::g", kind: "match", triggerId: "t1", parentId: "a", depth: 1 };
+        const graph = graphOf(
+            [agent("a"), agent("b"), agent("c"), agent("d")],
+            [trigger("t1")],
+            [edge("t1", "a"), edge("a", "t1::g", "stem"), edge("t1::g", "b"), edge("t1::g", "c"), edge("c", "d", "delegation")],
+            [split]
+        );
+        const layout = layoutTopology(graph);
+        const a = layout.agentPositions["a"];
+        expect(a.x).toBe(TRIGGER_NODE_WIDTH + TOPOLOGY_GAP_X);
+        expect(layout.splitPositions["t1::g"].x).toBe(a.x + AGENT_CARD_WIDTH + SPLIT_STEM_X);
+        expect(layout.agentPositions["b"].x).toBe(a.x + AGENT_CARD_WIDTH + SPLIT_GAP_X_MIN);
+        expect(layout.agentPositions["c"].x).toBe(layout.agentPositions["b"].x);
+        expect(layout.agentPositions["d"].x).toBe(layout.agentPositions["c"].x + AGENT_CARD_WIDTH + TOPOLOGY_GAP_X);
+        expect(layout.edgeVias["a->t1::g"]).toHaveLength(1);
+        const bottomOfB = layout.agentPositions["b"].y + layout.cardHeights["b"];
+        const centreOfSplit = layout.splitPositions["t1::g"].y + SPLIT_SIZE / 2;
+        expect(centreOfSplit).toBeGreaterThan(layout.agentPositions["b"].y);
+        expect(centreOfSplit).toBeLessThan(layout.agentPositions["c"].y + layout.cardHeights["c"]);
+        expect(bottomOfB).toBeLessThanOrEqual(layout.agentPositions["c"].y);
+    });
+
     it("widens only the trigger gap for a split; agent columns keep the regular gap", () => {
         const split: TopologySplitNode = { id: "t1::split", kind: "match", triggerId: "t1", parentId: "t1", depth: 1 };
         const graph = graphOf(
@@ -254,7 +277,7 @@ describe("layoutTopology", () => {
         expect(layout.agentPositions["b1"].x - layout.agentPositions["a1"].x).toBe(AGENT_CARD_WIDTH + TOPOLOGY_GAP_X);
     });
 
-    it("runs a long edge straight through the skipped column at its target's height, moving the card there aside", () => {
+    it("detours a long edge around the card in the skipped column instead of moving the card", () => {
         const graph = graphOf(
             [agent("a"), agent("b")],
             [trigger("t1"), trigger("t2")],
@@ -263,15 +286,51 @@ describe("layoutTopology", () => {
         const layout = layoutTopology(graph);
         const a = layout.agentPositions["a"];
         const b = layout.agentPositions["b"];
-        const [via] = layout.edgeVias["t1->b"];
-        expect(via.x).toBeLessThan(a.x);
-        expect(via.x).toBeGreaterThan(layout.triggerPositions["t1"].x + TRIGGER_NODE_WIDTH);
-        expect(via.y).toBeCloseTo(b.y + layout.cardHeights["b"] / 2);
-        expect(via.y < a.y || via.y > a.y + layout.cardHeights["a"]).toBe(true);
+        // b lines up under a, so the lane at b's height would run through a: the edge goes around a.
+        expect(b.y).toBe(a.y);
+        const vias = layout.edgeVias["t1->b"];
+        expect(vias).toHaveLength(4);
+        expect(vias[0].x).toBeLessThan(a.x);
+        expect(vias[0].x).toBeGreaterThan(layout.triggerPositions["t1"].x + TRIGGER_NODE_WIDTH);
+        expect(vias[1].y < a.y || vias[1].y > a.y + layout.cardHeights["a"]).toBe(true);
+        expect(vias[2].y).toBe(vias[1].y);
+        expect(vias[3].x).toBe(b.x - 40);
+        expect(vias[3].y).toBeCloseTo(b.y + layout.cardHeights["b"] / 2);
         const [short] = layout.edgeVias["t2->a"];
         expect(short.x).toBeGreaterThan(layout.triggerPositions["t2"].x + TRIGGER_NODE_WIDTH);
         expect(short.x).toBeLessThan(a.x);
         expect(layout.edgeVias["a->b"][0].x).toBeGreaterThan(a.x + AGENT_CARD_WIDTH);
+    });
+
+    it("keeps a long edge straight when the skipped column has nothing at its target's height", () => {
+        const graph = graphOf(
+            [agent("a"), agent("b"), agent("c")],
+            [trigger("t1"), trigger("t2")],
+            [edge("t1", "c"), edge("t2", "a"), edge("a", "b", "delegation"), edge("b", "c", "delegation"), edge("a", "c", "delegation")]
+        );
+        const layout = layoutTopology(graph);
+        // c has two parents; it lines up under the earliest agent (a), and t1's lane meets nothing in between.
+        const vias = layout.edgeVias["t1->c"];
+        expect(vias.length === 1 || vias.length === 4).toBe(true);
+        if (vias.length === 1) {
+            expect(vias[0].y).toBeCloseTo(layout.agentPositions["c"].y + layout.cardHeights["c"] / 2);
+        }
+    });
+
+    it("lines a chain up under its earliest step even when other handlers also reach the agent", () => {
+        const graph = graphOf(
+            [agent("a"), agent("b"), agent("c")],
+            [trigger("t1"), trigger("t2")],
+            [
+                { ...edge("t1", "a"), chips: [{ kind: "sequence", text: "1" }] },
+                { ...edge("a", "b"), chips: [{ kind: "sequence", text: "2" }] },
+                { ...edge("b", "c"), chips: [{ kind: "sequence", text: "3" }] },
+                { ...edge("t2", "b"), chips: [{ kind: "sequence", text: "1" }] },
+            ]
+        );
+        const layout = layoutTopology(graph);
+        expect(layout.agentPositions["b"].y).toBe(layout.agentPositions["a"].y);
+        expect(layout.agentPositions["c"].y).toBe(layout.agentPositions["b"].y);
     });
 
     it("staggers the bends of sources that share a layer so their fans do not merge", () => {
@@ -474,16 +533,20 @@ describe("layoutTopology (vertical)", () => {
         expect(layout.triggerPositions["t2"].x + TRIGGER_LABEL_WIDTH / 2).toBeCloseTo(loopWhile.x + SPLIT_SIZE / 2);
     });
 
-    it("runs a long edge through the skipped row at its target's x", () => {
+    it("detours a long edge beside the skipped row's card when the target sits under it", () => {
         const graph = graphOf(
             [agent("a1"), agent("a2"), agent("a3")],
             [trigger("t1")],
             [edge("t1", "a1"), edge("a1", "a2", "delegation"), edge("a2", "a3", "delegation"), edge("a1", "a3", "delegation")]
         );
         const layout = layoutTopology(graph, vertical);
-        const via = layout.edgeVias["a1->a3"][0];
-        expect(via.x).toBe(layout.agentPositions["a3"].x + AGENT_CARD_WIDTH / 2);
-        expect(via.y).toBeLessThan(layout.agentPositions["a2"].y);
-        expect(via.y).toBeGreaterThan(layout.agentPositions["a1"].y);
+        expect(layout.agentPositions["a3"].x).toBe(layout.agentPositions["a2"].x);
+        const vias = layout.edgeVias["a1->a3"];
+        expect(vias).toHaveLength(4);
+        expect(vias[0].y).toBeLessThan(layout.agentPositions["a2"].y);
+        expect(vias[0].y).toBeGreaterThan(layout.agentPositions["a1"].y);
+        const a2 = layout.agentPositions["a2"];
+        expect(vias[1].x < a2.x || vias[1].x > a2.x + AGENT_CARD_WIDTH).toBe(true);
+        expect(vias[3].x).toBe(layout.agentPositions["a3"].x + AGENT_CARD_WIDTH / 2);
     });
 });

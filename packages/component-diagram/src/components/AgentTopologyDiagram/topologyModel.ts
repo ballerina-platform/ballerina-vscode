@@ -278,67 +278,123 @@ function sequenceChip(step: number, steps: string[]): EdgeChip {
     return { kind: "sequence", text: String(step), steps };
 }
 
+// Two conditions that lead to the same agent share one pill; two handlers that run the same step keep both numbers.
+function mergeChip(edge: TopologyEdge, chip: EdgeChip): void {
+    if (chip.kind === "sequence") {
+        if (!edge.chips.some((existing) => existing.kind === "sequence" && existing.text === chip.text && existing.triggerId === chip.triggerId)) {
+            edge.chips.push(chip);
+        }
+        return;
+    }
+    const pill = edge.chips.find((existing) => existing.kind === "condition");
+    if (!pill) {
+        edge.chips.push(chip);
+    } else if (!pill.text.split(" | ").includes(chip.text)) {
+        pill.text = `${pill.text} | ${chip.text}`;
+    }
+}
+
+// Handlers that share a step produce the same edge twice; the canvas draws it once with every handler's chips.
+function mergeDuplicateEdges(edges: TopologyEdge[]): TopologyEdge[] {
+    const byId = new Map<string, TopologyEdge>();
+    edges.forEach((edge) => {
+        const existing = byId.get(edge.id);
+        if (!existing) {
+            byId.set(edge.id, edge);
+            return;
+        }
+        edge.chips.forEach((chip) => mergeChip(existing, chip));
+    });
+    return [...byId.values()];
+}
+
+// The handler's top-level steps, in order, chained one after the other: a plain call hangs off the
+// previous step (agent or split), a construct's split does too, and the call after a split leaves the
+// split as its continuation. Each step's incoming edge carries its sequence number when there are two or more.
 class HandlerBuilder {
     readonly edges = new Map<string, TopologyEdge>();
     readonly splits = new Map<string, TopologySplitNode>();
     readonly topLevel: string[] = [];
+    private readonly entryEdge = new Map<string, string>();
+    private lastStep: string | undefined;
 
     constructor(private readonly triggerId: string, private readonly names: Map<string, string>) {}
 
     // Walks the call's enclosing constructs, outermost first, creating a split per construct and the
     // edges between them; the last edge reaches the agent.
     addCall(agentId: string, groups: CDAgentCallGroup[]): void {
-        let parentId = this.triggerId;
+        if (groups.length === 0) {
+            this.addPlainStep(agentId);
+            return;
+        }
+        let parentId = this.lastStep ?? this.triggerId;
         groups.forEach((group, index) => {
-            const splitId = `${this.triggerId}::${group.id}`;
-            if (!this.splits.has(splitId)) {
-                this.splits.set(splitId, {
-                    id: splitId,
-                    kind: group.kind,
-                    triggerId: this.triggerId,
-                    parentId,
-                    depth: index + 1,
-                    header: isLoop(group.kind) ? group.label : undefined,
-                });
+            const split = this.splitFor(group, parentId);
+            const stem = this.addEdge(split.parentId, split.id, "stem", branchChips(groups[index - 1]));
+            if (index === 0) {
+                this.addStep(split.id, stem);
+                this.lastStep = split.id;
             }
-            this.addEdge(parentId, splitId, "stem", branchChips(groups[index - 1]));
-            parentId = splitId;
+            parentId = split.id;
         });
         this.addEdge(parentId, agentId, "trigger", branchChips(groups[groups.length - 1]));
     }
 
-    private addEdge(sourceId: string, targetId: string, kind: TopologyEdgeKind, chips: EdgeChip[]): void {
-        const id = `${sourceId}->${targetId}`;
-        const existing = this.edges.get(id);
-        if (!existing) {
-            this.edges.set(id, { id, sourceId, targetId, kind, chips });
-        } else {
-            chips.filter((chip) => !existing.chips.some((c) => c.text === chip.text)).forEach((chip) => existing.chips.push(chip));
+    private splitFor(group: CDAgentCallGroup, parentId: string): TopologySplitNode {
+        const id = `${this.triggerId}::${group.id}`;
+        if (!this.splits.has(id)) {
+            const parent = this.splits.get(parentId);
+            this.splits.set(id, {
+                id,
+                kind: group.kind,
+                triggerId: this.triggerId,
+                parentId,
+                depth: parent ? parent.depth + 1 : 1,
+                header: isLoop(group.kind) ? group.label : undefined,
+            });
         }
-        if (sourceId === this.triggerId && !this.topLevel.includes(targetId)) {
-            this.topLevel.push(targetId);
+        return this.splits.get(id);
+    }
+
+    // A plain call chains from the previous step; an agent already stepped is not drawn again.
+    private addPlainStep(agentId: string): void {
+        if (this.topLevel.includes(agentId)) {
+            return;
+        }
+        const edge = this.addEdge(this.lastStep ?? this.triggerId, agentId, "trigger", []);
+        this.addStep(agentId, edge);
+        this.lastStep = agentId;
+    }
+
+    private addStep(id: string, entry: TopologyEdge): void {
+        if (!this.topLevel.includes(id)) {
+            this.topLevel.push(id);
+            this.entryEdge.set(id, entry.id);
         }
     }
 
-    // Two or more things directly under the trigger run in order: number the edges to them.
+    private addEdge(sourceId: string, targetId: string, kind: TopologyEdgeKind, chips: EdgeChip[]): TopologyEdge {
+        const id = `${sourceId}->${targetId}`;
+        const existing = this.edges.get(id);
+        if (!existing) {
+            const edge = { id, sourceId, targetId, kind, chips };
+            this.edges.set(id, edge);
+            return edge;
+        }
+        chips.forEach((chip) => mergeChip(existing, chip));
+        return existing;
+    }
+
+    // Two or more steps run in order: number the edge into each one.
     numberTopLevel(): void {
         if (this.topLevel.length < 2) {
             return;
         }
         const steps = this.topLevel.map((id) => this.names.get(id) ?? SPLIT_LABEL[this.splits.get(id).kind]);
-        this.topLevel.forEach((targetId, index) => {
-            this.edges.get(`${this.triggerId}->${targetId}`).chips.unshift(sequenceChip(index + 1, steps));
+        this.topLevel.forEach((id, index) => {
+            this.edges.get(this.entryEdge.get(id)).chips.unshift(sequenceChip(index + 1, steps));
         });
     }
-}
-
-// A handler that only runs agents one after another is drawn as a chain: trigger → first → second …
-function buildSequenceChain(triggerId: string, agentIds: string[], names: Map<string, string>): TopologyEdge[] {
-    const steps = agentIds.map((id) => names.get(id));
-    return agentIds.map((agentId, index) => {
-        const sourceId = index === 0 ? triggerId : agentIds[index - 1];
-        return { id: `${sourceId}->${agentId}`, sourceId, targetId: agentId, kind: "trigger" as const, chips: [sequenceChip(index + 1, steps)] };
-    });
 }
 
 interface ResolvedCall {
@@ -359,10 +415,6 @@ function buildHandlerEdges(
     if (calls.length === 0) {
         const edges = agentIds.map((agentId) => ({ id: `${triggerId}->${agentId}`, sourceId: triggerId, targetId: agentId, kind: "trigger" as const, chips: [] }));
         return { edges, splits: [] };
-    }
-    const distinctAgents = [...new Set(calls.map((call) => call.agentId))];
-    if (distinctAgents.length >= 2 && calls.every((call) => call.groups.length === 0)) {
-        return { edges: buildSequenceChain(triggerId, distinctAgents, names), splits: [] };
     }
     const builder = new HandlerBuilder(triggerId, names);
     calls.forEach((call) => builder.addCall(call.agentId, call.groups));
@@ -420,6 +472,7 @@ function buildTriggerFromFunction(
     }
     const agentIds = agentUuids.map((uuid) => uuidToNodeId.get(uuid));
     const handler = buildHandlerEdges(triggerId, agentIds, fn.agentCalls, uuidToNodeId, names);
+    handler.edges.forEach((edge) => edge.chips.filter((chip) => chip.kind === "sequence").forEach((chip) => Object.assign(chip, { triggerId, handler: labels.label1 })));
     edges.push(...handler.edges);
     splits.push(...handler.splits);
     return {
@@ -558,7 +611,7 @@ export function buildTopology(input: TopologyInput): TopologyGraph {
         triggers.push(automationTrigger);
     }
     const delegationEdges = buildDelegationEdges(model, uuidToNodeId);
-    const edges = [...triggerEdges, ...delegationEdges];
+    const edges = mergeDuplicateEdges([...triggerEdges, ...delegationEdges]);
 
     markReachability(agentNodes, triggers, edges);
 

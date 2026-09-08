@@ -440,13 +440,13 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the Help Desk shape: help
                 style="opacity: 1; transition: opacity 260ms ease;"
               >
                 <path
-                  d="M 400 300 L 428 300 Q 438 300 438 290 L 438 290 Q 438 280 428 280 L 400 280"
+                  d="M 400 300 L 428 300 Q 438 300 438 290 L 438 266 Q 438 256 448 256 L 852 256 Q 862 256 862 266 L 862 290 Q 862 300 852 300 L 400 300"
                   fill="none"
                   stroke="transparent"
                   stroke-width="16"
                 />
                 <path
-                  d="M 400 300 L 428 300 Q 438 300 438 290 L 438 290 Q 438 280 428 280 L 400 280"
+                  d="M 400 300 L 428 300 Q 438 300 438 290 L 438 266 Q 438 256 448 256 L 852 256 Q 862 256 862 266 L 862 290 Q 862 300 852 300 L 400 300"
                   fill="none"
                   stroke-width="1.5"
                   style="stroke: var(--vscode-foreground); transition: stroke 260ms ease;"
@@ -623,7 +623,7 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the Help Desk shape: help
           >
             <div
               class="node css-15"
-              style="top: 278px; left: 462px;"
+              style="top: 116px; left: 462px;"
             >
               <div
                 class="css-16"
@@ -1033,7 +1033,7 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the Help Desk shape: help
             </div>
             <div
               class="node css-15"
-              style="top: 306px; left: 0px;"
+              style="top: 144px; left: 0px;"
             >
               <div
                 class="css-33"
@@ -1074,7 +1074,7 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the Help Desk shape: help
             </div>
             <div
               class="node css-15"
-              style="top: 186px; left: 0px;"
+              style="top: 264px; left: 0px;"
             >
               <div
                 class="css-33"
@@ -1133,15 +1133,15 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the Help Desk shape: help
                 <foreignobject
                   height="32"
                   width="32"
-                  x="654"
-                  y="140"
+                  x="866"
+                  y="160"
                 >
                   <div
                     style="display: flex; justify-content: center; align-items: center; height: 32px;"
                   >
                     <div
                       class="css-39"
-                      style="pointer-events: auto;"
+                      style="pointer-events: auto; opacity: 1; transition: opacity 260ms ease;"
                     >
                       1
                     </div>
@@ -1162,7 +1162,7 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the Help Desk shape: help
                   >
                     <div
                       class="css-39"
-                      style="pointer-events: auto;"
+                      style="pointer-events: auto; opacity: 1; transition: opacity 260ms ease;"
                     >
                       2
                     </div>
