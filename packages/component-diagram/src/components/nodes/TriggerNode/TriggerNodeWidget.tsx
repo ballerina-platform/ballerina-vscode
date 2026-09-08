@@ -114,20 +114,19 @@ interface TriggerNodeWidgetProps {
     engine: DiagramEngine;
 }
 
-const GLYPH_SX = { width: 24, height: 24, fontSize: 24 };
-
 // Same order as the focus diagram's usage tile: entry kind, brand glyph, the module's Central icon, then the globe.
-function TriggerGlyph({ glyphType, icon }: { glyphType: string; icon?: string }) {
+export function TriggerGlyph({ glyphType, icon, size = 24 }: { glyphType: string; icon?: string; size?: number }) {
+    const sx = { width: size, height: size, fontSize: size, display: "flex", alignItems: "center", justifyContent: "center" };
     const entryGlyph = resolveEntryTypeGlyph(glyphType);
     if (entryGlyph) {
-        return <Icon name={entryGlyph.glyph} isCodicon={entryGlyph.isCodicon} sx={GLYPH_SX} iconSx={{ fontSize: 24 }} />;
+        return <Icon name={entryGlyph.glyph} isCodicon={entryGlyph.isCodicon} sx={sx} iconSx={{ fontSize: size, lineHeight: 1 }} />;
     }
     const brandGlyph = resolveBrandIcon(glyphType);
     if (brandGlyph) {
-        return <Icon name={brandGlyph.glyph} sx={GLYPH_SX} iconSx={{ fontSize: 24 }} />;
+        return <Icon name={brandGlyph.glyph} sx={sx} iconSx={{ fontSize: size }} />;
     }
-    const globe = <Icon name="bi-globe" sx={GLYPH_SX} iconSx={{ fontSize: 24 }} />;
-    return icon ? <ConnectorIcon url={icon} style={GLYPH_SX} fallbackIcon={globe} /> : globe;
+    const globe = <Icon name="bi-globe" sx={sx} iconSx={{ fontSize: size }} />;
+    return icon ? <ConnectorIcon url={icon} style={sx} fallbackIcon={globe} /> : globe;
 }
 
 export function TriggerNodeWidget(props: TriggerNodeWidgetProps) {

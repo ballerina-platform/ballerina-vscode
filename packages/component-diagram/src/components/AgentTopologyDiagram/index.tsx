@@ -35,7 +35,9 @@ import { describeTopology } from "./topologyDescribe";
 import { focusAround } from "./topologyFocus";
 import { TopologyContextProvider } from "./TopologyContext";
 import { Legend } from "./Legend";
-import { AgentSelection, TopologyEdge, TopologyGraph, TopologyInput, TopologyLayout, TopologyOrientation, TriggerSelection } from "./types";
+import { FlowList } from "./FlowList";
+import { Bounds, focusBounds } from "./topologyBounds";
+import { AgentSelection, TopologyEdge, TopologyGraph, TopologyInput, TopologyLayout, TopologyOrientation, TopologyTriggerNode, TriggerSelection } from "./types";
 
 export interface AgentTopologyDiagramProps {
     input: TopologyInput;
@@ -92,6 +94,13 @@ const TopLeft = styled.div`
     gap: 8px;
 `;
 
+const TopRight = styled.div`
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 1000;
+`;
+
 // While an orientation change settles, nodes and the canvas glide to their new places and the svg layers (links,
 // then chips) are hidden until the ports are re-measured. The canvas lifts the link svg to z-index 1, so the chip
 // svg goes above it and lets clicks through.
@@ -130,6 +139,10 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
     const [diagramModel, setDiagramModel] = useState<DiagramModel | null>(null);
     const [legendKinds, setLegendKinds] = useState<ReturnType<typeof buildTopology>["legendKinds"]>([]);
     const [hoveredId, setHoveredId] = useState<string>();
+    const [triggers, setTriggers] = useState<TopologyTriggerNode[]>([]);
+    const [pinnedId, setPinnedId] = useState<string>();
+    const [flowsOpen, setFlowsOpen] = useState(false);
+    const pinnedRef = useRef<string>();
     const hoverTimerRef = useRef<ReturnType<typeof setTimeout>>();
     const [wiredNothing, setWiredNothing] = useState(false);
     const [previousNodeKey, setPreviousNodeKey] = useState<string>("");
@@ -177,29 +190,50 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
 
     // Centre the laid-out graph in the canvas from its own bounds, so the first paint does not
     // depend on when the nodes were measured; capped at 1:1 so small graphs are not blown up.
-    const fitToLayout = useCallback(() => {
-        const layout = layoutRef.current;
+    const fitToBounds = useCallback((bounds: Bounds | undefined) => {
         const canvas = diagramEngine.getCanvas();
-        if (!layout || !canvas || layout.width <= 0 || layout.height <= 0) {
+        if (!bounds || !canvas || bounds.width <= 0 || bounds.height <= 0) {
             return;
         }
         const rect = canvas.getBoundingClientRect();
         if (rect.width <= 0 || rect.height <= 0) {
             return;
         }
-        const zoom = Math.min(1, (rect.width - 2 * FIT_MARGIN) / layout.width, (rect.height - 2 * FIT_MARGIN) / layout.height);
+        const zoom = Math.min(1, (rect.width - 2 * FIT_MARGIN) / bounds.width, (rect.height - 2 * FIT_MARGIN) / bounds.height);
         const model = diagramEngine.getModel();
         fittingRef.current = true;
         model.setZoomLevel(zoom * 100);
-        model.setOffset((rect.width - layout.width * zoom) / 2 - layout.left * zoom, (rect.height - layout.height * zoom) / 2);
+        model.setOffset((rect.width - bounds.width * zoom) / 2 - bounds.left * zoom, (rect.height - bounds.height * zoom) / 2 - bounds.top * zoom);
         fittingRef.current = false;
         diagramEngine.repaintCanvas();
     }, [diagramEngine]);
+
+    const fitToLayout = useCallback(() => {
+        const layout = layoutRef.current;
+        if (layout) {
+            fitToBounds({ left: layout.left, top: 0, width: layout.width, height: layout.height });
+        }
+    }, [fitToBounds]);
+
+    // A pinned flow is fitted on its own; anything else fits the whole graph.
+    const refit = useCallback(() => {
+        const pinned = pinnedRef.current;
+        if (pinned && layoutRef.current && graphRef.current) {
+            fitToBounds(focusBounds(layoutRef.current, focusAround(graphRef.current, pinned), orientation));
+            return;
+        }
+        fitToLayout();
+    }, [fitToBounds, fitToLayout, orientation]);
 
     useEffect(() => {
         const graph = buildTopology(input);
         graphRef.current = graph;
         setLegendKinds(graph.legendKinds);
+        setTriggers(graph.triggers);
+        if (pinnedRef.current && !graph.triggers.some((trigger) => trigger.id === pinnedRef.current)) {
+            pinnedRef.current = undefined;
+            setPinnedId(undefined);
+        }
         setWiredNothing(graph.wiredNothing);
 
         const nodeModels = new Map<string, TopologyNodeModel>();
@@ -252,7 +286,7 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
             applyLayout();
             if (!sameNodeSet) {
                 userAdjustedRef.current = false;
-                fitToLayout();
+                refit();
             }
             diagramEngine.repaintCanvas();
         }, 200);
@@ -269,12 +303,12 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
         const observer = new ResizeObserver(() => {
             if (!userAdjustedRef.current) {
                 applyLayout();
-                fitToLayout();
+                refit();
             }
         });
         observer.observe(canvas);
         return () => observer.disconnect();
-    }, [diagramEngine, diagramModel, applyLayout, fitToLayout]);
+    }, [diagramEngine, diagramModel, applyLayout, refit]);
 
     // Passing the pointer over a card on the way elsewhere should not make the canvas flicker.
     const setHovered = useCallback((id?: string) => {
@@ -286,6 +320,65 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
         hoverTimerRef.current = setTimeout(() => setHoveredId(id), HOVER_FOCUS_DELAY_MS);
     }, []);
     useEffect(() => () => clearTimeout(hoverTimerRef.current), []);
+
+    // Pin a flow from the entry-points list: it stays lit and the canvas fits it until it is unpinned.
+    const unpin = useCallback(() => {
+        if (!pinnedRef.current) {
+            return;
+        }
+        pinnedRef.current = undefined;
+        setPinnedId(undefined);
+        userAdjustedRef.current = false;
+        fitToLayout();
+    }, [fitToLayout]);
+
+    // Pinning folds the list back to its chip and drops the row's own hover so the pin alone drives the focus.
+    const pin = useCallback(
+        (id: string) => {
+            setFlowsOpen(false);
+            setHovered(undefined);
+            if (pinnedRef.current === id) {
+                unpin();
+                return;
+            }
+            pinnedRef.current = id;
+            setPinnedId(id);
+            userAdjustedRef.current = false;
+            refit();
+        },
+        [unpin, refit, setHovered]
+    );
+
+    // Esc folds the list first, then clears the pin.
+    useEffect(() => {
+        if (!pinnedId && !flowsOpen) {
+            return;
+        }
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.key !== "Escape") {
+                return;
+            }
+            if (flowsOpen) {
+                setFlowsOpen(false);
+            } else {
+                unpin();
+            }
+        };
+        document.addEventListener("keydown", onKeyDown);
+        return () => document.removeEventListener("keydown", onKeyDown);
+    }, [pinnedId, flowsOpen, unpin]);
+
+    // A click on the bare canvas, not on a node, link or chip, folds the list and clears the pin.
+    const onCanvasClick = useCallback(
+        (event: React.MouseEvent<HTMLDivElement>) => {
+            if (!(event.target as HTMLElement).closest(".node, svg, foreignObject")) {
+                setFlowsOpen(false);
+                unpin();
+            }
+        },
+        [unpin]
+    );
+
 
     const toggleOrientation = useCallback(() => {
         setSettling(true);
@@ -313,13 +406,13 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
         lastOrientation = orientation;
         applyLayout();
         userAdjustedRef.current = false;
-        fitToLayout();
+        refit();
         const timer = setTimeout(() => {
             reportPorts();
             setSettling(false);
         }, SETTLE_MS);
         return () => clearTimeout(timer);
-    }, [orientation, applyLayout, reportPorts, fitToLayout]);
+    }, [orientation, applyLayout, reportPorts, refit]);
 
     const context = useMemo(
         () => ({
@@ -328,11 +421,11 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
             onAgentSelect,
             onTriggerSelect,
             onAddTrigger,
-            focus: hoveredId && graphRef.current ? focusAround(graphRef.current, hoveredId) : undefined,
+            focus: (hoveredId ?? pinnedId) && graphRef.current ? focusAround(graphRef.current, hoveredId ?? pinnedId) : undefined,
             setHovered,
         }),
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [readonly, orientation, onAgentSelect, onTriggerSelect, onAddTrigger, hoveredId, input, setHovered]
+        [readonly, orientation, onAgentSelect, onTriggerSelect, onAddTrigger, hoveredId, pinnedId, input, setHovered]
     );
 
     return (
@@ -344,9 +437,14 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
                     <EmptyNote>No triggers yet. Agents only run when a trigger calls them. Select Add Trigger on an agent card.</EmptyNote>
                 )}
             </TopLeft>
+            {triggers.length >= 2 && (
+                <TopRight>
+                    <FlowList triggers={triggers} pinnedId={pinnedId} open={flowsOpen} onToggle={setFlowsOpen} onPreview={setHovered} onPin={pin} />
+                </TopRight>
+            )}
             {diagramEngine && diagramModel && (
                 <TopologyContextProvider value={context}>
-                    <Glide settling={settling}>
+                    <Glide settling={settling} onClick={onCanvasClick}>
                         <DiagramCanvas>
                             <CanvasWidget engine={diagramEngine} />
                         </DiagramCanvas>

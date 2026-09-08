@@ -18,7 +18,7 @@
 
 import React from "react";
 import { prettyDOM, waitFor } from "@testing-library/dom";
-import { render } from "@testing-library/react";
+import { fireEvent, render, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { CDConnection, CDModel, CDResourceFunction, CDService } from "@wso2/ballerina-core";
 import { AgentTopologyDiagram } from "../components/AgentTopologyDiagram";
@@ -201,4 +201,27 @@ describe("AgentTopologyDiagram - Snapshot Tests", () => {
     test("renders an empty package with no agents", async () => {
         await renderAndCheckSnapshot({ model: { connections: [], listeners: [], services: [] }, agents: [] }, "no-agents");
     }, 15000);
+});
+
+describe("AgentTopologyDiagram - Entry points", () => {
+    it("folds the triggers into a chip, pins a flow from the list and clears it from the chip or with Escape", () => {
+        const dom = render(<AgentTopologyDiagram input={helpDeskInput()} onAgentSelect={() => {}} onTriggerSelect={() => {}} />);
+        expect(dom.queryByRole("listbox")).toBeNull();
+        fireEvent.click(dom.getByRole("button", { name: /entry points/i }));
+
+        const rows = within(dom.getByRole("listbox", { name: "Entry points" })).getAllByRole("button", { pressed: false });
+        expect(rows.map((row) => row.textContent)).toEqual(["Agent Chat/helpDesk", "POST /quotesHTTP Service · /shipping-api"]);
+
+        fireEvent.click(rows[1]);
+        expect(dom.queryByRole("listbox")).toBeNull();
+        expect(dom.getByRole("button", { name: /POST \/quotes/ })).toBeInTheDocument();
+
+        fireEvent.click(dom.getByRole("button", { name: "Clear the pinned flow" }));
+        expect(dom.getByRole("button", { name: /entry points/i })).toBeInTheDocument();
+
+        fireEvent.click(dom.getByRole("button", { name: /entry points/i }));
+        fireEvent.click(within(dom.getByRole("listbox")).getAllByRole("button", { pressed: false })[0]);
+        fireEvent.keyDown(document, { key: "Escape" });
+        expect(dom.queryByRole("button", { name: "Clear the pinned flow" })).toBeNull();
+    });
 });
