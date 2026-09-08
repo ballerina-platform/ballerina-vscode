@@ -82,7 +82,7 @@ import { cloneDeep } from "lodash";
 import ReactMarkdown from "react-markdown";
 import rehypeRaw from "rehype-raw";
 import hljs from "highlight.js";
-import { COMPLETION_ITEM_KIND, CompletionItem, CompletionItemKind, convertCompletionItemKind, FnSignatureDocumentation, getAIModuleIcon, Icon } from "@wso2/ui-toolkit";
+import { COMPLETION_ITEM_KIND, CompletionItem, CompletionItemKind, convertCompletionItemKind, FnSignatureDocumentation, Icon } from "@wso2/ui-toolkit";
 import { FunctionDefinition, STNode } from "@wso2/syntax-tree";
 import { DocSection } from "../components/ExpressionEditor";
 
@@ -93,6 +93,13 @@ import { ConnectionKind, getConnectionKindDisplayName } from "../components/Conn
 import { ConnectionListItem } from "@wso2/wso2-platform-core";
 import { handleRepeatableProperty } from "./node-property-utils";
 export { updateNodeProperties } from "./node-property-utils";
+import {
+    IconFactory,
+    applyGroupedChildIcons,
+    dataLoaderIconFactory,
+    chunkerIconFactory,
+    vectorStoreIconFactory,
+} from "./group-icons";
 hljs.registerLanguage("ballerina", ballerina);
 
 function convertAvailableNodeToPanelNode(
@@ -142,64 +149,6 @@ function convertAvailableNodeToPanelNode(
             />
         ),
     };
-}
-
-
-type IconFactory = (codedata: any, iconUrl?: string) => React.ReactElement;
-
-// Central icon URLs are `…/{org}_{package}_{version}.png`; the middle segment is the package key.
-function getPackageKeyFromIconUrl(iconUrl?: string): string | undefined {
-    const fileName = iconUrl?.split("/").pop();
-    const parts = fileName?.split("_");
-    return parts && parts.length >= 3 ? parts[1] : undefined;
-}
-
-// Prefer the embedded provider SVG so monochrome logos stay visible in dark mode.
-function resolveChildBadgeIcon(codedata: any, iconUrl?: string): React.ReactElement {
-    const embedded =
-        getAIModuleIcon(getPackageKeyFromIconUrl(iconUrl), 14) ?? getAIModuleIcon(codedata?.object, 14);
-    if (embedded) {
-        return embedded;
-    }
-    // Fall back to the node glyph: the URL is synthesised from package coordinates and 404s for unpublished packages.
-    return (
-        <ConnectorIcon
-            url={iconUrl}
-            style={{ width: "14px", height: "14px", fontSize: "14px" }}
-            codedata={codedata}
-            fallbackIcon={<NodeIcon type={codedata?.node} size={14} />}
-        />
-    );
-}
-
-// Keeps the package icon on the group header and gives each child its own @display icon.
-function applyGroupedChildIcons(group: PanelCategory, rawItems: any[], groupIconFactory?: IconFactory): void {
-    const rawGroup = rawItems?.find(
-        (r) => r && !("codedata" in r) && r.metadata?.label === group.title
-    );
-    const packageIconUrl: string | undefined = rawGroup?.metadata?.icon;
-    const firstChild = group.items?.at(0) as PanelNode | undefined;
-
-    if (packageIconUrl) {
-        group.icon = (
-            <ConnectorIcon url={packageIconUrl} style={{ width: "20px", height: "20px", fontSize: "20px" }} />
-        );
-    } else if (groupIconFactory) {
-        // No package icon, so the group falls back to its first child's — which needs the caller's fallback too.
-        group.icon = groupIconFactory(firstChild?.metadata?.codedata, firstChild?.metadata?.metadata?.icon);
-    }
-
-    group.items?.forEach((child) => {
-        const childNode = child as PanelNode;
-        const codedata = childNode.metadata?.codedata;
-        const childIconUrl: string | undefined = childNode.metadata?.metadata?.icon;
-        const hasClassIcon = !groupIconFactory && Boolean(childIconUrl) && childIconUrl !== packageIconUrl;
-        child.icon = hasClassIcon ? (
-            resolveChildBadgeIcon(codedata, childIconUrl)
-        ) : (
-            <NodeIcon type={codedata?.node} size={14} />
-        );
-    });
 }
 
 function convertDiagramCategoryToSidePanelCategory(category: Category, functionType?: FUNCTION_TYPE): PanelCategory {
@@ -332,12 +281,7 @@ export function convertModelProviderCategoriesToSidePanelCategories(categories: 
 }
 
 export function convertVectorStoreCategoriesToSidePanelCategories(categories: Category[]): PanelCategory[] {
-    return convertCategoriesToSidePanelCategoriesWithIcon(categories, (codedata, iconUrl) => {
-        if (codedata?.module === "ai") {
-            return <NodeIcon type="VECTOR_STORE" size={24} />;
-        }
-        return <AIModelIcon type={codedata?.module} codedata={codedata} iconUrl={iconUrl} />;
-    });
+    return convertCategoriesToSidePanelCategoriesWithIcon(categories, vectorStoreIconFactory);
 }
 
 export function convertEmbeddingProviderCategoriesToSidePanelCategories(categories: Category[]): PanelCategory[] {
@@ -376,17 +320,11 @@ export function convertCategoriesToSidePanelCategoriesWithIcon(
 }
 
 export function convertDataLoaderCategoriesToSidePanelCategories(categories: Category[]): PanelCategory[] {
-    return convertCategoriesToSidePanelCategoriesWithIcon(categories, (codedata, iconUrl) => {
-        if (iconUrl && codedata?.module !== "ai" && codedata?.module !== "ai.devant") return <img src={iconUrl} style={{ width: 24, height: 24 }} />;
-        return <NodeIcon type="DATA_LOADER" size={24} />;
-    });
+    return convertCategoriesToSidePanelCategoriesWithIcon(categories, dataLoaderIconFactory);
 }
 
 export function convertChunkerCategoriesToSidePanelCategories(categories: Category[]): PanelCategory[] {
-    return convertCategoriesToSidePanelCategoriesWithIcon(categories, (codedata, iconUrl) => {
-        if (iconUrl && codedata?.module !== "ai" && codedata?.module !== "ai.devant") return <img src={iconUrl} style={{ width: 24, height: 24 }} />;
-        return <NodeIcon type="CHUNKER" size={24} />;
-    });
+    return convertCategoriesToSidePanelCategoriesWithIcon(categories, chunkerIconFactory);
 }
 
 export function convertMemoryStoreCategoriesToSidePanelCategories(categories: Category[]): PanelCategory[] {

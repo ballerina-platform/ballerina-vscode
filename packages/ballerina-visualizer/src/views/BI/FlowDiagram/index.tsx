@@ -74,7 +74,7 @@ import { NodePosition, STNode } from "@wso2/syntax-tree";
 import { View, ProgressIndicator, ThemeColors } from "@wso2/ui-toolkit";
 import { applyModifications, textToModifications } from "../../../utils/utils";
 import { PanelManager, SidePanelView } from "./PanelManager";
-import { transformCategories, getNodeTemplateForConnection, findFunctionByName } from "./utils";
+import { transformCategories, getNodeTemplateForConnection, findFunctionByName, filterCategoriesLocally } from "./utils";
 import { PanelOverlayProvider } from "./context/PanelOverlayContext";
 import { PanelOverlayRenderer } from "./PanelOverlayRenderer";
 import { ExpressionFormField, Category as PanelCategory, S } from "@wso2/ballerina-side-panel";
@@ -1790,45 +1790,6 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             setShowProgressIndicator(false);
         }
     };
-
-    // Frontend filtering function for cached categories - handles nested structures
-    const filterCategoriesLocally = useCallback((categories: any[], searchText: string): any[] => {
-        if (!searchText.trim()) return categories;
-
-        const lowerSearchText = searchText.toLowerCase();
-
-        const filterItemsRecursively = (items: any[]): any[] => {
-            if (!items) return [];
-
-            return items.map((item: any) => {
-                // Check if this item matches the search
-                const label = item.title || item.label;
-                const itemMatches = label.toLowerCase().includes(lowerSearchText);
-                if (itemMatches) {
-                    return item;
-                }
-                // If this item has nested items (subcategory), recursively filter them
-                if (item.items && Array.isArray(item.items)) {
-                    const filteredSubItems = filterItemsRecursively(item.items);
-
-                    // Include this subcategory if it matches OR has matching nested items
-                    if (filteredSubItems.length > 0) {
-                        return {
-                            ...item,
-                            items: filteredSubItems
-                        };
-                    }
-                    return null; // Filter out this subcategory
-                }
-                return null;
-            }).filter(item => item !== null);
-        };
-
-        return categories.map(category => ({
-            ...category,
-            items: filterItemsRecursively(category.items || [])
-        })).filter(category => category.items && category.items.length > 0);
-    }, []);
 
     // Debounced search following AddConnectionPopupContent pattern
     const debouncedSearch = useMemo(
