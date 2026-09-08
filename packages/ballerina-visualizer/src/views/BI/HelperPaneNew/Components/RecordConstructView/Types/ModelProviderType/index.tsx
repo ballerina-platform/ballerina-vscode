@@ -19,8 +19,7 @@ import React, { useState } from "react";
 
 import { VSCodeCheckbox } from "@vscode/webview-ui-toolkit/react";
 import { Codicon, Tooltip, Typography } from "@wso2/ui-toolkit";
-import { FormField } from "@wso2/ballerina-side-panel";
-import { NodeReferenceSelectEditor } from "@wso2/ballerina-side-panel/lib/components/editors/MultiModeExpressionEditor/NodeReferenceSelectEditor/NodeReferenceSelectEditor";
+import { FormField, NodeReferenceSelectEditor } from "@wso2/ballerina-side-panel";
 
 import { TypeProps } from "../../ParameterBranch";
 import { useHelperPaneStyles } from "../../styles";
