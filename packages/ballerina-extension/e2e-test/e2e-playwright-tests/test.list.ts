@@ -148,10 +148,13 @@ test.describe('Ballerina E2E Group 2', { tag: '@group2' }, async () => {
     test.describe(automationDebug);
 
     // <----AI Chat Service Test---->
-    test.describe(aiChatService);
+    // TODO: flaky - wso2/product-integrator#2389 (#bi-diagram-canvas never becomes visible after create)
+    test.describe.skip(aiChatService);
 
     // <----Integration as API Test---->
-    test.describe(graphqlService);
+    // TODO: flaky - wso2/product-integrator#2389 ('graphql-add-mutation-btn' not visible
+    // within 10s).
+    test.describe.skip(graphqlService);
 
     // <----Event Integration Test---->
     test.describe(rabbitmqIntegration);
