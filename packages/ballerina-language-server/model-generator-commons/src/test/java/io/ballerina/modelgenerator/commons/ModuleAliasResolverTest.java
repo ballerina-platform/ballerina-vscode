@@ -16,26 +16,17 @@
  *  under the License.
  */
 
-package io.ballerina.servicemodelgenerator.extension.util;
+package io.ballerina.modelgenerator.commons;
 
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
 import io.ballerina.compiler.syntax.tree.SyntaxTree;
-import io.ballerina.servicemodelgenerator.extension.model.Codedata;
-import io.ballerina.servicemodelgenerator.extension.model.Function;
-import io.ballerina.servicemodelgenerator.extension.model.Service;
-import io.ballerina.servicemodelgenerator.extension.model.Value;
 import io.ballerina.tools.text.TextDocuments;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-
 /**
- * Unit test for {@link ModuleAliasResolver}: choosing a collision-free import prefix for a connector's
- * own module in a given file, and re-qualifying model-authored type text onto it.
+ * Unit test for {@link ModuleAliasResolver} and {@link ImportPrefixReader}: choosing a collision-free
+ * import prefix for a module in a given file, and re-qualifying model-authored type text onto it.
  *
  * @since 1.9.0
  */
@@ -65,7 +56,7 @@ public class ModuleAliasResolverTest {
         // The reported edge case: `import ballerina/file as ftp;` binds the prefix `ftp` to a DIFFERENT
         // module, so adding an `ballerina/ftp` service must not emit a plain `import ballerina/ftp;` —
         // that would redeclare the prefix. It has to take a free one instead.
-        String alias = ModuleAliasResolver.resolve(rootOf("import ballerina/file as ftp;\n"),
+        String alias = ImportPrefixReader.resolve(rootOf("import ballerina/file as ftp;\n"),
                 "ballerina", "ftp", null);
         Assert.assertEquals(alias, "ftp2", "a shadowed natural prefix must be disambiguated");
     }
@@ -73,7 +64,7 @@ public class ModuleAliasResolverTest {
     @Test
     public void testUnshadowedSingleSegmentModuleKeepsNaturalPrefix() {
         // Regression guard: no conflict -> unchanged behaviour for every existing connector.
-        Assert.assertEquals(ModuleAliasResolver.resolve(rootOf("import ballerina/io;\n"),
+        Assert.assertEquals(ImportPrefixReader.resolve(rootOf("import ballerina/io;\n"),
                 "ballerina", "ftp", null), "ftp");
     }
 
@@ -81,9 +72,9 @@ public class ModuleAliasResolverTest {
     public void testExistingImportPrefixWins() {
         // Whatever the file already binds the module to is authoritative — including a hand-edited alias
         // and including the unaliased case.
-        Assert.assertEquals(ModuleAliasResolver.resolve(
+        Assert.assertEquals(ImportPrefixReader.resolve(
                 rootOf("import ballerinax/trigger.twilio as tw;\n"), "ballerinax", "trigger.twilio", null), "tw");
-        Assert.assertEquals(ModuleAliasResolver.resolve(
+        Assert.assertEquals(ImportPrefixReader.resolve(
                 rootOf("import ballerinax/trigger.twilio;\n"), "ballerinax", "trigger.twilio", null), "twilio");
     }
 
@@ -91,7 +82,7 @@ public class ModuleAliasResolverTest {
     public void testClaimedAliasIsSuffixed() {
         // Both the natural prefix (claimed by an unrelated import) and the generated fallback alias
         // (also claimed) are already taken, so only the final numeric-suffix step is left.
-        Assert.assertEquals(ModuleAliasResolver.resolve(
+        Assert.assertEquals(ImportPrefixReader.resolve(
                 rootOf("import foo/bar as twilio;\nimport baz/qux as triggerTwilio;\n"),
                 "ballerinax", "trigger.twilio", null),
                 "triggerTwilio2");
@@ -103,15 +94,31 @@ public class ModuleAliasResolverTest {
         // itself under its bare natural prefix (github) when nothing in the file claims it, not under
         // the generated alias (triggerGithub) — that alias is a fallback for an actual collision, not
         // the default.
-        Assert.assertEquals(ModuleAliasResolver.resolve(rootOf("\n"), "ballerinax", "trigger.github", null),
+        Assert.assertEquals(ImportPrefixReader.resolve(rootOf("\n"), "ballerinax", "trigger.github", null),
                 "github");
-        Assert.assertEquals(ModuleAliasResolver.resolve(rootOf("import ballerina/io;\n"),
+        Assert.assertEquals(ImportPrefixReader.resolve(rootOf("import ballerina/io;\n"),
                 "ballerinax", "trigger.github", null), "github");
     }
 
     @Test
+    public void testOrgLessLocalImportIsNotMatchedForAForeignModule() {
+        // Package `ai` imports its own submodule org-lessly. A request for ballerinax/ai.google must not be told
+        // it is already imported: resolve would return `google`, no import would be written, and the reference
+        // would bind to the local module instead.
+        ModulePartNode root = rootOf("import ai.google;\n");
+
+        Assert.assertEquals(ImportPrefixReader.resolve(root, "ballerinax", "ai.google", null, "testorg"),
+                "aiGoogle", "the foreign module takes a free prefix, since google is bound locally");
+        Assert.assertEquals(ImportPrefixReader.boundPrefix(root, "ballerinax", "ai.google", "testorg"),
+                "google", "boundPrefix never allocates, so it falls back to the natural prefix");
+
+        // The file's own package still matches, which is what the leniency exists for.
+        Assert.assertEquals(ImportPrefixReader.resolve(root, "testorg", "ai.google", null, "testorg"), "google");
+    }
+
+    @Test
     public void testOverridePrefixIsPreferred() {
-        Assert.assertEquals(ModuleAliasResolver.resolve(rootOf("\n"), "ballerinax", "trigger.twilio", "tw"), "tw");
+        Assert.assertEquals(ImportPrefixReader.resolve(rootOf("\n"), "ballerinax", "trigger.twilio", "tw"), "tw");
     }
 
     @Test
@@ -159,58 +166,18 @@ public class ModuleAliasResolverTest {
         // A prefix read out of source identifies a module only via the file's imports. Resolving it is
         // what lets a `@ftp2:ServiceConfig` attachment be matched to the model's `ftp` container instead
         // of being duplicated as a second `annot<Name>` property.
-        Assert.assertEquals(Utils.moduleNameForPrefix(
+        Assert.assertEquals(ImportPrefixReader.moduleNameForPrefix(
                 rootOf("import ballerina/ftp as ftp2;\n"), "ftp2").orElseThrow(), "ftp");
 
         // And the ambiguity that makes prefix-matching unsound in the first place: two different modules
         // both present as `ftp`, so only the import can say which one a prefix means.
-        Assert.assertEquals(Utils.moduleNameForPrefix(
+        Assert.assertEquals(ImportPrefixReader.moduleNameForPrefix(
                 rootOf("import ballerina/abc.ftp;\n"), "ftp").orElseThrow(), "abc.ftp");
-        Assert.assertEquals(Utils.moduleNameForPrefix(
+        Assert.assertEquals(ImportPrefixReader.moduleNameForPrefix(
                 rootOf("import ballerina/ftp;\n"), "ftp").orElseThrow(), "ftp");
 
-        Assert.assertTrue(Utils.moduleNameForPrefix(rootOf("import ballerina/io;\n"), "ftp").isEmpty(),
+        Assert.assertTrue(ImportPrefixReader.moduleNameForPrefix(rootOf("import ballerina/io;\n"), "ftp").isEmpty(),
                 "an unbound prefix resolves to nothing");
-    }
-
-    @Test
-    public void testServiceAnnotationPrefixResolvesAgainstTheFile() {
-        // Regression test: the model stores the annotation's module IDENTITY (`ftp`), but source needs
-        // the PREFIX that file binds it to (`ftp2`). Emitting the identity wrote `@ftp:ServiceConfig`
-        // into a file where `ftp` is bound to ballerina/file — silently retargeting the annotation.
-        Service service = serviceWithAnnotation("ftp", "ServiceConfig", "{path: \"/\"}");
-        List<String> annots = Utils.getAnnotationEdits(service,
-                rootOf("import ballerina/file as ftp;\nimport ballerina/ftp as ftp2;\n"));
-        Assert.assertEquals(annots, List.of("@ftp2:ServiceConfig{path: \"/\"}"),
-                "the annotation must follow the prefix its own module is bound to");
-    }
-
-    @Test
-    public void testServiceAnnotationKeepsNaturalPrefixWhenUnaliased() {
-        // Regression guard: nothing shadows `ftp`, so output is unchanged from before.
-        Service service = serviceWithAnnotation("ftp", "ServiceConfig", "{path: \"/\"}");
-        Assert.assertEquals(Utils.getAnnotationEdits(service, rootOf("import ballerina/ftp;\n")),
-                List.of("@ftp:ServiceConfig{path: \"/\"}"));
-        Assert.assertEquals(Utils.getAnnotationEdits(service, null),
-                List.of("@ftp:ServiceConfig{path: \"/\"}"),
-                "with no file context the natural prefix is the only available answer");
-    }
-
-    private Service serviceWithAnnotation(String moduleName, String originalName, String body) {
-        Codedata codedata = new Codedata.Builder()
-                .setType("SERVICE_ANNOTATION")
-                .setOriginalName(originalName)
-                .setModuleName(moduleName)
-                .build();
-        Value annotation = new Value.ValueBuilder()
-                .setCodedata(codedata)
-                .value(body)
-                .enabled(true)
-                .editable(true)
-                .build();
-        return new Service.ServiceModelBuilder()
-                .setProperties(new LinkedHashMap<>(Map.of("serviceConfig", annotation)))
-                .build();
     }
 
     @Test
@@ -240,39 +207,6 @@ public class ModuleAliasResolverTest {
         Assert.assertEquals(prefixes.prefixForQualifier("ballerina", "ftp", "ftp"), "ftp2");
         Assert.assertEquals(prefixes.prefixForQualifier("ballerina", "abc.ftp", "ftp"),
                 prefixes.prefixFor("ballerina", "abc.ftp"));
-    }
-
-    @Test
-    public void testFunctionAnnotationPrefixResolvesAtRenderTime() {
-        // The model keeps the module IDENTITY (`ftp`); the prefix is a property of the target file and is
-        // resolved when rendering, rather than being written back into codedata.moduleName.
-        Function function = functionWithAnnotation("ftp", "FunctionConfig", "{afterProcess: ftp2:DELETE}");
-        Assert.assertEquals(
-                Utils.getAnnotationEdits(function, new HashMap<>(),
-                        rootOf("import ballerina/file as ftp;\nimport ballerina/ftp as ftp2;\n")),
-                List.of("@ftp2:FunctionConfig{afterProcess: ftp2:DELETE}"));
-        // Unaliased and no-file-context both keep the natural prefix: unchanged from before.
-        Assert.assertEquals(Utils.getAnnotationEdits(function, new HashMap<>(), rootOf("import ballerina/ftp;\n")),
-                List.of("@ftp:FunctionConfig{afterProcess: ftp2:DELETE}"));
-        Assert.assertEquals(Utils.getAnnotationEdits(function, new HashMap<>()),
-                List.of("@ftp:FunctionConfig{afterProcess: ftp2:DELETE}"));
-    }
-
-    private Function functionWithAnnotation(String moduleName, String originalName, String body) {
-        Codedata codedata = new Codedata.Builder()
-                .setType("ANNOTATION_ATTACHMENT")
-                .setOriginalName(originalName)
-                .setModuleName(moduleName)
-                .build();
-        Value annotation = new Value.ValueBuilder()
-                .setCodedata(codedata)
-                .value(body)
-                .enabled(true)
-                .editable(true)
-                .build();
-        Function function = new Function.FunctionBuilder().build();
-        function.setProperties(new LinkedHashMap<>(Map.of("annotFunctionConfig", annotation)));
-        return function;
     }
 
     @Test

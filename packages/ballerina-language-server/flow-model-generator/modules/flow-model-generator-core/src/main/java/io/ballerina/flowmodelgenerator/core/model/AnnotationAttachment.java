@@ -87,16 +87,27 @@ public record AnnotationAttachment(String modulePrefix, String name, Codedata co
         return null;
     }
 
-    @Override
-    public String toString() {
+    /**
+     * The attachment rendered under a given module prefix, for a generator that has resolved the module against
+     * the file it is writing to and may have had to alias it.
+     *
+     * @param prefix the prefix to qualify the annotation with; blank emits it unqualified
+     * @return the annotation source
+     */
+    public String toSourceCode(String prefix) {
         if (name == null || name.isEmpty()) {
             return "";
         }
 
-        if (modulePrefix == null || modulePrefix.isEmpty()) {
+        if (prefix == null || prefix.isEmpty()) {
             return "@" + name + propertiesToString();
         }
 
-        return "@" + modulePrefix + ":" + name + propertiesToString();
+        return "@" + prefix + ":" + name + propertiesToString();
+    }
+
+    @Override
+    public String toString() {
+        return toSourceCode(modulePrefix);
     }
 }
