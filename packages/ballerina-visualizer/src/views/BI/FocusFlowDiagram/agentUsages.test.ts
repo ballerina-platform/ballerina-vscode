@@ -1114,6 +1114,20 @@ describe("agents used as tools", () => {
         expect(findAgentToolTargets(nested, { filePath: AGENTS_BAL, startLine: 6 })).toEqual({});
     });
 
+    it("lists the handler on an agent it reaches only through a helper, beside its direct calls", () => {
+        const WRITER = "writer-uuid";
+        const withHelper = {
+            ...nested,
+            connections: [
+                ...nested.connections,
+                { symbol: "writerAgent", location: { filePath: AGENTS_BAL, ...range(10) }, scope: "GLOBAL", kind: "Agent", uuid: WRITER, enableFlowModel: false, sortText: "agents.bal10" },
+            ],
+            services: [{ ...nested.services[0], connections: [CEO, MANAGER, WRITER], resourceFunctions: [{ ...chat, connections: [CEO, MANAGER, WRITER] }] }],
+        } as unknown as CDModel;
+        expect(findAgentUsages(withHelper, { filePath: AGENTS_BAL, startLine: 10 }).map((row) => row.label)).toEqual(["Agent Chat"]);
+        expect(findAgentUsages(withHelper, { filePath: AGENTS_BAL, startLine: 6 }).map((row) => row.label)).toEqual(["ceoAgent"]);
+    });
+
     it("excludes delegated agents from the fold when a handler records no direct calls", () => {
         const helperOnly = {
             ...nested,

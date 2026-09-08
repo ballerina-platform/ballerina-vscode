@@ -168,12 +168,10 @@ function tryItFor(model: CDModel, service: CDService): AgentUsageTryIt | undefin
 type AgentCaller = { connections?: string[]; agentCalls?: CDAgentCall[] };
 
 // A caller's connections fold in what its agents delegate to; only its own calls make it a trigger.
-function callsDirectly(fn: AgentCaller, uuid: string, delegated: Set<string>): boolean {
-    const called = fn.agentCalls ?? [];
-    if (called.length > 0) {
-        return called.some((call) => call.connection === uuid);
-    }
-    return Boolean(fn.connections?.includes(uuid)) && !delegated.has(uuid);
+// The handler runs the agent itself or through a helper; reaching it through another agent's tool is delegation.
+function runsAgent(fn: AgentCaller, uuid: string, delegated: Set<string>): boolean {
+    const called = (fn.agentCalls ?? []).some((call) => call.connection === uuid);
+    return called || (Boolean(fn.connections?.includes(uuid)) && !delegated.has(uuid));
 }
 
 function delegatedAgentUuids(model: CDModel): Set<string> {
@@ -227,7 +225,7 @@ function usagesForService(
     const usages: AgentUsage[] = [];
 
     for (const resource of service.resourceFunctions ?? []) {
-        if (callsDirectly(resource, uuid, delegated)) {
+        if (runsAgent(resource, uuid, delegated)) {
             const rowLabel = isAgentChat ? "Agent Chat" : resourceLabel(resource.accessor, resource.path);
             usages.push({
                 label: rowLabel,
@@ -248,7 +246,7 @@ function usagesForService(
     }
 
     for (const fn of service.remoteFunctions ?? []) {
-        if (callsDirectly(fn, uuid, delegated)) {
+        if (runsAgent(fn, uuid, delegated)) {
             usages.push({
                 label: fn.name,
                 serviceLabel: subLabel,
@@ -333,7 +331,7 @@ export function findAgentUsages(
         usagesForService(model, service, uuid, delegated, triggerScopes?.get(modulePrefix(service.type))));
 
     const automation = model.automation;
-    if (automation && callsDirectly(automation, uuid, delegated)) {
+    if (automation && runsAgent(automation, uuid, delegated)) {
         usages.push({
             label: automation.displayName || automation.name,
             type: "automation",
