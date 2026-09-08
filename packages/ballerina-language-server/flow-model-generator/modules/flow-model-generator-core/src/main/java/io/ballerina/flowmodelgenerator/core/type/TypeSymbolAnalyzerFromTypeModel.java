@@ -53,7 +53,9 @@ public class TypeSymbolAnalyzerFromTypeModel {
         if (expressionNode instanceof TypeCastExpressionNode typeCast) {
             expressionNode = typeCast.expression();
         }
-        Type type = Type.fromSemanticSymbol(typeSymbol, semanticModel);
+        // Collapse `readonly & T` before the walk below: it descends into records, unions and arrays only, so an
+        // intersection-typed field would keep neither the values nor the selection parsed out of the expression.
+        Type type = IntersectionNormalizer.normalize(Type.fromSemanticSymbol(typeSymbol, semanticModel));
 
         if (expressionNode instanceof MappingConstructorExpressionNode mapping) {
             if (type instanceof RecordType recordType) {
@@ -177,6 +179,8 @@ public class TypeSymbolAnalyzerFromTypeModel {
 
     private static void updateArrayTypeConfig(ArrayType arrayType,
                                               ListConstructorExpressionNode listExpr) {
+        // `memberType` is intersection-free by construction: `analyze` normalizes before this walk. That matters
+        // because `Type.copy()` drops an intersection's members - `IntersectionType` does not override it.
         arrayType.elements = new ArrayList<>();
         for (var memberExpr : listExpr.expressions()) {
             Type element = arrayType.memberType.copy();

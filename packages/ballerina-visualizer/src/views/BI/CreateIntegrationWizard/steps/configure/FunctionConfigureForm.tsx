@@ -23,7 +23,7 @@ import { FormField, FormValues } from "@wso2/ballerina-side-panel";
 import { FormHeader } from "../../../../../components/FormHeader";
 import { RelativeLoader } from "../../../../../components/RelativeLoader";
 import ArtifactForm from "../../../Forms/ArtifactForm";
-import { convertConfig } from "../../../../../utils/bi";
+import { convertConfig, orderFormFields, DURABLE_AGENT_FORM_ORDER } from "../../../../../utils/bi";
 import { joinPath } from "../../../ProjectForm/utils";
 import { BiWsClient } from "../../../wsManager/WsClient";
 
@@ -94,9 +94,11 @@ interface FunctionConfigureFormProps {
  * mirroring FunctionForm's per-kind field stripping:
  * - AUTOMATION hides functionName/type (the automation is always `main`).
  * - WORKFLOW hides isPublic/type/typeDescription (return type defaults to `error?`).
- * - DURABLE_AGENT is name-only: the model, instructions and capabilities are configured on
- *   the agent declaration afterwards. The LS prefills the name (`durableAgenticWorkflow`,
- *   deduplicated against visible symbols), so this form must not overwrite it.
+ * - DURABLE_AGENT asks for the agent's identity — Name, Model, Role, Instructions and an
+ *   optional Input Data Type — which is everything its declaration is generated from; its
+ *   capabilities are configured on the agent declaration afterwards. The LS prefills the name
+ *   (`durableAgenticWorkflow`, deduplicated against visible symbols), so this form must not
+ *   overwrite it.
  */
 export function FunctionConfigureForm({ wsClient, projectRoot, kind, isSubmitting, onSubmit }: FunctionConfigureFormProps) {
     const [flowNode, setFlowNode] = useState<FlowNode | null>(null);
@@ -129,10 +131,12 @@ export function FunctionConfigureForm({ wsClient, projectRoot, kind, isSubmittin
                     );
                 }
                 if (kind === "durable_agent") {
-                    // Name-only create form. The description is dropped on top of the shared
-                    // filter above; the template carries no `parameters` at all, since the agent
-                    // is generated as a module-level declaration rather than a function.
+                    // The description is dropped on top of the shared filter above; the template
+                    // carries no `parameters` at all, since the agent is generated as a
+                    // module-level declaration rather than a function. `convertConfig` sorts by
+                    // property key, so the identity fields are reordered back into fill order.
                     fields = fields.filter((field) => field.key !== "functionNameDescription");
+                    fields = orderFormFields(fields, DURABLE_AGENT_FORM_ORDER);
                 }
                 setFlowNode(template);
                 setFormFields(fields);

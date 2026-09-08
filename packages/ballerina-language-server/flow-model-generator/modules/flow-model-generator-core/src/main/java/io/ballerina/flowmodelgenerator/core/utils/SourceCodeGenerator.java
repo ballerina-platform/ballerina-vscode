@@ -82,7 +82,11 @@ public class SourceCodeGenerator {
             }
         }
 
-        String template = "%n%sservice class %s {%s%n\tfunction init() {%n\t}%s%n}";
+        // `distinct` is always emitted: ballerina/graphql only accepts distinct service classes as union
+        // members and as interface implementations, and the class is created before it is known whether it
+        // will be used in either. A distinct service class with no inclusions is still a plain object type,
+        // so this is a superset of the non-distinct form.
+        String template = "%n%sdistinct service class %s {%s%n\tfunction init() {%n\t}%s%n}";
 
         return template.formatted(
                 isReadonlyFlagOn(typeData.properties()) ? "readonly " : "",

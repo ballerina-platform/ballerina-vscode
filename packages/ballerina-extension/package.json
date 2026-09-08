@@ -1290,14 +1290,14 @@
         ],
         "icons": {
             "bi-ai-agent": {
-                "description": "ai-agent",
+                "description": "bi-ai-agent",
                 "default": {
                     "fontPath": "./resources/font-wso2-vscode/dist/wso2-vscode.woff",
                     "fontCharacter": "\\f112"
                 }
             },
             "bi-ai-chat": {
-                "description": "ai-chat",
+                "description": "bi-ai-chat",
                 "default": {
                     "fontPath": "./resources/font-wso2-vscode/dist/wso2-vscode.woff",
                     "fontCharacter": "\\f113"
@@ -1349,14 +1349,14 @@
                 "description": "start",
                 "default": {
                     "fontPath": "./resources/font-wso2-vscode/dist/wso2-vscode.woff",
-                    "fontCharacter": "\\f24a"
+                    "fontCharacter": "\\f259"
                 }
             },
             "ballerina-debug": {
                 "description": "debug",
                 "default": {
                     "fontPath": "./resources/font-wso2-vscode/dist/wso2-vscode.woff",
-                    "fontCharacter": "\\f1c1"
+                    "fontCharacter": "\\f1cf"
                 }
             },
             "ballerina-source-view": {
@@ -1370,7 +1370,7 @@
                 "description": "persist-diagram",
                 "default": {
                     "fontPath": "./resources/font-wso2-vscode/dist/wso2-vscode.woff",
-                    "fontCharacter": "\\f220"
+                    "fontCharacter": "\\f22f"
                 }
             },
             "ballerina-cached-rounded": {
@@ -1384,42 +1384,42 @@
                 "description": "cached-round",
                 "default": {
                     "fontPath": "./resources/font-wso2-vscode/dist/wso2-vscode.woff",
-                    "fontCharacter": "\\f107"
+                    "fontCharacter": "\\f1ad"
                 }
             },
             "ballerina-fit-to-screen": {
                 "description": "fit-to-screen",
                 "default": {
                     "fontPath": "./resources/font-wso2-vscode/dist/wso2-vscode.woff",
-                    "fontCharacter": "\\f120"
+                    "fontCharacter": "\\f1f1"
                 }
             },
             "ballerina-explicit-outlined": {
                 "description": "explicit-outlined",
                 "default": {
                     "fontPath": "./resources/font-wso2-vscode/dist/wso2-vscode.woff",
-                    "fontCharacter": "\\f11f"
+                    "fontCharacter": "\\f1e9"
                 }
             },
             "ballerina-error-icon": {
                 "description": "error-icon",
                 "default": {
                     "fontPath": "./resources/font-wso2-vscode/dist/wso2-vscode.woff",
-                    "fontCharacter": "\\f11c"
+                    "fontCharacter": "\\f1e3"
                 }
             },
             "ballerina-error-outline": {
                 "description": "error-outline",
                 "default": {
                     "fontPath": "./resources/font-wso2-vscode/dist/wso2-vscode.woff",
-                    "fontCharacter": "\\f11d"
+                    "fontCharacter": "\\f1e5"
                 }
             },
             "ballerina-symbol-struct-icon": {
                 "description": "symbol-struct-icon",
                 "default": {
                     "fontPath": "./resources/font-wso2-vscode/dist/wso2-vscode.woff",
-                    "fontCharacter": "\\f13d"
+                    "fontCharacter": "\\f25d"
                 }
             },
             "ballerina-add-circle-outline": {
@@ -1433,21 +1433,21 @@
                 "description": "radio-button-checked",
                 "default": {
                     "fontPath": "./resources/font-wso2-vscode/dist/wso2-vscode.woff",
-                    "fontCharacter": "\\f134"
+                    "fontCharacter": "\\f23e"
                 }
             },
             "ballerina-radio-button-unchecked": {
                 "description": "radio-button-unchecked",
                 "default": {
                     "fontPath": "./resources/font-wso2-vscode/dist/wso2-vscode.woff",
-                    "fontCharacter": "\\f135"
+                    "fontCharacter": "\\f23f"
                 }
             },
             "ballerina-file-upload": {
                 "description": "file-upload",
                 "default": {
                     "fontPath": "./resources/font-wso2-vscode/dist/wso2-vscode.woff",
-                    "fontCharacter": "\\f11f"
+                    "fontCharacter": "\\f1ee"
                 }
             },
             "ballerina-file-submodule": {
@@ -1468,7 +1468,7 @@
                 "description": "design-view",
                 "default": {
                     "fontPath": "./resources/font-wso2-vscode/dist/wso2-vscode.woff",
-                    "fontCharacter": "\\f1c6"
+                    "fontCharacter": "\\f1d4"
                 }
             },
             "distro-file-submodule": {

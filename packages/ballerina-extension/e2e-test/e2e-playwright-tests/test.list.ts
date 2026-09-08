@@ -46,6 +46,7 @@ import runConcurrent from './rundebug/run-concurrent/run-concurrent.spec';
 import automationDebug from './rundebug/debug/automation-debug.spec';
 import expressionEditor from './expression-editor/expression-editor.spec';
 import expressionEditorAdvanced from './expression-editor/expression-editor-advanced.spec';
+import optionalFieldAccess from './expression-editor/optional-field-access.spec';
 
 import httpService from './api-integration/http-service.spec';
 import httpUpload from './api-integration/http-upload.spec';
@@ -188,6 +189,7 @@ test.describe('Ballerina E2E Group 3', { tag: '@group3' }, async () => {
     // <----Expression Editor Test---->
     test.describe(expressionEditor);
     test.describe(expressionEditorAdvanced);
+    test.describe(optionalFieldAccess);
 });
 
 test.describe('Ballerina E2E Group 4', { tag: '@group4' }, async () => {

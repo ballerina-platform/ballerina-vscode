@@ -231,6 +231,13 @@ export interface ProjectDestinationFormProps {
     submitDisabled?: boolean;
     /** Tooltip explaining `submitDisabled`. */
     submitDisabledTooltip?: string;
+    /**
+     * Rendered above the package details, for a destination question this form does not own.
+     * The migration wizard puts its "Output Structure" choice here so it leads the optional
+     * sections — it is the one the user is most likely to act on, where the package details
+     * below it are usually left at their defaults.
+     */
+    additionalSection?: ReactNode;
     /** Rendered to the left of the primary button. */
     secondaryButton?: { text: string; onClick: () => void; disabled?: boolean };
     onSubmit: (values: ProjectDestinationValues) => Promise<void> | void;
@@ -258,6 +265,7 @@ export function ProjectDestinationForm({
     submitErrorPrefix = "Failed to continue.",
     submitDisabled,
     submitDisabledTooltip,
+    additionalSection,
     secondaryButton,
     onSubmit,
 }: ProjectDestinationFormProps) {
@@ -742,6 +750,8 @@ export function ProjectDestinationForm({
                                 <SectionDivider />
                             </>
                         )}
+
+                        {additionalSection}
 
                         <AdvancedConfigurationSection
                             isExpanded={isPackageInfoExpanded}

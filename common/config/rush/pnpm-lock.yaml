@@ -18,7 +18,7 @@ overrides:
   braces: 3.0.3
   browserslist@4.28.4: 4.28.7
   dompurify: 3.4.13
-  fast-uri: 3.1.5
+  fast-uri: 3.1.7
   form-data@>=2 <3: 2.5.6
   form-data@>=4 <5: 4.0.6
   handlebars: 4.7.9
@@ -37,7 +37,7 @@ overrides:
   postcss@8: 8.5.23
   prismjs: 1.30.0
   protobufjs@>=7 <8: 7.6.5
-  qs@6: 6.15.2
+  qs@6: 6.16.0
   serialize-javascript: 7.0.5
   shell-quote: 1.9.0
   tmp: 0.2.7
@@ -10355,8 +10355,8 @@ packages:
   fast-levenshtein@2.0.6:
     resolution: {integrity: sha512-DCXu6Ifhqcks7TZKY3Hxp3y6qphY5SJZmrWMDrKcERSOXWQdMhU9Ig/PYrzyw/ul9jOIyh0N4M0tbC5hodg8dw==}
 
-  fast-uri@3.1.5:
-    resolution: {integrity: sha512-gHwA1O9LDIcKunMKhObS/HimwtehO1nPUECKAu5TpKgaO19fcWEl4bliWe1jWxVFvIXztJjjQ4L8XQ1EU9f7Jw==}
+  fast-uri@3.1.7:
+    resolution: {integrity: sha512-dOvZVzjdZdz7phd9v6jCbwxrBW3fK6n8Rc0CtdmM4bumzMnxywBYhuph6J819RRw/ku+rLbelwfMunktuzVVHg==}
 
   fastest-levenshtein@1.0.16:
     resolution: {integrity: sha512-eRnCtTTtGZFpQCwhJiUOuxPQWRXVKYDn0b2PeHfXL6/Zi53SLAzAHfVhVWK2AryC/WH05kGfxhFIPvTF0SXQzg==}
@@ -14167,8 +14167,8 @@ packages:
     resolution: {integrity: sha512-+Owyggi9IxT1ePKGafcI87ubSmxol6smwJ+RAHDQlx9+9cPwFWDiKFFCPuWhr9ignlGpZ9vDQLw67N4dcTVFEA==}
     engines: {node: '>=20'}
 
-  qs@6.15.2:
-    resolution: {integrity: sha512-Rzq0KEyX/w/tEybncDgdkZrJgVUsUMk3xjh3t5bv3S1HTAtg+uOYt72+ZfwiQwKdysThkTBdL/rTi6HDmX9Ddw==}
+  qs@6.16.0:
+    resolution: {integrity: sha512-h6fhOIaRrID2CbEY2fqs+7t+UXZo+MLAnU5gRIq85uFtdiUPCdsApMlHhXogKVM4HM2DVbIjGNTTYH2OcmP1vA==}
     engines: {node: '>=0.6'}
 
   querystring-es3@0.2.1:
@@ -21776,7 +21776,7 @@ snapshots:
       core-js: 3.49.0
       global: 4.4.0
       prop-types: 15.8.1
-      qs: 6.15.2
+      qs: 6.16.0
       regenerator-runtime: 0.13.11
       ts-dedent: 2.3.0
     optionalDependencies:
@@ -21794,7 +21794,7 @@ snapshots:
       core-js: 3.49.0
       global: 4.4.0
       prop-types: 15.8.1
-      qs: 6.15.2
+      qs: 6.16.0
       regenerator-runtime: 0.13.11
       ts-dedent: 2.3.0
     optionalDependencies:
@@ -22022,7 +22022,7 @@ snapshots:
       global: 4.4.0
       lodash: 4.18.1
       memoizerific: 1.11.3
-      qs: 6.15.2
+      qs: 6.16.0
       react: 18.2.0
       react-dom: 18.2.0(react@18.2.0)
       regenerator-runtime: 0.13.11
@@ -22575,7 +22575,7 @@ snapshots:
       '@storybook/core-events': 6.3.7
       core-js: 3.49.0
       global: 4.4.0
-      qs: 6.15.2
+      qs: 6.16.0
       telejson: 5.3.3
 
   '@storybook/channel-postmessage@6.5.16':
@@ -22585,7 +22585,7 @@ snapshots:
       '@storybook/core-events': 6.5.16
       core-js: 3.49.0
       global: 4.4.0
-      qs: 6.15.2
+      qs: 6.16.0
       telejson: 6.0.8
 
   '@storybook/channel-postmessage@6.5.9':
@@ -22595,7 +22595,7 @@ snapshots:
       '@storybook/core-events': 6.5.9
       core-js: 3.49.0
       global: 4.4.0
-      qs: 6.15.2
+      qs: 6.16.0
       telejson: 6.0.8
 
   '@storybook/channel-websocket@6.5.16':
@@ -22676,7 +22676,7 @@ snapshots:
       global: 4.4.0
       lodash: 4.18.1
       memoizerific: 1.11.3
-      qs: 6.15.2
+      qs: 6.16.0
       react: 18.2.0
       react-dom: 18.2.0(react@18.2.0)
       regenerator-runtime: 0.13.11
@@ -22703,7 +22703,7 @@ snapshots:
       global: 4.4.0
       lodash: 4.18.1
       memoizerific: 1.11.3
-      qs: 6.15.2
+      qs: 6.16.0
       react: 18.2.0
       react-dom: 18.2.0(react@18.2.0)
       regenerator-runtime: 0.13.11
@@ -22728,7 +22728,7 @@ snapshots:
       global: 4.4.0
       lodash: 4.18.1
       memoizerific: 1.11.3
-      qs: 6.15.2
+      qs: 6.16.0
       react: 18.2.0
       react-dom: 18.2.0(react@18.2.0)
       regenerator-runtime: 0.13.11
@@ -22753,7 +22753,7 @@ snapshots:
       global: 4.4.0
       lodash: 4.18.1
       memoizerific: 1.11.3
-      qs: 6.15.2
+      qs: 6.16.0
       react: 19.1.0
       react-dom: 19.1.0(react@19.1.0)
       regenerator-runtime: 0.13.11
@@ -22836,7 +22836,7 @@ snapshots:
       '@storybook/theming': 6.5.16(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
       core-js: 3.49.0
       memoizerific: 1.11.3
-      qs: 6.15.2
+      qs: 6.16.0
       react: 18.2.0
       react-dom: 18.2.0(react@18.2.0)
       regenerator-runtime: 0.13.11
@@ -22850,7 +22850,7 @@ snapshots:
       '@types/react-syntax-highlighter': 11.0.5
       core-js: 3.49.0
       memoizerific: 1.11.3
-      qs: 6.15.2
+      qs: 6.16.0
       react: 18.2.0
       react-dom: 18.2.0(react@18.2.0)
       react-syntax-highlighter: 15.6.1(react@18.2.0)
@@ -22865,7 +22865,7 @@ snapshots:
       '@types/react-syntax-highlighter': 11.0.5
       core-js: 3.49.0
       memoizerific: 1.11.3
-      qs: 6.15.2
+      qs: 6.16.0
       react: 19.1.0
       react-dom: 19.1.0(react@19.1.0)
       react-syntax-highlighter: 15.6.1(react@19.1.0)
@@ -22890,7 +22890,7 @@ snapshots:
       core-js: 3.49.0
       global: 4.4.0
       lodash: 4.18.1
-      qs: 6.15.2
+      qs: 6.16.0
       react: 18.2.0
       react-dom: 18.2.0(react@18.2.0)
       regenerator-runtime: 0.13.11
@@ -22921,7 +22921,7 @@ snapshots:
       core-js: 3.49.0
       global: 4.4.0
       lodash: 4.18.1
-      qs: 6.15.2
+      qs: 6.16.0
       react: 18.2.0
       react-dom: 18.2.0(react@18.2.0)
       regenerator-runtime: 0.13.11
@@ -22949,7 +22949,7 @@ snapshots:
       core-js: 3.49.0
       global: 4.4.0
       lodash: 4.18.1
-      qs: 6.15.2
+      qs: 6.16.0
       react: 18.2.0
       react-dom: 18.2.0(react@18.2.0)
       regenerator-runtime: 0.13.11
@@ -22977,7 +22977,7 @@ snapshots:
       core-js: 3.49.0
       global: 4.4.0
       lodash: 4.18.1
-      qs: 6.15.2
+      qs: 6.16.0
       react: 18.2.0
       react-dom: 18.2.0(react@18.2.0)
       regenerator-runtime: 0.13.11
@@ -23005,7 +23005,7 @@ snapshots:
       core-js: 3.49.0
       global: 4.4.0
       lodash: 4.18.1
-      qs: 6.15.2
+      qs: 6.16.0
       react: 18.2.0
       react-dom: 18.2.0(react@18.2.0)
       regenerator-runtime: 0.13.11
@@ -23033,7 +23033,7 @@ snapshots:
       core-js: 3.49.0
       global: 4.4.0
       lodash: 4.18.1
-      qs: 6.15.2
+      qs: 6.16.0
       react: 18.2.0
       react-dom: 18.2.0(react@18.2.0)
       regenerator-runtime: 0.13.11
@@ -23061,7 +23061,7 @@ snapshots:
       core-js: 3.49.0
       global: 4.4.0
       lodash: 4.18.1
-      qs: 6.15.2
+      qs: 6.16.0
       react: 19.1.0
       react-dom: 19.1.0(react@19.1.0)
       regenerator-runtime: 0.13.11
@@ -23089,7 +23089,7 @@ snapshots:
       core-js: 3.49.0
       global: 4.4.0
       lodash: 4.18.1
-      qs: 6.15.2
+      qs: 6.16.0
       react: 19.1.0
       react-dom: 19.1.0(react@19.1.0)
       regenerator-runtime: 0.13.11
@@ -24490,7 +24490,7 @@ snapshots:
       core-js: 3.49.0
       global: 4.4.0
       lodash: 4.18.1
-      qs: 6.15.2
+      qs: 6.16.0
       react: 18.2.0
       react-dom: 18.2.0(react@18.2.0)
       regenerator-runtime: 0.13.11
@@ -24511,7 +24511,7 @@ snapshots:
       core-js: 3.49.0
       global: 4.4.0
       lodash: 4.18.1
-      qs: 6.15.2
+      qs: 6.16.0
       react: 18.2.0
       react-dom: 18.2.0(react@18.2.0)
       regenerator-runtime: 0.13.11
@@ -24532,7 +24532,7 @@ snapshots:
       core-js: 3.49.0
       global: 4.4.0
       lodash: 4.18.1
-      qs: 6.15.2
+      qs: 6.16.0
       react: 19.1.0
       react-dom: 19.1.0(react@19.1.0)
       regenerator-runtime: 0.13.11
@@ -24972,7 +24972,7 @@ snapshots:
       global: 4.4.0
       lodash: 4.18.1
       memoizerific: 1.11.3
-      qs: 6.15.2
+      qs: 6.16.0
       react: 18.2.0
       react-dom: 18.2.0(react@18.2.0)
       ts-dedent: 2.3.0
@@ -24982,7 +24982,7 @@ snapshots:
       '@storybook/client-logger': 6.5.16
       core-js: 3.49.0
       memoizerific: 1.11.3
-      qs: 6.15.2
+      qs: 6.16.0
       react: 18.2.0
       react-dom: 18.2.0(react@18.2.0)
       regenerator-runtime: 0.13.11
@@ -24992,7 +24992,7 @@ snapshots:
       '@storybook/client-logger': 6.5.9
       core-js: 3.49.0
       memoizerific: 1.11.3
-      qs: 6.15.2
+      qs: 6.16.0
       react: 18.2.0
       react-dom: 18.2.0(react@18.2.0)
       regenerator-runtime: 0.13.11
@@ -25002,7 +25002,7 @@ snapshots:
       '@storybook/client-logger': 6.5.9
       core-js: 3.49.0
       memoizerific: 1.11.3
-      qs: 6.15.2
+      qs: 6.16.0
       react: 19.1.0
       react-dom: 19.1.0(react@19.1.0)
       regenerator-runtime: 0.13.11
@@ -25280,7 +25280,7 @@ snapshots:
       markdown-to-jsx: 6.11.4(react@18.2.0)
       memoizerific: 1.11.3
       polished: 4.3.1
-      qs: 6.15.2
+      qs: 6.16.0
       react: 18.2.0
       react-dom: 18.2.0(react@18.2.0)
       react-draggable: 4.7.0(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
@@ -25306,7 +25306,7 @@ snapshots:
       '@storybook/theming': 6.5.16(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
       core-js: 3.49.0
       memoizerific: 1.11.3
-      qs: 6.15.2
+      qs: 6.16.0
       react: 18.2.0
       react-dom: 18.2.0(react@18.2.0)
       regenerator-runtime: 0.13.11
@@ -25325,7 +25325,7 @@ snapshots:
       '@storybook/theming': 6.5.9(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
       core-js: 3.49.0
       memoizerific: 1.11.3
-      qs: 6.15.2
+      qs: 6.16.0
       react: 18.2.0
       react-dom: 18.2.0(react@18.2.0)
       regenerator-runtime: 0.13.11
@@ -25344,7 +25344,7 @@ snapshots:
       '@storybook/theming': 6.5.9(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       core-js: 3.49.0
       memoizerific: 1.11.3
-      qs: 6.15.2
+      qs: 6.16.0
       react: 19.1.0
       react-dom: 19.1.0(react@19.1.0)
       regenerator-runtime: 0.13.11
@@ -27289,7 +27289,7 @@ snapshots:
   ajv@8.20.0:
     dependencies:
       fast-deep-equal: 3.1.3
-      fast-uri: 3.1.5
+      fast-uri: 3.1.7
       json-schema-traverse: 1.0.0
       require-from-string: 2.0.2
 
@@ -27891,7 +27891,7 @@ snapshots:
       http-errors: 2.0.1
       iconv-lite: 0.4.24
       on-finished: 2.4.1
-      qs: 6.15.2
+      qs: 6.16.0
       raw-body: 2.5.3
       type-is: 1.6.18
       unpipe: 1.0.0
@@ -27904,7 +27904,7 @@ snapshots:
       http-errors: 2.0.1
       iconv-lite: 0.7.2
       on-finished: 2.4.1
-      qs: 6.15.2
+      qs: 6.16.0
       raw-body: 3.0.2
       type-is: 2.1.0
     transitivePeerDependencies:
@@ -30060,7 +30060,7 @@ snapshots:
       parseurl: 1.3.3
       path-to-regexp: 0.1.13
       proxy-addr: 2.0.7
-      qs: 6.15.2
+      qs: 6.16.0
       range-parser: 1.2.1
       safe-buffer: 5.2.1
       send: 0.19.2
@@ -30093,7 +30093,7 @@ snapshots:
       once: 1.4.0
       parseurl: 1.3.3
       proxy-addr: 2.0.7
-      qs: 6.15.2
+      qs: 6.16.0
       range-parser: 1.2.1
       router: 2.2.0
       send: 1.2.1
@@ -30140,7 +30140,7 @@ snapshots:
 
   fast-levenshtein@2.0.6: {}
 
-  fast-uri@3.1.5: {}
+  fast-uri@3.1.7: {}
 
   fastest-levenshtein@1.0.16: {}
 
@@ -35422,8 +35422,9 @@ snapshots:
     dependencies:
       hookified: 2.2.0
 
-  qs@6.15.2:
+  qs@6.16.0:
     dependencies:
+      es-define-property: 1.0.1
       side-channel: 1.1.1
 
   querystring-es3@0.2.1: {}
@@ -36294,7 +36295,7 @@ snapshots:
       mime-types: 2.1.35
       oauth-sign: 0.9.0
       performance-now: 2.1.0
-      qs: 6.15.2
+      qs: 6.16.0
       safe-buffer: 5.2.1
       tough-cookie: 2.5.0
       tunnel-agent: 0.6.0
@@ -38308,7 +38309,7 @@ snapshots:
 
   typed-rest-client@1.8.11:
     dependencies:
-      qs: 6.15.2
+      qs: 6.16.0
       tunnel: 0.0.6
       underscore: 1.13.8
 
@@ -38397,7 +38398,7 @@ snapshots:
 
   union@0.5.0:
     dependencies:
-      qs: 6.15.2
+      qs: 6.16.0
 
   unique-filename@1.1.1:
     dependencies:
@@ -38574,7 +38575,7 @@ snapshots:
   url@0.11.4:
     dependencies:
       punycode: 1.4.1
-      qs: 6.15.2
+      qs: 6.16.0
 
   use-callback-ref@1.3.3(@types/react@18.2.0)(react@18.2.0):
     dependencies:

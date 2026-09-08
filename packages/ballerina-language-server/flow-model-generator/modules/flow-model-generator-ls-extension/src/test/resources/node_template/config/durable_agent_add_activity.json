@@ -117,9 +117,14 @@
         },
         "types": [
           {
+            "fieldType": "TEXT",
+            "ballerinaType": "string",
+            "selected": false
+          },
+          {
             "fieldType": "EXPRESSION",
             "ballerinaType": "string|string[]",
-            "selected": true
+            "selected": false
           }
         ],
         "placeholder": "",
@@ -242,13 +247,18 @@
               },
               "types": [
                 {
+                  "fieldType": "TEXT",
+                  "ballerinaType": "string",
+                  "selected": false
+                },
+                {
                   "fieldType": "EXPRESSION",
                   "ballerinaType": "string|string[]",
-                  "selected": true
+                  "selected": false
                 }
               ],
               "value": "",
-              "optional": false,
+              "optional": true,
               "editable": true,
               "advanced": false,
               "hidden": false

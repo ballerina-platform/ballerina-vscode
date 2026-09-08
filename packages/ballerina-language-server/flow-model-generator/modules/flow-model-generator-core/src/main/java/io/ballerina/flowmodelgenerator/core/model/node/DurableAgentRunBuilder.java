@@ -411,12 +411,13 @@ public class DurableAgentRunBuilder extends CallBuilder {
      * backtick inside the prompt as an interpolation instead of rewriting it to something else —
      * which is what {@link AiUtils#restoreBackticksFromStringTemplate} reverses when the form is
      * populated. When the field holds an expression rather than a prompt (a config variable, say),
-     * it is written through as-is.
+     * it is written through as-is. Shared with {@link DurableAgentBuilder}, which renders the same
+     * two fields into the declaration it generates.
      *
      * @param property the Role or Instructions property, or null when only its sibling is present
      * @return the expression source for the field
      */
-    private static String promptFieldSource(Property property) {
+    public static String promptFieldSource(Property property) {
         if (property == null) {
             return "string ``";
         }

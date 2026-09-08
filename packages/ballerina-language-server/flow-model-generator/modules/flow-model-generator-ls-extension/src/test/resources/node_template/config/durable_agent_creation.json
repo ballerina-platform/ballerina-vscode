@@ -109,6 +109,103 @@
         "editable": true,
         "advanced": false,
         "hidden": false
+      },
+      "model": {
+        "metadata": {
+          "label": "Model",
+          "description": "The model provider used for the agent's LLM calls"
+        },
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "ai:ModelProvider",
+            "selected": true
+          }
+        ],
+        "value": "",
+        "placeholder": "",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED",
+          "originalName": "model"
+        }
+      },
+      "role": {
+        "metadata": {
+          "label": "Role",
+          "description": "Define the agent's primary function"
+        },
+        "types": [
+          {
+            "fieldType": "PROMPT",
+            "ballerinaType": "string",
+            "selected": true
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string",
+            "selected": false
+          }
+        ],
+        "value": "",
+        "placeholder": "e.g., Customer Support Assistant",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED"
+        },
+        "defaultValue": ""
+      },
+      "instructions": {
+        "metadata": {
+          "label": "Instructions",
+          "description": "Detailed instructions for the agent"
+        },
+        "types": [
+          {
+            "fieldType": "PROMPT",
+            "ballerinaType": "string",
+            "selected": true
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string",
+            "selected": false
+          }
+        ],
+        "value": "",
+        "placeholder": "e.g., You are a friendly assistant. Your goal is to...",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED"
+        },
+        "defaultValue": ""
+      },
+      "inputType": {
+        "metadata": {
+          "label": "Input Data Type",
+          "description": "Type of the structured payload the agent is started with. Leave it empty to start the agent with the query text itself."
+        },
+        "types": [
+          {
+            "fieldType": "TYPE",
+            "ballerinaType": "anydata",
+            "selected": false
+          }
+        ],
+        "value": "",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
       }
     },
     "flags": 0

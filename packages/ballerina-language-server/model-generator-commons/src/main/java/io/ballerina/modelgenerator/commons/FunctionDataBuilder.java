@@ -936,7 +936,7 @@ public class FunctionDataBuilder {
                     typeSymbol = paramForTypeInfer.typeSymbol();
                     parameters.put(paramName, ParameterData.from(paramName, paramDescription,
                             getLabel(paramSymbol.annotAttachments(), paramName), paramType, placeholder, defaultValue,
-                            ParameterData.Kind.PARAM_FOR_TYPE_INFER, optional, deprecated, importStatements,
+                            ParameterData.Kind.PARAM_FOR_TYPE_INFER, optional, false, deprecated, importStatements,
                             typeSymbol));
                     return parameters;
                 }
@@ -948,7 +948,7 @@ public class FunctionDataBuilder {
         }
         ParameterData parameterData = ParameterData.from(paramName, paramDescription,
                 getLabel(paramSymbol.annotAttachments(), paramName), paramType, placeholder, defaultValue,
-                parameterKind, optional, deprecated,
+                parameterKind, optional, false, deprecated,
                 importStatements, typeSymbol);
         parameters.put(paramName, parameterData);
         addParameterMemberTypes(typeSymbol, parameterData, union);
@@ -1082,11 +1082,12 @@ public class FunctionDataBuilder {
                     resolvedPackage, document);
             String paramType = getTypeSignature(typeSymbol);
             boolean optional = recordFieldSymbol.isOptional() || recordFieldSymbol.hasDefaultValue();
+            boolean advanced = recordFieldSymbol.isOptional();
             boolean deprecated = isDeprecated(recordFieldSymbol.annotAttachments());
             ParameterData parameterData = ParameterData.from(paramName, documentationMap.get(paramName),
                     getLabel(recordFieldSymbol.annotAttachments(), paramName),
-                    paramType, placeholder, defaultValue, ParameterData.Kind.INCLUDED_FIELD, optional, deprecated,
-                    getImportStatements(typeSymbol), typeSymbol);
+                    paramType, placeholder, defaultValue, ParameterData.Kind.INCLUDED_FIELD, optional, advanced,
+                    deprecated, getImportStatements(typeSymbol), typeSymbol);
             parameters.put(paramName, parameterData);
             addParameterMemberTypes(typeSymbol, parameterData, union);
         }
@@ -1095,7 +1096,7 @@ public class FunctionDataBuilder {
             String placeholder = DefaultValueGeneratorUtil.getDefaultValueForType(typeSymbol);
             parameters.put("Additional Values", new ParameterData(0, "Additional Values",
                     paramType, ParameterData.Kind.INCLUDED_RECORD_REST, placeholder, null,
-                    "Capture key value pairs", null, true, false, getImportStatements(typeSymbol),
+                    "Capture key value pairs", null, true, false, false, getImportStatements(typeSymbol),
                     new ArrayList<>(), typeSymbol));
         });
         return parameters;

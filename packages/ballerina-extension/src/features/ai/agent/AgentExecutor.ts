@@ -27,6 +27,7 @@ import { mapWithConcurrency } from '../utils/concurrency';
 import { getSystemPrompt, getUserPrompt } from './prompts';
 import { FollowupSituation, startFollowupSuggestions } from './followups';
 import { prepareAgentsMdForTurn } from './agents-md';
+import { resolveChatStoreKey } from './chatStoreKey';
 // TODO(auto-memory): temporarily disabled for this release.
 // import { executeAutoDream, isMemoryEnabled } from '../memory/autoDream';
 import { GenerationType } from '../utils/libs/libraries';
@@ -51,6 +52,7 @@ import {
     stripAnalysisFromCompactionBlocks,
     COMPACTION_BLOCK_PREFIX,
 } from '@wso2/copilot-utilities/context-management';
+import { sanitizeMessages } from './resilience';
 import { getLoginMethod } from '../../../utils/ai/auth';
 import {
     sendTelemetryEvent,
@@ -251,6 +253,11 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
     /** A turn can reach both the finish and abort paths; suggestions must be scheduled once. */
     private _followupsScheduled = false;
 
+    /** Store key for every `chatStateStorage` call — see `resolveChatStoreKey` for why. */
+    private get chatStoreKey(): string {
+        return resolveChatStoreKey(this.config.chatStorage, this.config.executionContext);
+    }
+
     constructor(config: AICommandConfig<GenerateAgentCodeRequest>) {
         super(config);
     }
@@ -338,9 +345,9 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
             const projectRootPath = this.config.executionContext.workspacePath || this.config.executionContext.projectPath || '';
             const agentsMd = await prepareAgentsMdForTurn(workspaceId || '', threadId);
             if (agentsMd.hashToPersist !== undefined) {
-                const generation = chatStateStorage.getGeneration(projectRootPath, threadId, this.config.generationId);
+                const generation = chatStateStorage.getGeneration(this.chatStoreKey, threadId, this.config.generationId);
                 if (generation) {
-                    chatStateStorage.updateGeneration(projectRootPath, threadId, this.config.generationId, {
+                    chatStateStorage.updateGeneration(this.chatStoreKey, threadId, this.config.generationId, {
                         metadata: {
                             ...generation.metadata,
                             agentsMdLastReadHash: agentsMd.hashToPersist,
@@ -450,6 +457,9 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
                     if (cleanedCompactionSummary) {
                         stripAnalysisFromCompactionBlocks(stepMessages);
                     }
+                    // Anthropic requires tool_use.input to be an object; an unparseable or schema-invalid
+                    // streamed input is left as a non-object on the tool-call part and 400s every later request.
+                    sanitizeMessages(stepMessages);
                     return { messages: addCacheControlToMessages({ messages: stepMessages, model }) };
                 },
 
@@ -475,7 +485,7 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
                     const stepMessages = step.response?.messages ?? [];
                     if (stepMessages.length > 0) {
                         console.log(`[AgentExecutor] Step ${step.stepNumber} saving ${stepMessages.length} message(s) to chat storage`);
-                        chatStateStorage.updateGeneration(workspaceId, threadId, this.config.generationId, {
+                        chatStateStorage.updateGeneration(this.chatStoreKey, threadId, this.config.generationId, {
                             modelMessages: [
                                 { role: "user", content: userMessageContent },
                                 ...stepMessages,
@@ -622,7 +632,7 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
                         console.warn("[AgentExecutor] Could not retrieve partial response messages:", e);
                     }
 
-                    const projectRootPath = this.config.executionContext.workspacePath || this.config.executionContext.projectPath || '';
+                    const projectRootPath = this.chatStoreKey;
                     if (partialLLMMessages.length > 0) {
                         chatStateStorage.updateGeneration(projectRootPath, threadId, this.config.generationId, {
                             modelMessages: [
@@ -816,7 +826,7 @@ Generation stopped by user. The last in-progress task was not saved. Any complet
 
         // Leave any live edits in place — the user may want to continue from them. Only an
         // explicit revert (revertGeneration) restores the checkpoint.
-        const projectRootPath = context.ctx.workspacePath || context.ctx.projectPath || '';
+        const projectRootPath = this.chatStoreKey;
         const threadId = this.config.chatStorage?.threadId ?? 'default';
         const erroredGeneration = chatStateStorage.getGeneration(projectRootPath, threadId, context.messageId);
 
@@ -1001,7 +1011,7 @@ Generation stopped by user. The last in-progress task was not saved. Any complet
         this._followupsScheduled = startFollowupSuggestions({
             situation,
             messageId: context.messageId,
-            projectRootPath: context.ctx.workspacePath || context.ctx.projectPath || '',
+            projectRootPath: this.chatStoreKey,
             threadId: this.config.chatStorage.threadId,
             assistantMessages,
             userQuery: this.config.params.usecase ?? '',
@@ -1020,7 +1030,7 @@ Generation stopped by user. The last in-progress task was not saved. Any complet
         assistantMessages: any[],
         tempProjectPath: string
     ): Promise<void> {
-        const projectRootPath = context.ctx.workspacePath || context.ctx.projectPath || '';
+        const projectRootPath = this.chatStoreKey;
         const threadId = this.config.chatStorage?.threadId ?? 'default';
 
         const generationModifiedFiles = Array.from(new Set([...context.allModifiedFiles, ...context.modifiedFiles]));
@@ -1065,7 +1075,7 @@ Generation stopped by user. The last in-progress task was not saved. Any complet
      * Emits review actions and chat save events to UI.
      */
     private async emitReviewActions(context: StreamContext): Promise<void> {
-        const workspaceId = context.ctx.workspacePath || context.ctx.projectPath;
+        const workspaceId = this.chatStoreKey;
         const threadId = this.config.chatStorage?.threadId ?? 'default';
 
         const currentGeneration = chatStateStorage.getGeneration(workspaceId, threadId, context.messageId);

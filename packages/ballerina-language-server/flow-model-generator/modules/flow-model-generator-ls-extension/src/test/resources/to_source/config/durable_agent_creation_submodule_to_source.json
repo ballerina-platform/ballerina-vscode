@@ -1,0 +1,212 @@
+{
+  "source": "workflow_submodule/modules/ops/flows.bal",
+  "description": "Create a durable agent in a non-default module on the WSO2 default provider: the only provider in the package is declared in the default module, and a bare reference to it does not resolve here, so wso2ModelProvider is declared alongside the agent instead",
+  "diagram": {
+    "metadata": {
+      "label": "Durable Agentic Workflow",
+      "description": "Define a durable workflow driven by an agentic model"
+    },
+    "codedata": {
+      "isNew": true,
+      "node": "DURABLE_AGENT",
+      "org": "ballerina",
+      "module": "workflow"
+    },
+    "returning": false,
+    "properties": {
+      "functionName": {
+        "metadata": {
+          "label": "Name",
+          "description": "Unique name of the Durable Agentic Workflow, used to reference it in workflow management and execution."
+        },
+        "types": [
+          {
+            "fieldType": "IDENTIFIER",
+            "scope": "Global",
+            "selected": true
+          }
+        ],
+        "value": "opsClaimAgent",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "model": {
+        "metadata": {
+          "label": "Model",
+          "description": "The model provider used for the agent's LLM calls"
+        },
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "ai:ModelProvider",
+            "selected": true
+          }
+        ],
+        "value": "check ai:getDefaultModelProvider()",
+        "placeholder": "",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED",
+          "originalName": "model"
+        }
+      },
+      "role": {
+        "metadata": {
+          "label": "Role",
+          "description": "Define the agent's primary function"
+        },
+        "types": [
+          {
+            "fieldType": "PROMPT",
+            "ballerinaType": "string",
+            "selected": true
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string",
+            "selected": false
+          }
+        ],
+        "value": "Expense claim assistant",
+        "placeholder": "e.g., Customer Support Assistant",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED"
+        },
+        "defaultValue": ""
+      },
+      "instructions": {
+        "metadata": {
+          "label": "Instructions",
+          "description": "Detailed instructions for the agent"
+        },
+        "types": [
+          {
+            "fieldType": "PROMPT",
+            "ballerinaType": "string",
+            "selected": true
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string",
+            "selected": false
+          }
+        ],
+        "value": "Process expense claims end to end.",
+        "placeholder": "e.g., You are a friendly assistant. Your goal is to...",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED"
+        },
+        "defaultValue": ""
+      },
+      "inputType": {
+        "metadata": {
+          "label": "Input Data Type",
+          "description": "Type of the structured payload the agent is started with. Leave it empty to start the agent with the query text itself."
+        },
+        "types": [
+          {
+            "fieldType": "TYPE",
+            "ballerinaType": "anydata",
+            "selected": false
+          }
+        ],
+        "value": "",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "type": {
+        "metadata": {
+          "label": "Return Type",
+          "description": "Type of the return value"
+        },
+        "types": [
+          {
+            "fieldType": "TYPE",
+            "selected": true
+          }
+        ],
+        "value": "error?",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "isPublic": {
+        "metadata": {
+          "label": "public",
+          "description": "Make visible across the project"
+        },
+        "types": [
+          {
+            "fieldType": "FLAG",
+            "selected": true
+          }
+        ],
+        "value": "false",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      }
+    },
+    "flags": 0
+  },
+  "output": {
+    "workflow_submodule/workflow.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "import ballerina/ai;"
+      },
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "import ballerina/workflow;"
+      },
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "final ai:Wso2ModelProvider wso2ModelProvider = check ai:getDefaultModelProvider();\nfinal workflow:DurableAgent opsClaimAgent = check new ({\n    systemPrompt: {\n        role: string `Expense claim assistant`,\n        instructions: string `Process expense claims end to end.`\n    },\n    model: wso2ModelProvider\n});"
+      }
+    ]
+  }
+}

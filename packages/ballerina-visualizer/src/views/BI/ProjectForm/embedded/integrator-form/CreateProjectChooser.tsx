@@ -89,7 +89,7 @@ export function CreateProjectChooser({
 
     return (
         <CreateFlowShell
-            title="Create"
+            title="Create Project"
             subtitle="A project helps you organize your integrations and libraries."
             onBack={onBack}
         >
@@ -105,7 +105,7 @@ export function CreateProjectChooser({
                         isCreateDisabled={!canProceed || workspaceSupportPending}
                     />
                 )}
-                submitLabel="Create Integration"
+                submitLabel="Create"
                 submittingLabel="Creating..."
                 submitErrorPrefix="Failed to create the integration."
                 submitDisabled={ballerinaUnavailable || workspaceSupportPending}

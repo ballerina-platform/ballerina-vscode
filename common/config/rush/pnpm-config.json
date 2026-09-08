@@ -124,8 +124,9 @@
       // Security fix: bump past the previous override version, which is now
       // itself flagged.
       "dompurify": "3.4.13",
-      // Security fix: 3.1.5 is the current 3.x line fix.
-      "fast-uri": "3.1.5",
+      // Security fix: 3.1.7 is the current 3.x line fix. Bump past the
+      // previous override version, which is now itself flagged.
+      "fast-uri": "3.1.7",
       "form-data@>=2 <3": "2.5.6",
       "form-data@>=4 <5": "4.0.6",
       "handlebars": "4.7.9",
@@ -160,7 +161,9 @@
       "postcss@8": "8.5.23",
       "prismjs": "1.30.0",
       "protobufjs@>=7 <8": "7.6.5",
-      "qs@6": "6.15.2",
+      // Security fix: bump past the previous override version, which is now
+      // itself flagged.
+      "qs@6": "6.16.0",
       "serialize-javascript": "7.0.5",
       "shell-quote": "1.9.0",
       "tmp": "0.2.7",

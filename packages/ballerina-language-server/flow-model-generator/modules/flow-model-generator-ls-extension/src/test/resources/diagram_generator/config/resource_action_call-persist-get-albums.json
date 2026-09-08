@@ -391,135 +391,6 @@
               }
             }
           },
-          "genre": {
-            "metadata": {
-              "label": "Genre",
-              "description": "Genre filter (required)"
-            },
-            "types": [
-              {
-                "fieldType": "TEXT",
-                "ballerinaType": "string",
-                "selected": true
-              },
-              {
-                "fieldType": "EXPRESSION",
-                "ballerinaType": "string",
-                "selected": false
-              }
-            ],
-            "value": "\"Rock\"",
-            "placeholder": "\"\"",
-            "optional": false,
-            "editable": true,
-            "advanced": false,
-            "hidden": false,
-            "codedata": {
-              "kind": "REQUIRED",
-              "originalName": "genre"
-            }
-          },
-          "maxPrice": {
-            "metadata": {
-              "label": "Max Price",
-              "description": "Maximum price filter (required)"
-            },
-            "types": [
-              {
-                "fieldType": "NUMBER",
-                "ballerinaType": "decimal",
-                "selected": true
-              },
-              {
-                "fieldType": "EXPRESSION",
-                "ballerinaType": "decimal",
-                "selected": false
-              }
-            ],
-            "value": "50.0d",
-            "placeholder": "0.0d",
-            "optional": false,
-            "editable": true,
-            "advanced": false,
-            "hidden": false,
-            "codedata": {
-              "kind": "REQUIRED",
-              "originalName": "maxPrice"
-            }
-          },
-          "minStock": {
-            "metadata": {
-              "label": "Min Stock",
-              "description": "Minimum stock filter (defaultable)"
-            },
-            "types": [
-              {
-                "fieldType": "NUMBER",
-                "ballerinaType": "int",
-                "selected": false
-              },
-              {
-                "fieldType": "EXPRESSION",
-                "ballerinaType": "int",
-                "selected": false
-              }
-            ],
-            "placeholder": "0",
-            "optional": true,
-            "editable": true,
-            "advanced": true,
-            "hidden": false,
-            "codedata": {
-              "kind": "DEFAULTABLE",
-              "originalName": "minStock"
-            },
-            "defaultValue": "0"
-          },
-          "sortBy": {
-            "metadata": {
-              "label": "Sort By",
-              "description": "Sort field (defaultable)"
-            },
-            "types": [
-              {
-                "fieldType": "TEXT",
-                "ballerinaType": "string",
-                "selected": false
-              },
-              {
-                "fieldType": "EXPRESSION",
-                "ballerinaType": "string",
-                "selected": false
-              }
-            ],
-            "placeholder": "\"\"",
-            "optional": true,
-            "editable": true,
-            "advanced": true,
-            "hidden": false,
-            "codedata": {
-              "kind": "DEFAULTABLE",
-              "originalName": "sortBy"
-            },
-            "defaultValue": "\"\""
-          },
-          "checkError": {
-            "metadata": {
-              "label": "Check Error",
-              "description": "Trigger error flow"
-            },
-            "types": [
-              {
-                "fieldType": "FLAG",
-                "selected": true
-              }
-            ],
-            "value": true,
-            "optional": false,
-            "editable": true,
-            "advanced": true,
-            "hidden": true
-          },
           "targetType": {
             "metadata": {
               "label": "Target Type",
@@ -1515,6 +1386,135 @@
             },
             "defaultValue": "db:AlbumWithRelations"
           },
+          "genre": {
+            "metadata": {
+              "label": "Genre",
+              "description": "Genre filter (required)"
+            },
+            "types": [
+              {
+                "fieldType": "TEXT",
+                "ballerinaType": "string",
+                "selected": true
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string",
+                "selected": false
+              }
+            ],
+            "value": "\"Rock\"",
+            "placeholder": "\"\"",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "REQUIRED",
+              "originalName": "genre"
+            }
+          },
+          "maxPrice": {
+            "metadata": {
+              "label": "Max Price",
+              "description": "Maximum price filter (required)"
+            },
+            "types": [
+              {
+                "fieldType": "NUMBER",
+                "ballerinaType": "decimal",
+                "selected": true
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "decimal",
+                "selected": false
+              }
+            ],
+            "value": "50.0d",
+            "placeholder": "0.0d",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "REQUIRED",
+              "originalName": "maxPrice"
+            }
+          },
+          "minStock": {
+            "metadata": {
+              "label": "Min Stock",
+              "description": "Minimum stock filter (defaultable)"
+            },
+            "types": [
+              {
+                "fieldType": "NUMBER",
+                "ballerinaType": "int",
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "int",
+                "selected": false
+              }
+            ],
+            "placeholder": "0",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "DEFAULTABLE",
+              "originalName": "minStock"
+            },
+            "defaultValue": "0"
+          },
+          "sortBy": {
+            "metadata": {
+              "label": "Sort By",
+              "description": "Sort field (defaultable)"
+            },
+            "types": [
+              {
+                "fieldType": "TEXT",
+                "ballerinaType": "string",
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string",
+                "selected": false
+              }
+            ],
+            "placeholder": "\"\"",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "DEFAULTABLE",
+              "originalName": "sortBy"
+            },
+            "defaultValue": "\"\""
+          },
+          "checkError": {
+            "metadata": {
+              "label": "Check Error",
+              "description": "Trigger error flow"
+            },
+            "types": [
+              {
+                "fieldType": "FLAG",
+                "selected": true
+              }
+            ],
+            "value": true,
+            "optional": false,
+            "editable": true,
+            "advanced": true,
+            "hidden": true
+          },
           "type": {
             "metadata": {
               "label": "Result Type",
@@ -1637,135 +1637,6 @@
                 }
               }
             }
-          },
-          "genre": {
-            "metadata": {
-              "label": "Genre",
-              "description": "Genre filter (required)"
-            },
-            "types": [
-              {
-                "fieldType": "TEXT",
-                "ballerinaType": "string",
-                "selected": true
-              },
-              {
-                "fieldType": "EXPRESSION",
-                "ballerinaType": "string",
-                "selected": false
-              }
-            ],
-            "value": "\"Rock\"",
-            "placeholder": "\"\"",
-            "optional": false,
-            "editable": true,
-            "advanced": false,
-            "hidden": false,
-            "codedata": {
-              "kind": "REQUIRED",
-              "originalName": "genre"
-            }
-          },
-          "maxPrice": {
-            "metadata": {
-              "label": "Max Price",
-              "description": "Maximum price filter (required)"
-            },
-            "types": [
-              {
-                "fieldType": "NUMBER",
-                "ballerinaType": "decimal",
-                "selected": true
-              },
-              {
-                "fieldType": "EXPRESSION",
-                "ballerinaType": "decimal",
-                "selected": false
-              }
-            ],
-            "value": "50.0d",
-            "placeholder": "0.0d",
-            "optional": false,
-            "editable": true,
-            "advanced": false,
-            "hidden": false,
-            "codedata": {
-              "kind": "REQUIRED",
-              "originalName": "maxPrice"
-            }
-          },
-          "minStock": {
-            "metadata": {
-              "label": "Min Stock",
-              "description": "Minimum stock filter (defaultable)"
-            },
-            "types": [
-              {
-                "fieldType": "NUMBER",
-                "ballerinaType": "int",
-                "selected": false
-              },
-              {
-                "fieldType": "EXPRESSION",
-                "ballerinaType": "int",
-                "selected": false
-              }
-            ],
-            "placeholder": "0",
-            "optional": true,
-            "editable": true,
-            "advanced": true,
-            "hidden": false,
-            "codedata": {
-              "kind": "DEFAULTABLE",
-              "originalName": "minStock"
-            },
-            "defaultValue": "0"
-          },
-          "sortBy": {
-            "metadata": {
-              "label": "Sort By",
-              "description": "Sort field (defaultable)"
-            },
-            "types": [
-              {
-                "fieldType": "TEXT",
-                "ballerinaType": "string",
-                "selected": false
-              },
-              {
-                "fieldType": "EXPRESSION",
-                "ballerinaType": "string",
-                "selected": false
-              }
-            ],
-            "placeholder": "\"\"",
-            "optional": true,
-            "editable": true,
-            "advanced": true,
-            "hidden": false,
-            "codedata": {
-              "kind": "DEFAULTABLE",
-              "originalName": "sortBy"
-            },
-            "defaultValue": "\"\""
-          },
-          "checkError": {
-            "metadata": {
-              "label": "Check Error",
-              "description": "Trigger error flow"
-            },
-            "types": [
-              {
-                "fieldType": "FLAG",
-                "selected": true
-              }
-            ],
-            "value": true,
-            "optional": false,
-            "editable": true,
-            "advanced": true,
-            "hidden": true
           },
           "targetType": {
             "metadata": {
@@ -2761,6 +2632,135 @@
               "originalName": "targetType"
             },
             "defaultValue": "db:AlbumWithRelations"
+          },
+          "genre": {
+            "metadata": {
+              "label": "Genre",
+              "description": "Genre filter (required)"
+            },
+            "types": [
+              {
+                "fieldType": "TEXT",
+                "ballerinaType": "string",
+                "selected": true
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string",
+                "selected": false
+              }
+            ],
+            "value": "\"Rock\"",
+            "placeholder": "\"\"",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "REQUIRED",
+              "originalName": "genre"
+            }
+          },
+          "maxPrice": {
+            "metadata": {
+              "label": "Max Price",
+              "description": "Maximum price filter (required)"
+            },
+            "types": [
+              {
+                "fieldType": "NUMBER",
+                "ballerinaType": "decimal",
+                "selected": true
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "decimal",
+                "selected": false
+              }
+            ],
+            "value": "50.0d",
+            "placeholder": "0.0d",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "REQUIRED",
+              "originalName": "maxPrice"
+            }
+          },
+          "minStock": {
+            "metadata": {
+              "label": "Min Stock",
+              "description": "Minimum stock filter (defaultable)"
+            },
+            "types": [
+              {
+                "fieldType": "NUMBER",
+                "ballerinaType": "int",
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "int",
+                "selected": false
+              }
+            ],
+            "placeholder": "0",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "DEFAULTABLE",
+              "originalName": "minStock"
+            },
+            "defaultValue": "0"
+          },
+          "sortBy": {
+            "metadata": {
+              "label": "Sort By",
+              "description": "Sort field (defaultable)"
+            },
+            "types": [
+              {
+                "fieldType": "TEXT",
+                "ballerinaType": "string",
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string",
+                "selected": false
+              }
+            ],
+            "placeholder": "\"\"",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "DEFAULTABLE",
+              "originalName": "sortBy"
+            },
+            "defaultValue": "\"\""
+          },
+          "checkError": {
+            "metadata": {
+              "label": "Check Error",
+              "description": "Trigger error flow"
+            },
+            "types": [
+              {
+                "fieldType": "FLAG",
+                "selected": true
+              }
+            ],
+            "value": true,
+            "optional": false,
+            "editable": true,
+            "advanced": true,
+            "hidden": true
           },
           "type": {
             "metadata": {
