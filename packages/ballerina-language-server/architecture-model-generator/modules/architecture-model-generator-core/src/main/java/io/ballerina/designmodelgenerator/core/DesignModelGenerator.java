@@ -42,6 +42,7 @@ import io.ballerina.compiler.syntax.tree.NonTerminalNode;
 import io.ballerina.compiler.syntax.tree.SpecificFieldNode;
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.designmodelgenerator.core.model.Activity;
+import io.ballerina.designmodelgenerator.core.model.AgentCall;
 import io.ballerina.designmodelgenerator.core.model.Automation;
 import io.ballerina.designmodelgenerator.core.model.Connection;
 import io.ballerina.designmodelgenerator.core.model.ConnectionKind;
@@ -62,6 +63,7 @@ import io.ballerina.tools.text.LineRange;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -126,7 +128,8 @@ public class DesignModelGenerator {
             buildConnectionAndWorkflowGraph(intermediateModel, main, null);
             Automation automation = new Automation(AUTOMATION, main.displayName, "Z", main.location,
                     main.allDependentConnections.stream().toList(),
-                    main.allDependentWorkflows.stream().toList(), main.agentCalls);
+                    main.allDependentWorkflows.stream().toList(),
+                    expandedAgentCalls(intermediateModel, main, null));
             for (String workflowUuid : main.allDependentWorkflows) {
                 Workflow workflow = intermediateModel.uuidToWorkflowMap.get(workflowUuid);
                 if (workflow != null) {
@@ -153,7 +156,8 @@ public class DesignModelGenerator {
                 functions.add(new Function(otherFunction.name, otherFunction.location,
                         otherFunction.allDependentConnections, otherFunction.allDependentWorkflows,
                         otherFunction.allDependentWorkflowSendData,
-                        otherFunction.allDependentInvalidWorkflowSendData, otherFunction.agentCalls));
+                        otherFunction.allDependentInvalidWorkflowSendData,
+                        expandedAgentCalls(intermediateModel, otherFunction, serviceModel)));
             });
 
             List<Function> remoteFunctions = new ArrayList<>();
@@ -163,7 +167,8 @@ public class DesignModelGenerator {
                 remoteFunctions.add(new Function(remoteFunction.name, remoteFunction.location,
                         remoteFunction.allDependentConnections, remoteFunction.allDependentWorkflows,
                         remoteFunction.allDependentWorkflowSendData,
-                        remoteFunction.allDependentInvalidWorkflowSendData, remoteFunction.agentCalls));
+                        remoteFunction.allDependentInvalidWorkflowSendData,
+                        expandedAgentCalls(intermediateModel, remoteFunction, serviceModel)));
             });
 
             List<ResourceFunction> resourceFunctions = new ArrayList<>();
@@ -173,7 +178,8 @@ public class DesignModelGenerator {
                 resourceFunctions.add(new ResourceFunction(resourceFunction.name, resourceFunction.path,
                         resourceFunction.location, resourceFunction.allDependentConnections,
                         resourceFunction.allDependentWorkflows, resourceFunction.allDependentWorkflowSendData,
-                        resourceFunction.allDependentInvalidWorkflowSendData, resourceFunction.agentCalls));
+                        resourceFunction.allDependentInvalidWorkflowSendData,
+                        expandedAgentCalls(intermediateModel, resourceFunction, serviceModel)));
             });
             List<Listener> allAttachedListeners = serviceModel.anonListeners;
             for (String listener : serviceModel.namedListeners) {
@@ -234,6 +240,50 @@ public class DesignModelGenerator {
      * Runs over every agent regardless of whether it is reached from an entry point, so an otherwise
      * unreachable agent still resolves its own delegation edges.
      */
+    // A function's agent calls in source order, each helper call replaced by the helper's own calls at the call
+    // site, under the caller's constructs. A helper's own list is expanded once and reused by every caller.
+    private List<AgentCall> expandedAgentCalls(IntermediateModel intermediateModel,
+                                               IntermediateModel.FunctionModel functionModel,
+                                               IntermediateModel.ServiceModel serviceModel) {
+        return expandAgentCalls(intermediateModel, functionModel, serviceModel, new HashSet<>(), new HashMap<>());
+    }
+
+    private List<AgentCall> expandAgentCalls(IntermediateModel intermediateModel,
+                                             IntermediateModel.FunctionModel functionModel,
+                                             IntermediateModel.ServiceModel serviceModel,
+                                             Set<IntermediateModel.FunctionModel> walking,
+                                             Map<IntermediateModel.FunctionModel, List<AgentCall>> expanded) {
+        if (expanded.containsKey(functionModel)) {
+            return expanded.get(functionModel);
+        }
+        walking.add(functionModel);
+        List<AgentCall> calls = new ArrayList<>(functionModel.agentCalls);
+        for (IntermediateModel.HelperCall helperCall : functionModel.helperCalls) {
+            IntermediateModel.FunctionModel helper = resolveHelper(intermediateModel, serviceModel, helperCall);
+            if (helper == null || walking.contains(helper)) {
+                continue;
+            }
+            for (AgentCall inner : expandAgentCalls(intermediateModel, helper, serviceModel, walking, expanded)) {
+                List<AgentCall.Group> groups = new ArrayList<>(helperCall.groups());
+                groups.addAll(inner.groups());
+                calls.add(new AgentCall(inner.connection(), helperCall.line(), groups));
+            }
+        }
+        walking.remove(functionModel);
+        calls.sort(Comparator.comparingInt(AgentCall::line));
+        expanded.put(functionModel, calls);
+        return calls;
+    }
+
+    private IntermediateModel.FunctionModel resolveHelper(IntermediateModel intermediateModel,
+                                                          IntermediateModel.ServiceModel serviceModel,
+                                                          IntermediateModel.HelperCall helperCall) {
+        if (helperCall.method()) {
+            return serviceModel == null ? null : serviceModel.otherFunctions.get(helperCall.name());
+        }
+        return intermediateModel.functionModelMap.get(helperCall.name());
+    }
+
     private void linkAgentToolTargets(IntermediateModel intermediateModel) {
         for (Connection connection : intermediateModel.uuidToConnectionMap.values()) {
             if (!ConnectionKind.AGENT.toString().equals(connection.getKind())) {

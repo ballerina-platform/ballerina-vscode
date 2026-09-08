@@ -133,6 +133,7 @@ public class CodeAnalyzer extends NodeVisitor {
     // branches or workers can be told apart on the overview; null outside any such construct.
     // Enclosing if/match/fork/loop constructs of the statement being visited, outermost first.
     private final Deque<AgentCall.Group> agentCallGroups = new ArrayDeque<>();
+    private static final String SELF = "self";
 
     private static final String RUN_WORKFLOW_FN_ARG = "processFunction";
     private static final String SEND_DATA_WORKFLOW_FN_ARG = "workflow";
@@ -321,10 +322,17 @@ public class CodeAnalyzer extends NodeVisitor {
             return;
         }
         if (this.currentFunctionModel != null) {
-            this.currentFunctionModel.dependentFuncs.add(functionCallExpressionNode.functionName()
-                    .toSourceCode().trim());
+            String functionName = functionCallExpressionNode.functionName().toSourceCode().trim();
+            this.currentFunctionModel.dependentFuncs.add(functionName);
+            recordHelperCall(functionName, false, functionCallExpressionNode);
         }
         functionCallExpressionNode.arguments().forEach(arg -> arg.accept(this));
+    }
+
+    private void recordHelperCall(String name, boolean method, Node callNode) {
+        int line = callNode.lineRange().startLine().line();
+        this.currentFunctionModel.addHelperCall(
+                new IntermediateModel.HelperCall(name, method, line, List.copyOf(agentCallGroups)));
     }
 
     private void handleWorkflowCall(QualifiedNameReferenceNode qualifiedName,
@@ -423,6 +431,9 @@ public class CodeAnalyzer extends NodeVisitor {
         if (this.currentFunctionModel != null) {
             String methodName = methodCallExpressionNode.methodName().toSourceCode().trim();
             this.currentFunctionModel.dependentObjFuncs.add(methodName);
+            if (SELF.equals(methodCallExpressionNode.expression().toSourceCode().trim())) {
+                recordHelperCall(methodName, true, methodCallExpressionNode);
+            }
             handleDurableAgentCall(methodCallExpressionNode);
         }
 

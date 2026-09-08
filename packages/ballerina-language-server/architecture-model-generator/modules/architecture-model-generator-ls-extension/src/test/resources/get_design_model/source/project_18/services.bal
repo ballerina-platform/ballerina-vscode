@@ -98,3 +98,22 @@ service /nested on new http:Listener(8097) {
         }
     }
 }
+
+// Calls through a local helper and through a service method keep their order -- exercises agentCalls expansion.
+service /helpers on new http:Listener(8098) {
+    resource function post pipeline(@http:Payload string query) returns string|error {
+        return runPipeline(query);
+    }
+
+    resource function post mixed(@http:Payload string[] queries) returns string|error {
+        string _ = check supervisorAgent.run(queries[0]);
+        foreach string query in queries {
+            _ = check self.finish(query);
+        }
+        return "done";
+    }
+
+    function finish(string query) returns string|error {
+        return specialistAgent.run(query);
+    }
+}
