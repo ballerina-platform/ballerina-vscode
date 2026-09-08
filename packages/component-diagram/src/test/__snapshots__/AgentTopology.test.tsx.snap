@@ -401,7 +401,7 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the Help Desk shape: help
             <g
             >
               <g
-                pointer-events="all"
+                pointer-events="stroke"
                 style="opacity: 1; transition: opacity 260ms ease;"
               >
                 <path
@@ -436,7 +436,7 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the Help Desk shape: help
             <g
             >
               <g
-                pointer-events="all"
+                pointer-events="stroke"
                 style="opacity: 1; transition: opacity 260ms ease;"
               >
                 <path
@@ -471,7 +471,7 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the Help Desk shape: help
             <g
             >
               <g
-                pointer-events="all"
+                pointer-events="stroke"
                 style="opacity: 1; transition: opacity 260ms ease;"
               >
                 <path
@@ -506,7 +506,7 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the Help Desk shape: help
             <g
             >
               <g
-                pointer-events="all"
+                pointer-events="stroke"
                 style="opacity: 1; transition: opacity 260ms ease;"
               >
                 <path
@@ -542,7 +542,7 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the Help Desk shape: help
             <g
             >
               <g
-                pointer-events="all"
+                pointer-events="stroke"
                 style="opacity: 1; transition: opacity 260ms ease;"
               >
                 <path
@@ -578,7 +578,7 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the Help Desk shape: help
             <g
             >
               <g
-                pointer-events="all"
+                pointer-events="stroke"
                 style="opacity: 1; transition: opacity 260ms ease;"
               >
                 <path
