@@ -17,9 +17,10 @@
  */
 
 import { MigrationTool } from "@wso2/ballerina-core";
-import { Dropdown, OptionProps, TextField, Typography } from "@wso2/ui-toolkit";
+import { CheckBox, Dropdown, OptionProps, TextField, Typography } from "@wso2/ui-toolkit";
 import React from "react";
 import { BodyText, ParameterItem, ParametersSection } from "../styles";
+import { resolveKeepStructureParam, resolveSourceLayoutParam, toBooleanParamValue } from "../utils";
 import styled from "@emotion/styled";
 
 const ParametersContainer = styled.div`
@@ -27,6 +28,12 @@ const ParametersContainer = styled.div`
     flex-direction: column;
     gap: 16px;
     margin-top: 16px;
+`;
+
+const ParamDescription = styled.div`
+    color: var(--vscode-list-deemphasizedForeground);
+    margin-top: 4px;
+    margin-left: 26px;
 `;
 
 interface IntegrationParametersProps {
@@ -40,8 +47,17 @@ export const IntegrationParameters: React.FC<IntegrationParametersProps> = ({
     integrationParams,
     onParameterChange,
 }) => {
-    const nonBoolParams = selectedIntegration?.parameters.filter(p => p.valueType !== "boolean") ?? [];
-    if (!selectedIntegration || !nonBoolParams.length) return null;
+    // Every declared parameter except the two that have a dedicated home elsewhere in the
+    // wizard: the source-layout one, owned by the "Source Layout" radio group on this step,
+    // and `keepStructure`, owned by the "Output Structure" section on Configure Destination.
+    // Excluded BY KEY, not by value type — filtering out the whole `boolean` type is what
+    // silently dropped `keepStructure` from the wizard, and would drop the next boolean too.
+    const ownedElsewhere = new Set(
+        [resolveSourceLayoutParam(selectedIntegration)?.key, resolveKeepStructureParam(selectedIntegration)?.key]
+            .filter((key): key is string => !!key)
+    );
+    const configurableParams = selectedIntegration?.parameters.filter((p) => !ownedElsewhere.has(p.key)) ?? [];
+    if (!selectedIntegration || !configurableParams.length) return null;
 
     return (
         <ParametersSection>
@@ -50,9 +66,20 @@ export const IntegrationParameters: React.FC<IntegrationParametersProps> = ({
             </Typography>
             <BodyText>{`Configure additional settings for ${selectedIntegration.title} migration.`}</BodyText>
             <ParametersContainer>
-                {nonBoolParams.map((param) => (
+                {configurableParams.map((param) => (
                     <ParameterItem key={param.key}>
-                        {param.valueType === "enum" && param.options ? (
+                        {param.valueType === "boolean" ? (
+                            <>
+                                <CheckBox
+                                    label={param.label}
+                                    checked={toBooleanParamValue(
+                                        integrationParams[param.key] ?? param.defaultValue
+                                    )}
+                                    onChange={(checked) => onParameterChange(param.key, checked)}
+                                />
+                                {param.description && <ParamDescription>{param.description}</ParamDescription>}
+                            </>
+                        ) : param.valueType === "enum" && param.options ? (
                             <Dropdown
                                 id={`${param.key}-dropdown`}
                                 label={param.label}

@@ -463,18 +463,15 @@ function findViewByArtifact(
                             artifactType: DIRECTORY_MAP.SERVICE
                         }
                     };
-                } else if (dir.moduleName === "ai") {
-                    return {
-                        location: {
-                            view: MACHINE_VIEW.BIDiagram,
-                            identifier: dir.name,
-                            documentUri: currentDocumentUri,
-                            position: position,
-                            projectPath: projectPath,
-                            artifactType: DIRECTORY_MAP.SERVICE,
-                        }
-                    };
                 } else {
+                    // `ai` (chat agent) services used to force MACHINE_VIEW.BIDiagram here so that
+                    // clicking the service always landed straight on the chat flow. That's no
+                    // longer needed: a click on the `chat` or `decision` resource itself already
+                    // resolves to BIDiagram via the DIRECTORY_MAP.RESOURCE case below (matched
+                    // against `dir.resources` before this parent entry is even checked). This
+                    // branch is only reached for a click on the service's own declaration — the
+                    // component diagram's outer-box click for a HITL-wired agent — which should
+                    // land on the same resource listing every other service type gets.
                     return {
                         location: {
                             view: MACHINE_VIEW.ServiceDesigner,

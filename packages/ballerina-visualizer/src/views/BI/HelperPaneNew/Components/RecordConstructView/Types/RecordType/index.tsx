@@ -23,7 +23,7 @@ import { Codicon, Tooltip, Typography } from "@wso2/ui-toolkit";
 import { TypeProps } from "../../ParameterBranch";
 import { useHelperPaneStyles } from "../../styles";
 import { MemoizedParameterBranch } from "../../ParameterBranch";
-import { isRequiredParam, updateFieldsSelection, resetFieldValues } from "../../utils";
+import { getOptionalityLabel, isRequiredParam, updateFieldsSelection, resetFieldValues } from "../../utils";
 
 export default function RecordType(props: TypeProps) {
     const { param, depth, onChange } = props;
@@ -76,7 +76,7 @@ export default function RecordType(props: TypeProps) {
                             className={helperStyleClass.suggestionDataType}
                             variant="body3"
                         >
-                            {(param.optional || param.defaultable) && " (Optional)"} {param.typeInfo.name}
+                            {getOptionalityLabel(param)} {param.typeInfo.name}
                         </Typography>
                     )}
                     {param.documentation && (

@@ -67,7 +67,7 @@ for (const m of [
 
 jest.mock('../features/ai/executors/base/AICommandExecutor', () => ({ AICommandExecutor: class { } }));
 
-import { AgentExecutor } from '../features/ai/agent/AgentExecutor';
+import { AgentExecutor, normalizeRelativePath } from '../features/ai/agent/AgentExecutor';
 import { chatStateStorage } from '../views/ai-panel/chatStateStorage';
 
 const ROOT = '/ws';
@@ -160,7 +160,7 @@ describe('emitReviewActions', () => {
         expect(review.data.modifiedFiles).toEqual(['main.bal']);
     });
 
-    it('EDGE: a partial failure discards the diffs already collected', async () => {
+    it('EDGE: a partial failure keeps the diffs already collected and reports the error', async () => {
         seedGeneration('gen-1', ['a.bal', 'b.bal'], [PKG_A, PKG_B]);
         getSemanticDiff
             .mockResolvedValueOnce({ semanticDiffs: [{ a: 1 }], loadDesignDiagrams: true })
@@ -170,9 +170,31 @@ describe('emitReviewActions', () => {
 
         await executor.emitReviewActions(context);
 
-        // Mixing one package's diffs with another's absence would misattribute them.
-        expect(reviewEvent(events).data.semanticDiffs).toEqual([]);
-        expect(reviewEvent(events).data.loadDesignDiagrams).toBe(false);
+        // One package failing must not cost the sibling package its valid diffs; the
+        // failure is surfaced alongside them instead (openReviewMode's reviewData).
+        expect(reviewEvent(events).data.semanticDiffs).toEqual([{ a: 1 }]);
+        expect(reviewEvent(events).data.diffPackageMap).toEqual(['pkg-a']);
+        expect(reviewEvent(events).data.loadDesignDiagrams).toBe(true);
+        const reviewData = openReviewMode.mock.calls[0][1];
+        expect(reviewData.semanticDiffError).toContain('LS died');
+    });
+
+    it("EDGE: keeps every package's compilation error, not just the first", async () => {
+        seedGeneration('gen-1', ['a.bal', 'b.bal'], [PKG_A, PKG_B]);
+        getSemanticDiff
+            .mockResolvedValueOnce({ semanticDiffs: [{ a: 1 }], loadDesignDiagrams: false, compilationError: 'pkg-a failed to compile' })
+            .mockResolvedValueOnce({ semanticDiffs: [{ b: 1 }], loadDesignDiagrams: false, compilationError: 'pkg-b failed to compile' });
+        const events: any[] = [];
+        const { executor, context } = makeExecutor(events);
+
+        await executor.emitReviewActions(context);
+
+        // Partial-success compile errors aggregate like request failures — a later
+        // package's reason must not be dropped because an earlier one already failed.
+        expect(reviewEvent(events).data.semanticDiffs).toEqual([{ a: 1 }, { b: 1 }]);
+        const reviewData = openReviewMode.mock.calls[0][1];
+        expect(reviewData.semanticDiffError).toContain('pkg-a failed to compile');
+        expect(reviewData.semanticDiffError).toContain('pkg-b failed to compile');
     });
 
     it('EDGE: skips the workspace root, which holds no package to diff', async () => {
@@ -217,5 +239,24 @@ describe('emitReviewActions', () => {
         expect(stored?.reviewState.reviewView).toEqual({
             semanticDiffs: [{ a: 1 }], loadDesignDiagrams: true, isWorkspace: false,
         });
+    });
+});
+
+describe('normalizeRelativePath', () => {
+    // The two sides of the package-membership match come from different authors: the
+    // workspace toml's `packages` entries vs the LLM's verbatim tool file_path args.
+    it.each([
+        ['./orders', 'orders'],
+        ['orders/', 'orders'],
+        ['./orders/', 'orders'],
+        ['orders', 'orders'],
+        ['orders\\main.bal', 'orders/main.bal'],
+        ['./orders/main.bal', 'orders/main.bal'],
+        ['orders//main.bal', 'orders/main.bal'],
+        [' orders ', 'orders'],
+        ['.', ''],
+        ['./', ''],
+    ])('normalizes %s to %s', (input, expected) => {
+        expect(normalizeRelativePath(input)).toBe(expected);
     });
 });

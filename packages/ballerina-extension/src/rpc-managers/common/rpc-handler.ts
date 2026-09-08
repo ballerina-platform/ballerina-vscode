@@ -35,6 +35,7 @@ import {
     downloadSelectedSampleFromGithub,
     executeCommand,
     experimentalEnabled,
+    getCopilotOrbTheme,
     getAgentRunStatus,
     getBallerinaDiagnostics,
     getCurrentProjectTomlValues,
@@ -78,6 +79,7 @@ export function registerCommonRpcHandlers(messenger: Messenger) {
     messenger.onRequest(selectProjectRelativeFile, (args: ProjectFileRequest) => rpcManger.selectProjectRelativeFile(args));
     messenger.onRequest(selectFileOrFolderPath, () => rpcManger.selectFileOrFolderPath());
     messenger.onRequest(experimentalEnabled, () => rpcManger.experimentalEnabled());
+    messenger.onRequest(getCopilotOrbTheme, () => rpcManger.getCopilotOrbTheme());
     messenger.onRequest(additionalTriggerSearchEnabled, () => rpcManger.additionalTriggerSearchEnabled());
     messenger.onRequest(isNPSupported, () => rpcManger.isNPSupported());
     messenger.onRequest(getWorkspaceRoot, () => rpcManger.getWorkspaceRoot());

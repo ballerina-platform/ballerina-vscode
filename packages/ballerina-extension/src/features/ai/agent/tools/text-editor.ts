@@ -24,6 +24,7 @@ import { normalizeInvisibleChars } from "../../utils/string-utils";
 import { normalizeToLf, readAndNormalize, restoreEol } from "../../utils/eol-utils";
 import { addToIntegration } from "../../../../rpc-managers/ai-panel/utils";
 import { recordAiTouchedFile } from "../../../../rpc-managers/diagram-validity";
+import { seedNewPackageBaseline } from "../../utils/project/ls-schema-notifications";
 
 /**
  * Persists a tool's computed content directly into the real workspace file via VS Code's
@@ -45,10 +46,27 @@ async function persistLiveEdit(
     return;
   }
   const workspaceRoot = ctx.workspacePath || ctx.projectPath;
+  const absolutePath = path.join(workspaceRoot, file_path);
+  // A Ballerina.toml that doesn't exist yet means the agent is creating a whole new
+  // package mid-run — its ai:// baseline must be frozen NOW, before more files land,
+  // or the review diff loads the baseline from post-edit disk and shows no changes.
+  const isNewPackageToml = path.basename(file_path) === 'Ballerina.toml' && !fs.existsSync(absolutePath);
   try {
     await addToIntegration(workspaceRoot, [{ filePath: file_path, content }]);
-    recordAiTouchedFile(path.join(workspaceRoot, file_path));
+    recordAiTouchedFile(absolutePath);
     allModifiedFiles?.add(file_path);
+    if (isNewPackageToml) {
+      const packageRoot = path.dirname(absolutePath);
+      // .bal files this generation already wrote into the new package: freeze them as
+      // empty in the baseline so they still register as additions in the review.
+      const alreadyWritten = new Set([...(modifiedFiles ?? []), ...(allModifiedFiles ?? [])]);
+      const preexistingBalFiles = [...alreadyWritten]
+        .filter(f => f.endsWith('.bal'))
+        .map(f => path.resolve(workspaceRoot, f))
+        .filter(abs => abs.startsWith(packageRoot + path.sep))
+        .map(abs => path.relative(packageRoot, abs));
+      await seedNewPackageBaseline(packageRoot, content, preexistingBalFiles);
+    }
   } catch (error) {
     console.error("[TextEditorTool] Live persist failed:", error);
   }

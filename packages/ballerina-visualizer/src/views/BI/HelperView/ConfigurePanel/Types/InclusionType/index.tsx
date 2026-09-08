@@ -24,7 +24,7 @@ import { Typography } from "@wso2/ui-toolkit";
 import { TypeProps } from "../../index";
 import { useStmtEditorHelperPanelStyles } from "../../styles";
 import { ParameterBranch } from "../../index";
-import { isAllDefaultableFields, isRequiredParam } from "../../utils";
+import { getOptionalityLabel, isAllDefaultableFields, isRequiredParam } from "../../utils";
 
 export default function InclusionType(props: TypeProps) {
     const { param, depth, onChange } = props;
@@ -71,7 +71,7 @@ export default function InclusionType(props: TypeProps) {
                             variant="body3"
                             data-testid="arg-type"
                         >
-                            {(param.optional || param.defaultable) && " (Optional)"} *
+                            {getOptionalityLabel(param)} *
                             {param.inclusionType.typeInfo.name}
                         </Typography>
                     )}

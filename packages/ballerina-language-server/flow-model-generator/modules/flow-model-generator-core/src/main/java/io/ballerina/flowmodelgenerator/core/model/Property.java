@@ -500,12 +500,6 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
             return this;
         }
 
-        public Builder<T> defaultable(boolean defaultable) {
-            this.optional = defaultable;
-            this.advanced = defaultable;
-            return this;
-        }
-
         public Builder<T> advanced(boolean advanced) {
             this.advanced = advanced;
             return this;

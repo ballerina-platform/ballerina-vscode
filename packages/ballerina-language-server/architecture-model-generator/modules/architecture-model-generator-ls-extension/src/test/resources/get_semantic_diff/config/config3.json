@@ -188,6 +188,26 @@
         "metadata": {
           "name": "modulo"
         }
+      },
+      {
+        "changeType": "ADDITION",
+        "nodeKind": "IMPORT_DECLARATION",
+        "uri": "ai:///functions.bal",
+        "lineRange": {
+          "fileName": "functions.bal",
+          "startLine": {
+            "line": 0,
+            "offset": 0
+          },
+          "endLine": {
+            "line": 0,
+            "offset": 21
+          }
+        },
+        "metadata": {
+          "name": "ballerina/log",
+          "newSource": "import ballerina/log;"
+        }
       }
     ]
   }

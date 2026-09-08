@@ -66,31 +66,6 @@
       "items": [
         {
           "metadata": {
-            "label": "metrics.logs",
-            "description": "",
-            "keywords": []
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "printMetricsLog",
-                "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_metrics.logs_1.1.0.png"
-              },
-              "codedata": {
-                "node": "FUNCTION_CALL",
-                "org": "ballerinax",
-                "module": "metrics.logs",
-                "packageName": "metrics.logs",
-                "symbol": "printMetricsLog",
-                "version": "1.1.0"
-              },
-              "enabled": true
-            }
-          ]
-        },
-        {
-          "metadata": {
             "label": "log",
             "description": "",
             "keywords": []
@@ -262,6 +237,43 @@
                 "packageName": "lang.float",
                 "symbol": "log10",
                 "version": "0.0.0"
+              },
+              "enabled": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "label": "Extended Library",
+        "description": "Components from the ballerinax organization",
+        "keywords": [
+          "Ballerinax",
+          "Library"
+        ]
+      },
+      "items": [
+        {
+          "metadata": {
+            "label": "metrics.logs",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "printMetricsLog",
+                "description": "",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_metrics.logs_1.1.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "metrics.logs",
+                "packageName": "metrics.logs",
+                "symbol": "printMetricsLog",
+                "version": "1.1.0"
               },
               "enabled": true
             }

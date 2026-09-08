@@ -45,6 +45,7 @@ import {
     downloadSelectedSampleFromGithub,
     executeCommand,
     experimentalEnabled,
+    getCopilotOrbTheme,
     getAgentRunStatus,
     getBallerinaDiagnostics,
     getCurrentProjectTomlValues,
@@ -132,6 +133,10 @@ export class CommonRpcClient implements CommonRPCAPI {
 
     experimentalEnabled(): Promise<boolean> {
         return this._messenger.sendRequest(experimentalEnabled, HOST_EXTENSION);
+    }
+
+    getCopilotOrbTheme(): Promise<string> {
+        return this._messenger.sendRequest(getCopilotOrbTheme, HOST_EXTENSION);
     }
 
     additionalTriggerSearchEnabled(): Promise<boolean> {

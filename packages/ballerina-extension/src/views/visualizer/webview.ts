@@ -30,6 +30,7 @@ import { MACHINE_VIEW, isPathInside, getIntegrationCreationCopy } from "@wso2/ba
 import { refreshDataMapper } from "../../rpc-managers/data-mapper/utils";
 import { AiPanelWebview } from "../ai-panel/webview";
 import { approvalViewManager } from "../../features/ai/state/ApprovalViewManager";
+import { agentStatusManager } from "../../features/ai/state/AgentStatusManager";
 import { StateMachinePopup } from "../../stateMachinePopup";
 import { clearFormState } from "../../rpc-managers/bi-diagram/form-state";
 import { isInWI } from "../../utils/config";
@@ -66,6 +67,7 @@ export class VisualizerWebview {
 
     constructor() {
         this._panel = VisualizerWebview.createWebview();
+        agentStatusManager.setVisualizerVisible(this._panel.visible);
         this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
         this._panel.webview.html = this.getWebviewContent(this._panel.webview);
         RPCLayer.create(this._panel);
@@ -170,6 +172,7 @@ export class VisualizerWebview {
 
         this._panel.onDidChangeViewState(() => {
             vscode.commands.executeCommand('setContext', 'isBalVisualizerActive', this._panel?.active);
+            agentStatusManager.setVisualizerVisible(!!this._panel?.visible);
             if (this._panel?.active) {
                 setCompanionVisualizer();
             }
@@ -364,6 +367,10 @@ export class VisualizerWebview {
 
     public dispose() {
         approvalViewManager.onVisualizerClosed();
+        // The overview composer and orb can't send their unmount signals once the webview is gone.
+        agentStatusManager.setInlineStatusVisible(false);
+        agentStatusManager.setVisualizerVisible(false);
+        vscode.commands.executeCommand('setContext', 'ballerina.copilotAmbientPresent', false);
         clearFormState();
 
         VisualizerWebview.currentPanel = undefined;

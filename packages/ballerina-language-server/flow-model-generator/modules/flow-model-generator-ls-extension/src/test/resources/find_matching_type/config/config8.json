@@ -1132,24 +1132,8 @@
                                         "selected": false
                                       },
                                       {
-                                        "members": [
-                                          {
-                                            "typeName": "readonly",
-                                            "optional": false,
-                                            "defaultable": false,
-                                            "isRestType": false,
-                                            "selected": false
-                                          },
-                                          {
-                                            "typeName": "[int, decimal]",
-                                            "optional": false,
-                                            "defaultable": false,
-                                            "isRestType": false,
-                                            "selected": false
-                                          }
-                                        ],
                                         "name": "notAfter",
-                                        "typeName": "intersection",
+                                        "typeName": "[int, decimal]",
                                         "optional": false,
                                         "typeInfo": {
                                           "name": "Utc",
@@ -1163,24 +1147,8 @@
                                         "selected": false
                                       },
                                       {
-                                        "members": [
-                                          {
-                                            "typeName": "readonly",
-                                            "optional": false,
-                                            "defaultable": false,
-                                            "isRestType": false,
-                                            "selected": false
-                                          },
-                                          {
-                                            "typeName": "[int, decimal]",
-                                            "optional": false,
-                                            "defaultable": false,
-                                            "isRestType": false,
-                                            "selected": false
-                                          }
-                                        ],
                                         "name": "notAfter",
-                                        "typeName": "intersection",
+                                        "typeName": "[int, decimal]",
                                         "optional": false,
                                         "typeInfo": {
                                           "name": "Utc",

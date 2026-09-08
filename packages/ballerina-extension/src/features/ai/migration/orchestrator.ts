@@ -405,6 +405,18 @@ async function getWorkspacePackagePaths(projectRoot: string): Promise<string[] |
 }
 
 /**
+ * Directory the enhancement stages actually edit when the project holds a single package.
+ *
+ * A migrated integration is a package INSIDE its project (the migration wizard creates the
+ * project and puts the package in it, matching the new-project flow), so the sources live
+ * one level down from the project root. A standalone package — nothing declared in a
+ * `[workspace]` section — is its own root.
+ */
+function resolveSinglePackagePath(projectRoot: string, packagePaths: string[] | null): string {
+    return packagePaths?.length === 1 ? path.join(projectRoot, packagePaths[0]) : projectRoot;
+}
+
+/**
  * Builds a lightweight manifest of all packages in the workspace.
  * For each peer package (i.e. _not_ the currently-being-enhanced package)
  * the manifest lists the package name and its public function / type names
@@ -867,13 +879,14 @@ export async function runMigrationAgent(): Promise<void> {
             }
         } else {
             // ── Single-package project ───────────────────────────────────
+            const packagePath = resolveSinglePackagePath(projectRoot, packagePaths);
             const stages = getEnhancementStages(buildMigrationContext(projectRoot));
             injectResumePreamble(projectRoot, stages);
             console.log(`[MigrationEnhancement] Starting migration agent (${stages.length} stages) – model: ${_selectedModelId}, sourcePath: ${sourcePath ?? 'none'}`);
-            debugLogger.logMilestone(`Run start — single package, model: ${_selectedModelId}, projectRoot: ${projectRoot}`);
+            debugLogger.logMilestone(`Run start — single package, model: ${_selectedModelId}, projectRoot: ${projectRoot}, packagePath: ${packagePath}`);
 
             await runStagesForPackage({
-                projectRoot, packagePath: projectRoot, sourcePath, stages,
+                projectRoot, packagePath, sourcePath, stages,
                 eventHandler, abortController: _migrationAbortController,
                 fromAIChat: false, stageIdPrefix: "migration",
                 useExistingTempPath: false, debugLogger,
@@ -1457,10 +1470,11 @@ export async function runWizardMigrationEnhancement(): Promise<void> {
             }
         } else {
             // ── Single-package project ───────────────────────────────────
+            const packagePath = resolveSinglePackagePath(projectRoot, packagePaths);
             const stages = getEnhancementStages(buildMigrationContext(projectRoot));
             injectResumePreamble(projectRoot, stages);
-            console.log(`[MigrationEnhancement] Starting wizard migration agent (${stages.length} stages) – projectRoot: ${projectRoot}, sourcePath: ${sourcePath ?? 'none'}`);
-            debugLogger.logMilestone(`Run start — single package (wizard), model: ${_selectedModelId}, projectRoot: ${projectRoot}`);
+            console.log(`[MigrationEnhancement] Starting wizard migration agent (${stages.length} stages) – projectRoot: ${projectRoot}, packagePath: ${packagePath}, sourcePath: ${sourcePath ?? 'none'}`);
+            debugLogger.logMilestone(`Run start — single package (wizard), model: ${_selectedModelId}, projectRoot: ${projectRoot}, packagePath: ${packagePath}`);
 
             // Suppress per-stage "stop" events emitted by AgentExecutor at the end of each
             // stage — without this, the first stage's stop sets terminalRef=true in the webview
@@ -1472,7 +1486,7 @@ export async function runWizardMigrationEnhancement(): Promise<void> {
             };
 
             await runStagesForPackage({
-                projectRoot, packagePath: projectRoot, sourcePath, stages,
+                projectRoot, packagePath, sourcePath, stages,
                 eventHandler: singleStageHandler, abortController: _migrationAbortController,
                 fromAIChat, stageIdPrefix: "wizard-migration",
                 useExistingTempPath: true, debugLogger,

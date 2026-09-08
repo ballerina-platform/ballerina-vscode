@@ -854,6 +854,8 @@ export interface ProjectDiagnosticsRequest {
 
 export interface ProjectDiagnosticsResponse {
     errorDiagnosticMap?: Map<string, Diagnostic[]>;
+    /** Why diagnostics could not be produced (e.g. the package failed to compile). */
+    errorMsg?: string;
 }
 
 export interface MainFunctionParamsRequest {
@@ -1584,6 +1586,11 @@ export interface ServiceModelFromCodeRequest {
     filePath: string;
     codedata: {
         lineRange: LineRange; // For the entire service
+        // The service's own attach point, as the language server last reported it
+        // (`properties.basePath.value`). A range recorded before an edit can come to
+        // enclose a different service; naming the one being edited lets the server
+        // refuse that match instead of answering with the wrong service.
+        originalName?: string;
     };
 }
 export interface ServiceModelFromCodeResponse {
@@ -1935,6 +1942,10 @@ export interface ResourceSourceCodeResponse {
         [key: string]: TextEdit[];
     };
     validationErrors?: ValidationResult[];
+    // An unexpected failure the builder threw, distinct from a validation failure. `textEdits`
+    // is empty whenever this is set (see CommonSourceResponse(Throwable) on the language server).
+    errorMsg?: string;
+    stacktrace?: string;
 }
 
 export interface ResourceReturnTypesRequest {

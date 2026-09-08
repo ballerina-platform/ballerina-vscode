@@ -284,14 +284,12 @@ public class DurableAgentAddActivityBuilder extends CallBuilder {
                 .advanced(true)
                 .stepOut()
                 .addProperty(REQUIRES_APPROVAL_KEY);
-        properties().custom()
+        WorkflowUtil.addRoleFieldTypes(properties().custom()
                 .metadata()
                     .label("Reviewer Roles")
                     .description("Role(s) permitted to decide the approval review of this activity, "
                             + "e.g. \"support-lead\" or [\"finance\", \"manager\"].")
-                    .stepOut()
-                .type().fieldType(Property.ValueType.EXPRESSION)
-                    .ballerinaType("string|string[]").selected(true).stepOut()
+                    .stepOut())
                 .placeholder("")
                 .editable(true)
                 .optional(true)
@@ -321,7 +319,7 @@ public class DurableAgentAddActivityBuilder extends CallBuilder {
         String activityDescription = sourceBuilder.getProperty(ACTIVITY_DESCRIPTION_KEY)
                 .map(p -> p.value() == null ? "" : p.value().toString().trim()).orElse("");
         String userRoles = sourceBuilder.getProperty(USER_ROLES_KEY)
-                .map(p -> p.value() == null ? "" : p.value().toString().trim()).orElse("");
+                .map(WorkflowUtil::roleSource).orElse("");
         boolean requiresApproval = isRequiresApproval(sourceBuilder);
         String retryPolicyValue = ActivityCallBuilder.retryPolicyEntryValue(
                 sourceBuilder.flowNode.properties());
@@ -350,7 +348,7 @@ public class DurableAgentAddActivityBuilder extends CallBuilder {
                 mapping.append(", requiresApproval: true");
             }
             if (!userRoles.isBlank()) {
-                mapping.append(", userRoles: ").append(WorkflowUtil.quoteIfBareRole(userRoles));
+                mapping.append(", userRoles: ").append(userRoles);
             }
             if (retryPolicyValue != null) {
                 mapping.append(", retryPolicy: ").append(retryPolicyValue);
