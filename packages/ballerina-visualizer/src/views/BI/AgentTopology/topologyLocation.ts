@@ -18,16 +18,17 @@
 
 import type { TriggerSelection } from "@wso2/component-diagram";
 
-// A trigger only carries its start point, so the jump-to-source range is a zero-width point
-// at that line/offset -- the same shape ComponentDiagram's goToView uses for a plain source jump.
+// The handler's whole range when the trigger carries its end, as the focus rail's usage tiles send; a bare start
+// point inside an ai:Service resolves to the service instead of the resource.
 export function triggerLocation(trigger: TriggerSelection) {
+    const end = trigger.endPosition ?? trigger.position;
     return {
         documentUri: trigger.filePath,
         position: {
             startLine: trigger.position.line,
             startColumn: trigger.position.offset,
-            endLine: trigger.position.line,
-            endColumn: trigger.position.offset,
+            endLine: end.line,
+            endColumn: end.offset,
         },
     };
 }

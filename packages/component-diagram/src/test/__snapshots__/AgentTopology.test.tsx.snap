@@ -1143,7 +1143,7 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the Help Desk shape: help
                   >
                     <i
                       class="fw-bi-globe"
-                      style="font-size: 24px;"
+                      style="font-size: 24px; line-height: 1;"
                     />
                   </div>
                   <div

@@ -123,9 +123,9 @@ export function TriggerGlyph({ glyphType, icon, size = 24 }: { glyphType: string
     }
     const brandGlyph = resolveBrandIcon(glyphType);
     if (brandGlyph) {
-        return <Icon name={brandGlyph.glyph} sx={sx} iconSx={{ fontSize: size }} />;
+        return <Icon name={brandGlyph.glyph} sx={sx} iconSx={{ fontSize: size, lineHeight: 1 }} />;
     }
-    const globe = <Icon name="bi-globe" sx={sx} iconSx={{ fontSize: size }} />;
+    const globe = <Icon name="bi-globe" sx={sx} iconSx={{ fontSize: size, lineHeight: 1 }} />;
     return icon ? <ConnectorIcon url={icon} style={sx} fallbackIcon={globe} /> : globe;
 }
 
@@ -138,7 +138,7 @@ export function TriggerNodeWidget(props: TriggerNodeWidgetProps) {
     const [isFocused, setIsFocused] = useState(false);
 
     const handleClick = () => {
-        onTriggerSelect({ filePath: model.node.filePath, position: model.node.position });
+        onTriggerSelect({ filePath: model.node.filePath, position: model.node.position, endPosition: model.node.endPosition });
     };
 
     const { handleMouseDown, handleMouseUp } = useClickWithDragTolerance(handleClick);

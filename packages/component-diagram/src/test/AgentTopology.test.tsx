@@ -214,7 +214,7 @@ describe("AgentTopologyDiagram - Entry points", () => {
 
         fireEvent.click(rows[1]);
         expect(dom.queryByRole("listbox")).toBeNull();
-        expect(dom.getByRole("button", { name: /POST \/quotes/ })).toBeInTheDocument();
+        expect(dom.getByRole("button", { name: "POST /quotes" })).toBeInTheDocument();
 
         fireEvent.click(dom.getByRole("button", { name: "Clear the pinned flow" }));
         expect(dom.getByRole("button", { name: /entry points/i })).toBeInTheDocument();
@@ -223,5 +223,18 @@ describe("AgentTopologyDiagram - Entry points", () => {
         fireEvent.click(within(dom.getByRole("listbox")).getAllByRole("button", { pressed: false })[0]);
         fireEvent.keyDown(document, { key: "Escape" });
         expect(dom.queryByRole("button", { name: "Clear the pinned flow" })).toBeNull();
+    });
+
+    it("opens a flow from the row's shortcut and from the pinned chip, as the trigger square would", () => {
+        const onTriggerSelect = jest.fn();
+        const dom = render(<AgentTopologyDiagram input={helpDeskInput()} onAgentSelect={() => {}} onTriggerSelect={onTriggerSelect} />);
+        fireEvent.click(dom.getByRole("button", { name: /entry points/i }));
+        fireEvent.click(dom.getByRole("button", { name: "Open POST /quotes" }));
+        expect(onTriggerSelect).toHaveBeenCalledWith({ filePath: SERVICES_BAL, position: { line: 3, offset: 0 }, endPosition: { line: 4, offset: 1 } });
+        expect(dom.getByRole("listbox")).toBeInTheDocument();
+
+        fireEvent.click(within(dom.getByRole("listbox")).getAllByRole("button", { pressed: false })[1]);
+        fireEvent.click(dom.getByRole("button", { name: "Open POST /quotes" }));
+        expect(onTriggerSelect).toHaveBeenCalledTimes(2);
     });
 });

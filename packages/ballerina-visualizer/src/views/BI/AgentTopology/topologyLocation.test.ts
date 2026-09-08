@@ -20,12 +20,18 @@ import type { TriggerSelection } from "@wso2/component-diagram";
 import { triggerLocation } from "./topologyLocation";
 
 describe("triggerLocation", () => {
-    it("builds a zero-width point location from the trigger's start line/offset", () => {
-        const trigger: TriggerSelection = { filePath: "/proj/services.bal", position: { line: 12, offset: 4 } };
+    it("spans the handler's whole range when the trigger carries its end", () => {
+        const trigger: TriggerSelection = { filePath: "/proj/services.bal", position: { line: 12, offset: 4 }, endPosition: { line: 20, offset: 5 } };
 
         expect(triggerLocation(trigger)).toEqual({
             documentUri: "/proj/services.bal",
-            position: { startLine: 12, startColumn: 4, endLine: 12, endColumn: 4 },
+            position: { startLine: 12, startColumn: 4, endLine: 20, endColumn: 5 },
         });
+    });
+
+    it("falls back to a zero-width point at the start when no end is known", () => {
+        const trigger: TriggerSelection = { filePath: "/proj/services.bal", position: { line: 12, offset: 4 } };
+
+        expect(triggerLocation(trigger).position).toEqual({ startLine: 12, startColumn: 4, endLine: 12, endColumn: 4 });
     });
 });

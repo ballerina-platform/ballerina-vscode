@@ -109,6 +109,8 @@ export interface TopologyTriggerNode {
     icon?: string;
     filePath: string;
     position: LinePosition;
+    // The handler's end, so opening the trigger hands the resolver the whole function, as the focus rail does.
+    endPosition?: LinePosition;
 }
 
 // Where a handler's edges fan out: the if/match diamond, the fork square or the loop square between
@@ -179,4 +181,5 @@ export interface AgentSelection {
 export interface TriggerSelection {
     filePath: string;
     position: LinePosition;
+    endPosition?: LinePosition;
 }

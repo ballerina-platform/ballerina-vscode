@@ -439,7 +439,15 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
             </TopLeft>
             {triggers.length >= 2 && (
                 <TopRight>
-                    <FlowList triggers={triggers} pinnedId={pinnedId} open={flowsOpen} onToggle={setFlowsOpen} onPreview={setHovered} onPin={pin} />
+                    <FlowList
+                        triggers={triggers}
+                        pinnedId={pinnedId}
+                        open={flowsOpen}
+                        onToggle={setFlowsOpen}
+                        onPreview={setHovered}
+                        onPin={pin}
+                        onOpen={(trigger) => onTriggerSelect({ filePath: trigger.filePath, position: trigger.position, endPosition: trigger.endPosition })}
+                    />
                 </TopRight>
             )}
             {diagramEngine && diagramModel && (

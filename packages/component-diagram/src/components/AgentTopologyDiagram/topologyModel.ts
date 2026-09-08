@@ -463,7 +463,7 @@ interface AgentIndex {
 }
 
 interface AgentCallSite {
-    location: { startLine: { line: number; offset: number } };
+    location: { startLine: { line: number; offset: number }; endLine?: { line: number; offset: number } };
     connections?: string[];
     agentCalls?: CDAgentCall[];
 }
@@ -496,6 +496,7 @@ function buildTriggerFromFunction(
         icon: labels.icon,
         filePath,
         position: fn.location.startLine,
+        endPosition: fn.location.endLine,
     };
 }
 
