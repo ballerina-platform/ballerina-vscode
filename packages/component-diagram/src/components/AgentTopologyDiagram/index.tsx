@@ -31,6 +31,7 @@ import { SplitNodeModel } from "../nodes/SplitNode";
 import { generateTopologyEngine } from "./engine";
 import { buildTopology } from "./topologyModel";
 import { layoutTopology } from "./topologyLayout";
+import { describeTopology } from "./topologyDescribe";
 import { focusAround } from "./topologyFocus";
 import { TopologyContextProvider } from "./TopologyContext";
 import { Legend } from "./Legend";
@@ -136,6 +137,7 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
     const [settling, setSettling] = useState(false);
     const layoutRef = useRef<TopologyLayout>();
     const graphRef = useRef<TopologyGraph>();
+    const lastDescriptionRef = useRef<string>();
     const nodeModelsRef = useRef(new Map<string, TopologyNodeModel>());
     const linkModelsRef = useRef(new Map<string, TopologyLinkModel>());
     const fittingRef = useRef(false);
@@ -152,8 +154,15 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
         if (!graph) {
             return;
         }
-        const layout = layoutTopology(graph, { availableWidth: canvasWidth(), orientation });
+        const layoutOptions = { availableWidth: canvasWidth(), orientation };
+        const layout = layoutTopology(graph, layoutOptions);
         layoutRef.current = layout;
+        // A pasteable picture of the canvas for debugging, once per distinct layout, at the verbose level so DevTools hides it by default.
+        const description = describeTopology(input.model, graph, layout, layoutOptions);
+        if (description !== lastDescriptionRef.current) {
+            lastDescriptionRef.current = description;
+            console.debug(description);
+        }
         const place = (positions: Record<string, { x: number; y: number }>) =>
             Object.entries(positions).forEach(([id, position]) => nodeModelsRef.current.get(id)?.setPosition(position.x, position.y));
         place(layout.agentPositions);
@@ -164,7 +173,7 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
             link.bow = layout.edgeBows[edgeId] ?? 0;
             link.vertical = orientation === "vertical";
         });
-    }, [canvasWidth, orientation]);
+    }, [canvasWidth, orientation, input.model]);
 
     // Centre the laid-out graph in the canvas from its own bounds, so the first paint does not
     // depend on when the nodes were measured; capped at 1:1 so small graphs are not blown up.
