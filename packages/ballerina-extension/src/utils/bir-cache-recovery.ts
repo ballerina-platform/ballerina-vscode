@@ -103,15 +103,18 @@ export async function resolvePackageCacheDirs(
 }
 
 async function removeIfExists(dir: string, reposDir: string): Promise<boolean> {
-    if (!isWithin(reposDir, dir)) {
-        return false;
-    }
+    let realReposDir: string;
+    let realDir: string;
     try {
-        await fs.stat(dir);
+        realReposDir = await fs.realpath(reposDir);
+        realDir = await fs.realpath(dir);
     } catch {
-        return false; // nothing to remove
+        return false; // missing target or unresolvable path — nothing safe to remove
     }
-    await fs.rm(dir, { recursive: true, force: true });
+    if (!isWithin(realReposDir, realDir)) {
+        return false; // target escapes the repositories root via a symlinked component
+    }
+    await fs.rm(realDir, { recursive: true, force: true });
     return true;
 }
 

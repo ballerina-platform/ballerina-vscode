@@ -130,3 +130,35 @@ describe("clearPackageBirCache (targeted, cache-only) — fixtures", () => {
         }
     });
 });
+
+describe("clearPackageBirCache — symlink containment", () => {
+    it("does not delete through a symlinked path component that escapes the repositories root", async () => {
+        const home = await fs.mkdtemp(path.join(os.tmpdir(), "bir-cache-home-"));
+        const outside = await fs.mkdtemp(path.join(os.tmpdir(), "bir-cache-outside-"));
+        try {
+            const cacheDir = path.join(home, ".ballerina", "repositories", "central.ballerina.io", "cache-1.0.0");
+            await fs.mkdir(cacheDir, { recursive: true });
+
+            // Victim data lives OUTSIDE the repositories root.
+            const victim = path.join(outside, "myorg", "mypkg", "1.0.0");
+            await fs.mkdir(victim, { recursive: true });
+            const sentinel = path.join(victim, "sentinel.txt");
+            await fs.writeFile(sentinel, "keep");
+
+            // Plant a symlink so <cache>/myorg resolves outside the root. The coordinate is a valid
+            // segment, so the lexical path is in-root; only realpath containment catches the escape.
+            await fs.symlink(path.join(outside, "myorg"), path.join(cacheDir, "myorg"), "dir");
+
+            const removed = await clearPackageBirCache(
+                { org: "myorg", packageName: "mypkg", version: "1.0.0" },
+                { distVersion: "1.0.0", homeDir: home }
+            );
+
+            expect(removed).toEqual([]); // escaping target must not be reported as removed
+            await expect(fs.stat(sentinel)).resolves.toBeDefined(); // victim outside the root is preserved
+        } finally {
+            await fs.rm(home, { recursive: true, force: true });
+            await fs.rm(outside, { recursive: true, force: true });
+        }
+    });
+});
