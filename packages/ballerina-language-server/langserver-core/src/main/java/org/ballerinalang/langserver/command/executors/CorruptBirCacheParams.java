@@ -22,14 +22,15 @@ package org.ballerinalang.langserver.command.executors;
 public class CorruptBirCacheParams {
 
     private final String org;
-    private final String name;
+    private final String packageName;
     private final String version;
+    private String moduleName;
     private String distVersion;
     private String projectUri;
 
-    public CorruptBirCacheParams(String org, String name, String version) {
+    public CorruptBirCacheParams(String org, String packageName, String version) {
         this.org = org;
-        this.name = name;
+        this.packageName = packageName;
         this.version = version;
     }
 
@@ -37,12 +38,20 @@ public class CorruptBirCacheParams {
         return org;
     }
 
-    public String getName() {
-        return name;
+    public String getPackageName() {
+        return packageName;
     }
 
     public String getVersion() {
         return version;
+    }
+
+    public String getModuleName() {
+        return moduleName;
+    }
+
+    public void setModuleName(String moduleName) {
+        this.moduleName = moduleName;
     }
 
     public String getDistVersion() {

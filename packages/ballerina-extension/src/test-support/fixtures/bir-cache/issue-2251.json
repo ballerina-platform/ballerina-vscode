@@ -1,6 +1,6 @@
 {
-    "description": "#2251: corrupt ballerina/ai:1.14.1 BIR — clear only that module's compiled cache under the active distribution (cache-2201.13.5), leaving other distributions, other versions, other modules, the pulled bala source, and the distribution itself intact",
-    "module": { "org": "ballerina", "name": "ai", "version": "1.14.1" },
+    "description": "#2251: corrupt ballerina/ai:1.14.1 BIR — clear only that package's compiled cache under the active distribution (cache-2201.13.5), leaving other distributions, other versions, other packages, the pulled bala source, and the distribution itself intact",
+    "pkg": { "org": "ballerina", "packageName": "ai", "version": "1.14.1" },
     "distVersion": "2201.13.5",
     "tree": [
         "repositories/central.ballerina.io/cache-2201.13.5/ballerina/ai/1.14.1/bir/ai.bir",

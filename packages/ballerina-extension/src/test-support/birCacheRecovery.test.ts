@@ -20,13 +20,14 @@
  * @jest-environment node
  *
  * A corrupt cached BIR makes projects load empty. The LS sends a
- * `projectService/corruptBirCache` notification with the affected module's coordinates and the
- * running distribution version; the client clears that module's compiled cache under
- * cache-<distVersion>. These L1 tests pin two invariants: (1) only a well-formed module coordinate
- * is accepted (a malformed/hostile payload can never become an fs path); (2) the clear removes ONLY
- * the affected module's compiled cache and only under the active distribution's cache-<distVersion>
- * — never other distributions, the pulled bala/, other modules or versions, or the distribution
- * itself.
+ * `projectService/corruptBirCache` notification with the affected *package's* coordinates and the
+ * running distribution version; the client clears that package's compiled cache under
+ * cache-<distVersion>. (The cache is keyed by package, not module: a package's submodule BIRs all
+ * live under `cache-<dist>/<org>/<packageName>/<version>/bir/` — see the submodule fixture.) These
+ * L1 tests pin two invariants: (1) only a well-formed package coordinate is accepted (a
+ * malformed/hostile payload can never become an fs path); (2) the clear removes ONLY the affected
+ * package's compiled cache and only under the active distribution's cache-<distVersion> — never
+ * other distributions, the pulled bala/, other packages or versions, or the distribution itself.
  *
  * The clear invariant is table-driven from JSON fixtures under fixtures/bir-cache/ (see
  * docs/TEST_PLAN.md §5). Each fixture materializes a realistic ~/.ballerina tree in a temp home,
@@ -38,35 +39,40 @@ import * as os from "os";
 import * as path from "path";
 import * as fs from "fs/promises";
 import { loadFixtures } from "@wso2/test-config/fixtures";
-import { CorruptModule, isValidModule, resolveModuleCacheDirs, clearModuleBirCache } from "../utils/bir-cache-recovery";
+import {
+    CorruptPackage,
+    isValidPackage,
+    resolvePackageCacheDirs,
+    clearPackageBirCache,
+} from "../utils/bir-cache-recovery";
 
-describe("isValidModule", () => {
+describe("isValidPackage", () => {
     it("accepts a well-formed coordinate", () => {
-        expect(isValidModule({ org: "ballerina", name: "ai", version: "1.14.1" })).toBe(true);
-        expect(isValidModule({ org: "ballerinax", name: "aws.s3", version: "2.1.0" })).toBe(true);
+        expect(isValidPackage({ org: "ballerina", packageName: "ai", version: "1.14.1" })).toBe(true);
+        expect(isValidPackage({ org: "ballerinax", packageName: "aws.s3", version: "2.1.0" })).toBe(true);
     });
 
     it("rejects missing or empty segments", () => {
-        expect(isValidModule(null)).toBe(false);
-        expect(isValidModule(undefined)).toBe(false);
-        expect(isValidModule({ org: "ballerina", name: "ai" })).toBe(false);
-        expect(isValidModule({ org: "ballerina", name: "ai", version: "" })).toBe(false);
+        expect(isValidPackage(null)).toBe(false);
+        expect(isValidPackage(undefined)).toBe(false);
+        expect(isValidPackage({ org: "ballerina", packageName: "ai" })).toBe(false);
+        expect(isValidPackage({ org: "ballerina", packageName: "ai", version: "" })).toBe(false);
     });
 
     it("rejects path-traversal / unsafe segments", () => {
-        expect(isValidModule({ org: "ballerina", name: "ai", version: ".." })).toBe(false);
-        expect(isValidModule({ org: "..", name: "ai", version: "1.0.0" })).toBe(false);
-        expect(isValidModule({ org: "ballerina", name: "a/i", version: "1.0.0" })).toBe(false);
-        expect(isValidModule({ org: "ballerina", name: "ai", version: "1.0.0/../../etc" })).toBe(false);
+        expect(isValidPackage({ org: "ballerina", packageName: "ai", version: ".." })).toBe(false);
+        expect(isValidPackage({ org: "..", packageName: "ai", version: "1.0.0" })).toBe(false);
+        expect(isValidPackage({ org: "ballerina", packageName: "a/i", version: "1.0.0" })).toBe(false);
+        expect(isValidPackage({ org: "ballerina", packageName: "ai", version: "1.0.0/../../etc" })).toBe(false);
     });
 });
 
-// A single clear scenario: seed `tree` under a temp ~/.ballerina, clear `module` (optionally scoped
-// to `distVersion`), then assert the resolved/removed/kept paths. All paths are relative to the
+// A single clear scenario: seed `tree` under a temp ~/.ballerina, clear `pkg` (optionally scoped to
+// `distVersion`), then assert the resolved/removed/kept paths. All paths are relative to the
 // .ballerina root and use "/" separators (normalized per-OS below).
 interface BirCacheFixture {
     description?: string;
-    module: CorruptModule;
+    pkg: CorruptPackage;
     distVersion?: string;
     tree: string[];
     expectedResolved?: string[];
@@ -76,7 +82,7 @@ interface BirCacheFixture {
 
 const fixtures = loadFixtures<BirCacheFixture>(__dirname, "fixtures", "bir-cache");
 
-describe("clearModuleBirCache (targeted, cache-only) — fixtures", () => {
+describe("clearPackageBirCache (targeted, cache-only) — fixtures", () => {
     const toOsPath = (rel: string): string => path.join(...rel.split("/"));
 
     it("has fixtures to run", () => {
@@ -106,11 +112,11 @@ describe("clearModuleBirCache (targeted, cache-only) — fixtures", () => {
             }
 
             if (fx.expectedResolved) {
-                const resolved = await resolveModuleCacheDirs(reposDir, fx.module, fx.distVersion);
+                const resolved = await resolvePackageCacheDirs(reposDir, fx.pkg, fx.distVersion);
                 expect(resolved.map(relToBallerina).sort()).toEqual(fx.expectedResolved.map(toOsPath).sort());
             }
 
-            const removed = await clearModuleBirCache(fx.module, { distVersion: fx.distVersion, homeDir: home });
+            const removed = await clearPackageBirCache(fx.pkg, { distVersion: fx.distVersion, homeDir: home });
             expect(removed.map(relToBallerina).sort()).toEqual(fx.expectedRemoved.map(toOsPath).sort());
 
             for (const rel of fx.expectedRemoved) {

@@ -17,8 +17,8 @@
  */
 
 // A corrupt/incompatible cached BIR makes projects load empty. The LS reports the
-// condition via the `projectService/corruptBirCache` notification with the affected module's
-// coordinates and the running distribution version; here we offer to clear that module's compiled
+// condition via the `projectService/corruptBirCache` notification with the affected package's
+// coordinates and the running distribution version; here we offer to clear that package's compiled
 // BIR cache under cache-<distVersion> and reload.
 
 import * as os from "os";
@@ -26,14 +26,15 @@ import * as path from "path";
 import * as fs from "fs/promises";
 import { commands, window } from "vscode";
 
-export interface CorruptModule {
+export interface CorruptPackage {
     org: string;
-    name: string;
+    packageName: string;
     version: string;
 }
 
 /** The `projectService/corruptBirCache` notification payload sent by the language server. */
-export interface CorruptBirCachePayload extends Partial<CorruptModule> {
+export interface CorruptBirCachePayload extends Partial<CorruptPackage> {
+    moduleName?: string;
     distVersion?: string;
     projectUri?: string;
 }
@@ -50,9 +51,9 @@ function isSafeSegment(segment: unknown): segment is string {
     return typeof segment === "string" && segment !== "." && segment !== ".." && SAFE_SEGMENT.test(segment);
 }
 
-/** True when the notification payload names a module safe to turn into cache paths. */
-export function isValidModule(module: Partial<CorruptModule> | null | undefined): module is CorruptModule {
-    return !!module && isSafeSegment(module.org) && isSafeSegment(module.name) && isSafeSegment(module.version);
+/** True when the notification payload names a package safe to turn into cache paths. */
+export function isValidPackage(pkg: Partial<CorruptPackage> | null | undefined): pkg is CorruptPackage {
+    return !!pkg && isSafeSegment(pkg.org) && isSafeSegment(pkg.packageName) && isSafeSegment(pkg.version);
 }
 
 function reposDirFor(homeDir: string): string {
@@ -80,9 +81,9 @@ async function listSubDirs(dir: string): Promise<string[]> {
     }
 }
 
-export async function resolveModuleCacheDirs(
+export async function resolvePackageCacheDirs(
     reposDir: string,
-    module: CorruptModule,
+    pkg: CorruptPackage,
     distVersion?: string
 ): Promise<string[]> {
     const targets: string[] = [];
@@ -92,7 +93,7 @@ export async function resolveModuleCacheDirs(
             if (!cacheDirMatches(cacheDir, distVersion)) {
                 continue;
             }
-            const target = path.join(repoDir, cacheDir, module.org, module.name, module.version);
+            const target = path.join(repoDir, cacheDir, pkg.org, pkg.packageName, pkg.version);
             if (isWithin(reposDir, target)) {
                 targets.push(target);
             }
@@ -114,11 +115,11 @@ async function removeIfExists(dir: string, reposDir: string): Promise<boolean> {
     return true;
 }
 
-/** Clears the compiled BIR cache for a single module under cache-<distVersion>. Returns removed dirs. */
-export async function clearModuleBirCache(module: CorruptModule, options: ClearOptions = {}): Promise<string[]> {
+/** Clears the compiled BIR cache for a single package under cache-<distVersion>. Returns removed dirs. */
+export async function clearPackageBirCache(pkg: CorruptPackage, options: ClearOptions = {}): Promise<string[]> {
     const reposDir = reposDirFor(options.homeDir ?? os.homedir());
     const removed: string[] = [];
-    for (const dir of await resolveModuleCacheDirs(reposDir, module, options.distVersion)) {
+    for (const dir of await resolvePackageCacheDirs(reposDir, pkg, options.distVersion)) {
         if (await removeIfExists(dir, reposDir)) {
             removed.push(dir);
         }
@@ -148,9 +149,9 @@ export async function clearAllBirCaches(options: ClearOptions = {}): Promise<str
 let promptShown = false; // don't stack a prompt per repeated notification
 
 /**
- * Surfaces the corrupt-BIR condition and, on confirmation, clears the affected module's compiled
- * cache under the active distribution's cache directory (or all modules in that cache when the
- * module can't be identified) and reloads the window.
+ * Surfaces the corrupt-BIR condition and, on confirmation, clears the affected package's compiled
+ * cache under the active distribution's cache directory (or all packages in that cache when the
+ * package can't be identified) and reloads the window.
  */
 export async function promptClearCorruptBirCache(payload: CorruptBirCachePayload | null | undefined): Promise<void> {
     if (promptShown) {
@@ -159,10 +160,13 @@ export async function promptClearCorruptBirCache(payload: CorruptBirCachePayload
     promptShown = true;
     try {
         const distVersion = isSafeSegment(payload?.distVersion) ? payload.distVersion : undefined;
-        const target = isValidModule(payload)
-            ? { org: payload.org, name: payload.name, version: payload.version }
+        const target = isValidPackage(payload)
+            ? { org: payload.org, packageName: payload.packageName, version: payload.version }
             : null;
-        const coordinate = target ? `${target.org}/${target.name}:${target.version}` : undefined;
+        // Prefer the failing module name for display (that is what the user saw fail); fall back to
+        // the package coordinate. The clear itself always targets the package cache dir.
+        const displayName = isSafeSegment(payload?.moduleName) ? payload.moduleName : target?.packageName;
+        const coordinate = target ? `${target.org}/${displayName}:${target.version}` : undefined;
         const action = "Clear cache & reload";
         const prompt = coordinate
             ? `The cache for module '${coordinate}' is corrupted, so the project may appear empty. ` +
@@ -176,7 +180,7 @@ export async function promptClearCorruptBirCache(payload: CorruptBirCachePayload
         }
 
         const removed = target
-            ? await clearModuleBirCache(target, { distVersion })
+            ? await clearPackageBirCache(target, { distVersion })
             : await clearAllBirCaches({ distVersion });
         // If the targeted clear matched nothing (unexpected layout), fall back to clearing the whole
         // distribution cache so the user still recovers rather than reloading into the same state.

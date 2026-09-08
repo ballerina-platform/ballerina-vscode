@@ -20,7 +20,10 @@ import com.google.gson.JsonSyntaxException;
 import io.ballerina.projects.CompilationOptions;
 import io.ballerina.projects.DependencyManifest;
 import io.ballerina.projects.JvmTarget;
+import io.ballerina.projects.Module;
+import io.ballerina.projects.Package;
 import io.ballerina.projects.Project;
+import io.ballerina.projects.ResolvedPackageDependency;
 import io.ballerina.projects.Settings;
 import io.ballerina.projects.internal.bala.DependencyGraphJson;
 import io.ballerina.projects.internal.model.Dependency;
@@ -69,6 +72,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Deque;
 import java.util.HashSet;
 import java.util.List;
@@ -290,7 +294,7 @@ public class PullModuleExecutor implements LSCommandExecutor {
                         clientLogger.logError(LSContextOperation.WS_EXEC_CMD,
                                 "Pull modules failed for project: " + project.sourceRoot().toString(),
                                 t, null, (Position) null);
-                        Optional<CorruptBirCacheParams> corruptBir = detectCorruptBirCache(t);
+                        Optional<CorruptBirCacheParams> corruptBir = detectCorruptBirCache(t, project);
                         if (corruptBir.isPresent()) {
                             CorruptBirCacheParams params = corruptBir.get();
                             params.setProjectUri(project.sourceRoot().toUri().toString());
@@ -340,23 +344,60 @@ public class PullModuleExecutor implements LSCommandExecutor {
 
     /**
      * Detects a corrupt/incompatible cached-BIR failure anywhere in the throwable's cause chain and,
-     * when found, returns the coordinates of the affected module (best-effort; coordinates may be
+     * when found, returns the coordinates of the affected package (best-effort; coordinates may be
      * {@code null} if they cannot be parsed from the message).
      *
      * @param throwable the completion throwable to inspect
+     * @param project   the project whose resolution maps the failing module to its package
      * @return the corrupt-BIR parameters, or empty if this is not a corrupt-BIR failure
      */
-    static Optional<CorruptBirCacheParams> detectCorruptBirCache(Throwable throwable) {
+    static Optional<CorruptBirCacheParams> detectCorruptBirCache(Throwable throwable, Project project) {
         for (Throwable cause = throwable; cause != null && cause != cause.getCause(); cause = cause.getCause()) {
             String message = cause.getMessage();
             if (message == null || !message.contains("invalid magic number") || !message.contains("BIR")) {
                 continue;
             }
             Matcher matcher = CORRUPT_BIR_MODULE_PATTERN.matcher(message);
-            if (matcher.find()) {
-                return Optional.of(new CorruptBirCacheParams(matcher.group(1), matcher.group(2), matcher.group(3)));
+            if (!matcher.find()) {
+                return Optional.of(new CorruptBirCacheParams(null, null, null));
             }
-            return Optional.of(new CorruptBirCacheParams(null, null, null));
+            String org = matcher.group(1);
+            String moduleName = matcher.group(2);
+            String version = matcher.group(3);
+            String packageName = resolvePackageName(project, org, moduleName, version).orElse(moduleName);
+            CorruptBirCacheParams params = new CorruptBirCacheParams(org, packageName, version);
+            params.setModuleName(moduleName);
+            return Optional.of(params);
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Resolves the package (cache directory) name for a failing module by matching it against the
+     * project's resolved dependency graph. For a default module the package name equals the module
+     * name; for a submodule (e.g. {@code ai.observe}) it is the owning package (e.g. {@code ai}).
+     *
+     * @return the package name, or empty if it cannot be resolved
+     */
+    private static Optional<String> resolvePackageName(Project project, String org, String moduleName,
+                                                       String version) {
+        try {
+            Collection<ResolvedPackageDependency> nodes =
+                    project.currentPackage().getResolution().dependencyGraph().getNodes();
+            for (ResolvedPackageDependency node : nodes) {
+                Package pkg = node.packageInstance();
+                if (!pkg.packageOrg().value().equals(org)
+                        || !pkg.packageVersion().value().toString().equals(version)) {
+                    continue;
+                }
+                for (Module module : pkg.modules()) {
+                    if (module.moduleName().toString().equals(moduleName)) {
+                        return Optional.of(pkg.packageName().value());
+                    }
+                }
+            }
+        } catch (Throwable e) {
+            // Best-effort resolution; fall back to the module name.
         }
         return Optional.empty();
     }
