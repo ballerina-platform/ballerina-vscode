@@ -86,10 +86,11 @@ function ConditionChip({ point, text, color }: { point: Point; text: string; col
 }
 
 const StepCircle = styled.div`
-    width: 24px;
+    min-width: 24px;
     height: 24px;
+    padding: 0 6px;
     box-sizing: border-box;
-    border-radius: 50%;
+    border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -107,16 +108,18 @@ const StepCircle = styled.div`
 // One handler's reading of the number: what runs before or after, then which handler and how many steps.
 function stepRows(chip: EdgeChip): PopoverRow[] {
     const steps = chip.steps ?? [];
-    const step = Number(chip.text);
+    const outer = chip.text.split(".");
+    const step = Number(outer.pop());
     if (steps.length < 2) {
         return [];
     }
     const prefix = step === 1 ? "Runs before" : "Runs after";
     const other = step === 1 ? steps[1] : steps[step - 2];
+    const within = outer.length ? ` within step ${outer.join(".")}` : "";
     const where = chip.handler ? ` in ${chip.handler}` : "";
     return [
-        { key: `${chip.triggerId}-step`, glyph: <StepCircle>{step}</StepCircle>, prefix, label: other },
-        { key: `${chip.triggerId}-where`, label: `Step ${step} of ${steps.length}${where}`, muted: true },
+        { key: `${chip.triggerId}-step`, glyph: <StepCircle>{chip.text}</StepCircle>, prefix, label: other },
+        { key: `${chip.triggerId}-where`, label: `Step ${step} of ${steps.length}${within}${where}`, muted: true },
     ];
 }
 
@@ -125,8 +128,9 @@ function SequenceChip({ point, chips, faded, zoom }: { point: Point; chips: Edge
     const [anchor, setAnchor] = useState<DOMRect>();
     const rows = chips.flatMap(stepRows);
     const text = chips[0].text;
+    const width = Math.max(CHIP_BOX_HEIGHT, text.length * 8 + 16);
     return (
-        <foreignObject x={point.x - CHIP_BOX_HEIGHT / 2} y={point.y - CHIP_BOX_HEIGHT / 2} width={CHIP_BOX_HEIGHT} height={CHIP_BOX_HEIGHT}>
+        <foreignObject x={point.x - width / 2} y={point.y - CHIP_BOX_HEIGHT / 2} width={width} height={CHIP_BOX_HEIGHT}>
             <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: CHIP_BOX_HEIGHT }}>
                 <StepCircle
                     style={{ pointerEvents: "auto", opacity: faded ? RECEDED_OPACITY : 1, transition: `opacity ${FOCUS_FADE}` }}

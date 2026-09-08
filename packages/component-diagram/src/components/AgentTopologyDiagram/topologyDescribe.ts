@@ -78,12 +78,14 @@ function splitLines(graph: TopologyGraph, layout: TopologyLayout, id: (nodeId: s
     );
 }
 
-function edgeLines(graph: TopologyGraph, layout: TopologyLayout, id: (nodeId: string) => string): string[] {
+function edgeLines(graph: TopologyGraph, layout: TopologyLayout, id: (nodeId: string) => string, vertical: boolean): string[] {
+    const main = (position: NodePosition): number => (vertical ? position.y : position.x);
     return graph.edges.map((edge) => {
         const vias = layout.edgeVias[edge.id] ?? [];
         const bow = layout.edgeBows[edge.id] ?? 0;
+        const shape = vias.length >= 2 && main(vias[0]) > main(vias[vias.length - 1]) ? "WRAPS" : "DETOURS";
         const geometry = [
-            vias.length >= 2 ? `WRAPS via ${vias.map((via) => at(via).slice(1)).join(" ")}` : vias.length ? `bend ${at(vias[0]).slice(1)}` : "",
+            vias.length >= 2 ? `${shape} via ${vias.map((via) => at(via).slice(1)).join(" ")}` : vias.length ? `bend ${at(vias[0]).slice(1)}` : "",
             bow ? `bow ${bow > 0 ? "+" : ""}${bow}` : "",
         ].filter(Boolean);
         const chips = edge.chips.map((chip) => chipText(chip, id)).join(" ");
@@ -141,7 +143,7 @@ export function describeTopology(model: CDModel, graph: TopologyGraph, layout: T
         `SPLITS (${graph.splits.length})`,
         ...splitLines(graph, layout, id),
         `EDGES (${graph.edges.length})  source → target  kind  chips  geometry`,
-        ...edgeLines(graph, layout, id),
+        ...edgeLines(graph, layout, id, vertical),
         "HANDLERS (design model: direct agent calls in source order, {construct:label} for the enclosing constructs)",
         ...handlerLines(model),
     ].join("\n");

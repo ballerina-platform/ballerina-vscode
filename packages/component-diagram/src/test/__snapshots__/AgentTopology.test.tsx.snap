@@ -196,6 +196,7 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the Help Desk shape: help
 .css-9>svg {position: absolute; inset: 0;}
 .css-27 {display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 6px;}
 .css-8 {display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 8px;}
+.css-39 {min-width: 24px; height: 24px; padding: 0 6px; box-sizing: border-box; border-radius: 12px; display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-flex: none; -ms-flex: none; flex: none; background-color: var(--vscode-editor-background); border: 1.5px solid var(--vscode-foreground); color: var(--vscode-foreground); font-size: 12px; font-weight: 700; line-height: 1; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none;}
 .css-16 {display: grid; grid-template-columns: 1fr 56px; gap: 12px; width: 280px; min-height: 112px; box-sizing: border-box; padding: 14px 10px 12px 16px; border-radius: 10px; border-width: 1.5px; border-style: solid; border-color: var(--vscode-dropdown-border); background-color: var(--vscode-menu-background); color: var(--vscode-foreground); cursor: pointer; position: relative; opacity: 1; -webkit-transition: border-color 0.2s ease-out,opacity 260ms ease; transition: border-color 0.2s ease-out,opacity 260ms ease;}
 .css-16:focus-visible {outline: 2px solid var(--vscode-contrastActiveBorder, var(--vscode-button-background)); outline-offset: 2px;}
 .css-6 {position: absolute; top: 12px; left: 12px; z-index: 1000; display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-align-items: flex-start; -webkit-box-align: flex-start; -ms-flex-align: flex-start; align-items: flex-start; gap: 8px;}
@@ -207,7 +208,6 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the Help Desk shape: help
 .css-36 {font-family: var(--vscode-editor-font-family, monospace); font-size: 12px; line-height: 16px; color: var(--vscode-descriptionForeground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
 .css-41::part(indeterminate-indicator-1) {stroke: var(--vscode-contrastBorder, var(--vscode-button-background));}
 .css-28 {color: var(--vscode-foreground); white-space: nowrap;}
-.css-39 {width: 24px; height: 24px; box-sizing: border-box; border-radius: 50%; display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-flex: none; -ms-flex: none; flex: none; background-color: var(--vscode-editor-background); border: 1.5px solid var(--vscode-foreground); color: var(--vscode-foreground); font-size: 12px; font-weight: 700; line-height: 1; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none;}
 .css-37 {position: relative; -webkit-flex: none; -ms-flex: none; flex: none; width: 56px; height: 56px; box-sizing: border-box; border-radius: 10px; border: 1.5px solid var(--vscode-dropdown-border); background-color: var(--vscode-menu-background); color: var(--vscode-foreground); display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-transition: border-color 0.2s ease-out; transition: border-color 0.2s ease-out; outline: none; outline-offset: 2px;}
 .css-0 {position: relative; width: 100%; height: 100%;}
 .css-40 {-webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; height: 100%; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; width: 100%; background-color: var(--vscode-menu-background); z-index: 1000;}
@@ -440,13 +440,13 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the Help Desk shape: help
                 style="opacity: 1; transition: opacity 260ms ease;"
               >
                 <path
-                  d="M 400 300 L 428 300 Q 438 300 438 290 L 438 266 Q 438 256 448 256 L 852 256 Q 862 256 862 266 L 862 290 Q 862 300 852 300 L 400 300"
+                  d="M 400 300 L 852 300 Q 862 300 862 290 L 862 290 Q 862 280 852 280 L 400 280"
                   fill="none"
                   stroke="transparent"
                   stroke-width="16"
                 />
                 <path
-                  d="M 400 300 L 428 300 Q 438 300 438 290 L 438 266 Q 438 256 448 256 L 852 256 Q 862 256 862 266 L 862 290 Q 862 300 852 300 L 400 300"
+                  d="M 400 300 L 852 300 Q 862 300 862 290 L 862 290 Q 862 280 852 280 L 400 280"
                   fill="none"
                   stroke-width="1.5"
                   style="stroke: var(--vscode-foreground); transition: stroke 260ms ease;"
@@ -1134,7 +1134,7 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the Help Desk shape: help
                   height="32"
                   width="32"
                   x="866"
-                  y="160"
+                  y="140"
                 >
                   <div
                     style="display: flex; justify-content: center; align-items: center; height: 32px;"

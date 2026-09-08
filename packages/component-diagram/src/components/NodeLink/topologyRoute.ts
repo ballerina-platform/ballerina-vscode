@@ -16,6 +16,7 @@
  * under the License.
  */
 
+import { ARRIVAL_BOW_PX } from "../../resources/constants";
 import { TopologyLinkModel } from "./TopologyLinkModel";
 
 export interface Point {
@@ -24,13 +25,12 @@ export interface Point {
 }
 
 const CORNER_RADIUS = 10;
-const BOW_PX = 40;
 // Estimated card heights put ports a few px off; that close, the edge is drawn dead straight.
 const STRAIGHT_TOLERANCE = 8;
 
 export interface Route {
     points: Point[];
-    // The last leg into the target; chips sit on it.
+    // The leg chips sit on: the last one into the target, or the first one out of the source when the route heads back.
     run: [Point, Point];
 }
 
@@ -39,15 +39,18 @@ function toPoint(main: number, cross: number, vertical: boolean): Point {
 }
 
 // Flow axis to the bend, across, flow axis into the target; the bow moves only the leg into the target.
-// A layout that hands over several vias (a back edge wrapping around the cards) is drawn through all of them.
+// A layout that hands over several vias (a back edge wrapping around the cards, a long edge detouring) is
+// drawn through all of them; a wrap's chips label the leg leaving the source, since its last leg shares the
+// target's port with the forward arrivals.
 export function route(source: Point, target: Point, via: Point[], bow: number, vertical: boolean): Route {
     const main = (point: Point) => (vertical ? point.y : point.x);
     const cross = (point: Point) => (vertical ? point.x : point.y);
     if (via.length >= 2) {
         const first = toPoint(main(via[0]), cross(source), vertical);
-        const last = toPoint(main(via[via.length - 1]), cross(target), vertical);
-        const points = [source, first, ...via.slice(1, -1), last, target];
-        return { points, run: [last, target] };
+        const last = toPoint(main(via[via.length - 1]), cross(target) + bow, vertical);
+        const finish = toPoint(main(target), cross(target) + bow, vertical);
+        const points = [source, first, ...via.slice(1, -1), last, finish];
+        return { points, run: main(target) < main(source) ? [source, first] : [last, finish] };
     }
     const bend = via.length ? main(via[0]) : (main(source) + main(target)) / 2;
     const start = toPoint(main(source), cross(source), vertical);
@@ -99,7 +102,7 @@ export interface LinkChips {
 }
 
 export function linkRoute(link: TopologyLinkModel): Route & LinkChips {
-    const bow = link.bow * BOW_PX;
+    const bow = link.bow * ARRIVAL_BOW_PX;
     const drawn = route(link.getFirstPoint().getPosition(), link.getLastPoint().getPosition(), link.via, bow, link.vertical);
     const chipPoint = midpoint(drawn.run[0], drawn.run[1]);
     const pillPoint = link.vertical ? { x: chipPoint.x, y: chipPoint.y + bow } : chipPoint;

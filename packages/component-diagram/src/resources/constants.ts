@@ -76,3 +76,5 @@ export const SPLIT_GAP_Y_MIN = 280;
 // Vertical splits carry their label and loop header to the right; also keeps the triggers above them apart.
 export const SPLIT_LABEL_GAP_Y = 250;
 export const LAYOUT_FIT_MARGIN = 40;
+// How far apart, per step, edges that arrive at one node spread along its port side.
+export const ARRIVAL_BOW_PX = 40;

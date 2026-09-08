@@ -16,30 +16,84 @@
  * under the License.
  */
 
-import { TopologyFocus, TopologyGraph } from "./types";
+import { TopologyEdge, TopologyFocus, TopologyGraph } from "./types";
 
-type Direction = "in" | "out" | "both";
+// Which handlers an edge is part of; undefined for delegation, which runs whenever its source runs.
+type Handlers = Set<string> | undefined;
 
-// The whole flow through a node: everything upstream to the triggers that run it and everything downstream to
-// the leaves it reaches, split chains included. A node is visited once, so delegation cycles terminate.
+function intersect(a: Set<string>, b: Set<string>): Set<string> {
+    return new Set([...a].filter((item) => b.has(item)));
+}
+
+function handlerResolver(graph: TopologyGraph): (edge: TopologyEdge) => Handlers {
+    const triggerIds = new Set(graph.triggers.map((trigger) => trigger.id));
+    const splitTrigger = new Map(graph.splits.map((split) => [split.id, split.triggerId]));
+    return (edge) => {
+        if (edge.kind === "delegation") {
+            return undefined;
+        }
+        if (triggerIds.has(edge.sourceId)) {
+            return new Set([edge.sourceId]);
+        }
+        const split = splitTrigger.get(edge.sourceId) ?? splitTrigger.get(edge.targetId);
+        if (split) {
+            return new Set([split]);
+        }
+        const numbered = edge.chips.filter((chip) => chip.kind === "sequence" && chip.triggerId).map((chip) => chip.triggerId);
+        return numbered.length ? new Set(numbered) : undefined;
+    };
+}
+
+// The flow through a node, handler by handler: upstream to the triggers whose chains reach it (through the parents
+// that delegate to it too), then downstream along those handlers' chains only, and along every delegation. A chain
+// edge that belongs to another handler passing through the same card stays dark.
 export function focusAround(graph: TopologyGraph, id: string): TopologyFocus {
     const nodes = new Set([id]);
     const edges = new Set<string>();
-    const walk = (from: string, direction: Direction) => {
-        graph.edges.forEach((edge) => {
-            const outgoing = edge.sourceId === from && direction !== "in";
-            const incoming = edge.targetId === from && direction !== "out";
-            if (!outgoing && !incoming) {
+    const handlersOf = handlerResolver(graph);
+    const visited = new Set<string>();
+    const key = (node: string, allowed: Set<string> | "any", direction: string) =>
+        `${direction}|${node}|${allowed === "any" ? "*" : [...allowed].sort().join(",")}`;
+
+    const up = (node: string, allowed: Set<string> | "any"): void => {
+        if (visited.has(key(node, allowed, "up"))) {
+            return;
+        }
+        visited.add(key(node, allowed, "up"));
+        graph.edges.filter((edge) => edge.targetId === node && edge.sourceId !== node).forEach((edge) => {
+            const own = handlersOf(edge);
+            const next = own === undefined ? "any" : allowed === "any" ? own : intersect(allowed, own);
+            if (next !== "any" && next.size === 0) {
                 return;
             }
             edges.add(edge.id);
-            const next = outgoing ? edge.targetId : edge.sourceId;
-            if (!nodes.has(next)) {
-                nodes.add(next);
-                walk(next, outgoing ? "out" : "in");
+            nodes.add(edge.sourceId);
+            up(edge.sourceId, edge.kind === "delegation" ? "any" : next);
+        });
+    };
+
+    const down = (node: string, allowed: Set<string>): void => {
+        if (visited.has(key(node, allowed, "down"))) {
+            return;
+        }
+        visited.add(key(node, allowed, "down"));
+        graph.edges.filter((edge) => edge.sourceId === node).forEach((edge) => {
+            const own = handlersOf(edge);
+            const next = own === undefined ? new Set<string>() : intersect(allowed, own);
+            if (own !== undefined && next.size === 0) {
+                return;
+            }
+            edges.add(edge.id);
+            nodes.add(edge.targetId);
+            if (edge.targetId !== node) {
+                down(edge.targetId, next);
             }
         });
     };
-    walk(id, "both");
+
+    up(id, "any");
+    const triggerIds = new Set(graph.triggers.map((trigger) => trigger.id));
+    const runBy = new Set([...nodes].filter((node) => triggerIds.has(node)));
+    down(id, runBy);
     return { nodes, edges };
 }

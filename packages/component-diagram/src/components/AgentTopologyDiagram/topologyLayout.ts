@@ -18,6 +18,7 @@
 
 import {
     AGENT_CARD_MIN_HEIGHT,
+    ARRIVAL_BOW_PX,
     AGENT_CARD_WIDTH,
     LAYOUT_FIT_MARGIN,
     SPLIT_GAP_X_MIN,
@@ -47,6 +48,13 @@ const LANE_CLEARANCE = 28;
 const LANE_LEAD = 24;
 // How far past the cards a back edge (a delegation cycle) wraps around.
 const BACK_EDGE_CLEARANCE = 24;
+// A wrapped edge's pill sits on its first leg: room for the pill's estimated width across the flow (13 px UI text,
+// capped as the chip layer caps it) or its height along it, plus a margin at each end.
+const PILL_CHAR_WIDTH = 7.5;
+const PILL_PADDING = 24;
+const PILL_MAX_WIDTH = 250;
+const PILL_MARGIN = 16;
+const PILL_BOX_HEIGHT = 32;
 const BEND_OFFSET = 40;
 const BEND_STAGGER = 14;
 
@@ -122,6 +130,7 @@ interface Frame {
     vertical: boolean;
     crossGap: number;
     splitGap: number;
+    stem: number;
     extents: Record<string, Extent>;
     main(rank: number): number;
     splitMain(splitId: string): number;
@@ -243,11 +252,21 @@ function spreadArrivals(edges: TopologyEdge[]): Record<string, number> {
 
 // A delegation back to an earlier rank (or to the agent itself) leaves the source's out port, wraps
 // around below the cards and comes back into the target's in port.
+// The leg a wrapped edge needs before it turns, when its pill rides on that leg.
+function pillRun(edge: TopologyEdge, vertical: boolean): number {
+    const pill = edge.chips.find((chip) => chip.kind === "condition");
+    if (!pill) {
+        return 0;
+    }
+    const along = vertical ? PILL_BOX_HEIGHT : Math.min(PILL_MAX_WIDTH, pill.text.length * PILL_CHAR_WIDTH + PILL_PADDING);
+    return along + 2 * PILL_MARGIN;
+}
+
 function backEdgeVias(edge: TopologyEdge, frame: Frame, final: Placement, mainOf: (id: string) => number, offset: number): NodePosition[] {
     const mainSize = (id: string): number => (frame.vertical ? frame.extents[id].height : frame.extents[id].width);
     const place = (main: number, cross: number): NodePosition => (frame.vertical ? { x: cross, y: main } : { x: main, y: cross });
     const { sourceId: source, targetId: target } = edge;
-    const start = mainOf(source) + mainSize(source) + offset;
+    const start = mainOf(source) + mainSize(source) + Math.max(offset, pillRun(edge, frame.vertical));
     const finish = mainOf(target) - BEND_OFFSET;
     const clear = Math.max(final.cross.get(source) + final.sizes[source], final.cross.get(target) + final.sizes[target]) + BACK_EDGE_CLEARANCE;
     return [place(start, centre(source, final)), place(start, clear), place(finish, clear), place(finish, centre(target, final))];
@@ -293,7 +312,7 @@ function horizontalFrame(
         return x;
     };
     const splitMain = splitMainOf(graph, anchors, rank, main, (id) => extents[id].width, SPLIT_STEM_X, SPLIT_STEP_X);
-    return { vertical: false, crossGap: TOPOLOGY_GAP_Y, splitGap: TOPOLOGY_GAP_Y, extents, main, splitMain };
+    return { vertical: false, crossGap: TOPOLOGY_GAP_Y, splitGap: TOPOLOGY_GAP_Y, stem: SPLIT_STEM_X, extents, main, splitMain };
 }
 
 // Rows are as tall as their tallest card; a row with splits hanging off it leaves room for their stems and pills.
@@ -319,7 +338,7 @@ function verticalFrame(graph: TopologyGraph, cardHeights: Record<string, number>
         return offset;
     };
     const splitMain = splitMainOf(graph, anchors, rank, main, (id) => extents[id].height, SPLIT_STEM_Y, SPLIT_STEP_Y);
-    return { vertical: true, crossGap: TOPOLOGY_COLUMN_GAP, splitGap: SPLIT_LABEL_GAP_Y, extents, main, splitMain };
+    return { vertical: true, crossGap: TOPOLOGY_COLUMN_GAP, splitGap: SPLIT_LABEL_GAP_Y, stem: SPLIT_STEM_Y, extents, main, splitMain };
 }
 
 function mean(values: number[]): number {
@@ -338,9 +357,43 @@ function stack(ids: string[], placement: Placement): void {
     });
 }
 
-// Forward pass: each rank is ordered by where its parents sit, which keeps siblings together
-// and edges from crossing. Nodes with no parent (orphans) keep their built order at the end.
-function orderRanks(ranks: Map<number, string[]>, maxRank: number, parents: Adjacency, frame: Frame, sizes: Record<string, number>): Placement {
+// How a node is reached, by its first incoming edge: the chain of splits between it and its anchor (as
+// ordinals in creation order) and that edge's position, which follows the source order of the calls.
+interface Arrival {
+    path: number[];
+    order: number;
+}
+
+function arrivals(graph: TopologyGraph): Map<string, Arrival> {
+    const byId = new Map(graph.splits.map((split, ordinal) => [split.id, { split, ordinal }]));
+    const pathTo = (id: string): number[] => {
+        const entry = byId.get(id);
+        return entry ? [...pathTo(entry.split.parentId), entry.ordinal] : [];
+    };
+    const result = new Map<string, Arrival>();
+    graph.edges.forEach((edge, order) => {
+        if (!result.has(edge.targetId)) {
+            result.set(edge.targetId, { path: pathTo(edge.sourceId), order });
+        }
+    });
+    return result;
+}
+
+function comparePaths(a: number[], b: number[]): number {
+    const shared = Math.min(a.length, b.length);
+    for (let i = 0; i < shared; i++) {
+        if (a[i] !== b[i]) {
+            return a[i] - b[i];
+        }
+    }
+    return a.length - b.length;
+}
+
+// Forward pass: each rank is ordered by where its parents sit, which keeps siblings together and edges
+// from crossing; under one parent, nodes hanging from the same split chain stay adjacent and follow the
+// source order of their calls. Nodes with no parent (orphans) keep their built order at the end.
+function orderRanks(ranks: Map<number, string[]>, maxRank: number, parents: Adjacency, reached: Map<string, Arrival>, frame: Frame, sizes: Record<string, number>): Placement {
+    const none: Arrival = { path: [], order: Number.MAX_SAFE_INTEGER };
     const provisional: Placement = { cross: new Map(), sizes, gap: frame.crossGap };
     stack(ranks.get(0) ?? [], provisional);
     for (let r = 1; r <= maxRank; r++) {
@@ -349,7 +402,9 @@ function orderRanks(ranks: Map<number, string[]>, maxRank: number, parents: Adja
             const placed = (parents.get(id) ?? []).filter((parent) => provisional.cross.has(parent));
             return placed.length ? mean(placed.map((parent) => centre(parent, provisional))) : Number.MAX_SAFE_INTEGER;
         };
-        const ordered = ids.map((id, index) => ({ id, index, key: key(id) })).sort((a, b) => a.key - b.key || a.index - b.index);
+        const ordered = ids
+            .map((id, index) => ({ id, index, key: key(id), via: reached.get(id) ?? none }))
+            .sort((a, b) => a.key - b.key || comparePaths(a.via.path, b.via.path) || a.via.order - b.via.order || a.index - b.index);
         ranks.set(r, ordered.map((item) => item.id));
         stack(ranks.get(r), provisional);
     }
@@ -449,27 +504,42 @@ function straightenUnderParents(ranks: Map<number, string[]>, parents: Adjacency
     });
 }
 
-// A long edge keeps its target's cross position when nothing in the skipped ranks sits there; otherwise it
-// detours above or below the cards it would cross, whichever side its target is nearer, one lane per edge.
+// Where a long edge may run across the ranks it skips: at its arrival's cross position (straight in), along its
+// source's (one turn before the target), or through a lane the skipped cards leave free: the gaps between them and
+// the space beyond the first and last, staggered per edge. The first free lane by travel wins.
 function longEdgeVias(
     edge: TopologyEdge,
     skipped: string[],
     lane: { count: number },
     final: Placement,
     bends: { first: number; last: number },
-    place: (main: number, cross: number) => NodePosition
+    place: (main: number, cross: number) => NodePosition,
+    arrival: number
 ): NodePosition[] {
-    const target = centre(edge.targetId, final);
-    const blocked = skipped.some((id) => target > final.cross.get(id) - LANE_CLEARANCE && target < final.cross.get(id) + final.sizes[id] + LANE_CLEARANCE);
-    if (!blocked) {
-        return [place(bends.first, target)];
+    const source = centre(edge.sourceId, final);
+    const blocked = (cross: number): boolean =>
+        skipped.some((id) => cross > final.cross.get(id) - LANE_CLEARANCE && cross < final.cross.get(id) + final.sizes[id] + LANE_CLEARANCE);
+    if (!blocked(arrival)) {
+        return [place(bends.first, arrival)];
     }
-    const top = Math.min(...skipped.map((id) => final.cross.get(id)));
-    const bottom = Math.max(...skipped.map((id) => final.cross.get(id) + final.sizes[id]));
-    const offset = LANE_CLEARANCE + lane.count * BEND_STAGGER;
+    if (!blocked(source)) {
+        return [place(bends.last, source), place(bends.last, arrival)];
+    }
+    const offset = lane.count * BEND_STAGGER;
     lane.count += 1;
-    const cross = target <= (top + bottom) / 2 ? top - offset : bottom + offset;
-    return [place(bends.first, centre(edge.sourceId, final)), place(bends.first, cross), place(bends.last, cross), place(bends.last, target)];
+    const travel = (cross: number): number => Math.abs(source - cross) + Math.abs(cross - arrival);
+    const cross = freeLanes(skipped, final, offset)
+        .filter((candidate) => !blocked(candidate))
+        .sort((a, b) => travel(a) - travel(b))[0];
+    return [place(bends.first, source), place(bends.first, cross), place(bends.last, cross), place(bends.last, arrival)];
+}
+
+// The lanes past the skipped cards: the middle of each gap between neighbours, and the clearance beyond both ends.
+function freeLanes(skipped: string[], final: Placement, offset: number): number[] {
+    const sorted = [...skipped].sort((a, b) => final.cross.get(a) - final.cross.get(b));
+    const bottomOf = (id: string): number => final.cross.get(id) + final.sizes[id];
+    const gaps = sorted.slice(1).map((id, i) => (bottomOf(sorted[i]) + final.cross.get(id)) / 2 + offset);
+    return [final.cross.get(sorted[0]) - LANE_CLEARANCE - offset, bottomOf(sorted[sorted.length - 1]) + LANE_CLEARANCE + offset, ...gaps];
 }
 
 // Split layers by their flow position, innermost (furthest along) first, so each split is placed after
@@ -504,7 +574,7 @@ export function layoutTopology(graph: TopologyGraph, options: LayoutOptions = {}
     const mainOf = (id: string): number => (splitIds.has(id) ? frame.splitMain(id) : frame.main(rank.get(id) ?? 1));
 
     const sizes = crossSizes(frame);
-    const provisional = orderRanks(ranks, maxRank, adjacency(edges, "targetId", "sourceId"), frame, sizes);
+    const provisional = orderRanks(ranks, maxRank, adjacency(edges, "targetId", "sourceId"), arrivals(graph), frame, sizes);
     const final: Placement = { cross: new Map(), sizes, gap: frame.crossGap };
     // Each rank is placed after the rank it feeds; the splits hanging off it come first, innermost first,
     // so every node is centred on what it fans out to. Triggers go last.
@@ -531,11 +601,12 @@ export function layoutTopology(graph: TopologyGraph, options: LayoutOptions = {}
     const offsets = bendOffsets([...ranks.values(), ...splitLayers], final);
     const longIds = new Set(longEdges.map((edge) => edge.id));
     const vias = new Map<string, NodePosition[]>();
-    // A split shares its anchor's rank, so a stem into it is never a back edge.
-    const isBackEdge = (edge: TopologyEdge): boolean => !splitIds.has(edge.sourceId) && !splitIds.has(edge.targetId) && rank.get(edge.targetId) <= rank.get(edge.sourceId);
+    // A split shares its anchor's rank, so the stem into it is never a back edge; an edge leaving it back to an earlier rank is.
+    const isBackEdge = (edge: TopologyEdge): boolean => !splitIds.has(edge.targetId) && rank.get(edge.targetId) <= rank.get(edge.sourceId);
     const skippedBy = (edge: TopologyEdge): string[] =>
         [...ranks.entries()].filter(([r]) => r > rank.get(edge.sourceId) && r < rank.get(edge.targetId)).flatMap(([, ids]) => ids);
     const lane = { count: 0 };
+    const edgeBows = spreadArrivals(graph.edges.filter((edge) => !isBackEdge(edge)));
     graph.edges.forEach((edge) => {
         const source = edge.sourceId;
         if (isBackEdge(edge)) {
@@ -544,14 +615,17 @@ export function layoutTopology(graph: TopologyGraph, options: LayoutOptions = {}
         }
         if (longIds.has(edge.id)) {
             const bends = { first: frame.main(rank.get(source) + 1) - LANE_LEAD, last: mainOf(edge.targetId) - BEND_OFFSET };
-            vias.set(edge.id, longEdgeVias(edge, skippedBy(edge), lane, final, bends, place));
+            const arrival = centre(edge.targetId, final) + (edgeBows[edge.id] ?? 0) * ARRIVAL_BOW_PX;
+            vias.set(edge.id, longEdgeVias(edge, skippedBy(edge), lane, final, bends, place, arrival));
             return;
         }
         const extent = frame.extents[source];
-        const bend = mainOf(source) + (frame.vertical ? extent.height : extent.width) + offsets.get(source);
+        // A stem is the only edge between its source and the split, so it turns halfway along instead of at a
+        // staggered bend that can land inside the split.
+        const past = edge.kind === "stem" ? frame.stem / 2 : offsets.get(source);
+        const bend = mainOf(source) + (frame.vertical ? extent.height : extent.width) + past;
         vias.set(edge.id, [place(bend, centre(source, final))]);
     });
-    const edgeBows = spreadArrivals(graph.edges.filter((edge) => !isBackEdge(edge)));
     return { ...collectLayout(graph, positions, vias, frame, cardHeights), edgeBows };
 }
 

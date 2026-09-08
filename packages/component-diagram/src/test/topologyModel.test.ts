@@ -315,6 +315,99 @@ describe("buildTopology", () => {
         expect(graph.splits[0].parentId).toBe(agentId(AGENTS_BAL, 1));
     });
 
+    it("chains the steps inside a loop body: the If hangs off the agent before it and both are numbered (event_pipeline shape)", () => {
+        const enrich = agentConnection("e", "enrichAgent", AGENTS_BAL, 1);
+        const escalate = agentConnection("s", "escalateAgent", AGENTS_BAL, 5);
+        const archive = agentConnection("a", "archiveAgent", AGENTS_BAL, 9);
+        const loop = { kind: "foreach" as const, id: "L", label: "rec in records" };
+        const route = (label: string) => ({ kind: "if" as const, id: "I", label });
+        const fn = resourceFn("post", "events", SERVICES_BAL, 1, ["e", "s", "a"], [
+            { connection: "e", line: 3, groups: [loop] },
+            { connection: "s", line: 5, groups: [loop, route('enriched.includes("high")')] },
+            { connection: "a", line: 7, groups: [loop, route("else")] },
+        ]);
+        const svc = service(SERVICES_BAL, 1, "kafka:Service", "", ["e", "s", "a"], [fn]);
+        const graph = buildTopology({
+            model: modelOf([enrich, escalate, archive], [svc]),
+            agents: [artifact("archiveAgent", AGENTS_BAL, 9), artifact("enrichAgent", AGENTS_BAL, 1), artifact("escalateAgent", AGENTS_BAL, 5)],
+        });
+
+        const triggerId = graph.triggers[0].id;
+        const loopId = `${triggerId}::L`;
+        const ifId = `${triggerId}::I`;
+        const edge = (sourceId: string, targetId: string) => graph.edges.find((e) => e.sourceId === sourceId && e.targetId === targetId);
+        const chip = (e: TopologyEdge) => e.chips.find((c) => c.kind === "sequence");
+        const steps = ["enrichAgent", "If"];
+        expect(edge(triggerId, loopId).chips).toEqual([]);
+        expect(chip(edge(loopId, agentId(AGENTS_BAL, 1)))).toEqual(expect.objectContaining({ text: "1", steps }));
+        expect(edge(agentId(AGENTS_BAL, 1), ifId).kind).toBe("stem");
+        expect(chip(edge(agentId(AGENTS_BAL, 1), ifId))).toEqual(expect.objectContaining({ text: "2", steps }));
+        expect(edge(ifId, agentId(AGENTS_BAL, 5)).chips).toEqual([{ kind: "condition", text: 'enriched.includes("high")' }]);
+        expect(edge(ifId, agentId(AGENTS_BAL, 9)).chips).toEqual([{ kind: "condition", text: "else" }]);
+        expect(graph.splits.find((split) => split.id === ifId)).toMatchObject({ parentId: agentId(AGENTS_BAL, 1), depth: 1 });
+        expect(graph.edges.filter((e) => e.sourceId === loopId)).toHaveLength(1);
+    });
+
+    it("numbers the steps inside a numbered split after it: outline ①, Foreach ②, then 2.1 and 2.2 in its body", () => {
+        const outline = agentConnection("o", "outlineAgent", AGENTS_BAL, 1);
+        const draft = agentConnection("d", "draftAgent", AGENTS_BAL, 5);
+        const polish = agentConnection("p", "polishAgent", AGENTS_BAL, 9);
+        const loop = { kind: "foreach" as const, id: "L", label: "section in sections" };
+        const fn = resourceFn("post", "book", SERVICES_BAL, 1, ["o", "d", "p"], [
+            { connection: "o", line: 2, groups: [] },
+            { connection: "d", line: 4, groups: [loop] },
+            { connection: "p", line: 5, groups: [loop] },
+        ]);
+        const svc = service(SERVICES_BAL, 1, "http:Service", "/books", ["o", "d", "p"], [fn]);
+        const graph = buildTopology({
+            model: modelOf([outline, draft, polish], [svc]),
+            agents: [artifact("outlineAgent", AGENTS_BAL, 1), artifact("draftAgent", AGENTS_BAL, 5), artifact("polishAgent", AGENTS_BAL, 9)],
+        });
+
+        const triggerId = graph.triggers[0].id;
+        const loopId = `${triggerId}::L`;
+        const number = (sourceId: string, targetId: string) =>
+            graph.edges.find((e) => e.sourceId === sourceId && e.targetId === targetId).chips.find((c) => c.kind === "sequence");
+        expect(number(triggerId, agentId(AGENTS_BAL, 1))).toEqual(expect.objectContaining({ text: "1", steps: ["outlineAgent", "Foreach"] }));
+        expect(number(agentId(AGENTS_BAL, 1), loopId)).toEqual(expect.objectContaining({ text: "2" }));
+        expect(number(loopId, agentId(AGENTS_BAL, 5))).toEqual(expect.objectContaining({ text: "2.1", steps: ["draftAgent", "polishAgent"] }));
+        expect(number(agentId(AGENTS_BAL, 5), agentId(AGENTS_BAL, 9))).toEqual(expect.objectContaining({ text: "2.2" }));
+    });
+
+    it("draws an agent that hands off to itself with a self-delegation edge", () => {
+        const loop = agentConnection("l", "loopAgent", AGENTS_BAL, 1, { delegatesTo: ["l"] });
+        const graph = buildTopology({ model: modelOf([loop], []), agents: [artifact("loopAgent", AGENTS_BAL, 1)] });
+
+        const self = agentId(AGENTS_BAL, 1);
+        expect(graph.edges).toEqual([expect.objectContaining({ id: `${self}=>${self}`, sourceId: self, targetId: self, kind: "delegation" })]);
+        expect(graph.agents[0].orphan).toBe(true);
+    });
+
+    it("draws an agent a handler reaches only through a helper as a plain edge beside its direct calls (helper_chains shape)", () => {
+        const editor = agentConnection("e", "editorAgent", AGENTS_BAL, 1);
+        const writer = agentConnection("w", "writerAgent", AGENTS_BAL, 5);
+        const review = resourceFn("post", "review", SERVICES_BAL, 1, ["e", "w"], [{ connection: "e", line: 2 }]);
+        const svc = service(SERVICES_BAL, 1, "http:Service", "/articles", ["e", "w"], [review]);
+        const graph = buildTopology({ model: modelOf([editor, writer], [svc]), agents: [artifact("editorAgent", AGENTS_BAL, 1), artifact("writerAgent", AGENTS_BAL, 5)] });
+
+        const triggerId = graph.triggers[0].id;
+        expect(graph.edges.map((e) => [e.sourceId, e.targetId, e.chips.length])).toEqual([
+            [triggerId, agentId(AGENTS_BAL, 1), 0],
+            [triggerId, agentId(AGENTS_BAL, 5), 0],
+        ]);
+    });
+
+    it("keeps an agent reached only through another agent's tool off the trigger even when the handler has direct calls", () => {
+        const ceo = agentConnection("c", "ceoAgent", AGENTS_BAL, 1, { delegatesTo: ["m"] });
+        const manager = agentConnection("m", "managerAgent", AGENTS_BAL, 5);
+        const chat = resourceFn("post", "chat", SERVICES_BAL, 1, ["c", "m"], [{ connection: "c", line: 2 }]);
+        const svc = service(SERVICES_BAL, 1, "http:Service", "/org", ["c", "m"], [chat]);
+        const graph = buildTopology({ model: modelOf([ceo, manager], [svc]), agents: [artifact("ceoAgent", AGENTS_BAL, 1), artifact("managerAgent", AGENTS_BAL, 5)] });
+
+        expect(graph.edges.filter((e) => e.kind === "trigger").map((e) => e.targetId)).toEqual([agentId(AGENTS_BAL, 1)]);
+        expect(graph.agents.find((a) => a.name === "managerAgent").orphan).toBe(false);
+    });
+
     it("draws a step two handlers share once, with both handlers' numbers", () => {
         const draft = agentConnection("d", "draftAgent", AGENTS_BAL, 1);
         const check = agentConnection("c", "factCheckAgent", AGENTS_BAL, 5);

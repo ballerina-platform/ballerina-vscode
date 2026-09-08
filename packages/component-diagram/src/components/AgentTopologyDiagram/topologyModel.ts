@@ -270,12 +270,12 @@ function isLoop(kind: SplitKind): boolean {
 }
 
 // If and match label the edge leaving them with the branch; a loop's header sits under its node instead.
-function branchChips(group: CDAgentCallGroup | undefined): EdgeChip[] {
-    return group && (group.kind === "if" || group.kind === "match") ? [{ kind: "condition", text: group.label }] : [];
+function branchChips(group: CDAgentCallGroup): EdgeChip[] {
+    return (group.kind === "if" || group.kind === "match") ? [{ kind: "condition", text: group.label }] : [];
 }
 
-function sequenceChip(step: number, steps: string[]): EdgeChip {
-    return { kind: "sequence", text: String(step), steps };
+function sequenceChip(text: string, steps: string[]): EdgeChip {
+    return { kind: "sequence", text, steps };
 }
 
 // Two conditions that lead to the same agent share one pill; two handlers that run the same step keep both numbers.
@@ -308,41 +308,52 @@ function mergeDuplicateEdges(edges: TopologyEdge[]): TopologyEdge[] {
     return [...byId.values()];
 }
 
-// The handler's top-level steps, in order, chained one after the other: a plain call hangs off the
-// previous step (agent or split), a construct's split does too, and the call after a split leaves the
-// split as its continuation. Each step's incoming edge carries its sequence number when there are two or more.
+// One construct body, or the handler itself: its steps chain one after the other from its entry.
+interface Body {
+    entry: string;
+    branch: EdgeChip[];
+    steps: string[];
+    entryEdge: Map<string, string>;
+    lastStep?: string;
+}
+
+// The handler's steps, chained within each body: a plain call hangs off the body's previous step (agent
+// or split), a construct's split does too and opens a body of its own, and the call after a split leaves
+// the split as its continuation. Each step's incoming edge carries its number when its body has two or more.
 class HandlerBuilder {
     readonly edges = new Map<string, TopologyEdge>();
     readonly splits = new Map<string, TopologySplitNode>();
-    readonly topLevel: string[] = [];
-    private readonly entryEdge = new Map<string, string>();
-    private lastStep: string | undefined;
+    private readonly bodies = new Map<string, Body>();
 
-    constructor(private readonly triggerId: string, private readonly names: Map<string, string>) {}
-
-    // Walks the call's enclosing constructs, outermost first, creating a split per construct and the
-    // edges between them; the last edge reaches the agent.
-    addCall(agentId: string, groups: CDAgentCallGroup[]): void {
-        if (groups.length === 0) {
-            this.addPlainStep(agentId);
-            return;
-        }
-        let parentId = this.lastStep ?? this.triggerId;
-        groups.forEach((group, index) => {
-            const split = this.splitFor(group, parentId);
-            const stem = this.addEdge(split.parentId, split.id, "stem", branchChips(groups[index - 1]));
-            if (index === 0) {
-                this.addStep(split.id, stem);
-                this.lastStep = split.id;
-            }
-            parentId = split.id;
-        });
-        this.addEdge(parentId, agentId, "trigger", branchChips(groups[groups.length - 1]));
+    constructor(private readonly triggerId: string, private readonly names: Map<string, string>) {
+        this.bodies.set("", { entry: triggerId, branch: [], steps: [], entryEdge: new Map() });
     }
 
-    private splitFor(group: CDAgentCallGroup, parentId: string): TopologySplitNode {
+    // Walks the call's enclosing constructs, outermost first: each split is a step of the body around it,
+    // the agent a step of the innermost body.
+    addCall(agentId: string, groups: CDAgentCallGroup[]): void {
+        let body = this.bodies.get("");
+        let key = "";
+        groups.forEach((group) => {
+            const split = this.splitFor(group, body);
+            this.addStep(body, split.id, "stem");
+            key = `${key}/${group.id}:${group.label}`;
+            body = this.bodyFor(key, split.id, branchChips(group));
+        });
+        this.addStep(body, agentId, "trigger");
+    }
+
+    private bodyFor(key: string, entry: string, branch: EdgeChip[]): Body {
+        if (!this.bodies.has(key)) {
+            this.bodies.set(key, { entry, branch, steps: [], entryEdge: new Map() });
+        }
+        return this.bodies.get(key);
+    }
+
+    private splitFor(group: CDAgentCallGroup, body: Body): TopologySplitNode {
         const id = `${this.triggerId}::${group.id}`;
         if (!this.splits.has(id)) {
+            const parentId = body.lastStep ?? body.entry;
             const parent = this.splits.get(parentId);
             this.splits.set(id, {
                 id,
@@ -356,21 +367,16 @@ class HandlerBuilder {
         return this.splits.get(id);
     }
 
-    // A plain call chains from the previous step; an agent already stepped is not drawn again.
-    private addPlainStep(agentId: string): void {
-        if (this.topLevel.includes(agentId)) {
+    // The edge leaving the body's own split carries its branch; a step already in the body is not drawn again.
+    private addStep(body: Body, id: string, kind: TopologyEdgeKind): void {
+        if (body.steps.includes(id)) {
             return;
         }
-        const edge = this.addEdge(this.lastStep ?? this.triggerId, agentId, "trigger", []);
-        this.addStep(agentId, edge);
-        this.lastStep = agentId;
-    }
-
-    private addStep(id: string, entry: TopologyEdge): void {
-        if (!this.topLevel.includes(id)) {
-            this.topLevel.push(id);
-            this.entryEdge.set(id, entry.id);
-        }
+        const sourceId = body.lastStep ?? body.entry;
+        const edge = this.addEdge(sourceId, id, kind, sourceId === body.entry ? body.branch : []);
+        body.steps.push(id);
+        body.entryEdge.set(id, edge.id);
+        body.lastStep = id;
     }
 
     private addEdge(sourceId: string, targetId: string, kind: TopologyEdgeKind, chips: EdgeChip[]): TopologyEdge {
@@ -385,14 +391,20 @@ class HandlerBuilder {
         return existing;
     }
 
-    // Two or more steps run in order: number the edge into each one.
-    numberTopLevel(): void {
-        if (this.topLevel.length < 2) {
-            return;
-        }
-        const steps = this.topLevel.map((id) => this.names.get(id) ?? SPLIT_LABEL[this.splits.get(id).kind]);
-        this.topLevel.forEach((id, index) => {
-            this.edges.get(this.entryEdge.get(id)).chips.unshift(sequenceChip(index + 1, steps));
+    // A body with two or more steps runs them in order: number the edge into each one. Bodies come outermost
+    // first, so the steps inside a numbered split carry its number ahead of their own (2.1, 2.2).
+    numberSteps(): void {
+        const numberOf = new Map<string, string>();
+        this.bodies.forEach((body) => {
+            if (body.steps.length < 2) {
+                return;
+            }
+            const prefix = numberOf.has(body.entry) ? `${numberOf.get(body.entry)}.` : "";
+            const steps = body.steps.map((id) => this.names.get(id) ?? SPLIT_LABEL[this.splits.get(id).kind]);
+            body.steps.forEach((id, index) => {
+                numberOf.set(id, `${prefix}${index + 1}`);
+                this.edges.get(body.entryEdge.get(id)).chips.unshift(sequenceChip(numberOf.get(id), steps));
+            });
         });
     }
 }
@@ -412,26 +424,27 @@ function buildHandlerEdges(
     const calls = (agentCalls ?? [])
         .map((call) => ({ agentId: uuidToNodeId.get(call.connection), groups: call.groups ?? [] }))
         .filter((call): call is ResolvedCall => call.agentId !== undefined);
-    if (calls.length === 0) {
-        const edges = agentIds.map((agentId) => ({ id: `${triggerId}->${agentId}`, sourceId: triggerId, targetId: agentId, kind: "trigger" as const, chips: [] }));
-        return { edges, splits: [] };
-    }
     const builder = new HandlerBuilder(triggerId, names);
     calls.forEach((call) => builder.addCall(call.agentId, call.groups));
-    builder.numberTopLevel();
-    return { edges: [...builder.edges.values()], splits: [...builder.splits.values()] };
+    builder.numberSteps();
+    // An agent reached only through a helper runs at an unknown point: a plain edge from the trigger, no number.
+    const stepped = new Set([...builder.edges.values()].map((edge) => edge.targetId));
+    const helped = agentIds
+        .filter((agentId) => !stepped.has(agentId))
+        .map((agentId) => ({ id: `${triggerId}->${agentId}`, sourceId: triggerId, targetId: agentId, kind: "trigger" as const, chips: [] }));
+    return { edges: [...builder.edges.values(), ...helped], splits: [...builder.splits.values()] };
 }
 
 function collectAgentUuids(fn: { connections?: string[] }, uuidToNodeId: Map<string, string>): string[] {
     return (fn.connections ?? []).filter((uuid) => uuidToNodeId.has(uuid));
 }
 
-function directAgentUuids(fn: AgentCallSite, uuidToNodeId: Map<string, string>, delegated: Set<string>): string[] {
+// The agents a handler runs: its direct calls first, then those it reaches only through helper functions. An agent
+// reached through another agent's tool is delegation, not a trigger, so the fold's delegates are left out.
+function triggeredAgentUuids(fn: AgentCallSite, uuidToNodeId: Map<string, string>, delegated: Set<string>): string[] {
     const called = (fn.agentCalls ?? []).map((call) => call.connection).filter((uuid) => uuidToNodeId.has(uuid));
-    if (called.length > 0) {
-        return [...new Set(called)];
-    }
-    return collectAgentUuids(fn, uuidToNodeId).filter((uuid) => !delegated.has(uuid));
+    const reached = collectAgentUuids(fn, uuidToNodeId).filter((uuid) => !delegated.has(uuid));
+    return [...new Set([...called, ...reached])];
 }
 
 function delegatedAgentUuids(model: CDModel): Set<string> {
@@ -466,7 +479,7 @@ function buildTriggerFromFunction(
     edges: TopologyEdge[],
     splits: TopologySplitNode[]
 ): TopologyTriggerNode | undefined {
-    const agentUuids = directAgentUuids(fn, uuidToNodeId, delegated);
+    const agentUuids = triggeredAgentUuids(fn, uuidToNodeId, delegated);
     if (agentUuids.length === 0) {
         return undefined;
     }
@@ -542,7 +555,7 @@ function buildDelegationEdges(model: CDModel, uuidToNodeId: Map<string, string>)
         const delegateUuids = new Set([...(connection.delegatesTo ?? []), ...(connection.dependentConnection ?? [])]);
         for (const uuid of delegateUuids) {
             const targetId = uuidToNodeId.get(uuid);
-            if (!targetId || targetId === sourceId) {
+            if (!targetId) {
                 continue;
             }
             edges.push({ id: `${sourceId}=>${targetId}`, sourceId, targetId, kind: "delegation", chips: [] });
