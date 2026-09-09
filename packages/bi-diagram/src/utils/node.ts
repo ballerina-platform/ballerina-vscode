@@ -459,6 +459,18 @@ export function getNodeTitle(node: FlowNode) {
     return label;
 }
 
+// getFlowModel always requests forceAssign, so properties.variable can carry a suggested name that
+// doesn't match the source — for a discard (`_ = ...`) or a plain reassignment to an existing variable
+// (`draft = ...`, no type). The statement's own source is the ground truth for what it assigns to.
+export function getResultVariableName(node: FlowNode): string | undefined {
+    const source = node.codedata?.sourceCode?.trim();
+    const lhs = source?.match(/^([^=]*)=[^=]/)?.[1]?.trim();
+    if (!lhs) {
+        return node.properties?.variable?.value as string | undefined;
+    }
+    return lhs.split(/\s+/).pop();
+}
+
 export function getRawTemplate(text: string) {
     const rawTemplateRegex = /^`.+$`/
     const isRawTemplate = text.match(rawTemplateRegex)?.[0];

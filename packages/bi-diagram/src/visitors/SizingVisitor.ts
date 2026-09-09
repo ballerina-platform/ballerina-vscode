@@ -335,13 +335,9 @@ export class SizingVisitor implements BaseVisitor {
 
     endVisitAgentCall(node: FlowNode, parent?: FlowNode): void {
         if (!this.validateNode(node)) return;
-        const nodeWidth = NODE_WIDTH;
-        const halfNodeWidth = nodeWidth / 2;
-        const containerLeftWidth = halfNodeWidth;
-        const containerRightWidth = halfNodeWidth + NODE_GAP_X + NODE_HEIGHT + LABEL_HEIGHT + LABEL_WIDTH;
-
+        const halfNodeWidth = NODE_WIDTH / 2;
         const containerHeight = getAgentNodeContainerHeight(node, NodeTypes.AGENT_CALL_NODE);
-        this.setNodeSize(node, containerLeftWidth, containerRightWidth, containerHeight);
+        this.setNodeSize(node, halfNodeWidth, halfNodeWidth, containerHeight);
     }
 
     endVisitAgentRun(node: FlowNode, parent?: FlowNode): void {

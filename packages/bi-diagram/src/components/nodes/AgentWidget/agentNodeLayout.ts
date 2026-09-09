@@ -18,8 +18,8 @@
 
 import { NodeMetadata } from "@wso2/ballerina-core";
 import {
-    AGENT_CALL_TOOL_SECTION_GAP,
     AGENT_NODE_ADD_TOOL_BUTTON_WIDTH,
+    AGENT_CALL_REFERENCE_HEIGHT,
     AGENT_NODE_TOOL_GAP,
     AGENT_NODE_TOOL_SECTION_GAP,
     NODE_HEIGHT,
@@ -38,8 +38,7 @@ const layoutStrategies = {
         const descriptionHeight = hasPrompt ? 115 : agentInfo?.description ? 95 : 0;
         return Math.max(NODE_HEIGHT + memoryHeight + descriptionHeight, NODE_HEIGHT + AGENT_NODE_TOOL_SECTION_GAP + toolHeight);
     },
-    [NodeTypes.AGENT_CALL_NODE]: (toolHeight: number) => NODE_HEIGHT + AGENT_CALL_TOOL_SECTION_GAP
-        + AGENT_NODE_TOOL_GAP * 2 + 38 + toolHeight,
+    [NodeTypes.AGENT_CALL_NODE]: () => NODE_HEIGHT + AGENT_CALL_REFERENCE_HEIGHT,
 } satisfies Record<AgentWidgetType, (toolHeight: number, agentInfo?: NodeMetadata["agentInfo"]) => number>;
 
 export function getAgentNodeContainerHeight(node: FlowNode, type: AgentWidgetType): number {

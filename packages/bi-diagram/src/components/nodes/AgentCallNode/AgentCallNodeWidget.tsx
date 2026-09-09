@@ -16,49 +16,36 @@
  * under the License.
  */
 /** @jsxImportSource @emotion/react */
-import React, { ReactNode, useState } from "react";
+import React from "react";
 import styled from "@emotion/styled";
 import { DiagramEngine, PortWidget } from "@projectstorm/react-diagrams-core";
 import { AgentCallNodeModel } from "./AgentCallNodeModel";
 import {
-    AGENT_CALL_AGENT_ROW_HEIGHT,
-    AGENT_CALL_TOOL_SECTION_GAP,
-    AGENT_NODE_TOOL_GAP,
     DRAFT_NODE_BORDER_WIDTH,
     NODE_BG_BREAKPOINT_COLOR,
     NODE_BORDER_ERROR_COLOR,
-    LABEL_HEIGHT,
-    LABEL_WIDTH,
-    LINK_COLOR,
     NODE_BG_COLOR,
     NODE_BG_HOVER_COLOR,
     NODE_HOVER_GLOW,
     NODE_BORDER_COLOR,
     NODE_BORDER_SELECTED_COLOR,
     NODE_BORDER_WIDTH,
-    NODE_GAP_X,
     NODE_HEIGHT,
     NODE_PADDING,
     NODE_TEXT_COLOR,
     NODE_WIDTH,
-    NodeTypes,
 } from "../../../resources/constants";
-import { Button, Icon, Item, Menu, MenuItem, Popover, ThemeColors, Tooltip, getAIModuleIcon, DefaultLlmIcon } from "@wso2/ui-toolkit";
+import { Button, Icon, Item, Menu, MenuItem, Popover, ThemeColors } from "@wso2/ui-toolkit";
 import { MoreVertIcon } from "../../../resources/icons";
 import { FlowNode, ToolData } from "../../../utils/types";
 import NodeIcon, { ThemeListener } from "../../NodeIcon";
-import ConnectorIcon from "../../ConnectorIcon";
 import { DiagnosticsPopUp } from "../../DiagnosticsPopUp";
-import { getDiffContainerStyles, getDiffTitleStyles, nodeHasError } from "../../../utils/node";
+import { getDiffContainerStyles, getDiffTitleStyles, getResultVariableName, nodeHasError } from "../../../utils/node";
 import { css } from "@emotion/react";
 import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
-import { NodeMetadata, isDefaultModelProviderExpr } from "@wso2/ballerina-core";
-import ReactMarkdown from "react-markdown";
-
-import { flowDashAnimation, sanitizeAgentData, sanitizeId } from "../agentNodeUtils";
-import { getAgentNodeContainerHeight } from "../AgentWidget/agentNodeLayout";
+import { NodeMetadata } from "@wso2/ballerina-core";
+import { sanitizeAgentData } from "../agentNodeUtils";
 import { useAgentNodeController } from "../AgentWidget/useAgentNodeController";
-import { ApprovalBadge } from "../AgentWidget/ApprovalBadge";
 
 export namespace NodeStyles {
     export const Node = styled.div<{ readOnly: boolean }>`
@@ -159,62 +146,6 @@ export namespace NodeStyles {
         margin-top: -2px;
     `;
 
-    const MarkdownContent = styled.div`
-        font-size: 12px;
-        line-height: 1.4;
-        width: 100%;
-
-        p { margin: 0 0 0.3em 0; padding: 0; }
-        p:last-child { margin-bottom: 0; }
-        h1, h2, h3, h4, h5, h6 { margin: 0.4em 0 0.2em 0; padding: 0; font-weight: 600; }
-        h1:first-child, h2:first-child, h3:first-child, h4:first-child, h5:first-child, h6:first-child { margin-top: 0; }
-        h1, h2, h3, h4, h5, h6 { font-size: 12px; }
-        ul, ol { margin: 0.3em 0; padding-left: 1.2em; }
-        ul:first-child, ol:first-child { margin-top: 0; }
-        ul:last-child, ol:last-child { margin-bottom: 0; }
-        li { margin: 0 0 0.1em 0; }
-        li:last-child { margin-bottom: 0; }
-        code { background-color: rgba(127, 127, 127, 0.1); padding: 1px 3px; border-radius: 2px; font-size: 11px; }
-        pre { margin: 0.3em 0; padding: 4px; background-color: rgba(127, 127, 127, 0.1); border-radius: 2px; overflow-x: auto; }
-        pre:first-child { margin-top: 0; }
-        pre:last-child { margin-bottom: 0; }
-        pre code { background-color: transparent; padding: 0; }
-        blockquote { margin: 0.3em 0; padding-left: 8px; border-left: 2px solid ${ThemeColors.OUTLINE_VARIANT}; }
-        blockquote:first-child { margin-top: 0; }
-        blockquote:last-child { margin-bottom: 0; }
-    `;
-
-    export const Role = styled(MarkdownContent)`
-        color: ${LINK_COLOR};
-        font-family: "GilmerMedium";
-        font-weight: bold;
-        padding: 0 4px;
-        overflow: hidden;
-        display: -webkit-box;
-        -webkit-line-clamp: 1;
-        -webkit-box-orient: vertical;
-
-        p { display: inline; margin: 0; }
-    `;
-
-    export const Instructions = styled(MarkdownContent)`
-        color: ${NODE_TEXT_COLOR};
-        opacity: 0.7;
-        overflow: hidden;
-        height: 100%;
-        max-height: calc(100% - 5px);
-        padding: 0 4px 4px;
-    `;
-
-    export const InstructionsRow = styled.div<{ readOnly: boolean }>`
-        flex: 1;
-        overflow: hidden;
-        align-items: flex-start;
-        margin-bottom: 6px;
-        cursor: ${(props: { readOnly: boolean }) => (props.readOnly ? "default" : "pointer")};
-        z-index: 2;
-    `;
-
     export const Row = styled.div<{ readOnly: boolean }>`
         display: flex;
         flex-direction: row;
@@ -230,9 +161,9 @@ export namespace NodeStyles {
         flex-direction: column;
         justify-content: flex-start;
         align-items: flex-start;
-        gap: 8px;
+        gap: 10px;
         width: 100%;
-        height: 100%;
+        padding-bottom: 12px;
         overflow: hidden;
     `;
 
@@ -312,18 +243,26 @@ export namespace NodeStyles {
     `;
 }
 
-const TitleArrow = styled.span`
-    font-size: 11px;
-    opacity: 0.6;
-    margin: 0 4px;
-    vertical-align: 1px;
+const Divider = styled.div`
+    width: 100%;
+    height: 1px;
+    background-color: ${ThemeColors.OUTLINE_VARIANT};
 `;
 
-const AgentName = styled.div`
+const ReferenceRow = styled.div`
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+    z-index: 2;
+`;
+
+const ReferenceName = styled.span`
     flex: 1;
     min-width: 0;
+    padding-left: 4px;
     color: ${ThemeColors.ON_SURFACE};
-    opacity: 0.7;
     font-family: monospace;
     font-size: 12px;
     overflow: hidden;
@@ -331,41 +270,72 @@ const AgentName = styled.div`
     white-space: nowrap;
 `;
 
-const AgentRow = styled.div<{ clickable: boolean }>`
-    position: relative;
-    width: 100%;
-    display: flex;
+const OpenAgentButton = styled.div`
+    display: inline-flex;
     align-items: center;
     gap: 6px;
-    margin: 8px 0;
-    padding: 6px 6px 6px 10px;
+    flex-shrink: 0;
+    padding: 6px 10px;
+    border: 1px solid ${ThemeColors.OUTLINE_VARIANT};
     border-radius: 6px;
-    cursor: ${(props: { clickable: boolean }) => (props.clickable ? "pointer" : "default")};
-    transition: background-color 0.15s ease;
-
-    &::before {
-        content: "";
-        position: absolute;
-        top: -8px;
-        left: 0;
-        right: 0;
-        border-top: 1px dashed ${ThemeColors.OUTLINE_VARIANT};
-    }
+    color: ${ThemeColors.ON_SURFACE};
+    font-family: "GilmerRegular";
+    font-size: 12px;
+    cursor: pointer;
+    z-index: 2;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
 
     &:hover {
-        background-color: ${(props: { clickable: boolean }) => (props.clickable ? "var(--list-hover-background)" : "transparent")};
-    }
-
-    &:hover [data-agent-name] {
-        opacity: ${(props: { clickable: boolean }) => (props.clickable ? 1 : 0.7)};
+        border-color: ${ThemeColors.ON_SURFACE};
+        background-color: ${ThemeColors.SURFACE_BRIGHT};
     }
 `;
 
-const NODE_TITLE = (
-    <>
-        AI Agent<TitleArrow>:</TitleArrow>Run
-    </>
-);
+function ChipGlyph({ name, isCodicon, size = 14 }: { name: string; isCodicon?: boolean; size?: number }) {
+    return (
+        <Icon
+            name={name}
+            isCodicon={isCodicon}
+            sx={{ display: "flex", alignItems: "center", justifyContent: "center", width: size, height: size }}
+            // The glyph's own box (not just its container) needs to be a flex item too, so the
+            // font's own ascent/descent can't throw the icon off-center within it.
+            iconSx={{ display: "inline-flex", alignItems: "center", justifyContent: "center", height: size, fontSize: size, lineHeight: 1 }}
+        />
+    );
+}
+
+
+type AgentReferenceProps = {
+    agentVarName: string;
+    clickable: boolean;
+    onOpen: (event: React.SyntheticEvent) => void;
+};
+
+// Read-only metadata (model/tools/memory) lives in the property panel now; this row only opens the agent.
+function AgentReference({ agentVarName, clickable, onOpen }: AgentReferenceProps) {
+    if (!agentVarName) {
+        return null;
+    }
+    const handleKeyDown = (event: React.KeyboardEvent) => {
+        if (event.key === "Enter" || event.key === " ") {
+            onOpen(event);
+        }
+    };
+    return (
+        <>
+            <Divider />
+            <ReferenceRow data-testid="agent-reference-row">
+                <ReferenceName>{agentVarName}</ReferenceName>
+                {clickable && (
+                    <OpenAgentButton data-testid="open-agent-button" role="button" tabIndex={0} onClick={onOpen} onKeyDown={handleKeyDown}>
+                        Open agent
+                        <ChipGlyph name="bi-arrow-outward" size={13} />
+                    </OpenAgentButton>
+                )}
+            </ReferenceRow>
+        </>
+    );
+}
 
 interface AgentCallNodeWidgetProps {
     model: AgentCallNodeModel;
@@ -379,7 +349,7 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
     const { onNodeSelect, goToSource, goToAgent, onDeleteNode, removeBreakpoint, addBreakpoint, agentNode, readOnly,
         entrypointContext } = controller.context;
     const { traceAnimation, isSelected, isBoxHovered, setIsBoxHovered, agentIdHovered, setAgentIdHovered, anchorEl,
-        setAnchorEl, menuButtonElement, setMenuButtonElement, isMenuOpen, aiColor, syncPulseAnimation,
+        setAnchorEl, menuButtonElement, setMenuButtonElement, isMenuOpen, aiColor,
         boxSyncPulseAnimation, hasBreakpoint, isActiveBreakpoint, handleThemeChange } = controller;
 
     const agentVarName = typeof model.node.properties?.connection?.value === "string"
@@ -407,10 +377,9 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
         setAnchorEl(null);
     };
 
-    const handleViewAgentClick = (event: React.MouseEvent<HTMLElement | SVGSVGElement>) => {
+    const handleOpenAgent = (event: React.SyntheticEvent) => {
         event.stopPropagation();
-        if (!goToAgent) return;
-        goToAgent(model.node);
+        goToAgent?.(model.node);
     };
 
     const onGoToSource = () => {
@@ -476,7 +445,7 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
         { id: "delete", label: "Delete", onClick: () => deleteNode() },
         ...(canViewAgent ? [{
             id: "viewAgent",
-            label: "View Agent",
+            label: "Open Agent",
             onClick: () => onViewAgent(),
         }] : []),
     ];
@@ -545,8 +514,6 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
     // Agent box pulses when either model or any tool is actively executing
     const isAgentNodeActive = isModelActive || isAnyToolActive;
 
-    const containerHeight = getAgentNodeContainerHeight(model.node, NodeTypes.AGENT_CALL_NODE);
-
     return (
         <NodeStyles.Node data-testid="agent-call-node" readOnly={readOnly}>
             <NodeStyles.Box
@@ -561,7 +528,7 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
                 onMouseLeave={() => setIsBoxHovered(false)}
                 onClick={!readOnly ? handleOnClick : undefined}
                 onContextMenu={!readOnly ? handleOnContextMenu : undefined}
-                title="Configure Agent"
+                title="Configure Run"
             >
                 {/* Overlay for Agent Box pulsing transition */}
                 <div
@@ -593,7 +560,7 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
                     />
                 )}
                 <NodeStyles.TopPortWidget port={model.getPort("in")!} engine={engine} />
-                <NodeStyles.Column style={{ height: `${model.node.viewState?.ch}px` }}>
+                <NodeStyles.Column>
                     <NodeStyles.Row readOnly={readOnly}>
                         <NodeStyles.IconBox onClick={handleOnClick}>
                             <NodeIcon type={model.node.codedata.node} size={24} />
@@ -604,7 +571,7 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
                         <NodeStyles.Row readOnly={readOnly}>
                             <NodeStyles.Header onClick={handleOnClick}>
                                 <div style={{ display: "flex", alignItems: "center", gap: "6px", lineHeight: 1, maxWidth: `${NODE_WIDTH - 80}px` }}>
-                                    <NodeStyles.Title style={getDiffTitleStyles(model.node)}>{NODE_TITLE}</NodeStyles.Title>
+                                    <NodeStyles.Title style={getDiffTitleStyles(model.node)}>agent : run</NodeStyles.Title>
                                     {model.node.properties?.credential?.value && (
                                         <NodeStyles.AgentIdBadge
                                             title=""
@@ -621,7 +588,7 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
                                     )}
                                 </div>
                                 <NodeStyles.Description>
-                                    {model.node.properties.variable?.value as ReactNode}
+                                    {getResultVariableName(model.node)}
                                 </NodeStyles.Description>
                             </NodeStyles.Header>
                             <NodeStyles.ActionButtonGroup>
@@ -662,350 +629,14 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
                         )}
                     </NodeStyles.Row>
 
-                    <div style={{ width: "100%", opacity: 0.55, borderTop: `1px dashed ${ThemeColors.OUTLINE_VARIANT}`, flex: 1, overflow: "hidden", padding: "8px 2px" }}>
-                        {sanitizedAgent?.role && sanitizedAgent?.instructions ? (
-                            <>
-                                <NodeStyles.Row readOnly={readOnly} onClick={handleOnClick} style={{ marginBottom: 6 }}>
-                                    <NodeStyles.Role>
-                                        <ReactMarkdown
-                                            disallowedElements={['script', 'iframe', 'object', 'embed', 'link', 'style']}
-                                            unwrapDisallowed={true}
-                                        >
-                                            {sanitizedAgent?.role}
-                                        </ReactMarkdown>
-                                    </NodeStyles.Role>
-                                </NodeStyles.Row>
-
-                                <NodeStyles.InstructionsRow readOnly={readOnly} onClick={handleOnClick}>
-                                    <NodeStyles.Instructions>
-                                        <ReactMarkdown
-                                            disallowedElements={['script', 'iframe', 'object', 'embed', 'link', 'style']}
-                                            unwrapDisallowed={true}
-                                        >
-                                            {sanitizedAgent?.instructions}
-                                        </ReactMarkdown>
-                                    </NodeStyles.Instructions>
-                                </NodeStyles.InstructionsRow>
-                            </>
-                        ) : agentInfo?.description ? (
-                            <NodeStyles.InstructionsRow readOnly={readOnly} onClick={handleOnClick}>
-                                <NodeStyles.Instructions>
-                                    <ReactMarkdown
-                                        disallowedElements={['script', 'iframe', 'object', 'embed', 'link', 'style']}
-                                        unwrapDisallowed={true}
-                                    >
-                                        {agentInfo.description}
-                                    </ReactMarkdown>
-                                </NodeStyles.Instructions>
-                            </NodeStyles.InstructionsRow>
-                        ) : null}
-                    </div>
-
-                    {agentVarName && (
-                        <AgentRow
-                            clickable={canViewAgent}
-                            onClick={canViewAgent ? handleViewAgentClick : undefined}
-                            title="View Agent"
-                        >
-                            <AgentName data-agent-name>{agentVarName}</AgentName>
-                            {canViewAgent && (
-                                <Tooltip content="View Agent">
-                                    <NodeStyles.MenuButton
-                                        appearance="icon"
-                                        onClick={handleViewAgentClick}
-                                    >
-                                        <Icon name="bi-function-flow" sx={{ width: 16, height: 16 }} iconSx={{ fontSize: 16 }} />
-                                    </NodeStyles.MenuButton>
-                                </Tooltip>
-                            )}
-                        </AgentRow>
-                    )}
+                    <AgentReference
+                        agentVarName={agentVarName}
+                        clickable={canViewAgent}
+                        onOpen={handleOpenAgent}
+                    />
                 </NodeStyles.Column>
                 <NodeStyles.BottomPortWidget port={model.getPort("out")!} engine={engine} />
             </NodeStyles.Box>
-
-            <svg
-                width={NODE_GAP_X + NODE_HEIGHT + LABEL_HEIGHT + LABEL_WIDTH + 10}
-                height={model.node.viewState?.ch}
-                viewBox={`0 0 300 ${containerHeight}`}
-                style={{ marginLeft: "-10px", position: "relative", zIndex: 1, cursor: "default" }}
-            >
-                {/* ai agent model circle */}
-                <g style={{ opacity: isModelActive ? 1 : 0.55, transition: "opacity 0.4s ease-out" }}>
-                    <circle
-                        cx="80"
-                        cy="24"
-                        r="22"
-                        fill={NODE_BG_COLOR}
-                        stroke={NODE_BORDER_COLOR}
-                        strokeWidth={1.5}
-                        strokeDasharray={disabled ? "5 5" : "none"}
-                        opacity={disabled ? 0.7 : 1}
-                        style={{ cursor: "default" }}
-                    >
-                        <title>{"Model Provider"}</title>
-                    </circle>
-                    <circle
-                        cx="80"
-                        cy="24"
-                        r="22"
-                        fill="none"
-                        stroke={aiColor}
-                        strokeWidth={2.5}
-                        css={css`
-                            pointer-events: none;
-                            opacity: ${isModelActive ? 1 : 0};
-                            transition: opacity 0.4s ease-out;
-                            transform-origin: 80px 24px;
-                            transform: scale(1.03);
-                            animation: ${syncPulseAnimation} 1.5s ease-in-out infinite alternate;
-                        `}
-                    />
-
-                    <foreignObject
-                        x="68"
-                        y="12"
-                        width="44"
-                        height="44"
-                        fill={NODE_TEXT_COLOR}
-                        style={{ pointerEvents: "none" }}
-                    >
-                        {isDefaultModelProviderExpr(model.node.properties?.model?.value)
-                            || isDefaultModelProviderExpr(modelProvider?.name)
-                            ? <Icon name="bi-wso2" sx={{ fontSize: 24, width: 24, height: 24 }} />
-                            : getAIModuleIcon(modelProvider?.type) ?? (nodeModelIconUrl ? <img src={nodeModelIconUrl} style={{ width: 24, height: 24 }} /> : <DefaultLlmIcon />)}
-                    </foreignObject>
-
-                    {/* Base Line */}
-                    <line
-                        x1="0"
-                        y1="25"
-                        x2="57"
-                        y2="25"
-                        style={{
-                            stroke: NODE_TEXT_COLOR,
-                            strokeWidth: 1.5,
-                            markerEnd: `url(#${model.node.id}-arrow-head)`,
-                            markerStart: `url(#${model.node.id}-diamond-start)`,
-                            opacity: isModelActive ? 0 : 1,
-                            transition: "stroke 0.4s ease-out, opacity 0.4s ease-out",
-                        }}
-                    />
-                    {/* Pulsing Overlay Line */}
-                    <line
-                        x1="0"
-                        y1="25"
-                        x2="57"
-                        y2="25"
-                        style={{
-                            stroke: aiColor,
-                            strokeWidth: 2.5,
-                            markerEnd: `url(#${model.node.id}-arrow-head-active)`,
-                            strokeDasharray: "6 6",
-                        }}
-                        css={css`
-                            pointer-events: none;
-                            opacity: ${isModelActive ? 1 : 0};
-                            transition: opacity 0.4s ease-out;
-                            animation: ${flowDashAnimation} 1s linear infinite;
-                        `}
-                    />
-                </g>
-
-                {/* circles for tools */}
-                {tools.map((tool: ToolData, index: number) => {
-                    const isToolActive = activeToolNames.includes(tool.name);
-                    return (
-                        <g
-                            key={index}
-                            transform={`translate(0, ${(index + 1) * (NODE_HEIGHT + AGENT_NODE_TOOL_GAP) + AGENT_CALL_TOOL_SECTION_GAP + AGENT_CALL_AGENT_ROW_HEIGHT})`}
-                            style={{ cursor: "default", opacity: isToolActive ? 1 : 0.55, transition: "opacity 0.4s ease-out" }}
-                        >
-                            {/* Base Tool Circle */}
-                            <circle
-                                cx="80"
-                                cy="24"
-                                r="22"
-                                fill={NODE_BG_COLOR}
-                                stroke={NODE_BORDER_COLOR}
-                                strokeWidth={1.5}
-                                strokeDasharray={disabled ? "5 5" : "none"}
-                                opacity={disabled ? 0.7 : 1}
-                                css={css`
-                                    transition: stroke 0.4s ease-out;
-                                `}
-                            />
-                            {/* Pulsing Overlay Tool Circle */}
-                            <circle
-                                cx="80"
-                                cy="24"
-                                r="22"
-                                fill="none"
-                                stroke={aiColor}
-                                strokeWidth={2.5}
-                                css={css`
-                                    pointer-events: none;
-                                    opacity: ${isToolActive ? 1 : 0};
-                                    transition: opacity 0.4s ease-out;
-                                    transform-origin: 80px 24px;
-                                    transform: scale(1.03);
-                                    animation: ${syncPulseAnimation} 1.5s ease-in-out infinite alternate;
-                                `}
-                            />
-
-                            <foreignObject
-                                x="68"
-                                y="12"
-                                width="44"
-                                height="44"
-                                fill={NODE_TEXT_COLOR}
-                                style={{ pointerEvents: "none" }}
-                            >
-                                <div className="connector-icon">
-                                    {tool.type === "Agent" ? (
-                                        <Icon name="bi-ai-agent" sx={{ fontSize: "24px" }} />
-                                    ) : tool.path ? (
-                                        <ConnectorIcon
-                                            url={tool.path}
-                                            style={{ width: 24, height: 24, fontSize: 24 }}
-                                            fallbackIcon={<Icon name="bi-function" sx={{ fontSize: "24px" }} />}
-                                            codedata={model.node?.codedata}
-                                        />
-                                    ) : (
-                                        <Icon name="bi-function" sx={{ fontSize: "24px" }} />
-                                    )}
-                                </div>
-                            </foreignObject>
-
-                            {tool.requiresApproval && <ApprovalBadge background={NODE_BG_COLOR} />}
-
-                            <text
-                                x="110"
-                                y="28"
-                                textAnchor="start"
-                                fill={isToolActive ? aiColor : NODE_TEXT_COLOR}
-                                fontSize="14px"
-                                fontFamily="GilmerRegular"
-                                dominantBaseline="middle"
-                                style={{ transition: "fill 0.4s ease-out" }}
-                            >
-                                {tool.name.length > 20 ? `${tool.name.slice(0, 20)}...` : tool.name}
-                                <title>{tool.name}</title>
-                            </text>
-
-
-                            {/* Base Tool Line */}
-                            <line
-                                x1="0"
-                                y1="25"
-                                x2="57"
-                                y2="25"
-                                style={{
-                                    stroke: NODE_TEXT_COLOR,
-                                    strokeWidth: 1.5,
-                                    markerEnd: `url(#${model.node.id}-arrow-head-tool-${sanitizeId(tool.name)})`,
-                                    strokeDasharray: "6 6",
-                                    opacity: isToolActive ? 0 : 1,
-                                    transition: "stroke 0.4s ease-out, opacity 0.4s ease-out",
-                                }}
-                            />
-                            {/* Pulsing Overlay Tool Line */}
-                            <line
-                                x1="0"
-                                y1="25"
-                                x2="57"
-                                y2="25"
-                                style={{
-                                    stroke: aiColor,
-                                    strokeWidth: 2.5,
-                                    markerEnd: `url(#${model.node.id}-arrow-head-tool-${sanitizeId(tool.name)}-active)`,
-                                    strokeDasharray: "6 6",
-                                }}
-                                css={css`
-                                    pointer-events: none;
-                                    opacity: ${isToolActive ? 1 : 0};
-                                    transition: opacity 0.4s ease-out;
-                                    animation: ${flowDashAnimation} 1s linear infinite;
-                                `}
-                            />
-
-                        </g>
-                    );
-                })}
-
-
-                <defs>
-                    <marker
-                        id={`${model.node.id}-arrow-head`}
-                        markerWidth="4"
-                        markerHeight="4"
-                        refX="3"
-                        refY="2"
-                        viewBox="0 0 4 4"
-                        orient="auto"
-                    >
-                        <polygon points="0,4 0,0 4,2" fill={NODE_TEXT_COLOR}></polygon>
-                    </marker>
-
-                    <marker
-                        id={`${model.node.id}-arrow-head-active`}
-                        markerWidth="4"
-                        markerHeight="4"
-                        refX="3"
-                        refY="2"
-                        viewBox="0 0 4 4"
-                        orient="auto"
-                    >
-                        <polygon points="0,4 0,0 4,2" fill={aiColor}></polygon>
-                    </marker>
-
-                    <marker
-                        id={`${model.node.id}-diamond-start`}
-                        markerWidth="8"
-                        markerHeight="8"
-                        refX="4.5"
-                        refY="4"
-                        viewBox="0 0 8 8"
-                        orient="auto"
-                    >
-                        <circle
-                            cx="4"
-                            cy="4"
-                            r="3"
-                            fill={NODE_BG_COLOR}
-                            stroke={NODE_TEXT_COLOR}
-                            strokeWidth="1"
-                        />
-                    </marker>
-                    {tools.map((tool: ToolData) => (
-                        <React.Fragment key={tool.name}>
-                            <marker
-                                id={`${model.node.id}-arrow-head-tool-${sanitizeId(tool.name)}`}
-                                markerWidth="4"
-                                markerHeight="4"
-                                refX="3"
-                                refY="2"
-                                viewBox="0 0 4 4"
-                                orient="auto"
-                            >
-                                <polygon points="0,4 0,0 4,2" fill={NODE_TEXT_COLOR}></polygon>
-                            </marker>
-
-                            <marker
-                                id={`${model.node.id}-arrow-head-tool-${sanitizeId(tool.name)}-active`}
-                                markerWidth="4"
-                                markerHeight="4"
-                                refX="3"
-                                refY="2"
-                                viewBox="0 0 4 4"
-                                orient="auto"
-                            >
-                                <polygon points="0,4 0,0 4,2" fill={aiColor}></polygon>
-                            </marker>
-                        </React.Fragment>
-                    ))}
-                </defs>
-            </svg>
             <ThemeListener onThemeChange={handleThemeChange} />
         </NodeStyles.Node>
     );
