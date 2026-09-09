@@ -1,0 +1,138 @@
+{
+  "filePath": "proj",
+  "description": "readonly intersections wrapping an array and a union",
+  "type": {
+    "name": "ReadonlyMembers",
+    "fields": [
+      {
+        "members": [
+          {
+            "typeName": "readonly",
+            "optional": false,
+            "defaultable": false,
+            "isRestType": false,
+            "selected": false
+          },
+          {
+            "memberType": {
+              "typeName": "string",
+              "optional": false,
+              "defaultable": false,
+              "isRestType": false,
+              "selected": false
+            },
+            "elements": [
+              {
+                "typeName": "string",
+                "optional": false,
+                "defaultable": false,
+                "isRestType": false,
+                "value": "\"a\"",
+                "selected": true
+              }
+            ],
+            "typeName": "array",
+            "optional": false,
+            "defaultable": false,
+            "isRestType": false,
+            "selected": false
+          }
+        ],
+        "name": "paths",
+        "typeName": "intersection",
+        "optional": false,
+        "defaultable": true,
+        "isRestType": false,
+        "selected": true
+      },
+      {
+        "members": [
+          {
+            "members": [
+              {
+                "typeName": "AUTO",
+                "optional": false,
+                "defaultable": false,
+                "isRestType": false,
+                "selected": false
+              },
+              {
+                "typeName": "ALWAYS",
+                "optional": false,
+                "defaultable": false,
+                "isRestType": false,
+                "selected": true
+              }
+            ],
+            "typeName": "enum",
+            "optional": false,
+            "defaultable": false,
+            "isRestType": false,
+            "selected": false
+          },
+          {
+            "typeName": "readonly",
+            "optional": false,
+            "defaultable": false,
+            "isRestType": false,
+            "selected": false
+          }
+        ],
+        "name": "chunking",
+        "typeName": "intersection",
+        "optional": false,
+        "defaultable": true,
+        "isRestType": false,
+        "selected": true
+      },
+      {
+        "members": [
+          {
+            "typeName": "readonly",
+            "optional": false,
+            "defaultable": false,
+            "isRestType": false,
+            "selected": false
+          },
+          {
+            "fields": [
+              {
+                "name": "port",
+                "typeName": "int",
+                "optional": false,
+                "defaultable": true,
+                "isRestType": false,
+                "selected": false
+              }
+            ],
+            "hasRestType": false,
+            "typeName": "record",
+            "optional": false,
+            "defaultable": false,
+            "isRestType": false,
+            "selected": false
+          }
+        ],
+        "name": "server",
+        "typeName": "intersection",
+        "optional": true,
+        "typeInfo": {
+          "name": "ServerConfig",
+          "orgName": "ballerina",
+          "moduleName": "test",
+          "version": "0.1.0"
+        },
+        "defaultable": false,
+        "isRestType": false,
+        "selected": true
+      }
+    ],
+    "hasRestType": false,
+    "typeName": "record",
+    "optional": false,
+    "defaultable": false,
+    "isRestType": false,
+    "selected": true
+  },
+  "output": "{\n    paths: [\n        \"a\"\n    ],\n    chunking: \"ALWAYS\",\n    server: {\n\n    }\n}"
+}

@@ -193,6 +193,9 @@ public class ServiceModelAPITests {
         TriggerListResponse response = (TriggerListResponse) result.get();
         Assert.assertTrue(Objects.nonNull(response.local()));
         Assert.assertFalse(response.local().isEmpty());
+        Assert.assertTrue(response.local().stream().anyMatch(trigger ->
+                        "sap.jco".equals(trigger.packageName()) && "SAP ECC (JCo)".equals(trigger.name())),
+                "SAP JCo must use the SAP ECC (JCo) picker label");
     }
 
     @Test

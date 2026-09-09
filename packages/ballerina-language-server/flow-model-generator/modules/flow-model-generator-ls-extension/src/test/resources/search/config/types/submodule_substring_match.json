@@ -81,7 +81,497 @@
           "Library"
         ]
       },
-      "items": []
+      "items": [
+        {
+          "metadata": {
+            "label": "http",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "FailoverClientConfiguration",
+                "description": "Provides a set of HTTP related configurations and failover related configurations.\nThe following fields are inherited from the other configuration records in addition to the failover client-specific\nconfigs.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "FailoverClientConfiguration",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "CookieConfig",
+                "description": "Client configuration for cookies.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "CookieConfig",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "CorsConfig",
+                "description": "Configurations for CORS support.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "CorsConfig",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "AccessLogConfiguration",
+                "description": "Represents HTTP access log configuration.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "AccessLogConfiguration",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "HttpResourceConfig",
+                "description": "Configuration for an HTTP resource.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "HttpResourceConfig",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "TraceLogAdvancedConfiguration",
+                "description": "Represents HTTP trace log configuration.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "TraceLogAdvancedConfiguration",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "LogFileConfig",
+                "description": "Represents HTTP access log file configuration.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "LogFileConfig",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "LoadBalanceClientConfiguration",
+                "description": "The configurations related to the load balancing client endpoint. The following fields are inherited from the other\nconfiguration records in addition to the load balancing client specific configs.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "LoadBalanceClientConfiguration",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "CircuitBreakerInferredConfig",
+                "description": "Derived set of configurations from the `CircuitBreakerConfig`.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "CircuitBreakerInferredConfig",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "ClientSocketConfig",
+                "description": "Provides settings related to client socket configuration.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "ClientSocketConfig",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "HttpServiceConfig",
+                "description": "Contains the configurations for an HTTP service.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "HttpServiceConfig",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "JwtIssuerConfig",
+                "description": "Represents JWT issuer configurations for JWT authentication.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "JwtIssuerConfig",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "JwtValidatorConfig",
+                "description": "Represents JWT validator configurations for JWT authentication.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "JwtValidatorConfig",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "OAuth2GrantConfig",
+                "description": "Represents OAuth2 grant configurations for OAuth2 authentication.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "OAuth2GrantConfig",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "PoolConfiguration",
+                "description": "Configurations for managing HTTP client connection pool.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "PoolConfiguration",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "ServerSocketConfig",
+                "description": "Provides settings related to server socket configuration.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "ServerSocketConfig",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "ClientConfiguration",
+                "description": "Provides a set of configurations for controlling the behaviours when communicating with a remote HTTP endpoint.\nThe following fields are inherited from the other configuration records in addition to the `Client`-specific\nconfigs.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "ClientConfiguration",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "ClientAuthConfig",
+                "description": "Defines the authentication configurations for the HTTP client.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "ClientAuthConfig",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "CommonClientConfiguration",
+                "description": "Common client configurations for the next level clients.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "CommonClientConfiguration",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "CompressionConfig",
+                "description": "A record for providing configurations for content compression.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "CompressionConfig",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "ListenerAuthConfig",
+                "description": "Defines the authentication configurations for the HTTP listener.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "ListenerAuthConfig",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "OAuth2IntrospectionConfig",
+                "description": "Represents OAuth2 introspection server configurations for OAuth2 authentication.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "OAuth2IntrospectionConfig",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "OAuth2PasswordGrantConfig",
+                "description": "Represents OAuth2 password grant configurations for OAuth2 authentication.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "OAuth2PasswordGrantConfig",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "ResponseCacheControl",
+                "description": "Configures cache control directives for an `http:Response`.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "ResponseCacheControl",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "TargetService",
+                "description": "Represents a single service and its related configurations.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "TargetService",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "FileUserStoreConfig",
+                "description": "Represents file user store configurations for Basic Auth authentication.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "FileUserStoreConfig",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "InferredListenerConfiguration",
+                "description": "Provides a set of cloneable configurations for HTTP listener.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "InferredListenerConfiguration",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "LdapUserStoreConfig",
+                "description": "Represents LDAP user store configurations for Basic Auth authentication.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "LdapUserStoreConfig",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "ListenerConfiguration",
+                "description": "Provides a set of configurations for HTTP service endpoints.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "ListenerConfiguration",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "OAuth2ClientCredentialsGrantConfig",
+                "description": "Represents OAuth2 client credentials grant configurations for OAuth2 authentication.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "OAuth2ClientCredentialsGrantConfig",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            }
+          ]
+        }
+      ]
     },
     {
       "metadata": {
@@ -92,551 +582,7 @@
           "Library"
         ]
       },
-      "items": [
-        {
-          "metadata": {
-            "label": "stripe",
-            "description": "",
-            "keywords": []
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "Terminal_configuration_configuration_resource_offline_config",
-                "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_stripe_2.0.1.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerinax",
-                "module": "stripe",
-                "packageName": "stripe",
-                "symbol": "Terminal_configuration_configuration_resource_offline_config",
-                "version": "2.0.1"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "configurations_configuration_bodyExpandItemsString",
-                "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_stripe_2.0.1.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerinax",
-                "module": "stripe",
-                "packageName": "stripe",
-                "symbol": "configurations_configuration_bodyExpandItemsString",
-                "version": "2.0.1"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "configurations_configuration_body",
-                "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_stripe_2.0.1.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerinax",
-                "module": "stripe",
-                "packageName": "stripe",
-                "symbol": "configurations_configuration_body",
-                "version": "2.0.1"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "Terminal_configuration_configuration_resource_currency_specific_config",
-                "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_stripe_2.0.1.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerinax",
-                "module": "stripe",
-                "packageName": "stripe",
-                "symbol": "Terminal_configuration_configuration_resource_currency_specific_config",
-                "version": "2.0.1"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "configurations_configuration_body_1",
-                "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_stripe_2.0.1.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerinax",
-                "module": "stripe",
-                "packageName": "stripe",
-                "symbol": "configurations_configuration_body_1",
-                "version": "2.0.1"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "configurations_configuration_body_1ExpandItemsString",
-                "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_stripe_2.0.1.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerinax",
-                "module": "stripe",
-                "packageName": "stripe",
-                "symbol": "configurations_configuration_body_1ExpandItemsString",
-                "version": "2.0.1"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "Terminal_configuration_configuration_resource_device_type_specific_config",
-                "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_stripe_2.0.1.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerinax",
-                "module": "stripe",
-                "packageName": "stripe",
-                "symbol": "Terminal_configuration_configuration_resource_device_type_specific_config",
-                "version": "2.0.1"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "Terminal_configuration_configuration_resource_tipping",
-                "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_stripe_2.0.1.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerinax",
-                "module": "stripe",
-                "packageName": "stripe",
-                "symbol": "Terminal_configuration_configuration_resource_tipping",
-                "version": "2.0.1"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "payment_method_configurations_configuration_body",
-                "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_stripe_2.0.1.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerinax",
-                "module": "stripe",
-                "packageName": "stripe",
-                "symbol": "payment_method_configurations_configuration_body",
-                "version": "2.0.1"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "payment_method_configurations_configuration_bodyExpandItemsString",
-                "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_stripe_2.0.1.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerinax",
-                "module": "stripe",
-                "packageName": "stripe",
-                "symbol": "payment_method_configurations_configuration_bodyExpandItemsString",
-                "version": "2.0.1"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "Terminal_configuration_configuration_resource_reboot_window",
-                "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_stripe_2.0.1.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerinax",
-                "module": "stripe",
-                "packageName": "stripe",
-                "symbol": "Terminal_configuration_configuration_resource_reboot_window",
-                "version": "2.0.1"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "Terminal\\.configuration",
-                "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_stripe_2.0.1.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerinax",
-                "module": "stripe",
-                "packageName": "stripe",
-                "symbol": "Terminal\\.configuration",
-                "version": "2.0.1"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "tipping_config",
-                "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_stripe_2.0.1.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerinax",
-                "module": "stripe",
-                "packageName": "stripe",
-                "symbol": "tipping_config",
-                "version": "2.0.1"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "Payment_method_config_biz_payment_method_configuration_details",
-                "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_stripe_2.0.1.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerinax",
-                "module": "stripe",
-                "packageName": "stripe",
-                "symbol": "Payment_method_config_biz_payment_method_configuration_details",
-                "version": "2.0.1"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "process_config",
-                "description": "Configuration overrides",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_stripe_2.0.1.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerinax",
-                "module": "stripe",
-                "packageName": "stripe",
-                "symbol": "process_config",
-                "version": "2.0.1"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "configuration_item_params",
-                "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_stripe_2.0.1.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerinax",
-                "module": "stripe",
-                "packageName": "stripe",
-                "symbol": "configuration_item_params",
-                "version": "2.0.1"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "Billing_portal\\.configuration",
-                "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_stripe_2.0.1.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerinax",
-                "module": "stripe",
-                "packageName": "stripe",
-                "symbol": "Billing_portal\\.configuration",
-                "version": "2.0.1"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "phase_configuration_params",
-                "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_stripe_2.0.1.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerinax",
-                "module": "stripe",
-                "packageName": "stripe",
-                "symbol": "phase_configuration_params",
-                "version": "2.0.1"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "terminal_configurations_bodyExpandItemsString",
-                "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_stripe_2.0.1.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerinax",
-                "module": "stripe",
-                "packageName": "stripe",
-                "symbol": "terminal_configurations_bodyExpandItemsString",
-                "version": "2.0.1"
-              },
-              "enabled": true
-            }
-          ]
-        },
-        {
-          "metadata": {
-            "label": "yodlee",
-            "description": "",
-            "keywords": []
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "ConfigsPublicKeyResponse",
-                "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_yodlee_1.5.1.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerinax",
-                "module": "yodlee",
-                "packageName": "yodlee",
-                "symbol": "ConfigsPublicKeyResponse",
-                "version": "1.5.1"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "ConfigsPublicKey",
-                "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_yodlee_1.5.1.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerinax",
-                "module": "yodlee",
-                "packageName": "yodlee",
-                "symbol": "ConfigsPublicKey",
-                "version": "1.5.1"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "ConfigsNotificationEvent",
-                "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_yodlee_1.5.1.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerinax",
-                "module": "yodlee",
-                "packageName": "yodlee",
-                "symbol": "ConfigsNotificationEvent",
-                "version": "1.5.1"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "ConfigsNotificationResponse",
-                "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_yodlee_1.5.1.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerinax",
-                "module": "yodlee",
-                "packageName": "yodlee",
-                "symbol": "ConfigsNotificationResponse",
-                "version": "1.5.1"
-              },
-              "enabled": true
-            }
-          ]
-        },
-        {
-          "metadata": {
-            "label": "paypal.invoices",
-            "description": "",
-            "keywords": []
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "ConfigurationAllOf2",
-                "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_paypal.invoices_1.0.2.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerinax",
-                "module": "paypal.invoices",
-                "packageName": "paypal.invoices",
-                "symbol": "ConfigurationAllOf2",
-                "version": "1.0.2"
-              },
-              "enabled": true
-            }
-          ]
-        },
-        {
-          "metadata": {
-            "label": "beezup.merchant",
-            "description": "",
-            "keywords": []
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "ConfigureAutomaticTransitionRequest",
-                "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_beezup.merchant_1.6.0.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerinax",
-                "module": "beezup.merchant",
-                "packageName": "beezup.merchant",
-                "symbol": "ConfigureAutomaticTransitionRequest",
-                "version": "1.6.0"
-              },
-              "enabled": true
-            }
-          ]
-        },
-        {
-          "metadata": {
-            "label": "github",
-            "description": "",
-            "keywords": []
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "Orghook_config",
-                "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_github_5.1.0.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerinax",
-                "module": "github",
-                "packageName": "github",
-                "symbol": "Orghook_config",
-                "version": "5.1.0"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "Hook_config",
-                "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_github_5.1.0.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerinax",
-                "module": "github",
-                "packageName": "github",
-                "symbol": "Hook_config",
-                "version": "5.1.0"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "Hook_config_body",
-                "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_github_5.1.0.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerinax",
-                "module": "github",
-                "packageName": "github",
-                "symbol": "Hook_config_body",
-                "version": "5.1.0"
-              },
-              "enabled": true
-            }
-          ]
-        },
-        {
-          "metadata": {
-            "label": "atspoke",
-            "description": "",
-            "keywords": []
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "ConfigList",
-                "description": "Configuration Item List",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_atspoke_1.5.1.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerinax",
-                "module": "atspoke",
-                "packageName": "atspoke",
-                "symbol": "ConfigList",
-                "version": "1.5.1"
-              },
-              "enabled": true
-            }
-          ]
-        },
-        {
-          "metadata": {
-            "label": "magento.cart",
-            "description": "",
-            "keywords": []
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "ConfigurableProductDataConfigurableItemOptionValueInterface",
-                "description": "Interface ConfigurableItemOptionValueInterface",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_magento.cart_1.3.1.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerinax",
-                "module": "magento.cart",
-                "packageName": "magento.cart",
-                "symbol": "ConfigurableProductDataConfigurableItemOptionValueInterface",
-                "version": "1.3.1"
-              },
-              "enabled": true
-            }
-          ]
-        }
-      ]
+      "items": []
     }
   ]
 }

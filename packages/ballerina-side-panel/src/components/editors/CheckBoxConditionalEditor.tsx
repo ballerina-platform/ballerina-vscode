@@ -18,6 +18,7 @@
 
 import React, { useEffect, useState } from "react";
 import { FormField } from "../Form/types";
+import { indentedFieldStyles } from "../Form/styles";
 import { CheckBoxGroup, FormCheckBox } from "@wso2/ui-toolkit";
 import styled from "@emotion/styled";
 import { FieldFactory } from "./FieldFactory";
@@ -35,11 +36,15 @@ const Form = styled.div`
     align-items: start;
 `;
 
+// Indents the revealed sub-fields under the checkbox that reveals them, so they read as
+// belonging to it. This is the same treatment Form/index.tsx's IndentedRow uses for a
+// fixed-value input that belongs to the checkbox above it.
 const FormSection = styled.div`
     display: grid;
     gap: 20px;
     width: 100%;
     align-items: start;
+    ${indentedFieldStyles}
 `;
 
 const Label = styled.div`

@@ -44,6 +44,8 @@ import {
 
 const EXPR_PLACEHOLDER = "expr";
 
+export { getOptionalityLabel, isOptionalParam } from "@wso2/ballerina-core";
+
 export function isRequiredParam(param: FormField): boolean {
     return !(param.optional || param.defaultable);
 }

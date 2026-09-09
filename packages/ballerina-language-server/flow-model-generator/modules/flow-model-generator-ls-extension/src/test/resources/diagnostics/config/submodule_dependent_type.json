@@ -1,0 +1,47 @@
+{
+  "description": "A property whose type depends on a submodule of the file's own package. The import statement for such a module carries no organization, so the pending-import key is \"/subpkg.data\"; emitting that key verbatim gives \"import /subpkg.data;\", which does not parse and makes every diagnostic an artefact of the probe.",
+  "filePath": "submodule_proj/main.bal",
+  "context": {
+    "expression": "data:makeRow(\"a\")",
+    "startLine": {
+      "line": 1,
+      "offset": 4
+    },
+    "offset": 8,
+    "codedata": {
+      "node": "VARIABLE",
+      "lineRange": {
+        "fileName": "main.bal",
+        "startLine": {
+          "line": 1,
+          "offset": 4
+        },
+        "endLine": {
+          "line": 1,
+          "offset": 15
+        }
+      },
+      "sourceCode": "int i = 12;"
+    },
+    "property": {
+      "metadata": {
+        "label": "Expression",
+        "description": "Initialize with value"
+      },
+      "types": [
+        {
+          "fieldType": "EXPRESSION",
+          "ballerinaType": "data:Row"
+        }
+      ],
+      "value": "12",
+      "optional": true,
+      "editable": true,
+      "advanced": false,
+      "imports": {
+        "data": "subpkg.data"
+      }
+    }
+  },
+  "diagnostics": []
+}

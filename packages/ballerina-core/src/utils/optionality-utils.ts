@@ -1,0 +1,34 @@
+/**
+ * Copyright (c) 2026, WSO2 LLC. (https://www.wso2.com) All Rights Reserved.
+ *
+ * WSO2 LLC. licenses this file to you under the Apache License,
+ * Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+// Structural so both FormField and TypeField parameter trees can share these.
+export interface OptionalityAware {
+    optional?: boolean;
+}
+
+// Only `field?` is optional. A defaultable field (`field = <default>`) reads as a normal field, so it
+// carries no label — calling it optional wrongly implies no value is applied when it is left out.
+export function getOptionalityLabel(param: OptionalityAware): string {
+    return param.optional ? " (Optional)" : "";
+}
+
+// Grouping mirrors the label: only `field?` belongs under the collapsible "Optional fields" section. A
+// defaultable field is an ordinary field with a fallback, so it stays in the main list.
+export function isOptionalParam(param: OptionalityAware): boolean {
+    return !!param.optional;
+}

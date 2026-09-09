@@ -67,9 +67,25 @@ export async function addToIntegration(workspaceFolderPath: string, fileChanges:
         );
     }
 
-    // Apply all formatted changes at once
-    await workspace.applyEdit(formattedWorkspaceEdit);
-    await workspace.saveAll();
+    // applyEdit signals failure by returning false rather than throwing, usually because the
+    // document version changed underneath it. Gated on isBalFileAdded so an empty
+    // WorkspaceEdit isn't applied; saveAll stays ungated to keep the old flush behaviour.
+    if (isBalFileAdded) {
+        const applied = await workspace.applyEdit(formattedWorkspaceEdit);
+        if (!applied) {
+            throw new Error(
+                `Failed to apply workspace edit for: ${fileChanges.map(f => f.filePath).join(', ')}`
+            );
+        }
+    }
+    // saveAll also flushes unrelated dirty editors, so a false return is not proof that our
+    // file failed. Callers verify their own file against disk.
+    const saved = await workspace.saveAll();
+    if (!saved) {
+        console.warn(
+            `[addToIntegration] workspace.saveAll() reported a failure while saving: ${fileChanges.map(f => f.filePath).join(', ')}`
+        );
+    }
 
     // Write non ballerina files separately as ls doesn't need to be notified of those changes
     for (const fileChange of nonBalFiles) {
@@ -88,7 +104,9 @@ export async function addToIntegration(workspaceFolderPath: string, fileChanges:
 
     return new Promise((resolve, reject) => {
         if (!isBalFileAdded) {
+            // No LS notification is coming, so don't leave a subscription and timer behind.
             resolve([]);
+            return;
         }
         // Get the artifact notification handler instance
         const notificationHandler = ArtifactNotificationHandler.getInstance();

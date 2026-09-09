@@ -112,6 +112,7 @@ export * from "./utils/diagnostics-utils";
 export * from "./utils/visitors/records-finder-visitor";
 export * from "./utils/keyboard-navigation-manager";
 export * from "./utils/identifier-utils"
+export * from "./utils/optionality-utils";
 
 // ------ Util Components -------->
 export * from "./components"

@@ -1,0 +1,80 @@
+{
+  "filePath": "test_pack_submodule/types.bal",
+  "description": "Members naming the file's own module, a sibling module of the same package, and an external package: only the last two need an import, and the sibling's carries no organization.",
+  "type": {
+    "name": "Mixed",
+    "editable": true,
+    "metadata": {
+      "label": "",
+      "description": ""
+    },
+    "codedata": {
+      "node": "RECORD"
+    },
+    "properties": {},
+    "members": [
+      {
+        "name": "own",
+        "type": "Local",
+        "kind": "FIELD",
+        "refs": [],
+        "docs": "",
+        "imports": {
+          "test_pack_submodule": "testorg/test_pack_submodule:0.1.0"
+        }
+      },
+      {
+        "name": "sibling",
+        "type": "records:Address",
+        "kind": "FIELD",
+        "refs": [],
+        "docs": "",
+        "imports": {
+          "records": "testorg/test_pack_submodule.records:0.1.0"
+        }
+      },
+      {
+        "name": "external",
+        "type": "github:ReactionRollup",
+        "kind": "FIELD",
+        "refs": [],
+        "docs": "",
+        "imports": {
+          "github": "ballerinax/github:5.1.0"
+        }
+      }
+    ],
+    "includes": [],
+    "allowAdditionalFields": false
+  },
+  "output": {
+    "test_pack_submodule/types.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "\nimport ballerinax/github;\n\n\nimport test_pack_submodule.records;\n"
+      },
+      {
+        "range": {
+          "start": {
+            "line": 2,
+            "character": 3
+          },
+          "end": {
+            "line": 2,
+            "character": 3
+          }
+        },
+        "newText": "\ntype Mixed record {|\n\tLocal own;\n\trecords:Address sibling;\n\tgithub:ReactionRollup 'external;\n|};"
+      }
+    ]
+  }
+}

@@ -105,6 +105,11 @@
       // selector stays inside 3.x: the 4.x line implements the v4 model spec,
       // which the pinned ai@6 core cannot consume.
       "@ai-sdk/anthropic@>=3 <4": "3.0.104",
+      // Security fix: uncontrolled resource consumption, fixed at 4.0.33,
+      // but @ai-sdk/anthropic@3.0.104 pins 4.0.41 exactly and imports its
+      // (unexported-until-4.0.41) `secureJsonParse` helper, so force 4.0.41
+      // rather than the bare fix version.
+      "@ai-sdk/provider-utils@>=4 <5": "4.0.41",
       // Security overrides — keep in sync with trivy findings. Bump to the
       // first fix version listed for each CVE. If a bump breaks workspace
       // consumers, narrow the selector (e.g. "pkg@<x.y.z": "x.y.z").
@@ -131,7 +136,9 @@
       "form-data@>=4 <5": "4.0.6",
       "handlebars": "4.7.9",
       // Security fix: ReDoS in the CORS middleware, fixed in 4.12.34.
-      "hono@>=4 <5": "4.12.34",
+      // Bumped again to 4.13.5 for a follow-up set of advisories (query-parser
+      // cache-key confusion, parseBody() memory exhaustion, toSSG() path fix).
+      "hono@>=4 <5": "4.13.5",
       "http-proxy": "1.18.1",
       // CVE-2026-55602: stay on the 2.x line (first 2.x fix is 2.0.10). The
       // 0.17.x transitive is not flagged, so leave it untouched.
@@ -144,11 +151,15 @@
       // advisories.
       "ip-address@10": "10.3.1",
       "joi@>=17 <18": "17.13.4",
+      // Security fix: rename() prototype set and a prototype pollution
+      // advisory. ballerina-low-code-diagram pins 18.2.5 directly; keep
+      // the 18.x line at the fixed version.
+      "joi@>=18 <19": "18.2.5",
       // js-yaml v3 has no in-line fix; the fix only lands in v4.3.0+.
       // Force all consumers to v4 — revert with narrower selector if a
       // workspace package needs the v3 sync API.
-      // Security fix: 4.3.0 itself got flagged, bumped to 4.3.1.
-      "js-yaml": "4.3.1",
+      // Security fix: 4.3.0 itself got flagged, bumped to 4.3.1, then to 4.3.2
+      "js-yaml": "4.3.2",
       "launch-editor": "2.14.1",
       // Security fix: scoped to the 5.x line already in use; leave the
       // unrelated 3.0.3 transitive untouched.

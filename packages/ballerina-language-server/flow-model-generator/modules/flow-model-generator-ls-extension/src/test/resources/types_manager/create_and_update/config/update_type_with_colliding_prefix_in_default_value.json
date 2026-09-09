@@ -1,0 +1,82 @@
+{
+  "filePath": "test_pack_github_alias/types.bal",
+  "description": "A default value carrying a qualifier from the module that lost the natural prefix. The type descriptor beside it was resolved while the default was emitted verbatim, so the import bound triggerGithub and the expression still said github. The third field pins the parsing path: a colon inside a string literal is not a qualifier.",
+  "type": {
+    "name": "MyType",
+    "editable": true,
+    "metadata": {
+      "label": "",
+      "description": ""
+    },
+    "codedata": {
+      "node": "RECORD"
+    },
+    "properties": {},
+    "members": [
+      {
+        "name": "name1",
+        "type": "github:ReactionRollup",
+        "kind": "FIELD",
+        "refs": [],
+        "docs": "",
+        "imports": {
+          "github": "ballerinax/github:5.1.0"
+        }
+      },
+      {
+        "name": "name2",
+        "type": "string",
+        "defaultValue": "github:DEFAULT_TOPIC",
+        "kind": "FIELD",
+        "refs": [],
+        "docs": "",
+        "imports": {
+          "github": "ballerinax/trigger.github:0.11.0"
+        }
+      },
+      {
+        "name": "name3",
+        "type": "string",
+        "defaultValue": "\"github://example.org\"",
+        "kind": "FIELD",
+        "refs": [],
+        "docs": "",
+        "imports": {
+          "github": "ballerinax/trigger.github:0.11.0"
+        }
+      }
+    ],
+    "includes": [],
+    "allowAdditionalFields": false
+  },
+  "output": {
+    "test_pack_github_alias/types.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "\nimport ballerinax/github;\n\n\nimport ballerinax/trigger.github as triggerGithub;\n"
+      },
+      {
+        "range": {
+          "start": {
+            "line": 2,
+            "character": 3
+          },
+          "end": {
+            "line": 2,
+            "character": 3
+          }
+        },
+        "newText": "\ntype MyType record {|\n\tgithub:ReactionRollup name1;\n\tstring name2 = triggerGithub:DEFAULT_TOPIC;\n\tstring name3 = \"github://example.org\";\n|};"
+      }
+    ]
+  }
+}

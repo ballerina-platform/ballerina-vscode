@@ -20,7 +20,7 @@
     "metadata": {
       "label": "get",
       "description": "The client resource function to send HTTP GET requests to HTTP endpoints.\n",
-      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.6.png"
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.17.1.png"
     },
     "codedata": {
       "node": "RESOURCE_ACTION_CALL",
@@ -133,7 +133,7 @@
         "placeholder": "()",
         "optional": true,
         "editable": true,
-        "advanced": true,
+        "advanced": false,
         "hidden": false,
         "codedata": {
           "kind": "DEFAULTABLE",
@@ -240,7 +240,7 @@
         "placeholder": "[]",
         "optional": true,
         "editable": true,
-        "advanced": true,
+        "advanced": false,
         "hidden": false,
         "codedata": {
           "kind": "INCLUDED_RECORD_REST",

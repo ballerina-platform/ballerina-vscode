@@ -1,0 +1,74 @@
+{
+  "description": "typesManager/recordConfig for a `readonly & Pet` type - the whole configured type is the intersection, not one of its fields",
+  "recordConfig": {
+    "members": [
+      {
+        "typeName": "readonly",
+        "optional": false,
+        "defaultable": false,
+        "isRestType": false,
+        "selected": false
+      },
+      {
+        "fields": [
+          {
+            "memberType": {
+              "typeName": "string",
+              "optional": false,
+              "defaultable": false,
+              "isRestType": false,
+              "selected": false
+            },
+            "name": "photoUrls",
+            "typeName": "array",
+            "optional": false,
+            "defaultable": false,
+            "isRestType": false,
+            "selected": false
+          },
+          {
+            "name": "name",
+            "typeName": "string",
+            "optional": false,
+            "defaultable": false,
+            "isRestType": false,
+            "selected": false
+          },
+          {
+            "name": "id",
+            "typeName": "int",
+            "optional": true,
+            "defaultable": false,
+            "isRestType": false,
+            "selected": false
+          }
+        ],
+        "hasRestType": true,
+        "restType": {
+          "typeName": "anydata",
+          "optional": false,
+          "defaultable": false,
+          "isRestType": false,
+          "selected": false
+        },
+        "typeName": "record",
+        "optional": false,
+        "defaultable": false,
+        "isRestType": false,
+        "selected": false
+      }
+    ],
+    "name": "Pet",
+    "typeName": "intersection",
+    "optional": false,
+    "typeInfo": {
+      "name": "Pet",
+      "orgName": "wso2",
+      "moduleName": "petstore",
+      "version": "0.1.0"
+    },
+    "defaultable": false,
+    "isRestType": false,
+    "selected": true
+  }
+}

@@ -181,8 +181,22 @@ export function ResourceAccordionV2(params: ResourceAccordionPropsV2) {
 
     const handleEditResource = async (e: React.MouseEvent<HTMLElement | SVGSVGElement>) => {
         e.stopPropagation(); // Stop the event propagation
-        const functionModel = await getFunctionModel();
-        onEditResource(functionModel.function);
+        // `onEditResource` is null for resources the designer doesn't let you edit (the init
+        // function, a chat agent's fixed resources); the button is disabled for those, but the
+        // click can still arrive via the accordion header, so check rather than assume.
+        if (!onEditResource) {
+            return;
+        }
+        try {
+            const functionModel = await getFunctionModel();
+            if (functionModel?.function) {
+                onEditResource(functionModel.function);
+            }
+        } catch (error) {
+            // The language server couldn't model this function. Nothing to open — log it rather
+            // than leaving an unhandled rejection to surface as a bare webview error.
+            console.error("Failed to load the function model for editing", error);
+        }
     };
 
     const handleOpenConfirm = () => {
@@ -210,8 +224,14 @@ export function ResourceAccordionV2(params: ResourceAccordionPropsV2) {
     };
 
     const handleResourceImplement = async () => {
-        const functionModel = await getFunctionModel();
-        onResourceImplement(functionModel.function);
+        try {
+            const functionModel = await getFunctionModel();
+            if (functionModel?.function) {
+                onResourceImplement(functionModel.function);
+            }
+        } catch (error) {
+            console.error("Failed to load the function model for navigation", error);
+        }
     }
 
     function getColorByMethod(method: string) {

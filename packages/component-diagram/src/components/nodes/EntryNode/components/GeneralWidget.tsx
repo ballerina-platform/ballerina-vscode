@@ -81,7 +81,7 @@ const getNodeDescription = (model: EntryNodeModel) => {
     return "Service";
 };
 
-function getColorByMethod(method: string) {
+export function getColorByMethod(method: string) {
     switch (method.toUpperCase()) {
         case "GET":
             return colors.GET;
@@ -116,7 +116,7 @@ function getCustomEntryNodeIcon(type: string) {
     return <Icon name={brand.glyph} sx={brand.color ? { color: brand.color } : undefined} />;
 }
 
-function FunctionBox(props: { func: any; model: EntryNodeModel; engine: any; readonly?: boolean }) {
+export function FunctionBox(props: { func: any; model: EntryNodeModel; engine: any; readonly?: boolean }) {
     const { func, model, engine, readonly } = props;
     const [isHovered, setIsHovered] = useState(false);
     const { onFunctionSelect } = useDiagramContext();

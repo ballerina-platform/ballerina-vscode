@@ -5,7 +5,7 @@
     "orgName": "ballerina",
     "packageName": "ftp",
     "moduleName": "ftp",
-    "version": "2.20.1"
+    "version": "2.20.3"
   },
   "filePath": "sample2/main.bal",
   "removeDeprecated": false,
@@ -17,10 +17,10 @@
       "description": "Gets invoked during object initialization.\n",
       "moduleName": "ftp",
       "orgName": "ballerina",
-      "version": "2.20.1",
+      "version": "2.20.3",
       "packageName": "ftp",
       "listenerProtocol": "ftp",
-      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ftp_2.20.1.png",
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ftp_2.20.3.png",
       "properties": {
         "host": {
           "metadata": {
@@ -96,7 +96,7 @@
               "typeMembers": [
                 {
                   "type": "AuthConfiguration",
-                  "packageInfo": "ballerina:ftp:2.20.1",
+                  "packageInfo": "ballerina:ftp:2.20.3",
                   "packageName": "ftp",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -189,7 +189,7 @@
             "type": "LISTENER_INIT_PARAM",
             "originalName": "protocol"
           },
-          "placeholder": "\"sftp\"",
+          "placeholder": "\"ftp\"",
           "value": "",
           "types": [
             {
@@ -197,16 +197,16 @@
               "ballerinaType": "ftp:Protocol",
               "options": [
                 {
-                  "label": "sftp",
-                  "value": "\"sftp\""
+                  "label": "FTP",
+                  "value": "\"ftp\""
                 },
                 {
-                  "label": "ftps",
+                  "label": "FTPS",
                   "value": "\"ftps\""
                 },
                 {
-                  "label": "ftp",
-                  "value": "\"ftp\""
+                  "label": "SFTP",
+                  "value": "\"sftp\""
                 }
               ],
               "selected": true
@@ -324,7 +324,7 @@
               "typeMembers": [
                 {
                   "type": "FileAgeFilter",
-                  "packageInfo": "ballerina:ftp:2.20.1",
+                  "packageInfo": "ballerina:ftp:2.20.3",
                   "packageName": "ftp",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -366,7 +366,7 @@
                     "typeMembers": [
                       {
                         "type": "FileDependencyCondition",
-                        "packageInfo": "ballerina:ftp:2.20.1",
+                        "packageInfo": "ballerina:ftp:2.20.3",
                         "packageName": "ftp",
                         "kind": "RECORD_TYPE",
                         "selected": false
@@ -472,7 +472,7 @@
               "typeMembers": [
                 {
                   "type": "SocketConfig",
-                  "packageInfo": "ballerina:ftp:2.20.1",
+                  "packageInfo": "ballerina:ftp:2.20.3",
                   "packageName": "ftp",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -509,7 +509,7 @@
               "typeMembers": [
                 {
                   "type": "ProxyConfiguration",
-                  "packageInfo": "ballerina:ftp:2.20.1",
+                  "packageInfo": "ballerina:ftp:2.20.3",
                   "packageName": "ftp",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -537,7 +537,7 @@
             "type": "LISTENER_INIT_PARAM",
             "originalName": "fileTransferMode"
           },
-          "placeholder": "\"ASCII\"",
+          "placeholder": "\"BINARY\"",
           "value": "",
           "types": [
             {
@@ -545,12 +545,12 @@
               "ballerinaType": "ftp:FileTransferMode",
               "options": [
                 {
-                  "label": "ASCII",
-                  "value": "\"ASCII\""
-                },
-                {
                   "label": "BINARY",
                   "value": "\"BINARY\""
+                },
+                {
+                  "label": "ASCII",
+                  "value": "\"ASCII\""
                 }
               ],
               "selected": true
@@ -582,22 +582,23 @@
               "fieldType": "REPEATABLE_LIST",
               "ballerinaType": "ftp:TransferCompression[]",
               "template": {
+                "placeholder": "",
                 "types": [
                   {
                     "fieldType": "SINGLE_SELECT",
                     "ballerinaType": "ftp:TransferCompression",
                     "options": [
                       {
-                        "label": "none",
-                        "value": "\"none\""
+                        "label": "ZLIB",
+                        "value": "\"zlib\""
                       },
                       {
-                        "label": "zlib@openssh.com",
+                        "label": "ZLIBOPENSSH",
                         "value": "\"zlib@openssh.com\""
                       },
                       {
-                        "label": "zlib",
-                        "value": "\"zlib\""
+                        "label": "NO",
+                        "value": "\"none\""
                       }
                     ],
                     "selected": true
@@ -672,7 +673,7 @@
               "typeMembers": [
                 {
                   "type": "FailSafeOptions",
-                  "packageInfo": "ballerina:ftp:2.20.1",
+                  "packageInfo": "ballerina:ftp:2.20.3",
                   "packageName": "ftp",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -709,7 +710,7 @@
               "typeMembers": [
                 {
                   "type": "CoordinationConfig",
-                  "packageInfo": "ballerina:ftp:2.20.1",
+                  "packageInfo": "ballerina:ftp:2.20.3",
                   "packageName": "ftp",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -746,7 +747,7 @@
               "typeMembers": [
                 {
                   "type": "RetryConfig",
-                  "packageInfo": "ballerina:ftp:2.20.1",
+                  "packageInfo": "ballerina:ftp:2.20.3",
                   "packageName": "ftp",
                   "kind": "RECORD_TYPE",
                   "selected": false

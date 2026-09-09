@@ -24,11 +24,7 @@ import ButtonCard from "../../../../components/ButtonCard";
 import { BodyTinyInfo } from "../../../styles";
 import { usePlatformExtContext } from "../../../../providers/platform-ext-ctx-provider";
 import { ConnectorsGrid, Section, SectionHeader, SectionTitle } from "../AddConnectionPopup/styles";
-import { ProgressWrap } from "./utils";
-
-// Devant tags knowledge base services with this tag.
-const KB_TAG = "knowledge-base-as-service";
-const isKnowledgeBase = (item: MarketplaceItem) => item.tags?.includes(KB_TAG) ?? false;
+import { isKnowledgeBaseService, ProgressWrap } from "./utils";
 
 interface CloudKnowledgeBasePageProps {
     // Opens a blank CloudKnowledgeBase create form (manual entry, no Devant service pre-selected).
@@ -68,7 +64,7 @@ export function CloudKnowledgeBasePage(props: CloudKnowledgeBasePageProps) {
                 request: getMarketPlaceParams,
             }),
         enabled: isSignedIn,
-        select: (data) => ({ ...data, data: (data?.data || []).filter(isKnowledgeBase) }),
+        select: (data) => ({ ...data, data: (data?.data || []).filter(isKnowledgeBaseService) }),
     });
 
     const items: MarketplaceItem[] = knowledgeBases?.data || [];

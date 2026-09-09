@@ -32,6 +32,7 @@ import io.ballerina.compiler.syntax.tree.ParameterNode;
 import io.ballerina.compiler.syntax.tree.SeparatedNodeList;
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.compiler.syntax.tree.UnionTypeDescriptorNode;
+import io.ballerina.flowmodelgenerator.core.Constants;
 import io.ballerina.flowmodelgenerator.core.model.Codedata;
 import io.ballerina.flowmodelgenerator.core.model.FlowNode;
 import io.ballerina.flowmodelgenerator.core.model.ItemOption;
@@ -137,7 +138,8 @@ public class ActivityCallBuilder extends CallBuilder {
     private static final String RETRY_BACKOFF_DOC = "Multiplier applied to delay after each retry (default: 2.0)";
     private static final String MAX_RETRY_DELAY_DOC = "Cap on the delay between retries, in seconds";
     // retryPolicy is excluded from ADVANCE_PARAM_LIST; it is added at root level as a DROPDOWN_CHOICE.
-    public static final Set<String> EXCLUDED_CALL_ACTIVITY_PARAMS = Set.of("activityFunction", "args", "T",
+    public static final Set<String> EXCLUDED_CALL_ACTIVITY_PARAMS = Set.of(
+            Constants.Workflow.CALL_ACTIVITY_FUNCTION_PARAM, Constants.Workflow.CALL_ACTIVITY_ARGS_PARAM, "T",
             Property.CHECK_ERROR_KEY, Property.CONNECTION_KEY, RETRY_POLICY_PARAM);
     private static final String NEW_CONNECTION_SENTINEL = "NEW_CONNECTION";
     private static final String ACTIVITY_MODULE_PREFIX = "activity";
@@ -705,9 +707,9 @@ public class ActivityCallBuilder extends CallBuilder {
         // own default.
         dynamicFields.put(AUTO_RETRY_VALUE, autoRetryFields);
         Map<String, Property> manualRetryFields = new LinkedHashMap<>();
-        manualRetryFields.put(RETRY_USER_ROLES_KEY, buildRetrySubProperty("Reviewer Roles",
+        manualRetryFields.put(RETRY_USER_ROLES_KEY, buildReviewerRolesSubProperty("Reviewer Roles",
                 "Role(s) permitted to decide the human review, e.g. \"manager\" or "
-                        + "[\"finance\", \"manager\"]. Leave empty to allow any role.", "string|string[]", false));
+                        + "[\"finance\", \"manager\"]. Leave empty to allow any role."));
         dynamicFields.put(MANUAL_RETRY_VALUE, manualRetryFields);
         if (opaquePolicy) {
             dynamicFields.put(selectedValue, Map.of());
@@ -743,6 +745,27 @@ public class ActivityCallBuilder extends CallBuilder {
                 "Retry Backoff", RETRY_BACKOFF_DOC, "decimal", retryBackoff);
         addHiddenRetrySubFieldProperty(nodeBuilder, MAX_RETRY_DELAY_KEY,
                 "Max Retry Delay", MAX_RETRY_DELAY_DOC, "decimal", maxRetryDelay);
+    }
+
+    /**
+     * The reviewer-role sub-property of the manual-retry policy. Same shape as the other retry
+     * sub-properties, except the role field offers every mode a role field offers elsewhere —
+     * see {@link WorkflowUtil#addRoleFieldTypes}.
+     */
+    private static Property buildReviewerRolesSubProperty(String label, String description) {
+        return WorkflowUtil.addRoleFieldTypes(
+                        new Property.Builder<Void>(null)
+                                .metadata()
+                                    .label(label)
+                                    .description(description)
+                                    .stepOut())
+                .value("")
+                .editable(true)
+                // Optional on purpose: an empty role list is the documented "any role may decide"
+                // configuration, which retryPolicyExpression writes out as `[]`. Marking the field
+                // required would make the form refuse to save that.
+                .optional(true)
+                .build();
     }
 
     private static Property buildRetrySubProperty(String label, String description, String ballerinaType,
@@ -1094,11 +1117,9 @@ public class ActivityCallBuilder extends CallBuilder {
         return switch (value) {
             // NO_RETRY is handled (and skipped) by populateRetryPolicyArg before reaching here.
             case MANUAL_RETRY_VALUE -> {
-                Property roles = properties.get(RETRY_USER_ROLES_KEY);
-                String rolesValue = roles == null || roles.value() == null
-                        ? "" : roles.value().toString().trim();
+                String rolesValue = WorkflowUtil.roleSource(properties.get(RETRY_USER_ROLES_KEY));
                 // ManualRetry is the reviewer role(s); an empty list means any role may decide.
-                yield rolesValue.isBlank() ? "[]" : WorkflowUtil.quoteIfBareRole(rolesValue);
+                yield rolesValue.isBlank() ? "[]" : rolesValue;
             }
             // A policy expression the form could not represent: written back as it was read.
             default -> value;
@@ -1199,8 +1220,6 @@ public class ActivityCallBuilder extends CallBuilder {
             return functionSymbol;
         }
 
-        String modulePrefix = module.substring(module.lastIndexOf('.') + 1);
-        sourceBuilder.acceptImport(org, module);
-        return modulePrefix + ":" + functionSymbol;
+        return sourceBuilder.importPrefix(org, module) + ":" + functionSymbol;
     }
 }

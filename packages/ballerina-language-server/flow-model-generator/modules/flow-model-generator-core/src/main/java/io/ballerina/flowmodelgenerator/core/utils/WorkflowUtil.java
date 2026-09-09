@@ -54,7 +54,10 @@ import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.compiler.syntax.tree.SyntaxTree;
 import io.ballerina.flowmodelgenerator.core.Constants;
 import io.ballerina.flowmodelgenerator.core.UserFacingException;
+import io.ballerina.flowmodelgenerator.core.model.NodeBuilder;
+import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Option;
+import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
 import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.modelgenerator.commons.FileSystemUtils;
@@ -78,6 +81,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -572,7 +576,7 @@ public class WorkflowUtil {
     }
 
     /**
-     * Lists the data-event channel names declared across the default module's durable agent
+     * Lists the data-event channel names declared across every module's durable agent
      * declarations ({@code events: [{name: "...", ...}]}). Data-event channels are declared on
      * the agent — the call-site forms offer them as a fixed dropdown rather than free text.
      * The listing is restricted to one agent when {@code targetAgent} names a module-level
@@ -586,40 +590,62 @@ public class WorkflowUtil {
     public static List<Option> declaredAgentEventOptions(
             org.ballerinalang.langserver.commons.workspace.WorkspaceManager workspaceManager, Path filePath,
             String targetAgent) {
+        return declaredAgentEventNames(workspaceManager, filePath, targetAgent).stream()
+                .map(name -> new Option(name, name))
+                .toList();
+    }
+
+    /**
+     * Every event channel name declared on the matching agent(s). Source order, deduplicated.
+     *
+     * <p>Only the name is read. A channel's declared {@code response} type is deliberately not
+     * surfaced here: {@code sendData} answers {@code string|error} whatever the channel declares —
+     * the response is what {@code getDataResult}/{@code waitForDataResult} hands back later — so
+     * the send statement has nothing to do with it. Reading it would also mean handing out a type
+     * name as raw source text from whichever module declared the agent, with no {@code imports}
+     * to travel with it into the file the statement is generated into.
+     */
+    private static java.util.LinkedHashSet<String> declaredAgentEventNames(
+            org.ballerinalang.langserver.commons.workspace.WorkspaceManager workspaceManager, Path filePath,
+            String targetAgent) {
         java.util.LinkedHashSet<String> names = new java.util.LinkedHashSet<>();
         Project project;
         try {
             project = workspaceManager.loadProject(filePath);
         } catch (Exception e) {
-            LOGGER.log(Level.WARNING, "Skipping declared agent event options: failed to load the project of "
+            LOGGER.log(Level.WARNING, "Skipping declared agent events: failed to load the project of "
                     + filePath, e);
-            return List.of();
+            return names;
         }
-        Module module = project.currentPackage().getDefaultModule();
-        for (DocumentId documentId : module.documentIds()) {
-            Document document = module.document(documentId);
-            ModulePartNode root = document.syntaxTree().rootNode();
-            for (ModuleMemberDeclarationNode member : root.members()) {
-                if (!(member instanceof ModuleVariableDeclarationNode varDecl) || varDecl.initializer().isEmpty()) {
-                    continue;
+        // Every module, matching the set durableAgentOptions offers agents from: scoping this
+        // narrower than the Agent dropdown means picking an agent the dropdown offered can leave the
+        // Data Event dropdown empty, and eventName then fails requireValue on save. Only the channel
+        // name is read here, never a type that would have to resolve from somewhere.
+        for (Module module : project.currentPackage().modules()) {
+            for (DocumentId documentId : module.documentIds()) {
+                Document document = module.document(documentId);
+                ModulePartNode root = document.syntaxTree().rootNode();
+                for (ModuleMemberDeclarationNode member : root.members()) {
+                    if (!(member instanceof ModuleVariableDeclarationNode varDecl)
+                            || varDecl.initializer().isEmpty()) {
+                        continue;
+                    }
+                    String typeText = varDecl.typedBindingPattern().typeDescriptor().toSourceCode().trim();
+                    if (!typeText.equals(Constants.Workflow.DURABLE_AGENT_OBJECT_CLASS_NAME)
+                            && !typeText.endsWith(":" + Constants.Workflow.DURABLE_AGENT_OBJECT_CLASS_NAME)) {
+                        continue;
+                    }
+                    if (targetAgent != null && !targetAgent.isBlank()
+                            && (!(varDecl.typedBindingPattern().bindingPattern()
+                                    instanceof CaptureBindingPatternNode capture)
+                                || !targetAgent.equals(capture.variableName().text()))) {
+                        continue;
+                    }
+                    agentConfigLiteral(varDecl).ifPresent(config -> collectDeclaredEventNames(config, names));
                 }
-                String typeText = varDecl.typedBindingPattern().typeDescriptor().toSourceCode().trim();
-                if (!typeText.equals(Constants.Workflow.DURABLE_AGENT_OBJECT_CLASS_NAME)
-                        && !typeText.endsWith(":" + Constants.Workflow.DURABLE_AGENT_OBJECT_CLASS_NAME)) {
-                    continue;
-                }
-                if (targetAgent != null && !targetAgent.isBlank()
-                        && (!(varDecl.typedBindingPattern().bindingPattern()
-                                instanceof CaptureBindingPatternNode capture)
-                            || !targetAgent.equals(capture.variableName().text()))) {
-                    continue;
-                }
-                agentConfigLiteral(varDecl).ifPresent(config -> collectDeclaredEventNames(config, names));
             }
         }
-        return names.stream()
-                .map(name -> new Option(name, name))
-                .toList();
+        return names;
     }
 
     // Collects the `name` field of each mapping entry in the config's `events` list.
@@ -645,7 +671,7 @@ public class WorkflowUtil {
                             && "name".equals(entry.fieldName().toSourceCode().trim())) {
                         String raw = entry.valueExpr().get().toSourceCode().trim();
                         if (raw.length() >= 2 && raw.startsWith("\"") && raw.endsWith("\"")) {
-                            raw = raw.substring(1, raw.length() - 1);
+                            raw = unescapeLiteralBody(raw.substring(1, raw.length() - 1));
                         }
                         if (!raw.isEmpty()) {
                             names.add(raw);
@@ -654,6 +680,36 @@ public class WorkflowUtil {
                 }
             }
         }
+    }
+
+    /**
+     * Decodes the escaped quote and backslash of a string literal's body, so the channel name is
+     * the text the declaration means rather than its source spelling.
+     *
+     * <p>Deliberately decodes only {@code \\"} and {@code \\\\} — exactly the pair the call site's
+     * re-quoting escapes again. Without this, a channel declared {@code name: "say\\"hi"} reached the
+     * generator as {@code say\\"hi} and came back out as {@code "say\\\\\\"hi"}, a different channel.
+     * Decoding any escape the re-quoting cannot reproduce ({@code \\n}, {@code \\u{...}}) would put a
+     * character in the value that closes the literal early, so those stay as written.
+     */
+    static String unescapeLiteralBody(String body) {
+        if (body.indexOf('\\') < 0) {
+            return body;
+        }
+        StringBuilder decoded = new StringBuilder(body.length());
+        for (int i = 0; i < body.length(); i++) {
+            char current = body.charAt(i);
+            if (current == '\\' && i + 1 < body.length()) {
+                char next = body.charAt(i + 1);
+                if (next == '\\' || next == '"') {
+                    decoded.append(next);
+                    i++;
+                    continue;
+                }
+            }
+            decoded.append(current);
+        }
+        return decoded.toString();
     }
 
     /**
@@ -761,6 +817,100 @@ public class WorkflowUtil {
     }
 
     /**
+     * Node kinds whose generated source is a field of the durable agent's declaration — an entry in
+     * its {@code activities}/{@code tools}/{@code events} list, or a field of its config literal —
+     * rather than a statement in a function body.
+     */
+    private static final Set<NodeKind> AGENT_DECLARATION_NODES = Set.of(
+            NodeKind.DURABLE_AGENT_RUN,
+            NodeKind.DURABLE_AGENT_ADD_ACTIVITY,
+            NodeKind.DURABLE_AGENT_REGISTER_TOOL,
+            NodeKind.DURABLE_AGENT_REGISTER_EVENT,
+            NodeKind.DURABLE_AGENT_HUMAN_TASK,
+            NodeKind.DURABLE_AGENT_PEER);
+
+    /**
+     * Whether the node writes into the durable agent's declaration instead of emitting a statement.
+     * A caller that reads generated source back as a statement has nothing to read for these — the
+     * edit is a list entry or a record field, and parsing it on its own describes a broken
+     * statement rather than anything wrong with the edit.
+     *
+     * @param nodeKind the node kind to test
+     * @return whether the node's source belongs to the agent declaration
+     */
+    public static boolean editsAgentDeclaration(NodeKind nodeKind) {
+        // Set.of() throws on a null probe, and Gson leaves node() null whenever the client sends a
+        // codedata.node this LS does not know (version skew), so the guard is load-bearing.
+        return nodeKind != null && AGENT_DECLARATION_NODES.contains(nodeKind);
+    }
+
+    // A role field edits one role as text, or an expression yielding a role or a list of them.
+    private static final String ROLE_TYPE = "string";
+    private static final String ROLE_UNION_TYPE = "string|string[]";
+
+    /**
+     * Declares the input modes a reviewer/user role field offers: a single role as text, and an
+     * expression producing a role or a list of them.
+     *
+     * <p>Await Human Task derives its {@code userRoles} property from {@code awaitHumanTask}'s own
+     * {@code string|string[]} parameter, where the union expansion in
+     * {@link Property.Builder#typeWithExpression} splits a union into one mode per member with the
+     * full type on the trailing expression entry. The role fields on the activity and agent forms are
+     * hand-built with no parameter symbol to derive from, so they declare the equivalent modes here
+     * instead of collapsing to expression-only — otherwise the same value is edited two different
+     * ways depending on which form it is opened from.
+     *
+     * <p>No {@code REPEATABLE_LIST} mode: {@code FieldFactory} renders only the first and last
+     * declared mode ({@code [types[0], types[types.length - 1]]}), so a list mode declared between
+     * them never reaches the user. Declaring one would advertise an editor that cannot be opened;
+     * a list is entered in the expression mode, whose type is the full union.
+     *
+     * @param builder the property builder to add the role input modes to
+     * @param <T>     the builder's step-out target
+     * @return the same builder, for fluent chaining
+     */
+    public static <T> Property.Builder<T> addRoleFieldTypes(Property.Builder<T> builder) {
+        return builder
+                .type().fieldType(Property.ValueType.TEXT).ballerinaType(ROLE_TYPE).stepOut()
+                .type().fieldType(Property.ValueType.EXPRESSION).ballerinaType(ROLE_UNION_TYPE).stepOut();
+    }
+
+    /**
+     * The role value as Ballerina source. The field is multi-mode, so the raw value is a string in
+     * expression mode and a string template in text mode; {@link Property#toSourceCode()} renders
+     * either. A value entered in expression mode is written through untouched — it may well be a
+     * list literal or a reference to one; otherwise {@link #quoteIfBareRole} quotes a bare word that
+     * arrived without a template wrapper (a value read back from source, say) while leaving a list
+     * or a qualified/called reference alone — note it does not recognise a bare identifier as a
+     * reference, which is why the mode is checked first.
+     *
+     * @param property the role property, or {@code null}
+     * @return the role expression, or an empty string when nothing was entered
+     */
+    public static String roleSource(Property property) {
+        if (property == null) {
+            return "";
+        }
+        String source = property.toSourceCode().trim();
+        if (source.isEmpty()) {
+            return "";
+        }
+        // In expression mode the value IS the expression: a bare `financeRoles` names a module-level
+        // variable, and quoting it would rewrite that reference into a role literal of the same
+        // spelling. Only a value that arrived without an expression mode selected can be a bare role
+        // name needing quotes.
+        if (isExpressionModeSelected(property)) {
+            return source;
+        }
+        return quoteIfBareRole(source);
+    }
+
+    private static boolean isExpressionModeSelected(Property property) {
+        return property.types() != null && property.types().stream()
+                .anyMatch(type -> type.fieldType() == Property.ValueType.EXPRESSION && type.selected());
+    }
+
+    /**
      * Strips a module qualifier from a written reference: {@code mod:validate} reads as
      * {@code validate}, and a bare name passes through. Source carries the qualifier while symbols
      * carry the bare name, so every lookup that crosses that boundary goes through here.
@@ -771,6 +921,53 @@ public class WorkflowUtil {
     public static String stripModulePrefix(String value) {
         int colon = value.lastIndexOf(':');
         return colon >= 0 ? value.substring(colon + 1) : value;
+    }
+
+    /** Label of the approval-gate flag every gated capability form carries. */
+    public static final String REQUIRES_APPROVAL_LABEL = "Requires Approval";
+    /** Label of the reviewer-roles field that accompanies the flag. */
+    public static final String REVIEWER_ROLES_LABEL = "Reviewer Roles";
+
+    /**
+     * Adds the approval-gate pair a durable agent's gated capabilities share — a {@code requiresApproval}
+     * flag and the reviewer roles for the review it creates — as advanced, optional fields. The three
+     * capability forms (activity, tool, peer delegation) differ only in how they describe the thing
+     * being gated, which is what the two descriptions carry.
+     *
+     * @param nodeBuilder     the form being built
+     * @param approvalKey     property key of the flag
+     * @param approvalDoc     what gating means for this capability
+     * @param userRolesKey    property key of the roles field
+     * @param reviewerRolesDoc who may decide the review, with an example
+     */
+    public static void addApprovalGateProperties(NodeBuilder nodeBuilder, String approvalKey, String approvalDoc,
+                                                 String userRolesKey, String reviewerRolesDoc) {
+        nodeBuilder.properties().custom()
+                .metadata()
+                    .label(REQUIRES_APPROVAL_LABEL)
+                    .description(approvalDoc)
+                    .stepOut()
+                .type().fieldType(Property.ValueType.FLAG).ballerinaType("boolean").selected(true).stepOut()
+                .value("false")
+                .editable(true)
+                .optional(true)
+                .advanced(true)
+                .stepOut()
+                .addProperty(approvalKey);
+        // The reviewer roles field is multi-mode, the same as every other role field — a bare role
+        // typed as text, or an expression naming a list. Staging moved the tool and activity forms
+        // onto addRoleFieldTypes; routing it through here keeps the peer form in step as well.
+        addRoleFieldTypes(nodeBuilder.properties().custom()
+                .metadata()
+                    .label(REVIEWER_ROLES_LABEL)
+                    .description(reviewerRolesDoc)
+                    .stepOut())
+                .placeholder("")
+                .editable(true)
+                .optional(true)
+                .advanced(true)
+                .stepOut()
+                .addProperty(userRolesKey);
     }
 
     /** Property key the front end sets to request removal of a capability entry. */

@@ -359,6 +359,15 @@ export class ServiceDesignerRpcManager implements ServiceDesignerAPI {
         const context = StateMachine.context();
         try {
             const res: ResourceSourceCodeResponse = await context.langClient.addFunctionSourceCode(params);
+            if (res.errorMsg) {
+                // A builder threw (e.g. the AI decision-resource builder failing to resolve the
+                // agent's `run` call) rather than refusing at the save-time gate: `textEdits` is
+                // empty, so nothing downstream would otherwise tell the user this silently did
+                // nothing.
+                console.error(">>> error adding function source code", { errorMessage: res.errorMsg, stacktrace: res.stacktrace });
+                window.showErrorMessage(`Failed to add function: ${res.errorMsg}`);
+                return { artifacts: [], error: res.errorMsg };
+            }
             const blockingErrors = getBlockingValidationErrors(res.validationErrors);
             if (blockingErrors.length > 0) {
                 return { artifacts: [], validationErrors: blockingErrors };

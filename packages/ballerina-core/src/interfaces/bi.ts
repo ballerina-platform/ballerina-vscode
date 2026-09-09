@@ -506,6 +506,16 @@ export interface UpdatedArtifactsResponse {
     artifacts: ProjectStructureArtifactResponse[];
     error?: string;
     validationErrors?: ValidationResult[];
+    /**
+     * Whether this generation declared the shared WSO2 default model provider
+     * (`ai:getDefaultModelProvider()`), which only runs once its Config.toml entries are written.
+     *
+     * Reported by the source generation rather than probed beforehand: only the language server
+     * knows whether it declared one, and a caller re-deriving that answer drifts from it. A probe
+     * for "does the project have any model provider" says yes for a package whose only provider is,
+     * say, an OpenAI one, and the config write is then skipped for a provider that needs it.
+     */
+    declaredDefaultModelProvider?: boolean;
 }
 
 export type Item = Category | AvailableNode;

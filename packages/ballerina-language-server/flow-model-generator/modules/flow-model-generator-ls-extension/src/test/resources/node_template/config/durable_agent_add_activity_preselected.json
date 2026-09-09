@@ -60,12 +60,12 @@
       "bindings.api": {
         "metadata": {
           "label": "Api",
-          "description": "Fixed at registration and hidden from the model: the agent cannot supply a 'ballerina/http:2.16.6:Client'"
+          "description": "Fixed at registration and hidden from the model: the agent cannot supply a 'ballerina/http:2.17.1:Client'"
         },
         "types": [
           {
             "fieldType": "SINGLE_SELECT",
-            "ballerinaType": "ballerina/http:2.16.6:Client",
+            "ballerinaType": "ballerina/http:2.17.1:Client",
             "options": [
               {
                 "label": "billingApi",
@@ -145,9 +145,14 @@
         },
         "types": [
           {
+            "fieldType": "TEXT",
+            "ballerinaType": "string",
+            "selected": false
+          },
+          {
             "fieldType": "EXPRESSION",
             "ballerinaType": "string|string[]",
-            "selected": true
+            "selected": false
           }
         ],
         "placeholder": "",
@@ -270,13 +275,18 @@
               },
               "types": [
                 {
+                  "fieldType": "TEXT",
+                  "ballerinaType": "string",
+                  "selected": false
+                },
+                {
                   "fieldType": "EXPRESSION",
                   "ballerinaType": "string|string[]",
-                  "selected": true
+                  "selected": false
                 }
               ],
               "value": "",
-              "optional": false,
+              "optional": true,
               "editable": true,
               "advanced": false,
               "hidden": false

@@ -193,9 +193,17 @@ export function GraphqlServiceEditor(props: GraphqlServiceEditorProps) {
         subscription: undefined,
     });
 
+    // Depend on the range's values, not the object: the parent builds `lineRange` inline, so a new
+    // object arrives on every one of its renders and would refetch the model each time.
     useEffect(() => {
         fetchServiceModel();
-    }, [lineRange]);
+    }, [
+        filePath,
+        lineRange?.startLine?.line,
+        lineRange?.startLine?.offset,
+        lineRange?.endLine?.line,
+        lineRange?.endLine?.offset,
+    ]);
 
     useEffect(() => {
         // Fetch all templates on mount
@@ -241,33 +249,46 @@ export function GraphqlServiceEditor(props: GraphqlServiceEditorProps) {
 
         const reqFilePath = newFilePath ? newFilePath : filePath;
 
-        rpcClient
-            .getServiceDesignerRpcClient()
-            .getServiceModelFromCode({
+        try {
+            const res = await rpcClient.getServiceDesignerRpcClient().getServiceModelFromCode({
                 filePath: reqFilePath,
                 codedata: {
                     lineRange: reqLineRange,
+                    // Name the service being refreshed, so the server's stale-range recovery cannot
+                    // answer with a different service that has come to enclose this range. Sent back
+                    // exactly as the server reported it; absent on the first fetch, whose range is
+                    // the one the panel was opened with and so is not stale.
+                    originalName: serviceModel?.properties?.basePath?.value,
                 },
-            })
-            .then((res) => {
-                console.log("Service Model: ", res.service);
-                setServiceModel(res.service);
             });
-        getProjectListeners();
+            console.log("Service Model: ", res.service);
+            // No service means the one this panel was opened on is gone. Clear rather than keep
+            // operations whose ranges point at nothing - onDeleteFunction edits at
+            // `model.codedata.lineRange`, and a stale one would delete the wrong text.
+            setServiceModel(res.service);
+        } catch (error) {
+            // The request itself failed, which says nothing about whether the service is still
+            // there. Keep the model we have rather than rejecting into nothing: nothing awaits
+            // this call, so a rejection escaping here would take down the webview.
+            console.error("Error fetching the service model:", error);
+        }
+        await getProjectListeners();
     };
 
-    const getProjectListeners = () => {
-        rpcClient.getVisualizerLocation().then((location) => {
-            const projectPath = location.projectPath;
-            rpcClient.getBIDiagramRpcClient().getProjectStructure().then((res) => {
-                const project = res.projects.find(project => isSamePath(project.projectPath, projectPath));
-                const listeners = project?.directoryMap[DIRECTORY_MAP.LISTENER];
-                if (listeners.length > 0) {
-                    setProjectListeners(listeners);
-                }
-            });
-        });
+    const getProjectListeners = async () => {
+        try {
+            const location = await rpcClient.getVisualizerLocation();
+            const res = await rpcClient.getBIDiagramRpcClient().getProjectStructure();
+            const project = res.projects.find(project => isSamePath(project.projectPath, location.projectPath));
+            const listeners = project?.directoryMap[DIRECTORY_MAP.LISTENER];
+            if (listeners?.length > 0) {
+                setProjectListeners(listeners);
+            }
+        } catch (error) {
+            console.error("Error fetching the project listeners:", error);
+        }
     };
+
 
     const handleServiceEdit = async () => {
         await rpcClient.getVisualizerRpcClient().openView({
@@ -383,8 +404,17 @@ export function GraphqlServiceEditor(props: GraphqlServiceEditorProps) {
             endColumn: model?.codedata?.lineRange?.endLine?.offset,
         };
         const deleteAction: STModification = removeStatement(targetPosition);
-        await applyModifications(rpcClient, [deleteAction]);
-        fetchServiceModel();
+        try {
+            await applyModifications(rpcClient, [deleteAction], filePath);
+            // The deletion shortened the service, so the range this panel holds now ends past where
+            // the service does. The language server resolves that back to the service that starts on
+            // the same line, so refreshing with it is safe.
+            await fetchServiceModel();
+        } catch (error) {
+            // Nothing awaits this handler: the confirmation popup calls it and moves on, so an
+            // error escaping here surfaces as an unhandled rejection instead of a message.
+            console.error("Error deleting the operation:", error);
+        }
     };
 
     const onFunctionImplement = async (func: FunctionModel) => {

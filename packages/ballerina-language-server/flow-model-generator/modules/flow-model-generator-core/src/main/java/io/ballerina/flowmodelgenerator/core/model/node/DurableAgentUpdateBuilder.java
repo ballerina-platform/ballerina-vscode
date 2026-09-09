@@ -66,7 +66,6 @@ public class DurableAgentUpdateBuilder extends FunctionCall {
     public static final String DATA_DOC = "The data payload sent on the channel; must match its request type";
 
     private static final String STRING_TYPE = "string";
-    private static final String DEFAULT_EVENT_NAME = "chat";
     private static final String DEFAULT_TOKEN_VAR = "eventToken";
 
     @Override
@@ -119,13 +118,11 @@ public class DurableAgentUpdateBuilder extends FunctionCall {
 
         // Channels are declared on the agent (Add Data Event), so the call site offers them
         // as a fixed dropdown; when the form targets a known agent only ITS channels are
-        // offered, and the conversational default "chat" is offered when none is declared.
+        // offered. An agent that declares none offers none: inventing a default would name a
+        // channel the agent cannot receive on, and the send would fail at runtime.
         String targetAgent = context.codedata() == null ? null : context.codedata().parentSymbol();
         List<Option> eventOptions = WorkflowUtil.declaredAgentEventOptions(
                 context.workspaceManager(), context.filePath(), targetAgent);
-        if (eventOptions.isEmpty()) {
-            eventOptions = List.of(new Option(DEFAULT_EVENT_NAME, DEFAULT_EVENT_NAME));
-        }
         properties().custom()
                 .metadata()
                     .label(EVENT_NAME_LABEL)
@@ -139,7 +136,7 @@ public class DurableAgentUpdateBuilder extends FunctionCall {
                 .codedata()
                     .kind(ParameterData.Kind.REQUIRED.name())
                     .stepOut()
-                .value(eventOptions.get(0).value())
+                .value(eventOptions.isEmpty() ? "" : eventOptions.get(0).value())
                 .editable(true)
                 .stepOut()
                 .addProperty(EVENT_NAME_KEY);
@@ -178,14 +175,14 @@ public class DurableAgentUpdateBuilder extends FunctionCall {
                         ? DEFAULT_TOKEN_VAR : p.value().toString())
                 .orElse(DEFAULT_TOKEN_VAR);
 
-        // sendData always returns the turn's correlation token; the answer is read via
-        // getDataResult/waitForDataResult (the Get Agent Data Result node).
         String expression = agent + "." + AGENT_SEND_DATA_METHOD_NAME
                 + "(" + String.join(", ", List.of(agentId, eventName, data)) + ")";
-        String resultType = STRING_TYPE;
 
+        // sendData answers `string|error` on every channel: that value is the turn's correlation
+        // token, never the channel's declared `response`. The response is read back later through
+        // Get Agent Data Result, so whether a channel declares one changes nothing here.
         sourceBuilder.token()
-                .name(checkError ? resultType : resultType + "|error")
+                .name(checkError ? STRING_TYPE : STRING_TYPE + "|error")
                 .whiteSpace()
                 .name(variableName)
                 .whiteSpace()

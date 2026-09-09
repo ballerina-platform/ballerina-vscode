@@ -807,10 +807,10 @@ const MainPanel = () => {
                         }
                         case MACHINE_VIEW.BIDurableAgentForm: {
                             const { FunctionForm } = await import("./views/BI/FunctionForm");
-                            // Durable agent declarations live in workflow.bal alongside the
+                            // Durable agent declarations live in workflows.bal alongside the
                             // workflow artifacts, not in functions.bal.
                             const workflowFile = value.documentUri
-                                ?? (await rpcClient.getVisualizerRpcClient().joinProjectPath({ segments: ['workflow.bal'] })).filePath;
+                                ?? (await rpcClient.getVisualizerRpcClient().joinProjectPath({ segments: ['workflows.bal'] })).filePath;
                             if (isStaleNavigation()) return;
                             setViewComponent(
                                 <FunctionForm

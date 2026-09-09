@@ -17,7 +17,13 @@
  */
 
 import { MigrationTool } from "@wso2/ballerina-core";
-import { isMultiRootSelected, MULTI_ROOT_PARAM_KEY, resolveSourceLayoutParam } from "./utils";
+import {
+    isMultiRootSelected,
+    KEEP_STRUCTURE_PARAM_KEY,
+    MULTI_ROOT_PARAM_KEY,
+    resolveKeepStructureParam,
+    resolveSourceLayoutParam,
+} from "./utils";
 
 type Param = MigrationTool["parameters"][number];
 
@@ -99,5 +105,24 @@ describe("isMultiRootSelected", () => {
         expect(isMultiRootSelected(muleTool, {})).toBe(false);
         expect(isMultiRootSelected(muleTool, undefined)).toBe(false);
         expect(isMultiRootSelected(null, { multiRoot: true })).toBe(false);
+    });
+});
+
+describe("resolveKeepStructureParam", () => {
+    it("finds keepStructure wherever the tool declares it", () => {
+        const resolved = resolveKeepStructureParam(
+            tool([boolParam(MULTI_ROOT_PARAM_KEY), boolParam(KEEP_STRUCTURE_PARAM_KEY)])
+        );
+        expect(resolved?.key).toBe(KEEP_STRUCTURE_PARAM_KEY);
+    });
+
+    it("never resolves to multiRoot, which owns the Source Layout choice instead", () => {
+        // No positional fallback here, unlike resolveSourceLayoutParam: a tool that does not
+        // declare keepStructure must hide the Output Structure section, not bind the
+        // checkbox to whichever other boolean happens to be declared.
+        expect(resolveKeepStructureParam(tool([boolParam(MULTI_ROOT_PARAM_KEY)]))).toBeNull();
+        expect(resolveKeepStructureParam(tool([]))).toBeNull();
+        expect(resolveKeepStructureParam(null)).toBeNull();
+        expect(resolveKeepStructureParam(undefined)).toBeNull();
     });
 });
