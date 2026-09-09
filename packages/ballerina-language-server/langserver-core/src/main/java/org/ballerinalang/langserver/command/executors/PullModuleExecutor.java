@@ -299,6 +299,8 @@ public class PullModuleExecutor implements LSCommandExecutor {
                             CorruptBirCacheParams params = corruptBir.get();
                             params.setProjectUri(project.sourceRoot().toUri().toString());
                             params.setDistVersion(RepoUtils.getBallerinaShortVersion());
+                            params.setReposPath(RepoUtils.createAndGetHomeReposPath()
+                                    .resolve(ProjectConstants.REPOSITORIES_DIR).toString());
                             languageClient.corruptBirCache(params);
                         }
                         if (t.getCause() instanceof UserErrorException) {

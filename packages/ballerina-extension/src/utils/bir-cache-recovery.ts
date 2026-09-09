@@ -37,11 +37,13 @@ export interface CorruptBirCachePayload extends Partial<CorruptPackage> {
     moduleName?: string;
     distVersion?: string;
     projectUri?: string;
+    reposPath?: string;
 }
 
 interface ClearOptions {
     distVersion?: string;
     homeDir?: string;
+    reposDir?: string;
 }
 
 // A cache path segment (org / package name / version / dist version) must be a single, simple token.
@@ -56,8 +58,16 @@ export function isValidPackage(pkg: Partial<CorruptPackage> | null | undefined):
     return !!pkg && isSafeSegment(pkg.org) && isSafeSegment(pkg.packageName) && isSafeSegment(pkg.version);
 }
 
-function reposDirFor(homeDir: string): string {
-    return path.join(homeDir, ".ballerina", "repositories");
+function reposDirFor(options: ClearOptions): string {
+    if (options.reposDir) {
+        return options.reposDir;
+    }
+    if (options.homeDir) {
+        return path.join(options.homeDir, ".ballerina", "repositories");
+    }
+    const envHome = process.env.BALLERINA_HOME_DIR;
+    const ballerinaHome = envHome && envHome.length > 0 ? envHome : path.join(os.homedir(), ".ballerina");
+    return path.join(ballerinaHome, "repositories");
 }
 
 function isWithin(parent: string, child: string): boolean {
@@ -114,13 +124,13 @@ async function removeIfExists(dir: string, reposDir: string): Promise<boolean> {
     if (!isWithin(realReposDir, realDir)) {
         return false; // target escapes the repositories root via a symlinked component
     }
-    await fs.rm(realDir, { recursive: true, force: true });
+    await fs.rm(realDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
     return true;
 }
 
 /** Clears the compiled BIR cache for a single package under cache-<distVersion>. Returns removed dirs. */
 export async function clearPackageBirCache(pkg: CorruptPackage, options: ClearOptions = {}): Promise<string[]> {
-    const reposDir = reposDirFor(options.homeDir ?? os.homedir());
+    const reposDir = reposDirFor(options);
     const removed: string[] = [];
     for (const dir of await resolvePackageCacheDirs(reposDir, pkg, options.distVersion)) {
         if (await removeIfExists(dir, reposDir)) {
@@ -132,7 +142,7 @@ export async function clearPackageBirCache(pkg: CorruptPackage, options: ClearOp
 
 /** Fallback: clears every repositories/&ast;/cache-<distVersion> dir. */
 export async function clearAllBirCaches(options: ClearOptions = {}): Promise<string[]> {
-    const reposDir = reposDirFor(options.homeDir ?? os.homedir());
+    const reposDir = reposDirFor(options);
     const removed: string[] = [];
     for (const repo of await listSubDirs(reposDir)) {
         const repoDir = path.join(reposDir, repo);
@@ -163,6 +173,9 @@ export async function promptClearCorruptBirCache(payload: CorruptBirCachePayload
     promptShown = true;
     try {
         const distVersion = isSafeSegment(payload?.distVersion) ? payload.distVersion : undefined;
+        // The LS resolves this against $BALLERINA_HOME_DIR; prefer it over the client's home guess.
+        const reposDir =
+            typeof payload?.reposPath === "string" && payload.reposPath.length > 0 ? payload.reposPath : undefined;
         const target = isValidPackage(payload)
             ? { org: payload.org, packageName: payload.packageName, version: payload.version }
             : null;
@@ -171,24 +184,46 @@ export async function promptClearCorruptBirCache(payload: CorruptBirCachePayload
         const displayName = isSafeSegment(payload?.moduleName) ? payload.moduleName : target?.packageName;
         const coordinate = target ? `${target.org}/${displayName}:${target.version}` : undefined;
         const action = "Clear cache & reload";
-        const prompt = coordinate
-            ? `The cache for module '${coordinate}' is corrupted, so the project may appear empty. ` +
-              `Clear the cache for this module and reload?`
-            : `A module cache is corrupted, so the project may appear empty. ` +
-              `Clear the module cache and reload?`;
+        const message = coordinate
+            ? `The cache for module '${coordinate}' is corrupted.`
+            : `A module cache is corrupted.`;
+        const detail = coordinate
+            ? `Until it's cleared, the project may load without its components.\n\n` +
+              `Clearing removes this module's compiled cache and reloads the window to recover. ` +
+              `If the module's cache can't be located, all module caches for this distribution are cleared.`
+            : `Until it's cleared, the project may load without its components.\n\n` +
+              `Clearing removes the module cache and reloads the window to recover.`;
 
-        const choice = await window.showErrorMessage(prompt, action);
+        // A modal blocks interaction so the user can't keep working against the broken (empty)
+        // project; a dismissible notification could be ignored. Modals add their own Cancel button.
+        const choice = await window.showErrorMessage(message, { modal: true, detail }, action);
         if (choice !== action) {
             return;
         }
 
-        const removed = target
-            ? await clearPackageBirCache(target, { distVersion })
-            : await clearAllBirCaches({ distVersion });
-        // If the targeted clear matched nothing (unexpected layout), fall back to clearing the whole
-        // distribution cache so the user still recovers rather than reloading into the same state.
-        if (target && removed.length === 0) {
-            await clearAllBirCaches({ distVersion });
+        try {
+            const removed = target
+                ? await clearPackageBirCache(target, { distVersion, reposDir })
+                : await clearAllBirCaches({ distVersion, reposDir });
+            // The targeted clear matched nothing — the corrupt cache is on disk (that is why the LS
+            // reported it), but the coordinates did not resolve to it, e.g. a submodule where the LS
+            // fell back to the module name instead of the package name. Clear the whole distribution
+            // cache so the user still recovers; the prompt above states this broader scope up front.
+            if (target && removed.length === 0) {
+                await clearAllBirCaches({ distVersion, reposDir });
+            }
+        } catch (err) {
+            // A file lock (e.g. the JVM holding cache handles on Windows) or permission error can
+            // leave the cache partially cleared. Surface it instead of reloading into a broken state.
+            // Recovery failed, so the project is still broken — make this modal too so it isn't missed.
+            const reason = err instanceof Error ? err.message : String(err);
+            window.showErrorMessage("Failed to clear the corrupted module cache.", {
+                modal: true,
+                detail:
+                    `${reason}\n\nClose any running Ballerina processes and try again, ` +
+                    `or delete the cache manually.`,
+            });
+            return;
         }
 
         await commands.executeCommand("workbench.action.reloadWindow");

@@ -27,6 +27,7 @@ public class CorruptBirCacheParams {
     private String moduleName;
     private String distVersion;
     private String projectUri;
+    private String reposPath;
 
     public CorruptBirCacheParams(String org, String packageName, String version) {
         this.org = org;
@@ -68,5 +69,13 @@ public class CorruptBirCacheParams {
 
     public void setProjectUri(String projectUri) {
         this.projectUri = projectUri;
+    }
+
+    public String getReposPath() {
+        return reposPath;
+    }
+
+    public void setReposPath(String reposPath) {
+        this.reposPath = reposPath;
     }
 }
