@@ -55,6 +55,9 @@ dependencies {
         transitive = false
     }
     implementation "io.ballerina.openapi:core:${openAPICoreVersion}"
+    // Temporary development dependency until mcp-core is published to the shared Maven repository.
+    implementation files("libs/mcp-core-1.0.0.jar")
+    dist files("libs/mcp-core-1.0.0.jar")
     implementation "io.ballerina.graphql-tool:code-generator:${graphqlToolVersion}"
     dist "io.ballerina.graphql-tool:code-generator:${graphqlToolVersion}"
     implementation("io.swagger.parser.v3:swagger-parser:${swaggerParserVersion}") {

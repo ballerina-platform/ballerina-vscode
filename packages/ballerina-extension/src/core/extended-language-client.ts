@@ -272,6 +272,8 @@ import {
     GetMigrationToolsResponse,
     ServiceModelInitResponse,
     ServiceInitSourceRequest,
+    OpenApiEndpointsRequest,
+    OpenApiEndpointsResponse,
     ValidatePropertyRequest,
     ValidatePropertyResponse,
     DeleteSubMappingRequest,
@@ -461,6 +463,7 @@ enum EXTENDED_APIS {
     BI_SERVICE_GET_SERVICE = 'serviceDesign/getServiceModel',
     BI_SERVICE_GET_SERVICE_INIT = 'serviceDesign/getServiceInitModel',
     BI_SERVICE_CREATE_SERVICE_AND_LISTENER = 'serviceDesign/addServiceAndListener',
+    BI_SERVICE_LIST_OPENAPI_ENDPOINTS = 'serviceDesign/listOpenApiEndpoints',
     BI_SERVICE_VALIDATE_PROPERTY = 'serviceDesign/validateProperty',
     BI_SERVICE_GET_FUNCTION = 'serviceDesign/getFunctionModel',
     BI_SERVICE_ADD_SERVICE = 'serviceDesign/addService',
@@ -1379,6 +1382,10 @@ export class ExtendedLangClient extends LanguageClient implements ExtendedLangCl
 
     async getServiceInitModel(params: ServiceModelRequest): Promise<ServiceModelInitResponse> {
         return this.sendRequest<ServiceModelInitResponse>(EXTENDED_APIS.BI_SERVICE_GET_SERVICE_INIT, params);
+    }
+
+    async listOpenApiEndpoints(params: OpenApiEndpointsRequest): Promise<OpenApiEndpointsResponse> {
+        return this.sendRequest<OpenApiEndpointsResponse>(EXTENDED_APIS.BI_SERVICE_LIST_OPENAPI_ENDPOINTS, params);
     }
 
     async createServiceAndListener(params: ServiceInitSourceRequest): Promise<SourceEditResponse> {

@@ -71,10 +71,13 @@ import {
     updateResourceSourceCode,
     updateServiceSourceCode,
     GetOASSpecRequest,
+    OpenApiEndpointsRequest,
+    OpenApiEndpointsResponse,
     ValidatePropertyRequest,
     ValidatePropertyResponse,
     GetOASSpecResponse,
     getOASSpec,
+    listOpenApiEndpoints,
     validateProperty
 } from "@wso2/ballerina-core";
 import { HOST_EXTENSION } from "vscode-messenger-common";
@@ -181,5 +184,9 @@ export class ServiceDesignerRpcClient implements ServiceDesignerAPI {
 
     getOASSpec(params: GetOASSpecRequest): Promise<GetOASSpecResponse> {
         return this._messenger.sendRequest(getOASSpec, HOST_EXTENSION, params);
+    }
+
+    listOpenApiEndpoints(params: OpenApiEndpointsRequest): Promise<OpenApiEndpointsResponse> {
+        return this._messenger.sendRequest(listOpenApiEndpoints, HOST_EXTENSION, params);
     }
 }

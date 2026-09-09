@@ -39,6 +39,8 @@ import {
     ListenersRequest,
     ListenersResponse,
     OpenAPISpec,
+    OpenApiEndpointsRequest,
+    OpenApiEndpointsResponse,
     PayloadContext,
     ResourceReturnTypesRequest,
     ResourceSourceCodeResponse,
@@ -461,6 +463,11 @@ export class ServiceDesignerRpcManager implements ServiceDesignerAPI {
                 reject(error);
             }
         });
+    }
+
+    async listOpenApiEndpoints(params: OpenApiEndpointsRequest): Promise<OpenApiEndpointsResponse> {
+        const context = StateMachine.context();
+        return context.langClient.listOpenApiEndpoints(params);
     }
 
     async createServiceAndListener(params: ServiceInitSourceRequest): Promise<UpdatedArtifactsResponse> {

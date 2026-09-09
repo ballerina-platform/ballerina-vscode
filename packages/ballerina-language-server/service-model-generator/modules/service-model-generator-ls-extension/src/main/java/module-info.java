@@ -22,6 +22,7 @@ module io.ballerina.LSExtensions.TriggerService {
     requires org.eclipse.lsp4j;
     requires io.ballerina.diagram.util;
     requires io.ballerina.openapi.core;
+    requires mcp.core;
     requires io.ballerina.graphql.generator;
     requires io.ballerina.language.server.core;
     requires io.ballerina.formatter.core;
