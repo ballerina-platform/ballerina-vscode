@@ -19,7 +19,7 @@
 import { filterCategoriesLocally } from "./utils";
 
 describe("filterCategoriesLocally", () => {
-    const categories = [
+    const categories: any[] = [
         {
             title: "Model Providers",
             items: [

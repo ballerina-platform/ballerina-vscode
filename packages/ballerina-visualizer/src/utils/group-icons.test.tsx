@@ -23,7 +23,7 @@ jest.mock('@wso2/bi-diagram', () => ({
     AIModelIcon: (props: any) => ({ type: 'AIModelIcon', props }),
 }), { virtual: true });
 jest.mock('@wso2/ui-toolkit', () => ({
-    getAIModuleIcon: jest.fn(() => undefined),
+    getAIModuleIcon: jest.fn((): undefined => undefined),
 }), { virtual: true });
 
 import { NodeIcon, ConnectorIcon, AIModelIcon } from "@wso2/bi-diagram";
