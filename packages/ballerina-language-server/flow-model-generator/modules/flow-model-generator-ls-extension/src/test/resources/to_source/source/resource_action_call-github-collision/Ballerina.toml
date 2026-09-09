@@ -1,0 +1,8 @@
+[package]
+org = "nipunaf"
+name = "resource_action_call_github_collision"
+version = "0.1.0"
+distribution = "2201.9.2"
+
+[build-options]
+observabilityIncluded = true

@@ -2401,6 +2401,17 @@
               }
             }
           ],
+          "layout": [
+            {
+              "fields": [
+                "$variant",
+                "$description",
+                "content",
+                "stream",
+                "*rest"
+              ]
+            }
+          ],
           "returnType": {
             "metadata": {
               "label": "Return Type",
@@ -2955,6 +2966,17 @@
               "codedata": {
                 "type": "FUNCTION_PARAM"
               }
+            }
+          ],
+          "layout": [
+            {
+              "fields": [
+                "$variant",
+                "$description",
+                "content",
+                "stream",
+                "*rest"
+              ]
             }
           ],
           "returnType": {

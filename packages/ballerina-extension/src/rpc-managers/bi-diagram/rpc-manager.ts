@@ -203,6 +203,7 @@ import { OLD_BACKEND_URL } from "../../features/ai/utils";
 import { fetchWithAuth } from "../../features/ai/utils/ai-client";
 import { getCurrentBIProject } from "../../features/config-generator/configGenerator";
 import { BreakpointManager } from "../../features/debugger/breakpoint-manager";
+import { declaresDefaultModelProvider } from "./defaultModelProvider";
 import { StateMachine, updateView } from "../../stateMachine";
 import { getAccessToken, getLoginMethod } from "../../utils/ai/auth";
 import { getCompleteSuggestions } from '../../utils/ai/completions';
@@ -392,6 +393,10 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
 
             const nodeKind = params.flowNode.codedata.node;
             const artifactData = params.artifactData || this.getArtifactDataFromNodeKind(nodeKind);
+            // Read off the edits the LS actually produced, before they are applied. Whether the
+            // default provider was declared is the LS's decision, so reporting what it emitted is
+            // the only answer that cannot drift from it — see UpdatedArtifactsResponse.
+            const declaredDefaultModelProvider = declaresDefaultModelProvider(model.textEdits);
             const artifacts = await updateSourceCode(
                 { textEdits: model.textEdits, artifactData, description: this.getSourceDescription(params) },
                 params.isHelperPaneChange
@@ -401,7 +406,7 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
                 // notification fired for it, the webview would never learn the source changed.
                 notifyCurrentWebview();
             }
-            return { artifacts };
+            return { artifacts, declaredDefaultModelProvider };
         } catch (error) {
             console.log(">>> error fetching source code from ls", error);
             const errorMessage = error instanceof Error ? error.message : String(error);
@@ -834,8 +839,8 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
         const workspacePath = projectInfo?.projectPath;
         await deleteProjectFromWorkspace(workspacePath, projectPath);
 
-        // Refresh project info to update UI with newly added project
-        StateMachine.refreshProjectInfo();
+        // Refresh project info to update the package list in place.
+        StateMachine.refreshProjectInfo({ silent: true });
     }
 
     async addProjectToWorkspace(params: AddProjectToWorkspaceRequest): Promise<AddProjectToWorkspaceResponse> {
@@ -2015,13 +2020,15 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
 
     async updateImports(params: UpdateImportsRequest): Promise<UpdateImportsResponse> {
         return new Promise((resolve, reject) => {
+            // The offset shifts the expression editor's cursor past the text the import added, so it has
+            // to measure the statement that was actually sent. Measuring the untrimmed one counted the
+            // surrounding whitespace of the completion's text edit - typically a trailing newline - and
+            // drifted the cursor by that much on every accepted completion.
+            const importStatement = params.importStatement.trim();
             StateMachine.langClient()
-                .updateImports({
-                    ...params,
-                    importStatement: params.importStatement.trim()
-                })
+                .updateImports({ ...params, importStatement })
                 .then((response) => {
-                    resolve({ ...response, importStatementOffset: params.importStatement.length });
+                    resolve({ ...response, importStatementOffset: importStatement.length });
                 })
                 .catch((error) => {
                     console.error('Error updating imports', error);
@@ -2775,9 +2782,9 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
         setTomlSectionField(path.join(params.projectPath, 'Ballerina.toml'), 'workspace', 'title', params.title);
         const currentProjectInfo = StateMachine.context().projectInfo;
         if (isSamePath(currentProjectInfo.projectPath, params.projectPath)) {
-            StateMachine.updateProjectInfo({ ...currentProjectInfo, title: params.title });
+            StateMachine.updateProjectInfo({ ...currentProjectInfo, title: params.title }, { silent: true });
         } else {
-            StateMachine.refreshProjectInfo();
+            StateMachine.refreshProjectInfo({ silent: true });
         }
     }
 

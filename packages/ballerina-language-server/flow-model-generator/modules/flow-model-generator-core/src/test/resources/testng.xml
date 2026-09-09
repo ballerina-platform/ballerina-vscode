@@ -9,11 +9,17 @@
             <class name="io.ballerina.flowmodelgenerator.core.ConnectionActionProviderTest"/>
             <class name="io.ballerina.flowmodelgenerator.core.ConnectorCategoryResolverTest"/>
             <class name="io.ballerina.flowmodelgenerator.core.DiagnosticHandlerTest"/>
+            <class name="io.ballerina.flowmodelgenerator.core.PackageUtilConcurrencyTest"/>
+            <class name="io.ballerina.flowmodelgenerator.core.type.IntersectionNormalizerTest"/>
             <class name="io.ballerina.flowmodelgenerator.core.copilot.CopilotUiSchemaIsolationTest"/>
             <class name="io.ballerina.flowmodelgenerator.core.copilot.central.CentralLibrarySearchAccessorTest"/>
+            <class name="io.ballerina.flowmodelgenerator.core.utils.CentralSearchUtilTest"/>
+            <class name="io.ballerina.flowmodelgenerator.core.utils.WorkflowUtilEventNameEscapingTest"/>
             <class name="io.ballerina.flowmodelgenerator.core.copilot.service.ServiceIndexLoaderTest"/>
             <class name="io.ballerina.flowmodelgenerator.core.copilot.service.SpecMajorGateTest"/>
             <class name="io.ballerina.flowmodelgenerator.core.copilot.util.LibraryModelConverterTest"/>
+            <class name="io.ballerina.flowmodelgenerator.core.HumanTaskFallbackArgumentsTest"/>
+            <class name="io.ballerina.flowmodelgenerator.core.model.node.HumanTaskKeyFallbackTest"/>
         </classes>
     </test>
 </suite>

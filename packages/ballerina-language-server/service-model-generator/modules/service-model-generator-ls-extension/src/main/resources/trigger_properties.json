@@ -173,7 +173,7 @@
       "rfc",
       "event"
     ],
-    "triggerName": "SAP JCo",
+    "triggerName": "SAP ECC (JCo)",
     "version": "2.0.1",
     "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_sap.jco_2.0.1.png",
     "kind": "event"

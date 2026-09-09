@@ -86,16 +86,8 @@ import io.ballerina.projects.DependenciesToml;
 import io.ballerina.projects.Document;
 import io.ballerina.projects.Package;
 import io.ballerina.projects.PackageCompilation;
-import io.ballerina.projects.PackageDescriptor;
-import io.ballerina.projects.PackageName;
-import io.ballerina.projects.PackageOrg;
 import io.ballerina.projects.Project;
 import io.ballerina.projects.TomlDocument;
-import io.ballerina.projects.environment.PackageMetadataResponse;
-import io.ballerina.projects.environment.PackageResolver;
-import io.ballerina.projects.environment.ResolutionOptions;
-import io.ballerina.projects.environment.ResolutionRequest;
-import io.ballerina.projects.environment.ResolutionResponse;
 import io.ballerina.tools.diagnostics.Location;
 import org.ballerinalang.langserver.common.utils.CommonUtil;
 import org.ballerinalang.langserver.commons.BallerinaCompilerApi;
@@ -107,7 +99,6 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -635,21 +626,10 @@ public class AiUtils {
     }
 
     public static Optional<String> resolvePackageVersion(String org, String packageName) {
-        try {
-            PackageResolver resolver = PackageUtil.getSampleProject()
-                    .projectEnvironmentContext().getService(PackageResolver.class);
-            ResolutionRequest resolutionRequest = ResolutionRequest.from(
-                    PackageDescriptor.from(PackageOrg.from(org), PackageName.from(packageName)));
-            Collection<PackageMetadataResponse> metadataResponses = resolver.resolvePackageMetadata(
-                    Collections.singletonList(resolutionRequest),
-                    ResolutionOptions.builder().setOffline(true).build());
-            return metadataResponses.stream().findFirst()
-                    .filter(meta -> meta.resolutionStatus() != ResolutionResponse.ResolutionStatus.UNRESOLVED)
-                    .map(PackageMetadataResponse::resolvedDescriptor)
-                    .map(descriptor -> descriptor.version().value().toString());
-        } catch (RuntimeException e) {
-            return Optional.empty();
-        }
+        // Delegate to PackageUtil.cachedVersion, which performs the same offline metadata resolution
+        // on the current thread's sample project. Doing it here directly would be a second consumer
+        // of the sample-project resolver to keep thread-safe; keeping a single owner avoids that.
+        return Optional.ofNullable(PackageUtil.cachedVersion(org, packageName));
     }
 
     private static synchronized void ensureDependentModulesResolved() {

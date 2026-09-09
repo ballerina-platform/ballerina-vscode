@@ -18,13 +18,13 @@
 
 import React, { useState } from "react";
 import styled from "@emotion/styled";
-import { CDService } from "@wso2/ballerina-core";
+import { AI_CHAT_RESOURCE_NAME, AI_DECISION_RESOURCE_NAME, CDService } from "@wso2/ballerina-core";
 import { Item, Menu, MenuItem, Popover, Icon, ThemeColors } from "@wso2/ui-toolkit";
 import { useDiagramContext } from "../../../DiagramContext";
 import { MoreVertIcon } from "../../../../resources/icons/nodes/MoreVertIcon";
-import { getEntryNodeFunctionPortName } from "../../../../utils/diagram";
 import { BaseNodeWidgetProps, EntryNodeModel } from "../EntryNodeModel";
 import { useClickWithDragTolerance } from "../../../../hooks/useClickWithDragTolerance";
+import { FunctionBox } from "./GeneralWidget";
 import {
     Node,
     Box,
@@ -35,7 +35,7 @@ import {
     IconWrapper,
     MenuButton,
     TopPortWidget,
-    BottomPortWidget
+    BottomPortWidget,
 } from "./styles";
 
 type NodeStyleProp = { hovered: boolean };
@@ -102,21 +102,18 @@ export function AIServiceWidget({ model, engine }: BaseNodeWidgetProps) {
     const [isHovered, setIsHovered] = useState(false);
     const [menuAnchorEl, setMenuAnchorEl] = useState<HTMLElement | SVGSVGElement>(null);
 
-    const { onFunctionSelect, onDeleteComponent, readonly } = useDiagramContext();
+    const { onServiceSelect, onDeleteComponent, readonly } = useDiagramContext();
     const isMenuOpen = Boolean(menuAnchorEl);
 
-    const serviceFunctions = [];
-    if ((model.node as CDService).remoteFunctions?.length > 0) {
-        serviceFunctions.push(...(model.node as CDService).remoteFunctions);
-    }
-    if ((model.node as CDService).resourceFunctions?.length > 0) {
-        serviceFunctions.push(...(model.node as CDService).resourceFunctions);
-    }
+    const resourceFunctions = (model.node as CDService).resourceFunctions ?? [];
+    const chatFunction = resourceFunctions.find(fn => fn.path === AI_CHAT_RESOURCE_NAME);
+    const decisionFunction = resourceFunctions.find(fn => fn.path === AI_DECISION_RESOURCE_NAME);
 
+    // The outer box always opens the service's resource listing, exactly as a REST service node
+    // does. Deliberately independent of whether HITL is wired: a node whose click target silently
+    // changed once a `decision` resource appeared would be unpredictable.
     const handleOnClick = () => {
-        if (serviceFunctions.length > 0) {
-            onFunctionSelect(serviceFunctions[0]);
-        }
+        onServiceSelect(model.node as CDService);
     };
 
     const { handleMouseDown, handleMouseUp } = useClickWithDragTolerance(handleOnClick);
@@ -179,6 +176,12 @@ export function AIServiceWidget({ model, engine }: BaseNodeWidgetProps) {
                         <MoreVertIcon />
                     </MenuButton>
                 </ServiceBox>
+                {chatFunction && (
+                    <FunctionBox func={chatFunction} model={model} engine={engine} readonly={readonly} />
+                )}
+                {decisionFunction && (
+                    <FunctionBox func={decisionFunction} model={model} engine={engine} readonly={readonly} />
+                )}
             </BoxComponent>
 
             <Popover
@@ -198,12 +201,8 @@ export function AIServiceWidget({ model, engine }: BaseNodeWidgetProps) {
             </Popover>
 
             <BottomPortWidget port={model.getPort("out")!} engine={engine} />
-            {serviceFunctions.length > 0 && (
-                <BottomPortWidget
-                    port={model.getPort(getEntryNodeFunctionPortName(serviceFunctions[0]))!}
-                    engine={engine}
-                />
-            )}
+            {/* Every resource now has a visible row carrying its own inline PortWidget, so there is
+                no anonymous chat port here — registering the same port twice would conflict. */}
         </Node>
     );
 }

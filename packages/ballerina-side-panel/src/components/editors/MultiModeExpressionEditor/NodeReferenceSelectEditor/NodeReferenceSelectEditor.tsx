@@ -32,6 +32,7 @@ import { Button, Codicon, LinkButton, ProgressRing, ThemeColors } from "@wso2/ui
 import { FormField } from "../../../Form/types";
 import { NodeReferenceSelect, NodeReferenceSelectItem } from "../../NodeReferenceSelect";
 import { useFormContext } from "../../../../context";
+import { formatMethodName } from "../../../../utils/formatMethodName";
 
 const EmptyPrompt = styled.div`
     display: flex;
@@ -49,13 +50,6 @@ const EmptyPromptText = styled.div`
     font-size: 13px;
     color: var(--vscode-descriptionForeground);
 `;
-
-function humanizeKind(kind: string): string {
-    return kind
-        .split("_")
-        .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-        .join(" ");
-}
 
 export type NodeReferenceFilter = { module?: string; object?: string };
 
@@ -258,11 +252,11 @@ export const NodeReferenceSelectEditor: React.FC<NodeReferenceSelectEditorProps>
         : agentCodeData?.object
             ? agentCodeData.object
             : creationCodeData?.module && creationCodeData?.object
-                ? `${humanizeKind(creationCodeData.module.split(".").pop() ?? "")} ${creationCodeData.object}`
-                : humanizeKind(searchNodesKind);
+                ? `${formatMethodName(creationCodeData.module.split(".").pop() ?? "")} ${creationCodeData.object}`
+                : formatMethodName(searchNodesKind);
 
     const creationName = agentCodeData?.object
-        ?? (creationCodeData?.module ? humanizeKind(creationCodeData.module.split(".").pop() ?? "") : "");
+        ?? (creationCodeData?.module ? formatMethodName(creationCodeData.module.split(".").pop() ?? "") : "");
     const isAgentReference = !!agentCodeData;
     const qualifier = creationName ? `${creationName} ` : "";
     const emptyTitle = isAgentReference

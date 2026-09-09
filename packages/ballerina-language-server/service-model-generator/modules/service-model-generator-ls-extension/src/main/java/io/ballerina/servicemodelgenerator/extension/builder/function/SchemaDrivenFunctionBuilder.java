@@ -19,6 +19,7 @@
 package io.ballerina.servicemodelgenerator.extension.builder.function;
 
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
+import io.ballerina.modelgenerator.commons.ModulePrefixContext;
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerUISchemaModel;
 import io.ballerina.projects.Document;
 import io.ballerina.servicemodelgenerator.extension.connector.AnnotationEmitter;
@@ -33,7 +34,6 @@ import io.ballerina.servicemodelgenerator.extension.model.Value;
 import io.ballerina.servicemodelgenerator.extension.model.context.AddModelContext;
 import io.ballerina.servicemodelgenerator.extension.model.context.ModelFromSourceContext;
 import io.ballerina.servicemodelgenerator.extension.model.context.UpdateModelContext;
-import io.ballerina.servicemodelgenerator.extension.util.ModulePrefixContext;
 import org.eclipse.lsp4j.TextEdit;
 
 import java.util.ArrayList;

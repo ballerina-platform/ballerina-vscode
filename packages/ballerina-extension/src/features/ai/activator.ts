@@ -36,7 +36,7 @@ import {
     TOKEN_REFRESH_ONLY_SUPPORTED_FOR_BI_INTEL
 } from '../..//utils/ai/auth';
 import { AIStateMachine } from '../../views/ai-panel/aiMachine';
-import { AIMachineEventType, DefaultProviderKind, GenerateAgentCodeRequest, ExecutionContext } from '@wso2/ballerina-core';
+import { AIMachineEventType, DefaultProviderKind, GenerateAgentCodeRequest, ExecutionContext, SHARED_COMMANDS } from '@wso2/ballerina-core';
 import { resolveProjectPath } from '../../utils/project-utils';
 import { MESSAGES } from '../project';
 import { AICommandConfig } from './executors/base/AICommandExecutor';
@@ -96,6 +96,16 @@ export function activateAIFeatures(ballerinaExternalInstance: BallerinaExtension
     extension.context?.subscriptions.push(registerAgentsMdWatcher());
     if (extension.context) {
         agentStatusManager.init(extension.context);
+        extension.context.subscriptions.push(
+            commands.registerCommand(
+                SHARED_COMMANDS.SET_COPILOT_INLINE_STATUS,
+                (active: boolean) => agentStatusManager.setInlineStatusVisible(!!active)
+            ),
+            commands.registerCommand(
+                SHARED_COMMANDS.SET_COPILOT_AMBIENT_PRESENT,
+                (present: boolean) => commands.executeCommand('setContext', 'ballerina.copilotAmbientPresent', !!present)
+            )
+        );
     }
 
     // Register commands in test environment to test the AI features
@@ -182,7 +192,7 @@ export function activateAIFeatures(ballerinaExternalInstance: BallerinaExtension
         });
 
         commands.registerCommand('ballerina.test.ai.restoreCheckpoint', async (checkpoint: Checkpoint, skipArtifactWait?: boolean): Promise<void> => {
-            return await restoreWorkspaceSnapshot(checkpoint, skipArtifactWait);
+            await restoreWorkspaceSnapshot(checkpoint, skipArtifactWait);
         });
 
         commands.registerCommand('ballerina.test.ai.integrateCodeToWorkspace', async (tempProjectPath: string, modifiedFiles: string[], ctx: ExecutionContext): Promise<void> => {

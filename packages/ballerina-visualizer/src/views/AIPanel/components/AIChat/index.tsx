@@ -111,7 +111,7 @@ const NO_DRIFT_FOUND = "No drift identified between the code and the documentati
 const DRIFT_CHECK_ERROR = "Failed to check drift between the code and the documentation. Please try again.";
 
 const USAGE_EXCEEDED_THRESHOLD_PERCENT = 3;
-const QUOTA_CONTACT_EMAIL = "support@wso2.com";
+const DISCORD_INVITE_URL = "https://discord.com/invite/wso2";
 
 //TODO: Add better error handling from backend. stream error type and non 200 status codes
 
@@ -399,7 +399,7 @@ const AIChat: React.FC = () => {
 
     const [migrationSession, setMigrationSession] = useState<ActiveMigrationSession | null>(null);
     const [isMigrationEnhancementRunning, setIsMigrationEnhancementRunning] = useState(false);
-    const [usage, setUsage] = useState<{ remainingUsagePercentage: number; resetsIn: number; orgId?: string; alreadyRequested?: boolean } | null>(null);
+    const [usage, setUsage] = useState<{ remainingUsagePercentage: number; resetsIn: number; resetsAtMs?: number; orgId?: string; alreadyRequested?: boolean } | null>(null);
     const [isUsageExceeded, setIsUsageExceeded] = useState(false);
     const [showQuotaDialog, setShowQuotaDialog] = useState(false);
     const [quotaRequestSubmitting, setQuotaRequestSubmitting] = useState(false);
@@ -539,9 +539,15 @@ const AIChat: React.FC = () => {
                                     }
                                     activeScaffoldKeyRef.current = key;
                                 }
+                                // A prompt handed off from another surface (e.g. the overview) can ask
+                                // for a fresh thread; clear first, then re-apply its mode (clear resets it).
+                                if (defaultPrompt.newThread) {
+                                    await handleClearChat().catch((): void => { /* best-effort: still submit */ });
+                                    setAgentMode(defaultPrompt.planMode ? AgentMode.Plan : AgentMode.Edit);
+                                }
                                 void handleSend({
                                     input: [{ content: defaultPrompt.text }],
-                                    attachments: [],
+                                    attachments: defaultPrompt.attachments ?? [],
                                 });
                                 return;
                             }
@@ -572,13 +578,8 @@ const AIChat: React.FC = () => {
     }, []);
 
 
-    const formatResetsIn = (seconds: number): string => {
-        const days = Math.floor(seconds / 86400);
-        if (days >= 1) return `${days} day${days > 1 ? 's' : ''}`;
-        const hours = Math.floor(seconds / 3600);
-        if (hours >= 1) return `${hours} hour${hours > 1 ? 's' : ''}`;
-        const mins = Math.floor(seconds / 60);
-        return `${mins} min${mins > 1 ? 's' : ''}`;
+    const formatResetsAt = (resetsAtMs: number): string => {
+        return new Date(resetsAtMs).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
     };
 
     const formatResetsInExact = (seconds: number): string => {
@@ -596,7 +597,10 @@ const AIChat: React.FC = () => {
         try {
             const result = await rpcClient.getAiPanelRpcClient().getUsage();
             if (result) {
-                setUsage(result);
+                setUsage({
+                    ...result,
+                    resetsAtMs: result.resetsIn > 0 ? Date.now() + result.resetsIn * 1000 : undefined,
+                });
                 setIsUsageExceeded(result.resetsIn !== -1 && result.remainingUsagePercentage < USAGE_EXCEEDED_THRESHOLD_PERCENT);
             } else {
                 setUsage(null);
@@ -633,11 +637,11 @@ const AIChat: React.FC = () => {
                 setShowQuotaDialog(false);
                 await fetchUsage();
             } else {
-                setQuotaRequestError(`Something went wrong. Please try again or email ${QUOTA_CONTACT_EMAIL}.`);
+                setQuotaRequestError("Something went wrong. Please try again.");
             }
         } catch (e) {
             console.error("Failed to submit quota request:", e);
-            setQuotaRequestError(`Something went wrong. Please try again or email ${QUOTA_CONTACT_EMAIL}.`);
+            setQuotaRequestError("Something went wrong. Please try again.");
         } finally {
             setQuotaRequestSubmitting(false);
         }
@@ -2891,10 +2895,10 @@ const AIChat: React.FC = () => {
                         <UsageLimitNoticeContainer>
                             <span className="codicon codicon-warning" role="img" aria-hidden="true" />
                             <span>
-                                You've reached your Integrator Copilot usage limit
-                                {usage && usage.resetsIn !== -1 ? `, which resets in ${formatResetsIn(usage.resetsIn)}` : ""}.
+                                You've reached your usage limit.
+                                {usage?.resetsAtMs != null ? ` Resets ${formatResetsAt(usage.resetsAtMs)}.` : ""}
                                 {usage?.alreadyRequested
-                                    ? <>{" "}Your request for additional quota has been submitted. Reach us at <a href={`mailto:${QUOTA_CONTACT_EMAIL}`}>{QUOTA_CONTACT_EMAIL}</a>.</>
+                                    ? <>{" "}Your request for additional quota has been submitted. Need help in the meantime? Reach out to us on <a href={DISCORD_INVITE_URL} target="_blank" rel="noreferrer">Discord</a>.</>
                                     : <>{" "}<a href="#" onClick={(e) => { e.preventDefault(); setShowQuotaDialog(true); }}>Request additional quota</a>.</>
                                 }
                             </span>

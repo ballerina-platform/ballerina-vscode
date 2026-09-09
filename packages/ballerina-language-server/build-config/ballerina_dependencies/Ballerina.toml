@@ -15,27 +15,27 @@ sticky = true
 [[dependency]]
 org = "ballerina"
 name = "http"
-version = "2.16.6"
+version = "2.17.1"
 
 [[dependency]]
 org = "ballerinax"
 name = "kafka"
-version = "4.6.5"
+version = "4.6.6"
 
 [[dependency]]
 org = "ballerinax"
 name = "rabbitmq"
-version = "3.6.0"
+version = "3.6.1"
 
 [[dependency]]
 org = "ballerinax"
 name = "trigger.github"
-version = "0.11.0"
+version = "0.12.0"
 
 [[dependency]]
 org = "ballerinax"
 name = "trigger.shopify"
-version = "1.6.0"
+version = "1.6.1"
 
 [[dependency]]
 org = "ballerinax"
@@ -45,7 +45,7 @@ version = "3.1.0"
 [[dependency]]
 org = "ballerinax"
 name = "postgresql"
-version = "1.17.0"
+version = "1.19.1"
 
 [[dependency]]
 org = "ballerinax"
@@ -75,7 +75,7 @@ version = "2.0.0"
 [[dependency]]
 org = "ballerinax"
 name = "mysql"
-version = "1.18.0"
+version = "1.19.1"
 
 [[dependency]]
 org = "ballerinax"
@@ -170,7 +170,7 @@ version = "0.9.0"
 [[dependency]]
 org = "ballerinax"
 name = "solace"
-version = "0.3.0"
+version = "1.0.4"
 
 [[dependency]]
 org = "ballerinax"
@@ -180,7 +180,7 @@ version = "1.4.0"
 [[dependency]]
 org = "ballerinax"
 name = "mssql"
-version = "1.19.0"
+version = "1.19.1"
 
 [[dependency]]
 org = "ballerinax"
@@ -190,17 +190,17 @@ version = "1.0.2"
 [[dependency]]
 org = "ballerinax"
 name = "salesforce"
-version = "8.4.0"
+version = "8.7.2"
 
 [[dependency]]
 org = "ballerinax"
 name = "solace.jms"
-version = "1.0.0"
+version = "1.0.2"
 
 [[dependency]]
 org = "ballerina"
 name = "ftp"
-version = "2.20.1"
+version = "2.20.3"
 
 [[dependency]]
 org = "ballerina"
@@ -215,17 +215,17 @@ version = "0.8.3"
 [[dependency]]
 org = "ballerina"
 name = "grpc"
-version = "1.14.2"
+version = "1.15.1"
 
 [[dependency]]
 org = "ballerina"
 name = "mqtt"
-version = "1.4.0"
+version = "1.4.2"
 
 [[dependency]]
 org = "ballerinax"
 name = "oracledb"
-version = "1.14.0"
+version = "1.17.2"
 
 [[dependency]]
 org = "ballerinax"
@@ -260,37 +260,37 @@ version = "5.1.0"
 [[dependency]]
 org = "ballerinax"
 name = "ibm.ibmmq"
-version = "1.4.4"
+version = "1.4.5"
 
 [[dependency]]
 org = "ballerinax"
 name = "trigger.hubspot"
-version = "0.12.0"
+version = "0.12.1"
 
 [[dependency]]
 org = "ballerina"
 name = "mcp"
-version = "1.2.0"
+version = "1.3.0"
 
 [[dependency]]
 org = "ballerina"
 name = "smb"
-version = "2.0.1"
+version = "2.0.2"
 
 [[dependency]]
 org = "ballerina"
 name = "websub"
-version = "2.15.0"
+version = "2.15.1"
 
 [[dependency]]
 org = "ballerina"
 name = "websocket"
-version = "2.15.0"
+version = "2.15.7"
 
 [[dependency]]
 org = "ballerina"
 name = "graphql"
-version = "1.17.0"
+version = "1.18.1"
 
 [[dependency]]
 org = "ballerinax"
@@ -300,7 +300,12 @@ version = "0.12.0"
 [[dependency]]
 org = "ballerinax"
 name = "asb"
-version = "3.10.0"
+version = "3.10.1"
+
+[[dependency]]
+org = "ballerina"
+name = "udp"
+version = "1.13.7"
 
 # ballerinax/ibm.ibmmq declares the IBM MQ client jar with 'provided' scope, so it
 # is not bundled and must be supplied by the consuming project. Declaring it here

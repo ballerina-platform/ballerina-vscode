@@ -35,6 +35,7 @@ import { getCurrentProjectRoot } from "../../utils/project-utils";
 import { requiresPackageSelection, selectIntegrationOrPrompt } from "../../utils/command-utils";
 import { VisualizerWebview } from "../../views/visualizer/webview";
 import { TracerMachine } from "../tracing";
+import { resolveServiceType, ServiceType } from "./service-type";
 
 // File constants
 const FILE_NAMES = {
@@ -427,25 +428,12 @@ async function getAvailableServices(projectDir: string): Promise<ServiceInfo[] |
         });
 
         const services = response.designModel.services
-            .filter(({ type }) => {
-                const lowerType = type.toLowerCase();
-                return lowerType.includes('http') || lowerType.includes('ai') || lowerType.includes('graphql') || lowerType.includes('mcp');
-            })
+            .filter(({ type }) => resolveServiceType(type) !== undefined)
             .map(({ displayName, absolutePath, location, attachedListeners, type }) => {
                 const trimmedPath = absolutePath.trim();
                 const name = displayName || (trimmedPath.startsWith('/') ? trimmedPath.substring(1) : trimmedPath);
 
-                let serviceType: ServiceType;
-                const lowerType = type.toLowerCase();
-                if (lowerType.includes('http')) {
-                    serviceType = ServiceType.HTTP;
-                } else if (lowerType.includes('graphql')) {
-                    serviceType = ServiceType.GRAPHQL;
-                } else if (lowerType.includes('mcp')) {
-                    serviceType = ServiceType.MCP;
-                } else {
-                    serviceType = ServiceType.AGENT;
-                }
+                const serviceType = resolveServiceType(type)!;
 
                 const listener = {
                     name: attachedListeners
@@ -1076,13 +1064,6 @@ function disposeErrorWatcher() {
 }
 
 // Service information interface
-enum ServiceType {
-    HTTP = 'HTTP',
-    AGENT = 'AI Agent',
-    GRAPHQL = 'GraphQL',
-    MCP = 'MCP'
-}
-
 interface ServiceInfo {
     name?: string;
     basePath: string;

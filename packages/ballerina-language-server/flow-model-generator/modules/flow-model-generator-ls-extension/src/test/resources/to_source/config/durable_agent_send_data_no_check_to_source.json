@@ -4,7 +4,7 @@
   "diagram": {
     "id": "1",
     "metadata": {
-      "label": "Send Agent Data Event without waiting and without check binds the token as string|error"
+      "label": "Send Agent Data Event on a channel that declares no response, without check"
     },
     "codedata": {
       "node": "DURABLE_AGENT_UPDATE",

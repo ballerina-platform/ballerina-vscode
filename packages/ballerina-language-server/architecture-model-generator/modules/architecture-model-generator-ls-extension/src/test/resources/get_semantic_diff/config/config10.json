@@ -3,6 +3,39 @@
   "projectPath": "connection_param_change",
   "output": {
     "loadDesignDiagrams": true,
-    "semanticDiffs": []
+    "semanticDiffs": [
+      {
+        "changeType": "MODIFICATION",
+        "nodeKind": "MODULE_VARIABLE",
+        "uri": "ai:///main.bal",
+        "lineRange": {
+          "fileName": "main.bal",
+          "startLine": {
+            "line": 2,
+            "offset": 0
+          },
+          "endLine": {
+            "line": 2,
+            "offset": 71
+          }
+        },
+        "previousLineRange": {
+          "fileName": "main.bal",
+          "startLine": {
+            "line": 2,
+            "offset": 0
+          },
+          "endLine": {
+            "line": 2,
+            "offset": 68
+          }
+        },
+        "metadata": {
+          "name": "apiClient",
+          "oldSource": "final http:Client apiClient = check new (\"https://api.example.com\");",
+          "newSource": "final http:Client apiClient = check new (\"https://api.v2.example.com\");"
+        }
+      }
+    ]
   }
 }

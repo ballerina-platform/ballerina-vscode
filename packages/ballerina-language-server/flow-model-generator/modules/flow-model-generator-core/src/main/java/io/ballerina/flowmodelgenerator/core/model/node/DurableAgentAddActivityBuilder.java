@@ -84,7 +84,6 @@ public class DurableAgentAddActivityBuilder extends CallBuilder {
 
     public static final String REQUIRES_APPROVAL_KEY = "requiresApproval";
     public static final String USER_ROLES_KEY = "userRoles";
-    public static final String REQUIRES_APPROVAL_LABEL = "Requires Approval";
     public static final String REQUIRES_APPROVAL_DOC =
             "Gate this tool: before the agent runs it, a review activity is created and the agent suspends "
             + "durably until a reviewer proceeds (optionally editing the arguments) or rejects.";
@@ -270,34 +269,11 @@ public class DurableAgentAddActivityBuilder extends CallBuilder {
                 .addProperty(ACTIVITY_DESCRIPTION_KEY);
     }
 
-    // A FLAG that, when true, emits `requiresApproval = true` so the tool is gated by a review activity.
+    // A FLAG that, when true, emits `requiresApproval = true` so the activity is gated by a review activity.
     private void addRequiresApprovalProperty() {
-        properties().custom()
-                .metadata()
-                    .label(REQUIRES_APPROVAL_LABEL)
-                    .description(REQUIRES_APPROVAL_DOC)
-                    .stepOut()
-                .type().fieldType(Property.ValueType.FLAG).ballerinaType("boolean").selected(true).stepOut()
-                .value("false")
-                .editable(true)
-                .optional(true)
-                .advanced(true)
-                .stepOut()
-                .addProperty(REQUIRES_APPROVAL_KEY);
-        properties().custom()
-                .metadata()
-                    .label("Reviewer Roles")
-                    .description("Role(s) permitted to decide the approval review of this activity, "
-                            + "e.g. \"support-lead\" or [\"finance\", \"manager\"].")
-                    .stepOut()
-                .type().fieldType(Property.ValueType.EXPRESSION)
-                    .ballerinaType("string|string[]").selected(true).stepOut()
-                .placeholder("")
-                .editable(true)
-                .optional(true)
-                .advanced(true)
-                .stepOut()
-                .addProperty(USER_ROLES_KEY);
+        WorkflowUtil.addApprovalGateProperties(this, REQUIRES_APPROVAL_KEY, REQUIRES_APPROVAL_DOC, USER_ROLES_KEY,
+                "Role(s) permitted to decide the approval review of this activity, "
+                        + "e.g. \"support-lead\" or [\"finance\", \"manager\"].");
         // Feature parity with workflow Call Activity: agent-declared activities can be
         // auto-retried by the engine or gated by a human review on failure.
         ActivityCallBuilder.addRetryPolicyFormProperties(this, ActivityCallBuilder.NO_RETRY_VALUE,
@@ -321,7 +297,7 @@ public class DurableAgentAddActivityBuilder extends CallBuilder {
         String activityDescription = sourceBuilder.getProperty(ACTIVITY_DESCRIPTION_KEY)
                 .map(p -> p.value() == null ? "" : p.value().toString().trim()).orElse("");
         String userRoles = sourceBuilder.getProperty(USER_ROLES_KEY)
-                .map(p -> p.value() == null ? "" : p.value().toString().trim()).orElse("");
+                .map(WorkflowUtil::roleSource).orElse("");
         boolean requiresApproval = isRequiresApproval(sourceBuilder);
         String retryPolicyValue = ActivityCallBuilder.retryPolicyEntryValue(
                 sourceBuilder.flowNode.properties());
@@ -350,7 +326,7 @@ public class DurableAgentAddActivityBuilder extends CallBuilder {
                 mapping.append(", requiresApproval: true");
             }
             if (!userRoles.isBlank()) {
-                mapping.append(", userRoles: ").append(WorkflowUtil.quoteIfBareRole(userRoles));
+                mapping.append(", userRoles: ").append(userRoles);
             }
             if (retryPolicyValue != null) {
                 mapping.append(", retryPolicy: ").append(retryPolicyValue);

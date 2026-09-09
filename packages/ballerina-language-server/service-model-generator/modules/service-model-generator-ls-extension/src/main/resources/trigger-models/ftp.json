@@ -1130,6 +1130,17 @@
               }
             }
           ],
+          "layout": [
+            {
+              "fields": [
+                "$variant",
+                "$description",
+                "content",
+                "stream",
+                "*rest"
+              ]
+            }
+          ],
           "returnType": {
             "metadata": {
               "label": "Return Type",
@@ -3294,6 +3305,17 @@
               }
             }
           ],
+          "layout": [
+            {
+              "fields": [
+                "$variant",
+                "$description",
+                "content",
+                "stream",
+                "*rest"
+              ]
+            }
+          ],
           "returnType": {
             "metadata": {
               "label": "Return Type",
@@ -3922,7 +3944,8 @@
           "codedata": {
             "type": "FUNCTION",
             "originalName": "onError",
-            "moduleName": "ftp"          },
+            "moduleName": "ftp"
+          },
           "parameters": [
             {
               "metadata": {

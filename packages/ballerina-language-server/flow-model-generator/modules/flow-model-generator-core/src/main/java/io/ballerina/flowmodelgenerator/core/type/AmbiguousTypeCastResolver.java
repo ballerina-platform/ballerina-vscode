@@ -27,6 +27,8 @@ import io.ballerina.compiler.syntax.tree.SpecificFieldNode;
 import io.ballerina.compiler.syntax.tree.SyntaxTree;
 import io.ballerina.flowmodelgenerator.core.model.Codedata;
 import io.ballerina.modelgenerator.commons.CommonUtils;
+import io.ballerina.modelgenerator.commons.ModuleInfo;
+import io.ballerina.modelgenerator.commons.ModulePrefixContext;
 import io.ballerina.projects.Document;
 import io.ballerina.projects.ModuleDescriptor;
 import io.ballerina.projects.Project;
@@ -40,6 +42,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.StringJoiner;
 
 /**
  * Resolves the explicit type casts required for an ambiguous record value and sets them on the type model that
@@ -90,18 +93,33 @@ public final class AmbiguousTypeCastResolver {
             for (Symbol symbol : semanticModel.moduleSymbols()) {
                 symbol.getName().ifPresent(visibleNames::add);
             }
-            String importStmt = resolveImportStatement(document, codedata);
+            // One prefix ledger for the whole probe. The inserted import and every cast it qualifies have to
+            // agree on the prefix, and the prefix has to be free in this file: a probe that binds a foreign
+            // module to a name the file already imports does not compile, and the ambiguity it was meant to
+            // surface is lost.
+            ModulePrefixContext prefixes = ModulePrefixContext.from(document.syntaxTree().rootNode(),
+                    ModuleInfo.from(document.module().descriptor()));
+
+            // Resolved first, because it is what registers the target module: the statement it returns, the
+            // constraint requalified below and every cast derived from the ledger all have to name that module
+            // by the one prefix registration settled on.
+            String importStmt = resolveImportStatement(document, codedata, prefixes);
+            // The constraint arrives qualified as the model authored it, which says which module each member
+            // belongs to but not what this file calls it -- the file may bind that prefix to another module, or
+            // bind this one under an alias. Probe 1 assigns the value to this very text, so it has to resolve
+            // here or the probe fails to compile and the ambiguity is never seen.
+            String constraint = requalifyMembers(typeConstraint, prefixes);
 
             // Probe 1 (only when a type constraint is given) assigns the value to the declared type constraint —
             // this surfaces a top-level union ambiguity. Probe 2 assigns it to the concrete type derived from the
             // type model + codedata — this surfaces a nested ambiguity (and is the only probe when there is no
             // type constraint, since without a union there is nothing to probe at the top level).
             List<String> probeTypes = new ArrayList<>();
-            if (typeConstraint != null && !typeConstraint.isBlank()) {
-                probeTypes.add(typeConstraint);
+            if (constraint != null && !constraint.isBlank()) {
+                probeTypes.add(constraint);
             }
-            String concreteType = resolveCastType(typeConstraint, typeJson, codedata, document);
-            if (!concreteType.isBlank() && !concreteType.equals(typeConstraint)) {
+            String concreteType = resolveCastType(constraint, typeJson, codedata, document, prefixes);
+            if (!concreteType.isBlank() && !concreteType.equals(constraint)) {
                 probeTypes.add(concreteType);
             }
             if (probeTypes.isEmpty()) {
@@ -110,7 +128,7 @@ public final class AmbiguousTypeCastResolver {
 
             for (String probeType : probeTypes) {
                 probeAndCast(project, document, importStmt, originalContent, separator, visibleNames,
-                        probeType, typeConstraint, codedata, typeJson);
+                        probeType, constraint, codedata, typeJson, prefixes);
             }
         } finally {
             try {
@@ -129,7 +147,8 @@ public final class AmbiguousTypeCastResolver {
      */
     private static void probeAndCast(Project project, Document document, String importStmt, String originalContent,
                                      String separator, Set<String> visibleNames, String probeType,
-                                     String typeConstraint, Codedata codedata, JsonObject typeJson) {
+                                     String typeConstraint, Codedata codedata, JsonObject typeJson,
+                                     ModulePrefixContext prefixes) {
         String varName = NameUtil.generateVariableName(probeType, visibleNames);
         // Everything before the value
         String lhs = importStmt + originalContent + separator + probeType + " " + varName + " = ";
@@ -149,7 +168,8 @@ public final class AmbiguousTypeCastResolver {
                         .equals(d.diagnosticInfo().code()))
                 .filter(d -> d.location().textRange().startOffset() >= valueStartOffset)
                 .findFirst()
-                .ifPresent(d -> applyCastForDiagnostic(syntaxTree, d, typeJson, typeConstraint, codedata, document));
+                .ifPresent(d -> applyCastForDiagnostic(syntaxTree, d, typeJson, typeConstraint, codedata,
+                        document, prefixes));
     }
 
     /**
@@ -158,7 +178,8 @@ public final class AmbiguousTypeCastResolver {
      * selected member of the nested union the field path resolves to.
      */
     private static void applyCastForDiagnostic(SyntaxTree syntaxTree, Diagnostic diagnostic, JsonObject typeJson,
-                                               String typeConstraint, Codedata codedata, Document document) {
+                                               String typeConstraint, Codedata codedata, Document document,
+                                               ModulePrefixContext prefixes) {
         NonTerminalNode node = CommonUtils.getNode(syntaxTree, diagnostic.location().textRange());
         if (node == null) {
             return;
@@ -176,7 +197,7 @@ public final class AmbiguousTypeCastResolver {
 
         if (path.isEmpty()) {
             // The top-level value is ambiguous (typeConstraint is itself the union).
-            String cast = resolveCastType(typeConstraint, typeJson, codedata, document);
+            String cast = resolveCastType(typeConstraint, typeJson, codedata, document, prefixes);
             applyCast(typeJson, cast);
             return;
         }
@@ -189,7 +210,7 @@ public final class AmbiguousTypeCastResolver {
         if (member == null) {
             return;
         }
-        applyCast(member, castFromTypeInfo(member, document));
+        applyCast(member, castFromTypeInfo(member, document, prefixes));
     }
 
     /**
@@ -260,7 +281,8 @@ public final class AmbiguousTypeCastResolver {
      * the file's own module — a member from another module (e.g. {@code mongodb:GssApiCredential}) keeps its
      * prefix, since the file receiving the value is not in that module.
      */
-    private static String castFromTypeInfo(JsonObject member, Document document) {
+    private static String castFromTypeInfo(JsonObject member, Document document,
+                                           ModulePrefixContext prefixes) {
         String name = member.has("name") && !member.get("name").isJsonNull()
                 ? member.get("name").getAsString() : null;
         if (member.has("typeInfo") && member.get("typeInfo").isJsonObject()) {
@@ -275,7 +297,7 @@ public final class AmbiguousTypeCastResolver {
                 if (isInOwnModule(document, orgName, moduleName)) {
                     return typeName;
                 }
-                return CommonUtils.getDefaultModulePrefix(moduleName) + ":" + typeName;
+                return prefixes.prefixFor(orgName, moduleName) + ":" + typeName;
             }
             return typeName == null ? "" : typeName;
         }
@@ -292,7 +314,8 @@ public final class AmbiguousTypeCastResolver {
      * @param codedata the node codedata carrying {@code org}/{@code module}
      * @return the import statement (terminated with a line separator) or an empty string
      */
-    private static String resolveImportStatement(Document document, Codedata codedata) {
+    private static String resolveImportStatement(Document document, Codedata codedata,
+                                                ModulePrefixContext prefixes) {
         if (codedata == null) {
             return "";
         }
@@ -305,27 +328,92 @@ public final class AmbiguousTypeCastResolver {
         if (isInOwnModule(document, org, module) || CommonUtils.isPredefinedLangLib(org, module)) {
             return "";
         }
-        if (CommonUtils.importExists(document.syntaxTree().rootNode(), org, module)) {
-            return "";
+        // Registering the module here is what puts it on the pending list, and the pending list is the only
+        // thing this reads. Leaving the registration to `resolveCastType` loses the import outright whenever a
+        // type-constraint member matches the record, since that branch returns the authored qualifier without
+        // ever consulting the ledger. Registration is also what teaches `resolveNatural` this module, so the
+        // constraint's own qualifiers can be mapped onto the prefix decided here.
+        //
+        // A module the file already imports resolves to that import's prefix and registers nothing pending,
+        // which is the same empty answer an explicit `importExists` check gave -- and, unlike that check, it
+        // also reports the alias the file bound it under.
+        prefixes.prefixFor(org, module);
+        // Written from the ledger, so it carries the `as` clause whenever the natural prefix was taken.
+        // Building it by hand bound the module to its natural prefix while the casts used the allocated one.
+        StringBuilder statements = new StringBuilder();
+        for (String signature : prefixes.pendingImportStatements()) {
+            statements.append("import ").append(signature).append(";").append(System.lineSeparator());
         }
-        return "import " + CommonUtils.getImportStatement(org, module, module) + ";" + System.lineSeparator();
+        return statements.toString();
+    }
+
+    /**
+     * Rewrites each union member's module qualifier onto the prefix this file binds, leaving the rest of the text
+     * -- spacing included -- exactly as it arrived.
+     *
+     * <p>
+     * Only the segment before a member's first colon is touched, and only when it is a plain identifier, so the
+     * rewrite cannot reach into a member that merely contains a colon. A qualifier naming a module the ledger has
+     * not registered is returned unchanged by {@link ModulePrefixContext#resolveNatural}, which is the right
+     * answer: the file's own binding is all that can be honoured for a module nothing here is importing.
+     * </p>
+     *
+     * @param typeConstraint the union type as the model authored it (may be {@code null}/blank)
+     * @param prefixes       the ledger for the file being probed
+     * @return the constraint with its qualifiers resolved
+     */
+    private static String requalifyMembers(String typeConstraint, ModulePrefixContext prefixes) {
+        if (typeConstraint == null || typeConstraint.isBlank() || typeConstraint.indexOf(':') < 0) {
+            return typeConstraint;
+        }
+        StringJoiner joiner = new StringJoiner("|");
+        for (String member : typeConstraint.split("\\|", -1)) {
+            joiner.add(requalifyMember(member, prefixes));
+        }
+        return joiner.toString();
+    }
+
+    /** One union member, with its qualifier resolved and its surrounding whitespace preserved. */
+    private static String requalifyMember(String member, ModulePrefixContext prefixes) {
+        int colon = member.indexOf(':');
+        if (colon < 0) {
+            return member;
+        }
+        String head = member.substring(0, colon);
+        String qualifier = head.trim();
+        if (!isIdentifier(qualifier)) {
+            return member;
+        }
+        String resolved = prefixes.resolveNatural(qualifier);
+        if (resolved == null || resolved.equals(qualifier)) {
+            return member;
+        }
+        return head.substring(0, head.indexOf(qualifier)) + resolved + member.substring(colon);
+    }
+
+    private static boolean isIdentifier(String text) {
+        if (text.isEmpty() || !Character.isJavaIdentifierStart(text.charAt(0))) {
+            return false;
+        }
+        return text.chars().allMatch(Character::isJavaIdentifierPart);
     }
 
     /**
      * Resolves the concrete type of the selected record — used both as a compile probe (the LHS the value is
      * assigned to) and as the top-level cast. When a {@code typeConstraint} is given, it prefers the union member
-     * whose simple name matches, preserving the module prefix as written. Otherwise (or when no member matches) it
-     * derives the prefix from {@code codedata}: bare when the record is in the file's own module, else
-     * {@code <prefix>:<name>}. Falls back to the bare record name when no module info is available.
+     * whose simple name matches, keeping that member's prefix -- which {@link #requalifyMembers} has already
+     * resolved against this file. Otherwise (or when no member matches) it derives the prefix from
+     * {@code codedata}: bare when the record is in the file's own module, else {@code <prefix>:<name>}. Falls
+     * back to the bare record name when no module info is available.
      *
-     * @param typeConstraint the union type the value is assigned to (may be {@code null}/blank)
+     * @param typeConstraint the requalified union type the value is assigned to (may be {@code null}/blank)
      * @param typeJson       the selected record type
      * @param codedata       the node codedata supplying the module prefix
      * @param document       the document being probed (to decide the file's own module)
      * @return the qualified type (e.g. {@code jco:DestinationConfig}) or bare record name
      */
     private static String resolveCastType(String typeConstraint, JsonObject typeJson, Codedata codedata,
-                                          Document document) {
+                                          Document document, ModulePrefixContext prefixes) {
         String recordName = typeJson.has("name") ? typeJson.get("name").getAsString() : null;
         if (recordName == null || recordName.isEmpty()) {
             return recordName == null ? "" : recordName;
@@ -342,7 +430,8 @@ public final class AmbiguousTypeCastResolver {
         }
         if (codedata != null && codedata.module() != null && !codedata.module().isEmpty()) {
             return isInOwnModule(document, codedata.org(), codedata.module())
-                    ? recordName : CommonUtils.getClassType(codedata.module(), recordName);
+                    ? recordName
+                    : prefixes.prefixFor(codedata.org(), codedata.module()) + ":" + recordName;
         }
         return recordName;
     }

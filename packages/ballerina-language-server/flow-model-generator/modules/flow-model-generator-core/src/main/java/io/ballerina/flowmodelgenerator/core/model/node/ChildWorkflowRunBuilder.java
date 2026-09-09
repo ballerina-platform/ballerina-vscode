@@ -74,7 +74,9 @@ public class ChildWorkflowRunBuilder extends NodeBuilder {
 
     @Override
     public void setConcreteConstData() {
-        metadata().label(LABEL).description(DESCRIPTION);
+        // The analysis names the target workflow as the subtitle; build() re-runs this, so
+        // the constants must not overwrite what it derived.
+        metadata().labelIfAbsent(LABEL).descriptionIfAbsent(DESCRIPTION);
         codedata()
                 .node(NodeKind.CHILD_WORKFLOW_RUN)
                 .org(WORKFLOW_ORG)

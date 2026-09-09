@@ -66,6 +66,12 @@ export interface AdvancedConfigurationSectionProps {
     organizations?: Organization[];
     /** Whether the section contains validation errors */
     hasError?: boolean;
+    /**
+     * Hides the Package Name field. For a destination that receives SEVERAL packages at
+     * once (the migration wizard's multi-project import) there is no single package to
+     * name — only the shared organization and version are the user's to pick.
+     */
+    hidePackageName?: boolean;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -139,12 +145,17 @@ export interface OrgFieldProps {
     orgNameError?: string | null;
     description: string;
     isSigningIn: boolean;
+    /**
+     * Whether this host can actually run the sign-in command. Defaults to `true`;
+     * pass `false` to suppress the sign-in hint where the button would be inert.
+     */
+    canSignIn?: boolean;
     onOrgChange: (value: string) => void;
     onSignIn: () => void;
     onCancelSignIn: () => void;
 }
 
-export function OrgField({ organizations, orgName, orgNameError, description, isSigningIn, onOrgChange, onSignIn, onCancelSignIn }: OrgFieldProps) {
+export function OrgField({ organizations, orgName, orgNameError, description, isSigningIn, canSignIn = true, onOrgChange, onSignIn, onCancelSignIn }: OrgFieldProps) {
     const hasOrgs = organizations !== undefined && organizations.length > 0;
 
     // Track which suggestion is keyboard-highlighted (index into filteredSuggestions).
@@ -271,7 +282,7 @@ export function OrgField({ organizations, orgName, orgNameError, description, is
                 )}
             </OrgComboboxWrapper>
             <Description>{description}</Description>
-            {!hasOrgs && (
+            {!hasOrgs && canSignIn && (
                 <SignInHint>
                     <Codicon
                         name="account"
@@ -314,9 +325,10 @@ export function AdvancedConfigurationSection({
     packageNameError,
     projectHandleError,
     organizations,
-    hasError
+    hasError,
+    hidePackageName
 }: AdvancedConfigurationSectionProps) {
-    const { isSigningIn, handleSignIn, handleCancelSignIn } = useSignIn();
+    const { isSigningIn, canSignIn, handleSignIn, handleCancelSignIn } = useSignIn();
 
     const createWithinProject = data.projectHandle !== undefined;
 
@@ -338,6 +350,7 @@ export function AdvancedConfigurationSection({
                             orgNameError={orgNameError}
                             description="The organization that owns this project."
                             isSigningIn={isSigningIn}
+                            canSignIn={canSignIn}
                             onOrgChange={(value) => onChange({ orgName: value })}
                             onSignIn={handleSignIn}
                             onCancelSignIn={handleCancelSignIn}
@@ -357,19 +370,23 @@ export function AdvancedConfigurationSection({
             )}
             <SubSectionLabel>Ballerina Package</SubSectionLabel>
             <Note style={{ marginBottom: "16px" }}>
-                {createWithinProject
-                    ? `This ${isLibrary ? "library" : "integration"} is generated as a Ballerina package. Specify the package name and version to be assigned.`
-                    : `This ${isLibrary ? "library" : "integration"} is generated as a Ballerina package. Specify the organization, package name and version to be assigned.`}
+                {hidePackageName
+                    ? `Each ${isLibrary ? "library" : "integration"} is generated as a Ballerina package. Specify the organization and version to be assigned.`
+                    : createWithinProject
+                        ? `This ${isLibrary ? "library" : "integration"} is generated as a Ballerina package. Specify the package name and version to be assigned.`
+                        : `This ${isLibrary ? "library" : "integration"} is generated as a Ballerina package. Specify the organization, package name and version to be assigned.`}
             </Note>
-            <FieldGroup>
-                <TextField
-                    onTextChange={(value) => onChange({ packageName: sanitizePackageName(value) })}
-                    value={data.packageName}
-                    label="Package Name"
-                    errorMsg={packageNameError || undefined}
-                />
-                <Description>Specify the package name.</Description>
-            </FieldGroup>
+            {!hidePackageName && (
+                <FieldGroup>
+                    <TextField
+                        onTextChange={(value) => onChange({ packageName: sanitizePackageName(value) })}
+                        value={data.packageName}
+                        label="Package Name"
+                        errorMsg={packageNameError || undefined}
+                    />
+                    <Description>Specify the package name.</Description>
+                </FieldGroup>
+            )}
             {!createWithinProject && (
                 <FieldGroup>
                     <OrgField
@@ -378,6 +395,7 @@ export function AdvancedConfigurationSection({
                         orgNameError={orgNameError}
                         description="The organization that owns this package."
                         isSigningIn={isSigningIn}
+                        canSignIn={canSignIn}
                         onOrgChange={(value) => onChange({ orgName: value })}
                         onSignIn={handleSignIn}
                         onCancelSignIn={handleCancelSignIn}

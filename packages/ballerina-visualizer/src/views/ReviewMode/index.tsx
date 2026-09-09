@@ -17,13 +17,16 @@
  */
 
 import React, { useEffect, useState, useCallback, useRef } from "react";
-import { SemanticDiffResponse, SemanticDiff, ChangeTypeEnum, NodePosition } from "@wso2/ballerina-core";
+import { SemanticDiffResponse, SemanticDiff, ChangeTypeEnum, NodeKindEnum, NodePosition } from "@wso2/ballerina-core";
 import styled from "@emotion/styled";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { ReadonlyComponentDiagram } from "./ReadonlyComponentDiagram";
-import { ExpectedFlowMetadata, ReadonlyFlowDiagram, ReviewViewMode, getVersionsForChangeType } from "./ReadonlyFlowDiagram";
+import { ExpectedFlowMetadata, ReadonlyFlowDiagram, ReviewViewMode } from "./ReadonlyFlowDiagram";
 import { diffBelongsToPackage } from "./path-utils";
 import { ReadonlyTypeDiagram } from "./ReadonlyTypeDiagram";
+import { ReadonlySourceDiff } from "./ReadonlySourceDiff";
+import { getNodeKindLabel, SOURCE_VIEW_KINDS } from "./nodeKindLabels";
+import { getVersionsForChangeType, prefetchReviewView, ReviewModelCache } from "./reviewModelCache";
 import { ReviewNavigation } from "./ReviewNavigation";
 import { Codicon, Icon, ThemeColors } from "@wso2/ui-toolkit";
 import { TitleBar } from "../../components/TitleBar";
@@ -117,10 +120,40 @@ const CloseButton = styled.button`
     }
 `;
 
+const CompileErrorMessage = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-width: 560px;
+    padding: 16px 20px;
+    color: var(--vscode-foreground);
+    border: 1px solid var(--vscode-inputValidation-warningBorder, ${ThemeColors.PRIMARY});
+    background: var(--vscode-inputValidation-warningBackground, transparent);
+    border-radius: 4px;
+    font-size: 13px;
+`;
+
+const ErrorDetail = styled.div`
+    font-family: var(--vscode-editor-font-family, monospace);
+    font-size: 12px;
+    color: var(--vscode-errorForeground);
+    word-break: break-word;
+`;
+
+const CompileWarningBanner = styled.div`
+    padding: 6px 12px;
+    font-size: 12px;
+    color: var(--vscode-inputValidation-warningForeground, var(--vscode-foreground));
+    background: var(--vscode-inputValidation-warningBackground, transparent);
+    border-bottom: 1px solid var(--vscode-inputValidation-warningBorder, ${ThemeColors.PRIMARY});
+    word-break: break-word;
+`;
+
 enum DiagramType {
     COMPONENT = "component",
     FLOW = "flow",
     TYPE = "type",
+    SOURCE = "source",
 }
 
 interface ReviewView {
@@ -132,12 +165,8 @@ interface ReviewView {
     label?: string;
     changeType: number;
     expectedMetadata?: ExpectedFlowMetadata;
-}
-
-enum NodeKindEnum {
-    FUNCTION = 0,
-    RESOURCE_FUNCTION = 1,
-    TYPE = 2,
+    /** Construct name + before/after source, for SOURCE views (carried in diff metadata). */
+    sourceMeta?: { name?: string; oldSource?: string; newSource?: string };
 }
 
 // Map numeric changeType to string
@@ -154,23 +183,12 @@ function getChangeTypeString(changeType: number): string {
     }
 }
 
-// Map numeric nodeKind to string
-function getNodeKindString(nodeKind: number): string {
-    switch (nodeKind) {
-        case NodeKindEnum.FUNCTION:
-            return "function";
-        case NodeKindEnum.RESOURCE_FUNCTION:
-            return "resource";
-        case NodeKindEnum.TYPE:
-            return "type";
-        default:
-            return "component";
-    }
-}
-
 function getDiagramType(nodeKind: number): DiagramType {
-    if (nodeKind === NodeKindEnum.TYPE) {
+    if (nodeKind === NodeKindEnum.TYPE_DEFINITION) {
         return DiagramType.TYPE;
+    }
+    if (SOURCE_VIEW_KINDS.has(nodeKind)) {
+        return DiagramType.SOURCE;
     }
     return DiagramType.FLOW;
 }
@@ -179,15 +197,20 @@ function getDiagramType(nodeKind: number): DiagramType {
 function convertToReviewView(diff: SemanticDiff, projectPath: string, packageName?: string): ReviewView {
     const fileName = diff.uri.split("/").pop() || diff.uri;
     const changeTypeStr = getChangeTypeString(diff.changeType);
-    const nodeKindStr = getNodeKindString(diff.nodeKind);
+    const nodeKindStr = getNodeKindLabel(diff.nodeKind, diff.metadata);
+    const diagramType = getDiagramType(diff.nodeKind);
 
     // Include package name in label if provided (for multi-package scenarios)
     const changeLabel = packageName
         ? `${changeTypeStr}: ${nodeKindStr} in ${packageName}/${fileName}`
         : `${changeTypeStr}: ${nodeKindStr} in ${fileName}`;
 
+    const metadata = diff.metadata as
+        | { name?: string; oldSource?: string; newSource?: string }
+        | undefined;
+
     return {
-        type: getDiagramType(diff.nodeKind),
+        type: diagramType,
         filePath: diff.uri,
         position: {
             startLine: diff.lineRange.startLine.line,
@@ -210,6 +233,10 @@ function convertToReviewView(diff: SemanticDiff, projectPath: string, packageNam
             nodeKind: diff.nodeKind,
             metadata: diff.metadata,
         },
+        sourceMeta:
+            diagramType === DiagramType.SOURCE
+                ? { name: metadata?.name, oldSource: metadata?.oldSource, newSource: metadata?.newSource }
+                : undefined,
     };
 }
 
@@ -244,11 +271,18 @@ export function ReviewMode(): JSX.Element {
     const [isLoading, setIsLoading] = useState(true);
     const [currentItemMetadata, setCurrentItemMetadata] = useState<ItemMetadata | null>(null);
     const [isWorkspace, setIsWorkspace] = useState(false);
+    const [modifiedFiles, setModifiedFiles] = useState<string[]>([]);
+    const [semanticDiffError, setSemanticDiffError] = useState<string | null>(null);
     const [viewMode, setViewMode] = useState<ReviewViewMode>("diff");
     // View indices where the unified diff could not be built (old version missing/mismatched)
     const [diffUnavailableViews, setDiffUnavailableViews] = useState<Set<number>>(new Set());
     const pendingIndexRef = useRef<number | null>(null);
     const viewsLengthRef = useRef<number>(0);
+    // Session-scoped LS model cache shared by all diagram components. The per-item
+    // components are remounted on navigation/toggle (their keys include currentIndex),
+    // so any cache they hold themselves dies with them — this one survives, making
+    // revisits and Old/New toggles cache hits instead of fresh LS round trips.
+    const modelCacheRef = useRef<ReviewModelCache>(new Map());
 
     useEffect(() => {
         viewsLengthRef.current = views.length;
@@ -266,6 +300,9 @@ export function ReviewMode(): JSX.Element {
             const data = location?.reviewData;
             if (!data?.semanticDiffs || !data?.tempProjectPath) return;
 
+            // New review payload — models cached for a previous generation are stale.
+            modelCacheRef.current = new Map();
+
             const tempDirPath = data.tempProjectPath;
             const isWorkspaceProject = data.isWorkspace ?? false;
             const affectedPackages = data.affectedPackages ?? [tempDirPath];
@@ -274,6 +311,8 @@ export function ReviewMode(): JSX.Element {
 
             setProjectPath(tempDirPath);
             setIsWorkspace(isWorkspaceProject);
+            setModifiedFiles(data.modifiedFiles ?? []);
+            setSemanticDiffError(data.semanticDiffError ?? null);
             setSemanticDiffData({ semanticDiffs, loadDesignDiagrams });
 
             const packagesToReview = isWorkspaceProject ? affectedPackages : [tempDirPath];
@@ -357,12 +396,50 @@ export function ReviewMode(): JSX.Element {
         });
     }, [rpcClient]);
 
-    // Set metadata for component diagram when view changes
+    // Warm the session cache for EVERY item once per review payload, ordered outward
+    // from the item the review opened on, so any chip click or prev/next lands on an
+    // already-fetched model. Two workers keep the sweep from starving the mounted
+    // component's own fetch (which the promise cache dedups against anyway); a failed
+    // prefetch evicts itself, so the visit-time fetch still gets a fresh attempt.
+    const prefetchedViewsRef = useRef<ReviewView[] | null>(null);
+    useEffect(() => {
+        if (views.length === 0 || prefetchedViewsRef.current === views) {
+            return;
+        }
+        prefetchedViewsRef.current = views;
+        const cache = modelCacheRef.current;
+        const order: ReviewView[] = [];
+        for (let distance = 0; order.length < views.length; distance++) {
+            const ahead = currentIndex + distance;
+            const behind = currentIndex - distance;
+            if (ahead < views.length) order.push(views[ahead]);
+            if (distance > 0 && behind >= 0) order.push(views[behind]);
+        }
+        let nextIndex = 0;
+        const worker = (): void => {
+            if (nextIndex >= order.length || modelCacheRef.current !== cache) {
+                // A new review payload replaced the cache — stop sweeping stale views.
+                return;
+            }
+            prefetchReviewView(rpcClient, cache, order[nextIndex++]).then(worker);
+        };
+        worker();
+        worker();
+    }, [views, currentIndex, rpcClient]);
+
+    // Set metadata for component/source views when view changes (they don't load a model
+    // that would report metadata back)
     useEffect(() => {
         if (currentView?.type === "component" && !currentItemMetadata) {
             setCurrentItemMetadata({
                 type: "Design",
                 name: "",
+            });
+        }
+        if (currentView?.type === "source" && !currentItemMetadata) {
+            setCurrentItemMetadata({
+                type: "Change",
+                name: currentView.sourceMeta?.name ?? "",
             });
         }
     }, [currentView, currentItemMetadata]);
@@ -414,6 +491,12 @@ export function ReviewMode(): JSX.Element {
         if (!currentView) {
             return { diff: false, new: true, old: false };
         }
+        if (currentView.type === DiagramType.SOURCE) {
+            // Source views carry their own before/after text; "diff" shows both blocks.
+            const hasOld = currentView.sourceMeta?.oldSource !== undefined;
+            const hasNew = currentView.sourceMeta?.newSource !== undefined;
+            return { diff: hasOld && hasNew, new: hasNew, old: hasOld };
+        }
         const versions = getVersionsForChangeType(currentView.changeType);
         const diff = currentView.type === DiagramType.FLOW && !diffUnavailableViews.has(currentIndex);
         return { diff, new: versions.new, old: versions.old };
@@ -434,8 +517,15 @@ export function ReviewMode(): JSX.Element {
             return <div>No view to display</div>;
         }
 
-        // Create a unique key for each diagram to force re-mount when switching views
-        const diagramKey = `${currentView.type}-${currentIndex}-${currentView.filePath}`;
+        // Create a unique key for each diagram to force re-mount when switching views.
+        // For type/design diagrams the Old/New toggle is part of the key: their fetch
+        // effects have no stale-response guard, so remounting on toggle prevents an
+        // out-of-order response from rendering the wrong version. Flow diagrams cache
+        // versions internally and derive the toggle locally, so their key excludes it.
+        const diagramKey =
+            currentView.type === "flow"
+                ? `${currentView.type}-${currentIndex}-${currentView.filePath}`
+                : `${currentView.type}-${currentIndex}-${currentView.filePath}-${effectiveViewMode}`;
 
         switch (currentView.type) {
             case "component":
@@ -447,6 +537,7 @@ export function ReviewMode(): JSX.Element {
                         filePath={currentView.filePath}
                         position={currentView.position}
                         useFileSchema={effectiveViewMode === "old"}
+                        modelCache={modelCacheRef.current}
                     />
                 );
             case "flow":
@@ -462,6 +553,7 @@ export function ReviewMode(): JSX.Element {
                         changeType={currentView.changeType}
                         expectedMetadata={currentView.expectedMetadata}
                         onDiffUnavailable={handleDiffUnavailable}
+                        modelCache={modelCacheRef.current}
                     />
                 );
             case "type":
@@ -472,6 +564,18 @@ export function ReviewMode(): JSX.Element {
                         filePath={currentView.filePath}
                         onModelLoaded={handleModelLoaded}
                         useFileSchema={effectiveViewMode === "old"}
+                        modelCache={modelCacheRef.current}
+                    />
+                );
+            case "source":
+                // The construct's name is shown by the TitleBar (via currentItemMetadata).
+                return (
+                    <ReadonlySourceDiff
+                        key={diagramKey}
+                        oldSource={currentView.sourceMeta?.oldSource}
+                        newSource={currentView.sourceMeta?.newSource}
+                        changeType={currentView.changeType}
+                        viewMode={effectiveViewMode}
                     />
                 );
             default:
@@ -499,7 +603,7 @@ export function ReviewMode(): JSX.Element {
         return (
             <ReviewContainer>
                 <TitleBar
-                    title="No Changes"
+                    title={semanticDiffError ? "Review Unavailable" : "No Changes"}
                     actions={
                         <>
                             <ReviewModeBadge>Reviewing Changes</ReviewModeBadge>
@@ -512,7 +616,35 @@ export function ReviewMode(): JSX.Element {
                     hideUndoRedo={true}
                 />
                 <DiagramContainer style={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
-                    <div style={{ color: "var(--vscode-foreground)" }}>No changes to review</div>
+                    {semanticDiffError ? (
+                        <CompileErrorMessage>
+                            <strong>The changes could not be analyzed because the project fails to compile.</strong>
+                            <ErrorDetail>{semanticDiffError}</ErrorDetail>
+                            <div>
+                                The changes are already applied to your files. If the error mentions a
+                                dependency, running <code>bal build</code> in the project usually resolves it
+                                by refreshing <code>Dependencies.toml</code>.
+                            </div>
+                        </CompileErrorMessage>
+                    ) : modifiedFiles.length > 0 ? (
+                        // Files changed but nothing produced a reviewable code diff (e.g. only
+                        // Config.toml / markdown / JSON edits). Say what changed instead of the
+                        // misleading "No changes to review".
+                        <CompileErrorMessage style={{ borderColor: "var(--vscode-panel-border)", background: "transparent" }}>
+                            <strong>No code changes to review as diagrams.</strong>
+                            <div>
+                                {modifiedFiles.length} file{modifiedFiles.length === 1 ? " was" : "s were"} changed
+                                and already applied to your project:
+                            </div>
+                            <ErrorDetail style={{ color: "var(--vscode-foreground)" }}>
+                                {modifiedFiles.map((f) => (
+                                    <div key={f}>{f}</div>
+                                ))}
+                            </ErrorDetail>
+                        </CompileErrorMessage>
+                    ) : (
+                        <div style={{ color: "var(--vscode-foreground)" }}>No changes to review</div>
+                    )}
                 </DiagramContainer>
             </ReviewContainer>
         );
@@ -584,6 +716,11 @@ export function ReviewMode(): JSX.Element {
                 hideBack={true}
                 hideUndoRedo={true}
             />
+            {semanticDiffError && (
+                <CompileWarningBanner title={semanticDiffError}>
+                    ⚠ The project fails to compile, so diagrams may be unavailable: {semanticDiffError}
+                </CompileWarningBanner>
+            )}
             <DiagramContainer>{renderDiagram()}</DiagramContainer>
             <ReviewNavigation
                 key={`nav-${currentIndex}-${views.length}`}

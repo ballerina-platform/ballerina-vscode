@@ -301,7 +301,7 @@ export const stripCodeFencesInline = (text: string): string =>
 // Matched by label rather than a structural field because the category itself carries no org/module
 // info (only the leaf AvailableNode.codedata does, one level down) — this is a wording-fragile check,
 // not a considered choice. If the LS ever renames these labels, this filter silently stops working.
-const NON_LOCAL_FUNCTION_CATEGORIES = ["Standard Library", "Agent Tools"];
+const NON_LOCAL_FUNCTION_CATEGORIES = ["Standard Library", "Extended Library", "Agent Tools"];
 function isLocalFunctionCategory(label: string | undefined): boolean {
     if (!label) return true;
     return !NON_LOCAL_FUNCTION_CATEGORIES.includes(label) && !label.includes("Imported");

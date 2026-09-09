@@ -19,15 +19,9 @@
 import styled from "@emotion/styled";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Icon, Typography } from "@wso2/ui-toolkit";
-import React, { useCallback, useState } from "react";
-import { ShaderOrb } from "../../../../../components/AgentStatusOrb/ShaderOrb";
+import React from "react";
+import { CopilotOrb } from "../../../../../components/AgentStatusOrb/CopilotOrb";
 import { useOrbColors } from "../../../../../components/AgentStatusOrb/orbTheme";
-import {
-    Gloss,
-    IconOverlay,
-    ORB_ENERGY,
-    Sphere,
-} from "../../../../../components/AgentStatusOrb/shared";
 
 const WELCOME_ORB_SIZE = 58;
 
@@ -133,8 +127,6 @@ interface WelcomeMessageProps {
 
 const WelcomeMessage: React.FC<WelcomeMessageProps> = ({ isOnboarding = false }) => {
     const { rpcClient } = useRpcContext();
-    const [webglFailed, setWebglFailed] = useState(false);
-    const handleWebglFailed = useCallback(() => setWebglFailed(true), []);
     const idleColors = useOrbColors("idle");
 
     return (
@@ -143,24 +135,7 @@ const WelcomeMessage: React.FC<WelcomeMessageProps> = ({ isOnboarding = false })
             <Content>
                 <WelcomeOrbHalo>
                     <WelcomeOrb role="img" aria-label="WSO2 Integration Intelligence">
-                        {webglFailed ? (
-                            <Sphere colors={idleColors} energy={ORB_ENERGY.idle} />
-                        ) : (
-                            <ShaderOrb
-                                colors={idleColors}
-                                energy={ORB_ENERGY.idle}
-                                size={WELCOME_ORB_SIZE}
-                                onContextFailed={handleWebglFailed}
-                            />
-                        )}
-                        <Gloss />
-                        <IconOverlay>
-                            <Icon
-                                name="bi-ai-chat"
-                                sx={{ width: 24, height: 24 }}
-                                iconSx={{ fontSize: "24px", color: "var(--vscode-button-foreground)", cursor: "default" }}
-                            />
-                        </IconOverlay>
+                        <CopilotOrb state="idle" colors={idleColors} size={WELCOME_ORB_SIZE} iconSize={24} />
                     </WelcomeOrb>
                 </WelcomeOrbHalo>
                 <Typography

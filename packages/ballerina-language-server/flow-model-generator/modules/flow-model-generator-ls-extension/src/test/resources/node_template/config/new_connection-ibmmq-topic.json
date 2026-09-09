@@ -8,14 +8,14 @@
     "packageName": "ibm.ibmmq",
     "object": "Topic",
     "symbol": "init",
-    "version": "1.4.4"
+    "version": "1.4.5"
   },
   "output": {
     "id": "31",
     "metadata": {
       "label": "IBM MQ Topic",
       "description": "IBM MQ Topic client.",
-      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ibm.ibmmq_1.4.4.png"
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ibm.ibmmq_1.4.5.png"
     },
     "codedata": {
       "node": "NEW_CONNECTION",
@@ -24,7 +24,7 @@
       "packageName": "ibm.ibmmq",
       "object": "Topic",
       "symbol": "init",
-      "version": "1.4.4",
+      "version": "1.4.5",
       "isNew": true
     },
     "returning": false,

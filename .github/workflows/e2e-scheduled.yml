@@ -21,6 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       groups: ${{ steps.groups.outputs.groups }}
+      platforms: ${{ steps.groups.outputs.platforms }}
       nightlySha: ${{ steps.nightly-commit.outputs.sha }}
     steps:
       - name: Checkout repository
@@ -30,7 +31,11 @@ jobs:
           sparse-checkout: .github/scripts
 
       - id: groups
-        run: echo 'groups=["group1","group2","group3","group4"]' >> "$GITHUB_OUTPUT"
+        run: |
+          echo 'groups=["group1","group2","group3","group4"]' >> "$GITHUB_OUTPUT"
+          # Also drives Report's per-platform download and aggregation, and matches the
+          # platform label run-e2e-group folds into every artifact name.
+          echo 'platforms=["linux","windows"]' >> "$GITHUB_OUTPUT"
 
       - name: Resolve nightly build commit
         id: nightly-commit
@@ -58,22 +63,52 @@ jobs:
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
 
   E2E:
-    name: Run Ballerina e2e Test (${{ matrix.group }})
+    name: Run Ballerina e2e Test (${{ matrix.os }} ${{ matrix.group }})
     needs: Prepare
     timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
+        os: ${{ fromJson(needs.Prepare.outputs.platforms) }}
         group: ${{ fromJson(needs.Prepare.outputs.groups) }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os == 'windows' && 'windows-latest' || 'ubuntu-latest' }}
+    # Windows is observed, not enforced: its legs report into the step summary and the
+    # e2e-metrics history but never fail the run or fire the chat notification, so a suite
+    # whose Windows pass rate is still unknown cannot redden every scheduled run. Flip this
+    # to a plain `false` (or delete it) once that pass rate justifies gating on it.
+    continue-on-error: ${{ matrix.os == 'windows' }}
+    env:
+      # Windows only: playwright.config.js retries a failed test twice by default, and the
+      # suite is serial (workers: 1) with a 20-minute per-test timeout. Until the known
+      # Windows blockers are fixed, those retries spend the 60-minute job budget re-running
+      # tests that are failing for a platform reason rather than a flaky one, and a leg
+      # killed by the timeout uploads no artifact at all — so the rollout collects nothing.
+      # Zero retries covers more distinct tests per run, which is the pass rate this phase
+      # is here to measure. Empty on Linux, which leaves the config default of 2 in place.
+      BI_E2E_RETRIES: ${{ matrix.os == 'windows' && '0' || '' }}
+      # playwright.config.js defaults to 'on-first-retry', which captures nothing once
+      # retries are 0. The suite writes its own failure screenshots and session video on
+      # both platforms, but the trace is the one artifact that depends on a retry, so
+      # Windows needs a mode that does not. Empty on Linux, keeping 'on-first-retry'.
+      BI_E2E_TRACE: ${{ matrix.os == 'windows' && 'retain-on-first-failure' || '' }}
     steps:
+      # Only affects git's own file operations — here, the recursive submodule checkout,
+      # whose nested paths run past the 260-character legacy limit.
+      - name: Enable long paths for Git
+        if: runner.os == 'Windows'
+        shell: bash
+        run: git config --system core.longpaths true
+
       - name: Checkout repository
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           persist-credentials: false
           submodules: recursive
 
+      # shell: bash here and below — the default shell on a Windows runner is pwsh, which
+      # parses neither this script nor the '@wso2/...' argument two steps down.
       - name: Download nightly VSIX
+        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -98,6 +133,7 @@ jobs:
           rush-install: true
 
       - name: Build playwright-vscode-tester
+        shell: bash
         run: node common/scripts/install-run-rush.js build --to @wso2/playwright-vscode-tester
 
       - name: Install Ballerina distribution
@@ -130,6 +166,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GROUPS_JSON: ${{ needs.Prepare.outputs.groups }}
+          PLATFORMS_JSON: ${{ needs.Prepare.outputs.platforms }}
         run: |
           set -euo pipefail
           source .github/scripts/retry.sh
@@ -144,19 +181,39 @@ jobs:
             echo "::error::Failed to list this run's artifacts after 3 attempts."
             exit 1
           fi
-          for group in $(echo "$GROUPS_JSON" | jq -r '.[]'); do
-            name=$(echo "$artifacts" | grep -E "^Ballerina-e2e-test-results-linux-${group}-[0-9]+$" | sort -V | tail -n1 || true)
-            if [ -z "${name:-}" ]; then
-              echo "No artifact found for ${group}; skipping."
-              continue
-            fi
-            echo "Downloading ${name} for ${group}"
-            mkdir -p "e2e-results/${group}"
-            if ! retry 3 5 gh run download "${{ github.run_id }}" --repo "${{ github.repository }}" \
-              -n "${name}" -D "e2e-results/${group}"; then
-              echo "::error::Failed to download artifact ${name} for ${group} after 3 attempts."
-              exit 1
-            fi
+          # Report runs with `if: always()`, so it also gets here when Prepare failed and
+          # published nothing. Without this the loops below would iterate zero times and
+          # the job would report success having aggregated nothing.
+          platforms=$(echo "$PLATFORMS_JSON" | jq -r '.[]')
+          if [ -z "$platforms" ]; then
+            echo "::error::Prepare published no platform list; nothing to download."
+            exit 1
+          fi
+          # One root per platform: aggregate-e2e-results.js reads the group name from the
+          # first path segment under the root it is given, so the platform cannot be part
+          # of that segment without ending up in every history row's `group` field.
+          for platform in $platforms; do
+            for group in $(echo "$GROUPS_JSON" | jq -r '.[]'); do
+              name=$(echo "$artifacts" | grep -E "^Ballerina-e2e-test-results-${platform}-${group}-[0-9]+$" | sort -V | tail -n1 || true)
+              if [ -z "${name:-}" ]; then
+                echo "No artifact found for ${platform} ${group}; skipping."
+                continue
+              fi
+              echo "Downloading ${name} for ${platform} ${group}"
+              mkdir -p "e2e-results/${platform}/${group}"
+              if ! retry 3 5 gh run download "${{ github.run_id }}" --repo "${{ github.repository }}" \
+                -n "${name}" -D "e2e-results/${platform}/${group}"; then
+                # Same reason the E2E job and the aggregation below let Windows through: a
+                # failure on a non-gating platform must not fail this job, or the
+                # notification would fire on a leg that is not a gate yet.
+                if [ "$platform" = "windows" ]; then
+                  echo "::warning::Failed to download artifact ${name} for ${platform} ${group} after 3 attempts; skipping."
+                  continue
+                fi
+                echo "::error::Failed to download artifact ${name} for ${platform} ${group} after 3 attempts."
+                exit 1
+              fi
+            done
           done
 
       - name: Aggregate results
@@ -166,10 +223,51 @@ jobs:
           E2E_SOURCE_TAG: nightly
           E2E_SOURCE_SHA: ${{ needs.Prepare.outputs.nightlySha }}
           EXPECTED_GROUPS_JSON: ${{ needs.Prepare.outputs.groups }}
+          PLATFORMS_JSON: ${{ needs.Prepare.outputs.platforms }}
         run: |
           set -o pipefail
-          node .github/scripts/aggregate-e2e-results.js e2e-results e2e-run-stats.jsonl \
-            | tee -a "$GITHUB_STEP_SUMMARY"
+          # Same guard as the download step: a missing platform list must fail the gate
+          # rather than skip the loop and exit 0 having aggregated nothing.
+          platforms=$(echo "$PLATFORMS_JSON" | jq -r '.[]')
+          if [ -z "$platforms" ]; then
+            echo "::error::Prepare published no platform list; nothing to aggregate."
+            exit 1
+          fi
+          gate_status=0
+          for platform in $platforms; do
+            if ! E2E_OS="$platform" node .github/scripts/aggregate-e2e-results.js \
+              "e2e-results/${platform}" "e2e-run-stats-${platform}.jsonl" \
+              | tee -a "$GITHUB_STEP_SUMMARY"; then
+              # Mirrors the E2E job's continue-on-error: Windows results are summarised and
+              # persisted, but a Windows-only failure must not fail this job either, or the
+              # notification below would fire on a leg that is not a gate yet.
+              if [ "$platform" = "windows" ]; then
+                # The script writes the stats file only when it read at least one test, so
+                # its absence separates "the suite ran and failed" from "the legs produced
+                # nothing" — the latter being the expected shape while Windows is new.
+                if [ -s "e2e-run-stats-${platform}.jsonl" ]; then
+                  # Deliberately not "contains failures": the script also exits 1 for an
+                  # unreadable report, a missing group and a maxFailures truncation, and
+                  # a partly-missing Windows platform is the expected shape for now.
+                  echo "::warning::Windows e2e aggregation reported problems (see the report above); recorded but not gating."
+                else
+                  echo "::warning::No Windows e2e results were produced (legs killed before uploading, or no artifacts); nothing recorded."
+                fi
+              else
+                gate_status=1
+              fi
+            fi
+          done
+          # Concatenated rather than written in place: each platform's rows carry their own
+          # `os` field, and Persist below reads exactly one file. Left absent when no
+          # platform produced rows — Persist treats a missing file, not an empty one, as
+          # "nothing to record", and an empty one would make it try an empty commit.
+          shopt -s nullglob
+          parts=(e2e-run-stats-*.jsonl)
+          if [ ${#parts[@]} -gt 0 ]; then
+            cat "${parts[@]}" > e2e-run-stats.jsonl
+          fi
+          exit $gate_status
 
       - name: Persist run stats
         id: persist

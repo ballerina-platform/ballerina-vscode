@@ -5,7 +5,7 @@
     "orgName": "ballerina",
     "packageName": "ftp",
     "moduleName": "ftp",
-    "version": "2.20.1"
+    "version": "2.20.3"
   },
   "filePath": "sample2/main.bal",
   "removeDeprecated": false,
@@ -17,10 +17,10 @@
       "description": "Gets invoked during object initialization.\n",
       "moduleName": "ftp",
       "orgName": "ballerina",
-      "version": "2.20.1",
+      "version": "2.20.3",
       "packageName": "ftp",
       "listenerProtocol": "ftp",
-      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ftp_2.20.1.png",
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ftp_2.20.3.png",
       "properties": {
         "host": {
           "metadata": {
@@ -96,7 +96,7 @@
               "typeMembers": [
                 {
                   "type": "AuthConfiguration",
-                  "packageInfo": "ballerina:ftp:2.20.1",
+                  "packageInfo": "ballerina:ftp:2.20.3",
                   "packageName": "ftp",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -324,7 +324,7 @@
               "typeMembers": [
                 {
                   "type": "FileAgeFilter",
-                  "packageInfo": "ballerina:ftp:2.20.1",
+                  "packageInfo": "ballerina:ftp:2.20.3",
                   "packageName": "ftp",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -366,7 +366,7 @@
                     "typeMembers": [
                       {
                         "type": "FileDependencyCondition",
-                        "packageInfo": "ballerina:ftp:2.20.1",
+                        "packageInfo": "ballerina:ftp:2.20.3",
                         "packageName": "ftp",
                         "kind": "RECORD_TYPE",
                         "selected": false
@@ -472,7 +472,7 @@
               "typeMembers": [
                 {
                   "type": "SocketConfig",
-                  "packageInfo": "ballerina:ftp:2.20.1",
+                  "packageInfo": "ballerina:ftp:2.20.3",
                   "packageName": "ftp",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -509,7 +509,7 @@
               "typeMembers": [
                 {
                   "type": "ProxyConfiguration",
-                  "packageInfo": "ballerina:ftp:2.20.1",
+                  "packageInfo": "ballerina:ftp:2.20.3",
                   "packageName": "ftp",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -672,7 +672,7 @@
               "typeMembers": [
                 {
                   "type": "FailSafeOptions",
-                  "packageInfo": "ballerina:ftp:2.20.1",
+                  "packageInfo": "ballerina:ftp:2.20.3",
                   "packageName": "ftp",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -709,7 +709,7 @@
               "typeMembers": [
                 {
                   "type": "CoordinationConfig",
-                  "packageInfo": "ballerina:ftp:2.20.1",
+                  "packageInfo": "ballerina:ftp:2.20.3",
                   "packageName": "ftp",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -746,7 +746,7 @@
               "typeMembers": [
                 {
                   "type": "RetryConfig",
-                  "packageInfo": "ballerina:ftp:2.20.1",
+                  "packageInfo": "ballerina:ftp:2.20.3",
                   "packageName": "ftp",
                   "kind": "RECORD_TYPE",
                   "selected": false

@@ -19,10 +19,14 @@
 package io.ballerina.servicemodelgenerator.extension.builder.service;
 
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
+import io.ballerina.servicemodelgenerator.extension.model.Function;
+import io.ballerina.servicemodelgenerator.extension.model.PropertyType;
 import io.ballerina.servicemodelgenerator.extension.model.Service;
 import io.ballerina.servicemodelgenerator.extension.model.Value;
 import io.ballerina.servicemodelgenerator.extension.model.context.AddModelContext;
 import io.ballerina.servicemodelgenerator.extension.model.context.GetModelContext;
+import io.ballerina.servicemodelgenerator.extension.model.context.ModelFromSourceContext;
+import io.ballerina.servicemodelgenerator.extension.util.AiSourceUtils;
 import io.ballerina.servicemodelgenerator.extension.util.ListenerUtil;
 import io.ballerina.servicemodelgenerator.extension.util.Utils;
 import org.eclipse.lsp4j.TextEdit;
@@ -54,22 +58,8 @@ public final class AiChatServiceBuilder extends AbstractServiceBuilder {
     private static final String AGENT_NAME_PROPERTY = "agentName";
     private static final String DEFAULT_AGENT_NAME = "chat";
 
-    private String buildAgentMethodCall(String agentVarName, String orgName) {
-        String operator = BALLERINA.equals(orgName) ? "." : "->";
-        return String.format("%s%srun(request.message, request.sessionId)", agentVarName, operator);
-    }
-
     private String getAgentChatFunction(String agentVarName, String orgName) {
-        String methodCall = buildAgentMethodCall(agentVarName, orgName);
-
-        return String.format(
-                "    resource function post chat(@http:Payload ai:ChatReqMessage request) " +
-                        "returns ai:ChatRespMessage|error {%s" +
-                        "        string stringResult = check %s;%s" +
-                        "        return {message: stringResult};%s" +
-                        "    }",
-                NEW_LINE, methodCall, NEW_LINE, NEW_LINE
-        );
+        return AiSourceUtils.agentChatResourceSource(agentVarName, AiSourceUtils.runOperator(orgName));
     }
 
     @Override
@@ -78,11 +68,46 @@ public final class AiChatServiceBuilder extends AbstractServiceBuilder {
             Map<String, Value> properties = service.getProperties();
             Value agentNameProperty = new Value.ValueBuilder()
                     .metadata("Agent Name", "The name of the agent variable")
+                    .types(List.of(PropertyType.types(Value.FieldType.IDENTIFIER)))
                     .enabled(true)
+                    .editable(true)
                     .build();
             properties.put(AGENT_NAME_PROPERTY, agentNameProperty);
             return service;
         });
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Drops {@code agentName}, which {@link #getModelTemplate} contributes for the add path only:
+     * {@link #getAgentNameFromService} reads it to name the agent variable in the generated
+     * {@code chat} body. An existing service has no corresponding source construct, so on the edit
+     * path it is a dead field that nothing writes back.
+     */
+    @Override
+    protected Service createBaseServiceModel(ModelFromSourceContext context) {
+        Service serviceModel = super.createBaseServiceModel(context);
+        if (Objects.nonNull(serviceModel)) {
+            serviceModel.getProperties().remove(AGENT_NAME_PROPERTY);
+        }
+        return serviceModel;
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Seeds the optional {@code decision} handler before the usual merge. The service index has
+     * no {@code decision} row, and a generated agent service declares no type descriptor — so
+     * {@code deriveServiceType} yields {@code "Service"} and the service-type lookup in
+     * {@code populateServiceTypeFunctions} could never match {@code ChatService} regardless. Adding
+     * it here lets {@code updateServiceInfoNew} do its ordinary job: enable it when the source
+     * declares it, leave it disabled — that is, offered as addable — when it does not.
+     */
+    @Override
+    protected void mergeSourceFunctions(Service serviceModel, List<Function> functionsInSource) {
+        serviceModel.getFunctions().add(AiSourceUtils.decisionResourceTemplate(serviceModel.getOrgName()));
+        super.mergeSourceFunctions(serviceModel, functionsInSource);
     }
 
     @Override

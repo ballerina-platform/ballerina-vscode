@@ -94,7 +94,7 @@
             "character": 1
           }
         },
-        "newText": "\nservice class Person {\n\tfunction init() {\n\t}\n\tresource function get name() returns time:Utc {\n\t\tdo {\n\t\t\tpanic error(\"Unimplemented function\");\n\t\t} on fail error err {\n\t\t\t//handle error\n\t\t\tpanic error(\"Unhandled error\");\n\t\t}\n\t}\n}"
+        "newText": "\ndistinct service class Person {\n\tfunction init() {\n\t}\n\tresource function get name() returns time:Utc {\n\t\tdo {\n\t\t\tpanic error(\"Unimplemented function\");\n\t\t} on fail error err {\n\t\t\t//handle error\n\t\t\tpanic error(\"Unhandled error\");\n\t\t}\n\t}\n}"
       }
     ]
   }

@@ -147,6 +147,11 @@ namespace S {
 
 const FunctionItemLabel = styled.span`
     font-size: 13px;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
 `;
 
 export const TypeHelperComponent = (props: TypeHelperComponentProps) => {
@@ -336,7 +341,7 @@ export const TypeHelperComponent = (props: TypeHelperComponentProps) => {
                                                                                             key={`${subCategory.category}-${item.name}`}
                                                                                         >
                                                                                             <Icon name="bi-type" sx={{ fontSize: '16px' }} />
-                                                                                            <FunctionItemLabel>{item.name}</FunctionItemLabel>
+                                                                                            <FunctionItemLabel title={item.name}>{item.name}</FunctionItemLabel>
                                                                                         </ExpandableList.Item>
                                                                                     </SlidingPaneNavContainer>
                                                                                 ))}
@@ -354,7 +359,7 @@ export const TypeHelperComponent = (props: TypeHelperComponentProps) => {
                                                                                 key={`${category.category}-${item.name}`}
                                                                             >
                                                                                 <Icon name="bi-type" sx={{ fontSize: '16px' }} />
-                                                                                <FunctionItemLabel>{item.name}</FunctionItemLabel>
+                                                                                <FunctionItemLabel title={item.name}>{item.name}</FunctionItemLabel>
                                                                             </ExpandableList.Item>
                                                                         </SlidingPaneNavContainer>
                                                                     ))}
@@ -382,7 +387,7 @@ export const TypeHelperComponent = (props: TypeHelperComponentProps) => {
                                                             >
                                                                 <ExpandableList.Item>
                                                                     <Icon name="bi-type" sx={{ fontSize: '16px' }} />
-                                                                    <FunctionItemLabel>{item.name}</FunctionItemLabel>
+                                                                    <FunctionItemLabel title={item.name}>{item.name}</FunctionItemLabel>
                                                                 </ExpandableList.Item>
                                                             </SlidingPaneNavContainer>
                                                         ))}
@@ -426,7 +431,7 @@ export const TypeHelperComponent = (props: TypeHelperComponentProps) => {
                                                                                             key={`${subCategory.category}-${item.name}`}
                                                                                         >
                                                                                             <Icon name="bi-type" sx={{ fontSize: '16px' }} />
-                                                                                            <FunctionItemLabel>{item.name}</FunctionItemLabel>
+                                                                                            <FunctionItemLabel title={item.name}>{item.name}</FunctionItemLabel>
                                                                                         </ExpandableList.Item>
                                                                                     </SlidingPaneNavContainer>
                                                                                 ))}
@@ -444,7 +449,7 @@ export const TypeHelperComponent = (props: TypeHelperComponentProps) => {
                                                                                 key={`${category.category}-${item.name}`}
                                                                             >
                                                                                 <Icon name="bi-type" sx={{ fontSize: '16px' }} />
-                                                                                <FunctionItemLabel>{item.name}</FunctionItemLabel>
+                                                                                <FunctionItemLabel title={item.name}>{item.name}</FunctionItemLabel>
                                                                             </ExpandableList.Item>
                                                                         </SlidingPaneNavContainer>
                                                                     ))}

@@ -22,10 +22,12 @@ import { StateMachine } from '../../../stateMachine';
 import { ModelMessage, stepCountIs, streamText, TextStreamPart } from 'ai';
 import { getAnthropicClient, getProviderCacheControl, getProviderModelOptions, addCacheControlToMessages, ANTHROPIC_SONNET } from '../utils/ai-client';
 import { populateHistoryForAgent, getErrorMessage, getErrorCode, buildChatError } from '../utils/ai-utils';
-import { sendAgentDidOpenForFreshProjects } from '../utils/project/ls-schema-notifications';
+import { seedAiBaselines } from '../utils/project/ls-schema-notifications';
+import { mapWithConcurrency } from '../utils/concurrency';
 import { getSystemPrompt, getUserPrompt } from './prompts';
 import { FollowupSituation, startFollowupSuggestions } from './followups';
 import { prepareAgentsMdForTurn } from './agents-md';
+import { resolveChatStoreKey } from './chatStoreKey';
 // TODO(auto-memory): temporarily disabled for this release.
 // import { executeAutoDream, isMemoryEnabled } from '../memory/autoDream';
 import { GenerationType } from '../utils/libs/libraries';
@@ -50,6 +52,7 @@ import {
     stripAnalysisFromCompactionBlocks,
     COMPACTION_BLOCK_PREFIX,
 } from '@wso2/copilot-utilities/context-management';
+import { sanitizeMessages } from './resilience';
 import { getLoginMethod } from '../../../utils/ai/auth';
 import {
     sendTelemetryEvent,
@@ -147,6 +150,18 @@ function computeTokenBreakdown(
 }
 
 /**
+ * Normalizes a relative path for package-membership comparison: trims, collapses `.`
+ * segments, converts backslashes, and strips leading `./` and trailing slashes. The two
+ * sides being compared come from different authors (the workspace toml's `packages` list
+ * vs the LLM's verbatim tool `file_path` args), so raw string comparison misses trivially
+ * equivalent forms like `./orders` vs `orders/main.bal`.
+ */
+export function normalizeRelativePath(p: string): string {
+    const normalized = path.normalize(p.trim()).replace(/\\/g, '/').replace(/\/+$/, '');
+    return normalized === '.' ? '' : normalized;
+}
+
+/**
  * Determines which packages have been affected by analyzing modified files
  * Returns temp directory package paths for use with Language Server semantic diff API
  * @param modifiedFiles Array of relative file paths that were modified
@@ -173,18 +188,23 @@ async function determineAffectedPackages(
         return Array.from(affectedPackages);
     }
 
-    // Re-read workspace Ballerina.toml from temp to get the current package list
-    // (the agent may have added new packages during the session)
+    // Union of the current workspace Ballerina.toml package list (re-read so packages the
+    // agent added mid-run are present) and the generation-start ProjectSource packages.
+    // An empty toml `packages` array must fall back too — `??` alone doesn't cover it.
     const workspaceToml = await getWorkspaceTomlValues(tempProjectPath);
-    const packagePaths: string[] = workspaceToml?.workspace?.packages ?? projects.map(p => p.packagePath).filter(p => p !== "");
+    const tomlPackages = (workspaceToml?.workspace?.packages ?? []).map(normalizeRelativePath);
+    const sourcePackages = projects.map(p => normalizeRelativePath(p.packagePath ?? ''));
+    const packagePaths: string[] = Array.from(new Set([...tomlPackages, ...sourcePackages])).filter(p => p !== '');
 
     // For workspace scenario with multiple packages
     // We need to map modified files to their temp package paths
+    const unmatchedFiles: string[] = [];
     for (const modifiedFile of modifiedFiles) {
+        const normalizedFile = normalizeRelativePath(modifiedFile);
         let matched = false;
 
         for (const pkgPath of packagePaths) {
-            if (modifiedFile.startsWith(pkgPath + '/') || modifiedFile === pkgPath) {
+            if (normalizedFile.startsWith(pkgPath + '/') || normalizedFile === pkgPath) {
                 const tempPackagePath = path.join(tempProjectPath, pkgPath);
                 affectedPackages.add(tempPackagePath);
                 matched = true;
@@ -196,8 +216,19 @@ async function determineAffectedPackages(
         if (!matched) {
             // File at workspace root (e.g. root Ballerina.toml)
             affectedPackages.add(tempProjectPath);
+            unmatchedFiles.push(modifiedFile);
             console.log(`[determineAffectedPackages] File '${modifiedFile}' is at workspace root (temp): ${tempProjectPath}`);
         }
+    }
+
+    // Unmatched .bal files are a red flag: the workspace root holds no sources, so their
+    // package's diff would silently never be computed. Loud log so this is diagnosable.
+    const unmatchedBalFiles = unmatchedFiles.filter(f => f.endsWith('.bal'));
+    if (unmatchedBalFiles.length > 0) {
+        console.error(
+            `[determineAffectedPackages] ${unmatchedBalFiles.length} modified .bal file(s) matched no workspace package — their diffs will be missing.`,
+            { unmatchedBalFiles, packagePaths }
+        );
     }
 
     const result = Array.from(affectedPackages);
@@ -221,6 +252,11 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
 
     /** A turn can reach both the finish and abort paths; suggestions must be scheduled once. */
     private _followupsScheduled = false;
+
+    /** Store key for every `chatStateStorage` call — see `resolveChatStoreKey` for why. */
+    private get chatStoreKey(): string {
+        return resolveChatStoreKey(this.config.chatStorage, this.config.executionContext);
+    }
 
     constructor(config: AICommandConfig<GenerateAgentCodeRequest>) {
         super(config);
@@ -271,11 +307,26 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
             );
 
             // 2. Seed the ai:// baseline, unless the caller explicitly asked to skip it
-            // (migration reusing the same directory across sequential stages).
+            // (migration reusing the same directory across sequential stages). Awaited so
+            // the baseline is guaranteed in place before the first edit can touch disk —
+            // the LS-side ensureAiBaseline request applies the pre-edit contents before
+            // responding, unlike the old fire-and-forget didOpen seed.
             if (!this.config.lifecycle?.skipFreshProjectSetup) {
-                sendAgentDidOpenForFreshProjects(tempProjectPath, projects);
+                await seedAiBaselines(tempProjectPath, projects);
             } else {
                 console.log(`[AgentExecutor] Skipping ai:// baseline seed (skipFreshProjectSetup)`);
+            }
+
+            // Fire-and-forget: warm the LS module-package caches for each package's
+            // dependencies while the generation streams, so the first review-diff diagram
+            // does not pay the one-time dependency resolution/compilation cost (seconds)
+            // interactively. Failures are irrelevant — the fetch path pays the cost lazily.
+            for (const project of projects) {
+                const pkgRoot = project.packagePath
+                    ? path.join(tempProjectPath, project.packagePath)
+                    : tempProjectPath;
+                StateMachine.langClient().prewarmDependencies({ projectPath: pkgRoot })
+                    .catch(() => { /* best-effort warm-up only */ });
             }
 
             const workspaceId = this.config.executionContext.workspacePath || this.config.executionContext.projectPath;
@@ -294,9 +345,9 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
             const projectRootPath = this.config.executionContext.workspacePath || this.config.executionContext.projectPath || '';
             const agentsMd = await prepareAgentsMdForTurn(workspaceId || '', threadId);
             if (agentsMd.hashToPersist !== undefined) {
-                const generation = chatStateStorage.getGeneration(projectRootPath, threadId, this.config.generationId);
+                const generation = chatStateStorage.getGeneration(this.chatStoreKey, threadId, this.config.generationId);
                 if (generation) {
-                    chatStateStorage.updateGeneration(projectRootPath, threadId, this.config.generationId, {
+                    chatStateStorage.updateGeneration(this.chatStoreKey, threadId, this.config.generationId, {
                         metadata: {
                             ...generation.metadata,
                             agentsMdLastReadHash: agentsMd.hashToPersist,
@@ -406,6 +457,9 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
                     if (cleanedCompactionSummary) {
                         stripAnalysisFromCompactionBlocks(stepMessages);
                     }
+                    // Anthropic requires tool_use.input to be an object; an unparseable or schema-invalid
+                    // streamed input is left as a non-object on the tool-call part and 400s every later request.
+                    sanitizeMessages(stepMessages);
                     return { messages: addCacheControlToMessages({ messages: stepMessages, model }) };
                 },
 
@@ -431,7 +485,7 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
                     const stepMessages = step.response?.messages ?? [];
                     if (stepMessages.length > 0) {
                         console.log(`[AgentExecutor] Step ${step.stepNumber} saving ${stepMessages.length} message(s) to chat storage`);
-                        chatStateStorage.updateGeneration(workspaceId, threadId, this.config.generationId, {
+                        chatStateStorage.updateGeneration(this.chatStoreKey, threadId, this.config.generationId, {
                             modelMessages: [
                                 { role: "user", content: userMessageContent },
                                 ...stepMessages,
@@ -578,7 +632,7 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
                         console.warn("[AgentExecutor] Could not retrieve partial response messages:", e);
                     }
 
-                    const projectRootPath = this.config.executionContext.workspacePath || this.config.executionContext.projectPath || '';
+                    const projectRootPath = this.chatStoreKey;
                     if (partialLLMMessages.length > 0) {
                         chatStateStorage.updateGeneration(projectRootPath, threadId, this.config.generationId, {
                             modelMessages: [
@@ -772,7 +826,7 @@ Generation stopped by user. The last in-progress task was not saved. Any complet
 
         // Leave any live edits in place — the user may want to continue from them. Only an
         // explicit revert (revertGeneration) restores the checkpoint.
-        const projectRootPath = context.ctx.workspacePath || context.ctx.projectPath || '';
+        const projectRootPath = this.chatStoreKey;
         const threadId = this.config.chatStorage?.threadId ?? 'default';
         const erroredGeneration = chatStateStorage.getGeneration(projectRootPath, threadId, context.messageId);
 
@@ -957,7 +1011,7 @@ Generation stopped by user. The last in-progress task was not saved. Any complet
         this._followupsScheduled = startFollowupSuggestions({
             situation,
             messageId: context.messageId,
-            projectRootPath: context.ctx.workspacePath || context.ctx.projectPath || '',
+            projectRootPath: this.chatStoreKey,
             threadId: this.config.chatStorage.threadId,
             assistantMessages,
             userQuery: this.config.params.usecase ?? '',
@@ -976,7 +1030,7 @@ Generation stopped by user. The last in-progress task was not saved. Any complet
         assistantMessages: any[],
         tempProjectPath: string
     ): Promise<void> {
-        const projectRootPath = context.ctx.workspacePath || context.ctx.projectPath || '';
+        const projectRootPath = this.chatStoreKey;
         const threadId = this.config.chatStorage?.threadId ?? 'default';
 
         const generationModifiedFiles = Array.from(new Set([...context.allModifiedFiles, ...context.modifiedFiles]));
@@ -1021,7 +1075,7 @@ Generation stopped by user. The last in-progress task was not saved. Any complet
      * Emits review actions and chat save events to UI.
      */
     private async emitReviewActions(context: StreamContext): Promise<void> {
-        const workspaceId = context.ctx.workspacePath || context.ctx.projectPath;
+        const workspaceId = this.chatStoreKey;
         const threadId = this.config.chatStorage?.threadId ?? 'default';
 
         const currentGeneration = chatStateStorage.getGeneration(workspaceId, threadId, context.messageId);
@@ -1040,24 +1094,73 @@ Generation stopped by user. The last in-progress task was not saved. Any complet
                 ? cachedAffectedPackages
                 : await determineAffectedPackages(accumulatedModifiedFiles, context.projects, context.ctx, workingProjectPath);
             const isWorkspace = StateMachine.context().projectInfo?.projectKind === PROJECT_KIND.WORKSPACE_PROJECT;
-            for (const pkg of affectedPackages) {
+            let semanticDiffError: string | undefined;
+            const appendDiffError = (msg: string) => {
+                semanticDiffError = semanticDiffError ? `${semanticDiffError}\n${msg}` : msg;
+            };
+            let diffedPackageCount = 0;
+            // Each package's diff is an independent LS request against its own project root,
+            // so fetch them concurrently; results are folded back in affectedPackages order
+            // below to keep diffPackageMap/semanticDiffs alignment and error-message order
+            // deterministic. Bounded, because each request can trigger two full package
+            // compilations and migration turns can touch many packages at once.
+            const diffPackages = affectedPackages.filter(
                 // Skip workspace root — it only contains Ballerina.toml, not a real package
-                if (isWorkspace && pkg === workingProjectPath) { continue; }
+                pkg => !(isWorkspace && pkg === workingProjectPath));
+            const packageResults = await mapWithConcurrency(diffPackages, 3, async pkg => {
                 const pkgName = path.basename(pkg);
                 try {
                     const res = await langClient.getSemanticDiff({ projectPath: pkg });
-                    if (res) {
-                        diffPackageMap.push(...Array(res.semanticDiffs.length).fill(pkgName));
-                        semanticDiffs.push(...res.semanticDiffs);
-                        loadDesignDiagrams = loadDesignDiagrams || res.loadDesignDiagrams;
+                    // errorMsg means the LS could not compute diffs at all (e.g. the package
+                    // fails to compile) — semanticDiffs is absent, so treat it as a failure
+                    // instead of reading past it.
+                    if (res?.errorMsg) {
+                        throw new Error(res.errorMsg);
                     }
+                    return { pkgName, res, error: undefined as string | undefined };
                 } catch (err) {
-                    console.error(`[AgentExecutor] getSemanticDiff failed for package ${pkg}, falling back to plain modifiedFiles`, err);
-                    semanticDiffs.length = 0;
-                    diffPackageMap.length = 0;
-                    loadDesignDiagrams = false;
-                    break;
+                    // One package failing must not discard the diffs collected for its
+                    // siblings — record the failure and report it alongside them.
+                    console.error(`[AgentExecutor] getSemanticDiff failed for package ${pkg}; keeping other packages' diffs`, err);
+                    const message = err instanceof Error ? err.message : String(err);
+                    return { pkgName, res: undefined, error: isWorkspace ? `${pkgName}: ${message}` : message };
                 }
+            });
+            for (const { pkgName, res, error } of packageResults) {
+                if (error !== undefined) {
+                    appendDiffError(error);
+                    continue;
+                }
+                if (res) {
+                    diffedPackageCount++;
+                    diffPackageMap.push(...Array(res.semanticDiffs.length).fill(pkgName));
+                    semanticDiffs.push(...res.semanticDiffs);
+                    loadDesignDiagrams = loadDesignDiagrams || res.loadDesignDiagrams;
+                    // Partial success: diffs are valid but the package failed to compile,
+                    // so flow diagrams will likely be unavailable. Keep the diffs and
+                    // surface the reason as a warning — appended so no package's reason
+                    // is dropped.
+                    if (res.compilationError) {
+                        appendDiffError(res.compilationError);
+                    }
+                }
+            }
+
+            // Diagnosability guard: files were modified, yet no package produced (or was
+            // even asked for) a diff and no error was recorded. Without this, a mapping
+            // failure is indistinguishable from a genuine no-op turn.
+            // (diffedPackageCount === 0 implies semanticDiffs is empty — diffs are only
+            // pushed in the branch that increments it.)
+            const modifiedBalFiles = accumulatedModifiedFiles.filter(f => f.endsWith('.bal'));
+            if (!semanticDiffError && modifiedBalFiles.length > 0 && diffedPackageCount === 0) {
+                semanticDiffError =
+                    `The review diff could not be computed: none of the ${modifiedBalFiles.length} modified .bal file(s) ` +
+                    `mapped to a reviewable package. The changes are already applied to your files.`;
+                console.error('[AgentExecutor] Review diff silently empty — modified files mapped to no package.', {
+                    modifiedFiles: accumulatedModifiedFiles,
+                    affectedPackages,
+                    workingProjectPath,
+                });
             }
 
             const reviewData: ReviewModeData = {
@@ -1070,6 +1173,7 @@ Generation stopped by user. The last in-progress task was not saved. Any complet
                 modifiedFiles: accumulatedModifiedFiles,
                 tempProjectPath: workingProjectPath,
                 isWorkspace,
+                semanticDiffError,
             };
 
             approvalViewManager.openReviewMode(context.messageId, reviewData, false);
@@ -1082,7 +1186,7 @@ Generation stopped by user. The last in-progress task was not saved. Any complet
                 tempProjectPath: workingProjectPath,
                 modifiedFiles: accumulatedModifiedFiles,
                 affectedPackagePaths: affectedPackages,
-                reviewView: { semanticDiffs, loadDesignDiagrams, isWorkspace },
+                reviewView: { semanticDiffs, loadDesignDiagrams, isWorkspace, semanticDiffError },
             });
 
             context.eventHandler({

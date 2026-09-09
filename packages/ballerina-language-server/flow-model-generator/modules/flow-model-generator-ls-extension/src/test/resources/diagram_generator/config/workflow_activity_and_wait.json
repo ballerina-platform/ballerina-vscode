@@ -293,13 +293,18 @@
                   },
                   "types": [
                     {
+                      "fieldType": "TEXT",
+                      "ballerinaType": "string",
+                      "selected": false
+                    },
+                    {
                       "fieldType": "EXPRESSION",
                       "ballerinaType": "string|string[]",
-                      "selected": true
+                      "selected": false
                     }
                   ],
                   "value": "",
-                  "optional": false,
+                  "optional": true,
                   "editable": true,
                   "advanced": false,
                   "hidden": false
@@ -795,7 +800,7 @@
             "placeholder": "0",
             "optional": true,
             "editable": true,
-            "advanced": true,
+            "advanced": false,
             "hidden": false,
             "codedata": {
               "kind": "DEFAULTABLE",
@@ -832,7 +837,7 @@
             "placeholder": "()",
             "optional": true,
             "editable": true,
-            "advanced": true,
+            "advanced": false,
             "hidden": false,
             "codedata": {
               "kind": "DEFAULTABLE",

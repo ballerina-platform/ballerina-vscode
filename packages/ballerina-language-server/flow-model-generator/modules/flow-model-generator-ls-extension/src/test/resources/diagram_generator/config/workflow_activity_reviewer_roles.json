@@ -1,0 +1,1070 @@
+{
+  "start": {
+    "line": 53,
+    "offset": 0
+  },
+  "end": {
+    "line": 62,
+    "offset": 1
+  },
+  "source": "workflow_operations.bal",
+  "description": "Activity calls gated by a human review hydrate the reviewer role(s) for the form: a single role unquoted, a role list as its source",
+  "diagram": {
+    "fileName": "workflow_operations.bal",
+    "nodes": [
+      {
+        "id": "87266",
+        "metadata": {
+          "label": "Start",
+          "data": {
+            "kind": "Workflow",
+            "label": "reviewedOrderWorkflow",
+            "isServiceFunction": false,
+            "parameters": [
+              "workflow:Context ctx",
+              "OrderInput input"
+            ],
+            "return": "error?"
+          }
+        },
+        "codedata": {
+          "node": "EVENT_START",
+          "lineRange": {
+            "fileName": "workflow_operations.bal",
+            "startLine": {
+              "line": 53,
+              "offset": 86
+            },
+            "endLine": {
+              "line": 62,
+              "offset": 1
+            }
+          },
+          "sourceCode": "# Activity calls gated by a human review, scoped to reviewer role(s)\n@workflow:Workflow\nfunction reviewedOrderWorkflow(workflow:Context ctx, OrderInput input) returns error? {\n    // Human review scoped to a single reviewer role\n    int single = check ctx->callActivity(calculateDiscount, {amount: 100.0}, retryPolicy = \"Finance\");\n    io:println(single.toString());\n\n    // Human review scoped to several reviewer roles\n    int several = check ctx->callActivity(calculateDiscount, {amount: 200.0},\n            retryPolicy = [\"finance\", \"manager\"]);\n    io:println(several.toString());\n}"
+        },
+        "returning": false,
+        "diagnostics": {
+          "hasDiagnostics": true
+        },
+        "flags": 0
+      },
+      {
+        "id": "85364",
+        "metadata": {
+          "label": "Comment",
+          "description": "Human review scoped to a single reviewer role"
+        },
+        "codedata": {
+          "node": "COMMENT",
+          "lineRange": {
+            "fileName": "workflow_operations.bal",
+            "startLine": {
+              "line": 54,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 54,
+              "offset": 52
+            }
+          },
+          "sourceCode": "Human review scoped to a single reviewer role"
+        },
+        "returning": false,
+        "properties": {
+          "comment": {
+            "metadata": {
+              "label": "Comment",
+              "description": "Comment to describe the flow"
+            },
+            "types": [
+              {
+                "fieldType": "TEXT",
+                "selected": true
+              }
+            ],
+            "value": "Human review scoped to a single reviewer role",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false
+          }
+        },
+        "flags": 0
+      },
+      {
+        "id": "86530",
+        "metadata": {
+          "label": "calculateDiscount",
+          "description": "Activity function for calculating discount",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.8.3.png"
+        },
+        "codedata": {
+          "node": "ACTIVITY_CALL",
+          "org": "$anon",
+          "module": ".",
+          "packageName": ".",
+          "object": "Context",
+          "symbol": "calculateDiscount",
+          "version": "0.0.0",
+          "lineRange": {
+            "fileName": "workflow_operations.bal",
+            "startLine": {
+              "line": 55,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 55,
+              "offset": 102
+            }
+          },
+          "sourceCode": "// Human review scoped to a single reviewer role\n    int single = check ctx->callActivity(calculateDiscount, {amount: 100.0}, retryPolicy = \"Finance\");"
+        },
+        "returning": false,
+        "properties": {
+          "advanced": {
+            "metadata": {
+              "label": "Activity call configurations",
+              "description": "Activity call configurations"
+            },
+            "types": [
+              {
+                "fieldType": "ADVANCE_PARAM_LIST",
+                "selected": false
+              }
+            ],
+            "value": {},
+            "optional": false,
+            "editable": false,
+            "advanced": false,
+            "hidden": false
+          },
+          "input": {
+            "metadata": {
+              "label": "input",
+              "description": ""
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "record {|decimal amount; anydata...;|}",
+                "selected": false
+              }
+            ],
+            "placeholder": "record {|decimal amount; anydata...;|}",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "REQUIRED",
+              "originalName": "input"
+            }
+          },
+          "checkError": {
+            "metadata": {
+              "label": "Check Error",
+              "description": "Add 'check' to propagate errors. Uncheck to handle errors manually."
+            },
+            "types": [
+              {
+                "fieldType": "FLAG",
+                "ballerinaType": "boolean",
+                "selected": true
+              }
+            ],
+            "value": "true",
+            "optional": true,
+            "editable": true,
+            "advanced": true,
+            "hidden": false
+          },
+          "retryPolicy": {
+            "metadata": {
+              "label": "Retry Policy",
+              "description": "Engine retry strategy when the activity fails: no automatic retry (an AI agent may still re-invoke it), automatic backoff retries, or a human review task"
+            },
+            "types": [
+              {
+                "fieldType": "DROPDOWN_CHOICE",
+                "options": [
+                  {
+                    "label": "No Automatic Retry",
+                    "value": "NoRetry"
+                  },
+                  {
+                    "label": "Auto Retry",
+                    "value": "AutoRetry"
+                  },
+                  {
+                    "label": "Human Review",
+                    "value": "ManualRetry"
+                  }
+                ],
+                "selected": true
+              }
+            ],
+            "value": "ManualRetry",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "dynamicFormFields": {
+              "NoRetry": {},
+              "AutoRetry": {
+                "maxRetries": {
+                  "metadata": {
+                    "label": "Max Retries",
+                    "description": "Maximum retry attempts (default: 3)"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "int",
+                      "selected": true
+                    }
+                  ],
+                  "value": "",
+                  "optional": true,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "retryDelay": {
+                  "metadata": {
+                    "label": "Retry Delay",
+                    "description": "Initial delay in seconds before the first retry (default: 1.0)"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "decimal",
+                      "selected": true
+                    }
+                  ],
+                  "value": "",
+                  "optional": true,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "retryBackoff": {
+                  "metadata": {
+                    "label": "Retry Backoff",
+                    "description": "Multiplier applied to delay after each retry (default: 2.0)"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "decimal",
+                      "selected": true
+                    }
+                  ],
+                  "value": "",
+                  "optional": true,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "maxRetryDelay": {
+                  "metadata": {
+                    "label": "Max Retry Delay",
+                    "description": "Cap on the delay between retries, in seconds"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "decimal",
+                      "selected": true
+                    }
+                  ],
+                  "value": "",
+                  "optional": true,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                }
+              },
+              "ManualRetry": {
+                "retryUserRoles": {
+                  "metadata": {
+                    "label": "Reviewer Roles",
+                    "description": "Role(s) permitted to decide the human review, e.g. \"manager\" or [\"finance\", \"manager\"]. Leave empty to allow any role."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "TEXT",
+                      "ballerinaType": "string",
+                      "selected": false
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "string|string[]",
+                      "selected": false
+                    }
+                  ],
+                  "value": "",
+                  "optional": true,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                }
+              }
+            },
+            "itemOptions": [
+              {
+                "id": "NoRetry",
+                "content": "No Automatic Retry",
+                "value": "NoRetry"
+              },
+              {
+                "id": "AutoRetry",
+                "content": "Auto Retry",
+                "value": "AutoRetry"
+              },
+              {
+                "id": "ManualRetry",
+                "content": "Human Review",
+                "value": "ManualRetry"
+              }
+            ]
+          },
+          "maxRetries": {
+            "metadata": {
+              "label": "Max Retries",
+              "description": "Maximum retry attempts (default: 3)"
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "int",
+                "selected": true
+              }
+            ],
+            "value": "",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "retryDelay": {
+            "metadata": {
+              "label": "Retry Delay",
+              "description": "Initial delay in seconds before the first retry (default: 1.0)"
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "decimal",
+                "selected": true
+              }
+            ],
+            "value": "",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "retryUserRoles": {
+            "metadata": {
+              "label": "Reviewer Roles",
+              "description": "Role(s) permitted to decide the retry review"
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string|string[]",
+                "selected": true
+              }
+            ],
+            "value": "\"Finance\"",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "retryBackoff": {
+            "metadata": {
+              "label": "Retry Backoff",
+              "description": "Multiplier applied to delay after each retry (default: 2.0)"
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "decimal",
+                "selected": true
+              }
+            ],
+            "value": "",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "maxRetryDelay": {
+            "metadata": {
+              "label": "Max Retry Delay",
+              "description": "Cap on the delay between retries, in seconds"
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "decimal",
+                "selected": true
+              }
+            ],
+            "value": "",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "variable": {
+            "metadata": {
+              "label": "Variable Name",
+              "description": "Name of the variable"
+            },
+            "types": [
+              {
+                "fieldType": "IDENTIFIER",
+                "selected": true
+              }
+            ],
+            "value": "single",
+            "optional": false,
+            "editable": false,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "lineRange": {
+                "fileName": "workflow_operations.bal",
+                "startLine": {
+                  "line": 55,
+                  "offset": 8
+                },
+                "endLine": {
+                  "line": 55,
+                  "offset": 14
+                }
+              }
+            }
+          },
+          "type": {
+            "metadata": {
+              "label": "Variable Type",
+              "description": "Type of the variable"
+            },
+            "types": [
+              {
+                "fieldType": "TYPE",
+                "selected": true
+              }
+            ],
+            "value": "int",
+            "placeholder": "var",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {}
+          }
+        },
+        "diagnostics": {
+          "hasDiagnostics": true
+        },
+        "flags": 1
+      },
+      {
+        "id": "87454",
+        "metadata": {
+          "label": "println",
+          "description": "Prints `any`, `error` or string templates value(s) to the standard output stream and terminates the line.\n```ballerina\nio:println(\"Start processing the CSV file from \", srcFileName);\n```\n",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.1.png"
+        },
+        "codedata": {
+          "node": "FUNCTION_CALL",
+          "org": "ballerina",
+          "module": "io",
+          "packageName": "io",
+          "symbol": "println",
+          "version": "1.8.1",
+          "lineRange": {
+            "fileName": "workflow_operations.bal",
+            "startLine": {
+              "line": 56,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 56,
+              "offset": 34
+            }
+          },
+          "sourceCode": "io:println(single.toString());"
+        },
+        "returning": false,
+        "properties": {
+          "values": {
+            "metadata": {
+              "label": "values",
+              "description": "The value(s) to be printed"
+            },
+            "types": [
+              {
+                "fieldType": "REPEATABLE_LIST",
+                "ballerinaType": "io:Printable",
+                "template": {
+                  "types": [
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "io:Printable",
+                      "selected": false
+                    }
+                  ],
+                  "optional": false,
+                  "editable": false,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "selected": true
+              }
+            ],
+            "value": [
+              {
+                "types": [
+                  {
+                    "fieldType": "EXPRESSION",
+                    "ballerinaType": "io:Printable",
+                    "selected": true
+                  }
+                ],
+                "value": "single.toString()",
+                "optional": false,
+                "editable": false,
+                "advanced": false,
+                "hidden": false
+              }
+            ],
+            "placeholder": "()",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "REST_PARAMETER",
+              "originalName": "values"
+            }
+          }
+        },
+        "flags": 0
+      },
+      {
+        "id": "88371",
+        "metadata": {
+          "label": "Comment",
+          "description": "Human review scoped to several reviewer roles"
+        },
+        "codedata": {
+          "node": "COMMENT",
+          "lineRange": {
+            "fileName": "workflow_operations.bal",
+            "startLine": {
+              "line": 57,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 58,
+              "offset": 52
+            }
+          },
+          "sourceCode": "Human review scoped to several reviewer roles"
+        },
+        "returning": false,
+        "properties": {
+          "comment": {
+            "metadata": {
+              "label": "Comment",
+              "description": "Comment to describe the flow"
+            },
+            "types": [
+              {
+                "fieldType": "TEXT",
+                "selected": true
+              }
+            ],
+            "value": "Human review scoped to several reviewer roles",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false
+          }
+        },
+        "flags": 0
+      },
+      {
+        "id": "90477",
+        "metadata": {
+          "label": "calculateDiscount",
+          "description": "Activity function for calculating discount",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.8.3.png"
+        },
+        "codedata": {
+          "node": "ACTIVITY_CALL",
+          "org": "$anon",
+          "module": ".",
+          "packageName": ".",
+          "object": "Context",
+          "symbol": "calculateDiscount",
+          "version": "0.0.0",
+          "lineRange": {
+            "fileName": "workflow_operations.bal",
+            "startLine": {
+              "line": 59,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 60,
+              "offset": 50
+            }
+          },
+          "sourceCode": "// Human review scoped to several reviewer roles\n    int several = check ctx->callActivity(calculateDiscount, {amount: 200.0},\n            retryPolicy = [\"finance\", \"manager\"]);"
+        },
+        "returning": false,
+        "properties": {
+          "advanced": {
+            "metadata": {
+              "label": "Activity call configurations",
+              "description": "Activity call configurations"
+            },
+            "types": [
+              {
+                "fieldType": "ADVANCE_PARAM_LIST",
+                "selected": false
+              }
+            ],
+            "value": {},
+            "optional": false,
+            "editable": false,
+            "advanced": false,
+            "hidden": false
+          },
+          "input": {
+            "metadata": {
+              "label": "input",
+              "description": ""
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "record {|decimal amount; anydata...;|}",
+                "selected": false
+              }
+            ],
+            "placeholder": "record {|decimal amount; anydata...;|}",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "REQUIRED",
+              "originalName": "input"
+            }
+          },
+          "checkError": {
+            "metadata": {
+              "label": "Check Error",
+              "description": "Add 'check' to propagate errors. Uncheck to handle errors manually."
+            },
+            "types": [
+              {
+                "fieldType": "FLAG",
+                "ballerinaType": "boolean",
+                "selected": true
+              }
+            ],
+            "value": "true",
+            "optional": true,
+            "editable": true,
+            "advanced": true,
+            "hidden": false
+          },
+          "retryPolicy": {
+            "metadata": {
+              "label": "Retry Policy",
+              "description": "Engine retry strategy when the activity fails: no automatic retry (an AI agent may still re-invoke it), automatic backoff retries, or a human review task"
+            },
+            "types": [
+              {
+                "fieldType": "DROPDOWN_CHOICE",
+                "options": [
+                  {
+                    "label": "No Automatic Retry",
+                    "value": "NoRetry"
+                  },
+                  {
+                    "label": "Auto Retry",
+                    "value": "AutoRetry"
+                  },
+                  {
+                    "label": "Human Review",
+                    "value": "ManualRetry"
+                  }
+                ],
+                "selected": true
+              }
+            ],
+            "value": "ManualRetry",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "dynamicFormFields": {
+              "NoRetry": {},
+              "AutoRetry": {
+                "maxRetries": {
+                  "metadata": {
+                    "label": "Max Retries",
+                    "description": "Maximum retry attempts (default: 3)"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "int",
+                      "selected": true
+                    }
+                  ],
+                  "value": "",
+                  "optional": true,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "retryDelay": {
+                  "metadata": {
+                    "label": "Retry Delay",
+                    "description": "Initial delay in seconds before the first retry (default: 1.0)"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "decimal",
+                      "selected": true
+                    }
+                  ],
+                  "value": "",
+                  "optional": true,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "retryBackoff": {
+                  "metadata": {
+                    "label": "Retry Backoff",
+                    "description": "Multiplier applied to delay after each retry (default: 2.0)"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "decimal",
+                      "selected": true
+                    }
+                  ],
+                  "value": "",
+                  "optional": true,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "maxRetryDelay": {
+                  "metadata": {
+                    "label": "Max Retry Delay",
+                    "description": "Cap on the delay between retries, in seconds"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "decimal",
+                      "selected": true
+                    }
+                  ],
+                  "value": "",
+                  "optional": true,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                }
+              },
+              "ManualRetry": {
+                "retryUserRoles": {
+                  "metadata": {
+                    "label": "Reviewer Roles",
+                    "description": "Role(s) permitted to decide the human review, e.g. \"manager\" or [\"finance\", \"manager\"]. Leave empty to allow any role."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "TEXT",
+                      "ballerinaType": "string",
+                      "selected": false
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "string|string[]",
+                      "selected": false
+                    }
+                  ],
+                  "value": "",
+                  "optional": true,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                }
+              }
+            },
+            "itemOptions": [
+              {
+                "id": "NoRetry",
+                "content": "No Automatic Retry",
+                "value": "NoRetry"
+              },
+              {
+                "id": "AutoRetry",
+                "content": "Auto Retry",
+                "value": "AutoRetry"
+              },
+              {
+                "id": "ManualRetry",
+                "content": "Human Review",
+                "value": "ManualRetry"
+              }
+            ]
+          },
+          "maxRetries": {
+            "metadata": {
+              "label": "Max Retries",
+              "description": "Maximum retry attempts (default: 3)"
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "int",
+                "selected": true
+              }
+            ],
+            "value": "",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "retryDelay": {
+            "metadata": {
+              "label": "Retry Delay",
+              "description": "Initial delay in seconds before the first retry (default: 1.0)"
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "decimal",
+                "selected": true
+              }
+            ],
+            "value": "",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "retryUserRoles": {
+            "metadata": {
+              "label": "Reviewer Roles",
+              "description": "Role(s) permitted to decide the retry review"
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string|string[]",
+                "selected": true
+              }
+            ],
+            "value": "[\"finance\", \"manager\"]",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "retryBackoff": {
+            "metadata": {
+              "label": "Retry Backoff",
+              "description": "Multiplier applied to delay after each retry (default: 2.0)"
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "decimal",
+                "selected": true
+              }
+            ],
+            "value": "",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "maxRetryDelay": {
+            "metadata": {
+              "label": "Max Retry Delay",
+              "description": "Cap on the delay between retries, in seconds"
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "decimal",
+                "selected": true
+              }
+            ],
+            "value": "",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "variable": {
+            "metadata": {
+              "label": "Variable Name",
+              "description": "Name of the variable"
+            },
+            "types": [
+              {
+                "fieldType": "IDENTIFIER",
+                "selected": true
+              }
+            ],
+            "value": "several",
+            "optional": false,
+            "editable": false,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "lineRange": {
+                "fileName": "workflow_operations.bal",
+                "startLine": {
+                  "line": 59,
+                  "offset": 8
+                },
+                "endLine": {
+                  "line": 59,
+                  "offset": 15
+                }
+              }
+            }
+          },
+          "type": {
+            "metadata": {
+              "label": "Variable Type",
+              "description": "Type of the variable"
+            },
+            "types": [
+              {
+                "fieldType": "TYPE",
+                "selected": true
+              }
+            ],
+            "value": "int",
+            "placeholder": "var",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {}
+          }
+        },
+        "diagnostics": {
+          "hasDiagnostics": true
+        },
+        "flags": 1
+      },
+      {
+        "id": "92415",
+        "metadata": {
+          "label": "println",
+          "description": "Prints `any`, `error` or string templates value(s) to the standard output stream and terminates the line.\n```ballerina\nio:println(\"Start processing the CSV file from \", srcFileName);\n```\n",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.1.png"
+        },
+        "codedata": {
+          "node": "FUNCTION_CALL",
+          "org": "ballerina",
+          "module": "io",
+          "packageName": "io",
+          "symbol": "println",
+          "version": "1.8.1",
+          "lineRange": {
+            "fileName": "workflow_operations.bal",
+            "startLine": {
+              "line": 61,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 61,
+              "offset": 35
+            }
+          },
+          "sourceCode": "io:println(several.toString());"
+        },
+        "returning": false,
+        "properties": {
+          "values": {
+            "metadata": {
+              "label": "values",
+              "description": "The value(s) to be printed"
+            },
+            "types": [
+              {
+                "fieldType": "REPEATABLE_LIST",
+                "ballerinaType": "io:Printable",
+                "template": {
+                  "types": [
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "io:Printable",
+                      "selected": false
+                    }
+                  ],
+                  "optional": false,
+                  "editable": false,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "selected": true
+              }
+            ],
+            "value": [
+              {
+                "types": [
+                  {
+                    "fieldType": "EXPRESSION",
+                    "ballerinaType": "io:Printable",
+                    "selected": true
+                  }
+                ],
+                "value": "several.toString()",
+                "optional": false,
+                "editable": false,
+                "advanced": false,
+                "hidden": false
+              }
+            ],
+            "placeholder": "()",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "REST_PARAMETER",
+              "originalName": "values"
+            }
+          }
+        },
+        "flags": 0
+      }
+    ],
+    "connections": []
+  }
+}
