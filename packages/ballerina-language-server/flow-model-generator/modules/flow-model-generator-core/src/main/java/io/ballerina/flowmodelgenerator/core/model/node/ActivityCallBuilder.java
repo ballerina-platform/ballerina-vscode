@@ -32,6 +32,7 @@ import io.ballerina.compiler.syntax.tree.ParameterNode;
 import io.ballerina.compiler.syntax.tree.SeparatedNodeList;
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.compiler.syntax.tree.UnionTypeDescriptorNode;
+import io.ballerina.flowmodelgenerator.core.Constants;
 import io.ballerina.flowmodelgenerator.core.model.Codedata;
 import io.ballerina.flowmodelgenerator.core.model.FlowNode;
 import io.ballerina.flowmodelgenerator.core.model.ItemOption;
@@ -137,7 +138,8 @@ public class ActivityCallBuilder extends CallBuilder {
     private static final String RETRY_BACKOFF_DOC = "Multiplier applied to delay after each retry (default: 2.0)";
     private static final String MAX_RETRY_DELAY_DOC = "Cap on the delay between retries, in seconds";
     // retryPolicy is excluded from ADVANCE_PARAM_LIST; it is added at root level as a DROPDOWN_CHOICE.
-    public static final Set<String> EXCLUDED_CALL_ACTIVITY_PARAMS = Set.of("activityFunction", "args", "T",
+    public static final Set<String> EXCLUDED_CALL_ACTIVITY_PARAMS = Set.of(
+            Constants.Workflow.CALL_ACTIVITY_FUNCTION_PARAM, Constants.Workflow.CALL_ACTIVITY_ARGS_PARAM, "T",
             Property.CHECK_ERROR_KEY, Property.CONNECTION_KEY, RETRY_POLICY_PARAM);
     private static final String NEW_CONNECTION_SENTINEL = "NEW_CONNECTION";
     private static final String ACTIVITY_MODULE_PREFIX = "activity";
@@ -1218,8 +1220,6 @@ public class ActivityCallBuilder extends CallBuilder {
             return functionSymbol;
         }
 
-        String modulePrefix = module.substring(module.lastIndexOf('.') + 1);
-        sourceBuilder.acceptImport(org, module);
-        return modulePrefix + ":" + functionSymbol;
+        return sourceBuilder.importPrefix(org, module) + ":" + functionSymbol;
     }
 }

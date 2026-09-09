@@ -54,6 +54,7 @@ import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.compiler.syntax.tree.SyntaxTree;
 import io.ballerina.flowmodelgenerator.core.Constants;
 import io.ballerina.flowmodelgenerator.core.UserFacingException;
+import io.ballerina.flowmodelgenerator.core.model.NodeBuilder;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Option;
 import io.ballerina.flowmodelgenerator.core.model.Property;
@@ -920,6 +921,53 @@ public class WorkflowUtil {
     public static String stripModulePrefix(String value) {
         int colon = value.lastIndexOf(':');
         return colon >= 0 ? value.substring(colon + 1) : value;
+    }
+
+    /** Label of the approval-gate flag every gated capability form carries. */
+    public static final String REQUIRES_APPROVAL_LABEL = "Requires Approval";
+    /** Label of the reviewer-roles field that accompanies the flag. */
+    public static final String REVIEWER_ROLES_LABEL = "Reviewer Roles";
+
+    /**
+     * Adds the approval-gate pair a durable agent's gated capabilities share — a {@code requiresApproval}
+     * flag and the reviewer roles for the review it creates — as advanced, optional fields. The three
+     * capability forms (activity, tool, peer delegation) differ only in how they describe the thing
+     * being gated, which is what the two descriptions carry.
+     *
+     * @param nodeBuilder     the form being built
+     * @param approvalKey     property key of the flag
+     * @param approvalDoc     what gating means for this capability
+     * @param userRolesKey    property key of the roles field
+     * @param reviewerRolesDoc who may decide the review, with an example
+     */
+    public static void addApprovalGateProperties(NodeBuilder nodeBuilder, String approvalKey, String approvalDoc,
+                                                 String userRolesKey, String reviewerRolesDoc) {
+        nodeBuilder.properties().custom()
+                .metadata()
+                    .label(REQUIRES_APPROVAL_LABEL)
+                    .description(approvalDoc)
+                    .stepOut()
+                .type().fieldType(Property.ValueType.FLAG).ballerinaType("boolean").selected(true).stepOut()
+                .value("false")
+                .editable(true)
+                .optional(true)
+                .advanced(true)
+                .stepOut()
+                .addProperty(approvalKey);
+        // The reviewer roles field is multi-mode, the same as every other role field — a bare role
+        // typed as text, or an expression naming a list. Staging moved the tool and activity forms
+        // onto addRoleFieldTypes; routing it through here keeps the peer form in step as well.
+        addRoleFieldTypes(nodeBuilder.properties().custom()
+                .metadata()
+                    .label(REVIEWER_ROLES_LABEL)
+                    .description(reviewerRolesDoc)
+                    .stepOut())
+                .placeholder("")
+                .editable(true)
+                .optional(true)
+                .advanced(true)
+                .stepOut()
+                .addProperty(userRolesKey);
     }
 
     /** Property key the front end sets to request removal of a capability entry. */

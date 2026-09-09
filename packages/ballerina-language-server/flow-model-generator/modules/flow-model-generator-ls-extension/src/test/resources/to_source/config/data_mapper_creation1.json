@@ -260,7 +260,7 @@
             "character": 0
           }
         },
-        "newText": "\nimport ballerina/data.jsondata;"
+        "newText": "\nimport wso2/nested_editing.mod;"
       },
       {
         "range": {
@@ -273,7 +273,7 @@
             "character": 0
           }
         },
-        "newText": "import wso2/nested_editing.mod;"
+        "newText": "import ballerina/data.jsondata;"
       },
       {
         "range": {

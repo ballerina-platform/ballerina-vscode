@@ -36,7 +36,7 @@ describe("declaresDefaultModelProvider", () => {
     it("reports the declaration the LS writes for the shared default provider", () => {
         expect(
             declaresDefaultModelProvider({
-                "workflow.bal": [
+                "workflows.bal": [
                     edit(
                         "final ai:Wso2ModelProvider wso2ModelProvider = check ai:getDefaultModelProvider();\n" +
                             "final workflow:DurableAgent expenseAgent = check new ({});"
@@ -49,7 +49,7 @@ describe("declaresDefaultModelProvider", () => {
     it("does not depend on the ai module's import prefix", () => {
         expect(
             declaresDefaultModelProvider({
-                "workflow.bal": [
+                "workflows.bal": [
                     edit("final wso2ai:Wso2ModelProvider p = check wso2ai:getDefaultModelProvider();"),
                 ],
             })
@@ -59,7 +59,7 @@ describe("declaresDefaultModelProvider", () => {
     it("reports nothing when the agent reuses an existing provider", () => {
         expect(
             declaresDefaultModelProvider({
-                "workflow.bal": [
+                "workflows.bal": [
                     edit("import ballerina/workflow;"),
                     edit("final workflow:DurableAgent expenseAgent = check new ({\n    model: claimModel\n});"),
                 ],
