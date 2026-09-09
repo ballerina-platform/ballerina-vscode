@@ -291,8 +291,15 @@ function memoryGlyph(): React.ReactNode {
     return <Icon name="bi-memory" sx={{ width: GLYPH_SIZE, height: GLYPH_SIZE, fontSize: GLYPH_SIZE }} iconSx={{ fontSize: GLYPH_SIZE }} />;
 }
 
+function mcpGlyph(): React.ReactNode {
+    return <Icon name="bi-mcp" sx={{ width: GLYPH_SIZE, height: GLYPH_SIZE, fontSize: GLYPH_SIZE }} iconSx={{ fontSize: GLYPH_SIZE }} />;
+}
+
 function toolGlyph(tool: TopologyTool): React.ReactNode {
-    return tool.kind === "agent" ? <NodeIcon type="AGENT" size={GLYPH_SIZE} color={ThemeColors.ON_SURFACE} /> : <FunctionGlyph>ƒ</FunctionGlyph>;
+    if (tool.kind === "agent") {
+        return <NodeIcon type="AGENT" size={GLYPH_SIZE} color={ThemeColors.ON_SURFACE} />;
+    }
+    return tool.kind === "mcp" ? mcpGlyph() : <FunctionGlyph>ƒ</FunctionGlyph>;
 }
 
 function toolRows(tools: TopologyTool[]): PopoverRow[] {
@@ -305,7 +312,8 @@ function connectionRows(chips: ToolChip[]): PopoverRow[] {
     return chips.map((chip) => ({ key: chip.key, glyph: <Chip>{chipGlyph(chip)}</Chip>, label: chip.label }));
 }
 
-// Tool kinds present, as the instance diagram draws them: ƒ for a function, the robot for an agent used as a tool.
+// Tool kinds present, as the instance diagram draws them: ƒ for a function, the robot for an agent used as a tool,
+// the MCP mark for a toolkit.
 function ToolKinds({ node }: { node: TopologyAgentNode }) {
     if (node.toolCount === 0) {
         return null;
@@ -322,6 +330,7 @@ function ToolKinds({ node }: { node: TopologyAgentNode }) {
                     <NodeIcon type="AGENT" size={GLYPH_SIZE} color={ThemeColors.ON_SURFACE} />
                 </Circle>
             )}
+            {node.mcpTools > 0 && <Circle>{mcpGlyph()}</Circle>}
         </Kinds>
     );
 }

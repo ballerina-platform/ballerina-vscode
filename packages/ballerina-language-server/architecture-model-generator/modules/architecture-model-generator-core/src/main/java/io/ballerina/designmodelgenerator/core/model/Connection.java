@@ -18,8 +18,10 @@
 
 package io.ballerina.designmodelgenerator.core.model;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -47,6 +49,8 @@ public class Connection extends DesignGraphNode {
     private ModelProvider modelProvider;
     private MemoryStore memory;
     private String typeName;
+    // MCP toolkits an agent lists as tools: the variable's name, or the server URL for an inline toolkit.
+    private List<String> mcpToolKits;
 
     public Connection(String symbol, String sortText, Location location, Scope scope, String icon) {
         super(sortText);
@@ -174,6 +178,19 @@ public class Connection extends DesignGraphNode {
 
     public String getTypeName() {
         return typeName;
+    }
+
+    public List<String> getMcpToolKits() {
+        return mcpToolKits;
+    }
+
+    public void addMcpToolKit(String label) {
+        if (this.mcpToolKits == null) {
+            this.mcpToolKits = new ArrayList<>();
+        }
+        if (!this.mcpToolKits.contains(label)) {
+            this.mcpToolKits.add(label);
+        }
     }
 
     public void setTypeName(String typeName) {

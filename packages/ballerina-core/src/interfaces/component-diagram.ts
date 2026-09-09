@@ -121,6 +121,8 @@ export type CDConnection = {
     agentTools?: Record<string, string>;
     // The agent's class name, e.g. Agent or a definition such as CalendarAssistant.
     typeName?: string;
+    // MCP toolkits listed as tools: the variable's name, or the server URL for an inline toolkit.
+    mcpToolKits?: string[];
 };
 
 // The provider an agent is constructed with; `symbol` is absent for an inline expression.

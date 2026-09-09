@@ -17,7 +17,7 @@
  */
 
 import { CDAgentCall, CDFunction, CDModel, CDResourceFunction, CDService } from "@wso2/ballerina-core";
-import { EdgeChip, LayoutOptions, NodePosition, SPLIT_LABEL, TopologyGraph, TopologyLayout } from "./types";
+import { EdgeChip, LayoutOptions, NodePosition, SPLIT_LABEL, TopologyAgentNode, TopologyGraph, TopologyLayout } from "./types";
 
 const CIRCLED = "①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳";
 
@@ -46,6 +46,11 @@ function lanesAlongFlow(positions: NodePosition[], vertical: boolean): number[] 
     return [...new Set(positions.map((position) => (vertical ? position.y : position.x)))].sort((a, b) => a - b);
 }
 
+function toolKinds(agent: TopologyAgentNode): string {
+    const kinds = [agent.agentTools ? `${agent.agentTools} agent` : "", agent.mcpTools ? `${agent.mcpTools} mcp` : ""].filter(Boolean);
+    return kinds.length ? ` (${kinds.join(", ")})` : "";
+}
+
 function agentLines(graph: TopologyGraph, layout: TopologyLayout, id: (nodeId: string) => string, vertical: boolean): string[] {
     const lanes = lanesAlongFlow(Object.values(layout.agentPositions), vertical);
     return graph.agents.map((agent) => {
@@ -55,7 +60,7 @@ function agentLines(graph: TopologyGraph, layout: TopologyLayout, id: (nodeId: s
             `${vertical ? "row" : "col"} ${lane}`,
             at(position),
             `h${layout.cardHeights[agent.id]}`,
-            `tools ${agent.toolCount}${agent.agentTools ? ` (${agent.agentTools} agent)` : ""}`,
+            `tools ${agent.toolCount}${toolKinds(agent)}`,
             `chips ${agent.chips.length ? agent.chips.map((chip) => chip.label).join(",") : "-"}`,
             `model ${agent.modelProvider ? agent.modelProvider.label : "-"}`,
             `memory ${agent.memory ? agent.memory.label : "-"}`,

@@ -21,7 +21,7 @@ import { TopologyAgentNode, TopologyEdge, TopologyGraph, TopologySplitNode, Topo
 
 function agent(id: string): TopologyAgentNode {
     return {
-        id, name: id, typeName: "AI Agent", role: "", toolCount: 0, functionTools: 0, agentTools: 0, tools: [], chips: [],
+        id, name: id, typeName: "AI Agent", role: "", toolCount: 0, functionTools: 0, agentTools: 0, mcpTools: 0, tools: [], chips: [],
         typed: false, orphan: false, filePath: "https://gh.072103.xyz/proj/agents.bal", position: { line: 1, offset: 0 },
     };
 }

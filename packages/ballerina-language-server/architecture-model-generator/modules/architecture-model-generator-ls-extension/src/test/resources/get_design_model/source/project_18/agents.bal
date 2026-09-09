@@ -15,7 +15,7 @@ final ai:Agent specialistAgent = check new (
     systemPrompt = {role: "Specialist", instructions: string `Handle the request.`},
     model = supportModel,
     memory = sharedMemory,
-    tools = []
+    tools = [ticketTools, check new ai:McpToolKit("http://localhost:9701/mcp")]
 );
 
 // No entry point and no delegation edge reaches this agent -- exercises the orphan case.

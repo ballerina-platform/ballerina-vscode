@@ -22,3 +22,6 @@ isolated function callHttpTool(string path) returns string {
     }
     return result;
 }
+
+// A named MCP toolkit -- exercises Connection.mcpToolKits.
+final ai:McpToolKit ticketTools = check new ("http://localhost:9700/mcp");

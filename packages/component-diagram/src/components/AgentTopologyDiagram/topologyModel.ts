@@ -103,11 +103,14 @@ function typeLabel(connection: CDConnection | undefined): string {
 }
 
 // An agent's tools are its dependent functions; the design model names the ones that hand off to another agent.
-function toolFacts(connection: CDConnection | undefined): Pick<TopologyAgentNode, "toolCount" | "functionTools" | "agentTools" | "tools"> {
+function toolFacts(connection: CDConnection | undefined): Pick<TopologyAgentNode, "toolCount" | "functionTools" | "agentTools" | "mcpTools" | "tools"> {
     const handoffs = new Set(Object.keys(connection?.agentTools ?? {}));
-    const tools: TopologyTool[] = (connection?.dependentFunctions ?? []).map((name) => ({ name, kind: handoffs.has(name) ? "agent" : "function" }));
-    const agentTools = tools.filter((tool) => tool.kind === "agent").length;
-    return { toolCount: tools.length, functionTools: tools.length - agentTools, agentTools, tools };
+    const tools: TopologyTool[] = [
+        ...(connection?.dependentFunctions ?? []).map((name): TopologyTool => ({ name, kind: handoffs.has(name) ? "agent" : "function" })),
+        ...(connection?.mcpToolKits ?? []).map((name): TopologyTool => ({ name, kind: "mcp" })),
+    ];
+    const count = (kind: TopologyTool["kind"]): number => tools.filter((tool) => tool.kind === kind).length;
+    return { toolCount: tools.length, functionTools: count("function"), agentTools: count("agent"), mcpTools: count("mcp"), tools };
 }
 
 function buildToolChips(connection: CDConnection | undefined, uuidToConnection: Map<string, CDConnection>): ToolChip[] {

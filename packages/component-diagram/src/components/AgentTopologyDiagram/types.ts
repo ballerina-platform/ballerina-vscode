@@ -77,7 +77,7 @@ export interface TopologyMemoryStore {
 // A tool the agent can call: a plain function, or a function that hands the request to another agent.
 export interface TopologyTool {
     name: string;
-    kind: "function" | "agent";
+    kind: "function" | "agent" | "mcp";
 }
 
 export interface TopologyAgentNode {
@@ -89,6 +89,7 @@ export interface TopologyAgentNode {
     toolCount: number;
     functionTools: number;
     agentTools: number;
+    mcpTools: number;
     tools: TopologyTool[];
     chips: ToolChip[];
     modelProvider?: TopologyModelProvider;

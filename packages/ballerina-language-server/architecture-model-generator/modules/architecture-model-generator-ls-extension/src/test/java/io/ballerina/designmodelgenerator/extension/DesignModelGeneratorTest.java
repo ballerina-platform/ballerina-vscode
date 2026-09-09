@@ -253,7 +253,8 @@ public class DesignModelGeneratorTest extends AbstractLSTest {
                     || !Objects.equals(actualConnection.getModelProvider(), expectedConnection.getModelProvider())
                     || !Objects.equals(actualConnection.getMemory(), expectedConnection.getMemory())
                     || !Objects.equals(agentToolNames(actualConnection), agentToolNames(expectedConnection))
-                    || !Objects.equals(actualConnection.getTypeName(), expectedConnection.getTypeName())) {
+                    || !Objects.equals(actualConnection.getTypeName(), expectedConnection.getTypeName())
+                    || !Objects.equals(actualConnection.getMcpToolKits(), expectedConnection.getMcpToolKits())) {
                 return false;
             }
         }

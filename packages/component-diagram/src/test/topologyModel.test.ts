@@ -408,6 +408,17 @@ describe("buildTopology", () => {
         expect(graph.agents.find((a) => a.name === "managerAgent").orphan).toBe(false);
     });
 
+    it("counts MCP toolkits as tools of their own kind (mcp_agent shape)", () => {
+        const supplier = agentConnection("s", "supplierAgent", AGENTS_BAL, 1, { mcpToolKits: ["inventoryTools", "http://localhost:9603/mcp"] });
+        const graph = buildTopology({ model: modelOf([supplier], []), agents: [artifact("supplierAgent", AGENTS_BAL, 1)] });
+
+        expect(graph.agents[0]).toMatchObject({ toolCount: 2, functionTools: 0, agentTools: 0, mcpTools: 2 });
+        expect(graph.agents[0].tools).toEqual([
+            { name: "inventoryTools", kind: "mcp" },
+            { name: "http://localhost:9603/mcp", kind: "mcp" },
+        ]);
+    });
+
     it("draws a step two handlers share once, with both handlers' numbers", () => {
         const draft = agentConnection("d", "draftAgent", AGENTS_BAL, 1);
         const check = agentConnection("c", "factCheckAgent", AGENTS_BAL, 5);

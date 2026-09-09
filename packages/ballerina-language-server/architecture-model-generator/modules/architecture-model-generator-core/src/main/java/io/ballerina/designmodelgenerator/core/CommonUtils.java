@@ -301,6 +301,15 @@ public class CommonUtils {
         return classSymbol != null && hasAiTypeInclusion(classSymbol, DEPENDENTLY_TYPED_AGENT_TYPE_NAME);
     }
 
+    // ai:McpToolKit itself is a plain class matched by name and module; a user's toolkit includes ai:McpBaseToolKit.
+    public static boolean isAiMcpToolKit(TypeSymbol typeSymbol) {
+        TypeSymbol rawType = getRawType(typeSymbol);
+        boolean builtIn = rawType.nameEquals("McpToolKit") && rawType.getModule()
+                .map(module -> BALLERINA_ORG_NAME.equals(module.id().orgName()) && AI.equals(module.id().moduleName()))
+                .orElse(false);
+        return builtIn || io.ballerina.modelgenerator.commons.CommonUtils.isAiMcpBaseToolKit(rawType);
+    }
+
     public static boolean isAiMemory(Symbol symbol) {
         ClassSymbol classSymbol = getClassSymbol(symbol);
         return classSymbol != null && (hasAiTypeInclusion(classSymbol, MEMORY_TYPE_NAME));

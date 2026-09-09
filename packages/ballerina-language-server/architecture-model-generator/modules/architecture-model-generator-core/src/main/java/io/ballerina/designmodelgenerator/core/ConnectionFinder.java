@@ -35,6 +35,7 @@ import io.ballerina.compiler.syntax.tree.BasicLiteralNode;
 import io.ballerina.compiler.syntax.tree.CheckExpressionNode;
 import io.ballerina.compiler.syntax.tree.ExplicitNewExpressionNode;
 import io.ballerina.compiler.syntax.tree.ExpressionNode;
+import io.ballerina.compiler.syntax.tree.FieldAccessExpressionNode;
 import io.ballerina.compiler.syntax.tree.FunctionArgumentNode;
 import io.ballerina.compiler.syntax.tree.FunctionCallExpressionNode;
 import io.ballerina.compiler.syntax.tree.ImplicitNewExpressionNode;
@@ -71,6 +72,7 @@ import java.util.Optional;
  * @since 1.0.0
  */
 public class ConnectionFinder {
+    private static final String MCP_SERVER = "MCP server";
 
     private static final String SYSTEM_PROMPT_FIELD = "systemPrompt";
     private static final String ROLE_FIELD = "role";
@@ -293,15 +295,7 @@ public class ConnectionFinder {
 
     public void handleInitMethodArgs(Connection connection, ExpressionNode expressionNode) {
         if (expressionNode instanceof ListConstructorExpressionNode listConstructorExpressionNode) {
-            for (Node expr : listConstructorExpressionNode.expressions()) {
-                Optional<Symbol> symbol = this.semanticModel.symbol(expr);
-                if (symbol.isEmpty()) {
-                    continue;
-                }
-                if (symbol.get() instanceof FunctionSymbol functionSymbol) {
-                    connection.addDependentFunction(functionSymbol.getName().orElse(""));
-                }
-            }
+            recordToolListEntries(connection, listConstructorExpressionNode);
         } else if (expressionNode instanceof MappingConstructorExpressionNode mappingConstructorExpressionNode) {
             for (Node expr : mappingConstructorExpressionNode.fields()) {
                 if (expr instanceof SpecificFieldNode specificFieldNode
@@ -329,6 +323,53 @@ public class ConnectionFinder {
                 }
             }
         }
+    }
+
+    // An agent's tools list: functions by name, MCP toolkits by their variable, class field or server URL.
+    private void recordToolListEntries(Connection connection, ListConstructorExpressionNode list) {
+        for (Node expr : list.expressions()) {
+            if (isMcpToolKit(expr)) {
+                connection.addMcpToolKit(mcpToolKitLabel(expr));
+                continue;
+            }
+            Optional<Symbol> symbol = this.semanticModel.symbol(expr);
+            if (symbol.isPresent() && symbol.get() instanceof FunctionSymbol functionSymbol) {
+                connection.addDependentFunction(functionSymbol.getName().orElse(""));
+            }
+        }
+    }
+
+    private boolean isMcpToolKit(Node expr) {
+        return this.semanticModel.typeOf(expr).map(CommonUtils::isAiMcpToolKit).orElse(false);
+    }
+
+    // A named toolkit reads by its variable or class field; an inline `new ai:McpToolKit("url")` by its server URL.
+    private static String mcpToolKitLabel(Node expr) {
+        Node inner = expr instanceof CheckExpressionNode checkExpression ? checkExpression.expression() : expr;
+        if (inner instanceof SimpleNameReferenceNode reference) {
+            return reference.name().text();
+        }
+        if (inner instanceof FieldAccessExpressionNode fieldAccess) {
+            return fieldAccess.fieldName().toSourceCode().trim();
+        }
+        if (inner instanceof NewExpressionNode newExpression) {
+            return firstStringArgument(newExpression).orElse(MCP_SERVER);
+        }
+        return MCP_SERVER;
+    }
+
+    private static Optional<String> firstStringArgument(NewExpressionNode newExpression) {
+        Optional<ParenthesizedArgList> args = newExpression instanceof ExplicitNewExpressionNode explicit
+                ? Optional.of(explicit.parenthesizedArgList())
+                : ((ImplicitNewExpressionNode) newExpression).parenthesizedArgList();
+        return args.stream()
+                .flatMap(list -> list.arguments().stream())
+                .filter(arg -> arg instanceof PositionalArgumentNode positional
+                        && positional.expression() instanceof BasicLiteralNode literal
+                        && literal.kind() == SyntaxKind.STRING_LITERAL)
+                .map(arg -> ((BasicLiteralNode) ((PositionalArgumentNode) arg).expression()).literalToken().text())
+                .map(text -> text.substring(1, text.length() - 1))
+                .findFirst();
     }
 
     /**
@@ -376,6 +417,12 @@ public class ConnectionFinder {
                 method.getName().ifPresent(connection::addDependentFunction);
             }
         }
+        // As with the tool methods, a class's MCP toolkit fields count whether or not the init lists them.
+        classSymbol.fieldDescriptors().forEach((name, field) -> {
+            if (CommonUtils.isAiMcpToolKit(field.typeDescriptor())) {
+                connection.addMcpToolKit(name);
+            }
+        });
     }
 
     private static boolean isAgentToolAnnotation(AnnotationAttachmentSymbol annotation) {
