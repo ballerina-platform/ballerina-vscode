@@ -88,7 +88,7 @@ export function EventIntegrationPanel(props: EventIntegrationPanelProps) {
                                         handleClick(DIRECTORY_MAP.SERVICE, item);
                                     }}
                                     disabled={isDisabled}
-                                    tooltip={isDisabled ? OutOfScopeComponentTooltip : ""}
+                                    tooltip={isDisabled ? OutOfScopeComponentTooltip : item.documentation}
                                     isBeta={isBetaModule(item.moduleName)}
                                 />
                             );

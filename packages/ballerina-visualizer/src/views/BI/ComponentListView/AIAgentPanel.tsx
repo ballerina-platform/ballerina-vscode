@@ -98,7 +98,7 @@ export function AIAgentPanel(props: AIAgentPanelProps) {
                         title={AI_CHAT_AGENT_CARD.displayName}
                         onClick={handleClick}
                         disabled={isDisabled}
-                        tooltip={isDisabled ? OutOfScopeComponentTooltip : ""}
+                        tooltip={isDisabled ? OutOfScopeComponentTooltip : AI_CHAT_AGENT_CARD.tooltip}
                     />
                 )}
                 {props.triggers.local.length === 0 && <RelativeLoader />}
@@ -110,7 +110,7 @@ export function AIAgentPanel(props: AIAgentPanelProps) {
                         icon={getEntryNodeIcon(item)}
                         onClick={() => handleMcpClick(DIRECTORY_MAP.SERVICE, item)}
                         disabled={isDisabled}
-                        tooltip={isDisabled ? OutOfScopeComponentTooltip : ""}
+                        tooltip={isDisabled ? OutOfScopeComponentTooltip : item.documentation}
                         isBeta={isBetaModule(item.moduleName)}
                     />
                 ))}

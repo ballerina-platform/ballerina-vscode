@@ -120,6 +120,7 @@ export const AUTOMATION_CARD: ArtifactCard = {
     kind: "automation",
     displayName: "Automation",
     icon: <Icon name="bi-task" />,
+    tooltip: "Integration logic that runs on a schedule or is triggered manually."
 };
 
 export const WORKFLOW_CARD: ArtifactCard = {
@@ -144,6 +145,7 @@ export const AI_CHAT_AGENT_CARD: ArtifactCard = {
     kind: "ai-agent",
     displayName: "Chat Agent Service",
     icon: <Icon name="bi-ai-agent" />,
+    tooltip: "AI chat agent, backed by tools and memory, exposed as a service."
 };
 
 /** TODO: Add the gRPC service card once gRPC support is working. */
@@ -153,6 +155,7 @@ export const INTEGRATION_API_CARDS: ArtifactCard[] = [
         kind: "service",
         displayName: "HTTP Service",
         icon: <Icon name="bi-globe" />,
+        tooltip: "Expose your integration over HTTP as a REST API.",
         artifactInfo: {
             org: "ballerina",
             packageName: "http",
@@ -164,6 +167,7 @@ export const INTEGRATION_API_CARDS: ArtifactCard[] = [
         kind: "service",
         displayName: "GraphQL Service",
         icon: <Icon name="bi-graphql" sx={{ color: "#e535ab" }} />,
+        tooltip: "Expose your integration as a GraphQL API with a typed schema.",
         isBeta: true,
         artifactInfo: {
             org: "ballerina",
@@ -176,6 +180,7 @@ export const INTEGRATION_API_CARDS: ArtifactCard[] = [
         kind: "service",
         displayName: "TCP Service",
         icon: <Icon name="bi-tcp" />,
+        tooltip: "Handle raw TCP socket connections and byte streams.",
         isBeta: true,
         artifactInfo: {
             org: "ballerina",
@@ -198,6 +203,7 @@ export interface OtherArtifactCard {
     requiresNaturalFunctions?: boolean;
     /** Shown only inside a library package. */
     requiresLibrary?: boolean;
+    tooltip?: string;
 }
 
 export const OTHER_ARTIFACT_CARDS: OtherArtifactCard[] = [
@@ -206,6 +212,7 @@ export const OTHER_ARTIFACT_CARDS: OtherArtifactCard[] = [
         displayName: "Function",
         icon: <Icon name="bi-function" />,
         directoryKey: DIRECTORY_MAP.FUNCTION,
+        tooltip: "Reusable logic that can be called from anywhere in your integration.",
     },
     {
         id: "bi-ai-function",
@@ -214,30 +221,35 @@ export const OTHER_ARTIFACT_CARDS: OtherArtifactCard[] = [
         directoryKey: DIRECTORY_MAP.NP_FUNCTION,
         isBeta: true,
         requiresNaturalFunctions: true,
+        tooltip: "Function whose behaviour is described in natural language and run by an LLM.",
     },
     {
         id: "data-mapper",
         displayName: "Data Mapper",
         icon: <Icon name="dataMapper" />,
         directoryKey: DIRECTORY_MAP.DATA_MAPPER,
+        tooltip: "Visually map and transform data from one type to another.",
     },
     {
         id: "type",
         displayName: "Type",
         icon: <Icon name="bi-type" />,
         directoryKey: DIRECTORY_MAP.TYPE,
+        tooltip: "Record, enum, or union type that shapes the data in your integration.",
     },
     {
         id: "connection",
         displayName: "Connection",
         icon: <Icon name="bi-connection" />,
         directoryKey: DIRECTORY_MAP.CONNECTION,
+        tooltip: "Reusable client connection to an external system or service.",
     },
     {
         id: "agent",
         displayName: "Agent",
         icon: <Icon name="bi-ai-agent" />,
         directoryKey: DIRECTORY_MAP.AGENT,
+        tooltip: "AI agent, backed by tools and memory, that your integration can call.",
     },
     {
         id: "agent-definition",
@@ -245,11 +257,13 @@ export const OTHER_ARTIFACT_CARDS: OtherArtifactCard[] = [
         icon: <Icon name="symbol-class" isCodicon={true} />,
         directoryKey: DIRECTORY_MAP.AGENT_DEFINITION,
         requiresLibrary: true,
+        tooltip: "Reusable agent definition that can be shared across integrations.",
     },
     {
         id: "configurable",
         displayName: "Configuration",
         icon: <Icon name="bi-config" />,
         directoryKey: DIRECTORY_MAP.CONFIGURABLE,
+        tooltip: "Configurable value that is supplied at deployment time.",
     },
 ];

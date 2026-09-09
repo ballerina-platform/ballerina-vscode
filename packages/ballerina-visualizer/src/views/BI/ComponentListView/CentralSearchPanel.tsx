@@ -154,6 +154,7 @@ export function CentralSearchPanel(props: CentralSearchPanelProps) {
                                 title={item.name}
                                 icon={getEntryNodeIcon(item)}
                                 onClick={() => handleSelect(item, false)}
+                                tooltip={item.documentation}
                                 isBeta={isBetaModule(item.moduleName)}
                             />
                         ))}
@@ -176,6 +177,7 @@ export function CentralSearchPanel(props: CentralSearchPanelProps) {
                                 title={item.name}
                                 icon={getEntryNodeIcon(item)}
                                 onClick={() => handleSelect(item, true)}
+                                tooltip={item.documentation}
                                 isBeta={isBetaModule(item.moduleName)}
                             />
                         ))}

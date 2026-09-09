@@ -88,7 +88,7 @@ export function FileIntegrationPanel(props: FileIntegrationPanelProps) {
                                     handleOnSelect(item);
                                 }}
                                 disabled={isDisabled}
-                                tooltip={isDisabled ? OutOfScopeComponentTooltip : ""}
+                                tooltip={isDisabled ? OutOfScopeComponentTooltip : item.documentation}
                             />
                         );
                     })}
