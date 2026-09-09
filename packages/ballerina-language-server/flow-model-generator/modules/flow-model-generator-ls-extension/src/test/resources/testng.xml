@@ -117,6 +117,7 @@ under the License.
             <class name="io.ballerina.flowmodelgenerator.extension.agentsmanager.FlowNodeGeneratorTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.agentsmanager.AvailableNodesTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.agentsmanager.SearchTest"/>
+            <class name="io.ballerina.flowmodelgenerator.extension.agentsmanager.AgentSearchCommandTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.agentsmanager.GetToolTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.agentsmanager.GetAllMemoryManagersTest"/>
 
