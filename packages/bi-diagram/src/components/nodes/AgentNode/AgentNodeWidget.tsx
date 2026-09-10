@@ -511,7 +511,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
     const controller = useAgentNodeController(model);
     const {
         onNodeSelect, goToSource, onDeleteNode, removeBreakpoint, addBreakpoint, agentNode, readOnly,
-        entrypointContext, goToAgentDefinition, getAgentDefinitionLocation,
+        goToAgentDefinition, getAgentDefinitionLocation,
     } = controller.context;
     const { traceAnimation, isSelected, isBoxHovered, setIsBoxHovered, agentIdHovered, setAgentIdHovered, anchorEl,
         setAnchorEl, menuButtonElement, setMenuButtonElement, isMenuOpen, aiColor, syncPulseAnimation,
@@ -767,16 +767,6 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
     const nodeInstructions = sanitizedAgent?.instructions || '';
 
     const isTraceMatch = !isTypeDefinition && traceAnimation && (() => {
-        if (entrypointContext) {
-            const traceService = traceAnimation.entrypointServiceName ?? '';
-            const traceFunction = traceAnimation.entrypointFunctionName ?? '';
-            const ctxService = entrypointContext.serviceName ?? '';
-            const ctxFunction = entrypointContext.functionName ?? '';
-            if (traceService !== ctxService || traceFunction !== ctxFunction) {
-                return false;
-            }
-        }
-
         const sysInstr = traceAnimation.systemInstructions;
         if (sysInstr) {
             const extractedRole = sysInstr.match(/(?:^|\n)#\s*Role[ \t]*\r?\n([\s\S]*?)(?=\r?\n#\s*Instructions|$)/i)?.[1]?.trim();
