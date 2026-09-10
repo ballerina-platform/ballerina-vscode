@@ -28,6 +28,7 @@ import {
     TOPOLOGY_COLUMN_GAP,
     TOPOLOGY_GAP_X,
     TOPOLOGY_GAP_X_MAX,
+    TOPOLOGY_GAP_X_PAIR,
     TOPOLOGY_GAP_Y,
     TOPOLOGY_ROW_GAP,
 } from "../../resources/constants";
@@ -193,7 +194,8 @@ function resolveGapX(columnCount: number, availableWidth: number | undefined): n
     }
     const columnsWidth = ENTRY_CARD_WIDTH + (columnCount - 1) * AGENT_CARD_WIDTH;
     const free = availableWidth - 2 * LAYOUT_FIT_MARGIN - columnsWidth;
-    return Math.max(TOPOLOGY_GAP_X, Math.min(TOPOLOGY_GAP_X_MAX, Math.floor(free / (columnCount - 1))));
+    const maxGap = columnCount === 2 ? TOPOLOGY_GAP_X_PAIR : TOPOLOGY_GAP_X_MAX;
+    return Math.max(TOPOLOGY_GAP_X, Math.min(maxGap, Math.floor(free / (columnCount - 1))));
 }
 
 

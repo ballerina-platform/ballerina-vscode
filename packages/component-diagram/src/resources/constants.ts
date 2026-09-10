@@ -67,6 +67,8 @@ export const ENTRY_ROW_BAND = 0.4;
 
 export const TOPOLOGY_GAP_X = 160;
 export const TOPOLOGY_GAP_X_MAX = 520;
+// Two columns have no column between them to give the canvas's spare room to.
+export const TOPOLOGY_GAP_X_PAIR = 240;
 export const TOPOLOGY_GAP_Y = 64;
 export const TOPOLOGY_ROW_GAP = 120;
 export const TOPOLOGY_COLUMN_GAP = 48;

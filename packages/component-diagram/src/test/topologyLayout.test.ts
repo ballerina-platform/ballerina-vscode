@@ -23,6 +23,7 @@ import {
     TOPOLOGY_COLUMN_GAP,
     TOPOLOGY_GAP_X,
     TOPOLOGY_GAP_X_MAX,
+    TOPOLOGY_GAP_X_PAIR,
     TOPOLOGY_GAP_Y,
     TOPOLOGY_ROW_GAP,
     ENTRY_CARD_WIDTH,
@@ -132,14 +133,25 @@ describe("layoutTopology", () => {
         expect(layout.agentPositions["planner"].x).toBe(ENTRY_CARD_WIDTH + TOPOLOGY_GAP_X);
     });
 
-    it("spreads the columns across the available width, within bounds", () => {
+    it("stretches two columns only to the pair gap, never to the full spread", () => {
         const graph = graphOf([agent("a1")], [trigger("t1")], [edge("t1", "a1")]);
+        expect(layoutTopology(graph, { availableWidth: 4000 }).agentPositions["a1"].x).toBe(ENTRY_CARD_WIDTH + TOPOLOGY_GAP_X_PAIR);
+        expect(layoutTopology(graph, { availableWidth: 300 }).agentPositions["a1"].x).toBe(ENTRY_CARD_WIDTH + TOPOLOGY_GAP_X);
+    });
+
+    it("spreads three columns across the available width, within bounds", () => {
+        const graph = graphOf(
+            [agent("sup"), agent("spec")],
+            [trigger("t1")],
+            [edge("t1", "sup"), edge("sup", "spec", "delegation")]
+        );
         const wide = layoutTopology(graph, { availableWidth: 4000 });
-        expect(wide.agentPositions["a1"].x).toBe(ENTRY_CARD_WIDTH + TOPOLOGY_GAP_X_MAX);
-        const snug = layoutTopology(graph, { availableWidth: ENTRY_CARD_WIDTH + AGENT_CARD_WIDTH + 300 });
-        expect(snug.agentPositions["a1"].x).toBe(ENTRY_CARD_WIDTH + 300 - 80);
+        expect(wide.agentPositions["sup"].x).toBe(ENTRY_CARD_WIDTH + TOPOLOGY_GAP_X_MAX);
+        const columns = ENTRY_CARD_WIDTH + 2 * AGENT_CARD_WIDTH;
+        const snug = layoutTopology(graph, { availableWidth: columns + 600 });
+        expect(snug.agentPositions["sup"].x).toBe(ENTRY_CARD_WIDTH + (600 - 80) / 2);
         const narrow = layoutTopology(graph, { availableWidth: 300 });
-        expect(narrow.agentPositions["a1"].x).toBe(ENTRY_CARD_WIDTH + TOPOLOGY_GAP_X);
+        expect(narrow.agentPositions["sup"].x).toBe(ENTRY_CARD_WIDTH + TOPOLOGY_GAP_X);
     });
 
     it("straddles a shared agent with the two cards that run it", () => {
