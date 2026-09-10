@@ -164,6 +164,7 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
     const [settling, setSettling] = useState(false);
     const layoutRef = useRef<TopologyLayout>();
     const graphRef = useRef<TopologyGraph>();
+    const graphSignatureRef = useRef<string>();
     const lastDescriptionRef = useRef<string>();
     const nodeModelsRef = useRef(new Map<string, TopologyNodeModel>());
     const linkModelsRef = useRef(new Map<string, TopologyLinkModel>());
@@ -259,6 +260,12 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
 
     useEffect(() => {
         const graph = buildTopology(input);
+        // The design model carries a fresh uuid per request, so an unchanged package arrives as a new input.
+        const signature = JSON.stringify(graph);
+        if (signature === graphSignatureRef.current) {
+            return;
+        }
+        graphSignatureRef.current = signature;
         graphRef.current = graph;
         setLegendKinds(graph.legendKinds);
         setEntries(graph.entries);
