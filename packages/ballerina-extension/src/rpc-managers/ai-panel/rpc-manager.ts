@@ -456,6 +456,9 @@ export class AiPanelRpcManager implements AIPanelAPI {
 
     async generateContextTypes(params: ProcessContextTypeCreationRequest): Promise<void> {
         try {
+            // Writes a generation to the active thread without ever calling beginRun, so
+            // hasActiveRun cannot see it and the restore guard has to be asked directly.
+            assertNoRestoreInProgress(resolveProjectRootPath(), 'generateContextTypes');
             // existingTempPath: operate on the real workspace directly, no temp copy.
             const config = createExecutorConfig(params, {
                 command: Command.TypeCreator,
@@ -795,8 +798,9 @@ User reverted the last made changes. The files have been restored to the state b
         const projectRootPath = resolveProjectRootPath();
         assertNoRestoreInProgress(projectRootPath, 'restoreCheckpoint');
         if (runEventStore.hasActiveRun(projectRootPath)) {
-            // The mirror of refuseWhileBusy: a run still writing files would land its edits on top
-            // of the restored ones, and its own generation is what the truncation is about to drop.
+            // A run still writing files would land its edits on top of the restored ones, and its
+            // own generation is what the truncation is about to drop. revertGeneration needs no
+            // such check: a running generation is never `done`, so it is never revertible.
             throw new Error('A response is still running. Please wait for it to finish before restoring.');
         }
         beginRestore(projectRootPath);

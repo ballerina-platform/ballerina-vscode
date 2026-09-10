@@ -36,8 +36,9 @@ export function isRestoreInProgress(projectRootPath: string): boolean {
 }
 
 /**
- * Throws rather than returning a flag: every caller is an awaited RPC, so the webview's catch is
- * what resets its spinner and shows the reason. A silent refusal would leave it spinning.
+ * Throws rather than returning a flag, so a caller that awaits the RPC can reset its own spinner
+ * and show the reason — the AI panel's send path does. Fire-and-forget callers (the orb's mini
+ * chat) still need their own catch to stop spinning.
  */
 export function assertNoRestoreInProgress(projectRootPath: string, action: string): void {
     if (isRestoreInProgress(projectRootPath)) {
