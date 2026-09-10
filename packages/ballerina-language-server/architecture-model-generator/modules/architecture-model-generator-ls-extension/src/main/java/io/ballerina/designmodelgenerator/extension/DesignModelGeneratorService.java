@@ -20,17 +20,21 @@ package io.ballerina.designmodelgenerator.extension;
 
 import io.ballerina.artifactsgenerator.ArtifactsCache;
 import io.ballerina.artifactsgenerator.ArtifactsGenerator;
+import io.ballerina.artifactsgenerator.codemap.CodeMapGenerator;
 import io.ballerina.designmodelgenerator.core.DesignModelGenerator;
 import io.ballerina.designmodelgenerator.core.model.DesignModel;
 import io.ballerina.designmodelgenerator.extension.request.ArtifactsRequest;
+import io.ballerina.designmodelgenerator.extension.request.CodeMapRequest;
 import io.ballerina.designmodelgenerator.extension.request.GetDesignModelRequest;
 import io.ballerina.designmodelgenerator.extension.request.ProjectInfoRequest;
 import io.ballerina.designmodelgenerator.extension.response.ArtifactResponse;
+import io.ballerina.designmodelgenerator.extension.response.CodeMapResponse;
 import io.ballerina.designmodelgenerator.extension.response.GetDesignModelResponse;
 import io.ballerina.designmodelgenerator.extension.response.ProjectInfoResponse;
 import io.ballerina.projects.Project;
 import org.ballerinalang.annotation.JavaSPIService;
 import org.ballerinalang.langserver.common.utils.PathUtil;
+import org.ballerinalang.langserver.commons.BallerinaCompilerApi;
 import org.ballerinalang.langserver.commons.LanguageServerContext;
 import org.ballerinalang.langserver.commons.service.spi.ExtendedLanguageServerService;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceManager;
@@ -97,6 +101,30 @@ public class DesignModelGeneratorService implements ExtendedLanguageServerServic
                 response.setError(e);
             }
             return response;
+        });
+    }
+
+    @JsonRequest
+    public CompletableFuture<CodeMapResponse> codeMap(CodeMapRequest request) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                Path projectPath = Path.of(request.projectPath());
+                WorkspaceManager workspaceManager = workspaceManagerProxy.get();
+                Project project = workspaceManager.loadProject(projectPath);
+
+                BallerinaCompilerApi compilerApi = BallerinaCompilerApi.getInstance();
+                boolean isWorkspace = compilerApi.isWorkspaceProject(project);
+
+                if (isWorkspace) {
+                    return new CodeMapResponse(CodeMapGenerator.renderWorkspaceMarkdown(
+                            project, workspaceManager));
+                } else {
+                    return new CodeMapResponse(CodeMapGenerator.renderPackageMarkdown(
+                            project, workspaceManager));
+                }
+            } catch (Throwable e) {
+                return new CodeMapResponse(null);
+            }
         });
     }
 

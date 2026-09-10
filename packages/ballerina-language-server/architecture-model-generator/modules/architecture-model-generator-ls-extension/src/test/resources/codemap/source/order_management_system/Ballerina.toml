@@ -1,0 +1,2 @@
+[workspace]
+packages = ["order_service", "order_utils"]
