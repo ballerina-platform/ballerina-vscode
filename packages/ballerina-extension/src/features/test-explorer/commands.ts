@@ -19,11 +19,12 @@
 
 import { commands, TestItem, window, workspace, WorkspaceEdit, Uri, Range } from "vscode";
 import { openView, StateMachine, history } from "../../stateMachine";
-import { BI_COMMANDS, EVENT_TYPE, MACHINE_VIEW, Annotation, ValueProperty, GetTestFunctionResponse, ComponentInfo, isSamePath } from "@wso2/ballerina-core";
+import { BI_COMMANDS, EVENT_TYPE, MACHINE_VIEW, Annotation, ValueProperty, GetTestFunctionResponse, TestFunction, TestsDiscoveryResponse, ComponentInfo, isSamePath } from "@wso2/ballerina-core";
 import { isTestFunctionItem } from "./discover";
 import path from "path";
 import { promises as fs } from 'fs';
 import { needsProjectDiscovery, requiresPackageSelection, selectPackageOrPrompt } from "../../utils/command-utils";
+import { getTestFunctionNames } from "../../utils/test-discovery";
 import { VisualizerWebview } from "../../views/visualizer/webview";
 import { getCurrentProjectRoot, tryGetCurrentBallerinaFile } from "../../utils/project-utils";
 import { findBallerinaPackageRoot } from "../../utils";
@@ -200,9 +201,7 @@ export function activateEditBiTest(ballerinaExtInstance: BallerinaExtension) {
             if (response && isValidTestFunctionResponse(response) && response.function) {
                 if (hasEvaluationGroup(response.function)) {
                     testType = "AI evaluation test";
-                    dataProviderName = response.function.annotations
-                        ?.find((a: Annotation) => a.name === 'Config')?.fields
-                        ?.find((f: ValueProperty) => f.originalName === 'dataProvider')?.value as string;
+                    dataProviderName = getDataProviderName(response.function);
                 }
             }
         } catch (error) {
@@ -266,7 +265,7 @@ export function activateEditBiTest(ballerinaExtInstance: BallerinaExtension) {
                 }
             }
 
-            await addDataProviderDeletion(edit, ballerinaExtInstance, fileUri, dataProviderName);
+            await addDataProviderDeletion(edit, ballerinaExtInstance, fileUri, functionName, dataProviderName);
 
             const success = await workspace.applyEdit(edit);
 
@@ -322,13 +321,39 @@ function hasEvaluationGroup(testFunction: any): boolean {
     return hasEvaluation;
 }
 
+/** Reads the data provider name off a test function's @test:Config annotation. */
+function getDataProviderName(testFunction?: TestFunction): string | undefined {
+    return testFunction?.annotations
+        ?.find((a: Annotation) => a.name === 'Config')?.fields
+        ?.find((f: ValueProperty) => f.originalName === 'dataProvider')?.value as string | undefined;
+}
+
+/** True if another test function in the file still references this data provider. */
+async function isDataProviderUsedElsewhere(ballerinaExtInstance: BallerinaExtension, fileUri: string,
+    excludeFunctionName: string, providerName: string): Promise<boolean> {
+    const discovery: TestsDiscoveryResponse = await ballerinaExtInstance.langClient?.getFileTestFunctions({
+        projectPath: fileUri
+    });
+    const otherNames = getTestFunctionNames(discovery).filter((n) => n !== excludeFunctionName);
+
+    for (const testName of otherNames) {
+        const fn = await ballerinaExtInstance.langClient?.getTestFunction({ functionName: testName, filePath: fileUri });
+        if (isValidTestFunctionResponse(fn) && getDataProviderName(fn.function) === providerName) {
+            return true;
+        }
+    }
+    return false;
+}
+
 /** Adds the removal of the data provider generated alongside an evaluation. */
 async function addDataProviderDeletion(edit: WorkspaceEdit, ballerinaExtInstance: BallerinaExtension,
-    fileUri: string, name?: string) {
+    fileUri: string, excludeFunctionName: string, name?: string) {
     // Custom providers may be shared by other tests; only generated ones are safe to delete.
     const isGenerated = name?.startsWith('loadEvalsetData') || name?.startsWith('loadQueriesData');
     if (!name || !isGenerated) { return; }
     try {
+        if (await isDataProviderUsedElsewhere(ballerinaExtInstance, fileUri, excludeFunctionName, name)) { return; }
+
         const fn = await ballerinaExtInstance.langClient?.getTestFunction({ functionName: name, filePath: fileUri });
         const range = isValidTestFunctionResponse(fn) ? fn.function?.codedata?.lineRange : undefined;
         if (!range) { return; }
