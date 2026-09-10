@@ -27,9 +27,10 @@ export class TabInputText {
 }
 
 export const window = {
-    showErrorMessage: () => Promise.resolve(undefined),
-    showInformationMessage: () => Promise.resolve(undefined),
-    showWarningMessage: () => Promise.resolve(undefined),
+    // Tests reassign these to record what the user would have been shown.
+    showErrorMessage: (_message?: string, ..._items: string[]) => Promise.resolve(undefined),
+    showInformationMessage: (_message?: string, ..._items: string[]) => Promise.resolve(undefined),
+    showWarningMessage: (_message?: string, ..._items: string[]) => Promise.resolve(undefined),
     withProgress: <T>(_options: unknown, task: (progress: { report(_v: unknown): void }) => Thenable<T>) =>
         task({ report() {} }),
     createOutputChannel: () => ({ appendLine() {}, append() {}, show() {}, clear() {}, dispose() {} }),
@@ -55,6 +56,11 @@ export const workspace = {
             nodeFs.writeFileSync(uri.fsPath, content);
             return Promise.resolve();
         },
+        // Tests reassign this to assert on the options (useTrash) the caller passes.
+        delete: (uri: { fsPath: string }, _options?: { recursive?: boolean; useTrash?: boolean }) => {
+            nodeFs.rmSync(uri.fsPath, { force: true });
+            return Promise.resolve();
+        },
     },
     // Tests assign these to stand in for the editor's own file scan and edit application.
     findFiles: (_include?: unknown, _exclude?: unknown) => Promise.resolve([] as unknown[]),
@@ -63,7 +69,12 @@ export const workspace = {
     workspaceFolders: [] as unknown[],
     isTrusted: true,
     // Tests assign this to stand in for the documents VS Code has materialised.
-    textDocuments: [] as { uri: { fsPath: string; toString(): string }; isDirty: boolean; save(): Promise<boolean> }[],
+    textDocuments: [] as {
+        uri: { fsPath: string; toString(): string };
+        isDirty: boolean;
+        save(): Promise<boolean>;
+        getText?(): string;
+    }[],
     onDidChangeConfiguration: () => ({ dispose() {} }),
     onDidGrantWorkspaceTrust: () => ({ dispose() {} }),
 };

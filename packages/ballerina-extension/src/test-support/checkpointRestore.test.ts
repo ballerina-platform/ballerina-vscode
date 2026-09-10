@@ -27,7 +27,7 @@ import * as os from "os";
 import * as path from "path";
 import type { Checkpoint } from "@wso2/ballerina-core/lib/state-machine-types";
 // The module jest maps `vscode` to, imported by path so the stubs tests reassign stay mutable.
-import { Uri, workspace } from "./__mocks__/vscode";
+import { Uri, window, workspace } from "./__mocks__/vscode";
 import { ArtifactNotificationHandler, ArtifactsUpdated } from "../utils/project-artifacts-handler";
 
 const artifactLocationUpdates: unknown[] = [];
@@ -39,12 +39,17 @@ jest.mock("../rpc-managers/visualizer/rpc-manager", () => ({
         }
     },
 }));
+const dataMapper: { context: unknown; refresh: () => Promise<void> } = {
+    context: {},
+    refresh: () => Promise.resolve(),
+};
+
 jest.mock("../stateMachine", () => ({
-    StateMachine: { context: () => ({}) },
+    StateMachine: { context: () => dataMapper.context },
     updateView: () => {},
 }));
 jest.mock("../rpc-managers/data-mapper/utils", () => ({
-    refreshDataMapper: () => Promise.resolve(),
+    refreshDataMapper: () => dataMapper.refresh(),
 }));
 jest.mock("../RPCLayer", () => ({
     notifyCurrentWebview: () => {},
@@ -83,6 +88,9 @@ describe("checkpoint restore outcome vs. the artifact-update notification", () =
     beforeEach(() => {
         artifactLocationUpdates.length = 0;
         resetArtifactSubscribers();
+        dataMapper.context = {};
+        dataMapper.refresh = () => Promise.resolve();
+        workspace.textDocuments = [];
         root = fs.mkdtempSync(path.join(os.tmpdir(), "checkpoint-restore-"));
         fs.writeFileSync(path.join(root, "main.bal"), "// the generation's edit\n");
         fs.writeFileSync(path.join(root, "Config.toml"), 'greeting = "the generation\'s edit"\n');
@@ -162,5 +170,139 @@ describe("checkpoint restore outcome vs. the artifact-update notification", () =
         publishArtifactsUpdated();
         await jest.advanceTimersByTimeAsync(10_000);
         expect(artifactLocationUpdates).toEqual([]);
+    });
+});
+
+describe("what a checkpoint restore is allowed to touch", () => {
+    let root: string;
+    let checkpoint: Checkpoint;
+    let applied: { op: string; uri: { fsPath: string }; content?: string }[];
+    let warnings: string[];
+
+    const at = (name: string) => path.join(root, name);
+
+    beforeEach(() => {
+        artifactLocationUpdates.length = 0;
+        resetArtifactSubscribers();
+        dataMapper.context = {};
+        dataMapper.refresh = () => Promise.resolve();
+        workspace.textDocuments = [];
+        applied = [];
+        warnings = [];
+
+        root = fs.mkdtempSync(path.join(os.tmpdir(), "checkpoint-touch-"));
+        fs.writeFileSync(at("main.bal"), "// the generation's edit\n");
+        fs.writeFileSync(at("Config.toml"), 'greeting = "the generation\'s edit"\n');
+
+        checkpoint = {
+            id: "cp-1",
+            messageId: "msg-1",
+            timestamp: 0,
+            fileList: ["main.bal", "Config.toml"],
+            workspaceSnapshot: { "main.bal": ORIGINAL_BAL, "Config.toml": ORIGINAL_CONFIG },
+            snapshotSize: 0,
+        };
+
+        workspace.workspaceFolders = [{ uri: Uri.file(root) }];
+        workspace.findFiles = () =>
+            Promise.resolve(fs.readdirSync(root).map(name => Uri.file(at(name))));
+        workspace.applyEdit = (edit: unknown) => {
+            applied.push(...(edit as { entries: typeof applied }).entries);
+            return Promise.resolve(true);
+        };
+        workspace.saveAll = () => Promise.resolve(true);
+        window.showWarningMessage = (message: string) => {
+            warnings.push(message);
+            return Promise.resolve(undefined);
+        };
+    });
+
+    afterEach(() => {
+        fs.rmSync(root, { recursive: true, force: true });
+    });
+
+    it("leaves a file whose bytes are not valid UTF-8 exactly as it is", async () => {
+        // A checkpoint stores decoded strings, so this file's snapshot entry is already mangled.
+        const rawBytes = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0xff, 0xfe, 0x00, 0x80]);
+        fs.writeFileSync(at("logo.png"), rawBytes);
+        checkpoint.fileList.push("logo.png");
+        checkpoint.workspaceSnapshot["logo.png"] = rawBytes.toString("utf8");
+
+        await expect(restoreWorkspaceSnapshot(checkpoint, true)).resolves.toBe(true);
+
+        expect(fs.readFileSync(at("logo.png")).equals(rawBytes)).toBe(true);
+        expect(warnings.join(" ")).toContain("logo.png");
+    });
+
+    it("does not rewrite a file that already matches the snapshot", async () => {
+        fs.writeFileSync(at("main.bal"), ORIGINAL_BAL);
+        fs.writeFileSync(at("Config.toml"), ORIGINAL_CONFIG);
+        const before = fs.statSync(at("Config.toml")).mtimeMs;
+
+        await expect(restoreWorkspaceSnapshot(checkpoint, true)).resolves.toBe(true);
+
+        expect(applied).toEqual([]);
+        expect(fs.statSync(at("Config.toml")).mtimeMs).toBe(before);
+    });
+
+    it("still rewrites a file whose unsaved editor differs from what is on disk", async () => {
+        fs.writeFileSync(at("main.bal"), ORIGINAL_BAL);
+        workspace.textDocuments = [{
+            uri: Uri.file(at("main.bal")),
+            isDirty: true,
+            save: () => Promise.resolve(true),
+            getText: () => "// half-typed edit the user has not saved\n",
+        }];
+
+        await expect(restoreWorkspaceSnapshot(checkpoint, true)).resolves.toBe(true);
+
+        expect(applied.filter(e => e.op === "replace").map(e => e.content)).toContain(ORIGINAL_BAL);
+    });
+
+    it("sends a file the snapshot never captured to the trash rather than unlinking it", async () => {
+        fs.writeFileSync(at("added-by-hand.csv"), "id,name\n1,ada\n");
+        const deletes: { fsPath: string; useTrash?: boolean }[] = [];
+        workspace.fs.delete = (uri: { fsPath: string }, options?: { useTrash?: boolean }) => {
+            deletes.push({ fsPath: uri.fsPath, useTrash: options?.useTrash });
+            return Promise.resolve();
+        };
+
+        await expect(restoreWorkspaceSnapshot(checkpoint, true)).resolves.toBe(true);
+
+        expect(deletes).toEqual([{ fsPath: at("added-by-hand.csv"), useTrash: true }]);
+        // The stub deliberately does not remove it: had the code fallen back to unlink, it would be gone.
+        expect(fs.existsSync(at("added-by-hand.csv"))).toBe(true);
+    });
+
+    it("applies every other file before reporting a file it could not write", async () => {
+        // A path the generation turned into a directory: writeFileSync throws EISDIR.
+        fs.rmSync(at("Config.toml"));
+        fs.mkdirSync(at("Config.toml"));
+
+        await expect(restoreWorkspaceSnapshot(checkpoint, true)).resolves.toBe(false);
+
+        expect(applied.filter(e => e.op === "replace").map(e => e.content)).toContain(ORIGINAL_BAL);
+    });
+
+    it("reports success when the post-restore data mapper refresh fails", async () => {
+        dataMapper.context = { dataMapperMetadata: { name: "transform", codeData: { lineRange: { fileName: "main.bal" } } } };
+        dataMapper.refresh = () => Promise.reject(new Error("Data mapper refresh failed."));
+
+        await expect(restoreWorkspaceSnapshot(checkpoint, true)).resolves.toBe(true);
+
+        expect(fs.readFileSync(at("Config.toml"), "utf8")).toBe(ORIGINAL_CONFIG);
+    });
+    it("refuses a snapshot path that resolves outside the workspace", async () => {
+        const outside = path.join(path.dirname(root), "outside-the-workspace.txt");
+        fs.writeFileSync(outside, "not the checkpoint's business\n");
+        checkpoint.fileList.push("../outside-the-workspace.txt");
+        checkpoint.workspaceSnapshot["../outside-the-workspace.txt"] = "written by a tampered checkpoint\n";
+
+        try {
+            await expect(restoreWorkspaceSnapshot(checkpoint, true)).resolves.toBe(true);
+            expect(fs.readFileSync(outside, "utf8")).toBe("not the checkpoint's business\n");
+        } finally {
+            fs.rmSync(outside, { force: true });
+        }
     });
 });

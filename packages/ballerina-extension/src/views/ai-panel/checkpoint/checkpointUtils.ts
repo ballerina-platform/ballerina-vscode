@@ -20,6 +20,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import { Checkpoint } from '@wso2/ballerina-core/lib/state-machine-types';
+import { isPathInside } from '@wso2/ballerina-core/lib/utils/path-utils';
 import { getCheckpointConfig } from './checkpointConfig';
 import { ArtifactUpdateWait, startArtifactUpdateWait } from '../../../utils/project-artifacts-handler';
 import { VisualizerRpcManager } from '../../../rpc-managers/visualizer/rpc-manager';
@@ -29,9 +30,30 @@ import { notifyCurrentWebview, suppressWebviewNotifications } from '../../../../
 
 const generateId = () => `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-const SKIP_REWRITE_WHEN_UNCHANGED_FILENAMES: ReadonlySet<string> = new Set([
-    'Ballerina.toml'
-]);
+async function readFileBytes(fileUri: vscode.Uri): Promise<Buffer | null> {
+    try {
+        return Buffer.from(await vscode.workspace.fs.readFile(fileUri));
+    } catch {
+        return null;
+    }
+}
+
+// A snapshot holds decoded strings, so bytes that do not round-trip through UTF-8 were never
+// captured faithfully — writing one back replaces real bytes with U+FFFD.
+function isLosslessUtf8(bytes: Buffer): boolean {
+    return Buffer.from(bytes.toString('utf8'), 'utf8').equals(bytes);
+}
+
+// Snapshot keys are relative paths from a previous session, so they are only as trustworthy as the
+// file they were persisted in: resolve first, then refuse anything that lands outside the workspace.
+function resolveInsideWorkspace(workspaceRoot: vscode.Uri, filePath: string): vscode.Uri | null {
+    const target = path.resolve(workspaceRoot.fsPath, filePath);
+    return isPathInside(workspaceRoot.fsPath, target) ? vscode.Uri.file(target) : null;
+}
+
+function openDocumentText(fileUri: vscode.Uri): string | undefined {
+    return vscode.workspace.textDocuments.find(doc => doc.uri.fsPath === fileUri.fsPath)?.getText();
+}
 
 export async function captureWorkspaceSnapshot(messageId: string): Promise<Checkpoint | null> {
     const config = getCheckpointConfig();
@@ -121,8 +143,8 @@ export async function restoreWorkspaceSnapshot(checkpoint: Checkpoint, skipArtif
     }
 
     const workspaceRoot = workspaceFolders[0].uri;
-    let isBalFileRestored = false;
     let artifactWait: ArtifactUpdateWait | undefined;
+    const notRestored: string[] = [];
 
     try {
         await vscode.window.withProgress({
@@ -144,29 +166,31 @@ export async function restoreWorkspaceSnapshot(checkpoint: Checkpoint, skipArtif
                 filePath => !snapshotFilePaths.has(filePath)
             );
 
-            // Check if any .bal files are being modified
-            isBalFileRestored = filesToDelete.some(filePath => filePath.endsWith('.bal')) ||
-                checkpoint.fileList.some(filePath => filePath.endsWith('.bal'));
-
             progress.report({ message: `Preparing ${filesToDelete.length} deletions and ${checkpoint.fileList.length} file restorations...` });
 
             const balFilesToRestore: Array<{ fileUri: vscode.Uri; content: string }> = [];
             const nonBalFilesToRestore: Array<{ fileUri: vscode.Uri; content: string }> = [];
             for (const [filePath, content] of Object.entries(checkpoint.workspaceSnapshot)) {
-                const fileUri = vscode.Uri.file(path.join(workspaceRoot.fsPath, filePath));
+                const fileUri = resolveInsideWorkspace(workspaceRoot, filePath);
+                if (!fileUri) {
+                    console.warn(`[Checkpoint] Refusing to write outside the workspace: ${filePath}`);
+                    notRestored.push(filePath);
+                    continue;
+                }
 
-                // TODO: workaround — rewriting Ballerina.toml triggers an unwanted PackageOverview → WorkspaceOverview redirect.
-                if (SKIP_REWRITE_WHEN_UNCHANGED_FILENAMES.has(path.basename(filePath))) {
-                    let alreadyMatches = false;
-                    try {
-                        const existing = await vscode.workspace.fs.readFile(fileUri);
-                        alreadyMatches = Buffer.from(existing).toString('utf8') === content;
-                    } catch {
-                        // File does not exist on disk.
-                    }
-                    if (alreadyMatches) {
-                        continue;
-                    }
+                const existing = await readFileBytes(fileUri);
+                if (existing && !isLosslessUtf8(existing)) {
+                    console.warn(`[Checkpoint] Leaving non-text file untouched: ${filePath}`);
+                    notRestored.push(filePath);
+                    continue;
+                }
+
+                // An unsaved editor, not disk, is what the user sees and what saveAll writes back,
+                // so a file only counts as already restored when the buffer matches too. Skipping
+                // the rest spares the Language Server a recompile per untouched file.
+                const currentText = openDocumentText(fileUri) ?? existing?.toString('utf8');
+                if (currentText === content) {
+                    continue;
                 }
 
                 (filePath.endsWith('.bal') ? balFilesToRestore : nonBalFilesToRestore).push({ fileUri, content });
@@ -175,7 +199,11 @@ export async function restoreWorkspaceSnapshot(checkpoint: Checkpoint, skipArtif
             const balFilesToDelete: vscode.Uri[] = [];
             const nonBalFilesToDelete: vscode.Uri[] = [];
             for (const filePath of filesToDelete) {
-                const fileUri = vscode.Uri.file(path.join(workspaceRoot.fsPath, filePath));
+                const fileUri = resolveInsideWorkspace(workspaceRoot, filePath);
+                if (!fileUri) {
+                    console.warn(`[Checkpoint] Refusing to delete outside the workspace: ${filePath}`);
+                    continue;
+                }
                 (filePath.endsWith('.bal') ? balFilesToDelete : nonBalFilesToDelete).push(fileUri);
             }
 
@@ -183,7 +211,7 @@ export async function restoreWorkspaceSnapshot(checkpoint: Checkpoint, skipArtif
 
             // Armed before the edits: the notification has no replay, so a Language Server that
             // answers the edit before the restore reaches its own wait would be missed entirely.
-            if (!skipArtifactWait && isBalFileRestored) {
+            if (!skipArtifactWait && (balFilesToRestore.length > 0 || balFilesToDelete.length > 0)) {
                 artifactWait = startArtifactUpdateWait(
                     artifacts => new VisualizerRpcManager().updateCurrentArtifactLocation({ artifacts })
                 );
@@ -191,21 +219,38 @@ export async function restoreWorkspaceSnapshot(checkpoint: Checkpoint, skipArtif
 
             const resumeNotifications = suppressWebviewNotifications();
             let success = true;
+            const failed: string[] = [];
             try {
                 // Non-.bal files go through fs directly (mirrors addToIntegration's split):
                 // WorkspaceEdit.replace() silently no-ops on a file with no open TextDocument,
                 // which is never true for .bal files but always true for the rest.
+                // Each file is isolated: one unwritable path must not abandon the rest half-restored.
                 for (const fileUri of nonBalFilesToDelete) {
-                    if (fs.existsSync(fileUri.fsPath)) {
-                        fs.unlinkSync(fileUri.fsPath);
+                    if (!fs.existsSync(fileUri.fsPath)) {
+                        continue;
+                    }
+                    try {
+                        // The snapshot holds no copy of a file it never captured, so this deletion
+                        // is the user's only copy — .bal deletes already get the trash via WorkspaceEdit.
+                        await vscode.workspace.fs.delete(fileUri, { useTrash: true });
+                    } catch {
+                        try {
+                            fs.unlinkSync(fileUri.fsPath);
+                        } catch (error) {
+                            failed.push(`${path.basename(fileUri.fsPath)} (${(error as Error).message})`);
+                        }
                     }
                 }
                 for (const { fileUri, content } of nonBalFilesToRestore) {
-                    const directory = path.dirname(fileUri.fsPath);
-                    if (!fs.existsSync(directory)) {
-                        fs.mkdirSync(directory, { recursive: true });
+                    try {
+                        const directory = path.dirname(fileUri.fsPath);
+                        if (!fs.existsSync(directory)) {
+                            fs.mkdirSync(directory, { recursive: true });
+                        }
+                        fs.writeFileSync(fileUri.fsPath, content, 'utf8');
+                    } catch (error) {
+                        failed.push(`${path.basename(fileUri.fsPath)} (${(error as Error).message})`);
                     }
-                    fs.writeFileSync(fileUri.fsPath, content, 'utf8');
                 }
 
                 if (balFilesToDelete.length > 0 || balFilesToRestore.length > 0) {
@@ -236,11 +281,21 @@ export async function restoreWorkspaceSnapshot(checkpoint: Checkpoint, skipArtif
             if (!success) {
                 throw new Error('Failed to apply workspace edit');
             }
+            if (failed.length > 0) {
+                throw new Error(`could not write ${failed.length} file(s): ${failed.slice(0, 3).join(', ')}`);
+            }
 
             progress.report({ message: 'Checkpoint restored successfully!' });
-            await renderDatamapper();
-            notifyCurrentWebview();
         });
+
+        // Advisory, and deliberately outside the block above: the files are written and saved by
+        // now, so a view that fails to refresh must not turn a completed restore into a failed one.
+        try {
+            await renderDatamapper();
+        } catch (error) {
+            console.warn('[Checkpoint] Could not refresh the data mapper after the restore:', error);
+        }
+        notifyCurrentWebview();
 
         // Advisory only — it refreshes the visualizer's location, while the files are already
         // written and saved. A missed notification must not be reported as a failed restore.
@@ -248,7 +303,14 @@ export async function restoreWorkspaceSnapshot(checkpoint: Checkpoint, skipArtif
             console.warn('[Checkpoint] No artifact update notification arrived; the workspace was still restored');
         }
 
-        vscode.window.showInformationMessage('Checkpoint restored successfully');
+        if (notRestored.length > 0) {
+            vscode.window.showWarningMessage(
+                `Checkpoint restored, except for ${notRestored.length} file(s) a checkpoint cannot ` +
+                `restore, left as they are: ${notRestored.slice(0, 3).join(', ')}`
+            );
+        } else {
+            vscode.window.showInformationMessage('Checkpoint restored successfully');
+        }
         return true;
     } catch (error) {
         artifactWait?.cancel();
