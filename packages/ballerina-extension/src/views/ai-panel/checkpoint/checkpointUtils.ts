@@ -21,7 +21,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { Checkpoint } from '@wso2/ballerina-core/lib/state-machine-types';
 import { getCheckpointConfig } from './checkpointConfig';
-import { ArtifactNotificationHandler, ArtifactsUpdated } from '../../../utils/project-artifacts-handler';
+import { ArtifactUpdateWait, startArtifactUpdateWait } from '../../../utils/project-artifacts-handler';
 import { VisualizerRpcManager } from '../../../rpc-managers/visualizer/rpc-manager';
 import { StateMachine, updateView } from '../../../../src/stateMachine';
 import { refreshDataMapper } from '../../../../src/rpc-managers/data-mapper/utils';
@@ -122,6 +122,7 @@ export async function restoreWorkspaceSnapshot(checkpoint: Checkpoint, skipArtif
 
     const workspaceRoot = workspaceFolders[0].uri;
     let isBalFileRestored = false;
+    let artifactWait: ArtifactUpdateWait | undefined;
 
     try {
         await vscode.window.withProgress({
@@ -180,6 +181,14 @@ export async function restoreWorkspaceSnapshot(checkpoint: Checkpoint, skipArtif
 
             progress.report({ message: 'Applying workspace changes...' });
 
+            // Armed before the edits: the notification has no replay, so a Language Server that
+            // answers the edit before the restore reaches its own wait would be missed entirely.
+            if (!skipArtifactWait && isBalFileRestored) {
+                artifactWait = startArtifactUpdateWait(
+                    artifacts => new VisualizerRpcManager().updateCurrentArtifactLocation({ artifacts })
+                );
+            }
+
             const resumeNotifications = suppressWebviewNotifications();
             let success = true;
             try {
@@ -233,42 +242,16 @@ export async function restoreWorkspaceSnapshot(checkpoint: Checkpoint, skipArtif
             notifyCurrentWebview();
         });
 
-        // Wait for artifact update notification if any .bal files were restored
-        if (skipArtifactWait) { return true; }
-        await new Promise<void>((resolve, reject) => {
-            if (!isBalFileRestored) {
-                resolve();
-                return;
-            }
-
-            // Get the artifact notification handler instance
-            const notificationHandler = ArtifactNotificationHandler.getInstance();
-            // Subscribe to artifact updated notifications
-            let unsubscribe = notificationHandler.subscribe(ArtifactsUpdated.method, undefined, async (payload) => {
-                new VisualizerRpcManager().updateCurrentArtifactLocation({ artifacts: payload.data });
-                clearTimeout(timeoutId);
-                resolve();
-                unsubscribe();
-            });
-
-            // Set a timeout to reject if no notification is received within 10 seconds
-            const timeoutId = setTimeout(() => {
-                console.log("[Checkpoint] No artifact update notification received within 10 seconds");
-                reject(new Error("Operation timed out. Please try again."));
-                unsubscribe();
-            }, 10000);
-
-            // Clear the timeout when notification is received
-            const originalUnsubscribe = unsubscribe;
-            unsubscribe = () => {
-                clearTimeout(timeoutId);
-                originalUnsubscribe();
-            };
-        });
+        // Advisory only — it refreshes the visualizer's location, while the files are already
+        // written and saved. A missed notification must not be reported as a failed restore.
+        if (artifactWait && !(await artifactWait.notified)) {
+            console.warn('[Checkpoint] No artifact update notification arrived; the workspace was still restored');
+        }
 
         vscode.window.showInformationMessage('Checkpoint restored successfully');
         return true;
     } catch (error) {
+        artifactWait?.cancel();
         console.error('[Checkpoint] Failed to restore workspace snapshot:', error);
         vscode.window.showErrorMessage('Failed to restore checkpoint: ' + (error as Error).message);
         return false;

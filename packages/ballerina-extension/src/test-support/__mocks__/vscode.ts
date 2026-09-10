@@ -19,6 +19,8 @@
 // Minimal `vscode` stub for host-side unit/contract tests (no real editor).
 // Extend as contract tests need more surface.
 
+import * as nodeFs from "fs";
+
 /** Editor tab input, matched with `instanceof` by anything that filters tabs. */
 export class TabInputText {
     constructor(public readonly uri: { fsPath: string; toString(): string }) {}
@@ -28,6 +30,8 @@ export const window = {
     showErrorMessage: () => Promise.resolve(undefined),
     showInformationMessage: () => Promise.resolve(undefined),
     showWarningMessage: () => Promise.resolve(undefined),
+    withProgress: <T>(_options: unknown, task: (progress: { report(_v: unknown): void }) => Thenable<T>) =>
+        task({ report() {} }),
     createOutputChannel: () => ({ appendLine() {}, append() {}, show() {}, clear() {}, dispose() {} }),
     activeTextEditor: undefined,
     // Tests assign `all` and spy on `close`.
@@ -38,7 +42,24 @@ export const window = {
 };
 
 export const workspace = {
-    getConfiguration: () => ({ get: () => undefined, update: () => Promise.resolve(), inspect: () => undefined }),
+    getConfiguration: () => ({
+        // Real `get` falls back to the caller's default, and code that reads settings relies on it.
+        get: (_section: string, defaultValue?: unknown) => defaultValue,
+        update: () => Promise.resolve(),
+        inspect: () => undefined,
+    }),
+    // Backed by the real filesystem so tests can drive file-restoring code against a temp dir.
+    fs: {
+        readFile: (uri: { fsPath: string }) => Promise.resolve(nodeFs.readFileSync(uri.fsPath)),
+        writeFile: (uri: { fsPath: string }, content: Uint8Array) => {
+            nodeFs.writeFileSync(uri.fsPath, content);
+            return Promise.resolve();
+        },
+    },
+    // Tests assign these to stand in for the editor's own file scan and edit application.
+    findFiles: (_include?: unknown, _exclude?: unknown) => Promise.resolve([] as unknown[]),
+    applyEdit: (_edit: unknown) => Promise.resolve(true),
+    saveAll: (_includeUntitled?: boolean) => Promise.resolve(true),
     workspaceFolders: [] as unknown[],
     isTrusted: true,
     // Tests assign this to stand in for the documents VS Code has materialised.
@@ -57,6 +78,38 @@ export const Uri = {
     parse: (p: string) => ({ fsPath: p, path: p, scheme: "file", toString: () => p }),
 };
 
+export enum ProgressLocation {
+    SourceControl = 1,
+    Window = 10,
+    Notification = 15,
+}
+
+export class Position {
+    constructor(public readonly line: number, public readonly character: number) {}
+}
+
+export class Range {
+    constructor(public readonly start: Position, public readonly end: Position) {}
+}
+
+export class RelativePattern {
+    constructor(public readonly base: unknown, public readonly pattern: string) {}
+}
+
+/** Records what an edit would do; tests assert on `entries` and stub `workspace.applyEdit`. */
+export class WorkspaceEdit {
+    entries: { op: "create" | "delete" | "replace"; uri: { fsPath: string }; content?: string }[] = [];
+    createFile(uri: { fsPath: string }, _options?: unknown) {
+        this.entries.push({ op: "create", uri });
+    }
+    deleteFile(uri: { fsPath: string }, _options?: unknown) {
+        this.entries.push({ op: "delete", uri });
+    }
+    replace(uri: { fsPath: string }, _range: unknown, content: string) {
+        this.entries.push({ op: "replace", uri, content });
+    }
+}
+
 export enum ViewColumn {
     Active = -1,
     One = 1,
@@ -71,4 +124,17 @@ export class EventEmitter<T = unknown> {
 
 export const env = { openExternal: () => Promise.resolve(true) };
 
-export default { window, workspace, commands, Uri, ViewColumn, EventEmitter, env };
+export default {
+    window,
+    workspace,
+    commands,
+    Uri,
+    ViewColumn,
+    ProgressLocation,
+    Position,
+    Range,
+    RelativePattern,
+    WorkspaceEdit,
+    EventEmitter,
+    env,
+};

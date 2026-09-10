@@ -100,3 +100,56 @@ export class ArtifactNotificationHandler {
         }
     }
 }
+
+export const ARTIFACT_UPDATE_TIMEOUT_MS = 10000;
+
+export interface ArtifactUpdateWait {
+    /** Resolves `true` on the notification, `false` once the timeout passes without one. */
+    notified: Promise<boolean>;
+    cancel: () => void;
+}
+
+/**
+ * Starts a one-shot wait for the next artifact update. Arm it *before* the edit that triggers the
+ * notification: {@code publish} has no replay, so anything published in between is lost and the
+ * wait then always times out.
+ *
+ * It never rejects — an update can legitimately never arrive (the Language Server is busy, or the
+ * edit produced no artifact change), which says nothing about whether the edit itself applied.
+ */
+export function startArtifactUpdateWait(
+    onArtifacts: (artifacts: ProjectStructureArtifactResponse[]) => void,
+    timeoutMs: number = ARTIFACT_UPDATE_TIMEOUT_MS
+): ArtifactUpdateWait {
+    let settle!: (notified: boolean) => void;
+    const notified = new Promise<boolean>(resolve => {
+        settle = resolve;
+    });
+
+    const unsubscribe = ArtifactNotificationHandler.getInstance().subscribe(
+        ArtifactsUpdated.method,
+        undefined,
+        payload => {
+            stopListening();
+            onArtifacts(payload.data);
+            settle(true);
+        }
+    );
+    const timeoutId = setTimeout(() => {
+        stopListening();
+        settle(false);
+    }, timeoutMs);
+
+    function stopListening(): void {
+        clearTimeout(timeoutId);
+        unsubscribe();
+    }
+
+    return {
+        notified,
+        cancel: () => {
+            stopListening();
+            settle(false);
+        }
+    };
+}
