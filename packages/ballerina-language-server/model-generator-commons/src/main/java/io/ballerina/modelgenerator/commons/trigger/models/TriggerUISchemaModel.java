@@ -197,6 +197,7 @@ public record TriggerUISchemaModel(
      *                            parameter)
      * @param properties          additional configurable properties for this function
      * @param returnType          this function's return type descriptor
+     * @param layout              optional presentation order/grouping for this handler's form inputs
      * @param codedata            source-generation metadata for this function
      * @param validations         the validation rules applied to this function
      */
@@ -221,8 +222,30 @@ public record TriggerUISchemaModel(
             Map<String, Parameter> parameterSchema,
             Map<String, Property> properties,
             ReturnType returnType,
+            List<LayoutSection> layout,
             Codedata codedata,
             List<ValidationRule> validations) {
+    }
+
+    /**
+     * One section of a handler form's authored layout. {@code fields} holds unit ids: an author's own
+     * identifier (parameter name, {@code properties} key, payload {@code bindingGroup}), a reserved
+     * {@code $}-prefixed built-in ({@code $variant}, {@code $description}, {@code $name},
+     * {@code $documentation}, {@code $parameters}, {@code $returnType}, {@code $headers}), or
+     * {@code *rest} for every unit no section claimed. An unresolved id is skipped.
+     *
+     * @param id          an identifier for this section
+     * @param label       the heading rendered above this section; absent -> no heading
+     * @param description explanatory text rendered under {@code label}
+     * @param advanced    {@code true} renders this section inside the collapsed advanced box
+     * @param fields      the ids of the units in this section, in render order
+     */
+    public record LayoutSection(
+            String id,
+            String label,
+            String description,
+            Boolean advanced,
+            List<String> fields) {
     }
 
     /**

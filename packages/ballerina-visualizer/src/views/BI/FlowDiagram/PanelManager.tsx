@@ -144,6 +144,10 @@ interface PanelManagerProps {
     onUpdateExpressionField: (updatedExpressionField: ExpressionFormField) => void;
     onResetUpdatedExpressionField: () => void;
     onSearchFunction?: (searchText: string, functionType: FUNCTION_TYPE) => void;
+    // Scroll pagination for the function list.
+    onLoadMoreFunctionSection?: (sectionTitle: string) => void;
+    functionSectionsWithMore?: Record<string, boolean>;
+    loadingFunctionSections?: Record<string, boolean>;
     onSearchWorkflow?: (searchText: string, functionType: FUNCTION_TYPE) => void;
     onSearchActivity?: (searchText: string, functionType: FUNCTION_TYPE) => void;
     onSearchNpFunction?: (searchText: string, functionType: FUNCTION_TYPE) => void;
@@ -224,6 +228,9 @@ export function PanelManager(props: PanelManagerProps) {
         onUpdateExpressionField,
         onResetUpdatedExpressionField,
         onSearchFunction,
+        onLoadMoreFunctionSection,
+        functionSectionsWithMore,
+        loadingFunctionSections,
         onSearchWorkflow,
         onSearchActivity,
         onSearchNpFunction,
@@ -296,6 +303,9 @@ export function PanelManager(props: PanelManagerProps) {
                         searchPlaceholder={"Search library functions"}
                         searchText={searchText}
                         onBack={canGoBack ? onBack : undefined}
+                        onLoadMoreSection={onLoadMoreFunctionSection}
+                        sectionsWithMore={functionSectionsWithMore}
+                        loadingSections={loadingFunctionSections}
                     />
                 );
 

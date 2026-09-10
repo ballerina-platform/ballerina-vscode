@@ -101,11 +101,36 @@ export enum RepeatBehavior {
 }
 
 /**
+ * One section of a handler form's authored layout. `fields` holds unit ids: an author's own identifier
+ * (parameter name, `properties` key, payload `bindingGroup`), a reserved `$`-prefixed built-in
+ * (`$variant`, `$description`, `$name`, `$documentation`, `$parameters`, `$returnType`, `$headers`), or
+ * `*rest` for every unit no section claimed. An unresolved id is skipped with a dev warning.
+ *
+ * `*rest`'s placement is section-granular, not positional: it always appends the remainder at the end
+ * of whichever section's `fields` names it, regardless of where in that array it sits.
+ *
+ * Presentation only -- layout never reorders the emitted signature, which follows `parameters`.
+ */
+export interface HandlerLayoutSection {
+    /** Identifier for this section; used for diagnostics and stable render keys. */
+    id?: string;
+    /** Heading rendered above this section. Absent -> an ordered run with no heading. */
+    label?: string;
+    /** Explanatory text rendered under `label`. */
+    description?: string;
+    /** Render this section inside the collapsed advanced box. Labelled sections only. */
+    advanced?: boolean;
+    /** Ids of the units in this section, in the order they should appear. */
+    fields: string[];
+}
+
+/**
  * `group`/`variantLabel`/`addLabel`/`repeatable`/`nameEditable` are handler-catalog fields carried
  * by schema-driven triggers (unified TriggerModel): functions sharing a `group` are format variants
  * of one logical handler (labelled by `variantLabel`, offered under `addLabel`); `repeatable` says
  * whether/how the handler may be added more than once (see {@link RepeatBehavior}) and
- * `nameEditable: false` locks the emitted function name to the variant's.
+ * `nameEditable: false` locks the emitted function name to the variant's. `layout` is the optional
+ * presentation order/grouping of the form's inputs (see {@link HandlerLayoutSection}).
  */
 export interface FunctionModel {
     metadata?: MetaData;
@@ -134,6 +159,7 @@ export interface FunctionModel {
     returnType: ReturnTypeModel;
     documentation?: PropertyModel;
     qualifiers?: string[];
+    layout?: HandlerLayoutSection[];
 }
 
 

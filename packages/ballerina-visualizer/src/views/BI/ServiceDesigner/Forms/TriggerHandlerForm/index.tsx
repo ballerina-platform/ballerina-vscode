@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import styled from "@emotion/styled";
 import {
     ActionButtons,
@@ -59,8 +59,6 @@ import { AnnotationExpressionFieldHandle } from "./AnnotationExpressionField";
 import { AnnotationConfigSection } from "./AnnotationConfigSection";
 import {
     addedParametersOf,
-    CODEDATA_ANNOTATION_ATTACHMENT,
-    CODEDATA_COMPLEX_ANNOTATION,
     CODEDATA_METADATA_FLAG,
     CODEDATA_PAYLOAD_MODIFIER,
     CODEDATA_PAYLOAD_TYPE_INCLUDED_RECORD,
@@ -81,6 +79,13 @@ import {
     propertiesOfRole,
     withAddedParameters,
 } from "./payloadComposer";
+import {
+    orderArtifactFieldKeys,
+    resolveHandlerLayout,
+    type HandlerUnit,
+    type HandlerUnitKind,
+    type ResolvedSection,
+} from "./handlerLayout";
 
 const SIGNATURE_CHANGE_BODY_WARNING =
     "This edit will change the handler signature. Nodes in the function body may be broken due to this change. Continue?";
@@ -151,6 +156,11 @@ export interface TriggerHandlerFormProps {
 
 /** A ParamManager template's own sub-fields, in the order they should render as a mini add/edit form. */
 const PARAM_TEMPLATE_SUB_FIELDS = ["type", "name", "defaultValue", "documentation"] as const;
+
+type HandlerUnitKindSet = ReadonlySet<HandlerUnitKind>;
+const ARTIFACT_KINDS: HandlerUnitKindSet = new Set<HandlerUnitKind>(["ARTIFACT_FIELD"]);
+const FLAG_KINDS: HandlerUnitKindSet = new Set<HandlerUnitKind>(["FLAG", "MODIFIER"]);
+const ADVANCED_KINDS: HandlerUnitKindSet = new Set<HandlerUnitKind>(["ADVANCED_PARAM", "HEADERS"]);
 
 /** Renames a template sub-field's own key onto ParamManager's conventional key for that concept. */
 function paramManagerFieldKey(key: string): string {
@@ -362,6 +372,20 @@ function buildArtifactFields(fn: FunctionModel | null | undefined): FormField[] 
     return fields;
 }
 
+/** ArtifactForm fields ordered by the authored `layout`. Done in the rebuild, not render, so the
+ * `fields` array identity stays stable while the user types. */
+function buildOrderedArtifactFields(fn: FunctionModel | null | undefined): FormField[] {
+    const fields = buildArtifactFields(fn);
+    if (!fn?.layout || fields.length < 2) {
+        return fields;
+    }
+    const keys = fields.map((field) => field.key);
+    const ordered = orderArtifactFieldKeys(resolveHandlerLayout(fn, keys), keys);
+    return ordered
+        .map((key) => fields.find((field) => field.key === key))
+        .filter((field): field is FormField => !!field);
+}
+
 /**
  * Generic add/edit form for a schema-driven trigger handler (unified TriggerModel wire shape) — the
  * connector-agnostic counterpart of the FTP-specific FileIntegrationForm. Every section is driven by
@@ -424,12 +448,12 @@ export function TriggerHandlerForm(props: TriggerHandlerFormProps) {
         if (isNew) {
             const initial = props.functionModel ?? addableVariants[0];
             setFunctionModel(initial ? cloneDeep(initial) : null);
-            setArtifactFields(buildArtifactFields(initial));
+            setArtifactFields(buildOrderedArtifactFields(initial));
             setIsArtifactFieldsValid(true);
             initialSignatureKeyRef.current = null;
         } else {
             setFunctionModel(props.functionModel ? cloneDeep(props.functionModel) : null);
-            setArtifactFields(buildArtifactFields(props.functionModel));
+            setArtifactFields(buildOrderedArtifactFields(props.functionModel));
             setIsArtifactFieldsValid(true);
             initialSignatureKeyRef.current = props.functionModel
                 ? functionSignatureKey(props.functionModel) : null;
@@ -449,7 +473,7 @@ export function TriggerHandlerForm(props: TriggerHandlerFormProps) {
         );
         if (variant) {
             setFunctionModel(cloneDeep(variant));
-            setArtifactFields(buildArtifactFields(variant));
+            setArtifactFields(buildOrderedArtifactFields(variant));
             setIsArtifactFieldsValid(true);
         }
     };
@@ -575,8 +599,6 @@ export function TriggerHandlerForm(props: TriggerHandlerFormProps) {
 
     // ----- opt-in framework params (advanced) -----
 
-    const advancedParameters = functionModel?.parameters?.filter((p) => p.advanced === true) ?? [];
-
     const handleAdvancedParamToggle = (param: ParameterModel, checked: boolean) => {
         if (!functionModel) {
             return;
@@ -589,7 +611,7 @@ export function TriggerHandlerForm(props: TriggerHandlerFormProps) {
     // Reuses HTTP resource's own header editor/list (ResourceForm/Parameters) as-is — same
     // autocomplete header-name list, auto-derived identifier, and "Advanced Configurations" layout —
     // rather than the generic ParamManager, since that's the exact behavior asked for. Lives under the
-    // Advanced Parameters section below alongside the fixed opt-in toggles.
+    // Advanced Configurations section below alongside the fixed opt-in toggles.
     const [headerEditModel, setHeaderEditModel] = useState<ParameterModel | undefined>(undefined);
     const [isNewHeaderParam, setIsNewHeaderParam] = useState<boolean>(false);
     // The exact header object being edited, captured when editing starts — used to find-and-replace
@@ -660,11 +682,6 @@ export function TriggerHandlerForm(props: TriggerHandlerFormProps) {
     };
 
     // ----- annotations -----
-
-    const annotations = functionModel
-        ? [...propertiesOfRole(functionModel, CODEDATA_COMPLEX_ANNOTATION),
-            ...propertiesOfRole(functionModel, CODEDATA_ANNOTATION_ATTACHMENT)]
-        : [];
 
     const handleAnnotationChange = (annotationKey: string, updated: PropertyModel) => {
         setFunctionModel((prev) => prev
@@ -772,6 +789,11 @@ export function TriggerHandlerForm(props: TriggerHandlerFormProps) {
         filterType: functionModel?.metadata?.label || "",
     };
 
+    const sections = useMemo(
+        () => functionModel ? resolveHandlerLayout(functionModel, artifactFields.map((field) => field.key)) : [],
+        [functionModel, artifactFields]
+    );
+
     if (!functionModel) {
         return null;
     }
@@ -782,6 +804,357 @@ export function TriggerHandlerForm(props: TriggerHandlerFormProps) {
     // non-empty — most handlers ship no description.
     const handlerDescription = functionModel.metadata?.description?.trim();
     const showAnnotationsDivider = hasVariants || metadataFlags.length > 0 || modifierFlags.length > 0;
+
+    const advancedSections = sections.filter((section) => section.advanced);
+    const looseAdvancedUnits = sections
+        .filter((section) => !section.advanced && !section.label)
+        .flatMap((section) => section.units.filter((unit) => ADVANCED_KINDS.has(unit.kind)));
+    const bodySections = sections
+        .filter((section) => !section.advanced)
+        .map((section) => section.label
+            ? section
+            : { ...section, units: section.units.filter((unit) => !ADVANCED_KINDS.has(unit.kind)) })
+        .filter((section) => section.units.length > 0);
+    const hasAdvancedBox = looseAdvancedUnits.length > 0 || advancedSections.length > 0;
+
+    const firstAnnotationSectionKey = bodySections
+        .find((section) => section.units.some((unit) => unit.kind === "ANNOTATION"))?.key;
+
+    // ----- per-unit renderers -----
+
+    const renderVariant = (): ReactNode => hasVariants ? (
+        /* Variant selection — sibling functions of the same group */
+        <Dropdown
+            id="trigger-handler-variant"
+            label={payloadParam?.type?.metadata?.label ? "Format" : "Variant"}
+            items={isNew
+                ? addableVariants.map((fn) => ({
+                    value: fn.variantLabel ?? fn.name?.metadata?.label ?? fn.name?.value ?? "",
+                }))
+                : [{ value: selectedVariantLabel }]}
+            value={selectedVariantLabel}
+            onValueChange={handleVariantChange}
+            disabled={!isNew}
+        />
+    ) : null;
+
+    /* Handler documentation — updates with the selected variant, hidden when empty */
+    const renderDescription = (): ReactNode =>
+        handlerDescription ? <MarkdownDescription description={handlerDescription} /> : null;
+
+    /* User-renamable name / editable return type / addable parameters (e.g. an MCP
+       tool). Rendered through ArtifactForm — the same IdentifierField/TypeEditor/
+       ParamManager widgets (type completion, identifier validation, inline param
+       table) the rest of the visualizer uses — with its own Save button hidden since
+       this form's Save (below) owns the actual save. */
+    const renderArtifactForm = (): ReactNode =>
+        artifactFields.length > 0 && props.filePath && artifactLineRange ? (
+            <ArtifactForm
+                fileName={props.filePath}
+                targetLineRange={artifactLineRange}
+                fields={artifactFields}
+                nestedForm={true}
+                hideSaveButton={true}
+                preserveFieldOrder={true}
+                onChange={handleArtifactFieldChange}
+                onValidityChange={setIsArtifactFieldsValid}
+                onSubmit={() => { }}
+            />
+        ) : null;
+
+    /* Read-only markers + modifier toggles (e.g. Rows, Stream) */
+    const renderFlagsRun = (units: HandlerUnit[]): ReactNode => (
+        <FlagsColumn>
+            {units.map((unit) => {
+                const key = unit.propertyKey ?? unit.id;
+                const prop = unit.property ?? functionModel.properties?.[key];
+                if (!prop) {
+                    return null;
+                }
+                const isMetadata = unit.kind === "FLAG";
+                return (
+                    <CheckBoxGroup key={key} direction="vertical">
+                        <CheckBox
+                            label={prop.metadata?.label ?? key}
+                            checked={isMetadata ? true : isModifierActive(prop)}
+                            disabled={isMetadata ? true : prop.editable === false}
+                            onChange={isMetadata ? () => { } : (checked) => handleModifierToggle(key, prop, checked)}
+                            sx={{ description: prop.metadata?.description ?? "" }}
+                        />
+                    </CheckBoxGroup>
+                );
+            })}
+        </FlagsColumn>
+    );
+
+    /* Payload schema — one section per binding group (CDC onUpdate's before/after share a group and
+       render as a single section; see groupedPayloadParams). */
+    const renderPayload = (unit: HandlerUnit): ReactNode => {
+        const displayParam = boundRepresentativeOf(functionModel, unit.parameter);
+        if (displayParam.type?.codedata?.bindable !== true) {
+            return null;
+        }
+        const label = displayLabelOf(displayParam);
+        const key = bindingGroupDiverges(functionModel, displayParam)
+            ? (displayParam.name?.value ?? label)
+            : (bindingGroupOf(displayParam) ?? displayParam.name?.value ?? label);
+        return (
+            <Fragment key={key}>
+                {hasDefaultPayload(displayParam) ? (
+                    <AddButtonWrapper>
+                        <Tooltip
+                            content={displayParam.metadata?.description
+                                || `Define ${label} for easier access in the flow diagram`}
+                            position="bottom"
+                        >
+                            <LinkButton onClick={() => setTypeEditorParamName(displayParam.name?.value ?? null)}>
+                                <Codicon name="add" />
+                                Define {label}
+                            </LinkButton>
+                        </Tooltip>
+                    </AddButtonWrapper>
+                ) : (
+                    <div style={{ marginTop: 16 }}>
+                        <Typography variant="body2" sx={{ marginBottom: 8 }}>
+                            {label}
+                        </Typography>
+                        {/* The card shows the fully composed payload type (array/stream wrapper
+                            applied) next to the parameter name — mirroring the generated handler
+                            signature. Composition follows the active modifiers via
+                            composePayloadType, so the chip re-renders when Stream is toggled.
+                            Editing opens the inline schema editor, which strips the wrapper to
+                            the bare element for editing and re-applies it on save; we decompose
+                            that composed result back to the bound element (so recomposition
+                            doesn't compound the wrapper), and let the name follow the editor. A
+                            bindable payload is always editable, so force it on regardless of the
+                            shipped flag. Some connectors (kafka, rabbitmq, the SQL CDC triggers)
+                            bind to a fixed, structural identifier (records/message/before/after)
+                            that the user never renames — those ship the payload's own
+                            codedata.nameEditable:false (a PAYLOAD_TYPE-scoped flag, distinct
+                            from the generic Parameter.name.editable used elsewhere for plain
+                            identifier renaming), so we drop the Name field from both the card
+                            and the editor and only let the bound type change. FTP's content
+                            param leaves nameEditable unset (defaults true) and keeps the full
+                            name+type editor. */}
+                        <Parameters
+                            parameters={[{
+                                ...displayParam,
+                                editable: true,
+                                type: {
+                                    ...displayParam.type,
+                                    value: composePayloadType(functionModel, displayParam),
+                                },
+                            }]}
+                            hideName={displayParam.type?.codedata?.nameEditable === false}
+                            onChange={(edited) => {
+                                if (edited.length === 0) {
+                                    handleDeletePayloadSchema(displayParam);
+                                    return;
+                                }
+                                const [editedPayload] = edited;
+                                const editedElement = decomposePayloadType(
+                                    functionModel, displayParam, editedPayload.type?.value ?? "");
+                                const editedName = editedPayload.name?.value;
+                                const editTargets = new Set(
+                                    editTargetsOf(functionModel, displayParam)
+                                );
+                                const parameters = functionModel.parameters.map((p) => {
+                                    if (!isPayloadParameter(p) || !editTargets.has(p)) {
+                                        return p;
+                                    }
+                                    const isTarget = p === displayParam;
+                                    return {
+                                        ...p,
+                                        name: isTarget && editedName !== undefined
+                                            ? { ...p.name, value: editedName }
+                                            : p.name,
+                                        type: {
+                                            ...p.type,
+                                            imports: editedPayload.type?.imports ?? p.type?.imports,
+                                            codedata: {
+                                                ...p.type?.codedata,
+                                                boundType: editedElement,
+                                            },
+                                        },
+                                        enabled: true,
+                                    };
+                                });
+                                setFunctionModel(
+                                    withRecomposedPayload({ ...functionModel, parameters }));
+                            }}
+                            showPayload={true}
+                            typeLabel={label}
+                        />
+                    </div>
+                )}
+            </Fragment>
+        );
+    };
+
+    /* Function annotations — schema-shipped granular trees */
+    const renderAnnotation = (unit: HandlerUnit): ReactNode => {
+        const key = unit.propertyKey ?? unit.id;
+        const annotation = unit.property ?? functionModel.properties?.[key];
+        if (!annotation) {
+            return null;
+        }
+        return (
+            <AnnotationConfigSection
+                // Keyed on the variant identity, not the user-editable name value
+                // — see the effect above for why.
+                key={`${groupId}-${selectedVariantLabel}-${key}`}
+                annotationKey={key}
+                annotation={annotation}
+                filePath={props.filePath}
+                targetLineRange={functionModel.codedata?.lineRange}
+                disabled={isSaving}
+                onChange={handleAnnotationChange}
+                registerFieldRef={registerFieldRef}
+                onDiagnosticsChange={handleFieldDiagnostics}
+                onValidationStateChange={handleFieldValidationState}
+            />
+        );
+    };
+
+    /* Opt-in framework params (caller and friends) + individually bound HTTP headers */
+    const renderAdvancedBody = (units: HandlerUnit[], inLabeledGroup = false): ReactNode => {
+        const params = units
+            .filter((unit) => unit.kind === "ADVANCED_PARAM")
+            .map((unit) => unit.parameter)
+            .filter((param): param is ParameterModel => !!param);
+        const withHeaders = units.some((unit) => unit.kind === "HEADERS") && headerTemplate;
+        return (
+            <>
+                {params.map((param, index) => (
+                    <CheckBoxGroup key={param.name?.value || index} direction="vertical">
+                        <CheckBox
+                            label={param.metadata?.label}
+                            checked={param.enabled}
+                            onChange={(checked) => handleAdvancedParamToggle(param, checked)}
+                            sx={{
+                                marginTop: index === 0 ? 0 : 8,
+                                description: param.metadata?.description,
+                            }}
+                        />
+                    </CheckBoxGroup>
+                ))}
+                {withHeaders && (
+                    <>
+                        <Typography variant="body2" sx={{ marginTop: 12, marginBottom: 0 }}>
+                            {headerTemplate.metadata?.label || "HTTP Headers"}
+                        </Typography>
+                        {!inLabeledGroup && headerTemplate.metadata?.description && (
+                            <Typography
+                                variant="body3"
+                                sx={{ color: "var(--vscode-descriptionForeground)", marginBottom: 4 }}
+                            >
+                                {headerTemplate.metadata.description}
+                            </Typography>
+                        )}
+                        {headerParameters.map((param, index) => (
+                            <HeaderParamItem
+                                key={`header-${index}`}
+                                param={param}
+                                onDelete={handleHeaderDelete}
+                                onEditClick={handleHeaderEditClick}
+                            />
+                        ))}
+                        {headerEditModel && (
+                            <HeaderParamEditor
+                                isNew={isNewHeaderParam}
+                                param={headerEditModel}
+                                onChange={handleHeaderChange}
+                                onSave={handleHeaderSave}
+                                onCancel={handleHeaderCancel}
+                                type="HEADER"
+                            />
+                        )}
+                        {!headerEditModel && (
+                            <AddButtonWrapper>
+                                <LinkButton onClick={handleAddHeaderClick}>
+                                    <Codicon name="add" />
+                                    <>Header</>
+                                </LinkButton>
+                            </AddButtonWrapper>
+                        )}
+                    </>
+                )}
+            </>
+        );
+    };
+
+    /** One section's units, batched into the chrome each kind needs. */
+    const renderSectionUnits = (section: ResolvedSection): ReactNode[] => {
+        const plain = !!section.label;
+        const units = section.units;
+        const firstAnnotationIndex = units.findIndex((unit) => unit.kind === "ANNOTATION");
+        const nodes: ReactNode[] = [];
+        const push = (key: string, node: ReactNode) => {
+            if (node) {
+                nodes.push(<Fragment key={key}>{node}</Fragment>);
+            }
+        };
+        const runFrom = (from: number, kinds: HandlerUnitKindSet): HandlerUnit[] => {
+            const run: HandlerUnit[] = [];
+            for (let i = from; i < units.length && kinds.has(units[i].kind); i++) {
+                run.push(units[i]);
+            }
+            return run;
+        };
+
+        let index = 0;
+        while (index < units.length) {
+            const unit = units[index];
+            switch (unit.kind) {
+                case "VARIANT":
+                    push(unit.id, renderVariant());
+                    index++;
+                    break;
+                case "DESCRIPTION":
+                    push(unit.id, renderDescription());
+                    index++;
+                    break;
+                case "ARTIFACT_FIELD": {
+                    const run = runFrom(index, ARTIFACT_KINDS);
+                    push("$artifact", renderArtifactForm());
+                    index += run.length;
+                    break;
+                }
+                case "FLAG":
+                case "MODIFIER": {
+                    const run = runFrom(index, FLAG_KINDS);
+                    push(`flags-${unit.id}`, renderFlagsRun(run));
+                    index += run.length;
+                    break;
+                }
+                case "PAYLOAD":
+                    push(`payload-${unit.id}`, renderPayload(unit));
+                    index++;
+                    break;
+                case "ANNOTATION": {
+                    const isFirstRun = section.key === firstAnnotationSectionKey && index === firstAnnotationIndex;
+                    if (!plain && isFirstRun && showAnnotationsDivider) {
+                        nodes.push(<Divider key={`annotations-divider-${unit.id}`} />);
+                    }
+                    push(`annotation-${unit.id}`, renderAnnotation(unit));
+                    index++;
+                    break;
+                }
+                case "ADVANCED_PARAM":
+                case "HEADERS": {
+                    const run = runFrom(index, ADVANCED_KINDS);
+                    push(`advanced-${unit.id}`, renderAdvancedBody(run, plain));
+                    index += run.length;
+                    break;
+                }
+                default:
+                    index++;
+                    break;
+            }
+        }
+        return nodes;
+    };
+
 
     return (
         <>
@@ -803,200 +1176,36 @@ export function TriggerHandlerForm(props: TriggerHandlerFormProps) {
                         />
                     )}
 
-                    {/* Variant selection — sibling functions of the same group */}
-                    {hasVariants && (
-                        <Dropdown
-                            id="trigger-handler-variant"
-                            label={payloadParam?.type?.metadata?.label ? "Format" : "Variant"}
-                            items={isNew
-                                ? addableVariants.map((fn) => ({
-                                    value: fn.variantLabel ?? fn.name?.metadata?.label ?? fn.name?.value ?? "",
-                                }))
-                                : [{ value: selectedVariantLabel }]}
-                            value={selectedVariantLabel}
-                            onValueChange={handleVariantChange}
-                            disabled={!isNew}
-                        />
-                    )}
-
-                    {/* Handler documentation — updates with the selected variant, hidden when empty */}
-                    {handlerDescription && <MarkdownDescription description={handlerDescription} />}
-
-                    {/* User-renamable name / editable return type / addable parameters (e.g. an MCP
-                        tool). Rendered through ArtifactForm — the same IdentifierField/TypeEditor/
-                        ParamManager widgets (type completion, identifier validation, inline param
-                        table) the rest of the visualizer uses — with its own Save button hidden since
-                        this form's Save (below) owns the actual save. */}
-                    {artifactFields.length > 0 && props.filePath && artifactLineRange && (
-                        <ArtifactForm
-                            fileName={props.filePath}
-                            targetLineRange={artifactLineRange}
-                            fields={artifactFields}
-                            nestedForm={true}
-                            hideSaveButton={true}
-                            preserveFieldOrder={true}
-                            onChange={handleArtifactFieldChange}
-                            onValidityChange={setIsArtifactFieldsValid}
-                            onSubmit={() => { }}
-                        />
-                    )}
-
-                    {/* Read-only markers + modifier toggles (e.g. Rows, Stream) */}
-                    {(metadataFlags.length > 0 || modifierFlags.length > 0) && (
-                        <FlagsColumn>
-                            {metadataFlags.map(([key, prop]) => (
-                                <CheckBoxGroup key={key} direction="vertical">
-                                    <CheckBox
-                                        label={prop.metadata?.label ?? key}
-                                        checked={true}
-                                        disabled={true}
-                                        onChange={() => { }}
-                                        sx={{ description: prop.metadata?.description ?? "" }}
-                                    />
-                                </CheckBoxGroup>
-                            ))}
-                            {modifierFlags.map(([key, prop]) => (
-                                <CheckBoxGroup key={key} direction="vertical">
-                                    <CheckBox
-                                        label={prop.metadata?.label ?? key}
-                                        checked={isModifierActive(prop)}
-                                        disabled={prop.editable === false}
-                                        onChange={(checked) => handleModifierToggle(key, prop, checked)}
-                                        sx={{ description: prop.metadata?.description ?? "" }}
-                                    />
-                                </CheckBoxGroup>
-                            ))}
-                        </FlagsColumn>
-                    )}
-
-                    {/* Payload schema — one section per binding group (CDC onUpdate's before/after
-                        share a group and render as a single section; see groupedPayloadParams). */}
-                    {groupedPayloadParams
-                        .map((param) => boundRepresentativeOf(functionModel, param))
-                        .filter((displayParam) => displayParam.type?.codedata?.bindable === true)
-                        .map((displayParam) => {
-                            const label = displayLabelOf(displayParam);
-                            const key = bindingGroupDiverges(functionModel, displayParam)
-                                ? (displayParam.name?.value ?? label)
-                                : (bindingGroupOf(displayParam) ?? displayParam.name?.value ?? label);
-                            return (
-                                <Fragment key={key}>
-                                    {hasDefaultPayload(displayParam) ? (
-                                        <AddButtonWrapper>
-                                            <Tooltip
-                                                content={displayParam.metadata?.description
-                                                    || `Define ${label} for easier access in the flow diagram`}
-                                                position="bottom"
-                                            >
-                                                <LinkButton onClick={() => setTypeEditorParamName(displayParam.name?.value ?? null)}>
-                                                    <Codicon name="add" />
-                                                    Define {label}
-                                                </LinkButton>
-                                            </Tooltip>
-                                        </AddButtonWrapper>
-                                    ) : (
-                                        <div style={{ marginTop: 16 }}>
-                                            <Typography variant="body2" sx={{ marginBottom: 8 }}>
-                                                {label}
-                                            </Typography>
-                                            {/* The card shows the fully composed payload type (array/stream wrapper
-                                                applied) next to the parameter name — mirroring the generated handler
-                                                signature. Composition follows the active modifiers via
-                                                composePayloadType, so the chip re-renders when Stream is toggled.
-                                                Editing opens the inline schema editor, which strips the wrapper to
-                                                the bare element for editing and re-applies it on save; we decompose
-                                                that composed result back to the bound element (so recomposition
-                                                doesn't compound the wrapper), and let the name follow the editor. A
-                                                bindable payload is always editable, so force it on regardless of the
-                                                shipped flag. Some connectors (kafka, rabbitmq, the SQL CDC triggers)
-                                                bind to a fixed, structural identifier (records/message/before/after)
-                                                that the user never renames — those ship the payload's own
-                                                codedata.nameEditable:false (a PAYLOAD_TYPE-scoped flag, distinct
-                                                from the generic Parameter.name.editable used elsewhere for plain
-                                                identifier renaming), so we drop the Name field from both the card
-                                                and the editor and only let the bound type change. FTP's content
-                                                param leaves nameEditable unset (defaults true) and keeps the full
-                                                name+type editor. */}
-                                            <Parameters
-                                                parameters={[{
-                                                    ...displayParam,
-                                                    editable: true,
-                                                    type: {
-                                                        ...displayParam.type,
-                                                        value: composePayloadType(functionModel, displayParam),
-                                                    },
-                                                }]}
-                                                hideName={displayParam.type?.codedata?.nameEditable === false}
-                                                onChange={(edited) => {
-                                                    if (edited.length === 0) {
-                                                        handleDeletePayloadSchema(displayParam);
-                                                        return;
-                                                    }
-                                                    const [editedPayload] = edited;
-                                                    const editedElement = decomposePayloadType(
-                                                        functionModel, displayParam, editedPayload.type?.value ?? "");
-                                                    const editedName = editedPayload.name?.value;
-                                                    const editTargets = new Set(
-                                                        editTargetsOf(functionModel, displayParam)
-                                                    );
-                                                    const parameters = functionModel.parameters.map((p) => {
-                                                        if (!isPayloadParameter(p) || !editTargets.has(p)) {
-                                                            return p;
-                                                        }
-                                                        const isTarget = p === displayParam;
-                                                        return {
-                                                            ...p,
-                                                            name: isTarget && editedName !== undefined
-                                                                ? { ...p.name, value: editedName }
-                                                                : p.name,
-                                                            type: {
-                                                                ...p.type,
-                                                                imports: editedPayload.type?.imports ?? p.type?.imports,
-                                                                codedata: {
-                                                                    ...p.type?.codedata,
-                                                                    boundType: editedElement,
-                                                                },
-                                                            },
-                                                            enabled: true,
-                                                        };
-                                                    });
-                                                    setFunctionModel(
-                                                        withRecomposedPayload({ ...functionModel, parameters }));
+                    {bodySections.map((section) => {
+                        const body = renderSectionUnits(section);
+                        if (body.length === 0) {
+                            return null;
+                        }
+                        return (
+                            <Fragment key={section.key}>
+                                {section.label && (
+                                    <>
+                                        <Divider />
+                                        <Typography variant="body2">{section.label}</Typography>
+                                        {section.description && (
+                                            <Typography
+                                                variant="body3"
+                                                sx={{
+                                                    color: "var(--vscode-descriptionForeground)",
+                                                    marginBottom: 4,
                                                 }}
-                                                showPayload={true}
-                                                typeLabel={label}
-                                            />
-                                        </div>
-                                    )}
-                                </Fragment>
-                            );
-                        })}
+                                            >
+                                                {section.description}
+                                            </Typography>
+                                        )}
+                                    </>
+                                )}
+                                {body}
+                            </Fragment>
+                        );
+                    })}
 
-                    {/* Function annotations — schema-shipped granular trees */}
-                    {annotations.length > 0 && (
-                        <>
-                            {showAnnotationsDivider && <Divider />}
-                            {annotations.map(([key, annotation]) => (
-                                <AnnotationConfigSection
-                                    // Keyed on the variant identity, not the user-editable name value
-                                    // — see the effect above for why.
-                                    key={`${groupId}-${selectedVariantLabel}-${key}`}
-                                    annotationKey={key}
-                                    annotation={annotation}
-                                    filePath={props.filePath}
-                                    targetLineRange={functionModel.codedata?.lineRange}
-                                    disabled={isSaving}
-                                    onChange={handleAnnotationChange}
-                                    registerFieldRef={registerFieldRef}
-                                    onDiagnosticsChange={handleFieldDiagnostics}
-                                    onValidationStateChange={handleFieldValidationState}
-                                />
-                            ))}
-                        </>
-                    )}
-
-                    {/* Opt-in framework params (caller and friends) + individually bound HTTP headers */}
-                    {(advancedParameters.length > 0 || headerTemplate) && (
+                    {hasAdvancedBox && (
                         <>
                             <Divider />
                             <CollapsibleHeader onClick={() => setIsAdvancedExpanded(!isAdvancedExpanded)}>
@@ -1004,63 +1213,35 @@ export function TriggerHandlerForm(props: TriggerHandlerFormProps) {
                                     name={isAdvancedExpanded ? "chevron-down" : "chevron-right"}
                                     sx={{ marginRight: 4 }}
                                 />
-                                <Typography variant="body2">Advanced Parameters</Typography>
+                                <Typography variant="body2">Advanced Configurations</Typography>
                             </CollapsibleHeader>
                             <CollapsibleContent isExpanded={isAdvancedExpanded}>
-                                {advancedParameters.map((param, index) => (
-                                    <CheckBoxGroup key={param.name?.value || index} direction="vertical">
-                                        <CheckBox
-                                            label={param.metadata?.label}
-                                            checked={param.enabled}
-                                            onChange={(checked) => handleAdvancedParamToggle(param, checked)}
-                                            sx={{
-                                                marginTop: index === 0 ? 0 : 8,
-                                                description: param.metadata?.description,
-                                            }}
-                                        />
-                                    </CheckBoxGroup>
-                                ))}
-                                {headerTemplate && (
-                                    <>
-                                        <Typography variant="body2" sx={{ marginTop: 12, marginBottom: 0 }}>
-                                            {headerTemplate.metadata?.label || "HTTP Headers"}
-                                        </Typography>
-                                        {headerTemplate.metadata?.description && (
-                                            <Typography
-                                                variant="body3"
-                                                sx={{ color: "var(--vscode-descriptionForeground)", marginBottom: 4 }}
-                                            >
-                                                {headerTemplate.metadata.description}
+                                {looseAdvancedUnits.length > 0 && renderAdvancedBody(looseAdvancedUnits)}
+                                {advancedSections.map((section) => {
+                                    const body = renderSectionUnits(section);
+                                    if (body.length === 0) {
+                                        return null;
+                                    }
+                                    return (
+                                        <Fragment key={section.key}>
+                                            <Typography variant="body2" sx={{ marginTop: 12, marginBottom: 0 }}>
+                                                {section.label}
                                             </Typography>
-                                        )}
-                                        {headerParameters.map((param, index) => (
-                                            <HeaderParamItem
-                                                key={`header-${index}`}
-                                                param={param}
-                                                onDelete={handleHeaderDelete}
-                                                onEditClick={handleHeaderEditClick}
-                                            />
-                                        ))}
-                                        {headerEditModel && (
-                                            <HeaderParamEditor
-                                                isNew={isNewHeaderParam}
-                                                param={headerEditModel}
-                                                onChange={handleHeaderChange}
-                                                onSave={handleHeaderSave}
-                                                onCancel={handleHeaderCancel}
-                                                type="HEADER"
-                                            />
-                                        )}
-                                        {!headerEditModel && (
-                                            <AddButtonWrapper>
-                                                <LinkButton onClick={handleAddHeaderClick}>
-                                                    <Codicon name="add" />
-                                                    <>Add Header</>
-                                                </LinkButton>
-                                            </AddButtonWrapper>
-                                        )}
-                                    </>
-                                )}
+                                            {section.description && (
+                                                <Typography
+                                                    variant="body3"
+                                                    sx={{
+                                                        color: "var(--vscode-descriptionForeground)",
+                                                        marginBottom: 4,
+                                                    }}
+                                                >
+                                                    {section.description}
+                                                </Typography>
+                                            )}
+                                            {body}
+                                        </Fragment>
+                                    );
+                                })}
                             </CollapsibleContent>
                         </>
                     )}

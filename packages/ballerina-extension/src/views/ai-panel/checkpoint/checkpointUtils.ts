@@ -54,27 +54,40 @@ export async function captureWorkspaceSnapshot(messageId: string): Promise<Check
     try {
         const allFiles = await getAllWorkspaceFiles(workspaceRoot, config.ignorePatterns);
 
-        for (const fileUri of allFiles) {
-            try {
-                const fileContent = await vscode.workspace.fs.readFile(fileUri);
-                const content = Buffer.from(fileContent).toString('utf8');
-                const relativePath = path.relative(workspaceRoot.fsPath, fileUri.fsPath).split(path.sep).join('/');
-
-                workspaceSnapshot[relativePath] = content;
-                fileList.push(relativePath);
-                totalSize += content.length;
-
-                if (totalSize > config.maxSnapshotSize) {
-                    // Fail closed rather than save a partial checkpoint that silently leaves
-                    // later-scanned files unrevertible on restore.
-                    console.warn(`[Checkpoint] Snapshot size exceeded max limit (${totalSize} bytes) — aborting capture, no partial checkpoint will be saved`);
-                    vscode.window.showWarningMessage(
-                        `Workspace is too large to checkpoint (exceeds ${Math.round(config.maxSnapshotSize / 1024 / 1024)}MB). This generation will not be revertible.`
-                    );
+        // Read in bounded-concurrency chunks: one-at-a-time reads dominate run-start
+        // latency on large workspaces, while unbounded Promise.all can exhaust file
+        // handles. Hand-rolled rather than mapWithConcurrency because the size cap must
+        // be able to abort between batches, which that helper cannot express; chunks
+        // also keep fileList in findFiles order.
+        const READ_CONCURRENCY = 32;
+        for (let i = 0; i < allFiles.length; i += READ_CONCURRENCY) {
+            const chunk = allFiles.slice(i, i + READ_CONCURRENCY);
+            const chunkContents = await Promise.all(chunk.map(async fileUri => {
+                try {
+                    const fileContent = await vscode.workspace.fs.readFile(fileUri);
+                    return { fileUri, content: Buffer.from(fileContent).toString('utf8') };
+                } catch (error) {
+                    console.error(`[Checkpoint] Failed to read file ${fileUri.fsPath}:`, error);
                     return null;
                 }
-            } catch (error) {
-                console.error(`[Checkpoint] Failed to read file ${fileUri.fsPath}:`, error);
+            }));
+
+            for (const entry of chunkContents) {
+                if (!entry) { continue; }
+                const relativePath = path.relative(workspaceRoot.fsPath, entry.fileUri.fsPath).split(path.sep).join('/');
+                workspaceSnapshot[relativePath] = entry.content;
+                fileList.push(relativePath);
+                totalSize += entry.content.length;
+            }
+
+            if (totalSize > config.maxSnapshotSize) {
+                // Fail closed rather than save a partial checkpoint that silently leaves
+                // later-scanned files unrevertible on restore.
+                console.warn(`[Checkpoint] Snapshot size exceeded max limit (${totalSize} bytes) — aborting capture, no partial checkpoint will be saved`);
+                vscode.window.showWarningMessage(
+                    `Workspace is too large to checkpoint (exceeds ${Math.round(config.maxSnapshotSize / 1024 / 1024)}MB). This generation will not be revertible.`
+                );
+                return null;
             }
         }
 
@@ -95,7 +108,13 @@ export async function captureWorkspaceSnapshot(messageId: string): Promise<Check
     }
 }
 
-export async function restoreWorkspaceSnapshot(checkpoint: Checkpoint, skipArtifactWait = false): Promise<void> {
+/**
+ * Restores the workspace to a checkpoint snapshot. Returns {@code true} only when the restore
+ * actually applied; callers that mark a generation reverted (and tell the model its changes were
+ * undone) must gate that on the return value, since a failed {@code applyEdit} is reported to the
+ * user here but not thrown.
+ */
+export async function restoreWorkspaceSnapshot(checkpoint: Checkpoint, skipArtifactWait = false): Promise<boolean> {
     const workspaceFolders = vscode.workspace.workspaceFolders;
     if (!workspaceFolders || workspaceFolders.length === 0) {
         throw new Error('No workspace folder found');
@@ -215,7 +234,7 @@ export async function restoreWorkspaceSnapshot(checkpoint: Checkpoint, skipArtif
         });
 
         // Wait for artifact update notification if any .bal files were restored
-        if (skipArtifactWait) { return; }
+        if (skipArtifactWait) { return true; }
         await new Promise<void>((resolve, reject) => {
             if (!isBalFileRestored) {
                 resolve();
@@ -248,9 +267,11 @@ export async function restoreWorkspaceSnapshot(checkpoint: Checkpoint, skipArtif
         });
 
         vscode.window.showInformationMessage('Checkpoint restored successfully');
+        return true;
     } catch (error) {
         console.error('[Checkpoint] Failed to restore workspace snapshot:', error);
         vscode.window.showErrorMessage('Failed to restore checkpoint: ' + (error as Error).message);
+        return false;
     }
 }
 

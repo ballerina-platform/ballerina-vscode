@@ -1,0 +1,97 @@
+{
+  "source": "default_enum.bal",
+  "position": {
+    "line": 2,
+    "offset": 15
+  },
+  "description": "Function call with a union declaring an int before an enum",
+  "codedata": {
+    "node": "FUNCTION_CALL",
+    "org": "$anon",
+    "module": ".",
+    "packageName": ".",
+    "symbol": "function9",
+    "version": "0.0.0"
+  },
+  "output": {
+    "id": "31",
+    "metadata": {
+      "label": "function9",
+      "description": "",
+      "icon": "https://bcentral-packageicons.azureedge.net/images/$anon_._0.0.0.png"
+    },
+    "codedata": {
+      "node": "FUNCTION_CALL",
+      "org": "$anon",
+      "module": ".",
+      "packageName": ".",
+      "symbol": "function9",
+      "version": "0.0.0",
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "day": {
+        "metadata": {
+          "label": "Day"
+        },
+        "types": [
+          {
+            "fieldType": "NUMBER",
+            "ballerinaType": "int",
+            "selected": false
+          },
+          {
+            "fieldType": "SINGLE_SELECT",
+            "options": [
+              {
+                "label": "Monday",
+                "value": "\"Monday\""
+              },
+              {
+                "label": "Tuesday",
+                "value": "\"Tuesday\""
+              },
+              {
+                "label": "Wednesday",
+                "value": "\"Wednesday\""
+              },
+              {
+                "label": "Thursday",
+                "value": "\"Thursday\""
+              },
+              {
+                "label": "Friday",
+                "value": "\"Friday\""
+              },
+              {
+                "label": "Saturday",
+                "value": "\"Saturday\""
+              },
+              {
+                "label": "Sunday",
+                "value": "\"Sunday\""
+              }
+            ],
+            "selected": false
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "int|Day",
+            "selected": false
+          }
+        ],
+        "placeholder": "",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED",
+          "originalName": "day"
+        }
+      }
+    },
+    "flags": 0
+  }
+}

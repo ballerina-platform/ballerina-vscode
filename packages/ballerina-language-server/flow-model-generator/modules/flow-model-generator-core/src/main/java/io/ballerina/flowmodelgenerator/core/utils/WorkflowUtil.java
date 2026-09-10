@@ -54,7 +54,10 @@ import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.compiler.syntax.tree.SyntaxTree;
 import io.ballerina.flowmodelgenerator.core.Constants;
 import io.ballerina.flowmodelgenerator.core.UserFacingException;
+import io.ballerina.flowmodelgenerator.core.model.NodeBuilder;
+import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Option;
+import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
 import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.modelgenerator.commons.FileSystemUtils;
@@ -75,9 +78,11 @@ import io.ballerina.tools.text.TextRange;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -572,7 +577,7 @@ public class WorkflowUtil {
     }
 
     /**
-     * Lists the data-event channel names declared across the default module's durable agent
+     * Lists the data-event channel names declared across every module's durable agent
      * declarations ({@code events: [{name: "...", ...}]}). Data-event channels are declared on
      * the agent — the call-site forms offer them as a fixed dropdown rather than free text.
      * The listing is restricted to one agent when {@code targetAgent} names a module-level
@@ -586,40 +591,62 @@ public class WorkflowUtil {
     public static List<Option> declaredAgentEventOptions(
             org.ballerinalang.langserver.commons.workspace.WorkspaceManager workspaceManager, Path filePath,
             String targetAgent) {
+        return declaredAgentEventNames(workspaceManager, filePath, targetAgent).stream()
+                .map(name -> new Option(name, name))
+                .toList();
+    }
+
+    /**
+     * Every event channel name declared on the matching agent(s). Source order, deduplicated.
+     *
+     * <p>Only the name is read. A channel's declared {@code response} type is deliberately not
+     * surfaced here: {@code sendData} answers {@code string|error} whatever the channel declares —
+     * the response is what {@code getDataResult}/{@code waitForDataResult} hands back later — so
+     * the send statement has nothing to do with it. Reading it would also mean handing out a type
+     * name as raw source text from whichever module declared the agent, with no {@code imports}
+     * to travel with it into the file the statement is generated into.
+     */
+    private static java.util.LinkedHashSet<String> declaredAgentEventNames(
+            org.ballerinalang.langserver.commons.workspace.WorkspaceManager workspaceManager, Path filePath,
+            String targetAgent) {
         java.util.LinkedHashSet<String> names = new java.util.LinkedHashSet<>();
         Project project;
         try {
             project = workspaceManager.loadProject(filePath);
         } catch (Exception e) {
-            LOGGER.log(Level.WARNING, "Skipping declared agent event options: failed to load the project of "
+            LOGGER.log(Level.WARNING, "Skipping declared agent events: failed to load the project of "
                     + filePath, e);
-            return List.of();
+            return names;
         }
-        Module module = project.currentPackage().getDefaultModule();
-        for (DocumentId documentId : module.documentIds()) {
-            Document document = module.document(documentId);
-            ModulePartNode root = document.syntaxTree().rootNode();
-            for (ModuleMemberDeclarationNode member : root.members()) {
-                if (!(member instanceof ModuleVariableDeclarationNode varDecl) || varDecl.initializer().isEmpty()) {
-                    continue;
+        // Every module, matching the set durableAgentOptions offers agents from: scoping this
+        // narrower than the Agent dropdown means picking an agent the dropdown offered can leave the
+        // Data Event dropdown empty, and eventName then fails requireValue on save. Only the channel
+        // name is read here, never a type that would have to resolve from somewhere.
+        for (Module module : project.currentPackage().modules()) {
+            for (DocumentId documentId : module.documentIds()) {
+                Document document = module.document(documentId);
+                ModulePartNode root = document.syntaxTree().rootNode();
+                for (ModuleMemberDeclarationNode member : root.members()) {
+                    if (!(member instanceof ModuleVariableDeclarationNode varDecl)
+                            || varDecl.initializer().isEmpty()) {
+                        continue;
+                    }
+                    String typeText = varDecl.typedBindingPattern().typeDescriptor().toSourceCode().trim();
+                    if (!typeText.equals(Constants.Workflow.DURABLE_AGENT_OBJECT_CLASS_NAME)
+                            && !typeText.endsWith(":" + Constants.Workflow.DURABLE_AGENT_OBJECT_CLASS_NAME)) {
+                        continue;
+                    }
+                    if (targetAgent != null && !targetAgent.isBlank()
+                            && (!(varDecl.typedBindingPattern().bindingPattern()
+                                    instanceof CaptureBindingPatternNode capture)
+                                || !targetAgent.equals(capture.variableName().text()))) {
+                        continue;
+                    }
+                    agentConfigLiteral(varDecl).ifPresent(config -> collectDeclaredEventNames(config, names));
                 }
-                String typeText = varDecl.typedBindingPattern().typeDescriptor().toSourceCode().trim();
-                if (!typeText.equals(Constants.Workflow.DURABLE_AGENT_OBJECT_CLASS_NAME)
-                        && !typeText.endsWith(":" + Constants.Workflow.DURABLE_AGENT_OBJECT_CLASS_NAME)) {
-                    continue;
-                }
-                if (targetAgent != null && !targetAgent.isBlank()
-                        && (!(varDecl.typedBindingPattern().bindingPattern()
-                                instanceof CaptureBindingPatternNode capture)
-                            || !targetAgent.equals(capture.variableName().text()))) {
-                    continue;
-                }
-                agentConfigLiteral(varDecl).ifPresent(config -> collectDeclaredEventNames(config, names));
             }
         }
-        return names.stream()
-                .map(name -> new Option(name, name))
-                .toList();
+        return names;
     }
 
     // Collects the `name` field of each mapping entry in the config's `events` list.
@@ -645,7 +672,7 @@ public class WorkflowUtil {
                             && "name".equals(entry.fieldName().toSourceCode().trim())) {
                         String raw = entry.valueExpr().get().toSourceCode().trim();
                         if (raw.length() >= 2 && raw.startsWith("\"") && raw.endsWith("\"")) {
-                            raw = raw.substring(1, raw.length() - 1);
+                            raw = unescapeLiteralBody(raw.substring(1, raw.length() - 1));
                         }
                         if (!raw.isEmpty()) {
                             names.add(raw);
@@ -654,6 +681,36 @@ public class WorkflowUtil {
                 }
             }
         }
+    }
+
+    /**
+     * Decodes the escaped quote and backslash of a string literal's body, so the channel name is
+     * the text the declaration means rather than its source spelling.
+     *
+     * <p>Deliberately decodes only {@code \\"} and {@code \\\\} — exactly the pair the call site's
+     * re-quoting escapes again. Without this, a channel declared {@code name: "say\\"hi"} reached the
+     * generator as {@code say\\"hi} and came back out as {@code "say\\\\\\"hi"}, a different channel.
+     * Decoding any escape the re-quoting cannot reproduce ({@code \\n}, {@code \\u{...}}) would put a
+     * character in the value that closes the literal early, so those stay as written.
+     */
+    static String unescapeLiteralBody(String body) {
+        if (body.indexOf('\\') < 0) {
+            return body;
+        }
+        StringBuilder decoded = new StringBuilder(body.length());
+        for (int i = 0; i < body.length(); i++) {
+            char current = body.charAt(i);
+            if (current == '\\' && i + 1 < body.length()) {
+                char next = body.charAt(i + 1);
+                if (next == '\\' || next == '"') {
+                    decoded.append(next);
+                    i++;
+                    continue;
+                }
+            }
+            decoded.append(current);
+        }
+        return decoded.toString();
     }
 
     /**
@@ -736,7 +793,270 @@ public class WorkflowUtil {
                 || trimmed.startsWith("string `") || trimmed.startsWith("[")) {
             return trimmed;
         }
-        return "\"" + trimmed.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
+        return stringLiteral(trimmed);
+    }
+
+    /**
+     * The Ballerina string literal for a plain text value: quoted, with every character the
+     * literal syntax would otherwise interpret escaped — the backslash and quote, and the line
+     * break, tab and carriage return, which a bare {@code "..."} literal cannot carry.
+     *
+     * @param text the value as the form holds it
+     * @return the literal source, quotes included
+     */
+    public static String stringLiteral(String text) {
+        StringBuilder out = new StringBuilder(text.length() + 2).append('"');
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            switch (c) {
+                case '\\' -> out.append("\\\\");
+                case '"' -> out.append("\\\"");
+                case '\n' -> out.append("\\n");
+                case '\t' -> out.append("\\t");
+                case '\r' -> out.append("\\r");
+                default -> out.append(c);
+            }
+        }
+        return out.append('"').toString();
+    }
+
+    /**
+     * A correlation name — a data event, an agent channel — as a string literal. The name has to be
+     * a literal even when the form submits the bare word, so a value that is not already one is
+     * encoded with {@link #stringLiteral}: one encoder, so a name carrying a line break cannot
+     * produce a literal that ends before its closing quote.
+     *
+     * @param value the raw form value
+     * @return the name as a Ballerina string literal
+     */
+    public static String eventNameLiteral(String value) {
+        String trimmed = value == null ? "" : value.trim();
+        // Already a string literal: needs a distinct pair of quotes (a lone quote does not qualify).
+        return trimmed.length() >= 2 && trimmed.startsWith("\"") && trimmed.endsWith("\"")
+                ? trimmed : stringLiteral(trimmed);
+    }
+
+    /**
+     * The plain text a string literal carries — the inverse of {@link #stringLiteral}. The quotes
+     * are dropped and every escape the literal syntax defines is decoded, so a title written
+     * {@code "He said \"hi\""} reaches the form as {@code He said "hi"} and encoding it again
+     * reproduces the source it came from. Stripping the quotes alone would leave the escapes in the
+     * value, and the re-encode would escape those, so the text gained a backslash on every save.
+     *
+     * <p>Anything that is not one string literal — a variable reference, a template, a concatenation
+     * that merely begins and ends with a quote — is returned as written: the form holds those as
+     * source. An escape the syntax does not define is left as written for the same reason.
+     *
+     * @param literal the source of a string-literal expression
+     * @return the text it denotes, or the expression unchanged when it is not a string literal
+     */
+    public static String stringLiteralText(String literal) {
+        if (literal == null) {
+            return "";
+        }
+        String trimmed = literal.trim();
+        if (trimmed.length() < 2 || !trimmed.startsWith("\"") || !trimmed.endsWith("\"")) {
+            return trimmed;
+        }
+        String body = trimmed.substring(1, trimmed.length() - 1);
+        StringBuilder text = new StringBuilder(body.length());
+        for (int i = 0; i < body.length(); i++) {
+            char current = body.charAt(i);
+            if (current == '"') {
+                // The quotes are not this expression's own: it is not a single string literal.
+                return trimmed;
+            }
+            if (current != '\\' || i + 1 == body.length()) {
+                text.append(current);
+                continue;
+            }
+            int consumed = appendEscaped(body, i, text);
+            if (consumed == 0) {
+                text.append(current);
+            } else {
+                i += consumed;
+            }
+        }
+        return text.toString();
+    }
+
+    /**
+     * Decodes the escape at {@code start} (the backslash) into {@code text}.
+     *
+     * @return the number of characters consumed after the backslash, or 0 when the escape is not one
+     *         the literal syntax defines and must stay as written
+     */
+    private static int appendEscaped(String body, int start, StringBuilder text) {
+        char escaped = body.charAt(start + 1);
+        switch (escaped) {
+            case '\\', '"' -> text.append(escaped);
+            case 'n' -> text.append('\n');
+            case 't' -> text.append('\t');
+            case 'r' -> text.append('\r');
+            case 'u' -> {
+                // A numeric escape. Decoded because the re-encode cannot reproduce the escape, only
+                // the character it names — left as written, its backslash is escaped on save.
+                int close = start + 2 < body.length() && body.charAt(start + 2) == '{'
+                        ? body.indexOf('}', start + 3) : -1;
+                if (close < 0) {
+                    return 0;
+                }
+                try {
+                    int codePoint = Integer.parseInt(body.substring(start + 3, close), 16);
+                    // A lone surrogate is no character to hold in the form, and the literal syntax
+                    // does not name one either: leave it as written.
+                    if (!Character.isValidCodePoint(codePoint)
+                            || Character.getType(codePoint) == Character.SURROGATE) {
+                        return 0;
+                    }
+                    text.appendCodePoint(codePoint);
+                } catch (NumberFormatException e) {
+                    return 0;
+                }
+                return close - start;
+            }
+            default -> {
+                return 0;
+            }
+        }
+        return 1;
+    }
+
+    /**
+     * Splits a record literal {@code {key: value, ...}} into its top-level fields, each value kept
+     * as source. Only commas and colons at the literal's own level separate anything: a comma
+     * inside a nested list or record ({@code userRoles: ["finance", "manager"]},
+     * {@code timeout: {hours: 4, minutes: 30}}), a string literal ({@code title: "Approve, please"})
+     * or a template ({@code string `...`}) belongs to the value it sits in, and an escaped quote
+     * does not end the string it is in.
+     *
+     * <p>Keys are returned unquoted. Anything that is not {@code key: value} at the top level is
+     * skipped rather than guessed at. Line comments are dropped first: a comma or colon in a
+     * {@code // note} is prose, not syntax, and a comment written above a field must not become
+     * part of its key.
+     *
+     * @param recordLiteral the record literal source, braces optional
+     * @return the fields in source order
+     */
+    public static Map<String, String> parseRecordLiteral(String recordLiteral) {
+        Map<String, String> result = new LinkedHashMap<>();
+        String inner = stripLineComments(recordLiteral).trim();
+        if (inner.startsWith("{") && inner.endsWith("}")) {
+            inner = inner.substring(1, inner.length() - 1);
+        }
+        for (String part : splitTopLevel(inner)) {
+            int colon = topLevelIndexOf(part, ':');
+            if (colon <= 0) {
+                continue;
+            }
+            String key = part.substring(0, colon).trim();
+            if (key.length() >= 2 && key.startsWith("\"") && key.endsWith("\"")) {
+                key = key.substring(1, key.length() - 1);
+            }
+            if (!key.isEmpty()) {
+                result.put(key, part.substring(colon + 1).trim());
+            }
+        }
+        return result;
+    }
+
+    // The text without its `//` line comments. A `//` inside a string literal or a template is
+    // content and stays; the line break that ends a comment stays too, so the fields on either
+    // side of it keep their separation.
+    static String stripLineComments(String text) {
+        StringBuilder out = new StringBuilder(text.length());
+        char quote = 0;
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (quote != 0) {
+                if (c == '\\' && quote == '"' && i + 1 < text.length()) {
+                    out.append(c).append(text.charAt(++i));
+                    continue;
+                }
+                if (c == quote) {
+                    quote = 0;
+                }
+                out.append(c);
+                continue;
+            }
+            if (c == '"' || c == '`') {
+                quote = c;
+            } else if (c == '/' && i + 1 < text.length() && text.charAt(i + 1) == '/') {
+                int lineEnd = text.indexOf('\n', i);
+                if (lineEnd < 0) {
+                    break;
+                }
+                i = lineEnd - 1;
+                continue;
+            }
+            out.append(c);
+        }
+        return out.toString();
+    }
+
+    // The comma-separated pieces of a literal's interior, splitting only where a comma is not
+    // inside brackets, braces, parentheses, a string or a template.
+    private static List<String> splitTopLevel(String text) {
+        List<String> parts = new ArrayList<>();
+        int start = 0;
+        for (int comma : topLevelPositions(text, ',', false)) {
+            parts.add(text.substring(start, comma));
+            start = comma + 1;
+        }
+        if (start < text.length() || !parts.isEmpty()) {
+            parts.add(text.substring(start));
+        }
+        return parts;
+    }
+
+    // The first occurrence of the character outside any nesting, string or template, or -1.
+    private static int topLevelIndexOf(String text, char target) {
+        List<Integer> positions = topLevelPositions(text, target, true);
+        return positions.isEmpty() ? -1 : positions.get(0);
+    }
+
+    /**
+     * The positions of {@code target} at the text's own level — outside every bracket pair, string
+     * literal (an escaped quote does not end one) and template.
+     *
+     * <p>The one scanner behind both readers of a record literal: the field split takes every
+     * top-level comma and the key/value cut the first top-level colon, so the two cannot disagree
+     * about what counts as nested. A character that opens or closes nesting is never reported as the
+     * target — it is the nesting.
+     *
+     * @param text      the literal's interior
+     * @param target    the character to find
+     * @param firstOnly stop at the first occurrence
+     */
+    private static List<Integer> topLevelPositions(String text, char target, boolean firstOnly) {
+        List<Integer> positions = new ArrayList<>();
+        int depth = 0;
+        char quote = 0;
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (quote != 0) {
+                if (c == '\\' && quote == '"') {
+                    i++;
+                } else if (c == quote) {
+                    quote = 0;
+                }
+                continue;
+            }
+            switch (c) {
+                case '"', '`' -> quote = c;
+                case '[', '{', '(' -> depth++;
+                case ']', '}', ')' -> depth--;
+                default -> {
+                    if (c == target && depth == 0) {
+                        positions.add(i);
+                        if (firstOnly) {
+                            return positions;
+                        }
+                    }
+                }
+            }
+        }
+        return positions;
     }
 
     // Characters that cannot occur in a bare role name but do occur in references and calls.
@@ -761,6 +1081,100 @@ public class WorkflowUtil {
     }
 
     /**
+     * Node kinds whose generated source is a field of the durable agent's declaration — an entry in
+     * its {@code activities}/{@code tools}/{@code events} list, or a field of its config literal —
+     * rather than a statement in a function body.
+     */
+    private static final Set<NodeKind> AGENT_DECLARATION_NODES = Set.of(
+            NodeKind.DURABLE_AGENT_RUN,
+            NodeKind.DURABLE_AGENT_ADD_ACTIVITY,
+            NodeKind.DURABLE_AGENT_REGISTER_TOOL,
+            NodeKind.DURABLE_AGENT_REGISTER_EVENT,
+            NodeKind.DURABLE_AGENT_HUMAN_TASK,
+            NodeKind.DURABLE_AGENT_PEER);
+
+    /**
+     * Whether the node writes into the durable agent's declaration instead of emitting a statement.
+     * A caller that reads generated source back as a statement has nothing to read for these — the
+     * edit is a list entry or a record field, and parsing it on its own describes a broken
+     * statement rather than anything wrong with the edit.
+     *
+     * @param nodeKind the node kind to test
+     * @return whether the node's source belongs to the agent declaration
+     */
+    public static boolean editsAgentDeclaration(NodeKind nodeKind) {
+        // Set.of() throws on a null probe, and Gson leaves node() null whenever the client sends a
+        // codedata.node this LS does not know (version skew), so the guard is load-bearing.
+        return nodeKind != null && AGENT_DECLARATION_NODES.contains(nodeKind);
+    }
+
+    // A role field edits one role as text, or an expression yielding a role or a list of them.
+    private static final String ROLE_TYPE = "string";
+    private static final String ROLE_UNION_TYPE = "string|string[]";
+
+    /**
+     * Declares the input modes a reviewer/user role field offers: a single role as text, and an
+     * expression producing a role or a list of them.
+     *
+     * <p>Await Human Task derives its {@code userRoles} property from {@code awaitHumanTask}'s own
+     * {@code string|string[]} parameter, where the union expansion in
+     * {@link Property.Builder#typeWithExpression} splits a union into one mode per member with the
+     * full type on the trailing expression entry. The role fields on the activity and agent forms are
+     * hand-built with no parameter symbol to derive from, so they declare the equivalent modes here
+     * instead of collapsing to expression-only — otherwise the same value is edited two different
+     * ways depending on which form it is opened from.
+     *
+     * <p>No {@code REPEATABLE_LIST} mode: {@code FieldFactory} renders only the first and last
+     * declared mode ({@code [types[0], types[types.length - 1]]}), so a list mode declared between
+     * them never reaches the user. Declaring one would advertise an editor that cannot be opened;
+     * a list is entered in the expression mode, whose type is the full union.
+     *
+     * @param builder the property builder to add the role input modes to
+     * @param <T>     the builder's step-out target
+     * @return the same builder, for fluent chaining
+     */
+    public static <T> Property.Builder<T> addRoleFieldTypes(Property.Builder<T> builder) {
+        return builder
+                .type().fieldType(Property.ValueType.TEXT).ballerinaType(ROLE_TYPE).stepOut()
+                .type().fieldType(Property.ValueType.EXPRESSION).ballerinaType(ROLE_UNION_TYPE).stepOut();
+    }
+
+    /**
+     * The role value as Ballerina source. The field is multi-mode, so the raw value is a string in
+     * expression mode and a string template in text mode; {@link Property#toSourceCode()} renders
+     * either. A value entered in expression mode is written through untouched — it may well be a
+     * list literal or a reference to one; otherwise {@link #quoteIfBareRole} quotes a bare word that
+     * arrived without a template wrapper (a value read back from source, say) while leaving a list
+     * or a qualified/called reference alone — note it does not recognise a bare identifier as a
+     * reference, which is why the mode is checked first.
+     *
+     * @param property the role property, or {@code null}
+     * @return the role expression, or an empty string when nothing was entered
+     */
+    public static String roleSource(Property property) {
+        if (property == null) {
+            return "";
+        }
+        String source = property.toSourceCode().trim();
+        if (source.isEmpty()) {
+            return "";
+        }
+        // In expression mode the value IS the expression: a bare `financeRoles` names a module-level
+        // variable, and quoting it would rewrite that reference into a role literal of the same
+        // spelling. Only a value that arrived without an expression mode selected can be a bare role
+        // name needing quotes.
+        if (isExpressionModeSelected(property)) {
+            return source;
+        }
+        return quoteIfBareRole(source);
+    }
+
+    private static boolean isExpressionModeSelected(Property property) {
+        return property.types() != null && property.types().stream()
+                .anyMatch(type -> type.fieldType() == Property.ValueType.EXPRESSION && type.selected());
+    }
+
+    /**
      * Strips a module qualifier from a written reference: {@code mod:validate} reads as
      * {@code validate}, and a bare name passes through. Source carries the qualifier while symbols
      * carry the bare name, so every lookup that crosses that boundary goes through here.
@@ -771,6 +1185,53 @@ public class WorkflowUtil {
     public static String stripModulePrefix(String value) {
         int colon = value.lastIndexOf(':');
         return colon >= 0 ? value.substring(colon + 1) : value;
+    }
+
+    /** Label of the approval-gate flag every gated capability form carries. */
+    public static final String REQUIRES_APPROVAL_LABEL = "Requires Approval";
+    /** Label of the reviewer-roles field that accompanies the flag. */
+    public static final String REVIEWER_ROLES_LABEL = "Reviewer Roles";
+
+    /**
+     * Adds the approval-gate pair a durable agent's gated capabilities share — a {@code requiresApproval}
+     * flag and the reviewer roles for the review it creates — as advanced, optional fields. The three
+     * capability forms (activity, tool, peer delegation) differ only in how they describe the thing
+     * being gated, which is what the two descriptions carry.
+     *
+     * @param nodeBuilder     the form being built
+     * @param approvalKey     property key of the flag
+     * @param approvalDoc     what gating means for this capability
+     * @param userRolesKey    property key of the roles field
+     * @param reviewerRolesDoc who may decide the review, with an example
+     */
+    public static void addApprovalGateProperties(NodeBuilder nodeBuilder, String approvalKey, String approvalDoc,
+                                                 String userRolesKey, String reviewerRolesDoc) {
+        nodeBuilder.properties().custom()
+                .metadata()
+                    .label(REQUIRES_APPROVAL_LABEL)
+                    .description(approvalDoc)
+                    .stepOut()
+                .type().fieldType(Property.ValueType.FLAG).ballerinaType("boolean").selected(true).stepOut()
+                .value("false")
+                .editable(true)
+                .optional(true)
+                .advanced(true)
+                .stepOut()
+                .addProperty(approvalKey);
+        // The reviewer roles field is multi-mode, the same as every other role field — a bare role
+        // typed as text, or an expression naming a list. Staging moved the tool and activity forms
+        // onto addRoleFieldTypes; routing it through here keeps the peer form in step as well.
+        addRoleFieldTypes(nodeBuilder.properties().custom()
+                .metadata()
+                    .label(REVIEWER_ROLES_LABEL)
+                    .description(reviewerRolesDoc)
+                    .stepOut())
+                .placeholder("")
+                .editable(true)
+                .optional(true)
+                .advanced(true)
+                .stepOut()
+                .addProperty(userRolesKey);
     }
 
     /** Property key the front end sets to request removal of a capability entry. */

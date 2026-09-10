@@ -232,7 +232,7 @@
             "character": 1
           }
         },
-        "newText": "\nservice class UndergraduateStudent2 {\n\tfunction init() {\n\t}\n\tresource function get name(@graphql:ID string username, string lastName) returns string {\n\t\tdo {\n\t\t\tpanic error(\"Unimplemented function\");\n\t\t} on fail error err {\n\t\t\t//handle error\n\t\t\tpanic error(\"Unhandled error\");\n\t\t}\n\t}\n}"
+        "newText": "\ndistinct service class UndergraduateStudent2 {\n\tfunction init() {\n\t}\n\tresource function get name(@graphql:ID string username, string lastName) returns string {\n\t\tdo {\n\t\t\tpanic error(\"Unimplemented function\");\n\t\t} on fail error err {\n\t\t\t//handle error\n\t\t\tpanic error(\"Unhandled error\");\n\t\t}\n\t}\n}"
       }
     ]
   }

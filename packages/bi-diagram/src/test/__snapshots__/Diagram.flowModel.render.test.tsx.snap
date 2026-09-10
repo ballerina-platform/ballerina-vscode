@@ -129,7 +129,7 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
                   xmlns="http://www.w3.org/2000/svg"
                 >
                   <title>
-                    You need to be logged into WSO2 Integration Intelligence to access AI features
+                    You need to be logged into WSO2 Integrator Copilot to access AI features
                   </title>
                   <path
                     d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"
@@ -228,7 +228,7 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
                   xmlns="http://www.w3.org/2000/svg"
                 >
                   <title>
-                    You need to be logged into WSO2 Integration Intelligence to access AI features
+                    You need to be logged into WSO2 Integrator Copilot to access AI features
                   </title>
                   <path
                     d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"
@@ -327,7 +327,7 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
                   xmlns="http://www.w3.org/2000/svg"
                 >
                   <title>
-                    You need to be logged into WSO2 Integration Intelligence to access AI features
+                    You need to be logged into WSO2 Integrator Copilot to access AI features
                   </title>
                   <path
                     d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"
@@ -446,7 +446,7 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
                   xmlns="http://www.w3.org/2000/svg"
                 >
                   <title>
-                    You need to be logged into WSO2 Integration Intelligence to access AI features
+                    You need to be logged into WSO2 Integrator Copilot to access AI features
                   </title>
                   <path
                     d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"
@@ -545,7 +545,7 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
                   xmlns="http://www.w3.org/2000/svg"
                 >
                   <title>
-                    You need to be logged into WSO2 Integration Intelligence to access AI features
+                    You need to be logged into WSO2 Integrator Copilot to access AI features
                   </title>
                   <path
                     d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"
@@ -716,7 +716,7 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
                   xmlns="http://www.w3.org/2000/svg"
                 >
                   <title>
-                    You need to be logged into WSO2 Integration Intelligence to access AI features
+                    You need to be logged into WSO2 Integrator Copilot to access AI features
                   </title>
                   <path
                     d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"
@@ -873,7 +873,7 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
         </div>
         <div
           class="node css-12"
-          style="top: 410.20000000000005px; left: -140px;"
+          style="top: 390.20000000000005px; left: -140px;"
         >
           <div
             class="css-18"
@@ -961,7 +961,7 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
         </div>
         <div
           class="node css-12"
-          style="top: 533.8000000000001px; left: -32.5px;"
+          style="top: 493.80000000000007px; left: -32.5px;"
         >
           <div
             class="css-28"
@@ -1060,7 +1060,7 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
         </div>
         <div
           class="node css-12"
-          style="top: 698.8000000000001px; left: -275px;"
+          style="top: 658.8000000000001px; left: -275px;"
         >
           <div
             class="css-18"
@@ -1146,7 +1146,7 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
         </div>
         <div
           class="node css-12"
-          style="top: 815.8000000000001px; left: -8px;"
+          style="top: 775.8000000000001px; left: -8px;"
         >
           <div
             class="css-35"
@@ -1167,7 +1167,7 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
         </div>
         <div
           class="node css-12"
-          style="top: 698.8000000000001px; left: 125px;"
+          style="top: 658.8000000000001px; left: 125px;"
         >
           <div
             class="css-35"
@@ -1188,7 +1188,7 @@ exports[`bi-diagram — render + snapshot from a real captured flow model matche
         </div>
         <div
           class="node css-12"
-          style="top: 873.8000000000001px; left: -10px;"
+          style="top: 833.8000000000001px; left: -10px;"
         >
           <div
             class="css-38"

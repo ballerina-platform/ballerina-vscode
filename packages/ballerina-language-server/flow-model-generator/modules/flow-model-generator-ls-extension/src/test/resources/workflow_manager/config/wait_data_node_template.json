@@ -124,7 +124,7 @@
         "placeholder": "0",
         "optional": true,
         "editable": true,
-        "advanced": true,
+        "advanced": false,
         "hidden": false,
         "codedata": {
           "kind": "DEFAULTABLE",
@@ -144,7 +144,7 @@
             "typeMembers": [
               {
                 "type": "Duration",
-                "packageInfo": "ballerina:workflow:0.8.3",
+                "packageInfo": "ballerina:workflow:0.9.0",
                 "packageName": "workflow",
                 "kind": "RECORD_TYPE",
                 "selected": false
@@ -161,7 +161,7 @@
         "placeholder": "()",
         "optional": true,
         "editable": true,
-        "advanced": true,
+        "advanced": false,
         "hidden": false,
         "codedata": {
           "kind": "DEFAULTABLE",

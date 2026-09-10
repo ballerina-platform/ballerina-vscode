@@ -54,6 +54,9 @@ export const CHART_COLORS = {
     // BRIGHT_RED: "var(--vscode-terminal-ansiBrightRed)",
     MAGENTA: "var(--vscode-terminal-ansiMagenta)",
     BRIGHT_MAGENTA: "var(--vscode-terminal-ansiBrightMagenta)",
+    // A chart colour rather than a terminal one: the ANSI set has no orange, and every theme
+    // defines this one to sit between its yellow and red.
+    ORANGE: "var(--vscode-charts-orange)",
 
     // Default color
     DEFAULT: "var(--vscode-editor-foreground)",
@@ -68,6 +71,9 @@ const NODE_COLOR_GROUPS = {
         "FOREACH",
         "MATCH",
         "RETURN",
+        // Sending a data event pushes the flow into a workflow waiting on it, so it reads with the
+        // nodes that direct flow rather than with the data ones.
+        "SEND_DATA",
         // Running or calling another workflow hands the flow to it, so these read as control flow.
         "WORKFLOW_RUN",
         "CHILD_WORKFLOW_RUN",
@@ -90,6 +96,13 @@ const NODE_COLOR_GROUPS = {
         // An activity is the unit of work a workflow executes — a call, like the ones above.
         "ACTIVITY_CALL",
         "CONNECTION_ACTIVITY_CALL",
+        // Asking a person to act is the other way a workflow gets work done, so it reads in the same
+        // green as the activity it stands beside.
+        "HUMAN_TASK",
+        // Starting a durable agent and sending it a data event are the two ways work is handed to
+        // one, so they read as the other work-doing steps do.
+        "DURABLE_AGENT_START",
+        "DURABLE_AGENT_UPDATE",
         // The workflow accessors are plain function calls on the context, and they render the
         // function glyph, so they share the function colour.
         "WORKFLOW_CURRENT_TIME",
@@ -128,9 +141,10 @@ const NODE_COLOR_GROUPS = {
         "NEW_DATA",
         "UPDATE_DATA",
         "ASSIGN",
-        // Data events carry data in and out of a running workflow, so they belong with the data.
-        "SEND_DATA",
+        // Receiving a data event is where a workflow's data comes from, so it belongs with the data.
         "WAIT_DATA",
+        // A sleep is the other thing a workflow suspends on, so it shares the data event's colour.
+        "SLEEP",
     ],
     
     // Comments, concurrency and transactions - magenta variants
@@ -147,9 +161,40 @@ const NODE_COLOR_GROUPS = {
     // Error handling - yellow variants
     YELLOW_GROUP: ["ERROR_HANDLER", "PANIC", "FAIL", "RETRY"],
 
-    // Suspension - the workflow stops and waits on something it does not control: a person acting,
-    // or a deadline passing. Yellow reads as "pending", which is exactly what these nodes are.
-    YELLOW_SUSPEND_GROUP: ["HUMAN_TASK", "SLEEP"],
+    // Reading back what a durable agent produced - orange. The send and the read are the two halves
+    // of one turn, so they are deliberately not the same colour: green hands work over, orange
+    // collects the answer.
+    ORANGE_GROUP: ["DURABLE_AGENT_RESULT", "DURABLE_AGENT_DATA_RESULT"],
+};
+
+// Workflow accessor/utility functions (`workflow:currentTime`, `workflow:sleep`, ...) all currently
+// arrive from the language server as the same generic statement kind, so — like their colour and
+// title — the icon has to be keyed on the function symbol rather than the node kind. SLEEP is the one
+// exception with its own dedicated node kind (see NODE_ICONS below), but it is included here too so
+// this map is the single source of truth if the language server ever starts sending it this way.
+const WORKFLOW_MODULE_FUNCTION_ICONS: Record<string, string> = {
+    currentTime: "bi-timeline",
+    isReplaying: "bi-redo",
+    getWorkflowId: "bi-key",
+    getWorkflowType: "bi-type",
+    sleep: "bi-clock",
+};
+
+// Exported so callers building their own icon (e.g. the side panel, which picks an icon before
+// NodeIcon ever renders when the language server already sent one) can give a workflow accessor
+// function priority over that generic icon instead of NodeIcon's own fallback ordering.
+export function getWorkflowFunctionIconName(org?: string, module?: string, symbol?: string): string | undefined {
+    return org === "ballerina" && module === "workflow" && symbol ? WORKFLOW_MODULE_FUNCTION_ICONS[symbol] : undefined;
+}
+
+// The prebuilt activities (Call REST API, Call SOAP API, Send Email) all arrive as one node kind and
+// differ only by the function they call, so their colour is keyed on that instead: the two API calls
+// read as the work-doing green of the activity family, and the email send takes the blue of the other
+// send nodes. The kind is a string here because the LS sends it without a NodeKind counterpart.
+const BUILTIN_ACTIVITY_KIND = "BUILTIN_ACTIVITY";
+const BUILTIN_ACTIVITY_COLOR_GROUPS = {
+    GREEN: ["callRestAPI", "callSoapAPI"],
+    BLUE: ["sendEmail"],
 };
 
 // Get current theme type (light or dark)
@@ -181,8 +226,18 @@ export const isDarkTheme = (): boolean => {
 };
 
 // Returns the appropriate chart color for a node type, considering the current theme
-export const getNodeChartColor = (nodeType: NodeKind): string => {
+export const getNodeChartColor = (nodeType: NodeKind, symbol?: string): string => {
     const dark = isDarkTheme();
+
+    // Prebuilt activities - coloured by the function they call, not by their shared kind.
+    if ((nodeType as string) === BUILTIN_ACTIVITY_KIND && symbol) {
+        if (BUILTIN_ACTIVITY_COLOR_GROUPS.GREEN.includes(symbol)) {
+            return CHART_COLORS.GREEN;
+        }
+        if (BUILTIN_ACTIVITY_COLOR_GROUPS.BLUE.includes(symbol)) {
+            return dark ? CHART_COLORS.BRIGHT_BLUE : CHART_COLORS.BLUE;
+        }
+    }
 
     // Control flow group - blue variants
     if (NODE_COLOR_GROUPS.BLUE_GROUP.includes(nodeType)) {
@@ -219,9 +274,10 @@ export const getNodeChartColor = (nodeType: NodeKind): string => {
         return dark ? CHART_COLORS.BRIGHT_YELLOW : CHART_COLORS.YELLOW;
     }
 
-    // Suspended-on-the-outside-world nodes - yellow variants
-    if (NODE_COLOR_GROUPS.YELLOW_SUSPEND_GROUP.includes(nodeType)) {
-        return dark ? CHART_COLORS.BRIGHT_YELLOW : CHART_COLORS.YELLOW;
+    // Durable agent result reads - orange. One variable for both themes: each theme defines its own
+    // chart orange, so there is no bright/plain pair to choose between.
+    if (NODE_COLOR_GROUPS.ORANGE_GROUP.includes(nodeType)) {
+        return CHART_COLORS.ORANGE;
     }
 
     // Default fallback
@@ -280,10 +336,13 @@ const NODE_ICONS: Record<NodeKind, React.FC<{ size: number; color: string; isDBC
     CHILD_WORKFLOW_CALL: ({ size, color }) => <Icon name="bi-flowchart" sx={{ fontSize: size, width: size, height: size, color }} />,
     CHILD_WORKFLOW_WAIT: ({ size, color }) => <Icon name="bi-flowchart" sx={{ fontSize: size, width: size, height: size, color }} />,
     CHILD_WORKFLOW_SEND_DATA: ({ size, color }) => <Icon name="bi-flowchart" sx={{ fontSize: size, width: size, height: size, color }} />,
-    WORKFLOW_CURRENT_TIME: ({ size, color }) => <FunctionIcon />,
-    WORKFLOW_IS_REPLAYING: ({ size, color }) => <FunctionIcon />,
-    WORKFLOW_GET_ID: ({ size, color }) => <FunctionIcon />,
-    WORKFLOW_GET_TYPE: ({ size, color }) => <FunctionIcon />,
+    // The side panel's available-node list sends these as their own dedicated kinds (unlike a placed
+    // FlowNode, which arrives as a generic statement with the symbol carrying the distinction — see
+    // getWorkflowFunctionIconName), so they need their icons here too, keyed by kind.
+    WORKFLOW_CURRENT_TIME: ({ size, color }) => <Icon name="bi-timeline" sx={{ fontSize: size, width: size, height: size, color }} />,
+    WORKFLOW_IS_REPLAYING: ({ size, color }) => <Icon name="bi-redo" sx={{ fontSize: size, width: size, height: size, color }} />,
+    WORKFLOW_GET_ID: ({ size, color }) => <Icon name="bi-key" sx={{ fontSize: size, width: size, height: size, color }} />,
+    WORKFLOW_GET_TYPE: ({ size, color }) => <Icon name="bi-type" sx={{ fontSize: size, width: size, height: size, color }} />,
     ACTIVITY_CALL: ({ size, color }) => <Icon name="bi-task" sx={{ fontSize: size, width: size, height: size, color }} />,
     CONNECTION_ACTIVITY_CALL: ({ size, color }) => <Icon name="bi-task" sx={{ fontSize: size, width: size, height: size, color }} />,
     // Sending a data event into a workflow: the send icon, matching the receive-side bi-import.
@@ -359,29 +418,42 @@ interface NodeIconProps {
     size?: number;
     color?: string; // Optional override color
     isDBConnection?: boolean;
+    // The function a node calls, where the kind alone does not identify it (the prebuilt activities,
+    // the workflow accessor functions).
+    symbol?: string;
+    // Scopes the symbol-keyed workflow accessor icon lookup to ballerina/workflow calls, so an
+    // unrelated function that happens to be named "sleep" does not pick up the clock glyph.
+    org?: string;
+    module?: string;
 }
 
 export function NodeIcon(props: NodeIconProps) {
-    const { type, size = 16, color, isDBConnection } = props;
-    const [themeAwareColor, setThemeAwareColor] = useState<string>(color || getNodeChartColor(type));
+    const { type, size = 16, color, isDBConnection, symbol, org, module } = props;
+    const [themeAwareColor, setThemeAwareColor] = useState<string>(color || getNodeChartColor(type, symbol));
 
     // Update color when theme changes
     const handleThemeChange = () => {
         if (!color) {
             // Only auto-update if no override color was provided
-            setThemeAwareColor(getNodeChartColor(type));
+            setThemeAwareColor(getNodeChartColor(type, symbol));
         }
     };
 
     // This ensures we get the right colors on initial render and theme changes
     useEffect(() => {
         if (!color) {
-            setThemeAwareColor(getNodeChartColor(type));
+            setThemeAwareColor(getNodeChartColor(type, symbol));
         }
-    }, [color, type]);
+    }, [color, type, symbol]);
+
+    const workflowFunctionIcon = getWorkflowFunctionIconName(org, module, symbol);
 
     // Get icon renderer from the mapping or use CodeIcon as default
-    const IconRenderer = NODE_ICONS[type] || (({ size, color }: { size: number; color: string; isDBConnection?: boolean }) => <CodeIcon />);
+    const IconRenderer = workflowFunctionIcon
+        ? ({ size, color }: { size: number; color: string }) => (
+              <Icon name={workflowFunctionIcon} sx={{ fontSize: size, width: size, height: size, color }} />
+          )
+        : NODE_ICONS[type] || (({ size, color }: { size: number; color: string; isDBConnection?: boolean }) => <CodeIcon />);
     
     return (
         <>

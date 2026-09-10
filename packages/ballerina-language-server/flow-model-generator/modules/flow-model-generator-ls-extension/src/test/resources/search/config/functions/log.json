@@ -66,31 +66,6 @@
       "items": [
         {
           "metadata": {
-            "label": "metrics.logs",
-            "description": "",
-            "keywords": []
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "printMetricsLog",
-                "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_metrics.logs_1.1.0.png"
-              },
-              "codedata": {
-                "node": "FUNCTION_CALL",
-                "org": "ballerinax",
-                "module": "metrics.logs",
-                "packageName": "metrics.logs",
-                "symbol": "printMetricsLog",
-                "version": "1.1.0"
-              },
-              "enabled": true
-            }
-          ]
-        },
-        {
-          "metadata": {
             "label": "log",
             "description": "",
             "keywords": []
@@ -266,6 +241,43 @@
               "enabled": true
             }
           ]
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "label": "Extended Library",
+        "description": "Components from the ballerinax organization",
+        "keywords": [
+          "Ballerinax",
+          "Library"
+        ]
+      },
+      "items": [
+        {
+          "metadata": {
+            "label": "metrics.logs",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "printMetricsLog",
+                "description": "",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_metrics.logs_1.1.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "metrics.logs",
+                "packageName": "metrics.logs",
+                "symbol": "printMetricsLog",
+                "version": "1.1.0"
+              },
+              "enabled": true
+            }
+          ]
         },
         {
           "metadata": {
@@ -294,7 +306,7 @@
         },
         {
           "metadata": {
-            "label": "edifact.d03a.logistics.mIFCSUM",
+            "label": "edifact.d03a.logistics.mCALINF",
             "description": "",
             "keywords": []
           },
@@ -308,7 +320,57 @@
               "codedata": {
                 "node": "FUNCTION_CALL",
                 "org": "ballerinax",
-                "module": "edifact.d03a.logistics.mIFCSUM",
+                "module": "edifact.d03a.logistics.mCALINF",
+                "packageName": "edifact.d03a.logistics",
+                "symbol": "getSchema",
+                "version": "1.0.1"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "edifact.d03a.logistics.mCASINT",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "getSchema",
+                "description": "Get the EDI schema.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_edifact.d03a.logistics_1.0.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "edifact.d03a.logistics.mCASINT",
+                "packageName": "edifact.d03a.logistics",
+                "symbol": "getSchema",
+                "version": "1.0.1"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "edifact.d03a.logistics.mCASRES",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "getSchema",
+                "description": "Get the EDI schema.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_edifact.d03a.logistics_1.0.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "edifact.d03a.logistics.mCASRES",
                 "packageName": "edifact.d03a.logistics",
                 "symbol": "getSchema",
                 "version": "1.0.1"
@@ -344,7 +406,7 @@
         },
         {
           "metadata": {
-            "label": "edifact.d03a.logistics.mTANSTA",
+            "label": "edifact.d03a.logistics.mCLASET",
             "description": "",
             "keywords": []
           },
@@ -358,7 +420,7 @@
               "codedata": {
                 "node": "FUNCTION_CALL",
                 "org": "ballerinax",
-                "module": "edifact.d03a.logistics.mTANSTA",
+                "module": "edifact.d03a.logistics.mCLASET",
                 "packageName": "edifact.d03a.logistics",
                 "symbol": "getSchema",
                 "version": "1.0.1"
@@ -394,7 +456,7 @@
         },
         {
           "metadata": {
-            "label": "edifact.d03a.logistics.mIFTMIN",
+            "label": "edifact.d03a.logistics.mHANMOV",
             "description": "",
             "keywords": []
           },
@@ -408,7 +470,7 @@
               "codedata": {
                 "node": "FUNCTION_CALL",
                 "org": "ballerinax",
-                "module": "edifact.d03a.logistics.mIFTMIN",
+                "module": "edifact.d03a.logistics.mHANMOV",
                 "packageName": "edifact.d03a.logistics",
                 "symbol": "getSchema",
                 "version": "1.0.1"
@@ -419,7 +481,7 @@
         },
         {
           "metadata": {
-            "label": "edifact.d03a.logistics.mSSREGW",
+            "label": "edifact.d03a.logistics.mIFCSUM",
             "description": "",
             "keywords": []
           },
@@ -433,57 +495,7 @@
               "codedata": {
                 "node": "FUNCTION_CALL",
                 "org": "ballerinax",
-                "module": "edifact.d03a.logistics.mSSREGW",
-                "packageName": "edifact.d03a.logistics",
-                "symbol": "getSchema",
-                "version": "1.0.1"
-              },
-              "enabled": true
-            }
-          ]
-        },
-        {
-          "metadata": {
-            "label": "edifact.d03a.logistics.mIFTMAN",
-            "description": "",
-            "keywords": []
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "getSchema",
-                "description": "Get the EDI schema.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_edifact.d03a.logistics_1.0.1.png"
-              },
-              "codedata": {
-                "node": "FUNCTION_CALL",
-                "org": "ballerinax",
-                "module": "edifact.d03a.logistics.mIFTMAN",
-                "packageName": "edifact.d03a.logistics",
-                "symbol": "getSchema",
-                "version": "1.0.1"
-              },
-              "enabled": true
-            }
-          ]
-        },
-        {
-          "metadata": {
-            "label": "edifact.d03a.logistics.mIFTMCS",
-            "description": "",
-            "keywords": []
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "getSchema",
-                "description": "Get the EDI schema.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_edifact.d03a.logistics_1.0.1.png"
-              },
-              "codedata": {
-                "node": "FUNCTION_CALL",
-                "org": "ballerinax",
-                "module": "edifact.d03a.logistics.mIFTMCS",
+                "module": "edifact.d03a.logistics.mIFCSUM",
                 "packageName": "edifact.d03a.logistics",
                 "symbol": "getSchema",
                 "version": "1.0.1"

@@ -26,6 +26,7 @@ import io.ballerina.compiler.syntax.tree.NonTerminalNode;
 import io.ballerina.compiler.syntax.tree.ServiceDeclarationNode;
 import io.ballerina.projects.Document;
 import io.ballerina.projects.Project;
+import io.ballerina.servicemodelgenerator.extension.builder.function.AiFunctionBuilder;
 import io.ballerina.servicemodelgenerator.extension.builder.function.DefaultFunctionBuilder;
 import io.ballerina.servicemodelgenerator.extension.builder.function.GraphqlFunctionBuilder;
 import io.ballerina.servicemodelgenerator.extension.builder.function.HttpFunctionBuilder;
@@ -44,9 +45,11 @@ import org.eclipse.lsp4j.TextEdit;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Supplier;
 
+import static io.ballerina.servicemodelgenerator.extension.util.Constants.AI;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.DEFAULT;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.GRAPHQL;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.HTTP;
@@ -62,11 +65,12 @@ public class FunctionBuilderRouter {
     // FTP/KAFKA/RABBITMQ/MSSQL/POSTGRESQL/MYSQL/MCP/SOLACE are deliberately absent: each now ships a
     // bundled TriggerUISchemaModel schema (see TriggerModelReader.BUNDLED_TRIGGER_MODEL_RESOURCES), so
     // useSchemaDrivenPath always routes them to SchemaDrivenFunctionBuilder before this map is
-    // consulted — a hardcoded entry here would be dead code. HTTP/GRAPHQL are not (yet) schema-driven
-    // and keep their dedicated builders.
+    // consulted — a hardcoded entry here would be dead code. HTTP/GRAPHQL/AI are not (yet)
+    // schema-driven and keep their dedicated builders.
     private static final Map<String, Supplier<? extends NodeBuilder<Function>>> CONSTRUCTOR_MAP = new HashMap<>() {{
         put(HTTP, HttpFunctionBuilder::new);
         put(GRAPHQL, GraphqlFunctionBuilder::new);
+        put(AI, AiFunctionBuilder::new);
     }};
 
     private static NodeBuilder<Function> getFunctionBuilder(String protocol) {
@@ -138,18 +142,25 @@ public class FunctionBuilderRouter {
         if (functionNode.parent() instanceof ServiceDeclarationNode serviceDeclarationNode) {
             ServiceMetadata metadata = deriveServiceType(serviceDeclarationNode, semanticModel);
             ModuleID moduleID = metadata.moduleId();
-            context = new ModelFromSourceContext(functionNode, null, semanticModel, null, "",
-                    metadata.serviceTypeIdentifier(), moduleID.orgName(), moduleID.packageName(),
-                    moduleID.moduleName(), moduleID.version());
-            NodeBuilder<Function> functionBuilder = useSchemaDrivenPath(moduleID.orgName(), moduleID.moduleName())
-                            ? new SchemaDrivenFunctionBuilder()
-                            : getFunctionBuilder(moduleID.moduleName());
-            Function function = functionBuilder.getModelFromSource(context);
-            Codedata codedata = function.getCodedata();
-            codedata.setOrgName(moduleID.orgName());
-            codedata.setPackageName(moduleID.packageName());
-            codedata.setModuleName(moduleID.moduleName());
-            return function;
+            // deriveServiceType leaves moduleId null whenever the listener's symbol can't be
+            // resolved — an unresolved import, a file mid-edit. ServiceBuilderRouter already guards
+            // this (getServiceFromSource); dereferencing it here turned a recoverable miss into an
+            // NPE that surfaced as a JSON-RPC InternalError. Fall through to the module-name-only
+            // path instead: a function model is still derivable from the syntax alone.
+            if (Objects.nonNull(moduleID)) {
+                context = new ModelFromSourceContext(functionNode, null, semanticModel, null, "",
+                        metadata.serviceTypeIdentifier(), moduleID.orgName(), moduleID.packageName(),
+                        moduleID.moduleName(), moduleID.version());
+                NodeBuilder<Function> functionBuilder = useSchemaDrivenPath(moduleID.orgName(), moduleID.moduleName())
+                                ? new SchemaDrivenFunctionBuilder()
+                                : getFunctionBuilder(moduleID.moduleName());
+                Function function = functionBuilder.getModelFromSource(context);
+                Codedata codedata = function.getCodedata();
+                codedata.setOrgName(moduleID.orgName());
+                codedata.setPackageName(moduleID.packageName());
+                codedata.setModuleName(moduleID.moduleName());
+                return function;
+            }
         }
         context = new ModelFromSourceContext(functionNode, null, semanticModel, null, "",
                 moduleName, null, null, moduleName, null);

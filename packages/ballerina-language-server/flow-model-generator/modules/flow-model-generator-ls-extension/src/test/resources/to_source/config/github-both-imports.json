@@ -1,0 +1,111 @@
+{
+  "source": "github-both-imports/main.bal",
+  "description": "A type naming two modules whose names end in the same segment, neither imported yet: the generator binds one to each prefix and writes both imports in the one operation",
+  "diagram": {
+    "id": "31",
+    "metadata": {
+      "label": "Variable",
+      "description": "A variable typed by two colliding modules"
+    },
+    "codedata": {
+      "node": "VARIABLE",
+      "lineRange": {
+        "fileName": "main.bal",
+        "startLine": {
+          "line": 0,
+          "offset": 0
+        },
+        "endLine": {
+          "line": 0,
+          "offset": 0
+        }
+      }
+    },
+    "returning": false,
+    "properties": {
+      "variable": {
+        "metadata": {
+          "label": "Name",
+          "description": "Name of the variable"
+        },
+        "valueType": "IDENTIFIER",
+        "value": "value",
+        "placeholder": "item",
+        "optional": false,
+        "editable": true,
+        "advanced": false
+      },
+      "type": {
+        "metadata": {
+          "label": "Type",
+          "description": "Type of the variable"
+        },
+        "valueType": "TYPE",
+        "value": "github:Client|triggerGithub:Listener",
+        "placeholder": "var",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "imports": {
+          "github": "ballerinax/github",
+          "triggerGithub": "ballerinax/trigger.github"
+        }
+      },
+      "expression": {
+        "metadata": {
+          "label": "Expression",
+          "description": "Create new variable"
+        },
+        "valueType": "EXPRESSION",
+        "value": "()",
+        "optional": true,
+        "editable": true,
+        "advanced": false
+      }
+    },
+    "flags": 0
+  },
+  "output": {
+    "github-both-imports/main.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "import ballerinax/trigger.github as triggerGithub;"
+      },
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "import ballerinax/github;"
+      },
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "github:Client|triggerGithub:Listener value = ();"
+      }
+    ]
+  }
+}

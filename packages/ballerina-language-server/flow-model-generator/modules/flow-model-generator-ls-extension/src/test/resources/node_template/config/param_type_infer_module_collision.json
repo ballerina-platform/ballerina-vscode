@@ -1,0 +1,159 @@
+{
+  "source": "local_connector/main.bal",
+  "position": {
+    "line": 8,
+    "offset": 4
+  },
+  "description": "PARAM_FOR_TYPE_INFER: inferred type unions two live modules sharing a natural qualifier",
+  "codedata": {
+    "node": "RESOURCE_ACTION_CALL",
+    "org": "nipunaf",
+    "module": "new_connection1.db",
+    "packageName": "new_connection1",
+    "object": "Client",
+    "symbol": "get",
+    "version": "0.1.0",
+    "parentSymbol": "dbClient",
+    "resourcePath": "/itemcollision"
+  },
+  "output": {
+    "id": "31",
+    "metadata": {
+      "label": "get",
+      "description": "Get a row whose inferred type unions two live modules sharing a natural qualifier.\n",
+      "icon": "https://bcentral-packageicons.azureedge.net/images/nipunaf_new_connection1_0.1.0.png"
+    },
+    "codedata": {
+      "node": "RESOURCE_ACTION_CALL",
+      "org": "nipunaf",
+      "module": "new_connection1.db",
+      "packageName": "new_connection1",
+      "object": "Client",
+      "symbol": "get",
+      "isNew": true,
+      "inferredReturnType": "targetType"
+    },
+    "returning": false,
+    "properties": {
+      "connection": {
+        "metadata": {
+          "label": "Connection",
+          "description": "Connection to use"
+        },
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "db:Client",
+            "selected": false
+          }
+        ],
+        "value": "dbClient",
+        "optional": false,
+        "editable": false,
+        "advanced": false,
+        "hidden": true
+      },
+      "resourcePath": {
+        "metadata": {
+          "label": "Resource Path",
+          "description": "Resource Path"
+        },
+        "types": [
+          {
+            "fieldType": "ACTION_PATH",
+            "selected": false
+          }
+        ],
+        "value": "/itemcollision",
+        "optional": false,
+        "editable": false,
+        "advanced": false,
+        "hidden": true,
+        "codedata": {
+          "originalName": "/itemcollision"
+        }
+      },
+      "targetType": {
+        "metadata": {
+          "label": "Target Type",
+          "description": "Defines which fields to retrieve from the result"
+        },
+        "types": [
+          {
+            "fieldType": "TYPE",
+            "ballerinaType": "res:ResultA|new_connection1AltcollRes:ResultB",
+            "selected": false
+          }
+        ],
+        "placeholder": "res:ResultA|new_connection1AltcollRes:ResultB",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "PARAM_FOR_TYPE_INFER",
+          "originalName": "targetType"
+        },
+        "imports": {
+          "res": "nipunaf/new_connection1.coll.res",
+          "new_connection1AltcollRes": "nipunaf/new_connection1.altcoll.res"
+        },
+        "defaultValue": "res:ResultA|new_connection1AltcollRes:ResultB"
+      },
+      "type": {
+        "metadata": {
+          "label": "Result Type",
+          "description": "Type of the variable"
+        },
+        "types": [
+          {
+            "fieldType": "TYPE",
+            "selected": true
+          }
+        ],
+        "value": "targetType",
+        "placeholder": "var",
+        "optional": false,
+        "editable": false,
+        "advanced": false,
+        "hidden": true,
+        "codedata": {}
+      },
+      "variable": {
+        "metadata": {
+          "label": "Result",
+          "description": "Name of the result variable"
+        },
+        "types": [
+          {
+            "fieldType": "IDENTIFIER",
+            "selected": true
+          }
+        ],
+        "value": "var2",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "checkError": {
+        "metadata": {
+          "label": "Check Error",
+          "description": "Trigger error flow"
+        },
+        "types": [
+          {
+            "fieldType": "FLAG",
+            "selected": true
+          }
+        ],
+        "value": true,
+        "optional": false,
+        "editable": true,
+        "advanced": true,
+        "hidden": true
+      }
+    },
+    "flags": 0
+  }
+}

@@ -21,10 +21,13 @@ package io.ballerina.servicemodelgenerator.extension.connector;
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerUISchemaModel;
 import io.ballerina.servicemodelgenerator.extension.connector.adapter.TriggerFunctionAdapter;
 import io.ballerina.servicemodelgenerator.extension.model.Function;
+import io.ballerina.servicemodelgenerator.extension.model.LayoutSection;
 import io.ballerina.servicemodelgenerator.extension.model.Parameter;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
+
+import java.util.List;
 
 /**
  * Unit test for {@link TriggerFunctionAdapter}: the {@code bindingGroup} carried by a CDC
@@ -75,5 +78,94 @@ public class TriggerFunctionAdapterTest {
         Parameter afterEntry = parameter(onRead, "after");
         Assert.assertNull(afterEntry.getBindingGroup(),
                 moduleName + ": onRead's single payload param must not be grouped");
+    }
+
+    /** A handler that authors no layout must reach the designer with none, not with an empty one. */
+    @Test(dataProvider = "cdcModules")
+    public void testAbsentAuthoredLayoutStaysAbsent(String moduleName) {
+        TriggerUISchemaModel model = model(moduleName);
+        for (TriggerUISchemaModel.ServiceTypeModel serviceType : model.serviceTypes()) {
+            for (TriggerUISchemaModel.FunctionModel handler : serviceType.schemaFunctions()) {
+                if (handler.layout() != null) {
+                    continue;
+                }
+                for (Function wire : TriggerFunctionAdapter.toFunctions(handler)) {
+                    Assert.assertNull(wire.getLayout(), moduleName + "/" + handler.name()
+                            + ": a handler that authors no layout must not gain an empty one");
+                }
+            }
+        }
+    }
+
+    /** An empty authored list is the same statement as no list at all, and must normalise to null. */
+    @Test
+    public void testEmptyAuthoredLayoutNormalisesToNull() {
+        TriggerUISchemaModel.FunctionModel authored =
+                withLayout(schemaFunction(model("kafka"), "onConsumerRecord"), List.of());
+        Assert.assertNull(TriggerFunctionAdapter.toFunction(authored).getLayout(),
+                "an empty layout list must normalise to null rather than an empty list");
+    }
+
+    /** A null authored list must stay null rather than becoming an empty one. */
+    @Test
+    public void testNullAuthoredLayoutStaysNull() {
+        TriggerUISchemaModel.FunctionModel authored =
+                withLayout(schemaFunction(model("kafka"), "onConsumerRecord"), null);
+        Assert.assertNull(TriggerFunctionAdapter.toFunction(authored).getLayout(),
+                "a null layout must not become an empty list");
+    }
+
+    /** An authored layout must survive the schema -> wire hop intact. */
+    @Test
+    public void testAuthoredLayoutReachesTheWireModel() {
+        TriggerUISchemaModel.FunctionModel authored = withLayout(
+                schemaFunction(model("kafka"), "onConsumerRecord"),
+                List.of(new TriggerUISchemaModel.LayoutSection("msg", "Message", null, null,
+                                List.of("records")),
+                        new TriggerUISchemaModel.LayoutSection("adv", "Advanced", "Rarely needed.", true,
+                                List.of("caller")),
+                        new TriggerUISchemaModel.LayoutSection(null, null, null, null, List.of("*rest"))));
+
+        List<LayoutSection> layout = TriggerFunctionAdapter.toFunction(authored).getLayout();
+        Assert.assertNotNull(layout, "an authored layout must reach the wire model");
+        Assert.assertEquals(layout.size(), 3, "every authored section must survive");
+        Assert.assertEquals(layout.get(0).id(), "msg");
+        Assert.assertEquals(layout.get(0).label(), "Message");
+        Assert.assertEquals(layout.get(0).fields(), List.of("records"));
+        Assert.assertNull(layout.get(0).description(), "an undescribed section must stay undescribed");
+        Assert.assertNull(layout.get(0).advanced(), "a section that does not opt into advanced stays null");
+        Assert.assertEquals(layout.get(1).description(), "Rarely needed.");
+        Assert.assertEquals(layout.get(1).advanced(), Boolean.TRUE,
+                "an advanced section must reach the designer marked advanced");
+        Assert.assertNull(layout.get(2).label(), "an unlabelled section must stay unlabelled");
+        Assert.assertEquals(layout.get(2).fields(), List.of("*rest"));
+    }
+
+    /** Every variant the adapter fans out must carry the handler's layout. */
+    @Test
+    public void testEveryFannedOutVariantCarriesTheLayout() {
+        TriggerUISchemaModel.FunctionModel authored = withLayout(
+                schemaFunction(model("ftp"), "onFileCsv"),
+                List.of(new TriggerUISchemaModel.LayoutSection("msg", "Message", null, null,
+                        List.of("content"))));
+
+        List<Function> variants = TriggerFunctionAdapter.toFunctions(authored);
+        Assert.assertFalse(variants.isEmpty(), "the fan-out must produce at least one function");
+        for (Function variant : variants) {
+            Assert.assertNotNull(variant.getLayout(),
+                    variant.getVariantLabel() + ": every variant must inherit the handler's layout");
+            Assert.assertEquals(variant.getLayout().get(0).label(), "Message");
+        }
+    }
+
+    /** Copies a schema function, substituting its layout. */
+    private TriggerUISchemaModel.FunctionModel withLayout(TriggerUISchemaModel.FunctionModel model,
+                                                          List<TriggerUISchemaModel.LayoutSection> layout) {
+        return new TriggerUISchemaModel.FunctionModel(model.metadata(), model.name(), model.nameEditable(),
+                model.nameMetadata(), model.kind(), model.accessor(), model.qualifiers(), model.group(),
+                model.variantLabel(), model.enabled(), model.editable(), model.optional(),
+                model.canAddParameters(), model.repeatable(), model.documentation(), model.documentationSchema(),
+                model.parameters(), model.parameterSchema(), model.properties(), model.returnType(), layout,
+                model.codedata(), model.validations());
     }
 }

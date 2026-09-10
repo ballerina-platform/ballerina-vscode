@@ -265,4 +265,13 @@
         <Class name="io.ballerina.projectservice.core.baltool.BalToolsUtil" />
         <Bug pattern="DP_CREATE_CLASSLOADER_INSIDE_DO_PRIVILEGED"/>
     </Match>
+    <Match>
+        <!-- Returning the sample project is the point: it is a per-thread memoized instance
+             (SAMPLE_PROJECT is a ThreadLocal), confined to the calling thread. Resolution caching
+             lives in SAMPLE_RESOLUTION_CACHE. Do not store the returned project across threads
+             (see PackageUtil). -->
+        <Class name="io.ballerina.modelgenerator.commons.PackageUtil" />
+        <Method name="getSampleProject" />
+        <Bug pattern="MS_EXPOSE_REP"/>
+    </Match>
 </FindBugsFilter>

@@ -45,9 +45,9 @@ import { nodeHasError } from "../../../utils/node";
 import { css } from "@emotion/react";
 import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
 import { NodeMetadata, isDefaultModelProviderExpr } from "@wso2/ballerina-core";
-import ReactMarkdown from "react-markdown";
 
 import { flowDashAnimation, releaseBoxHover, sanitizeAgentData, sanitizeId } from "../agentNodeUtils";
+import { MarkdownWithTooltip } from "../AgentMarkdownTooltip";
 import { getAgentNodeContainerHeight } from "../AgentWidget/agentNodeLayout";
 import { useAgentNodeController } from "../AgentWidget/useAgentNodeController";
 import { ApprovalBadge } from "../AgentWidget/ApprovalBadge";
@@ -224,11 +224,23 @@ export namespace NodeStyles {
         height: 100%;
         max-height: calc(100% - 5px);
         padding: 0 4px 4px;
+        -webkit-mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
+        mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
     `;
 
     export const InstructionsPlaceholder = styled(Instructions)`
         opacity: 0.5;
         font-style: italic;
+    `;
+
+    // Full role/instructions/description text shown in the hover tooltip, wrapped and
+    // scrollable since it is not subject to the node box's fixed height.
+    export const TooltipMarkdown = styled(MarkdownContent)`
+        max-width: 280px;
+        max-height: 320px;
+        overflow-y: auto;
+        white-space: normal;
+        line-height: 1.5;
     `;
 
     export const DescriptionBlock = styled.div<{ readOnly: boolean }>`
@@ -950,32 +962,26 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                 <NodeStyles.DescriptionBlock readOnly={readOnly} onClick={onNodeClick}>
                                     {hasPrompt ? (
                                         <>
-                                            <NodeStyles.Role>
-                                                <ReactMarkdown
-                                                    disallowedElements={['script', 'iframe', 'object', 'embed', 'link', 'style']}
-                                                    unwrapDisallowed={true}
-                                                >
-                                                    {sanitizedAgent?.role}
-                                                </ReactMarkdown>
-                                            </NodeStyles.Role>
-                                            <NodeStyles.Instructions>
-                                                <ReactMarkdown
-                                                    disallowedElements={['script', 'iframe', 'object', 'embed', 'link', 'style']}
-                                                    unwrapDisallowed={true}
-                                                >
-                                                    {sanitizedAgent?.instructions}
-                                                </ReactMarkdown>
-                                            </NodeStyles.Instructions>
+                                            <MarkdownWithTooltip
+                                                text={sanitizedAgent?.role}
+                                                Styled={NodeStyles.Role}
+                                                TooltipStyled={NodeStyles.TooltipMarkdown}
+                                                containerSx={{ display: "block", width: "100%" }}
+                                            />
+                                            <MarkdownWithTooltip
+                                                text={sanitizedAgent?.instructions}
+                                                Styled={NodeStyles.Instructions}
+                                                TooltipStyled={NodeStyles.TooltipMarkdown}
+                                                containerSx={{ display: "block", width: "100%", height: "100%" }}
+                                            />
                                         </>
                                     ) : (
-                                        <NodeStyles.AgentDescription>
-                                            <ReactMarkdown
-                                                disallowedElements={['script', 'iframe', 'object', 'embed', 'link', 'style']}
-                                                unwrapDisallowed={true}
-                                            >
-                                                {description}
-                                            </ReactMarkdown>
-                                        </NodeStyles.AgentDescription>
+                                        <MarkdownWithTooltip
+                                            text={description}
+                                            Styled={NodeStyles.AgentDescription}
+                                            TooltipStyled={NodeStyles.TooltipMarkdown}
+                                            containerSx={{ display: "block", width: "100%", height: "100%" }}
+                                        />
                                     )}
                                 </NodeStyles.DescriptionBlock>
                             </>
@@ -983,14 +989,12 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                     ) : (
                         sanitizedAgent?.role ? (
                             <NodeStyles.Row readOnly={readOnly} onClick={handleOnClick}>
-                                <NodeStyles.Role>
-                                    <ReactMarkdown
-                                        disallowedElements={['script', 'iframe', 'object', 'embed', 'link', 'style']}
-                                        unwrapDisallowed={true}
-                                    >
-                                        {sanitizedAgent?.role}
-                                    </ReactMarkdown>
-                                </NodeStyles.Role>
+                                <MarkdownWithTooltip
+                                    text={sanitizedAgent.role}
+                                    Styled={NodeStyles.Role}
+                                    TooltipStyled={NodeStyles.TooltipMarkdown}
+                                    containerSx={{ display: "block", width: "100%" }}
+                                />
                             </NodeStyles.Row>
                         ) : (
                             <NodeStyles.Row readOnly={readOnly} onClick={handleOnClick}>
@@ -1002,14 +1006,12 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                     {!isTypeDefinition && (
                         sanitizedAgent?.instructions ? (
                             <NodeStyles.InstructionsRow readOnly={readOnly} onClick={handleOnClick}>
-                                <NodeStyles.Instructions>
-                                    <ReactMarkdown
-                                        disallowedElements={['script', 'iframe', 'object', 'embed', 'link', 'style']}
-                                        unwrapDisallowed={true}
-                                    >
-                                        {sanitizedAgent?.instructions}
-                                    </ReactMarkdown>
-                                </NodeStyles.Instructions>
+                                <MarkdownWithTooltip
+                                    text={sanitizedAgent.instructions}
+                                    Styled={NodeStyles.Instructions}
+                                    TooltipStyled={NodeStyles.TooltipMarkdown}
+                                    containerSx={{ display: "block", width: "100%", height: "100%" }}
+                                />
                             </NodeStyles.InstructionsRow>
                         ) : (
                             <NodeStyles.InstructionsRow readOnly={readOnly} onClick={handleOnClick}>
