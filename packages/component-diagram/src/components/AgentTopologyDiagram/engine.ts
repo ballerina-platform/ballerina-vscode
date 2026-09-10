@@ -22,7 +22,7 @@ import { NodePortFactory } from "../NodePort";
 import { TopologyLinkFactory } from "../NodeLink";
 import { OverlayLayerFactory } from "../OverlayLayer";
 import { AgentCardNodeFactory } from "../nodes/AgentCardNode";
-import { TriggerNodeFactory } from "../nodes/TriggerNode";
+import { ServiceNodeFactory } from "../nodes/ServiceNode";
 
 export function generateTopologyEngine(): DiagramEngine {
     const engine = createEngine({
@@ -35,7 +35,7 @@ export function generateTopologyEngine(): DiagramEngine {
     engine.getLinkFactories().registerFactory(new TopologyLinkFactory());
 
     engine.getNodeFactories().registerFactory(new AgentCardNodeFactory());
-    engine.getNodeFactories().registerFactory(new TriggerNodeFactory());
+    engine.getNodeFactories().registerFactory(new ServiceNodeFactory());
 
     engine.getLayerFactories().registerFactory(new OverlayLayerFactory());
 

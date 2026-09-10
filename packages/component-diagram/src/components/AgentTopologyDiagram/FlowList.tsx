@@ -19,8 +19,17 @@
 import React from "react";
 import styled from "@emotion/styled";
 import { Icon, ThemeColors } from "@wso2/ui-toolkit";
-import { TopologyTriggerNode } from "./types";
-import { TriggerGlyph } from "../nodes/TriggerNode/TriggerNodeWidget";
+import { TopologyEntryNode, TopologyHandler } from "./types";
+
+// A row in the list: one handler, shown with the service it belongs to.
+interface FlowRow {
+    handler: TopologyHandler;
+    label: string;
+    sublabel: string;
+    glyphType: string;
+    icon?: string;
+}
+import { TriggerGlyph } from "./TriggerGlyph";
 
 const Container = styled.div`
     display: flex;
@@ -173,22 +182,32 @@ const codicon = (name: string, size = 14) => <Icon name={name} isCodicon={true} 
 const openGlyph = <Icon name="bi-function-flow" sx={{ ...ICON_BOX, fontSize: 16 }} iconSx={{ fontSize: 16, lineHeight: 1, display: "flex" }} />;
 
 export interface FlowListProps {
-    triggers: TopologyTriggerNode[];
+    entries: TopologyEntryNode[];
     pinnedId?: string;
     open: boolean;
     onToggle: (open: boolean) => void;
     onPreview: (id?: string) => void;
     onPin: (id: string) => void;
-    onOpen: (trigger: TopologyTriggerNode) => void;
+    onOpen: (trigger: TopologyHandler) => void;
 }
 
 // The package's entry points, folded into a chip until asked for. Hovering a row previews its flow, clicking pins it
 // (and fits the canvas to it) and folds the list back to the chip, which then names the flow and clears it with ✕.
 // An "Open flow" shortcut on each row (and on the pinned chip) does what clicking the trigger square does.
-export function FlowList({ triggers, pinnedId, open, onToggle, onPreview, onPin, onOpen }: FlowListProps) {
-    const pinned = triggers.find((trigger) => trigger.id === pinnedId);
-    const openButton = (trigger: TopologyTriggerNode) => (
-        <IconButton type="button" data-open title="Open flow" aria-label={`Open ${trigger.label1}`} onClick={() => onOpen(trigger)}>
+export function FlowList({ entries, pinnedId, open, onToggle, onPreview, onPin, onOpen }: FlowListProps) {
+    // One row per handler, carrying its service's glyph and name so a row reads on its own.
+    const rows: FlowRow[] = entries.flatMap((entry) =>
+        entry.handlers.map((handler) => ({
+            handler,
+            label: [handler.accessor, handler.label].filter(Boolean).join(" "),
+            sublabel: entry.kind === "service" && handler.label !== entry.title ? `${entry.subtitle} · ${entry.title}` : entry.subtitle,
+            glyphType: entry.glyphType,
+            icon: entry.icon,
+        }))
+    );
+    const pinned = rows.find((row) => row.handler.id === pinnedId);
+    const openButton = (row: FlowRow) => (
+        <IconButton type="button" data-open title="Open flow" aria-label={`Open ${row.label}`} onClick={() => onOpen(row.handler)}>
             {openGlyph}
         </IconButton>
     );
@@ -197,12 +216,12 @@ export function FlowList({ triggers, pinnedId, open, onToggle, onPreview, onPin,
             <Chip pinned={Boolean(pinned)}>
                 <ChipLabel type="button" aria-expanded={false} title="Show entry points" onClick={() => onToggle(true)}>
                     {pinned ? <TriggerGlyph glyphType={pinned.glyphType} icon={pinned.icon} size={14} /> : codicon("list-unordered")}
-                    <span>{pinned ? pinned.label1 : "Entry points"}</span>
+                    <span>{pinned ? pinned.label : "Entry points"}</span>
                     {codicon("chevron-down", 12)}
                 </ChipLabel>
                 {pinned && openButton(pinned)}
                 {pinned && (
-                    <IconButton type="button" title="Clear the pinned flow" aria-label="Clear the pinned flow" onClick={() => onPin(pinned.id)}>
+                    <IconButton type="button" title="Clear the pinned flow" aria-label="Clear the pinned flow" onClick={() => onPin(pinned.handler.id)}>
                         {codicon("close")}
                     </IconButton>
                 )}
@@ -210,7 +229,7 @@ export function FlowList({ triggers, pinnedId, open, onToggle, onPreview, onPin,
         );
     }
     // Arrows move between rows; Enter pins (the button's click); Cmd/Ctrl+Enter opens the flow.
-    const onRowKey = (trigger: TopologyTriggerNode) => (event: React.KeyboardEvent<HTMLButtonElement>) => {
+    const onRowKey = (trigger: TopologyHandler) => (event: React.KeyboardEvent<HTMLButtonElement>) => {
         if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
             event.preventDefault();
             onOpen(trigger);
@@ -232,7 +251,8 @@ export function FlowList({ triggers, pinnedId, open, onToggle, onPreview, onPin,
                     {codicon("chevron-up", 12)}
                 </IconButton>
             </Heading>
-            {triggers.map((trigger) => {
+            {rows.map((row) => {
+                const trigger = row.handler;
                 const isPinned = trigger.id === pinnedId;
                 return (
                     <RowShell key={trigger.id} pinned={isPinned} onMouseEnter={() => onPreview(trigger.id)} onMouseLeave={() => onPreview(undefined)}>
@@ -245,13 +265,13 @@ export function FlowList({ triggers, pinnedId, open, onToggle, onPreview, onPin,
                             onKeyDown={onRowKey(trigger)}
                             onClick={() => onPin(trigger.id)}
                         >
-                            <TriggerGlyph glyphType={trigger.glyphType} icon={trigger.icon} size={16} />
+                            <TriggerGlyph glyphType={row.glyphType} icon={row.icon} size={16} />
                             <Labels>
-                                <Label>{trigger.label1}</Label>
-                                {trigger.label2 && <SubLabel>{trigger.label2}</SubLabel>}
+                                <Label>{row.label}</Label>
+                                {row.sublabel && <SubLabel>{row.sublabel}</SubLabel>}
                             </Labels>
                         </RowButton>
-                        {openButton(trigger)}
+                        {openButton(row)}
                         {isPinned && (
                             <IconButton type="button" title="Clear the pinned flow" aria-label="Clear the pinned flow" onClick={() => onPin(trigger.id)}>
                                 {codicon("close")}

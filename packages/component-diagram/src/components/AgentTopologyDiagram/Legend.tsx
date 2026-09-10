@@ -20,7 +20,6 @@ import React from "react";
 import styled from "@emotion/styled";
 import { ThemeColors } from "@wso2/ui-toolkit";
 import { LegendKind } from "./types";
-import { LogicBadge } from "./LogicBadge";
 
 const Container = styled.div`
     display: flex;
@@ -55,10 +54,9 @@ function Line({ dashed = false }: { dashed?: boolean }) {
     );
 }
 
-// One column for every swatch, wide enough for the widest of them, so the labels line up and no glyph
-// reaches the text.
+// One column for every swatch, so the labels line up.
 const Swatch = styled.div`
-    width: 50px;
+    width: ${SWATCH_W}px;
     display: flex;
     justify-content: flex-start;
     flex: none;
@@ -75,18 +73,9 @@ const LEGEND_ROWS: Record<LegendKind, { label: string; explain: string; swatch: 
         explain: "This agent uses the other agent as a tool.",
         swatch: <Swatch><Line dashed /></Swatch>,
     },
-    logic: {
-        label: "Condition, loop or fork",
-        explain: "The arrows show which agents this trigger runs. Open its flow to see the conditions, loops and forks between them.",
-        swatch: (
-            <Swatch>
-                <LogicBadge kinds={["branch", "fork", "loop"]} size={14} />
-            </Swatch>
-        ),
-    },
 };
 
-const LEGEND_ORDER: LegendKind[] = ["trigger", "delegation", "logic"];
+const LEGEND_ORDER: LegendKind[] = ["trigger", "delegation"];
 
 export interface LegendProps {
     kinds: LegendKind[];

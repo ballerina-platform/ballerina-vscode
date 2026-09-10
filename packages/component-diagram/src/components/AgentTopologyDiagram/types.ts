@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { CDAgentCallGroup, CDModel, LinePosition } from "@wso2/ballerina-core";
+import { CDModel, LinePosition } from "@wso2/ballerina-core";
 
 // An agent artifact from projectStructure.directoryMap[AGENT] ∪ [AGENT_DEFINITION].
 export interface TopologyAgentArtifact {
@@ -46,16 +46,6 @@ export type TopologyEdgeKind = "trigger" | "delegation";
 // badge, and names them in the badge's tooltip.
 export type HandlerLogic = "branch" | "fork" | "loop";
 
-export interface HandlerConstruct {
-    // Which glyph it wears: if and match are a branch, while and foreach are a loop.
-    logic: HandlerLogic;
-    kind: CDAgentCallGroup["kind"];
-    // The construct's own id from the language server, so two branches of one `if` read as one entry.
-    id: string;
-    // What the source says: the condition, the loop header, or the worker's name.
-    labels: string[];
-}
-
 // Which handler an edge's step belongs to, and where in that handler's walk order it falls -- not shown on the
 // canvas, but still needed to know which handler's flow an edge is part of (hover focus) and, when an agent is
 // reached by more than one edge, which one ran first (layout straightens a chain under its earliest parent).
@@ -69,6 +59,8 @@ export interface TopologyEdge {
     sourceId: string;
     targetId: string;
     kind: TopologyEdgeKind;
+    // Which row of its source's card the edge leaves from, when the source is a service.
+    handlerId?: string;
     handlers?: HandlerStep[];
 }
 
@@ -110,30 +102,49 @@ export interface TopologyAgentNode {
     moduleName?: string;
 }
 
-export interface TopologyTriggerNode {
+// One handler: a resource, a remote function, or an automation's main. It owns the edges to the agents it runs,
+// and it is what a click opens. Drawn as a row inside its service's card, or as the automation's own square.
+export interface TopologyHandler {
     id: string;
-    label1: string;
-    label2: string;
-    glyphType: string;
-    // The service module's Central icon, for triggers whose module has no brand glyph of its own.
-    icon?: string;
+    // "POST /report" for a resource, the function name for a remote one, "main" for an automation.
+    label: string;
+    // A resource's method, drawn as the pill Integrator's design diagram uses.
+    accessor?: string;
     filePath: string;
     position: LinePosition;
-    // The handler's end, so opening the trigger hands the resolver the whole function, as the focus rail does.
+    // The handler's end, so opening it hands the resolver the whole function, as the focus rail does.
     endPosition?: LinePosition;
-    // Which glyphs the handler wears, in the order branch, fork, loop.
+    // The constructs the handler's calls sit inside: not drawn, but they decide whether it chains or fans.
     logic: HandlerLogic[];
-    // The constructs those glyphs stand for, in source order, so the tooltip can name them.
-    constructs: HandlerConstruct[];
     // Whether this handler's agents are drawn as a chain (order known) or as a fan (order not drawn).
     ordered: boolean;
 }
 
-export type LegendKind = "trigger" | "delegation" | "logic";
+// What the canvas draws in the entry column: one card per service holding its handlers as rows, and one square
+// per automation. Clicking the card opens the service; clicking a row opens that handler.
+export interface TopologyEntryNode {
+    id: string;
+    kind: "service" | "automation";
+    // The service's base path or type name; "main" for an automation.
+    title: string;
+    // "http:Service", "Agent Chat", "automation".
+    subtitle: string;
+    glyphType: string;
+    // The service module's Central icon, for services whose module has no brand glyph of its own.
+    icon?: string;
+    filePath: string;
+    position: LinePosition;
+    endPosition?: LinePosition;
+    handlers: TopologyHandler[];
+}
+
+export type LegendKind = "trigger" | "delegation";
 
 export interface TopologyGraph {
     agents: TopologyAgentNode[];
-    triggers: TopologyTriggerNode[];
+    entries: TopologyEntryNode[];
+    // Every entry's handlers, flattened: what the entry-points list offers and what hover focus keys on.
+    handlers: TopologyHandler[];
     edges: TopologyEdge[];
     wiredNothing: boolean;
     legendKinds: LegendKind[];
@@ -146,12 +157,14 @@ export interface NodePosition {
 
 export interface TopologyLayout {
     agentPositions: Record<string, NodePosition>;
-    triggerPositions: Record<string, NodePosition>;
+    entryPositions: Record<string, NodePosition>;
     cardHeights: Record<string, number>;
     // Where each edge bends, keyed by edge id: just past its source, or just before the first rank a long edge skips.
     edgeVias: Record<string, NodePosition[]>;
     // Offset across the flow, in steps, for edges that arrive at one node together; wrapped back edges are not counted.
     edgeBows: Record<string, number>;
+    // How many rows each entry card was laid out with, so the widget draws exactly what the geometry assumed.
+    visibleRows: Record<string, number>;
     // Where the drawing starts: past the blank part of the trigger label block.
     left: number;
     width: number;
@@ -171,6 +184,8 @@ export interface LayoutOptions {
     // Canvas width at zoom 1; when given, columns spread out to use it (within bounds).
     availableWidth?: number;
     orientation?: TopologyOrientation;
+    // How many handler rows each entry card draws, keyed by entry id; the rest are folded away.
+    visibleRows?: Record<string, number>;
 }
 
 export interface AgentSelection {
@@ -185,3 +200,4 @@ export interface TriggerSelection {
     position: LinePosition;
     endPosition?: LinePosition;
 }
+

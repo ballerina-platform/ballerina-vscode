@@ -21,7 +21,7 @@ export enum NodeTypes {
     ENTRY_NODE = "entry-node",
     CONNECTION_NODE = "connection-node",
     AGENT_CARD_NODE = "agent-card-node",
-    TRIGGER_NODE = "trigger-node",
+    SERVICE_NODE = "service-node",
 }
 
 export const NODE_LINK = "node-link";
@@ -53,12 +53,18 @@ export const AGENT_CARD_WIDTH = 280;
 export const AGENT_CARD_MIN_HEIGHT = 112;
 // One fade for everything hover focus lights or recedes: links, chips and nodes.
 export const FOCUS_FADE_MS = 260;
-export const TRIGGER_SIZE = 56;
-export const TRIGGER_LABEL_WIDTH = 232;
-export const TRIGGER_LABEL_GAP = 14;
-export const TRIGGER_NODE_WIDTH = TRIGGER_LABEL_WIDTH + TRIGGER_LABEL_GAP + TRIGGER_SIZE;
-export const TRIGGER_LABEL_BLOCK_HEIGHT = 34;
-export const TRIGGER_STACKED_HEIGHT = TRIGGER_LABEL_BLOCK_HEIGHT + TRIGGER_LABEL_GAP + TRIGGER_SIZE;
+// The entry card: a service with its handlers as rows, or an automation with none.
+export const ENTRY_CARD_WIDTH = 232;
+export const ENTRY_HEADER_HEIGHT = 56;
+export const ENTRY_ROW_HEIGHT = 36;
+// The "+N more" row a folded card ends with.
+export const ENTRY_FOOTER_HEIGHT = 30;
+// A card never folds below this many rows, however little canvas there is.
+export const ENTRY_MIN_ROWS = 3;
+// Top to bottom, the entry cards sit in one row across the canvas; this is the share of its height they may take
+// before their rows fold, so the agents below them stay in view.
+export const ENTRY_ROW_BAND = 0.4;
+
 export const TOPOLOGY_GAP_X = 160;
 export const TOPOLOGY_GAP_X_MAX = 520;
 export const TOPOLOGY_GAP_Y = 64;

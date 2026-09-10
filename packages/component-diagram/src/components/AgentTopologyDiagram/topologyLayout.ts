@@ -20,22 +20,20 @@ import {
     AGENT_CARD_MIN_HEIGHT,
     ARRIVAL_BOW_PX,
     AGENT_CARD_WIDTH,
+    ENTRY_CARD_WIDTH,
+    ENTRY_FOOTER_HEIGHT,
+    ENTRY_HEADER_HEIGHT,
+    ENTRY_ROW_HEIGHT,
     LAYOUT_FIT_MARGIN,
     TOPOLOGY_COLUMN_GAP,
     TOPOLOGY_GAP_X,
     TOPOLOGY_GAP_X_MAX,
     TOPOLOGY_GAP_Y,
     TOPOLOGY_ROW_GAP,
-    TRIGGER_LABEL_WIDTH,
-    TRIGGER_NODE_WIDTH,
-    TRIGGER_SIZE,
-    TRIGGER_STACKED_HEIGHT,
 } from "../../resources/constants";
-import { LayoutOptions, NodePosition, TopologyEdge, TopologyGraph, TopologyLayout, TopologyTriggerNode } from "./types";
+import { LayoutOptions, NodePosition, TopologyEdge, TopologyEntryNode, TopologyGraph, TopologyLayout } from "./types";
 
 const ORPHAN_FOOTER_HEIGHT = 26;
-const LABEL1_CHAR_WIDTH = 8.5;
-const LABEL2_CHAR_WIDTH = 7.2;
 const LANE_CLEARANCE = 28;
 const LANE_LEAD = 24;
 // How far past the cards a back edge (a delegation cycle) wraps around.
@@ -47,10 +45,23 @@ export function estimateAgentCardHeight(orphan = false): number {
     return AGENT_CARD_MIN_HEIGHT + (orphan ? ORPHAN_FOOTER_HEIGHT : 0);
 }
 
-// Trigger labels are right-aligned in a fixed block; short labels leave its left part blank.
-export function triggerLabelSlack(triggers: TopologyTriggerNode[]): number {
-    const widths = triggers.map((t) => Math.max(t.label1.length * LABEL1_CHAR_WIDTH, t.label2.length * LABEL2_CHAR_WIDTH));
-    return Math.max(0, TRIGGER_LABEL_WIDTH - Math.ceil(Math.max(0, ...widths)));
+// A card's height follows the rows it draws, plus the "+N more" row when it folds the rest away.
+export function entryCardHeight(entry: TopologyEntryNode, rows: number): number {
+    if (entry.kind === "automation") {
+        return ENTRY_HEADER_HEIGHT;
+    }
+    const shown = Math.min(rows, entry.handlers.length);
+    const folded = shown < entry.handlers.length;
+    return ENTRY_HEADER_HEIGHT + shown * ENTRY_ROW_HEIGHT + (folded ? ENTRY_FOOTER_HEIGHT : 0);
+}
+
+// Where a row's port sits, across the flow, measured from the card's own cross position. Left to right the rows
+// run down the card's side, so a port sits level with its row; top to bottom they all leave the card's bottom
+// edge, so they spread evenly across its width instead.
+export function rowCrossOffset(index: number, count: number, vertical: boolean): number {
+    return vertical
+        ? ((index + 1) / (count + 1)) * ENTRY_CARD_WIDTH
+        : ENTRY_HEADER_HEIGHT + index * ENTRY_ROW_HEIGHT + ENTRY_ROW_HEIGHT / 2;
 }
 
 type Adjacency = Map<string, string[]>;
@@ -124,13 +135,13 @@ function relaxRanks(rank: Map<string, number>, children: Adjacency, seeds: strin
     seeds.forEach(visit);
 }
 
-// Rank = longest path from a trigger. Agents nothing reaches start in the first agent rank
+// Rank = longest path from an entry point. Agents nothing reaches start in the first agent rank
 // and pull their own delegates along, so an untriggered supervisor still fans out.
 function computeRanks(graph: TopologyGraph, edges: TopologyEdge[]): Map<string, number> {
     const rank = new Map<string, number>();
     const children = adjacency(edges, "sourceId", "targetId");
-    graph.triggers.forEach((trigger) => rank.set(trigger.id, 0));
-    relaxRanks(rank, children, graph.triggers.map((trigger) => trigger.id));
+    graph.entries.forEach((entry) => rank.set(entry.id, 0));
+    relaxRanks(rank, children, graph.entries.map((entry) => entry.id));
     const orphans = graph.agents.filter((agent) => !rank.has(agent.id));
     orphans.forEach((agent) => rank.set(agent.id, 1));
     // An orphan that another orphan's walk already pulled along is not a root of its own.
@@ -180,7 +191,7 @@ function resolveGapX(columnCount: number, availableWidth: number | undefined): n
     if (!availableWidth || columnCount < 2) {
         return TOPOLOGY_GAP_X;
     }
-    const columnsWidth = TRIGGER_NODE_WIDTH + (columnCount - 1) * AGENT_CARD_WIDTH;
+    const columnsWidth = ENTRY_CARD_WIDTH + (columnCount - 1) * AGENT_CARD_WIDTH;
     const free = availableWidth - 2 * LAYOUT_FIT_MARGIN - columnsWidth;
     return Math.max(TOPOLOGY_GAP_X, Math.min(TOPOLOGY_GAP_X_MAX, Math.floor(free / (columnCount - 1))));
 }
@@ -190,8 +201,8 @@ function horizontalFrame(graph: TopologyGraph, cardHeights: Record<string, numbe
     const gap = resolveGapX(columnCount, availableWidth);
     const extents: Record<string, Extent> = {};
     graph.agents.forEach((agent) => (extents[agent.id] = { width: AGENT_CARD_WIDTH, height: cardHeights[agent.id] }));
-    graph.triggers.forEach((trigger) => (extents[trigger.id] = { width: TRIGGER_NODE_WIDTH, height: TRIGGER_SIZE }));
-    const main = (r: number): number => (r <= 0 ? 0 : TRIGGER_NODE_WIDTH + gap + (r - 1) * (AGENT_CARD_WIDTH + gap));
+    graph.entries.forEach((entry) => (extents[entry.id] = { width: ENTRY_CARD_WIDTH, height: cardHeights[entry.id] }));
+    const main = (r: number): number => (r <= 0 ? 0 : ENTRY_CARD_WIDTH + gap + (r - 1) * (AGENT_CARD_WIDTH + gap));
     return { vertical: false, crossGap: TOPOLOGY_GAP_Y, extents, main };
 }
 
@@ -204,12 +215,13 @@ function verticalFrame(graph: TopologyGraph, cardHeights: Record<string, number>
         const r = rank.get(agent.id) ?? 1;
         rowDepth.set(r, Math.max(rowDepth.get(r) ?? 0, cardHeights[agent.id]));
     });
-    graph.triggers.forEach((trigger) => (extents[trigger.id] = { width: TRIGGER_LABEL_WIDTH, height: TRIGGER_STACKED_HEIGHT }));
+    graph.entries.forEach((entry) => (extents[entry.id] = { width: ENTRY_CARD_WIDTH, height: cardHeights[entry.id] }));
+    const entryDepth = Math.max(0, ...graph.entries.map((entry) => cardHeights[entry.id]));
     const main = (r: number): number => {
         if (r <= 0) {
             return 0;
         }
-        let offset = TRIGGER_STACKED_HEIGHT + TOPOLOGY_ROW_GAP;
+        let offset = entryDepth + TOPOLOGY_ROW_GAP;
         for (let k = 1; k < r; k++) {
             offset += (rowDepth.get(k) ?? AGENT_CARD_MIN_HEIGHT) + TOPOLOGY_ROW_GAP;
         }
@@ -363,7 +375,7 @@ function straightenUnderParents(ranks: Map<number, string[]>, parents: Adjacency
 // source's (one turn before the target), or through a lane the skipped cards leave free: the gaps between them and
 // the space beyond the first and last, staggered per edge. The first free lane by travel wins.
 function longEdgeVias(
-    edge: TopologyEdge,
+    source: number,
     skipped: string[],
     lane: { count: number },
     final: Placement,
@@ -371,7 +383,6 @@ function longEdgeVias(
     place: (main: number, cross: number) => NodePosition,
     arrival: number
 ): NodePosition[] {
-    const source = centre(edge.sourceId, final);
     const blocked = (cross: number): boolean =>
         skipped.some((id) => cross > final.cross.get(id) - LANE_CLEARANCE && cross < final.cross.get(id) + final.sizes[id] + LANE_CLEARANCE);
     if (!blocked(arrival)) {
@@ -402,9 +413,19 @@ export function layoutTopology(graph: TopologyGraph, options: LayoutOptions = {}
 
     const cardHeights: Record<string, number> = {};
     graph.agents.forEach((agent) => (cardHeights[agent.id] = estimateAgentCardHeight(agent.orphan)));
+    const rows = (entry: TopologyEntryNode): number => options.visibleRows?.[entry.id] ?? entry.handlers.length;
+    graph.entries.forEach((entry) => (cardHeights[entry.id] = entryCardHeight(entry, rows(entry))));
+    // Which row of its card a handler is, so its edges leave from that row's port and not from the card's centre.
+    const rowAt = new Map<string, { index: number; count: number }>();
+    graph.entries
+        .filter((entry) => entry.kind === "service")
+        .forEach((entry) => {
+            const drawn = entry.handlers.slice(0, rows(entry));
+            drawn.forEach((handler, index) => rowAt.set(handler.id, { index, count: drawn.length }));
+        });
 
     const ranks = new Map<number, string[]>();
-    [...graph.triggers, ...graph.agents].forEach((node) => {
+    [...graph.entries, ...graph.agents].forEach((node) => {
         const r = rank.get(node.id) ?? 1;
         ranks.set(r, [...(ranks.get(r) ?? []), node.id]);
     });
@@ -430,10 +451,17 @@ export function layoutTopology(graph: TopologyGraph, options: LayoutOptions = {}
     final.cross.forEach((cross, id) => positions.set(id, place(mainOf(id), cross)));
 
     const offsets = bendOffsets([...ranks.values()], final);
+    // A folded-away row has no port, so its edges leave the card's centre instead.
+    const sourceCross = (edge: TopologyEdge): number => {
+        const row = edge.handlerId ? rowAt.get(edge.handlerId) : undefined;
+        return row === undefined
+            ? centre(edge.sourceId, final)
+            : final.cross.get(edge.sourceId) + rowCrossOffset(row.index, row.count, frame.vertical);
+    };
     const sourceOf = (edge: TopologyEdge): Source => ({
         rank: rank.get(edge.sourceId),
         main: mainOf(edge.sourceId) + mainSize(edge.sourceId),
-        centre: centre(edge.sourceId, final),
+        centre: sourceCross(edge),
         end: final.cross.get(edge.sourceId) + final.sizes[edge.sourceId],
     });
     const isBackEdge = (edge: TopologyEdge): boolean => rank.get(edge.targetId) <= rank.get(edge.sourceId);
@@ -451,12 +479,14 @@ export function layoutTopology(graph: TopologyGraph, options: LayoutOptions = {}
         if (rank.get(edge.targetId) - from.rank > 1) {
             const bends = { first: frame.main(from.rank + 1) - LANE_LEAD, last: mainOf(edge.targetId) - BEND_OFFSET };
             const arrival = centre(edge.targetId, final) + (edgeBows[edge.id] ?? 0) * ARRIVAL_BOW_PX;
-            vias.set(edge.id, longEdgeVias(edge, skippedBy(edge, from), lane, final, bends, place, arrival));
+            vias.set(edge.id, longEdgeVias(from.centre, skippedBy(edge, from), lane, final, bends, place, arrival));
             return;
         }
         vias.set(edge.id, [place(from.main + offsets.get(edge.sourceId), from.centre)]);
     });
-    return { ...collectLayout(graph, positions, vias, frame, cardHeights), edgeBows };
+    const visibleRows: Record<string, number> = {};
+    graph.entries.forEach((entry) => (visibleRows[entry.id] = Math.min(rows(entry), entry.handlers.length)));
+    return { ...collectLayout(graph, positions, vias, frame, cardHeights), edgeBows, visibleRows };
 }
 
 function shift(point: NodePosition, dx: number, dy: number): NodePosition {
@@ -469,7 +499,7 @@ function collectLayout(
     vias: Map<string, NodePosition[]>,
     frame: Frame,
     cardHeights: Record<string, number>
-): Omit<TopologyLayout, "edgeBows"> {
+): Omit<TopologyLayout, "edgeBows" | "visibleRows"> {
     const points = [...positions.values(), ...[...vias.values()].flat()];
     const xs = points.map((point) => point.x);
     const ys = points.map((point) => point.y);
@@ -477,13 +507,13 @@ function collectLayout(
     const minY = ys.length ? Math.min(...ys) : 0;
     const agentIds = new Set(graph.agents.map((agent) => agent.id));
     const agentPositions: Record<string, NodePosition> = {};
-    const triggerPositions: Record<string, NodePosition> = {};
+    const entryPositions: Record<string, NodePosition> = {};
     const edgeVias: Record<string, NodePosition[]> = {};
     let right = 0;
     let height = 0;
     positions.forEach((position, id) => {
         const normalised = shift(position, minX, minY);
-        const bucket = agentIds.has(id) ? agentPositions : triggerPositions;
+        const bucket = agentIds.has(id) ? agentPositions : entryPositions;
         bucket[id] = normalised;
         right = Math.max(right, normalised.x + frame.extents[id].width);
         height = Math.max(height, normalised.y + frame.extents[id].height);
@@ -496,6 +526,5 @@ function collectLayout(
             height = Math.max(height, via.y);
         });
     });
-    const left = !frame.vertical && graph.triggers.length ? triggerLabelSlack(graph.triggers) : 0;
-    return { agentPositions, triggerPositions, cardHeights, edgeVias, left, width: right - left, height };
+    return { agentPositions, entryPositions, cardHeights, edgeVias, left: 0, width: right, height };
 }

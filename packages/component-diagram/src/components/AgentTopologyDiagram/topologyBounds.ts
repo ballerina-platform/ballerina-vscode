@@ -16,14 +16,8 @@
  * under the License.
  */
 
-import {
-    AGENT_CARD_WIDTH,
-    TRIGGER_LABEL_WIDTH,
-    TRIGGER_NODE_WIDTH,
-    TRIGGER_SIZE,
-    TRIGGER_STACKED_HEIGHT,
-} from "../../resources/constants";
-import { NodePosition, TopologyFocus, TopologyLayout, TopologyOrientation } from "./types";
+import { AGENT_CARD_WIDTH, ENTRY_CARD_WIDTH } from "../../resources/constants";
+import { NodePosition, TopologyFocus, TopologyLayout } from "./types";
 
 export interface Bounds {
     left: number;
@@ -32,16 +26,14 @@ export interface Bounds {
     height: number;
 }
 
-// The box around a lit flow: its triggers, cards and the bends of its edges.
-export function focusBounds(layout: TopologyLayout, focus: TopologyFocus, orientation: TopologyOrientation): Bounds | undefined {
-    const vertical = orientation === "vertical";
-    const triggerSize = vertical ? { w: TRIGGER_LABEL_WIDTH, h: TRIGGER_STACKED_HEIGHT } : { w: TRIGGER_NODE_WIDTH, h: TRIGGER_SIZE };
+// The box around a lit flow: its entry cards, agent cards and the bends of its edges.
+export function focusBounds(layout: TopologyLayout, focus: TopologyFocus): Bounds | undefined {
     const boxes: { at: NodePosition; w: number; h: number }[] = [];
     focus.nodes.forEach((id) => {
         if (layout.agentPositions[id]) {
             boxes.push({ at: layout.agentPositions[id], w: AGENT_CARD_WIDTH, h: layout.cardHeights[id] });
-        } else if (layout.triggerPositions[id]) {
-            boxes.push({ at: layout.triggerPositions[id], ...triggerSize });
+        } else if (layout.entryPositions[id]) {
+            boxes.push({ at: layout.entryPositions[id], w: ENTRY_CARD_WIDTH, h: layout.cardHeights[id] });
         }
     });
     focus.edges.forEach((id) => (layout.edgeVias[id] ?? []).forEach((via) => boxes.push({ at: via, w: 0, h: 0 })));

@@ -1,18 +1,19 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`describeTopology prints every node, edge and handler of the canvas as text 1`] = `
-">>> agent overview · horizontal · canvas 1400px · drawn 1254×288 (left 66) · legend trigger, delegation, logic
-TRIGGERS (1)
-  T1   POST /gated                HTTP Service · /content        fan logic branch       @0,145  services.bal:3
+">>> agent overview · horizontal · canvas 1400px · drawn 1320×288 (left 0) · legend trigger, delegation
+ENTRY POINTS (1 card(s), 1 handler(s))
+  E1   /content                   http:Service           1 row(s)  @0,127  services.bal:2
+       H1   POST /gated                fan logic branch
 AGENTS (3)
   A1   outlineAgent                       AI Agent     col 2  @1040,176  h112  tools 0  chips -  model -  memory -
-  A2   rewriteAgent                       AI Agent     col 1  @531,0  h112  tools 0  chips -  model -  memory -
-  A3   draftAgent                         AI Agent     col 1  @531,176  h112  tools 1  chips -  model -  memory -
-EDGES (4)  source → target  kind  steps (order·trigger)  geometry
-  T1   → A1   trigger    1·T1           DETOURS via 507,173 507,144 1000,144 1000,212  bow -0.5
-  T1   → A2   trigger    2·T1           bend 342,173
-  T1   → A3   trigger    3·T1           bend 342,173
-  A3   → A1   delegation                bend 865,232  bow +0.5
+  A2   rewriteAgent                       AI Agent     col 1  @496,0  h112  tools 0  chips -  model -  memory -
+  A3   draftAgent                         AI Agent     col 1  @496,176  h112  tools 1  chips -  model -  memory -
+EDGES (4)  source → target  kind  row  steps (order·handler)  geometry
+  E1   → A1   trigger    H1   1·H1           DETOURS via 472,201 472,144 1000,144 1000,212  bow -0.5
+  E1   → A2   trigger    H1   2·H1           bend 272,201
+  E1   → A3   trigger    H1   3·H1           bend 272,201
+  A3   → A1   delegation                     bend 830,232  bow +0.5
 HANDLERS (design model: direct agent calls in source order, {construct:label} for the enclosing constructs)
   POST /content/gated                      → outlineAgent, rewriteAgent{if:!passesGate(outline)}, draftAgent"
 `;

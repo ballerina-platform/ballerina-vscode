@@ -20,35 +20,52 @@ import { NodeModel } from "@projectstorm/react-diagrams";
 import { PortModelAlignment } from "@projectstorm/react-diagrams-core";
 import { NodePortModel } from "../../NodePort";
 import { NODE_LOCKED, NodeTypes } from "../../../resources/constants";
-import { TopologyTriggerNode } from "../../AgentTopologyDiagram/types";
+import { TopologyEntryNode } from "../../AgentTopologyDiagram/types";
 
-// A trigger only originates edges (into agents), so it registers an out port only.
-export class TriggerNodeModel extends NodeModel {
-    readonly node: TopologyTriggerNode;
+export function rowPortName(handlerId: string): string {
+    return `out::${handlerId}`;
+}
+
+// An entry point only originates edges, so it registers out ports only: one per handler row, and one on the
+// card itself for the rows it has folded away.
+export class ServiceNodeModel extends NodeModel {
+    readonly node: TopologyEntryNode;
     protected portOut: NodePortModel;
 
-    constructor(node: TopologyTriggerNode) {
+    constructor(node: TopologyEntryNode) {
         super({
             id: node.id,
-            type: NodeTypes.TRIGGER_NODE,
+            type: NodeTypes.SERVICE_NODE,
             locked: NODE_LOCKED,
         });
         this.node = node;
         this.addOutPort("out");
+        // Only a service draws rows; an automation's single handler leaves the card's own port.
+        if (node.kind === "service") {
+            node.handlers.forEach((handler) => this.addOutPort(rowPortName(handler.id)));
+        }
     }
 
     addPort<T extends NodePortModel>(port: T): T {
         super.addPort(port);
-        this.portOut = port;
+        if (port.getOptions().name === "out") {
+            this.portOut = port;
+        }
         return port;
     }
 
-    addOutPort(label: string): NodePortModel {
-        return this.addPort(new NodePortModel({ in: false, name: label, alignment: PortModelAlignment.RIGHT }));
+    addOutPort(name: string): NodePortModel {
+        return this.addPort(new NodePortModel({ in: false, name, alignment: PortModelAlignment.RIGHT }));
     }
 
     getOutPort(): NodePortModel {
         return this.portOut;
+    }
+
+    // The row's own port, or the card's when that row is folded away and has none rendered.
+    getRowPort(handlerId: string | undefined): NodePortModel {
+        const row = handlerId ? (this.getPort(rowPortName(handlerId)) as NodePortModel) : undefined;
+        return row ?? this.portOut;
     }
 
     getHeight(): number {

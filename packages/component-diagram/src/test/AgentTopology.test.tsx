@@ -210,7 +210,7 @@ describe("AgentTopologyDiagram - Entry points", () => {
         fireEvent.click(dom.getByRole("button", { name: /entry points/i }));
 
         const rows = within(dom.getByRole("listbox", { name: "Entry points" })).getAllByRole("button", { pressed: false });
-        expect(rows.map((row) => row.textContent)).toEqual(["Agent Chat/helpDesk", "POST /quotesHTTP Service · /shipping-api"]);
+        expect(rows.map((row) => row.textContent)).toEqual(["POST /helpDeskAgent Chat", "POST /quoteshttp:Service · /shipping-api"]);
 
         fireEvent.click(rows[1]);
         expect(dom.queryByRole("listbox")).toBeNull();

@@ -29,6 +29,9 @@ export interface TopologyContextState {
     // Set while a node is hovered: what it is connected to lights up, everything else recedes.
     focus?: TopologyFocus;
     setHovered?: (id?: string) => void;
+    // How many handler rows each entry card draws; the rest fold behind "Show N more".
+    visibleRows?: Record<string, number>;
+    onExpandEntry?: (entryId: string) => void;
 }
 
 export const TopologyContext = React.createContext<TopologyContextState>({

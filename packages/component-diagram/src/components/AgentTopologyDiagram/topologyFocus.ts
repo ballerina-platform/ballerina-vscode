@@ -25,14 +25,13 @@ function intersect(a: Set<string>, b: Set<string>): Set<string> {
     return new Set([...a].filter((item) => b.has(item)));
 }
 
-function handlerResolver(graph: TopologyGraph): (edge: TopologyEdge) => Handlers {
-    const triggerIds = new Set(graph.triggers.map((trigger) => trigger.id));
+function handlerResolver(): (edge: TopologyEdge) => Handlers {
     return (edge) => {
         if (edge.kind === "delegation") {
             return undefined;
         }
-        if (triggerIds.has(edge.sourceId)) {
-            return new Set([edge.sourceId]);
+        if (edge.handlerId) {
+            return new Set([edge.handlerId]);
         }
         const stepped = (edge.handlers ?? []).map((step) => step.triggerId);
         return stepped.length ? new Set(stepped) : undefined;
@@ -43,9 +42,14 @@ function handlerResolver(graph: TopologyGraph): (edge: TopologyEdge) => Handlers
 // that delegate to it too), then downstream along those handlers' chains only, and along every delegation. A chain
 // edge that belongs to another handler running through the same card stays dark.
 export function focusAround(graph: TopologyGraph, id: string): TopologyFocus {
-    const nodes = new Set([id]);
+    // Hovering a row lights that handler's flow; hovering the card lights every handler on it. Either way the
+    // walk starts at the card, which is the node the edges leave.
+    const entry = graph.entries.find((candidate) => candidate.id === id || candidate.handlers.some((handler) => handler.id === id));
+    const seedHandlers = entry ? (entry.id === id ? entry.handlers.map((handler) => handler.id) : [id]) : [];
+    const start = entry ? entry.id : id;
+    const nodes = new Set(entry ? [id, entry.id] : [id]);
     const edges = new Set<string>();
-    const handlersOf = handlerResolver(graph);
+    const handlersOf = handlerResolver();
     const visited = new Set<string>();
     const key = (node: string, allowed: Set<string> | "any", direction: string) =>
         `${direction}|${node}|${allowed === "any" ? "*" : [...allowed].sort().join(",")}`;
@@ -86,9 +90,17 @@ export function focusAround(graph: TopologyGraph, id: string): TopologyFocus {
         });
     };
 
-    up(id, "any");
-    const triggerIds = new Set(graph.triggers.map((trigger) => trigger.id));
-    const runBy = new Set([...nodes].filter((node) => triggerIds.has(node)));
-    down(id, runBy);
+    up(start, seedHandlers.length ? new Set(seedHandlers) : "any");
+    // Every handler the walk upstream arrived at, so the downstream walk follows only those flows.
+    const reached = new Set([...graph.entries.flatMap((candidate) => candidate.handlers)]
+        .filter((handler) => nodes.has(handler.id) || seedHandlers.includes(handler.id))
+        .map((handler) => handler.id));
+    graph.edges.forEach((edge) => {
+        if (edges.has(edge.id) && edge.handlerId) {
+            reached.add(edge.handlerId);
+        }
+    });
+    down(start, reached);
+    reached.forEach((handlerId) => nodes.add(handlerId));
     return { nodes, edges };
 }

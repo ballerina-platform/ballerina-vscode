@@ -56,12 +56,19 @@ function agentLines(graph: TopologyGraph, layout: TopologyLayout, id: (nodeId: s
     });
 }
 
-function triggerLines(graph: TopologyGraph, layout: TopologyLayout, id: (nodeId: string) => string): string[] {
-    return graph.triggers.map((trigger) => {
-        const file = trigger.filePath.split("/").pop();
-        const shape = trigger.ordered ? "chain" : "fan";
-        const logic = trigger.logic.length ? ` logic ${trigger.logic.join(",")}` : "";
-        return `  ${pad(id(trigger.id), 4)} ${pad(trigger.label1, 26)} ${pad(trigger.label2, 30)} ${pad(shape + logic, 22)} ${at(layout.triggerPositions[trigger.id])}  ${file}:${trigger.position.line + 1}`;
+// One line per entry card, then one indented line per handler row it draws.
+function entryLines(graph: TopologyGraph, layout: TopologyLayout, id: (nodeId: string) => string): string[] {
+    return graph.entries.flatMap((entry) => {
+        const file = entry.filePath.split("/").pop();
+        const rows = layout.visibleRows[entry.id] ?? entry.handlers.length;
+        const folded = entry.handlers.length - rows;
+        const head = `  ${pad(id(entry.id), 4)} ${pad(entry.title, 26)} ${pad(entry.subtitle, 22)} ${entry.handlers.length} row(s)${folded > 0 ? ` (+${folded} folded)` : ""}  ${at(layout.entryPositions[entry.id])}  ${file}:${entry.position.line + 1}`;
+        const rowLines = entry.handlers.map((handler) => {
+            const shape = handler.ordered ? "chain" : "fan";
+            const logic = handler.logic.length ? ` logic ${handler.logic.join(",")}` : "";
+            return `       ${pad(id(handler.id), 4)} ${pad([handler.accessor, handler.label].filter(Boolean).join(" "), 26)} ${shape}${logic}`;
+        });
+        return [head, ...rowLines];
     });
 }
 
@@ -76,7 +83,8 @@ function edgeLines(graph: TopologyGraph, layout: TopologyLayout, id: (nodeId: st
             bow ? `bow ${bow > 0 ? "+" : ""}${bow}` : "",
         ].filter(Boolean);
         const handlers = (edge.handlers ?? []).map((step) => `${step.order}·${id(step.triggerId)}`).join(",");
-        return `  ${pad(id(edge.sourceId), 4)} → ${pad(id(edge.targetId), 4)} ${pad(edge.kind, 10)} ${pad(handlers, 14)} ${geometry.join("  ")}`.trimEnd();
+        const row = edge.handlerId ? id(edge.handlerId) : "";
+        return `  ${pad(id(edge.sourceId), 4)} → ${pad(id(edge.targetId), 4)} ${pad(edge.kind, 10)} ${pad(row, 4)} ${pad(handlers, 14)} ${geometry.join("  ")}`.trimEnd();
     });
 }
 
@@ -117,16 +125,17 @@ function handlerLines(model: CDModel): string[] {
 export function describeTopology(model: CDModel, graph: TopologyGraph, layout: TopologyLayout, options: LayoutOptions): string {
     const vertical = options.orientation === "vertical";
     const shortIds = new Map<string, string>();
-    graph.triggers.forEach((trigger, index) => shortIds.set(trigger.id, `T${index + 1}`));
+    graph.entries.forEach((entry, index) => shortIds.set(entry.id, `E${index + 1}`));
+    graph.handlers.forEach((handler, index) => shortIds.set(handler.id, `H${index + 1}`));
     graph.agents.forEach((agent, index) => shortIds.set(agent.id, `A${index + 1}`));
     const id = (nodeId: string): string => shortIds.get(nodeId) ?? nodeId;
     return [
         `>>> agent overview · ${vertical ? "vertical" : "horizontal"} · canvas ${options.availableWidth ?? "?"}px · drawn ${Math.round(layout.width)}×${Math.round(layout.height)} (left ${Math.round(layout.left)}) · legend ${graph.legendKinds.join(", ") || "-"}${graph.wiredNothing ? " · NOTHING WIRED" : ""}`,
-        `TRIGGERS (${graph.triggers.length})`,
-        ...triggerLines(graph, layout, id),
+        `ENTRY POINTS (${graph.entries.length} card(s), ${graph.handlers.length} handler(s))`,
+        ...entryLines(graph, layout, id),
         `AGENTS (${graph.agents.length})`,
         ...agentLines(graph, layout, id, vertical),
-        `EDGES (${graph.edges.length})  source → target  kind  steps (order·trigger)  geometry`,
+        `EDGES (${graph.edges.length})  source → target  kind  row  steps (order·handler)  geometry`,
         ...edgeLines(graph, layout, id, vertical),
         "HANDLERS (design model: direct agent calls in source order, {construct:label} for the enclosing constructs)",
         ...handlerLines(model),

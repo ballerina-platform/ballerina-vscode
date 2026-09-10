@@ -25,13 +25,14 @@ import {
     TOPOLOGY_GAP_X_MAX,
     TOPOLOGY_GAP_Y,
     TOPOLOGY_ROW_GAP,
-    TRIGGER_LABEL_WIDTH,
-    TRIGGER_NODE_WIDTH,
-    TRIGGER_SIZE,
-    TRIGGER_STACKED_HEIGHT,
+    ENTRY_CARD_WIDTH,
+    ENTRY_HEADER_HEIGHT,
+    ENTRY_ROW_HEIGHT,
 } from "../resources/constants";
 import { estimateAgentCardHeight, layoutTopology } from "../components/AgentTopologyDiagram/topologyLayout";
-import { TopologyAgentNode, TopologyEdge, TopologyGraph, TopologyTriggerNode } from "../components/AgentTopologyDiagram/types";
+
+const ONE_ROW_CARD = ENTRY_HEADER_HEIGHT + ENTRY_ROW_HEIGHT;
+import { TopologyAgentNode, TopologyEdge, TopologyEntryNode, TopologyGraph, TopologyHandler } from "../components/AgentTopologyDiagram/types";
 
 function agent(id: string, extra: Partial<TopologyAgentNode> = {}): TopologyAgentNode {
     return {
@@ -40,16 +41,38 @@ function agent(id: string, extra: Partial<TopologyAgentNode> = {}): TopologyAgen
     };
 }
 
-function trigger(id: string, extra: Partial<TopologyTriggerNode> = {}): TopologyTriggerNode {
-    return { id, label1: id, label2: "", glyphType: "http", filePath: "/proj/services.bal", position: { line: 1, offset: 0 }, logic: [], constructs: [], ordered: false, ...extra };
+function handler(id: string, extra: Partial<TopologyHandler> = {}): TopologyHandler {
+    return { id, label: id, filePath: "/proj/services.bal", position: { line: 1, offset: 0 }, logic: [], ordered: false, ...extra };
+}
+
+// An entry card with one row per handler id; the card's own id is what edges and ranks use.
+function trigger(id: string, rows: string[] = [id], extra: Partial<TopologyEntryNode> = {}): TopologyEntryNode {
+    return {
+        id,
+        kind: "service",
+        title: id,
+        subtitle: "http:Service",
+        glyphType: "http",
+        filePath: "/proj/services.bal",
+        position: { line: 1, offset: 0 },
+        handlers: rows.map((row) => handler(row)),
+        ...extra,
+    };
 }
 
 function edge(sourceId: string, targetId: string, kind: TopologyEdge["kind"] = "trigger"): TopologyEdge {
     return { id: `${sourceId}->${targetId}`, sourceId, targetId, kind };
 }
 
-function graphOf(agents: TopologyAgentNode[], triggers: TopologyTriggerNode[], edges: TopologyEdge[]): TopologyGraph {
-    return { agents, triggers, edges, wiredNothing: triggers.length === 0, legendKinds: [] };
+function graphOf(agents: TopologyAgentNode[], entries: TopologyEntryNode[], edges: TopologyEdge[]): TopologyGraph {
+    return {
+        agents,
+        entries,
+        handlers: entries.flatMap((entry) => entry.handlers),
+        edges,
+        wiredNothing: entries.length === 0,
+        legendKinds: [],
+    };
 }
 
 describe("layoutTopology", () => {
@@ -60,10 +83,10 @@ describe("layoutTopology", () => {
             [edge("t1", "a1"), edge("t2", "a1")]
         );
         const layout = layoutTopology(graph);
-        expect(layout.triggerPositions["t1"].x).toBe(0);
-        expect(layout.triggerPositions["t2"].x).toBe(0);
+        expect(layout.entryPositions["t1"].x).toBe(0);
+        expect(layout.entryPositions["t2"].x).toBe(0);
         expect(layout.agentPositions["a1"].x).toBeGreaterThan(0);
-        expect(layout.triggerPositions["t1"].y).not.toBe(layout.triggerPositions["t2"].y);
+        expect(layout.entryPositions["t1"].y).not.toBe(layout.entryPositions["t2"].y);
     });
 
     it("ranks a delegated agent one column to the right of its triggered delegator", () => {
@@ -84,7 +107,7 @@ describe("layoutTopology", () => {
         );
         const layout = layoutTopology(graph);
         expect(layout.agentPositions["loner"].x).toBe(layout.agentPositions["wired"].x);
-        expect(layout.agentPositions["loner"].x).toBeGreaterThan(layout.triggerPositions["t1"].x);
+        expect(layout.agentPositions["loner"].x).toBeGreaterThan(layout.entryPositions["t1"].x);
         expect(layout.agentPositions["loner"].y).toBeGreaterThan(layout.agentPositions["wired"].y);
     });
 
@@ -102,35 +125,38 @@ describe("layoutTopology", () => {
         const layout = layoutTopology(graph);
         const centreOf = (y: number, height: number) => y + height / 2;
         const plannerCentre = centreOf(layout.agentPositions["planner"].y, layout.cardHeights["planner"]);
-        expect(centreOf(layout.triggerPositions["chat"].y, TRIGGER_SIZE)).toBeCloseTo(plannerCentre);
+        expect(centreOf(layout.entryPositions["chat"].y, ONE_ROW_CARD)).toBeCloseTo(plannerCentre);
         expect(plannerCentre).toBeCloseTo(centreOf(layout.agentPositions["budget"].y, layout.cardHeights["budget"]));
         expect(layout.agentPositions["tutor"].x).toBe(layout.agentPositions["planner"].x);
         expect(layout.agentPositions["tutor"].y).toBeGreaterThan(layout.agentPositions["planner"].y);
-        expect(layout.agentPositions["planner"].x).toBe(TRIGGER_NODE_WIDTH + TOPOLOGY_GAP_X);
+        expect(layout.agentPositions["planner"].x).toBe(ENTRY_CARD_WIDTH + TOPOLOGY_GAP_X);
     });
 
     it("spreads the columns across the available width, within bounds", () => {
         const graph = graphOf([agent("a1")], [trigger("t1")], [edge("t1", "a1")]);
         const wide = layoutTopology(graph, { availableWidth: 4000 });
-        expect(wide.agentPositions["a1"].x).toBe(TRIGGER_NODE_WIDTH + TOPOLOGY_GAP_X_MAX);
-        const snug = layoutTopology(graph, { availableWidth: TRIGGER_NODE_WIDTH + AGENT_CARD_WIDTH + 300 });
-        expect(snug.agentPositions["a1"].x).toBe(TRIGGER_NODE_WIDTH + 300 - 80);
+        expect(wide.agentPositions["a1"].x).toBe(ENTRY_CARD_WIDTH + TOPOLOGY_GAP_X_MAX);
+        const snug = layoutTopology(graph, { availableWidth: ENTRY_CARD_WIDTH + AGENT_CARD_WIDTH + 300 });
+        expect(snug.agentPositions["a1"].x).toBe(ENTRY_CARD_WIDTH + 300 - 80);
         const narrow = layoutTopology(graph, { availableWidth: 300 });
-        expect(narrow.agentPositions["a1"].x).toBe(TRIGGER_NODE_WIDTH + TOPOLOGY_GAP_X);
+        expect(narrow.agentPositions["a1"].x).toBe(ENTRY_CARD_WIDTH + TOPOLOGY_GAP_X);
     });
 
-    it("re-centres only the triggers that collided, so a lone trigger stays centred on its own agents", () => {
-        const graph = graphOf(
-            [agent("a"), agent("b"), agent("c")],
-            [trigger("t1"), trigger("t2"), trigger("t3")],
-            [edge("t1", "a"), edge("t2", "a"), edge("t3", "b"), edge("t3", "c")]
-        );
+    it("straddles a shared agent with the two cards that run it", () => {
+        const graph = graphOf([agent("a")], [trigger("t1"), trigger("t2")], [edge("t1", "a"), edge("t2", "a")]);
         const layout = layoutTopology(graph);
         const centreOf = (y: number, h: number) => y + h / 2;
-        const t = (id: string) => centreOf(layout.triggerPositions[id].y, TRIGGER_SIZE);
+        const t = (id: string) => centreOf(layout.entryPositions[id].y, ONE_ROW_CARD);
+        const a = centreOf(layout.agentPositions["a"].y, layout.cardHeights["a"]);
+        expect((t("t1") + t("t2")) / 2).toBeCloseTo(a);
+    });
+
+    it("centres a lone card on the agents it runs", () => {
+        const graph = graphOf([agent("b"), agent("c")], [trigger("t3")], [edge("t3", "b"), edge("t3", "c")]);
+        const layout = layoutTopology(graph);
+        const centreOf = (y: number, h: number) => y + h / 2;
         const a = (id: string) => centreOf(layout.agentPositions[id].y, layout.cardHeights[id]);
-        expect((t("t1") + t("t2")) / 2).toBeCloseTo(a("a"));
-        expect(t("t3")).toBeCloseTo((a("b") + a("c")) / 2);
+        expect(centreOf(layout.entryPositions["t3"].y, ONE_ROW_CARD)).toBeCloseTo((a("b") + a("c")) / 2);
     });
 
     it("moves an agent under its only trigger when the row has room, so the edge is straight (support_desk shape)", () => {
@@ -145,7 +171,7 @@ describe("layoutTopology", () => {
         );
         const layout = layoutTopology(graph, { orientation: "vertical" });
         const agentCentre = (id: string) => layout.agentPositions[id].x + AGENT_CARD_WIDTH / 2;
-        const triggerCentre = (id: string) => layout.triggerPositions[id].x + TRIGGER_LABEL_WIDTH / 2;
+        const triggerCentre = (id: string) => layout.entryPositions[id].x + ENTRY_CARD_WIDTH / 2;
         expect(agentCentre("supportSup")).toBeCloseTo(triggerCentre("chat"));
         expect(agentCentre("salesSup")).toBeCloseTo(triggerCentre("ask"));
     });
@@ -164,10 +190,10 @@ describe("layoutTopology", () => {
         const vias = layout.edgeVias["t1->b"];
         const arrival = b.y + layout.cardHeights["b"] / 2 + layout.edgeBows["t1->b"] * ARRIVAL_BOW_PX;
         expect(vias).toHaveLength(2);
-        expect(vias[0]).toEqual({ x: b.x - 40, y: layout.triggerPositions["t1"].y + TRIGGER_SIZE / 2 });
+        expect(vias[0]).toEqual({ x: b.x - 40, y: layout.entryPositions["t1"].y + ONE_ROW_CARD / 2 });
         expect(vias[1]).toEqual({ x: b.x - 40, y: arrival });
         const [short] = layout.edgeVias["t2->a"];
-        expect(short.x).toBeGreaterThan(layout.triggerPositions["t2"].x + TRIGGER_NODE_WIDTH);
+        expect(short.x).toBeGreaterThan(layout.entryPositions["t2"].x + ENTRY_CARD_WIDTH);
         expect(short.x).toBeLessThan(a.x);
         expect(layout.edgeVias["a->b"][0].x).toBeGreaterThan(a.x + AGENT_CARD_WIDTH);
     });
@@ -181,7 +207,7 @@ describe("layoutTopology", () => {
         const vias = layout.edgeVias["t1->b"];
         expect(vias).toHaveLength(4);
         expect(vias[0].x).toBeLessThan(a.x);
-        expect(vias[0].x).toBeGreaterThan(layout.triggerPositions["t1"].x + TRIGGER_NODE_WIDTH);
+        expect(vias[0].x).toBeGreaterThan(layout.entryPositions["t1"].x + ENTRY_CARD_WIDTH);
         expect(vias[1].y < a.y || vias[1].y > a.y + layout.cardHeights["a"]).toBe(true);
         expect(vias[2].y).toBe(vias[1].y);
         expect(vias[3]).toEqual({ x: b.x - 40, y: b.y + layout.cardHeights["b"] / 2 + layout.edgeBows["t1->b"] * ARRIVAL_BOW_PX });
@@ -213,7 +239,7 @@ describe("layoutTopology", () => {
         // c lines up under a, and so does b, so c's height is taken in the skipped column; t1's own row is clear.
         const vias = layout.edgeVias["t1->c"];
         expect(vias).toHaveLength(2);
-        expect(vias[0].y).toBe(layout.triggerPositions["t1"].y + TRIGGER_SIZE / 2);
+        expect(vias[0].y).toBe(layout.entryPositions["t1"].y + ONE_ROW_CARD / 2);
         expect(vias[1].y).toBeCloseTo(layout.agentPositions["c"].y + layout.cardHeights["c"] / 2 + layout.edgeBows["t1->c"] * ARRIVAL_BOW_PX);
     });
 
@@ -244,15 +270,58 @@ describe("layoutTopology", () => {
         expect(layout.edgeVias["s1->y"][0].x).not.toBe(layout.edgeVias["s2->y"][0].x);
     });
 
-    it("starts the drawn bounds where a short trigger label starts, not at the blank label block", () => {
-        const short = layoutTopology(graphOf([agent("a1")], [trigger("t1", { label1: "main" })], [edge("t1", "a1")]));
-        expect(short.left).toBeGreaterThan(0);
-        expect(short.left).toBeLessThan(TRIGGER_LABEL_WIDTH);
-        expect(short.left + short.width).toBe(short.agentPositions["a1"].x + AGENT_CARD_WIDTH);
-        const long = layoutTopology(graphOf([agent("a1")], [trigger("t1", { label2: "HTTP Service · /customer-support-desk" })], [edge("t1", "a1")]));
-        expect(long.left).toBe(0);
+    it("starts the drawn bounds at the entry card, which has no blank label block to skip", () => {
+        const layout = layoutTopology(graphOf([agent("a1")], [trigger("t1")], [edge("t1", "a1")]));
+        expect(layout.left).toBe(0);
+        expect(layout.width).toBe(layout.agentPositions["a1"].x + AGENT_CARD_WIDTH);
         const untriggered = layoutTopology(graphOf([agent("a1", { orphan: true })], [], []));
         expect(untriggered.left).toBe(0);
+    });
+
+    it("makes a card as tall as the rows it draws, and folds the rest away", () => {
+        const graph = graphOf([agent("a1")], [trigger("svc", ["h1", "h2", "h3", "h4"])], [edge("svc", "a1")]);
+        const all = layoutTopology(graph);
+        expect(all.cardHeights["svc"]).toBe(ENTRY_HEADER_HEIGHT + 4 * ENTRY_ROW_HEIGHT);
+        expect(all.visibleRows["svc"]).toBe(4);
+        const folded = layoutTopology(graph, { visibleRows: { svc: 2 } });
+        expect(folded.visibleRows["svc"]).toBe(2);
+        expect(folded.cardHeights["svc"]).toBeLessThan(all.cardHeights["svc"]);
+    });
+
+    it("leaves every row's edges from the card's bottom edge, spread across it, when the flow runs top to bottom", () => {
+        const graph = graphOf(
+            [agent("a1"), agent("a2")],
+            [trigger("svc", ["h1", "h2"])],
+            [
+                { id: "h1->a1", sourceId: "svc", targetId: "a1", kind: "trigger", handlerId: "h1" },
+                { id: "h2->a2", sourceId: "svc", targetId: "a2", kind: "trigger", handlerId: "h2" },
+            ]
+        );
+        const layout = layoutTopology(graph, { orientation: "vertical" });
+        const card = layout.entryPositions["svc"];
+        const first = layout.edgeVias["h1->a1"][0];
+        const second = layout.edgeVias["h2->a2"][0];
+        // Both leave below the card, at a third and two thirds of its width.
+        expect(first.y).toBeGreaterThan(card.y + layout.cardHeights["svc"]);
+        expect(second.y).toBeGreaterThan(card.y + layout.cardHeights["svc"]);
+        expect(first.x).toBeCloseTo(card.x + ENTRY_CARD_WIDTH / 3);
+        expect(second.x).toBeCloseTo(card.x + (2 * ENTRY_CARD_WIDTH) / 3);
+    });
+
+    it("leaves each row's edges from that row's own place down the card", () => {
+        const graph = graphOf(
+            [agent("a1"), agent("a2")],
+            [trigger("svc", ["h1", "h2"])],
+            [
+                { id: "h1->a1", sourceId: "svc", targetId: "a1", kind: "trigger", handlerId: "h1" },
+                { id: "h2->a2", sourceId: "svc", targetId: "a2", kind: "trigger", handlerId: "h2" },
+            ]
+        );
+        const layout = layoutTopology(graph);
+        const first = layout.edgeVias["h1->a1"][0].y;
+        const second = layout.edgeVias["h2->a2"][0].y;
+        expect(second - first).toBe(ENTRY_ROW_HEIGHT);
+        expect(first).toBe(layout.entryPositions["svc"].y + ENTRY_HEADER_HEIGHT + ENTRY_ROW_HEIGHT / 2);
     });
 
     it("keeps an untriggered package's cards at x = 0 so the fit centres on them", () => {
@@ -266,9 +335,9 @@ describe("layoutTopology", () => {
         const graph = graphOf([agent("a1")], [trigger("t1"), trigger("t2")], [edge("t1", "a1"), edge("t2", "a1")]);
         const layout = layoutTopology(graph);
         const agentCentre = layout.agentPositions["a1"].y + layout.cardHeights["a1"] / 2;
-        const triggerCentres = [layout.triggerPositions["t1"].y, layout.triggerPositions["t2"].y].map((y) => y + TRIGGER_SIZE / 2);
+        const triggerCentres = [layout.entryPositions["t1"].y, layout.entryPositions["t2"].y].map((y) => y + ONE_ROW_CARD / 2);
         expect((triggerCentres[0] + triggerCentres[1]) / 2).toBeCloseTo(agentCentre);
-        expect(Math.min(...Object.values(layout.triggerPositions).map((p) => p.y), ...Object.values(layout.agentPositions).map((p) => p.y))).toBe(0);
+        expect(Math.min(...Object.values(layout.entryPositions).map((p) => p.y), ...Object.values(layout.agentPositions).map((p) => p.y))).toBe(0);
     });
 
     it("produces the same positions on repeated calls (deterministic)", () => {
@@ -372,7 +441,7 @@ describe("layoutTopology", () => {
     it("keeps the trigger square's own height for column stacking", () => {
         const graph = graphOf([], [trigger("t1"), trigger("t2")], []);
         const layout = layoutTopology(graph);
-        expect(layout.triggerPositions["t2"].y - layout.triggerPositions["t1"].y).toBeGreaterThanOrEqual(TRIGGER_SIZE);
+        expect(layout.entryPositions["t2"].y - layout.entryPositions["t1"].y).toBeGreaterThanOrEqual(ONE_ROW_CARD);
     });
 });
 
@@ -382,8 +451,8 @@ describe("layoutTopology (vertical)", () => {
     it("puts triggers in the top row and ranks agents downwards", () => {
         const graph = graphOf([agent("a1"), agent("a2")], [trigger("t1")], [edge("t1", "a1"), edge("a1", "a2", "delegation")]);
         const layout = layoutTopology(graph, vertical);
-        expect(layout.triggerPositions["t1"].y).toBe(0);
-        expect(layout.agentPositions["a1"].y).toBe(TRIGGER_STACKED_HEIGHT + TOPOLOGY_ROW_GAP);
+        expect(layout.entryPositions["t1"].y).toBe(0);
+        expect(layout.agentPositions["a1"].y).toBe(ONE_ROW_CARD + TOPOLOGY_ROW_GAP);
         expect(layout.agentPositions["a2"].y).toBe(layout.agentPositions["a1"].y + AGENT_CARD_MIN_HEIGHT + TOPOLOGY_ROW_GAP);
         expect(layout.left).toBe(0);
     });
@@ -400,7 +469,7 @@ describe("layoutTopology (vertical)", () => {
         const parentCentre = layout.agentPositions["a1"].x + AGENT_CARD_WIDTH / 2;
         const childrenCentre = (layout.agentPositions["a2"].x + layout.agentPositions["a3"].x + AGENT_CARD_WIDTH) / 2;
         expect(parentCentre).toBeCloseTo(childrenCentre);
-        expect(layout.triggerPositions["t1"].x + TRIGGER_LABEL_WIDTH / 2).toBeCloseTo(parentCentre);
+        expect(layout.entryPositions["t1"].x + ENTRY_CARD_WIDTH / 2).toBeCloseTo(parentCentre);
         expect(layout.width).toBe(2 * AGENT_CARD_WIDTH + TOPOLOGY_COLUMN_GAP);
     });
 

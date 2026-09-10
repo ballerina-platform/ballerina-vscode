@@ -17,15 +17,16 @@
  */
 
 import { focusBounds } from "../components/AgentTopologyDiagram/topologyBounds";
-import { AGENT_CARD_WIDTH, TRIGGER_NODE_WIDTH } from "../resources/constants";
+import { AGENT_CARD_WIDTH, ENTRY_CARD_WIDTH } from "../resources/constants";
 import { TopologyLayout } from "../components/AgentTopologyDiagram/types";
 
 const layout: TopologyLayout = {
     agentPositions: { a: { x: 400, y: 0 }, b: { x: 400, y: 200 } },
-    triggerPositions: { t1: { x: 0, y: 28 }, t2: { x: 0, y: 228 } },
-    cardHeights: { a: 112, b: 112 },
+    entryPositions: { t1: { x: 0, y: 28 }, t2: { x: 0, y: 228 } },
+    cardHeights: { a: 112, b: 112, t1: 92, t2: 92 },
     edgeVias: { "t1->a": [{ x: 380, y: 56 }], "t2->b": [{ x: 380, y: 256 }, { x: 380, y: 400 }] },
     edgeBows: {},
+    visibleRows: {},
     left: 96,
     width: 680,
     height: 312,
@@ -33,19 +34,19 @@ const layout: TopologyLayout = {
 
 describe("focusBounds", () => {
     it("boxes the lit nodes and their edges' bends, leaving the rest out", () => {
-        const bounds = focusBounds(layout, { nodes: new Set(["t1", "a"]), edges: new Set(["t1->a"]) }, "horizontal");
-        expect(bounds).toEqual({ left: 0, top: 0, width: 400 + AGENT_CARD_WIDTH, height: 112 });
-        expect(TRIGGER_NODE_WIDTH).toBeLessThan(400);
+        const bounds = focusBounds(layout, { nodes: new Set(["t1", "a"]), edges: new Set(["t1->a"]) });
+        expect(bounds).toEqual({ left: 0, top: 0, width: 400 + AGENT_CARD_WIDTH, height: 120 });
+        expect(ENTRY_CARD_WIDTH).toBeLessThan(400);
     });
 
     it("stretches to a detour's bends", () => {
-        const bounds = focusBounds(layout, { nodes: new Set(["t2", "b"]), edges: new Set(["t2->b"]) }, "horizontal");
+        const bounds = focusBounds(layout, { nodes: new Set(["t2", "b"]), edges: new Set(["t2->b"]) });
         expect(bounds.top).toBe(200);
         expect(bounds.top + bounds.height).toBe(400);
     });
 
     it("has nothing to fit when nothing is lit", () => {
-        expect(focusBounds(layout, { nodes: new Set(), edges: new Set() }, "horizontal")).toBeUndefined();
+        expect(focusBounds(layout, { nodes: new Set(), edges: new Set() })).toBeUndefined();
     });
 
 });

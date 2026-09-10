@@ -16,6 +16,6 @@
  * under the License.
  */
 
-export * from "./TriggerNodeModel";
-export * from "./TriggerNodeWidget";
-export * from "./TriggerNodeFactory";
+export * from "./ServiceNodeModel";
+export * from "./ServiceNodeFactory";
+export * from "./ServiceNodeWidget";

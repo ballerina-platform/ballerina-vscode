@@ -17,7 +17,10 @@
  */
 
 import { focusAround } from "../components/AgentTopologyDiagram/topologyFocus";
-import { TopologyAgentNode, TopologyEdge, TopologyGraph, TopologyTriggerNode } from "../components/AgentTopologyDiagram/types";
+import { TopologyAgentNode, TopologyEdge, TopologyEntryNode, TopologyGraph } from "../components/AgentTopologyDiagram/types";
+
+// Which ids in these fixtures are triggers, so `edge` knows to source from a card row.
+const triggerIds = new Set(["draft", "intakeT", "main", "t1", "t2", "t", "other"]);
 
 function agent(id: string): TopologyAgentNode {
     return {
@@ -26,17 +29,36 @@ function agent(id: string): TopologyAgentNode {
     };
 }
 
-function trigger(id: string): TopologyTriggerNode {
-    return { id, label1: id, label2: "", glyphType: "http", filePath: "/proj/services.bal", position: { line: 1, offset: 0 }, logic: [], constructs: [], ordered: false };
+// One card per trigger in these tests, so a handler id and its card's id are the same thing.
+function trigger(id: string): TopologyEntryNode {
+    return {
+        id: `card::${id}`,
+        kind: "service",
+        title: id,
+        subtitle: "http:Service",
+        glyphType: "http",
+        filePath: "/proj/services.bal",
+        position: { line: 1, offset: 0 },
+        handlers: [{ id, label: id, filePath: "/proj/services.bal", position: { line: 1, offset: 0 }, logic: [], ordered: false }],
+    };
 }
 
+// An edge out of a trigger leaves its card's row, which is how the canvas sources it.
 function edge(sourceId: string, targetId: string, kind: TopologyEdge["kind"] = "trigger", step?: [string, string]): TopologyEdge {
     const handlers = step ? [{ triggerId: step[0], order: Number(step[1]) }] : undefined;
-    return { id: `${sourceId}->${targetId}`, sourceId, targetId, kind, handlers };
+    const fromCard = triggerIds.has(sourceId);
+    return {
+        id: `${sourceId}->${targetId}`,
+        sourceId: fromCard ? `card::${sourceId}` : sourceId,
+        targetId,
+        kind,
+        handlerId: fromCard ? sourceId : undefined,
+        handlers,
+    };
 }
 
-function graphOf(agents: TopologyAgentNode[], triggers: TopologyTriggerNode[], edges: TopologyEdge[]): TopologyGraph {
-    return { agents, triggers, edges, wiredNothing: false, legendKinds: [] };
+function graphOf(agents: TopologyAgentNode[], entries: TopologyEntryNode[], edges: TopologyEdge[]): TopologyGraph {
+    return { agents, entries, handlers: entries.flatMap((entry) => entry.handlers), edges, wiredNothing: false, legendKinds: [] };
 }
 
 // helper_chains: /draft runs research ① → writer ②; /intake runs intake ① → research ②; main runs intake.
@@ -83,7 +105,7 @@ describe("focusAround", () => {
             [edge("t1", "planner"), edge("planner", "critic", "delegation"), edge("critic", "planner", "delegation")]
         );
         const focus = focusAround(graph, "critic");
-        expect(focus.nodes).toEqual(new Set(["critic", "planner", "t1"]));
+        expect(focus.nodes).toEqual(new Set(["critic", "planner", "t1", "card::t1"]));
         expect(focus.edges.size).toBe(3);
     });
 

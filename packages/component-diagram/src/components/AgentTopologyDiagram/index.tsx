@@ -25,7 +25,7 @@ import { DiagramCanvas } from "../DiagramCanvas";
 import { OverlayLayerModel } from "../OverlayLayer";
 import { TopologyLinkModel } from "../NodeLink";
 import { AgentCardNodeModel } from "../nodes/AgentCardNode";
-import { TriggerNodeModel } from "../nodes/TriggerNode";
+import { ServiceNodeModel } from "../nodes/ServiceNode";
 import { generateTopologyEngine } from "./engine";
 import { buildTopology } from "./topologyModel";
 import { layoutTopology } from "./topologyLayout";
@@ -35,7 +35,16 @@ import { TopologyContextProvider } from "./TopologyContext";
 import { Legend } from "./Legend";
 import { FlowList } from "./FlowList";
 import { Bounds, focusBounds } from "./topologyBounds";
-import { AgentSelection, TopologyEdge, TopologyGraph, TopologyInput, TopologyLayout, TopologyOrientation, TopologyTriggerNode, TriggerSelection } from "./types";
+import {
+    ENTRY_FOOTER_HEIGHT,
+    ENTRY_HEADER_HEIGHT,
+    ENTRY_MIN_ROWS,
+    ENTRY_ROW_BAND,
+    ENTRY_ROW_HEIGHT,
+    LAYOUT_FIT_MARGIN,
+    TOPOLOGY_GAP_Y,
+} from "../../resources/constants";
+import { AgentSelection, TopologyEdge, TopologyEntryNode, TopologyGraph, TopologyInput, TopologyLayout, TopologyOrientation, TriggerSelection } from "./types";
 
 export interface AgentTopologyDiagramProps {
     input: TopologyInput;
@@ -54,15 +63,15 @@ const SETTLE_MS = GLIDE_MS + 60;
 // Remembered across remounts so drilling into an agent and back keeps the chosen layout.
 let lastOrientation: TopologyOrientation = "horizontal";
 
-type TopologyNodeModel = AgentCardNodeModel | TriggerNodeModel;
+type TopologyNodeModel = AgentCardNodeModel | ServiceNodeModel;
 
 function createLink(edge: TopologyEdge, nodeModels: Map<string, TopologyNodeModel>): TopologyLinkModel | null {
     const sourceNode = nodeModels.get(edge.sourceId);
     const targetNode = nodeModels.get(edge.targetId);
-    if (!sourceNode || !targetNode || targetNode instanceof TriggerNodeModel) {
+    if (!sourceNode || !targetNode || targetNode instanceof ServiceNodeModel) {
         return null;
     }
-    const sourcePort = sourceNode.getOutPort();
+    const sourcePort = sourceNode instanceof ServiceNodeModel ? sourceNode.getRowPort(edge.handlerId) : sourceNode.getOutPort();
     const targetPort = targetNode.getInPort();
     if (!sourcePort || !targetPort) {
         return null;
@@ -141,7 +150,10 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
     const [diagramModel, setDiagramModel] = useState<DiagramModel | null>(null);
     const [legendKinds, setLegendKinds] = useState<ReturnType<typeof buildTopology>["legendKinds"]>([]);
     const [hoveredId, setHoveredId] = useState<string>();
-    const [triggers, setTriggers] = useState<TopologyTriggerNode[]>([]);
+    const [entries, setEntries] = useState<TopologyEntryNode[]>([]);
+    // Entry cards whose rows the user has unfolded; cleared whenever the model changes.
+    const [expanded, setExpanded] = useState<Set<string>>(new Set());
+    const handlerCount = entries.reduce((total, entry) => total + entry.handlers.length, 0);
     const [pinnedId, setPinnedId] = useState<string>();
     const [flowsOpen, setFlowsOpen] = useState(false);
     const pinnedRef = useRef<string>();
@@ -158,10 +170,28 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
     const fittingRef = useRef(false);
     const userAdjustedRef = useRef(false);
 
-    const canvasWidth = useCallback((): number | undefined => {
+    const canvasSize = useCallback((): { width?: number; height?: number } => {
         const rect = diagramEngine.getCanvas()?.getBoundingClientRect();
-        return rect && rect.width > 0 ? rect.width : undefined;
+        return { width: rect && rect.width > 0 ? rect.width : undefined, height: rect && rect.height > 0 ? rect.height : undefined };
     }, [diagramEngine]);
+
+    // How many rows each card can draw before the rest fold behind "Show N more". Left to right the cards stack in
+    // one column and share its height; top to bottom they sit side by side, so each may use the band the entry row
+    // is allowed. An unfolded card always draws all of its rows.
+    const rowBudget = useCallback((graph: TopologyGraph, height: number | undefined, vertical: boolean): Record<string, number> => {
+        const budget: Record<string, number> = {};
+        const wanting = graph.entries.filter((entry) => entry.handlers.length > 1);
+        if (wanting.length === 0) {
+            return budget;
+        }
+        const usable = (height ?? 0) - 2 * LAYOUT_FIT_MARGIN;
+        const share = vertical
+            ? usable * ENTRY_ROW_BAND - ENTRY_HEADER_HEIGHT - ENTRY_FOOTER_HEIGHT
+            : (usable - (wanting.length - 1) * TOPOLOGY_GAP_Y) / wanting.length - ENTRY_HEADER_HEIGHT - ENTRY_FOOTER_HEIGHT;
+        const fits = Math.max(ENTRY_MIN_ROWS, Math.floor(share / ENTRY_ROW_HEIGHT));
+        wanting.forEach((entry) => (budget[entry.id] = expanded.has(entry.id) ? entry.handlers.length : fits));
+        return budget;
+    }, [expanded]);
 
     // Positions come from the layout for the canvas width we have right now; re-run when it changes.
     const applyLayout = useCallback(() => {
@@ -169,7 +199,8 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
         if (!graph) {
             return;
         }
-        const layoutOptions = { availableWidth: canvasWidth(), orientation };
+        const { width, height } = canvasSize();
+        const layoutOptions = { availableWidth: width, orientation, visibleRows: rowBudget(graph, height, orientation === "vertical") };
         const layout = layoutTopology(graph, layoutOptions);
         layoutRef.current = layout;
         // A pasteable picture of the canvas for debugging, once per distinct layout, at the verbose level so DevTools hides it by default.
@@ -181,13 +212,13 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
         const place = (positions: Record<string, { x: number; y: number }>) =>
             Object.entries(positions).forEach(([id, position]) => nodeModelsRef.current.get(id)?.setPosition(position.x, position.y));
         place(layout.agentPositions);
-        place(layout.triggerPositions);
+        place(layout.entryPositions);
         linkModelsRef.current.forEach((link, edgeId) => {
             link.via = layout.edgeVias[edgeId] ?? [];
             link.bow = layout.edgeBows[edgeId] ?? 0;
             link.vertical = orientation === "vertical";
         });
-    }, [canvasWidth, orientation, input.model]);
+    }, [canvasSize, rowBudget, orientation, input.model]);
 
     // Centre the laid-out graph in the canvas from its own bounds, so the first paint does not
     // depend on when the nodes were measured; capped at 1:1 so small graphs are not blown up.
@@ -220,7 +251,7 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
     const refit = useCallback(() => {
         const pinned = pinnedRef.current;
         if (pinned && layoutRef.current && graphRef.current) {
-            fitToBounds(focusBounds(layoutRef.current, focusAround(graphRef.current, pinned), orientation));
+            fitToBounds(focusBounds(layoutRef.current, focusAround(graphRef.current, pinned)));
             return;
         }
         fitToLayout();
@@ -230,8 +261,9 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
         const graph = buildTopology(input);
         graphRef.current = graph;
         setLegendKinds(graph.legendKinds);
-        setTriggers(graph.triggers);
-        if (pinnedRef.current && !graph.triggers.some((trigger) => trigger.id === pinnedRef.current)) {
+        setEntries(graph.entries);
+        setExpanded(new Set());
+        if (pinnedRef.current && !graph.handlers.some((handler) => handler.id === pinnedRef.current)) {
             pinnedRef.current = undefined;
             setPinnedId(undefined);
         }
@@ -239,7 +271,7 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
 
         const nodeModels = new Map<string, TopologyNodeModel>();
         graph.agents.forEach((agentNode) => nodeModels.set(agentNode.id, new AgentCardNodeModel(agentNode)));
-        graph.triggers.forEach((triggerNode) => nodeModels.set(triggerNode.id, new TriggerNodeModel(triggerNode)));
+        graph.entries.forEach((entryNode) => nodeModels.set(entryNode.id, new ServiceNodeModel(entryNode)));
         nodeModelsRef.current = nodeModels;
 
         const linkModels = new Map<string, TopologyLinkModel>();
@@ -422,9 +454,11 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
             onAddTrigger,
             focus: (hoveredId ?? pinnedId) && graphRef.current ? focusAround(graphRef.current, hoveredId ?? pinnedId) : undefined,
             setHovered,
+            visibleRows: layoutRef.current?.visibleRows,
+            onExpandEntry: (entryId: string) => setExpanded((current) => new Set(current).add(entryId)),
         }),
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [readonly, orientation, onAgentSelect, onTriggerSelect, onAddTrigger, hoveredId, pinnedId, input, setHovered]
+        [readonly, orientation, onAgentSelect, onTriggerSelect, onAddTrigger, hoveredId, pinnedId, input, setHovered, expanded]
     );
 
     return (
@@ -436,10 +470,10 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
                     <EmptyNote>No triggers yet. Agents only run when a trigger calls them. Select Add Trigger on an agent card.</EmptyNote>
                 )}
             </TopLeft>
-            {triggers.length >= 2 && (
+            {handlerCount >= 2 && (
                 <TopRight>
                     <FlowList
-                        triggers={triggers}
+                        entries={entries}
                         pinnedId={pinnedId}
                         open={flowsOpen}
                         onToggle={setFlowsOpen}

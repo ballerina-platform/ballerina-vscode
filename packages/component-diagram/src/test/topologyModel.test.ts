@@ -16,11 +16,10 @@
  * under the License.
  */
 
-import { CDAgentCall, CDAgentCallGroup, CDAutomation, CDConnection, CDModel, CDResourceFunction, CDService } from "@wso2/ballerina-core";
-import { logicTooltip } from "../components/AgentTopologyDiagram/LogicBadge";
+import { CDAgentCall, CDAutomation, CDConnection, CDModel, CDResourceFunction, CDService } from "@wso2/ballerina-core";
 import { buildTopology } from "../components/AgentTopologyDiagram/topologyModel";
 import { focusAround } from "../components/AgentTopologyDiagram/topologyFocus";
-import { TopologyAgentArtifact, TopologyEdge, TopologyInput } from "../components/AgentTopologyDiagram/types";
+import { TopologyAgentArtifact, TopologyInput } from "../components/AgentTopologyDiagram/types";
 
 const AGENTS_BAL = "/proj/agents.bal";
 const SERVICES_BAL = "/proj/services.bal";
@@ -116,7 +115,7 @@ describe("buildTopology", () => {
         const graph = buildTopology(input);
 
         expect(graph.agents).toHaveLength(5);
-        expect(graph.triggers).toHaveLength(1);
+        expect(graph.handlers).toHaveLength(1);
         expect(graph.wiredNothing).toBe(false);
 
         const delegationEdges = graph.edges.filter((edge) => edge.kind === "delegation");
@@ -126,15 +125,54 @@ describe("buildTopology", () => {
 
         const orderEdge = graph.edges.find((edge) => edge.kind === "trigger" && edge.targetId === agentId(AGENTS_BAL, 13));
         const shipEdge = graph.edges.find((edge) => edge.kind === "trigger" && edge.targetId === agentId(AGENTS_BAL, 17));
-        expect(orderEdge.sourceId).toBe(graph.triggers[0].id);
-        expect(orderEdge.handlers).toEqual([{ triggerId: graph.triggers[0].id, order: 1 }]);
+        expect(orderEdge.sourceId).toBe(graph.entries[0].id);
+        expect(orderEdge.handlers).toEqual([{ triggerId: graph.handlers[0].id, order: 1 }]);
         expect(shipEdge.sourceId).toBe(agentId(AGENTS_BAL, 13));
-        expect(shipEdge.handlers).toEqual([{ triggerId: graph.triggers[0].id, order: 2 }]);
+        expect(shipEdge.handlers).toEqual([{ triggerId: graph.handlers[0].id, order: 2 }]);
 
         // Nothing triggers or delegates to the supervisor itself -- it only calls out.
         const supervisorNode = graph.agents.find((agent) => agent.name === "supportSupervisorAgent");
         expect(supervisorNode.orphan).toBe(true);
         expect(graph.legendKinds).toEqual(expect.arrayContaining(["trigger", "delegation"]));
+    });
+
+    it("groups a service's handlers into one card, in source order, and sources their edges from their own rows", () => {
+        const first = agentConnection("f", "firstAgent", AGENTS_BAL, 1);
+        const second = agentConnection("s", "secondAgent", AGENTS_BAL, 5);
+        const report = resourceFn("post", "report", SERVICES_BAL, 1, ["f"], [{ connection: "f", line: 2 }]);
+        const archive = resourceFn("post", "archive", SERVICES_BAL, 9, ["s"], [{ connection: "s", line: 10 }]);
+        const svc = service(SERVICES_BAL, 1, "http:Service", "/board", ["f", "s"], [report, archive]);
+        const graph = buildTopology({
+            model: modelOf([first, second], [svc]),
+            agents: [artifact("firstAgent", AGENTS_BAL, 1), artifact("secondAgent", AGENTS_BAL, 5)],
+        });
+
+        expect(graph.entries).toHaveLength(1);
+        expect(graph.entries[0]).toMatchObject({ kind: "service", title: "/board", subtitle: "http:Service" });
+        expect(graph.entries[0].handlers.map((handler) => [handler.accessor, handler.label])).toEqual([
+            ["POST", "/report"],
+            ["POST", "/archive"],
+        ]);
+        expect(graph.edges.map((edge) => [edge.sourceId, edge.handlerId, edge.targetId])).toEqual([
+            [graph.entries[0].id, graph.handlers[0].id, agentId(AGENTS_BAL, 1)],
+            [graph.entries[0].id, graph.handlers[1].id, agentId(AGENTS_BAL, 5)],
+        ]);
+    });
+
+    // Two rows reaching one agent are two edges, so hovering either row lights only its own.
+    it("keeps a service's two handlers apart when they run the same agent", () => {
+        const shared = agentConnection("sh", "sharedAgent", AGENTS_BAL, 1);
+        const one = resourceFn("post", "one", SERVICES_BAL, 1, ["sh"], [{ connection: "sh", line: 2 }]);
+        const two = resourceFn("post", "two", SERVICES_BAL, 9, ["sh"], [{ connection: "sh", line: 10 }]);
+        const svc = service(SERVICES_BAL, 1, "http:Service", "/pair", ["sh"], [one, two]);
+        const graph = buildTopology({
+            model: modelOf([shared], [svc]),
+            agents: [artifact("sharedAgent", AGENTS_BAL, 1)],
+        });
+
+        expect(graph.entries[0].handlers).toHaveLength(2);
+        expect(graph.edges).toHaveLength(2);
+        expect(new Set(graph.edges.map((edge) => edge.handlerId)).size).toBe(2);
     });
 
     it("chains a handler whose calls are a straight line, and marks it ordered", () => {
@@ -150,15 +188,15 @@ describe("buildTopology", () => {
             agents: [artifact("researchAgent", AGENTS_BAL, 1), artifact("writerAgent", AGENTS_BAL, 5)],
         });
 
-        const triggerId = graph.triggers[0].id;
-        expect(graph.triggers[0]).toMatchObject({ ordered: true, logic: [] });
+        const triggerId = graph.entries[0].id;
+        expect(graph.handlers[0]).toMatchObject({ ordered: true, logic: [] });
         expect(graph.edges.map((edge) => [edge.sourceId, edge.targetId])).toEqual([
             [triggerId, agentId(AGENTS_BAL, 1)],
             [agentId(AGENTS_BAL, 1), agentId(AGENTS_BAL, 5)],
         ]);
     });
 
-    it("fans a handler whose calls sit inside constructs, and badges the constructs it does not draw", () => {
+    it("fans a handler whose calls sit inside constructs, and records what it does not draw", () => {
         const refund = agentConnection("ref", "refundAgent", AGENTS_BAL, 1);
         const notify = agentConnection("not", "notifyAgent", AGENTS_BAL, 5);
         const process = resourceFn("post", "process", SERVICES_BAL, 1, ["ref", "not"], [
@@ -171,10 +209,9 @@ describe("buildTopology", () => {
             agents: [artifact("refundAgent", AGENTS_BAL, 1), artifact("notifyAgent", AGENTS_BAL, 5)],
         });
 
-        const triggerId = graph.triggers[0].id;
-        expect(graph.triggers[0]).toMatchObject({ ordered: false, logic: ["branch", "fork", "loop"] });
+        const triggerId = graph.entries[0].id;
+        expect(graph.handlers[0]).toMatchObject({ ordered: false, logic: ["branch", "fork", "loop"] });
         expect(graph.edges.map((edge) => edge.sourceId)).toEqual([triggerId, triggerId]);
-        expect(graph.legendKinds).toContain("logic");
     });
 
     // A chain would have to come back to the same card and would lose a step, so the whole handler fans.
@@ -192,8 +229,8 @@ describe("buildTopology", () => {
             agents: [artifact("notifyAgent", AGENTS_BAL, 1), artifact("refundAgent", AGENTS_BAL, 5)],
         });
 
-        const triggerId = graph.triggers[0].id;
-        expect(graph.triggers[0]).toMatchObject({ ordered: false, logic: [] });
+        const triggerId = graph.entries[0].id;
+        expect(graph.handlers[0]).toMatchObject({ ordered: false, logic: [] });
         expect(graph.edges.map((edge) => [edge.sourceId, edge.targetId])).toEqual([
             [triggerId, agentId(AGENTS_BAL, 1)],
             [triggerId, agentId(AGENTS_BAL, 5)],
@@ -218,8 +255,8 @@ describe("buildTopology", () => {
             agents: [artifact("xAgent", AGENTS_BAL, 1), artifact("yAgent", AGENTS_BAL, 5)],
         });
 
-        expect(graph.triggers.map((trigger) => trigger.ordered)).toEqual([false, false]);
-        expect(graph.edges.every((edge) => graph.triggers.some((trigger) => trigger.id === edge.sourceId))).toBe(true);
+        expect(graph.handlers.map((handler) => handler.ordered)).toEqual([false, false]);
+        expect(graph.edges.every((edge) => graph.entries.some((entry) => entry.id === edge.sourceId))).toBe(true);
     });
 
     it("carries the service module's icon on the trigger for modules without a brand glyph", () => {
@@ -229,8 +266,8 @@ describe("buildTopology", () => {
 
         const graph = buildTopology({ model: modelOf([agent], [chat]), agents: [artifact("aiAgent", AGENTS_BAL, 1)] });
 
-        expect(graph.triggers[0].glyphType).toBe("chat");
-        expect(graph.triggers[0].icon).toBe("https://central/ballerinax_googleapis.gchat_1.0.0.png");
+        expect(graph.entries[0].glyphType).toBe("chat");
+        expect(graph.entries[0].icon).toBe("https://central/ballerinax_googleapis.gchat_1.0.0.png");
     });
 
     it("draws an agent that hands off to itself with a self-delegation edge", () => {
@@ -249,7 +286,7 @@ describe("buildTopology", () => {
         const svc = service(SERVICES_BAL, 1, "http:Service", "/articles", ["e", "w"], [review]);
         const graph = buildTopology({ model: modelOf([editor, writer], [svc]), agents: [artifact("editorAgent", AGENTS_BAL, 1), artifact("writerAgent", AGENTS_BAL, 5)] });
 
-        const triggerId = graph.triggers[0].id;
+        const triggerId = graph.entries[0].id;
         expect(graph.edges.map((e) => [e.sourceId, e.targetId])).toEqual([
             [triggerId, agentId(AGENTS_BAL, 1)],
             [triggerId, agentId(AGENTS_BAL, 5)],
@@ -297,7 +334,7 @@ describe("buildTopology", () => {
         const shared = graph.edges.filter((e) => e.sourceId === agentId(AGENTS_BAL, 1) && e.targetId === agentId(AGENTS_BAL, 5));
         expect(shared).toHaveLength(1);
         expect(shared[0].handlers.map((step) => step.order).sort()).toEqual([2, 3]);
-        expect(shared[0].handlers.map((step) => step.triggerId).sort()).toEqual(graph.triggers.map((trigger) => trigger.id).sort());
+        expect(shared[0].handlers.map((step) => step.triggerId).sort()).toEqual(graph.handlers.map((handler) => handler.id).sort());
     });
 
     it("draws typed-agent instances but neither their definition nor the field inside it", () => {
@@ -382,18 +419,19 @@ describe("buildTopology", () => {
             model: modelOf([billing, technical, audit], [svc]),
             agents: [artifact("billingAgent", AGENTS_BAL, 1), artifact("technicalAgent", AGENTS_BAL, 5), artifact("auditAgent", AGENTS_BAL, 9)],
         });
-        const triggerId = graph.triggers[0].id;
+        const triggerId = graph.entries[0].id;
+        const handlerId = graph.handlers[0].id;
 
         const onBilling = focusAround(graph, agentId(AGENTS_BAL, 1));
-        expect([...onBilling.nodes].sort()).toEqual([agentId(AGENTS_BAL, 1), agentId(AGENTS_BAL, 9), triggerId].sort());
+        expect([...onBilling.nodes].sort()).toEqual([agentId(AGENTS_BAL, 1), agentId(AGENTS_BAL, 9), triggerId, handlerId].sort());
         expect(onBilling.nodes.has(agentId(AGENTS_BAL, 5))).toBe(false);
-        expect([...onBilling.edges].sort()).toEqual([`${triggerId}->${agentId(AGENTS_BAL, 1)}`, `${agentId(AGENTS_BAL, 1)}=>${agentId(AGENTS_BAL, 9)}`].sort());
+        expect([...onBilling.edges].sort()).toEqual([`${handlerId}->${agentId(AGENTS_BAL, 1)}`, `${agentId(AGENTS_BAL, 1)}=>${agentId(AGENTS_BAL, 9)}`].sort());
 
         const onTrigger = focusAround(graph, triggerId);
-        expect([...onTrigger.nodes].sort()).toEqual([triggerId, agentId(AGENTS_BAL, 1), agentId(AGENTS_BAL, 5), agentId(AGENTS_BAL, 9)].sort());
+        expect([...onTrigger.nodes].sort()).toEqual([triggerId, handlerId, agentId(AGENTS_BAL, 1), agentId(AGENTS_BAL, 5), agentId(AGENTS_BAL, 9)].sort());
 
         const onSubAgent = focusAround(graph, agentId(AGENTS_BAL, 9));
-        expect([...onSubAgent.nodes].sort()).toEqual([agentId(AGENTS_BAL, 9), agentId(AGENTS_BAL, 1), triggerId].sort());
+        expect([...onSubAgent.nodes].sort()).toEqual([agentId(AGENTS_BAL, 9), agentId(AGENTS_BAL, 1), triggerId, handlerId].sort());
         expect(onSubAgent.nodes.has(agentId(AGENTS_BAL, 5))).toBe(false);
     });
 
@@ -418,7 +456,7 @@ describe("buildTopology", () => {
             agents: [artifact("chatAgent", AGENTS_BAL, 1)],
         });
 
-        expect(graph.triggers).toHaveLength(2);
+        expect(graph.handlers).toHaveLength(2);
         expect(graph.edges.filter((edge) => edge.kind === "trigger" && edge.targetId === agentId(AGENTS_BAL, 1))).toHaveLength(2);
         expect(graph.agents[0].orphan).toBe(false);
     });
@@ -496,11 +534,11 @@ describe("buildTopology", () => {
             agents: [artifact("chatAgent", AGENTS_BAL, 1)],
         });
 
-        expect(graph.triggers).toHaveLength(0);
+        expect(graph.entries).toHaveLength(0);
         expect(graph.agents[0].orphan).toBe(true);
     });
 
-    it("draws the automation as a trigger node", () => {
+    it("draws the automation as its own entry card", () => {
         const agent = agentConnection("a1", "chatAgent", AGENTS_BAL, 1);
         const automation: CDAutomation = {
             name: "automation",
@@ -515,9 +553,10 @@ describe("buildTopology", () => {
             agents: [artifact("chatAgent", AGENTS_BAL, 1)],
         });
 
-        expect(graph.triggers).toHaveLength(1);
-        expect(graph.triggers[0].glyphType).toBe("automation");
-        expect(graph.triggers[0].label1).toBe("main");
+        expect(graph.handlers).toHaveLength(1);
+        expect(graph.entries[0]).toMatchObject({ kind: "automation", glyphType: "automation", title: "main", subtitle: "automation" });
+        // An automation has no rows to draw, so its edge leaves the card's own port.
+        expect(graph.edges[0].sourceId).toBe(graph.entries[0].id);
     });
 
     it("does not hang or crash on a delegation cycle with no trigger reaching it", () => {
@@ -530,31 +569,5 @@ describe("buildTopology", () => {
         });
 
         expect(graph.agents.every((agent) => agent.orphan)).toBe(true);
-    });
-});
-
-describe("logicTooltip", () => {
-    const construct = (logic: "branch" | "fork" | "loop", kind: CDAgentCallGroup["kind"], id: string, labels: string[]) => ({ logic, kind, id, labels });
-
-    it("names each construct with the source's own wording", () => {
-        const text = logicTooltip("branch", [
-            construct("loop", "foreach", "L", ["item in request.items"]),
-            construct("branch", "if", "I", ["item.damaged"]),
-            construct("branch", "match", "M", ['"wrong-size"', "_"]),
-        ]);
-        expect(text.split("\n")).toEqual([
-            "If · item.damaged",
-            'Match · "wrong-size", _',
-            "Open the flow to see which condition leads where.",
-        ]);
-    });
-
-    it("keeps a long branch chain readable by counting the rest", () => {
-        const text = logicTooltip("branch", [construct("branch", "if", "I", ["a", "b", "c", "d", "e"])]);
-        expect(text.split("\n")[0]).toBe("If · a, b, c, +2 more");
-    });
-
-    it("falls back to the construct's word when the server sent no label", () => {
-        expect(logicTooltip("fork", [construct("fork", "fork", "F", [])]).split("\n")[0]).toBe("Fork");
     });
 });

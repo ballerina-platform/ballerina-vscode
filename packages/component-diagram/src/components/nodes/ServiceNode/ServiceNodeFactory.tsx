@@ -19,20 +19,20 @@
 import React from "react";
 import { AbstractReactFactory, GenerateModelEvent, GenerateWidgetEvent } from "@projectstorm/react-canvas-core";
 import { DiagramEngine } from "@projectstorm/react-diagrams-core";
-import { TriggerNodeModel } from "./TriggerNodeModel";
-import { TriggerNodeWidget } from "./TriggerNodeWidget";
+import { ServiceNodeModel } from "./ServiceNodeModel";
+import { ServiceNodeWidget } from "./ServiceNodeWidget";
 import { NodeTypes } from "../../../resources/constants";
 
-export class TriggerNodeFactory extends AbstractReactFactory<TriggerNodeModel, DiagramEngine> {
+export class ServiceNodeFactory extends AbstractReactFactory<ServiceNodeModel, DiagramEngine> {
     constructor() {
-        super(NodeTypes.TRIGGER_NODE);
+        super(NodeTypes.SERVICE_NODE);
     }
 
-    generateModel(event: GenerateModelEvent): TriggerNodeModel {
-        return new TriggerNodeModel(event.initialConfig);
+    generateModel(event: GenerateModelEvent): ServiceNodeModel {
+        return new ServiceNodeModel(event.initialConfig);
     }
 
-    generateReactWidget(event: GenerateWidgetEvent<TriggerNodeModel>) {
-        return <TriggerNodeWidget engine={this.engine} model={event.model} />;
+    generateReactWidget(event: GenerateWidgetEvent<ServiceNodeModel>) {
+        return <ServiceNodeWidget engine={this.engine} model={event.model} />;
     }
 }

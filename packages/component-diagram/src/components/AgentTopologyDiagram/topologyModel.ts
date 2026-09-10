@@ -27,7 +27,6 @@ import {
     CDService,
 } from "@wso2/ballerina-core";
 import {
-    HandlerConstruct,
     HandlerLogic,
     HandlerStep,
     LegendKind,
@@ -40,8 +39,9 @@ import {
     TopologyEdge,
     TopologyEdgeKind,
     TopologyGraph,
+    TopologyEntryNode,
+    TopologyHandler,
     TopologyInput,
-    TopologyTriggerNode,
 } from "./types";
 
 const AI_MODULE = "ai";
@@ -215,54 +215,41 @@ function resourcePath(path: string): string {
     return path.startsWith("/") ? path : `/${path}`;
 }
 
-interface TriggerLabels {
-    label1: string;
-    label2: string;
-    glyphType: string;
-    icon?: string;
-}
-
 function serviceLabel(service: CDService): string {
     const label = service.displayName || service.absolutePath || service.type || "";
     return label.replace(/\\(.)/g, "$1").trim();
 }
 
-const SERVICE_TYPE_LABELS: Record<string, string> = {
-    ai: "AI Chat Service",
-    graphql: "GraphQL Service",
-    http: "HTTP Service",
-    grpc: "gRPC Service",
-    tcp: "TCP Service",
-    mcp: "MCP Service",
-};
-
-function serviceTypeLabel(modulePrefix: string): string {
-    return SERVICE_TYPE_LABELS[modulePrefix] ?? `${modulePrefix.charAt(0).toUpperCase()}${modulePrefix.slice(1)} Service`;
+interface EntryLabels {
+    title: string;
+    subtitle: string;
+    glyphType: string;
+    icon?: string;
 }
 
-// A bare base path under a resource label reads as a second path; the service kind disambiguates it.
-function serviceSubLabel(service: CDService, modulePrefix: string): string {
-    const label = serviceLabel(service);
-    return label.startsWith("/") ? `${serviceTypeLabel(modulePrefix)} · ${label}` : label;
-}
-
-function triggerLabelsFor(service: CDService, fn: CDFunction | CDResourceFunction, isResource: boolean): TriggerLabels {
+// The card's own labels, as Integrator's design diagram draws them: the base path over the service's type.
+function entryLabelsFor(service: CDService): EntryLabels {
     const modulePrefix = (service.type ?? "").split(":")[0] || "http";
-    const label2 = serviceSubLabel(service, modulePrefix);
-    const icon = service.icon || undefined;
-    if (modulePrefix === AI_MODULE) {
-        return { label1: "Agent Chat", label2: serviceLabel(service), glyphType: AI_MODULE, icon };
-    }
-    if (isResource) {
-        const resourceFn = fn as CDResourceFunction;
-        return { label1: `${resourceFn.accessor.toUpperCase()} ${resourcePath(resourceFn.path)}`, label2, glyphType: modulePrefix, icon };
-    }
-    return { label1: (fn as CDFunction).name, label2, glyphType: modulePrefix, icon };
+    return {
+        title: serviceLabel(service),
+        subtitle: modulePrefix === AI_MODULE ? "Agent Chat" : service.type || `${modulePrefix}:Service`,
+        glyphType: modulePrefix,
+        icon: service.icon || undefined,
+    };
 }
 
-// What the canvas draws for one handler: its agents, and whether their order is known well enough to chain them.
+// A resource is its method and path; a remote function is its name.
+function handlerLabelFor(fn: CDFunction | CDResourceFunction, isResource: boolean): { label: string; accessor?: string } {
+    if (!isResource) {
+        return { label: (fn as CDFunction).name };
+    }
+    const resourceFn = fn as CDResourceFunction;
+    return { label: resourcePath(resourceFn.path), accessor: resourceFn.accessor.toUpperCase() };
+}
+
 interface Handler {
-    trigger: TopologyTriggerNode;
+    entryId: string;
+    node: TopologyHandler;
     // Agent node ids in source order, repeats kept -- a repeat is what makes a handler unchainable.
     calls: string[];
     // Agents the handler reaches only through a helper, so no call site is known.
@@ -278,30 +265,15 @@ function logicOf(kind: CDAgentCallGroup["kind"]): HandlerLogic {
 
 const LOGIC_ORDER: HandlerLogic[] = ["branch", "fork", "loop"];
 
-// The constructs a handler's calls sit inside, in source order. Two branches of one `if` share a group id, so
-// they are one construct carrying both conditions.
-function constructsIn(calls: CDAgentCall[]): HandlerConstruct[] {
-    const byId = new Map<string, HandlerConstruct>();
-    (calls ?? []).forEach((call) => (call.groups ?? []).forEach((group) => {
-        const existing = byId.get(group.id);
-        if (!existing) {
-            byId.set(group.id, { logic: logicOf(group.kind), kind: group.kind, id: group.id, labels: group.label ? [group.label] : [] });
-        } else if (group.label && !existing.labels.includes(group.label)) {
-            existing.labels.push(group.label);
-        }
-    }));
-    return [...byId.values()];
-}
-
-function logicIn(constructs: HandlerConstruct[]): HandlerLogic[] {
-    const found = new Set(constructs.map((construct) => construct.logic));
+function logicIn(calls: CDAgentCall[]): HandlerLogic[] {
+    const found = new Set((calls ?? []).flatMap((call) => (call.groups ?? []).map((group) => logicOf(group.kind))));
     return LOGIC_ORDER.filter((kind) => found.has(kind));
 }
 
 // A chain says "then this one runs", so it may only be drawn where that is true of every step: no construct
 // around any call, and no agent called twice (a chain would have to revisit a node and would lose a step).
 function chainable(handler: Handler): boolean {
-    return handler.trigger.logic.length === 0 && new Set(handler.calls).size === handler.calls.length;
+    return handler.node.logic.length === 0 && new Set(handler.calls).size === handler.calls.length;
 }
 
 function chainPairs(calls: string[]): string[] {
@@ -313,7 +285,7 @@ function chainPairs(calls: string[]): string[] {
 function resolveOrderConflicts(handlers: Handler[]): void {
     const owners = new Map<string, Handler[]>();
     handlers.forEach((handler) => {
-        if (handler.trigger.ordered) {
+        if (handler.node.ordered) {
             chainPairs(handler.calls).forEach((pair) => owners.set(pair, [...(owners.get(pair) ?? []), handler]));
         }
     });
@@ -321,13 +293,19 @@ function resolveOrderConflicts(handlers: Handler[]): void {
         const [source, target] = pair.split("|");
         const opposed = owners.get(`${target}|${source}`);
         if (opposed) {
-            [...holders, ...opposed].forEach((handler) => (handler.trigger.ordered = false));
+            [...holders, ...opposed].forEach((handler) => (handler.node.ordered = false));
         }
     });
 }
 
 function edge(sourceId: string, targetId: string, kind: TopologyEdgeKind, step?: HandlerStep): TopologyEdge {
     return { id: `${sourceId}${kind === "delegation" ? "=>" : "->"}${targetId}`, sourceId, targetId, kind, handlers: step ? [step] : undefined };
+}
+
+// An edge leaving a service leaves one of its rows: the id names the handler so two rows reaching one agent stay
+// two edges, while sourceId names the card the layout places.
+function rowEdge(entryId: string, handlerId: string, targetId: string, step?: HandlerStep): TopologyEdge {
+    return { id: `${handlerId}->${targetId}`, sourceId: entryId, targetId, kind: "trigger", handlerId, handlers: step ? [step] : undefined };
 }
 
 // Handlers that share a step produce the same edge twice; the canvas draws it once, crediting every handler.
@@ -349,14 +327,16 @@ function mergeDuplicateEdges(edges: TopologyEdge[]): TopologyEdge[] {
 // An ordered handler is a chain from its trigger; any other handler fans, and its badge says why. Either way an
 // edge means one thing only: this entry point runs this agent.
 function handlerEdges(handler: Handler): TopologyEdge[] {
-    const triggerId = handler.trigger.id;
+    const { entryId } = handler;
+    const triggerId = handler.node.id;
     const steps = [...new Set(handler.calls)];
-    const drawn = handler.trigger.ordered
-        ? steps.map((agentId, index) => edge(index === 0 ? triggerId : steps[index - 1], agentId, "trigger", { triggerId, order: index + 1 }))
-        : steps.map((agentId, index) => edge(triggerId, agentId, "trigger", { triggerId, order: index + 1 }));
+    const fromRow = (agentId: string, order: number) => rowEdge(entryId, triggerId, agentId, { triggerId, order });
+    const drawn = handler.node.ordered
+        ? steps.map((agentId, index) => (index === 0 ? fromRow(agentId, 1) : edge(steps[index - 1], agentId, "trigger", { triggerId, order: index + 1 })))
+        : steps.map((agentId, index) => fromRow(agentId, index + 1));
     const helped = handler.reached
         .filter((agentId) => !steps.includes(agentId))
-        .map((agentId) => edge(triggerId, agentId, "trigger"));
+        .map((agentId) => rowEdge(entryId, triggerId, agentId));
     return [...drawn, ...helped];
 }
 
@@ -389,8 +369,8 @@ interface AgentCallSite {
 }
 
 function buildHandler(
-    triggerId: string,
-    labels: TriggerLabels,
+    entryId: string,
+    labels: { label: string; accessor?: string },
     filePath: string,
     fn: AgentCallSite,
     uuidToNodeId: Map<string, string>,
@@ -400,30 +380,30 @@ function buildHandler(
     if (agentUuids.length === 0) {
         return undefined;
     }
-    const constructs = constructsIn(fn.agentCalls);
-    const trigger: TopologyTriggerNode = {
-        id: triggerId,
-        label1: labels.label1,
-        label2: labels.label2,
-        glyphType: labels.glyphType,
-        icon: labels.icon,
+    const node: TopologyHandler = {
+        id: agentNodeId(filePath, fn.location.startLine.line),
+        label: labels.label,
+        accessor: labels.accessor,
         filePath,
         position: fn.location.startLine,
         endPosition: fn.location.endLine,
-        logic: logicIn(constructs),
-        constructs,
+        logic: logicIn(fn.agentCalls),
         ordered: false,
     };
     const handler: Handler = {
-        trigger,
+        entryId,
+        node,
         calls: (fn.agentCalls ?? []).map((call) => uuidToNodeId.get(call.connection)).filter((id): id is string => id !== undefined),
         reached: agentUuids.map((uuid) => uuidToNodeId.get(uuid)),
     };
-    trigger.ordered = chainable(handler);
+    node.ordered = chainable(handler);
     return handler;
 }
 
-function buildServiceHandlers(model: CDModel, uuidToNodeId: Map<string, string>): Handler[] {
+// One card per service, holding the handlers that run agents. A service none of whose handlers runs an agent is
+// not drawn at all.
+function buildServiceEntries(model: CDModel, uuidToNodeId: Map<string, string>): { entries: TopologyEntryNode[]; handlers: Handler[] } {
+    const entries: TopologyEntryNode[] = [];
     const handlers: Handler[] = [];
     const delegated = delegatedAgentUuids(model);
     for (const service of model.services ?? []) {
@@ -434,32 +414,52 @@ function buildServiceHandlers(model: CDModel, uuidToNodeId: Map<string, string>)
             ...(service.resourceFunctions ?? []).map((fn) => ({ fn, isResource: true as const })),
             ...(service.remoteFunctions ?? []).map((fn) => ({ fn, isResource: false as const })),
         ];
-        for (const { fn, isResource } of functions) {
-            const triggerId = agentNodeId(service.location.filePath, fn.location.startLine.line);
-            const labels = triggerLabelsFor(service, fn, isResource);
-            const handler = buildHandler(triggerId, labels, service.location.filePath, fn, uuidToNodeId, delegated);
-            if (handler) {
-                handlers.push(handler);
-            }
+        const entryId = `service::${agentNodeId(service.location.filePath, service.location.startLine.line)}`;
+        const own = functions
+            .map(({ fn, isResource }) => buildHandler(entryId, handlerLabelFor(fn, isResource), service.location.filePath, fn, uuidToNodeId, delegated))
+            .filter((handler): handler is Handler => handler !== undefined);
+        if (own.length === 0) {
+            continue;
         }
+        const labels = entryLabelsFor(service);
+        entries.push({
+            id: entryId,
+            kind: "service",
+            ...labels,
+            filePath: service.location.filePath,
+            position: service.location.startLine,
+            endPosition: service.location.endLine,
+            handlers: own.map((handler) => handler.node),
+        });
+        handlers.push(...own);
     }
-    return handlers;
+    return { entries, handlers };
 }
 
-function buildAutomationHandler(model: CDModel, uuidToNodeId: Map<string, string>): Handler | undefined {
+function buildAutomationEntry(model: CDModel, uuidToNodeId: Map<string, string>): { entry: TopologyEntryNode; handler: Handler } | undefined {
     const automation: CDAutomation | undefined = model.automation;
     if (!automation) {
         return undefined;
     }
-    const triggerId = agentNodeId(automation.location.filePath, automation.location.startLine.line);
-    return buildHandler(
-        triggerId,
-        { label1: "main", label2: "automation", glyphType: "automation" },
-        automation.location.filePath,
-        automation,
-        uuidToNodeId,
-        delegatedAgentUuids(model)
-    );
+    const entryId = `automation::${agentNodeId(automation.location.filePath, automation.location.startLine.line)}`;
+    const handler = buildHandler(entryId, { label: "main" }, automation.location.filePath, automation, uuidToNodeId, delegatedAgentUuids(model));
+    if (!handler) {
+        return undefined;
+    }
+    return {
+        entry: {
+            id: entryId,
+            kind: "automation",
+            title: "main",
+            subtitle: "automation",
+            glyphType: "automation",
+            filePath: automation.location.filePath,
+            position: automation.location.startLine,
+            endPosition: automation.location.endLine,
+            handlers: [handler.node],
+        },
+        handler,
+    };
 }
 
 function buildDelegationEdges(model: CDModel, uuidToNodeId: Map<string, string>): TopologyEdge[] {
@@ -484,7 +484,7 @@ function buildDelegationEdges(model: CDModel, uuidToNodeId: Map<string, string>)
     return edges;
 }
 
-function markReachability(agents: TopologyAgentNode[], triggers: TopologyTriggerNode[], edges: TopologyEdge[]): void {
+function markReachability(agents: TopologyAgentNode[], entries: TopologyEntryNode[], edges: TopologyEdge[]): void {
     const adjacency = new Map<string, string[]>();
     edges.forEach((edge) => {
         if (!adjacency.has(edge.sourceId)) {
@@ -493,7 +493,7 @@ function markReachability(agents: TopologyAgentNode[], triggers: TopologyTrigger
         adjacency.get(edge.sourceId).push(edge.targetId);
     });
     const reached = new Set<string>();
-    const queue = [...triggers.map((trigger) => trigger.id)];
+    const queue = [...entries.map((entry) => entry.id)];
     while (queue.length > 0) {
         const nodeId = queue.shift();
         if (reached.has(nodeId)) {
@@ -507,16 +507,13 @@ function markReachability(agents: TopologyAgentNode[], triggers: TopologyTrigger
     });
 }
 
-function computeLegendKinds(triggers: TopologyTriggerNode[], edges: TopologyEdge[]): LegendKind[] {
+function computeLegendKinds(handlers: TopologyHandler[], edges: TopologyEdge[]): LegendKind[] {
     const kinds: LegendKind[] = [];
-    if (triggers.length > 0) {
+    if (handlers.length > 0) {
         kinds.push("trigger");
     }
     if (edges.some((link) => link.kind === "delegation")) {
         kinds.push("delegation");
-    }
-    if (triggers.some((trigger) => trigger.logic.length > 0)) {
-        kinds.push("logic");
     }
     return kinds;
 }
@@ -525,24 +522,28 @@ export function buildTopology(input: TopologyInput): TopologyGraph {
     const { model, agents } = input;
     const { nodes: agentNodes, uuidToNodeId } = buildAgentNodes(model, agents);
 
-    const handlers = buildServiceHandlers(model, uuidToNodeId);
-    const automation = buildAutomationHandler(model, uuidToNodeId);
+    const services = buildServiceEntries(model, uuidToNodeId);
+    const entries = [...services.entries];
+    const built = [...services.handlers];
+    const automation = buildAutomationEntry(model, uuidToNodeId);
     if (automation) {
-        handlers.push(automation);
+        entries.push(automation.entry);
+        built.push(automation.handler);
     }
-    resolveOrderConflicts(handlers);
+    resolveOrderConflicts(built);
 
-    const triggers = handlers.map((handler) => handler.trigger);
+    const handlers = built.map((handler) => handler.node);
     const delegationEdges = buildDelegationEdges(model, uuidToNodeId);
-    const edges = mergeDuplicateEdges([...handlers.flatMap(handlerEdges), ...delegationEdges]);
+    const edges = mergeDuplicateEdges([...built.flatMap(handlerEdges), ...delegationEdges]);
 
-    markReachability(agentNodes, triggers, edges);
+    markReachability(agentNodes, entries, edges);
 
     return {
         agents: agentNodes,
-        triggers,
+        entries,
+        handlers,
         edges,
-        wiredNothing: triggers.length === 0,
-        legendKinds: computeLegendKinds(triggers, edges),
+        wiredNothing: entries.length === 0,
+        legendKinds: computeLegendKinds(handlers, edges),
     };
 }
