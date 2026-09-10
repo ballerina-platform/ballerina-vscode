@@ -21,6 +21,14 @@ import { AbstractModelFactory } from "@projectstorm/react-canvas-core";
 import { NODE_PORT } from "../../resources/constants";
 
 export class NodePortModel extends DefaultPortModel {
+    /**
+     * Y offset (from its owning node's top) that this port's row actually renders at, stamped on
+     * by `buildDiagramData` for GraphQL function/group ports once their layout is known - see
+     * `computeGraphQLPortOffsets` and `getPortAnchorY` in `utils/diagram.ts`. Undefined for every
+     * other port, which keep using `getPortAnchorY`'s static row-index math instead.
+     */
+    rowOffsetY?: number;
+
     constructor(isIn: boolean, name?: string, label?: string);
     constructor(options: DefaultPortModelOptions);
     constructor(options: DefaultPortModelOptions | boolean, name?: string, label?: string) {

@@ -55,7 +55,7 @@ export default function createTests() {
             await artifactWebView.locator(`text="onCanceled"`).waitFor();
 
             const projectExplorer = new ProjectExplorer(page.page);
-            await projectExplorer.findItem([DEFAULT_PROJECT_NAME, `twilio:CallStatusService`]);
+            await projectExplorer.findItem([DEFAULT_PROJECT_NAME, `Twilio Event Integration`]);
 
             await artifactWebView.locator(`text=${listenerName}`).waitFor();
         });
@@ -109,7 +109,7 @@ export default function createTests() {
             console.log('Deleting Twillio integration in test attempt: ', testAttempt);
 
             await getWebview(BI_INTEGRATOR_LABEL, page);
-            await deleteArtifactFromTree([DEFAULT_PROJECT_NAME, `twilio:CallStatusService`]);
+            await deleteArtifactFromTree([DEFAULT_PROJECT_NAME, `Twilio Event Integration`]);
         });
     });
 }

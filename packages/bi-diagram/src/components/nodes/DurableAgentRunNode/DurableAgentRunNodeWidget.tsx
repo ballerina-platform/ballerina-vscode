@@ -24,6 +24,7 @@ import { css } from "@emotion/react";
 import { DiagramEngine, PortWidget } from "@projectstorm/react-diagrams-core";
 import { DurableAgentRunNodeModel } from "./DurableAgentRunNodeModel";
 import {
+    AGENT_BOX_BOTTOM_AFFORDANCE_GAP,
     AGENT_NODE_TOOL_GAP,
     AGENT_NODE_TOOL_SECTION_GAP,
     DRAFT_NODE_BORDER_WIDTH,
@@ -48,13 +49,14 @@ import { Button, Icon, Item, Menu, MenuItem, getAIModuleIcon, DefaultLlmIcon } f
 import { MoreVertIcon } from "../../../resources/icons";
 import { AgentData, FlowNode, ToolData } from "../../../utils/types";
 import NodeIcon from "../../NodeIcon";
+import { ApprovalBadge } from "../AgentWidget/ApprovalBadge";
 import ConnectorIcon from "../../ConnectorIcon";
 import { useDiagramContext } from "../../DiagramContext";
 import { DiagnosticsPopUp } from "../../DiagnosticsPopUp";
 import { nodeHasError } from "../../../utils/node";
 import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
 import { NodeMetadata } from "@wso2/ballerina-core";
-import ReactMarkdown from "react-markdown";
+import { MarkdownWithTooltip } from "../AgentMarkdownTooltip";
 
 export namespace NodeStyles {
     export const Node = styled.div<{ readOnly: boolean }>`
@@ -242,6 +244,8 @@ export namespace NodeStyles {
         height: 100%;
         max-height: calc(100% - 5px);
         padding: 0 4px 4px;
+        -webkit-mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
+        mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
     `;
 
     export const InstructionsPlaceholder = styled(Instructions)`
@@ -249,11 +253,21 @@ export namespace NodeStyles {
         font-style: italic;
     `;
 
+    // Full role/instructions text shown in the hover tooltip, wrapped and scrollable since it
+    // is not subject to the node box's fixed height.
+    export const TooltipMarkdown = styled(MarkdownContent)`
+        max-width: 280px;
+        max-height: 320px;
+        overflow-y: auto;
+        white-space: normal;
+        line-height: 1.5;
+    `;
+
     export const InstructionsRow = styled.div<{ readOnly: boolean }>`
         flex: 1;
         overflow: hidden;
         align-items: flex-start;
-        margin-bottom: 6px;
+        margin-bottom: ${AGENT_BOX_BOTTOM_AFFORDANCE_GAP}px;
         cursor: ${(props: { readOnly: boolean }) => (props.readOnly ? "default" : "pointer")};
         z-index: 2;
     `;
@@ -544,6 +558,15 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
         setMenuPos(null);
     };
 
+    // Whether an activity is gated by a review before the agent may run it. The value arrives as the
+    // declared source text — `true`, or the name of a predicate function — so anything other than
+    // absent or `false` gates it, which is how the chat agent's tool badge reads it too.
+    const isApprovalGated = (item: CapabilityItem) => {
+        const declared = (item.data as any)?.values?.requiresApproval;
+        const value = typeof declared === "string" ? declared.trim() : "";
+        return value !== "" && value !== "false";
+    };
+
     const onCapabilityClick = (item: CapabilityItem) => {
         if (readOnly) {
             return;
@@ -642,12 +665,17 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
     ];
 
     // Row 0 is the model circle on the right (and the first left item, if any).
+    // Must match SizingVisitor.endVisitDurableAgentRun's formula exactly — this is the
+    // viewBox height for the side-connector SVGs, and the box's actual rendered height comes
+    // from viewState.ch (set by that visitor). Any mismatch stretches/offsets the SVG
+    // coordinate space, misaligning the connector lines with the box edge.
     const numberOfRows = Math.max(leftItems.length, rightItems.length + 1);
     const containerHeight =
         NODE_HEIGHT +
         AGENT_NODE_TOOL_SECTION_GAP +
         AGENT_NODE_TOOL_GAP * 2 +
-        (numberOfRows - 1) * (NODE_HEIGHT + AGENT_NODE_TOOL_GAP);
+        (numberOfRows - 1) * (NODE_HEIGHT + AGENT_NODE_TOOL_GAP) +
+        AGENT_BOX_BOTTOM_AFFORDANCE_GAP;
 
     // Vertical offset of a capability row; row 0 aligns with the model circle.
     const rowOffsetY = (row: number) =>
@@ -661,8 +689,11 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
             // rather than as a plain tool function.
             return <Icon name="bi-ai-agent" sx={{ fontSize: "24px" }} />;
         }
+        // The three declared capability kinds are the same things the node palette lists, so they are
+        // drawn through NodeIcon: one source for both the glyph and its colour, which is what keeps a
+        // registered activity, human task or data event reading the same here as in the palette.
         if (item.kind === "activity") {
-            return <Icon name="bi-task" sx={{ fontSize: "24px" }} />;
+            return <NodeIcon type="ACTIVITY_CALL" size={24} />;
         }
         if (item.kind === "humanTask") {
             // The clock badge marks a configured deadline: the task times out and the agent
@@ -670,7 +701,7 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
             const hasDeadline = !!(item.data as any)?.values?.timeout;
             return (
                 <div style={{ position: "relative", display: "flex" }}>
-                    <Icon name="bi-user" sx={{ fontSize: "24px" }} />
+                    <NodeIcon type="HUMAN_TASK" size={24} />
                     {hasDeadline && (
                         <Icon
                             name="bi-clock"
@@ -683,7 +714,7 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
         if (item.kind === "event") {
             // Receiver icon: data arriving from outside. (The clock badge is reserved for
             // capabilities with a configured deadline.)
-            return <Icon name="bi-import" sx={{ fontSize: "24px" }} />;
+            return <NodeIcon type="WAIT_DATA" size={24} />;
         }
         if (item.data.path) {
             return (
@@ -1021,14 +1052,12 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
                     {
                         sanitizedAgent?.role ? (
                             <NodeStyles.Row readOnly={readOnly} onClick={handleOnClick}>
-                                <NodeStyles.Role>
-                                    <ReactMarkdown
-                                        disallowedElements={['script', 'iframe', 'object', 'embed', 'link', 'style']}
-                                        unwrapDisallowed={true}
-                                    >
-                                        {sanitizedAgent?.role}
-                                    </ReactMarkdown>
-                                </NodeStyles.Role>
+                                <MarkdownWithTooltip
+                                    text={sanitizedAgent.role}
+                                    Styled={NodeStyles.Role}
+                                    TooltipStyled={NodeStyles.TooltipMarkdown}
+                                    containerSx={{ display: "block", width: "100%" }}
+                                />
                             </NodeStyles.Row>
                         ) : (
                             <NodeStyles.Row readOnly={readOnly} onClick={handleOnClick}>
@@ -1040,14 +1069,12 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
                     {
                         sanitizedAgent?.instructions ? (
                             <NodeStyles.InstructionsRow readOnly={readOnly} onClick={handleOnClick}>
-                                <NodeStyles.Instructions>
-                                    <ReactMarkdown
-                                        disallowedElements={['script', 'iframe', 'object', 'embed', 'link', 'style']}
-                                        unwrapDisallowed={true}
-                                    >
-                                        {sanitizedAgent?.instructions}
-                                    </ReactMarkdown>
-                                </NodeStyles.Instructions>
+                                <MarkdownWithTooltip
+                                    text={sanitizedAgent.instructions}
+                                    Styled={NodeStyles.Instructions}
+                                    TooltipStyled={NodeStyles.TooltipMarkdown}
+                                    containerSx={{ display: "block", width: "100%", height: "100%" }}
+                                />
                             </NodeStyles.InstructionsRow>
                         ) : (
                             <NodeStyles.InstructionsRow readOnly={readOnly} onClick={handleOnClick}>
@@ -1189,6 +1216,25 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
                             >
                                 <div className="connector-icon">{renderCapabilityIcon(item)}</div>
                             </foreignObject>
+
+                            {/* The same shield the chat agent puts on a gated tool, in the same
+                                bottom-right corner it now uses — which is also the only one free
+                                here, since the remove button owns the top-right. Keyed on the
+                                declared `requiresApproval` rather than the capability kind, because a
+                                registered tool carries it too and used to render as ungated. The
+                                click mirrors the circle underneath, which a tool does not have --
+                                and neither does a read-only canvas, where the handler would be a
+                                no-op the badge still advertised with a pointer cursor. */}
+                            {isApprovalGated(item) && (
+                                <ApprovalBadge
+                                    background={NODE_BG_COLOR}
+                                    onClick={
+                                        readOnly || item.kind === "tool"
+                                            ? undefined
+                                            : () => onCapabilityClick(item)
+                                    }
+                                />
+                            )}
 
                             {!isAgentReference && <g
                                 transform="translate(96, 8)"

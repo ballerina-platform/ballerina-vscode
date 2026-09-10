@@ -18,7 +18,7 @@
     "metadata": {
       "label": "RabbitMQ",
       "description": "The Ballerina interface to provide AMQP Channel related functionality.",
-      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_rabbitmq_3.6.0.png"
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_rabbitmq_3.6.1.png"
     },
     "codedata": {
       "node": "NEW_CONNECTION",
@@ -27,7 +27,7 @@
       "packageName": "rabbitmq",
       "object": "Client",
       "symbol": "init",
-      "version": "3.6.0",
+      "version": "3.6.1",
       "isNew": true
     },
     "returning": false,
@@ -322,7 +322,7 @@
             "typeMembers": [
               {
                 "type": "SecureSocket",
-                "packageInfo": "ballerinax:rabbitmq:3.6.0",
+                "packageInfo": "ballerinax:rabbitmq:3.6.1",
                 "packageName": "rabbitmq",
                 "kind": "RECORD_TYPE",
                 "selected": false
@@ -359,7 +359,7 @@
             "typeMembers": [
               {
                 "type": "Credentials",
-                "packageInfo": "ballerinax:rabbitmq:3.6.0",
+                "packageInfo": "ballerinax:rabbitmq:3.6.1",
                 "packageName": "rabbitmq",
                 "kind": "RECORD_TYPE",
                 "selected": false
@@ -401,7 +401,7 @@
                   "typeMembers": [
                     {
                       "type": "Address",
-                      "packageInfo": "ballerinax:rabbitmq:3.6.0",
+                      "packageInfo": "ballerinax:rabbitmq:3.6.1",
                       "packageName": "rabbitmq",
                       "kind": "RECORD_TYPE",
                       "selected": false

@@ -373,8 +373,8 @@ export function AdvancedConfigurationSection({
                 {hidePackageName
                     ? `Each ${isLibrary ? "library" : "integration"} is generated as a Ballerina package. Specify the organization and version to be assigned.`
                     : createWithinProject
-                        ? `This ${isLibrary ? "library" : "integration"} is generated as a Ballerina package. Specify the package name and version to be assigned.`
-                        : `This ${isLibrary ? "library" : "integration"} is generated as a Ballerina package. Specify the organization, package name and version to be assigned.`}
+                        ? `This will be generated as a Ballerina package. Specify the package name and version.`
+                        : `This will be generated as a Ballerina package. Specify the organization, package name, and version.`}
             </Note>
             {!hidePackageName && (
                 <FieldGroup>
@@ -384,7 +384,7 @@ export function AdvancedConfigurationSection({
                         label="Package Name"
                         errorMsg={packageNameError || undefined}
                     />
-                    <Description>Specify the package name.</Description>
+                    <Description>Provide a name for the package.</Description>
                 </FieldGroup>
             )}
             {!createWithinProject && (
@@ -393,7 +393,7 @@ export function AdvancedConfigurationSection({
                         organizations={organizations}
                         orgName={data.orgName}
                         orgNameError={orgNameError}
-                        description="The organization that owns this package."
+                        description="Provide the name of the organization that owns this package."
                         isSigningIn={isSigningIn}
                         canSignIn={canSignIn}
                         onOrgChange={(value) => onChange({ orgName: value })}
@@ -409,7 +409,7 @@ export function AdvancedConfigurationSection({
                     label="Package Version"
                     placeholder="0.1.0"
                 />
-                <Description>Version of the package.</Description>
+                <Description>Provide a version for the package.</Description>
             </FieldGroup>
         </CollapsibleSection>
     );

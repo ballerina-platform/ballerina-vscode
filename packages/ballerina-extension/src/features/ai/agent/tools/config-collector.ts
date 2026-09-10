@@ -33,6 +33,9 @@ import {
     renameConfigKeys,
     isPlaceholderValue,
     computeCollectStatus,
+    stripTypeDecorations,
+    isArrayType,
+    arrayElementType,
 } from "../../../../utils/toml-utils";
 import { ManagedConnectionGroup } from "@wso2/ballerina-core/lib/state-machine-types";
 import { RecoverableAgentError, resolveContained, resolvePackageBasePath } from "./path-utils";
@@ -688,8 +691,48 @@ async function handleCollectMode(
         );
     }
 
+    // int:Signed8/16/32/64 and int:Unsigned8/16/32 compile but fail as configurables at runtime.
+    const UNSUPPORTED_INT_SUBTYPE = /^int:(Un)?signed(8|16|32|64)$/i;
+    const unsupportedTypeVars = variables.filter(v => {
+        const type = stripTypeDecorations(sourceTypes[v.name]);
+        return UNSUPPORTED_INT_SUBTYPE.test(isArrayType(type) ? arrayElementType(type) : type);
+    });
+    if (unsupportedTypeVars.length > 0) {
+        return createErrorResult(
+            "UNSUPPORTED_CONFIGURABLE_TYPE",
+            `${unsupportedTypeVars.map(v => `'${v.name}' (${sourceTypes[v.name]})`).join(", ")} ` +
+            `${unsupportedTypeVars.length > 1 ? "declare" : "declares"} a langlib-qualified int subtype, which Ballerina does not support for ` +
+            `configurable variables. Widen the declaration to 'int' (casting when calling the client), save, then retry.`
+        );
+    }
+
+    // Arrays are only collected as a flat, comma-separated list of scalars — an array of any other
+    // element type (record, map, json, ...) would silently be written as an array of strings instead
+    // of the shape Ballerina's config loader actually expects, and fail later with no clear cause.
+    const SUPPORTED_ARRAY_ELEMENT_TYPES = new Set(["string", "int", "byte", "decimal", "float", "boolean"]);
+    const unsupportedArrayVars = variables.filter(v => {
+        const type = stripTypeDecorations(sourceTypes[v.name]);
+        return isArrayType(type) && !SUPPORTED_ARRAY_ELEMENT_TYPES.has(arrayElementType(type));
+    });
+    if (unsupportedArrayVars.length > 0) {
+        return createErrorResult(
+            "UNSUPPORTED_CONFIGURABLE_TYPE",
+            `${unsupportedArrayVars.map(v => `'${v.name}' (${sourceTypes[v.name]})`).join(", ")} ` +
+            `${unsupportedArrayVars.length > 1 ? "declare" : "declares"} an array of a type this tool cannot collect as a scalar list ` +
+            `(only string[], int[], byte[], decimal[]/float[], and boolean[] are supported). Widen or restructure the configurable, save, then retry.`
+        );
+    }
+
     // Enrich variables with LS-derived types so the writer uses the correct type.
     const enrichedVariables: ConfigVariable[] = variables.map(v => ({ ...v, type: sourceTypes[v.name] }));
+
+    // All configurables in source, so the writer's repair pass knows the type of a key already on
+    // disk that this round didn't resubmit.
+    const allSourceVariables: ConfigVariable[] = Object.entries(sourceTypes).map(([name, type]) => ({
+        name,
+        description: "",
+        type,
+    }));
 
     // Determine paths based on isTestConfig flag
     const configPath = getConfigPath(packageBasePath, isTestConfig);
@@ -772,7 +815,7 @@ async function handleCollectMode(
     const preservedCount = notProvided.length - skippedNew.length;
     console.log(`[ConfigCollector] collect saved=${providedCount} skippedNew=${skippedNew.length} preserved=${preservedCount} requested=${enrichedVariables.length} file=${configFileName}`);
 
-    writeConfigValuesToConfig(configPath, provided, enrichedVariables, orgName, packageName);
+    writeConfigValuesToConfig(configPath, provided, [...enrichedVariables, ...allSourceVariables], orgName, packageName);
 
     // Track modified file for syncing to workspace.
     // Path is relative to tempProjectPath, so prefix with packagePath for workspace projects.

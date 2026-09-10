@@ -32,7 +32,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
 
 /**
@@ -74,7 +73,6 @@ public final class CommonRuleValidators {
         validators.put("common.validate.required", (node, args, ctx) -> required(node));
         validators.put("common.validate.non.empty", (node, args, ctx) -> nonEmpty(node));
         validators.put("common.validate.identifier", (node, args, ctx) -> identifier(node));
-        validators.put("common.validate.regex", (node, args, ctx) -> regex(node, args));
         validators.put("common.validate.number.range", (node, args, ctx) -> numberRange(node, args));
         validators.put("common.validate.port", (node, args, ctx) -> port(node, args));
         validators.put("common.validate.min.length", (node, args, ctx) -> minLength(node, args));
@@ -129,33 +127,6 @@ public final class CommonRuleValidators {
             return Optional.of(failure);
         }
         return Optional.empty();
-    }
-
-    private static Optional<String> regex(Value node, Map<String, Object> args) {
-        Optional<String> pattern = stringArg(args, "pattern");
-        if (pattern.isEmpty()) {
-            return Optional.empty();
-        }
-        Pattern compiled;
-        try {
-            compiled = Pattern.compile(pattern.get());
-        } catch (PatternSyntaxException e) {
-            // An unparseable pattern is an authoring error, never a user error — skip the rule.
-            return Optional.empty();
-        }
-        String failure = "{label} has an invalid format";
-        // Multi-value fields are checked per item — the comma-joined form would be meaningless.
-        List<String> items = multiValues(node);
-        if (items != null) {
-            return items.stream().anyMatch(item -> !compiled.matcher(item == null ? "" : item).matches())
-                    ? Optional.of(failure)
-                    : Optional.empty();
-        }
-        String raw = text(node);
-        if (raw.isEmpty()) {
-            return Optional.empty();
-        }
-        return compiled.matcher(raw).matches() ? Optional.empty() : Optional.of(failure);
     }
 
     private static Optional<String> numberRange(Value node, Map<String, Object> args) {

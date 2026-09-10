@@ -20,6 +20,7 @@ import React, { ChangeEvent } from "react";
 import { Dropdown } from "@wso2/ui-toolkit";
 import { FormField } from "../../../Form/types";
 import { OptionProps } from "@wso2/ballerina-core";
+import { useDefaultUntilEmptied } from "../useDefaultUntilEmptied";
 
 interface BooleanEditorProps {
     value: string;
@@ -47,35 +48,53 @@ const dropdownItems: OptionProps[] = [
     }
 ]
 
-const parseBoolean = (value: unknown): boolean => {
-    if (typeof value === 'boolean') return value;
+/**
+ * The boolean the given value stands for, as the value of the entry standing for it, or undefined when it
+ * stands for neither. Something which is not a boolean at all is not reported as one, so that a value the
+ * dropdown cannot express is told apart from one it can.
+ */
+const toBooleanValue = (value: unknown): string | undefined => {
+    if (typeof value === 'boolean') return String(value);
     if (typeof value === 'string') {
         const v = value.trim().toLowerCase();
-        if (v === 'true') return true;
-        if (v === 'false') return false;
+        if (v === 'true' || v === 'false') return v;
     }
-    return false;
+    return undefined;
 };
 
 export const BooleanEditor: React.FC<BooleanEditorProps> = ({ value, onChange, field }) => {
 
+    // Picking either entry ends the emptied state, `false` among them, hence the entry the value stands for
+    // is what is asked about rather than the value being taken as truthy.
+    const [emptiedByUser, reportEmptied] = useDefaultUntilEmptied(toBooleanValue(value) !== undefined);
+
     const handleChange = (e: ChangeEvent<HTMLSelectElement>) => {
-        let value = e.target.value;
+        const value = e.target.value;
         if (value === DEFAULT_NONE_SELECTED_VALUE) {
+            reportEmptied();
             onChange("", 0);
-        } else {
-            const bool = parseBoolean(value);
-            onChange(String(bool), String(bool).length);
+            return;
         }
+        // The entries are the only source of what can be picked, and the one standing for the empty
+        // selection is answered above, hence what is left is the boolean an entry stands for.
+        onChange(value, value.length);
     }
 
     const getValidatedValue = (): string => {
-        if (typeof value === 'boolean') return String(value);
-        if (value === undefined || value === "") return DEFAULT_NONE_SELECTED_VALUE;
-        if (typeof value === 'string') {
-            const v = value.trim().toLowerCase();
-            if (v === 'true' || v === 'false') return v;
+        const selected = toBooleanValue(value);
+        if (selected !== undefined) {
+            return selected;
         }
+        // An empty field applies the declared default of the parameter, which the documentation of the field
+        // states, hence the entry standing for that default is the one presented as the current selection,
+        // until the field is emptied on purpose. A default is not always declared, and one written as an
+        // expression rather than a boolean literal stands for neither entry, which both leave the empty
+        // selection presented.
+        if (value === undefined || value === null || value === "") {
+            return emptiedByUser ? DEFAULT_NONE_SELECTED_VALUE
+                : toBooleanValue(field.defaultValue) ?? DEFAULT_NONE_SELECTED_VALUE;
+        }
+        // A value that is neither boolean (e.g. pro code written by hand) is not a selection of either entry
         return DEFAULT_NONE_SELECTED_VALUE;
     }
 

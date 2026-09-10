@@ -22,6 +22,33 @@ export interface GetFunctionsRequest {
     clients: MinifiedClient[];
     functions?: MinifiedRemoteFunction[];
     services?: MinifiedService[];
+    classes?: MinifiedClassTypeDef[];
+    annotations?: MinifiedAnnotation[];
+}
+
+/**
+ * One class or object type as the request states it.
+ *
+ * Without these the selection model never saw a library's class members, so a query about one matched
+ * nothing and the library was dropped whole. Shaped like {@link MinifiedClient}: structurally the same
+ * thing, and the difference (a client is invoked with `->`) is not one this model reasons about.
+ */
+export interface MinifiedClassTypeDef {
+    name: string;
+    description?: string;
+    functions: (MinifiedRemoteFunction | MinifiedResourceFunction)[];
+}
+
+/**
+ * One annotation as the request states it.
+ *
+ * Evidence only — annotations have no response field, because the library keeps all of them either way.
+ * Sending them lets a library be *matched* on one rather than depending on a function mentioning it.
+ */
+export interface MinifiedAnnotation {
+    name: string;
+    attachmentPoint: string;
+    description?: string;
 }
 
 export interface MinifiedClient {
@@ -125,11 +152,24 @@ export interface GetFunctionResponse {
     clients?: MinifiedClient[];
     functions?: MinifiedRemoteFunction[];
     services?: SelectedService[];
+    /**
+     * The classes the model judged relevant, by name only.
+     *
+     * Names, not member selections: a class already reaches the catalog whole when a selected function
+     * names it, so a member-level selection could only narrow what renders today. This field exists for
+     * the opposite case — pulling in a class nothing references.
+     */
+    classes?: (string | { name: string })[];
 }
 
 export interface PathParameter {
     name: string;
     type: string;
+}
+
+/** The response's class entries as plain names, whichever of the two accepted shapes the model used. */
+export function toSelectedClassNames(classes: GetFunctionResponse["classes"]): string[] {
+    return (classes ?? []).map((entry) => (typeof entry === "string" ? entry : entry?.name)).filter(Boolean) as string[];
 }
 
 const pathItemSchema = z.union([
@@ -173,6 +213,9 @@ const libraryResponseSchema = z.object({
     clients: z.array(clientSchema).optional(),
     functions: z.array(remoteFunctionSchema).optional(),
     services: z.array(selectedServiceSchema).optional(),
+    // Tolerant of the object form, because every sibling field here is an object and the model reaches for
+    // it by habit. A schema violation is total: `generateObject` throws and the agent is handed `[]`.
+    classes: z.array(z.union([z.string(), z.object({ name: z.string() })])).optional(),
 });
 
 export const getFunctionsResponseSchema = z.object({

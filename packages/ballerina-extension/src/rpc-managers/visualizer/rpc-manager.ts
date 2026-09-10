@@ -78,7 +78,7 @@ export class VisualizerRpcManager implements VisualizerAPI {
     goBack(params: GoBackRequest): void {
         const wasReviewMode = StateMachine.context().view === MACHINE_VIEW.ReviewMode;
         history.pop();
-        updateView(false, params?.identifier);
+        updateView(false, params?.identifier, { userInitiated: true });
         if (wasReviewMode) {
             approvalViewManager.notifyReviewModeClosed();
         }
@@ -111,12 +111,12 @@ export class VisualizerRpcManager implements VisualizerAPI {
 
     goSelected(index: number): void {
         history.select(index);
-        updateView();
+        updateView(false, undefined, { userInitiated: true });
     }
 
     addToHistory(entry: HistoryEntry): void {
         history.push(entry);
-        updateView();
+        updateView(false, undefined, { userInitiated: true });
     }
 
     private async refreshDataMapperView(): Promise<void> {

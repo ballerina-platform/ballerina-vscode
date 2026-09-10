@@ -260,11 +260,11 @@ namespace S {
         margin-top: 20px;
     `;
 
-    export const AdvancedSubcategoryContainer = styled.div`
+    export const AdvancedSubcategoryContainer = styled.div<{ isLast?: boolean }>`
         display: flex;
         flex-direction: column;
         width: 100%;
-        margin-top: 8px;
+        ${({ isLast }) => isLast && "padding-bottom: 6px;"}
     `;
 
     export const AdvancedSubcategoryHeader = styled.div`
@@ -272,8 +272,8 @@ namespace S {
         flex-direction: row;
         justify-content: space-between;
         align-items: center;
-        width: 100%;
         padding: 4px 12px;
+        margin: 0 -12px;
         border-radius: 5px;
         cursor: pointer;
         transition: all 0.2s ease;
@@ -290,10 +290,10 @@ namespace S {
     `;
 
 
-    export const AdvancedSubTitle = styled.div`
+    export const AdvancedSubTitle = styled.div<{ muted?: boolean }>`
         font-size: 12px;
-        opacity: 0.7;
-        color: ${ThemeColors.ON_SURFACE_VARIANT};
+        opacity: ${(props) => (props.muted ? 0.7 : 0.9)};
+        color: ${(props) => (props.muted ? ThemeColors.ON_SURFACE_VARIANT : "inherit")};
         transition: all 0.2s ease;
     `;
 
@@ -327,6 +327,7 @@ namespace S {
     `;
 
     export const CategoryCard = styled.div<{ hasBackground?: boolean }>`
+        align-self: stretch;
         background-color: ${({ hasBackground }) => hasBackground ? `rgba(255, 255, 255, 0.02)` : 'transparent'};
         border-radius: 5px;
         padding: ${({ hasBackground }) => hasBackground ? '0 12px' : '0'};
@@ -359,7 +360,7 @@ namespace S {
 
 // Subcategories rendered as chevron-collapsible sections that start collapsed,
 // in addition to the generic "More" section.
-const COLLAPSED_SUBCATEGORIES = ["Workflow Functions"];
+const COLLAPSED_SUBCATEGORIES = ["Child Workflows"];
 
 interface NodeListProps {
     categories: Category[];
@@ -652,49 +653,48 @@ export function NodeList(props: NodeListProps) {
         const safeItems = items.filter((item) => item != null);
         const nodes = safeItems.filter((item): item is Node => "id" in item && !("title" in item));
         const subcategories = safeItems.filter((item): item is Category => "title" in item && "items" in item);
+        const visibleNodes = nodes.filter((node) => !(["NP_FUNCTION"].includes(node.id) && !isNPSupported));
 
         return (
             <>
-                <S.Grid columns={2}>
-                    {nodes.map((node, index) => {
-                        if (["NP_FUNCTION"].includes(node.id) && !isNPSupported) {
-                            return;
-                        }
-
-                        return (
-                            <Tooltip
-                                key={node.id + index}
-                                content={renderTooltipContent(node.description)}
-                                position="bottom"
-                                offset={{top: 16, left: 20}}
-                                sx={{
-                                    maxWidth: "280px",
-                                    whiteSpace: "normal",
-                                    wordWrap: "break-word",
-                                    overflowWrap: "break-word"
-                                }}
-                            >
-                                <S.Component
-                                    enabled={node.enabled}
-                                    onClick={() => handleAddNode(node, parentCategoryTitle)}
+                {visibleNodes.length > 0 && (
+                    <S.Grid columns={2}>
+                        {visibleNodes.map((node, index) => {
+                            return (
+                                <Tooltip
+                                    key={node.id + index}
+                                    content={renderTooltipContent(node.description)}
+                                    position="bottom"
+                                    offset={{top: 16, left: 20}}
+                                    sx={{
+                                        maxWidth: "280px",
+                                        whiteSpace: "normal",
+                                        wordWrap: "break-word",
+                                        overflowWrap: "break-word"
+                                    }}
                                 >
-                                    <S.IconContainer>{node.icon || <LogIcon />}</S.IconContainer>
-                                    <S.ComponentTitle
-                                        ref={(el) => {
-                                            if (el && el.scrollWidth > el.clientWidth) {
-                                                el.style.fontSize = "13px";
-                                                el.style.wordBreak = "break-word";
-                                                el.style.whiteSpace = "nowrap";
-                                            }
-                                        }}
+                                    <S.Component
+                                        enabled={node.enabled}
+                                        onClick={() => handleAddNode(node, parentCategoryTitle)}
                                     >
-                                        {node.label}
-                                    </S.ComponentTitle>
-                                </S.Component>
-                            </Tooltip>
-                        );
-                    })}
-                </S.Grid>
+                                        <S.IconContainer>{node.icon || <LogIcon />}</S.IconContainer>
+                                        <S.ComponentTitle
+                                            ref={(el) => {
+                                                if (el && el.scrollWidth > el.clientWidth) {
+                                                    el.style.fontSize = "13px";
+                                                    el.style.wordBreak = "break-word";
+                                                    el.style.whiteSpace = "nowrap";
+                                                }
+                                            }}
+                                        >
+                                            {node.label}
+                                        </S.ComponentTitle>
+                                    </S.Component>
+                                </Tooltip>
+                            );
+                        })}
+                    </S.Grid>
+                )}
                 {subcategories.map((subcategory, index) => {
                     // Chevron-collapsible subcategories that start collapsed: the generic
                     // "More" section and advanced groups like the workflow context functions.
@@ -706,11 +706,12 @@ export function NodeList(props: NodeListProps) {
                         const isExpanded = searchText?.length > 0
                             ? !searchCollapsedMoreSections[sectionKey]
                             : expandedMoreSections[sectionKey];
+                        const isLastSubcategory = index === subcategories.length - 1;
 
                         return (
-                            <S.AdvancedSubcategoryContainer key={subcategory.title + index}>
+                            <S.AdvancedSubcategoryContainer key={subcategory.title + index} isLast={isLastSubcategory}>
                                 <S.AdvancedSubcategoryHeader onClick={() => toggleMoreSection(sectionKey)}>
-                                    <S.AdvancedSubTitle>{subcategory.title}</S.AdvancedSubTitle>
+                                    <S.AdvancedSubTitle muted={subcategory.title === "More"}>{subcategory.title}</S.AdvancedSubTitle>
                                     <Button
                                         appearance="icon"
                                         sx={{
@@ -924,9 +925,9 @@ export function NodeList(props: NodeListProps) {
                                                         || action.emptyStateLabel || addButtonLabel || "Add";
                                                     
                                                     return (
-                                                        <S.HighlightedButton 
+                                                        <S.HighlightedButton
                                                             key={`empty-${group.title}-${actionIndex}`}
-                                                            style={{padding: '5px 10px', width: isSubCategory ? '160px' : '100%'}}
+                                                            style={{padding: '5px 10px', width: '100%'}}
                                                             onClick={handler}
                                                         >
                                                             <Codicon name={action?.codeIcon || "add"} iconSx={{ fontSize: 12 }} />
@@ -942,14 +943,18 @@ export function NodeList(props: NodeListProps) {
                                                     shouldUseConnectionContainer(normalizedGroupTitle) &&
                                                     group.items.filter((item) => item != null).every((item) => !("id" in item))
                                                         ? getConnectionContainer(group.items as Category[], normalizedGroupTitle === "Agent")
-                                                        : // 2. ALL items are categories: nested category container
-                                                        group.items.filter((item) => item != null).every((item) => !("id" in item))
+                                                        : // 2. If ALL items don't have id (all are categories) and none need
+                                                        // chevron-collapsible treatment, use getCategoryContainer
+                                                        group.items.filter((item) => item != null).every((item) => !("id" in item)) &&
+                                                        !(group.items as Category[]).some(
+                                                            (item) => item && (item.title === "More" || COLLAPSED_SUBCATEGORIES.includes(item.title))
+                                                        )
                                                         ? getCategoryContainer(
                                                               group.items as Category[],
                                                               true,
                                                               !isSubCategory ? group.title : parentCategoryTitle
                                                           )
-                                                        : // 3. Otherwise (has items with id or mixed): node container
+                                                        : // 3. Otherwise (has items with id, mixed or collapsible subcategories): node container
                                                           getNodesContainer(
                                                               group.items as (Node | Category)[],
                                                               !isSubCategory ? group.title : parentCategoryTitle
@@ -1108,7 +1113,7 @@ export function NodeList(props: NodeListProps) {
                     {callFunctionNode && !searchText && (
                         <S.AdvancedSubcategoryContainer key={"showMoreFunctions"} style={{ marginBottom: "12px" }}>
                             <S.AdvancedSubcategoryHeader onClick={() => handleAddNode(callFunctionNode as Node)}>
-                                <S.AdvancedSubTitle>Show More Functions</S.AdvancedSubTitle>
+                                <S.AdvancedSubTitle muted>Show More Functions</S.AdvancedSubTitle>
                                 <Button
                                     appearance="icon"
                                     sx={{

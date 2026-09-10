@@ -413,7 +413,7 @@ public class FTPListenerUtil {
 
     /**
      * Builds a read-only CHOICE (radio button) Value for displaying the authentication
-     * configuration of an existing listener, mirroring the structure in trigger-models/ftp.json.
+     * configuration of an existing listener, mirroring ftp's generated trigger-ui-schema auth CHOICE structure.
      *
      * <p>Parses the auth mapping constructor to determine which auth type is used
      * (No Auth / Basic / Certificate) and populates the selected choice's properties
@@ -476,7 +476,7 @@ public class FTPListenerUtil {
         boolean isBasicAuth = hasCredentials && !hasPrivateKey;
         boolean isNoAuth = !isBasicAuth && !isCertAuth;
 
-        // Build choices mirroring trigger-models/ftp.json's auth CHOICE structure
+        // Build choices mirroring ftp's generated trigger-ui-schema auth CHOICE structure
         List<Value> choices = new ArrayList<>();
 
         // No Authentication
@@ -627,7 +627,7 @@ public class FTPListenerUtil {
 
     /**
      * Builds a read-only secure socket Value for displaying the secureSocket configuration
-     * of an existing FTPS listener, mirroring the structure in trigger-models/ftp.json.
+     * of an existing FTPS listener, mirroring ftp's generated trigger-ui-schema auth CHOICE structure.
      */
     static Value buildReadOnlySecureSocketValue(ExpressionNode expression) {
         return buildReadOnlyRecordValue("Secure Socket (SecureSocket)",

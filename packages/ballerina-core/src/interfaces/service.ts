@@ -18,12 +18,14 @@
 
 import { DiagnosticMessage, Imports, PropertyTypeMemberInfo, InputType } from "./bi";
 import { LineRange } from "./common";
+import type { IconDescriptor } from "./extended-lang-client";
 
 
 export type ListenerModel = {
     id: number;
     name: string;
     type: string;
+    triggerKind?: string;
     displayName: string;
     documentation: string;
     moduleName: string;
@@ -31,7 +33,7 @@ export type ListenerModel = {
     version: string;
     packageName: string;
     listenerProtocol: string;
-    icon: string;
+    icon: IconDescriptor | string;
     properties?: ConfigProperties;
 };
 
@@ -46,6 +48,7 @@ export interface ServiceModel {
     id: number;
     name: string;
     type: string;
+    triggerKind?: string;
     displayName?: string;
     documentation?: string;
     moduleName: string;
@@ -53,7 +56,7 @@ export interface ServiceModel {
     version: string;
     packageName: string;
     listenerProtocol: string;
-    icon: string;
+    icon: IconDescriptor | string;
     properties?: ConfigProperties;
     functions?: FunctionModel[];
     schemaFunctions?: FunctionModel[];
@@ -378,4 +381,3 @@ export interface ServiceInitModel {
     properties: { [key: string]: PropertyModel };
     isLocalRepository?: boolean;
 }
-

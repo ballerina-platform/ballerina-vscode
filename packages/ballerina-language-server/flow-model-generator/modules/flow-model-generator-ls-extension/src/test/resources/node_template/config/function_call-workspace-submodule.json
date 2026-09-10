@@ -71,11 +71,11 @@
             "fieldType": "SINGLE_SELECT",
             "options": [
               {
-                "label": "friendly",
+                "label": "FRIENDLY",
                 "value": "\"friendly\""
               },
               {
-                "label": "formal",
+                "label": "FORMAL",
                 "value": "\"formal\""
               }
             ],
@@ -87,7 +87,7 @@
             "selected": false
           }
         ],
-        "placeholder": "\"formal\"",
+        "placeholder": "\"friendly\"",
         "optional": true,
         "editable": true,
         "advanced": false,

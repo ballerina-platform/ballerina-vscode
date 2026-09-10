@@ -152,6 +152,16 @@ export function resolveSingleIntegrationOverride(
         : undefined;
 }
 
+const DISRUPTIVE_TRANSITION_EVENTS = new Set(["VIEW_UPDATE", "UPDATE_PROJECT_STRUCTURE"]);
+
+// The agent's live edits replay VIEW_UPDATE on every write; navigation the user asked for is never withheld.
+export function shouldSuppressDisruptiveTransition(
+    event: { type: string; userInitiated?: boolean },
+    generationActive: boolean
+): boolean {
+    return generationActive && DISRUPTIVE_TRANSITION_EVENTS.has(event.type) && !event.userInitiated;
+}
+
 export async function getView(documentUri: string, position: NodePosition, projectPath: string): Promise<HistoryEntry> {
     const haveTreeData = !!StateMachine.context().projectStructure;
     const classMemberArtifactType = await getClassMemberArtifactType(documentUri, position, projectPath);
@@ -403,6 +413,11 @@ function getViewByArtifacts(documentUri: string, position: NodePosition, project
     if (currentProjectArtifacts) {
         // Iterate through each category in the directory map
         const project = currentProjectArtifacts.projects.find(project => isSamePath(project.projectPath, projectPath));
+        if (!project) {
+            // The project structure can be mid-rebuild (e.g. a live Copilot generation editing
+            // files) when this runs; fall back to the overview rather than dereference undefined.
+            return { location: { view: MACHINE_VIEW.PackageOverview, documentUri: documentUri } };
+        }
         for (const [key, directory] of Object.entries(project.directoryMap)) {
             // Check each artifact in the category
             for (const dir of directory) {
@@ -463,18 +478,15 @@ function findViewByArtifact(
                             artifactType: DIRECTORY_MAP.SERVICE
                         }
                     };
-                } else if (dir.moduleName === "ai") {
-                    return {
-                        location: {
-                            view: MACHINE_VIEW.BIDiagram,
-                            identifier: dir.name,
-                            documentUri: currentDocumentUri,
-                            position: position,
-                            projectPath: projectPath,
-                            artifactType: DIRECTORY_MAP.SERVICE,
-                        }
-                    };
                 } else {
+                    // `ai` (chat agent) services used to force MACHINE_VIEW.BIDiagram here so that
+                    // clicking the service always landed straight on the chat flow. That's no
+                    // longer needed: a click on the `chat` or `decision` resource itself already
+                    // resolves to BIDiagram via the DIRECTORY_MAP.RESOURCE case below (matched
+                    // against `dir.resources` before this parent entry is even checked). This
+                    // branch is only reached for a click on the service's own declaration — the
+                    // component diagram's outer-box click for a HITL-wired agent — which should
+                    // land on the same resource listing every other service type gets.
                     return {
                         location: {
                             view: MACHINE_VIEW.ServiceDesigner,

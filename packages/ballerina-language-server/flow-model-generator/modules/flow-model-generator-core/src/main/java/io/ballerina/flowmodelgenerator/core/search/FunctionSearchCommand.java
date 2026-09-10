@@ -27,10 +27,9 @@ import io.ballerina.flowmodelgenerator.core.model.Metadata;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.utils.CentralSearchUtil;
 import io.ballerina.modelgenerator.commons.CommonUtils;
-import io.ballerina.modelgenerator.commons.PackageUtil;
+import io.ballerina.modelgenerator.commons.ModuleCoordinate;
 import io.ballerina.modelgenerator.commons.SearchResult;
 import io.ballerina.projects.Document;
-import io.ballerina.projects.Package;
 import io.ballerina.projects.Project;
 import io.ballerina.tools.text.LineRange;
 
@@ -39,6 +38,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Represents a command to search for functions available to a module. This class extends SearchCommand and provides
@@ -68,13 +68,14 @@ class FunctionSearchCommand extends SearchCommand {
             "time", List.of("utcNow", "utcFromString"),
             "io", List.of("print", "println", "fileWriteString", "fileWriteJson", "fileReadString", "fileReadJson")
     );
+    private static final String POPULAR_FUNCTIONS_ORG = "ballerina";
     private static final String FETCH_KEY = "functions";
     private static final Set<String> ALLOWED_ORGANIZATIONS = Set.of("ballerina", "ballerinax", "wso2");
     private static final String STANDARD_LIBRARY_ORG = "ballerina";
     private static final String EXTENDED_LIBRARY_ORG = "ballerinax";
     // Organizations whose functions can be loaded page-by-page as an independent library section.
     private static final Set<String> PAGINATED_SECTION_ORGS = Set.of(STANDARD_LIBRARY_ORG, EXTENDED_LIBRARY_ORG);
-    private final List<String> moduleNames;
+    private final Set<ModuleCoordinate> importedModules;
     private final Document functionsDoc;
     // When set (to "ballerina" or "ballerinax"), the request loads the next page of that single library section
     // instead of the full view. Used by the per-section "Show more" pagination.
@@ -83,13 +84,7 @@ class FunctionSearchCommand extends SearchCommand {
     public FunctionSearchCommand(Project project, LineRange position, Map<String, String> queryMap,
                                  Document functionsDoc) {
         super(project, position, queryMap);
-
-        // Obtain the imported module names
-        Package currentPackage = project.currentPackage();
-        PackageUtil.getCompilation(currentPackage);
-        moduleNames = currentPackage.getDefaultModule().moduleDependencies().stream()
-                .map(moduleDependency -> moduleDependency.descriptor().name().packageName().value())
-                .toList();
+        this.importedModules = ImportedModules.collect(project);
         this.functionsDoc = functionsDoc;
         String requestedSectionOrg = queryMap != null ? queryMap.getOrDefault("orgName", "") : "";
         this.sectionOrg = PAGINATED_SECTION_ORGS.contains(requestedSectionOrg) ? requestedSectionOrg : "";
@@ -111,9 +106,9 @@ class FunctionSearchCommand extends SearchCommand {
         if (offset == 0) {
             WorkspaceFunctionNodeBuilder.buildSubmoduleWorkspaceNodes(
                     rootBuilder, project, position, query, functionsDoc);
-            if (!moduleNames.isEmpty()) {
+            if (!importedModules.isEmpty()) {
                 searchResults.addAll(
-                        dbManager.searchFunctionsByPackages(moduleNames, List.of(), Integer.MAX_VALUE, 0));
+                        dbManager.searchFunctionsByPackages(importedModules, List.of(), Integer.MAX_VALUE, 0));
             }
         }
 
@@ -177,11 +172,13 @@ class FunctionSearchCommand extends SearchCommand {
 
     @Override
     protected Map<String, List<SearchResult>> fetchPopularItems() {
-        List<String> packageNames = new ArrayList<>(POPULAR_BALLERINA_FUNCTIONS.keySet());
+        Set<ModuleCoordinate> popularModules = POPULAR_BALLERINA_FUNCTIONS.keySet().stream()
+                .map(moduleName -> new ModuleCoordinate(POPULAR_FUNCTIONS_ORG, moduleName))
+                .collect(Collectors.toSet());
         List<String> functionNames = POPULAR_BALLERINA_FUNCTIONS.values().stream()
                 .flatMap(List::stream)
                 .toList();
-        return Map.of(FETCH_KEY, dbManager.searchFunctionsByPackages(packageNames, functionNames, limit, offset));
+        return Map.of(FETCH_KEY, dbManager.searchFunctionsByPackages(popularModules, functionNames, limit, offset));
     }
 
     /**
@@ -241,7 +238,7 @@ class FunctionSearchCommand extends SearchCommand {
                     .version(packageInfo.version())
                     .build();
             Category.Builder builder;
-            if (moduleNames.contains(packageInfo.moduleName())) {
+            if (importedModules.contains(packageInfo.coordinate())) {
                 builder = importedFnBuilder;
             } else if (!categorizeByOrganization || STANDARD_LIBRARY_ORG.equals(packageInfo.org())) {
                 builder = standardLibBuilder;

@@ -11,7 +11,7 @@
       "metadata": {
         "label": "gRPC",
         "description": "The base client used in the generated client code to provide the capability for initiating the contact and executing remote calls with a remote gRPC service.",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_grpc_1.14.2.png"
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_grpc_1.15.1.png"
       },
       "codedata": {
         "node": "NEW_CONNECTION",
@@ -88,7 +88,7 @@
             "kind": "INCLUDED_FIELD",
             "originalName": "timeout"
           },
-          "defaultValue": "60"
+          "defaultValue": "0.0d"
         },
         "poolConfig": {
           "metadata": {
@@ -102,7 +102,7 @@
               "typeMembers": [
                 {
                   "type": "PoolConfiguration",
-                  "packageInfo": "ballerina:grpc:1.14.2",
+                  "packageInfo": "ballerina:grpc:1.15.1",
                   "packageName": "grpc",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -139,7 +139,7 @@
               "typeMembers": [
                 {
                   "type": "ClientSecureSocket",
-                  "packageInfo": "ballerina:grpc:1.14.2",
+                  "packageInfo": "ballerina:grpc:1.15.1",
                   "packageName": "grpc",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -203,7 +203,7 @@
             "kind": "INCLUDED_FIELD",
             "originalName": "compression"
           },
-          "defaultValue": "COMPRESSION_AUTO"
+          "defaultValue": "\"AUTO\""
         },
         "retryConfiguration": {
           "metadata": {
@@ -217,7 +217,7 @@
               "typeMembers": [
                 {
                   "type": "RetryConfiguration",
-                  "packageInfo": "ballerina:grpc:1.14.2",
+                  "packageInfo": "ballerina:grpc:1.15.1",
                   "packageName": "grpc",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -254,49 +254,49 @@
               "typeMembers": [
                 {
                   "type": "CredentialsConfig",
-                  "packageInfo": "ballerina:grpc:1.14.2",
+                  "packageInfo": "ballerina:grpc:1.15.1",
                   "packageName": "grpc",
                   "kind": "RECORD_TYPE",
                   "selected": false
                 },
                 {
                   "type": "BearerTokenConfig",
-                  "packageInfo": "ballerina:grpc:1.14.2",
+                  "packageInfo": "ballerina:grpc:1.15.1",
                   "packageName": "grpc",
                   "kind": "RECORD_TYPE",
                   "selected": false
                 },
                 {
                   "type": "JwtIssuerConfig",
-                  "packageInfo": "ballerina:grpc:1.14.2",
+                  "packageInfo": "ballerina:grpc:1.15.1",
                   "packageName": "grpc",
                   "kind": "RECORD_TYPE",
                   "selected": false
                 },
                 {
                   "type": "OAuth2ClientCredentialsGrantConfig",
-                  "packageInfo": "ballerina:grpc:1.14.2",
+                  "packageInfo": "ballerina:grpc:1.15.1",
                   "packageName": "grpc",
                   "kind": "RECORD_TYPE",
                   "selected": false
                 },
                 {
                   "type": "OAuth2PasswordGrantConfig",
-                  "packageInfo": "ballerina:grpc:1.14.2",
+                  "packageInfo": "ballerina:grpc:1.15.1",
                   "packageName": "grpc",
                   "kind": "RECORD_TYPE",
                   "selected": false
                 },
                 {
                   "type": "OAuth2RefreshTokenGrantConfig",
-                  "packageInfo": "ballerina:grpc:1.14.2",
+                  "packageInfo": "ballerina:grpc:1.15.1",
                   "packageName": "grpc",
                   "kind": "RECORD_TYPE",
                   "selected": false
                 },
                 {
                   "type": "OAuth2JwtBearerGrantConfig",
-                  "packageInfo": "ballerina:grpc:1.14.2",
+                  "packageInfo": "ballerina:grpc:1.15.1",
                   "packageName": "grpc",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -347,7 +347,7 @@
             "kind": "INCLUDED_FIELD",
             "originalName": "maxInboundMessageSize"
           },
-          "defaultValue": "4194304"
+          "defaultValue": "0"
         },
         "checkError": {
           "metadata": {

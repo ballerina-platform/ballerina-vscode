@@ -26,6 +26,7 @@ import io.ballerina.compiler.syntax.tree.NonTerminalNode;
 import io.ballerina.compiler.syntax.tree.ServiceDeclarationNode;
 import io.ballerina.projects.Document;
 import io.ballerina.projects.Project;
+import io.ballerina.servicemodelgenerator.extension.builder.function.AiFunctionBuilder;
 import io.ballerina.servicemodelgenerator.extension.builder.function.DefaultFunctionBuilder;
 import io.ballerina.servicemodelgenerator.extension.builder.function.GraphqlFunctionBuilder;
 import io.ballerina.servicemodelgenerator.extension.builder.function.HttpFunctionBuilder;
@@ -44,13 +45,17 @@ import org.eclipse.lsp4j.TextEdit;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Supplier;
 
+import static io.ballerina.servicemodelgenerator.extension.util.Constants.AI;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.DEFAULT;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.GRAPHQL;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.HTTP;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.OBJECT_METHOD;
+import static io.ballerina.servicemodelgenerator.extension.util.Constants.TCP;
 import static io.ballerina.servicemodelgenerator.extension.util.ServiceModelUtils.deriveServiceType;
 
 /**
@@ -59,15 +64,15 @@ import static io.ballerina.servicemodelgenerator.extension.util.ServiceModelUtil
  * @since 1.2.0
  */
 public class FunctionBuilderRouter {
-    // FTP/KAFKA/RABBITMQ/MSSQL/POSTGRESQL/MYSQL/MCP/SOLACE are deliberately absent: each now ships a
-    // bundled TriggerUISchemaModel schema (see TriggerModelReader.BUNDLED_TRIGGER_MODEL_RESOURCES), so
-    // useSchemaDrivenPath always routes them to SchemaDrivenFunctionBuilder before this map is
-    // consulted — a hardcoded entry here would be dead code. HTTP/GRAPHQL are not (yet) schema-driven
-    // and keep their dedicated builders.
     private static final Map<String, Supplier<? extends NodeBuilder<Function>>> CONSTRUCTOR_MAP = new HashMap<>() {{
         put(HTTP, HttpFunctionBuilder::new);
         put(GRAPHQL, GraphqlFunctionBuilder::new);
+        put(AI, AiFunctionBuilder::new);
     }};
+
+    /** Protocols with dedicated, mature builders that must never fall through to the schema-driven
+     * path, regardless of what {@link TriggerModelReader} resolves for them now or in the future. */
+    private static final Set<String> NEVER_SCHEMA_DRIVEN = Set.of(HTTP, GRAPHQL, TCP);
 
     private static NodeBuilder<Function> getFunctionBuilder(String protocol) {
         return CONSTRUCTOR_MAP.getOrDefault(protocol, DefaultFunctionBuilder::new).get();
@@ -76,17 +81,29 @@ public class FunctionBuilderRouter {
     /**
      * Returns {@code true} when the connector's schema is bundled as a classpath resource in this jar,
      * or -- on a miss, when {@code orgName} is known -- synthesizable from the connector's own shipped
-     * {@code resources/trigger-authoring.json} plus semantic-API introspection of its {@code .bala}
+     * {@code metadata/trigger-authoring.json} plus semantic-API introspection of its {@code .bala}
      * (see {@link TriggerModelReader#getSchemaDrivenTriggerModel}). Mirrors
      * {@code ServiceBuilderRouter} (the hardcoded builder still wins whenever neither source has a
      * model). {@code orgName == null} degrades to the bundled-only check -- {@link #getModelTemplate}
-     * has no org field to resolve a {@code .bala} with.
+     * has no org field to resolve a {@code .bala} with. {@link #NEVER_SCHEMA_DRIVEN} short-circuits
+     * this to {@code false} unconditionally.
      */
     private static boolean useSchemaDrivenPath(String orgName, String moduleName) {
-        if (moduleName == null) {
+        return useSchemaDrivenPath(orgName, moduleName, null);
+    }
+
+    /**
+     * Version-aware counterpart of {@link #useSchemaDrivenPath(String, String)}. A version must be
+     * threaded through whenever it's known (e.g. from the resolved {@code ModuleID}/{@code Codedata}
+     * of a real source symbol): the unversioned check resolves "whatever the offline cache holds as
+     * newest", which is ambiguous -- and can silently miss the model entirely -- once more than one
+     * version of the connector is cached locally (see {@code TriggerModelReader}'s resolution notes).
+     */
+    private static boolean useSchemaDrivenPath(String orgName, String moduleName, String version) {
+        if (moduleName == null || NEVER_SCHEMA_DRIVEN.contains(moduleName)) {
             return false;
         }
-        return TriggerModelReader.getInstance().hasSchemaDrivenModel(orgName, moduleName);
+        return TriggerModelReader.getInstance().hasSchemaDrivenModel(orgName, moduleName, version, false);
     }
 
     public static Optional<Function> getModelTemplate(String moduleName, String functionType) {
@@ -138,18 +155,26 @@ public class FunctionBuilderRouter {
         if (functionNode.parent() instanceof ServiceDeclarationNode serviceDeclarationNode) {
             ServiceMetadata metadata = deriveServiceType(serviceDeclarationNode, semanticModel);
             ModuleID moduleID = metadata.moduleId();
-            context = new ModelFromSourceContext(functionNode, null, semanticModel, null, "",
-                    metadata.serviceTypeIdentifier(), moduleID.orgName(), moduleID.packageName(),
-                    moduleID.moduleName(), moduleID.version());
-            NodeBuilder<Function> functionBuilder = useSchemaDrivenPath(moduleID.orgName(), moduleID.moduleName())
-                            ? new SchemaDrivenFunctionBuilder()
-                            : getFunctionBuilder(moduleID.moduleName());
-            Function function = functionBuilder.getModelFromSource(context);
-            Codedata codedata = function.getCodedata();
-            codedata.setOrgName(moduleID.orgName());
-            codedata.setPackageName(moduleID.packageName());
-            codedata.setModuleName(moduleID.moduleName());
-            return function;
+            // deriveServiceType leaves moduleId null whenever the listener's symbol can't be
+            // resolved — an unresolved import, a file mid-edit. ServiceBuilderRouter already guards
+            // this (getServiceFromSource); dereferencing it here turned a recoverable miss into an
+            // NPE that surfaced as a JSON-RPC InternalError. Fall through to the module-name-only
+            // path instead: a function model is still derivable from the syntax alone.
+            if (Objects.nonNull(moduleID)) {
+                context = new ModelFromSourceContext(functionNode, null, semanticModel, null, "",
+                        metadata.serviceTypeIdentifier(), moduleID.orgName(), moduleID.packageName(),
+                        moduleID.moduleName(), moduleID.version());
+                NodeBuilder<Function> functionBuilder = useSchemaDrivenPath(moduleID.orgName(),
+                                moduleID.moduleName(), moduleID.version())
+                                ? new SchemaDrivenFunctionBuilder()
+                                : getFunctionBuilder(moduleID.moduleName());
+                Function function = functionBuilder.getModelFromSource(context);
+                Codedata codedata = function.getCodedata();
+                codedata.setOrgName(moduleID.orgName());
+                codedata.setPackageName(moduleID.packageName());
+                codedata.setModuleName(moduleID.moduleName());
+                return function;
+            }
         }
         context = new ModelFromSourceContext(functionNode, null, semanticModel, null, "",
                 moduleName, null, null, moduleName, null);

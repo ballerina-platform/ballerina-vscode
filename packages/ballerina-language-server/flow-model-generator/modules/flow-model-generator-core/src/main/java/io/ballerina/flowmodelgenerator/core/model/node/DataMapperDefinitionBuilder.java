@@ -145,10 +145,12 @@ public class DataMapperDefinitionBuilder extends NodeBuilder {
         if (returnType.isEmpty() || returnType.get().value().toString().isEmpty()) {
             throw new IllegalStateException("The data mapper should have an output");
         }
+        // The written form follows the target file's prefixes; the resolution below stays on the authored form,
+        // which is what the property's imports map is keyed by.
         String returnTypeString = returnType.get().value().toString();
         sourceBuilder.token()
                 .keyword(SyntaxKind.RETURNS_KEYWORD)
-                .name(returnTypeString);
+                .name(sourceBuilder.requalifiedType(returnType.get()));
 
         // Generate text edits based on the line range. If a line range exists, update the signature of the existing
         // function. Otherwise, create a new function definition in "data_mappings.bal".

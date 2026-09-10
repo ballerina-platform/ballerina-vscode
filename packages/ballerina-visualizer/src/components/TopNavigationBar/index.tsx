@@ -249,6 +249,8 @@ export function TopNavigationBar(props: TopNavigationBarProps) {
             MACHINE_VIEW.BIDataMapperForm,
             MACHINE_VIEW.AddConnectionWizard,
             MACHINE_VIEW.EditConnectionWizard,
+            MACHINE_VIEW.AddAgent,
+            MACHINE_VIEW.AddAgentDefinition,
             MACHINE_VIEW.BIWelcome,
             MACHINE_VIEW.BIProjectForm,
             MACHINE_VIEW.BIAddProjectForm,
@@ -579,6 +581,10 @@ function getDisplayLabel(location: VisualizerLocation): string {
             return "Configurable Variables";
         case MACHINE_VIEW.EvalsetViewer:
             return "Evalset Viewer";
+        case MACHINE_VIEW.AddAgent:
+            return "Agent";
+        case MACHINE_VIEW.AddAgentDefinition:
+            return "Agent Definition";
 
         default:
             return location.view || "";

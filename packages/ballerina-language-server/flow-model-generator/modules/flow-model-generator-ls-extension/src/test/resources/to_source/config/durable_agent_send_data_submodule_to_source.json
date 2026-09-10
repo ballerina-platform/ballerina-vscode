@@ -1,0 +1,128 @@
+{
+  "source": "workflow_submodule/modules/ops/flows.bal",
+  "description": "Send Agent Data Event in a non-default module binds the channel response: the agent is declared in modules/ops, so the lookup must scan that module rather than the default one",
+  "diagram": {
+    "id": "1",
+    "metadata": {
+      "label": "Send Agent Data Event quotes the dropdown channel name and waits for the answer"
+    },
+    "codedata": {
+      "node": "DURABLE_AGENT_UPDATE",
+      "org": "ballerina",
+      "module": "workflow",
+      "lineRange": {
+        "fileName": "flows.bal",
+        "startLine": {
+          "line": 0,
+          "offset": 0
+        },
+        "endLine": {
+          "line": 0,
+          "offset": 0
+        }
+      },
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "agent": {
+        "metadata": {
+          "label": ""
+        },
+        "valueType": "SINGLE_SELECT",
+        "value": "opsAgent",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "agentId": {
+        "metadata": {
+          "label": ""
+        },
+        "valueType": "EXPRESSION",
+        "value": "instanceId",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "eventName": {
+        "metadata": {
+          "label": ""
+        },
+        "valueType": "SINGLE_SELECT",
+        "value": "opsMessage",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "data": {
+        "metadata": {
+          "label": ""
+        },
+        "valueType": "EXPRESSION",
+        "value": "\"hello\"",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "variable": {
+        "metadata": {
+          "label": ""
+        },
+        "valueType": "IDENTIFIER",
+        "value": "eventToken",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "checkError": {
+        "metadata": {
+          "label": ""
+        },
+        "valueType": "FLAG",
+        "value": true,
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      }
+    },
+    "branches": [],
+    "flags": 0
+  },
+  "output": {
+    "workflow_submodule/modules/ops/flows.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "import ballerina/workflow;"
+      },
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "string eventToken = check opsAgent.sendData(instanceId, \"opsMessage\", \"hello\");"
+      }
+    ]
+  }
+}

@@ -1,6 +1,6 @@
 {
   "filePath": "sample1/main.bal",
-  "description": "Test adding an MCP service against mcp 1.0.3, which only has mcp:Service",
+  "description": "Test adding an MCP service against mcp 1.0.3: this release predates the shipped trigger metadata, so the add flow falls back to a plain listener/service declaration with no type descriptor",
   "serviceInitModel": {
     "id": "8",
     "displayName": "MCP Service",
@@ -153,7 +153,7 @@
             "character": 3
           }
         },
-        "newText": "\nlistener mcp:Listener mcpListener = new (8080);\nservice mcp:Service /mcp on mcpListener {\n\n}\n"
+        "newText": "\nlistener mcp:Listener mcpListener = new (8080);\nservice /mcp on mcpListener {\n\n}\n"
       }
     ]
   }

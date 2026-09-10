@@ -65,6 +65,9 @@ jest.mock("../../../languages/ballerina.js", () => ({ __esModule: true, default:
 jest.mock("@wso2/ballerina-core", () => ({
     __esModule: true,
     ColorThemeKind: { Light: 1, Dark: 2, HighContrast: 3, HighContrastLight: 4 },
+    isLightTheme: (): boolean =>
+        document.body.classList.contains("vscode-light") ||
+        document.body.classList.contains("vscode-high-contrast-light"),
 }));
 
 jest.mock("@wso2/ballerina-rpc-client", () => {

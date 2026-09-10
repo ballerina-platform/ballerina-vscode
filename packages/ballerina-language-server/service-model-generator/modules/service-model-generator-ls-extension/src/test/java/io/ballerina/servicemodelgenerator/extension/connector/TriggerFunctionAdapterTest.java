@@ -32,15 +32,17 @@ import java.util.List;
 /**
  * Unit test for {@link TriggerFunctionAdapter}: the {@code bindingGroup} carried by a CDC
  * {@code onUpdate} handler's {@code before}/{@code after} parameters so they render as one bindable
- * payload UI section (see {@code trigger-models/{mssql,mysql,postgresql,oracledb}.json}) though
+ * payload UI section (see the generated trigger models for mssql/mysql/postgresql/oracledb) though
  * staying independent real Ballerina parameters.
  *
  * @since 1.9.0
  */
 public class TriggerFunctionAdapterTest {
 
-    private TriggerUISchemaModel model(String moduleName) {
-        return TriggerModelReader.getInstance().getBundledTriggerModel(moduleName).orElseThrow();
+    private TriggerUISchemaModel model(String key) {
+        GeneratedTriggerCorpus.Entry entry = GeneratedTriggerCorpus.get(key);
+        return TriggerModelReader.getInstance()
+                .getGeneratedTriggerModel(entry.org(), entry.module(), entry.version()).orElseThrow();
     }
 
     private TriggerUISchemaModel.FunctionModel schemaFunction(TriggerUISchemaModel model, String name) {

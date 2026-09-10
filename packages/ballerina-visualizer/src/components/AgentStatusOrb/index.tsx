@@ -500,7 +500,7 @@ export function AgentStatusOrb() {
                             onFocus={() => setInviteFocused(true)}
                             onBlur={() => setInviteFocused(false)}
                             placeholder="How can I help?"
-                            aria-label="Message WSO2 Integration Intelligence"
+                            aria-label="Message WSO2 Integrator Copilot"
                         />
                         {inviteText.length > 0 && (
                             <InviteClear
@@ -527,8 +527,8 @@ export function AgentStatusOrb() {
                 onPointerUp={handlePointerUp}
                 onFocus={() => setOrbFocused(true)}
                 onBlur={() => setOrbFocused(false)}
-                title={label ? `WSO2 Integration Intelligence — ${label}` : "WSO2 Integration Intelligence"}
-                aria-label={label ? `WSO2 Integration Intelligence: ${label}. Click to open the mini chat, double-click for the chat panel.` : "Click to open the WSO2 Integration Intelligence mini chat, double-click for the chat panel"}
+                title={label ? `WSO2 Integrator Copilot — ${label}` : "WSO2 Integrator Copilot"}
+                aria-label={label ? `WSO2 Integrator Copilot: ${label}. Click to open the mini chat, double-click for the chat panel.` : "Click to open the WSO2 Integrator Copilot mini chat, double-click for the chat panel"}
             >
                 <CopilotOrb state={state} colors={colors} size={ORB_SIZE} />
             </OrbButton>

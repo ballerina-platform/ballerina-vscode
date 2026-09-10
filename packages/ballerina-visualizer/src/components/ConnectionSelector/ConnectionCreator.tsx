@@ -20,12 +20,12 @@ import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "r
 import { FormField, FormValues, FormImports } from "@wso2/ballerina-side-panel";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { PanelOverlayContext } from "../../views/BI/FlowDiagram/context/PanelOverlayContext";
-import { convertConfig } from "../../utils/bi";
 import { ArtifactForm } from "../../views/BI/Forms/ArtifactForm";
 import { RelativeLoader } from "../RelativeLoader";
 import { InfoBox } from "../InfoBox";
 import { ConnectionCreatorProps } from "./types";
 import { getConnectionSpecialConfig } from "./config";
+import { convertConnectionConfig } from "./connectionFormFields";
 import { updateFormFieldsWithData, updateNodeTemplateProperties, updateNodeWithConnectionVariable, updateNodeLineRange } from "./utils";
 import { cloneDeep } from "lodash";
 import { GET_DEFAULT_EMBEDDING_PROVIDER, GET_DEFAULT_MODEL_PROVIDER, LineRange, RecordTypeField, getPrimaryInputType, PropertyTypeMemberInfo } from "@wso2/ballerina-core";
@@ -74,7 +74,7 @@ export function ConnectionCreator(props: ConnectionCreatorProps): JSX.Element {
         }
 
         if (nodeFormTemplate && nodeFormTemplate.properties) {
-            const fields = convertConfig(nodeFormTemplate.properties);
+            const fields = convertConnectionConfig(nodeFormTemplate.properties);
             setConnectionFields(fields);
 
             const rtFields: RecordTypeField[] = Object.entries(nodeFormTemplate.properties)
