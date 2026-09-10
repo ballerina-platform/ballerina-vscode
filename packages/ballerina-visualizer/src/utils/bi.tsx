@@ -264,20 +264,9 @@ export function convertAgentCategoriesToSidePanelCategories(categories: Category
 }
 
 export function convertModelProviderCategoriesToSidePanelCategories(categories: Category[]): PanelCategory[] {
-    const panelCategories = categories.map((category) => convertDiagramCategoryToSidePanelCategory(category));
-    panelCategories.forEach((category, index) => {
-        category.items?.forEach((item) => {
-            if ((item as PanelNode).metadata?.codedata) {
-                const codedata = (item as PanelNode).metadata.codedata;
-                const iconUrl = (item as PanelNode)?.metadata?.metadata?.icon;
-                const iconType = codedata?.module == "ai" ? codedata.object : codedata?.module;
-                item.icon = <AIModelIcon type={iconType} codedata={codedata} iconUrl={iconUrl} />;
-            } else if ((item as PanelCategory).items) {
-                applyGroupedChildIcons(item as PanelCategory, categories[index]?.items as any[]);
-            }
-        });
-    });
-    return panelCategories;
+    return convertCategoriesToSidePanelCategoriesWithIcon(categories, (codedata, iconUrl) => (
+        <AIModelIcon type={codedata?.module === "ai" ? codedata.object : codedata?.module} codedata={codedata} iconUrl={iconUrl} />
+    ));
 }
 
 export function convertVectorStoreCategoriesToSidePanelCategories(categories: Category[]): PanelCategory[] {
