@@ -27,6 +27,8 @@ const layout: TopologyLayout = {
     cardHeights: { a: 112, b: 112 },
     edgeVias: { "t1->a": [{ x: 380, y: 56 }], "t2->b": [{ x: 380, y: 256 }, { x: 380, y: 400 }] },
     edgeBows: {},
+    edgeStarts: {},
+    loopBoxes: { "t2::L": { x: 360, y: 150, width: 380, height: 200 } },
     left: 96,
     width: 680,
     height: 312,
@@ -47,5 +49,10 @@ describe("focusBounds", () => {
 
     it("has nothing to fit when nothing is lit", () => {
         expect(focusBounds(layout, { nodes: new Set(), edges: new Set() }, "horizontal")).toBeUndefined();
+    });
+
+    it("includes a lit loop's box", () => {
+        const bounds = focusBounds({ ...layout, splitPositions: { "t2::L": { x: 340, y: 238 } } }, { nodes: new Set(["t2::L", "b"]), edges: new Set() }, "horizontal");
+        expect(bounds).toEqual({ left: 340, top: 150, width: 400, height: 200 });
     });
 });

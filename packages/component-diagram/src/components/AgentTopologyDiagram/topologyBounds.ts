@@ -33,7 +33,7 @@ export interface Bounds {
     height: number;
 }
 
-// The box around a lit flow: its triggers, cards, splits and the bends of its edges.
+// The box around a lit flow: its triggers, cards, splits, loop boxes and the bends of its edges.
 export function focusBounds(layout: TopologyLayout, focus: TopologyFocus, orientation: TopologyOrientation): Bounds | undefined {
     const vertical = orientation === "vertical";
     const triggerSize = vertical ? { w: TRIGGER_LABEL_WIDTH, h: TRIGGER_STACKED_HEIGHT } : { w: TRIGGER_NODE_WIDTH, h: TRIGGER_SIZE };
@@ -45,6 +45,10 @@ export function focusBounds(layout: TopologyLayout, focus: TopologyFocus, orient
             boxes.push({ at: layout.triggerPositions[id], ...triggerSize });
         } else if (layout.splitPositions[id]) {
             boxes.push({ at: layout.splitPositions[id], w: SPLIT_SIZE, h: SPLIT_SIZE });
+        }
+        const loopBox = layout.loopBoxes[id];
+        if (loopBox) {
+            boxes.push({ at: { x: loopBox.x, y: loopBox.y }, w: loopBox.width, h: loopBox.height });
         }
     });
     focus.edges.forEach((id) => (layout.edgeVias[id] ?? []).forEach((via) => boxes.push({ at: via, w: 0, h: 0 })));

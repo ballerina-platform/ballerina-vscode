@@ -39,7 +39,8 @@ export interface ToolChip {
     icon?: string;
 }
 
-export type TopologyEdgeKind = "trigger" | "delegation" | "stem";
+// "exit" leaves a loop after its body: drawn from the far edge of the loop's box, not from the loop node.
+export type TopologyEdgeKind = "trigger" | "delegation" | "stem" | "exit";
 
 export type SplitKind = "if" | "match" | "fork" | "while" | "foreach";
 
@@ -124,6 +125,8 @@ export interface TopologySplitNode {
     depth: number;
     // Loop header shown under the node ("ticket in payload.tickets", "attempts < 3").
     header?: string;
+    // A loop's body: every agent and split inside it, nested constructs included. The layout boxes them.
+    members?: string[];
 }
 
 export type LegendKind = "trigger" | "delegation" | "sequence" | "condition" | "fork" | "loop";
@@ -142,6 +145,13 @@ export interface NodePosition {
     y: number;
 }
 
+export interface LoopBox {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+}
+
 export interface TopologyLayout {
     agentPositions: Record<string, NodePosition>;
     triggerPositions: Record<string, NodePosition>;
@@ -151,6 +161,10 @@ export interface TopologyLayout {
     edgeVias: Record<string, NodePosition[]>;
     // Offset across the flow, in steps, for edges that arrive at one node together; wrapped back edges are not counted.
     edgeBows: Record<string, number>;
+    // Where an edge leaving a loop's box starts: on the box's far edge, level with the loop node.
+    edgeStarts: Record<string, NodePosition>;
+    // The dashed box around each loop's body, keyed by the loop split; absent when the body cannot be boxed.
+    loopBoxes: Record<string, LoopBox>;
     // Where the drawing starts: past the blank part of the trigger label block.
     left: number;
     width: number;

@@ -17,13 +17,13 @@
  */
 
 import { CDAgentCall, CDFunction, CDModel, CDResourceFunction, CDService } from "@wso2/ballerina-core";
-import { EdgeChip, LayoutOptions, NodePosition, SPLIT_LABEL, TopologyAgentNode, TopologyGraph, TopologyLayout } from "./types";
+import { EdgeChip, LayoutOptions, NodePosition, SPLIT_LABEL, TopologyAgentNode, TopologyGraph, TopologyLayout, TopologySplitNode } from "./types";
 
 const CIRCLED = "①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳";
 
 function circled(text: string): string {
     const n = Number(text);
-    return n >= 1 && n <= CIRCLED.length ? CIRCLED[n - 1] : `#${text}`;
+    return Number.isInteger(n) && n >= 1 && n <= CIRCLED.length ? CIRCLED[n - 1] : `#${text}`;
 }
 
 function chipText(chip: EdgeChip, id: (nodeId: string) => string): string {
@@ -77,9 +77,18 @@ function triggerLines(graph: TopologyGraph, layout: TopologyLayout, id: (nodeId:
     });
 }
 
+function boxText(split: TopologySplitNode, layout: TopologyLayout, id: (nodeId: string) => string): string {
+    if (!split.members) {
+        return "";
+    }
+    const box = layout.loopBoxes[split.id];
+    const members = split.members.map(id).join(",");
+    return box ? `  BOX ${at(box)} ${Math.round(box.width)}×${Math.round(box.height)} holds ${members}` : `  UNBOXED holds ${members}`;
+}
+
 function splitLines(graph: TopologyGraph, layout: TopologyLayout, id: (nodeId: string) => string): string[] {
     return graph.splits.map((split) =>
-        `  ${pad(id(split.id), 4)} ${pad(SPLIT_LABEL[split.kind], 8)} under ${pad(id(split.parentId), 4)} depth ${split.depth}  ${at(layout.splitPositions[split.id])}${split.header ? `  header «${split.header}»` : ""}`
+        `  ${pad(id(split.id), 4)} ${pad(SPLIT_LABEL[split.kind], 8)} under ${pad(id(split.parentId), 4)} depth ${split.depth}  ${at(layout.splitPositions[split.id])}${split.header ? `  header «${split.header}»` : ""}${boxText(split, layout, id)}`
     );
 }
 
@@ -89,7 +98,9 @@ function edgeLines(graph: TopologyGraph, layout: TopologyLayout, id: (nodeId: st
         const vias = layout.edgeVias[edge.id] ?? [];
         const bow = layout.edgeBows[edge.id] ?? 0;
         const shape = vias.length >= 2 && main(vias[0]) > main(vias[vias.length - 1]) ? "WRAPS" : "DETOURS";
+        const start = layout.edgeStarts[edge.id];
         const geometry = [
+            start ? `from ${at(start).slice(1)}` : "",
             vias.length >= 2 ? `${shape} via ${vias.map((via) => at(via).slice(1)).join(" ")}` : vias.length ? `bend ${at(vias[0]).slice(1)}` : "",
             bow ? `bow ${bow > 0 ? "+" : ""}${bow}` : "",
         ].filter(Boolean);

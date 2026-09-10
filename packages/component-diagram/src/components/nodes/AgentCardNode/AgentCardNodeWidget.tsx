@@ -53,7 +53,7 @@ const Card = styled.div<{ hovered: boolean; orphan: boolean; receded: boolean; r
     color: ${ThemeColors.ON_SURFACE};
     cursor: ${(props) => (props.readonly ? "default" : "pointer")};
     position: relative;
-    opacity: ${(props) => (props.receded ? 0.55 : 1)};
+    opacity: ${(props) => (props.receded ? 0.3 : 1)};
     transition: border-color 0.2s ease-out, opacity ${FOCUS_FADE_MS}ms ease;
 
     &:focus-visible {

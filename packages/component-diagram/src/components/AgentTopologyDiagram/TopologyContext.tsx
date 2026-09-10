@@ -17,7 +17,15 @@
  */
 
 import React from "react";
-import { AgentSelection, TopologyFocus, TopologyOrientation, TriggerSelection } from "./types";
+import { AgentSelection, LoopBox, TopologyFocus, TopologyOrientation, TriggerSelection } from "./types";
+
+// A loop body's dashed box with the caption it carries for the loop node.
+export interface LoopBoxView {
+    id: string;
+    box: LoopBox;
+    label: string;
+    header?: string;
+}
 
 export interface TopologyContextState {
     readonly?: boolean;
@@ -29,6 +37,8 @@ export interface TopologyContextState {
     // Set while a node is hovered: what it is connected to lights up, everything else recedes.
     focus?: TopologyFocus;
     setHovered?: (id?: string) => void;
+    // The boxes the current layout draws around loop bodies; a boxed loop node drops its own label.
+    loopBoxes?: LoopBoxView[];
 }
 
 export const TopologyContext = React.createContext<TopologyContextState>({

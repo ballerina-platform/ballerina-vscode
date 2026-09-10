@@ -24,7 +24,7 @@ import { linkRoute, roundedPath } from "./topologyRoute";
 import { useTopologyContext } from "../AgentTopologyDiagram/TopologyContext";
 import { FOCUS_FADE_MS } from "../../resources/constants";
 
-export const RECEDED_OPACITY = 0.18;
+export const RECEDED_OPACITY = 0.15;
 export const FOCUS_FADE = `${FOCUS_FADE_MS}ms ease`;
 
 interface TopologyLinkWidgetProps {

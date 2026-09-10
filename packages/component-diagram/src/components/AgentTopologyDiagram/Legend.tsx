@@ -89,6 +89,16 @@ const GlyphSwatch = styled.div`
     justify-content: center;
 `;
 
+// The dashed box a loop draws around its body, at swatch size.
+const LoopSwatch = styled.div`
+    width: ${SWATCH_W}px;
+    height: ${SWATCH_H}px;
+    box-sizing: border-box;
+    border: 1.5px dashed ${ThemeColors.ON_SURFACE_VARIANT};
+    border-radius: 4px;
+    flex: none;
+`;
+
 const LEGEND_ROWS: Record<LegendKind, { label: string; explain: string; swatch: React.ReactNode }> = {
     trigger: {
         label: "Runs the agent",
@@ -130,12 +140,8 @@ const LEGEND_ROWS: Record<LegendKind, { label: string; explain: string; swatch: 
     },
     loop: {
         label: "Repeats in a loop",
-        explain: "The handler runs this agent once per item (foreach) or while the condition holds (while); the loop header is under the node.",
-        swatch: (
-            <GlyphSwatch>
-                <SplitGlyph kind="foreach" size={20} />
-            </GlyphSwatch>
-        ),
+        explain: "The handler repeats everything inside the dashed box once per item (foreach) or while the condition holds (while); the loop header is on the box.",
+        swatch: <LoopSwatch />,
     },
 };
 

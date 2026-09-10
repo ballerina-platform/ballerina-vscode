@@ -374,6 +374,82 @@ describe("buildTopology", () => {
         expect(number(agentId(AGENTS_BAL, 5), agentId(AGENTS_BAL, 9))).toEqual(expect.objectContaining({ text: "2.2" }));
     });
 
+    it("draws the step after a loop as an exit edge, apart from the loop's body edge, and lists the loop's members", () => {
+        const inner = agentConnection("a", "innerAgent", AGENTS_BAL, 1);
+        const after = agentConnection("b", "afterAgent", AGENTS_BAL, 5);
+        const fn = resourceFn("post", "run", SERVICES_BAL, 1, ["a", "b"], [
+            { connection: "a", line: 3, groups: [{ kind: "foreach", id: "L", label: "x in xs" }] },
+            { connection: "b", line: 5, groups: [] },
+        ]);
+        const svc = service(SERVICES_BAL, 1, "http:Service", "/run", ["a", "b"], [fn]);
+        const graph = buildTopology({ model: modelOf([inner, after], [svc]), agents: [artifact("innerAgent", AGENTS_BAL, 1), artifact("afterAgent", AGENTS_BAL, 5)] });
+
+        const triggerId = graph.triggers[0].id;
+        const loopId = `${triggerId}::L`;
+        expect(graph.splits[0]).toMatchObject({ id: loopId, kind: "foreach", members: [agentId(AGENTS_BAL, 1)] });
+        const body = graph.edges.find((e) => e.sourceId === loopId && e.targetId === agentId(AGENTS_BAL, 1));
+        const exit = graph.edges.find((e) => e.sourceId === loopId && e.targetId === agentId(AGENTS_BAL, 5));
+        expect(body).toMatchObject({ id: `${loopId}->${agentId(AGENTS_BAL, 1)}`, kind: "trigger", chips: [] });
+        expect(exit).toMatchObject({ id: `${loopId}->>${agentId(AGENTS_BAL, 5)}`, kind: "exit" });
+        expect(exit.chips).toEqual([expect.objectContaining({ kind: "sequence", text: "2", steps: ["Foreach", "afterAgent"] })]);
+        expect(graph.edges.find((e) => e.targetId === loopId).chips).toEqual([expect.objectContaining({ kind: "sequence", text: "1" })]);
+    });
+
+    it("collects a loop's members through the splits nested in its body", () => {
+        const enrich = agentConnection("e", "enrichAgent", AGENTS_BAL, 1);
+        const escalate = agentConnection("s", "escalateAgent", AGENTS_BAL, 5);
+        const archive = agentConnection("a", "archiveAgent", AGENTS_BAL, 9);
+        const loop = { kind: "foreach" as const, id: "L", label: "rec in records" };
+        const fn = resourceFn("post", "events", SERVICES_BAL, 1, ["e", "s", "a"], [
+            { connection: "e", line: 3, groups: [loop] },
+            { connection: "s", line: 5, groups: [loop, { kind: "if", id: "I", label: "high" }] },
+            { connection: "a", line: 7, groups: [loop, { kind: "if", id: "I", label: "else" }] },
+        ]);
+        const svc = service(SERVICES_BAL, 1, "kafka:Service", "", ["e", "s", "a"], [fn]);
+        const graph = buildTopology({
+            model: modelOf([enrich, escalate, archive], [svc]),
+            agents: [artifact("enrichAgent", AGENTS_BAL, 1), artifact("escalateAgent", AGENTS_BAL, 5), artifact("archiveAgent", AGENTS_BAL, 9)],
+        });
+
+        const triggerId = graph.triggers[0].id;
+        const loop$ = graph.splits.find((split) => split.id === `${triggerId}::L`);
+        expect(loop$.members.sort()).toEqual([agentId(AGENTS_BAL, 1), `${triggerId}::I`, agentId(AGENTS_BAL, 5), agentId(AGENTS_BAL, 9)].sort());
+        expect(graph.splits.find((split) => split.id === `${triggerId}::I`).members).toBeUndefined();
+        expect(graph.edges.some((e) => e.kind === "exit")).toBe(false);
+    });
+
+    it("keeps a loop's exit into an agent that also runs inside it apart from the body edge", () => {
+        const both = agentConnection("x", "bothAgent", AGENTS_BAL, 1);
+        const fn = resourceFn("post", "run", SERVICES_BAL, 1, ["x"], [
+            { connection: "x", line: 3, groups: [{ kind: "while", id: "L", label: "more" }] },
+            { connection: "x", line: 5, groups: [] },
+        ]);
+        const svc = service(SERVICES_BAL, 1, "http:Service", "/run", ["x"], [fn]);
+        const graph = buildTopology({ model: modelOf([both], [svc]), agents: [artifact("bothAgent", AGENTS_BAL, 1)] });
+
+        const loopId = `${graph.triggers[0].id}::L`;
+        const into = graph.edges.filter((e) => e.targetId === agentId(AGENTS_BAL, 1));
+        expect(into.map((e) => e.kind).sort()).toEqual(["exit", "trigger"]);
+        expect(into.every((e) => e.sourceId === loopId)).toBe(true);
+    });
+
+    it("hangs a loop that follows a loop off it with an exit stem", () => {
+        const first = agentConnection("a", "firstAgent", AGENTS_BAL, 1);
+        const second = agentConnection("b", "secondAgent", AGENTS_BAL, 5);
+        const fn = resourceFn("post", "run", SERVICES_BAL, 1, ["a", "b"], [
+            { connection: "a", line: 3, groups: [{ kind: "foreach", id: "L1", label: "x in xs" }] },
+            { connection: "b", line: 6, groups: [{ kind: "foreach", id: "L2", label: "y in ys" }] },
+        ]);
+        const svc = service(SERVICES_BAL, 1, "http:Service", "/run", ["a", "b"], [fn]);
+        const graph = buildTopology({ model: modelOf([first, second], [svc]), agents: [artifact("firstAgent", AGENTS_BAL, 1), artifact("secondAgent", AGENTS_BAL, 5)] });
+
+        const triggerId = graph.triggers[0].id;
+        const [l1, l2] = [`${triggerId}::L1`, `${triggerId}::L2`];
+        expect(graph.splits.find((split) => split.id === l2)).toMatchObject({ parentId: l1, members: [agentId(AGENTS_BAL, 5)] });
+        expect(graph.edges.find((e) => e.sourceId === l1 && e.targetId === l2)).toMatchObject({ kind: "exit" });
+        expect(graph.splits.find((split) => split.id === l1).members).toEqual([agentId(AGENTS_BAL, 1)]);
+    });
+
     it("draws an agent that hands off to itself with a self-delegation edge", () => {
         const loop = agentConnection("l", "loopAgent", AGENTS_BAL, 1, { delegatesTo: ["l"] });
         const graph = buildTopology({ model: modelOf([loop], []), agents: [artifact("loopAgent", AGENTS_BAL, 1)] });

@@ -16,7 +16,8 @@
  * under the License.
  */
 
-import { route } from "../components/NodeLink/topologyRoute";
+import { linkRoute, route } from "../components/NodeLink/topologyRoute";
+import { TopologyLinkModel } from "../components/NodeLink/TopologyLinkModel";
 
 describe("route", () => {
     it("puts a wrapped back edge's chips on the leg leaving the source", () => {
@@ -51,5 +52,19 @@ describe("route", () => {
         const via = [{ x: 50, y: 760 }, { x: 300, y: 760 }, { x: 300, y: 60 }, { x: 50, y: 60 }];
         const drawn = route(source, target, via, 0, true);
         expect(drawn.run).toEqual([source, { x: 50, y: 760 }]);
+    });
+
+    it("starts a link where the layout says when it leaves a loop's box, not at its port", () => {
+        const link = {
+            start: { x: 500, y: 80 },
+            via: [{ x: 540, y: 80 }],
+            bow: 0,
+            vertical: false,
+            getFirstPoint: () => ({ getPosition: () => ({ x: 300, y: 80 }) }),
+            getLastPoint: () => ({ getPosition: () => ({ x: 700, y: 80 }) }),
+        } as unknown as TopologyLinkModel;
+        const drawn = linkRoute(link);
+        expect(drawn.points[0]).toEqual({ x: 500, y: 80 });
+        expect(drawn.points[drawn.points.length - 1]).toEqual({ x: 700, y: 80 });
     });
 });

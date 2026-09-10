@@ -39,7 +39,7 @@ import { useClickWithDragTolerance } from "../../../hooks/useClickWithDragTolera
 // the square when the flow runs left to right and above it when the flow runs top to bottom.
 const Wrapper = styled.div<{ readonly?: boolean; vertical: boolean; receded: boolean }>`
     display: flex;
-    opacity: ${(props) => (props.receded ? 0.55 : 1)};
+    opacity: ${(props) => (props.receded ? 0.3 : 1)};
     transition: opacity ${FOCUS_FADE_MS}ms ease;
     flex-direction: ${(props) => (props.vertical ? "column" : "row")};
     align-items: center;

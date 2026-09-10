@@ -30,6 +30,7 @@ export const TOPOLOGY_LINK = "topology-link";
 export const NODE_PORT = "node-port";
 export const LOADING_OVERLAY = "loading-overlay";
 export const TOPOLOGY_CHIP_LAYER = "topology-chip-layer";
+export const TOPOLOGY_LOOP_BOX_LAYER = "topology-loop-box-layer";
 
 export const AUTOMATION_LISTENER = "automation-listener";
 
@@ -78,3 +79,6 @@ export const SPLIT_LABEL_GAP_Y = 250;
 export const LAYOUT_FIT_MARGIN = 40;
 // How far apart, per step, edges that arrive at one node spread along its port side.
 export const ARRIVAL_BOW_PX = 40;
+// A loop's box clears its members by this much on every side, and its caption needs room above the top member.
+export const LOOP_BOX_PAD = 20;
+export const LOOP_BOX_CAPTION = 24;

@@ -103,7 +103,7 @@ export interface LinkChips {
 
 export function linkRoute(link: TopologyLinkModel): Route & LinkChips {
     const bow = link.bow * ARRIVAL_BOW_PX;
-    const drawn = route(link.getFirstPoint().getPosition(), link.getLastPoint().getPosition(), link.via, bow, link.vertical);
+    const drawn = route(link.start ?? link.getFirstPoint().getPosition(), link.getLastPoint().getPosition(), link.via, bow, link.vertical);
     const chipPoint = midpoint(drawn.run[0], drawn.run[1]);
     const pillPoint = link.vertical ? { x: chipPoint.x, y: chipPoint.y + bow } : chipPoint;
     return { ...drawn, chipPoint, pillPoint };

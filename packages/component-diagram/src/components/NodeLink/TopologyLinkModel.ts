@@ -40,6 +40,8 @@ export class TopologyLinkModel extends DefaultLinkModel {
     bow = 0;
     // Where the layout bends this edge.
     via: { x: number; y: number }[] = [];
+    // Where the edge starts when not at its source port: the far edge of the loop box it exits.
+    start?: { x: number; y: number };
     // Ports face each other vertically when the topology is laid out top to bottom.
     vertical = false;
 

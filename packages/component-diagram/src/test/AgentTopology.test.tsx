@@ -237,4 +237,19 @@ describe("AgentTopologyDiagram - Entry points", () => {
         fireEvent.click(dom.getByRole("button", { name: "Open POST /quotes" }));
         expect(onTriggerSelect).toHaveBeenCalledTimes(2);
     });
+
+    it("draws a loop's caption on its box and drops it from the loop node", () => {
+        const triage = agentConnection("tri", "triageAgent", AGENTS_BAL, 1);
+        const batch = resourceFn("post", "triage", SERVICES_BAL, 3, ["tri"], [
+            { connection: "tri", line: 4, groups: [{ kind: "foreach", id: "g1", label: "ticket in payload.tickets" }] },
+        ]);
+        const tickets = service(SERVICES_BAL, 1, "http:Service", "https://gh.072103.xyz/tickets", ["tri"], [batch]);
+        const input: TopologyInput = { model: { connections: [triage], listeners: [], services: [tickets] }, agents: [artifact("triageAgent", AGENTS_BAL, 1)] };
+        const dom = render(<AgentTopologyDiagram input={input} onAgentSelect={() => {}} onTriggerSelect={() => {}} />);
+
+        expect(dom.getAllByText("ticket in payload.tickets")).toHaveLength(1);
+        const caption = dom.getByText("ticket in payload.tickets").parentElement;
+        expect(caption.textContent).toBe("Foreachticket in payload.tickets");
+        expect(dom.getByTitle("Foreach · ticket in payload.tickets")).toBeInTheDocument();
+    });
 });

@@ -98,4 +98,20 @@ describe("focusAround", () => {
         expect([...focusAround(graph, "t1").edges].sort()).toEqual(["t1->t1::g", "t1::g->a", "t1::g->b"]);
         expect([...focusAround(graph, "b").edges].sort()).toEqual(["t1->t1::g", "t1::g->b", "t2->b"]);
     });
+
+    it("follows a loop's exit edge in both directions, as part of the loop's handler", () => {
+        const loop: TopologySplitNode = { id: "t::L", kind: "foreach", triggerId: "t", parentId: "t", depth: 1, members: ["a"] };
+        const graph = graphOf(
+            [agent("a"), agent("b"), agent("z")],
+            [trigger("t"), trigger("other")],
+            [edge("t", "t::L", "stem"), edge("t::L", "a"), { id: "t::L->>b", sourceId: "t::L", targetId: "b", kind: "exit", chips: [] }, edge("other", "z")],
+            [loop]
+        );
+        const fromExit = focusAround(graph, "b");
+        expect([...fromExit.nodes].sort()).toEqual(["b", "t", "t::L"]);
+        expect(fromExit.edges.has("t::L->>b")).toBe(true);
+        const fromTrigger = focusAround(graph, "t");
+        expect([...fromTrigger.nodes].sort()).toEqual(["a", "b", "t", "t::L"]);
+        expect(fromTrigger.nodes.has("z")).toBe(false);
+    });
 });

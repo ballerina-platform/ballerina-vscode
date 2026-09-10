@@ -20,6 +20,8 @@ import {
     AGENT_CARD_MIN_HEIGHT,
     AGENT_CARD_WIDTH,
     ARRIVAL_BOW_PX,
+    LOOP_BOX_CAPTION,
+    LOOP_BOX_PAD,
     SPLIT_GAP_X_MIN,
     SPLIT_LABEL_GAP_Y,
     SPLIT_SIZE,
@@ -500,6 +502,187 @@ describe("layoutTopology", () => {
         expect(layout.agentPositions).toEqual(plain.agentPositions);
     });
 
+    it("boxes a loop's body from the loop node past its deepest member, and starts the exit edge on the box's far edge", () => {
+        const loop: TopologySplitNode = { id: "t1::L", kind: "foreach", triggerId: "t1", parentId: "t1", depth: 1, header: "x in xs", members: ["a"] };
+        const exit: TopologyEdge = { id: "t1::L->>b", sourceId: "t1::L", targetId: "b", kind: "exit", chips: [] };
+        const graph = graphOf([agent("a"), agent("b")], [trigger("t1")], [edge("t1", "t1::L", "stem"), edge("t1::L", "a"), exit], [loop]);
+        const layout = layoutTopology(graph);
+        const box = layout.loopBoxes["t1::L"];
+        const a = layout.agentPositions["a"];
+        const loopPos = layout.splitPositions["t1::L"];
+        expect(box.x).toBe(loopPos.x + SPLIT_SIZE / 2);
+        expect(box.x + box.width).toBe(a.x + AGENT_CARD_WIDTH + LOOP_BOX_PAD);
+        expect(box.y).toBe(a.y - LOOP_BOX_PAD - LOOP_BOX_CAPTION);
+        expect(box.y + box.height).toBe(a.y + layout.cardHeights["a"] + LOOP_BOX_PAD);
+        // The step after the loop sits in the next column and its edge leaves the box, level with the loop node.
+        expect(layout.agentPositions["b"].x).toBe(a.x + AGENT_CARD_WIDTH + TOPOLOGY_GAP_X);
+        expect(layout.edgeStarts["t1::L->>b"]).toEqual({ x: box.x + box.width, y: loopPos.y + SPLIT_SIZE / 2 });
+        expect(layout.edgeVias["t1::L->>b"][0].x).toBeGreaterThan(box.x + box.width);
+        expect(layout.edgeVias["t1::L->>b"][0].x).toBeLessThan(layout.agentPositions["b"].x);
+        expect(layout.agentPositions["b"].y).toBe(a.y);
+    });
+
+    it("places a split that continues after a loop a stem past the loop's box, its agents in the next column", () => {
+        const loop: TopologySplitNode = { id: "t1::L", kind: "while", triggerId: "t1", parentId: "t1", depth: 1, header: "more", members: ["a"] };
+        const cond: TopologySplitNode = { id: "t1::I", kind: "if", triggerId: "t1", parentId: "t1::L", depth: 2 };
+        const exit: TopologyEdge = { id: "t1::L->>t1::I", sourceId: "t1::L", targetId: "t1::I", kind: "exit", chips: [] };
+        const graph = graphOf(
+            [agent("a"), agent("b"), agent("c")],
+            [trigger("t1")],
+            [edge("t1", "t1::L", "stem"), edge("t1::L", "a"), exit, edge("t1::I", "b"), edge("t1::I", "c")],
+            [loop, cond]
+        );
+        const layout = layoutTopology(graph);
+        const box = layout.loopBoxes["t1::L"];
+        expect(layout.splitPositions["t1::I"].x).toBe(box.x + box.width + SPLIT_STEM_X);
+        expect(layout.agentPositions["b"].x).toBe(layout.agentPositions["a"].x + AGENT_CARD_WIDTH + SPLIT_GAP_X_MIN);
+        expect(layout.agentPositions["c"].x).toBe(layout.agentPositions["b"].x);
+        expect(layout.edgeStarts["t1::L->>t1::I"].x).toBe(box.x + box.width);
+        expect(layout.loopBoxes["t1::I"]).toBeUndefined();
+    });
+
+    it("nests an inner loop's box inside the outer one with padding on every side", () => {
+        const outer: TopologySplitNode = { id: "t1::O", kind: "foreach", triggerId: "t1", parentId: "t1", depth: 1, header: "x in xs", members: ["t1::I", "a"] };
+        const inner: TopologySplitNode = { id: "t1::I", kind: "foreach", triggerId: "t1", parentId: "t1::O", depth: 2, header: "y in x", members: ["a"] };
+        const graph = graphOf([agent("a")], [trigger("t1")], [edge("t1", "t1::O", "stem"), edge("t1::O", "t1::I", "stem"), edge("t1::I", "a")], [outer, inner]);
+        const layout = layoutTopology(graph);
+        const o = layout.loopBoxes["t1::O"];
+        const i = layout.loopBoxes["t1::I"];
+        expect(o.x).toBeLessThan(i.x);
+        expect(o.y).toBe(i.y - LOOP_BOX_PAD - LOOP_BOX_CAPTION);
+        expect(o.x + o.width).toBe(i.x + i.width + LOOP_BOX_PAD);
+        expect(o.y + o.height).toBe(i.y + i.height + LOOP_BOX_PAD);
+        expect(i.x).toBe(layout.splitPositions["t1::I"].x + SPLIT_SIZE / 2);
+    });
+
+    it("does not box a loop whose body runs an agent placed before the loop node (a; foreach { a })", () => {
+        const loop: TopologySplitNode = { id: "t1::L", kind: "foreach", triggerId: "t1", parentId: "a", depth: 1, header: "x in xs", members: ["a"] };
+        const graph = graphOf([agent("a")], [trigger("t1")], [edge("t1", "a"), edge("a", "t1::L", "stem"), edge("t1::L", "a")], [loop]);
+        const layout = layoutTopology(graph);
+        expect(layout.loopBoxes).toEqual({});
+        expect(layout.edgeStarts).toEqual({});
+        expect(layout.edgeVias["t1::L->a"].length).toBeGreaterThanOrEqual(2);
+        Object.values(layout.agentPositions).forEach((position) => expect(Number.isFinite(position.y)).toBe(true));
+    });
+
+    it("moves a card from another handler out of a loop's box (event_pipeline shape)", () => {
+        const loop: TopologySplitNode = { id: "t1::L", kind: "foreach", triggerId: "t1", parentId: "t1", depth: 1, header: "rec in records", members: ["e", "t1::I", "s", "r"] };
+        const cond: TopologySplitNode = { id: "t1::I", kind: "if", triggerId: "t1", parentId: "e", depth: 1 };
+        const graph = graphOf(
+            [agent("e"), agent("s"), agent("r"), agent("d")],
+            [trigger("t1"), trigger("t2")],
+            [edge("t1", "t1::L", "stem"), edge("t1::L", "e"), edge("e", "t1::I", "stem"), edge("t1::I", "s"), edge("t1::I", "r"), edge("t2", "d")],
+            [loop, cond]
+        );
+        const layout = layoutTopology(graph);
+        const box = layout.loopBoxes["t1::L"];
+        const d = layout.agentPositions["d"];
+        expect(d.x).toBe(layout.agentPositions["e"].x);
+        expect(d.y).toBeGreaterThanOrEqual(box.y + box.height + TOPOLOGY_GAP_Y);
+        ["e", "s", "r"].forEach((id) => {
+            expect(layout.agentPositions[id].y).toBeGreaterThan(box.y);
+            expect(layout.agentPositions[id].y + layout.cardHeights[id]).toBeLessThan(box.y + box.height);
+        });
+        expect(layout.height).toBeGreaterThanOrEqual(d.y + layout.cardHeights["d"]);
+    });
+
+    it("leaves two loops that share a member overlapping instead of pushing each other apart", () => {
+        const l1: TopologySplitNode = { id: "t1::L", kind: "foreach", triggerId: "t1", parentId: "t1", depth: 1, header: "x in xs", members: ["a", "b"] };
+        const l2: TopologySplitNode = { id: "t2::L", kind: "while", triggerId: "t2", parentId: "t2", depth: 1, header: "more", members: ["b", "c"] };
+        const graph = graphOf(
+            [agent("a"), agent("b"), agent("c")],
+            [trigger("t1"), trigger("t2")],
+            [edge("t1", "t1::L", "stem"), edge("t1::L", "a"), edge("t1::L", "b"), edge("t2", "t2::L", "stem"), edge("t2::L", "b"), edge("t2::L", "c")],
+            [l1, l2]
+        );
+        const layout = layoutTopology(graph);
+        const ys = ["a", "b", "c"].map((id) => layout.agentPositions[id].y).sort((p, q) => p - q);
+        expect(ys[1] - ys[0]).toBe(AGENT_CARD_MIN_HEIGHT + TOPOLOGY_GAP_Y);
+        expect(ys[2] - ys[1]).toBe(AGENT_CARD_MIN_HEIGHT + TOPOLOGY_GAP_Y);
+        expect(Object.keys(layout.loopBoxes).sort()).toEqual(["t1::L", "t2::L"]);
+    });
+
+    it("keeps two handlers' boxes a gap apart and each loop node centred on its own body (batch_triage shape)", () => {
+        const l1: TopologySplitNode = { id: "t1::L", kind: "foreach", triggerId: "t1", parentId: "t1", depth: 1, header: "ticket in tickets", members: ["a"] };
+        const l2: TopologySplitNode = { id: "t2::L", kind: "while", triggerId: "t2", parentId: "t2", depth: 1, header: "attempts < 3", members: ["b"] };
+        const graph = graphOf(
+            [agent("a"), agent("b")],
+            [trigger("t1"), trigger("t2")],
+            [edge("t1", "t1::L", "stem"), edge("t1::L", "a"), edge("t2", "t2::L", "stem"), edge("t2::L", "b")],
+            [l1, l2]
+        );
+        const layout = layoutTopology(graph);
+        const first = layout.loopBoxes["t1::L"];
+        const second = layout.loopBoxes["t2::L"];
+        expect(second.y).toBe(first.y + first.height + TOPOLOGY_GAP_Y);
+        // A loop node sits on its box's border, so it is never mistaken for an intruder into its own box.
+        const centres = (id: string) => layout.splitPositions[id].y + SPLIT_SIZE / 2;
+        expect(centres("t1::L")).toBeCloseTo(layout.agentPositions["a"].y + layout.cardHeights["a"] / 2);
+        expect(centres("t2::L")).toBeCloseTo(layout.agentPositions["b"].y + layout.cardHeights["b"] / 2);
+        // The trigger runs nothing else, so it follows the body it feeds.
+        expect(layout.triggerPositions["t2"].y + TRIGGER_SIZE / 2).toBeCloseTo(centres("t2::L"));
+    });
+
+    it("evicts a card of an overlapping box but leaves the card the two loops share where it is", () => {
+        const l1: TopologySplitNode = { id: "t1::L", kind: "foreach", triggerId: "t1", parentId: "t1", depth: 1, header: "x in xs", members: ["shared", "own"] };
+        const l2: TopologySplitNode = { id: "t2::L", kind: "foreach", triggerId: "t2", parentId: "t2", depth: 1, header: "y in ys", members: ["shared", "other"] };
+        const graph = graphOf(
+            [agent("own"), agent("shared"), agent("other")],
+            [trigger("t1"), trigger("t2")],
+            [
+                edge("t1", "t1::L", "stem"), edge("t1::L", "own"), edge("own", "shared"),
+                edge("t2", "t2::L", "stem"), edge("t2::L", "other"), edge("t2::L", "shared"),
+            ],
+            [l1, l2]
+        );
+        const layout = layoutTopology(graph);
+        const first = layout.loopBoxes["t1::L"];
+        // `other` is drawn in the second loop's box but not in the first, so it leaves the first's rows.
+        expect(layout.agentPositions["other"].y).toBeGreaterThanOrEqual(first.y + first.height);
+        expect(layout.agentPositions["shared"].y).toBeGreaterThan(first.y);
+        expect(layout.agentPositions["shared"].y + layout.cardHeights["shared"]).toBeLessThan(first.y + first.height);
+        // The shared card is genuinely in both loops, so both boxes hold it and overlap over its row.
+        const second = layout.loopBoxes["t2::L"];
+        expect(layout.agentPositions["shared"].y).toBeGreaterThan(second.y);
+        expect(Math.min(first.y + first.height, second.y + second.height)).toBeGreaterThan(Math.max(first.y, second.y));
+    });
+
+    it("keeps the step after an inner loop outside that box and inside the outer one", () => {
+        const outer: TopologySplitNode = { id: "t1::O", kind: "foreach", triggerId: "t1", parentId: "t1", depth: 1, header: "o in os", members: ["t1::I", "a", "b"] };
+        const inner: TopologySplitNode = { id: "t1::I", kind: "foreach", triggerId: "t1", parentId: "t1::O", depth: 2, header: "i in o", members: ["a"] };
+        const innerExit: TopologyEdge = { id: "t1::I->>b", sourceId: "t1::I", targetId: "b", kind: "exit", chips: [] };
+        const outerExit: TopologyEdge = { id: "t1::O->>c", sourceId: "t1::O", targetId: "c", kind: "exit", chips: [] };
+        const graph = graphOf(
+            [agent("a"), agent("b"), agent("c")],
+            [trigger("t1")],
+            [edge("t1", "t1::O", "stem"), edge("t1::O", "t1::I", "stem"), edge("t1::I", "a"), innerExit, outerExit],
+            [outer, inner]
+        );
+        const layout = layoutTopology(graph);
+        const o = layout.loopBoxes["t1::O"];
+        const i = layout.loopBoxes["t1::I"];
+        const right = (id: string) => layout.agentPositions[id].x + AGENT_CARD_WIDTH;
+        expect(layout.agentPositions["b"].x).toBeGreaterThan(i.x + i.width);
+        expect(right("b")).toBeLessThan(o.x + o.width);
+        expect(layout.agentPositions["c"].x).toBeGreaterThan(o.x + o.width);
+        expect(layout.edgeStarts["t1::I->>b"].x).toBe(i.x + i.width);
+        expect(layout.edgeStarts["t1::O->>c"].x).toBe(o.x + o.width);
+    });
+
+    it("wraps a loop's exit back into an agent that also runs inside it, from the box's far edge", () => {
+        const loop: TopologySplitNode = { id: "t1::L", kind: "while", triggerId: "t1", parentId: "t1", depth: 1, header: "more", members: ["x"] };
+        const exit: TopologyEdge = { id: "t1::L->>x", sourceId: "t1::L", targetId: "x", kind: "exit", chips: [] };
+        const graph = graphOf([agent("x")], [trigger("t1")], [edge("t1", "t1::L", "stem"), edge("t1::L", "x"), exit], [loop]);
+        const layout = layoutTopology(graph);
+        const box = layout.loopBoxes["t1::L"];
+        const vias = layout.edgeVias["t1::L->>x"];
+        expect(vias).toHaveLength(4);
+        expect(vias[0].x).toBeGreaterThan(box.x + box.width);
+        expect(vias[1].y).toBeGreaterThan(box.y + box.height);
+        expect(vias[3].x).toBeLessThan(layout.agentPositions["x"].x);
+        expect(layout.edgeBows["t1::L->x"] ?? 0).toBe(0);
+    });
+
     it("spreads the edges that arrive at one agent and leaves a lone arrival straight", () => {
         const both = { ...edge("a", "b", "delegation"), id: "a~>b" };
         const graph = graphOf([agent("a"), agent("b")], [trigger("t1")], [edge("t1", "a"), edge("a", "b"), both]);
@@ -632,6 +815,22 @@ describe("layoutTopology (vertical)", () => {
         const triggerBottom = layout.triggerPositions["t3"].y + TRIGGER_STACKED_HEIGHT;
         expect(layout.edgeVias["t3->t3::w"][0].y).toBe(triggerBottom + SPLIT_STEM_Y / 2);
         expect(layout.edgeVias["t3->t3::w"][0].y).toBeLessThan(layout.splitPositions["t3::w"].y);
+    });
+
+    it("boxes a loop body below the loop node and starts the exit on the box's bottom edge", () => {
+        const loop: TopologySplitNode = { id: "t1::L", kind: "foreach", triggerId: "t1", parentId: "t1", depth: 1, header: "x in xs", members: ["a"] };
+        const exit: TopologyEdge = { id: "t1::L->>b", sourceId: "t1::L", targetId: "b", kind: "exit", chips: [] };
+        const graph = graphOf([agent("a"), agent("b")], [trigger("t1")], [edge("t1", "t1::L", "stem"), edge("t1::L", "a"), exit], [loop]);
+        const layout = layoutTopology(graph, vertical);
+        const box = layout.loopBoxes["t1::L"];
+        const a = layout.agentPositions["a"];
+        const loopPos = layout.splitPositions["t1::L"];
+        expect(box.y).toBe(loopPos.y + SPLIT_SIZE / 2);
+        expect(box.x).toBe(a.x - LOOP_BOX_PAD);
+        expect(box.x + box.width).toBe(a.x + AGENT_CARD_WIDTH + LOOP_BOX_PAD);
+        expect(box.y + box.height).toBe(a.y + layout.cardHeights["a"] + LOOP_BOX_PAD);
+        expect(layout.agentPositions["b"].y).toBeGreaterThan(box.y + box.height);
+        expect(layout.edgeStarts["t1::L->>b"]).toEqual({ x: loopPos.x + SPLIT_SIZE / 2, y: box.y + box.height });
     });
 
     it("detours a long edge beside the skipped row's card when the target sits under it", () => {

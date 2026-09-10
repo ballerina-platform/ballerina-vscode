@@ -371,19 +371,26 @@ class HandlerBuilder {
     }
 
     // The edge leaving the body's own split carries its branch; a step already in the body is not drawn again.
+    // A step after a loop leaves the loop's box: an exit edge, kept apart from the loop's own body edge into the same agent.
     private addStep(body: Body, id: string, kind: TopologyEdgeKind): void {
         if (body.steps.includes(id)) {
             return;
         }
         const sourceId = body.lastStep ?? body.entry;
-        const edge = this.addEdge(sourceId, id, kind, sourceId === body.entry ? body.branch : []);
+        const exits = body.lastStep !== undefined && this.isLoopSplit(body.lastStep);
+        const edge = this.addEdge(sourceId, id, exits ? "exit" : kind, sourceId === body.entry ? body.branch : []);
         body.steps.push(id);
         body.entryEdge.set(id, edge.id);
         body.lastStep = id;
     }
 
+    private isLoopSplit(id: string): boolean {
+        const split = this.splits.get(id);
+        return split !== undefined && isLoop(split.kind);
+    }
+
     private addEdge(sourceId: string, targetId: string, kind: TopologyEdgeKind, chips: EdgeChip[]): TopologyEdge {
-        const id = `${sourceId}->${targetId}`;
+        const id = kind === "exit" ? `${sourceId}->>${targetId}` : `${sourceId}->${targetId}`;
         const existing = this.edges.get(id);
         if (!existing) {
             const edge = { id, sourceId, targetId, kind, chips };
@@ -410,6 +417,19 @@ class HandlerBuilder {
             });
         });
     }
+
+    // A loop's members are the steps of its body and, through the splits among them, of every body nested inside.
+    collectLoopMembers(): void {
+        const bodiesUnder = new Map<string, Body[]>();
+        this.bodies.forEach((body) => bodiesUnder.set(body.entry, [...(bodiesUnder.get(body.entry) ?? []), body]));
+        const under = (id: string): string[] =>
+            (bodiesUnder.get(id) ?? []).flatMap((body) => body.steps.flatMap((step) => [step, ...(this.splits.has(step) ? under(step) : [])]));
+        this.splits.forEach((split) => {
+            if (isLoop(split.kind)) {
+                split.members = [...new Set(under(split.id))];
+            }
+        });
+    }
 }
 
 interface ResolvedCall {
@@ -430,6 +450,7 @@ function buildHandlerEdges(
     const builder = new HandlerBuilder(triggerId, names);
     calls.forEach((call) => builder.addCall(call.agentId, call.groups));
     builder.numberSteps();
+    builder.collectLoopMembers();
     // An agent reached only through a helper runs at an unknown point: a plain edge from the trigger, no number.
     const stepped = new Set([...builder.edges.values()].map((edge) => edge.targetId));
     const helped = agentIds

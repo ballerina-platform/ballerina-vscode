@@ -27,7 +27,7 @@ import { SPLIT_LABEL } from "../../AgentTopologyDiagram/types";
 import { useTopologyContext } from "../../AgentTopologyDiagram/TopologyContext";
 
 const Box = styled.div<{ receded: boolean }>`
-    opacity: ${(props) => (props.receded ? 0.55 : 1)};
+    opacity: ${(props) => (props.receded ? 0.3 : 1)};
     transition: opacity ${FOCUS_FADE_MS}ms ease;
     position: relative;
     width: ${SPLIT_SIZE}px;
@@ -100,19 +100,23 @@ interface SplitNodeWidgetProps {
 }
 
 export function SplitNodeWidget({ model, engine }: SplitNodeWidgetProps) {
-    const { orientation, focus } = useTopologyContext();
+    const { orientation, focus, loopBoxes } = useTopologyContext();
     const vertical = orientation === "vertical";
     const InPort = vertical ? TopPortWidget : LeftPortWidget;
     const OutPort = vertical ? BottomPortWidget : RightPortWidget;
+    // A boxed loop's caption names it; the node keeps only the glyph.
+    const boxed = loopBoxes?.some((view) => view.id === model.getID()) ?? false;
     return (
         <Box receded={focus !== undefined && !focus.nodes.has(model.getID())} title={[SPLIT_LABEL[model.node.kind], model.node.header].filter(Boolean).join(" · ")}>
             <InPort port={model.getInPort()} engine={engine} />
             <OutPort port={model.getOutPort()} engine={engine} />
             <SplitGlyph kind={model.node.kind} size={SPLIT_SIZE} />
-            <Label vertical={vertical}>
-                {SPLIT_LABEL[model.node.kind]}
-                {model.node.header && <Header>{model.node.header}</Header>}
-            </Label>
+            {!boxed && (
+                <Label vertical={vertical}>
+                    {SPLIT_LABEL[model.node.kind]}
+                    {model.node.header && <Header>{model.node.header}</Header>}
+                </Label>
+            )}
         </Box>
     );
 }
