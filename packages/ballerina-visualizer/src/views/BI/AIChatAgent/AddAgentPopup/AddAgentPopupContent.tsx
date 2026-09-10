@@ -464,7 +464,7 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
                             <AgentOptionDescription>
                                 {dependencyMode
                                     ? "Use a flexible agent input when the concrete agent is supplied by the caller."
-                                    : "Create a one-off agent instance for this integration only."}
+                                    : "Create an agent instance for this integration only."}
                             </AgentOptionDescription>
                         </AgentOptionContent>
                         <ArrowIcon>
