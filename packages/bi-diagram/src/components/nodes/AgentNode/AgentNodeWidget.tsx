@@ -44,7 +44,7 @@ import NodeIcon from "../../NodeIcon";
 import ConnectorIcon from "../../ConnectorIcon";
 import { DiagnosticsPopUp } from "../../DiagnosticsPopUp";
 import { nodeHasError } from "../../../utils/node";
-import { css } from "@emotion/react";
+import { css, Keyframes } from "@emotion/react";
 import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
 import { NodeMetadata, isDefaultModelProviderExpr } from "@wso2/ballerina-core";
 
@@ -434,6 +434,78 @@ function getAgentNodePresentation(variant: "agent" | "typedAgent", agentInfo?: N
     };
 }
 
+function TraceAccentPulse({ isActive, aiColor, syncPulseAnimation }: {
+    isActive: boolean;
+    aiColor: string;
+    syncPulseAnimation: Keyframes;
+}) {
+    return (
+        <circle
+            cx="80"
+            cy="24"
+            r="22"
+            fill="none"
+            stroke={aiColor}
+            strokeWidth={2.5}
+            css={css`
+                pointer-events: none;
+                opacity: ${isActive ? 1 : 0};
+                transition: opacity 0.4s ease-out;
+                transform-origin: 80px 24px;
+                transform: scale(1.03);
+                animation: ${syncPulseAnimation} 1.5s ease-in-out infinite alternate;
+            `}
+        />
+    );
+}
+
+function TraceAccentLine({ isActive, aiColor, baseStroke, baseDashArray, markerId, markerStartId }: {
+    isActive: boolean;
+    aiColor: string;
+    baseStroke: string;
+    baseDashArray?: string;
+    markerId: string;
+    markerStartId?: string;
+}) {
+    return (
+        <>
+            <line
+                x1="0"
+                y1="25"
+                x2="57"
+                y2="25"
+                style={{
+                    stroke: baseStroke,
+                    strokeWidth: 1.5,
+                    markerEnd: `url(#${markerId})`,
+                    ...(markerStartId ? { markerStart: `url(#${markerStartId})` } : {}),
+                    ...(baseDashArray ? { strokeDasharray: baseDashArray } : {}),
+                    opacity: isActive ? 0 : 1,
+                    transition: "stroke 0.4s ease-out, opacity 0.4s ease-out",
+                }}
+            />
+            <line
+                x1="0"
+                y1="25"
+                x2="57"
+                y2="25"
+                style={{
+                    stroke: aiColor,
+                    strokeWidth: 2.5,
+                    markerEnd: `url(#${markerId}-active)`,
+                    strokeDasharray: "6 6",
+                }}
+                css={css`
+                    pointer-events: none;
+                    opacity: ${isActive ? 1 : 0};
+                    transition: opacity 0.4s ease-out;
+                    animation: ${flowDashAnimation} 1s linear infinite;
+                `}
+            />
+        </>
+    );
+}
+
 export function AgentNodeWidget(props: AgentNodeWidgetProps) {
     const { model, engine, onClick, variant = model.getType() === NodeTypes.TYPED_AGENT_NODE ? "typedAgent" : "agent" } = props;
     const controller = useAgentNodeController(model);
@@ -761,6 +833,19 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                 onContextMenu={!readOnly ? handleOnContextMenu : undefined}
                 title="Configure Agent"
             >
+                <div
+                    css={css`
+                        position: absolute;
+                        top: -1px; left: -1px; right: -1px; bottom: -1px;
+                        border-radius: 10px;
+                        border: 2px solid ${aiColor};
+                        opacity: ${isAgentNodeActive ? 1 : 0};
+                        transition: opacity 0.4s ease-out;
+                        animation: ${boxSyncPulseAnimation} 1.5s ease-in-out infinite alternate;
+                        pointer-events: none;
+                        z-index: 1;
+                    `}
+                />
                 {hasBreakpoint && (
                     <div
                         data-testid={isActiveBreakpoint ? "breakpoint-indicator-diagram-active" : "breakpoint-indicator-diagram"}
@@ -979,7 +1064,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                 viewBox={`0 0 300 ${containerHeight}`}
                 style={{ marginLeft: "-10px", position: "relative", zIndex: 1 }}
             >
-                {showModelCircle && <g>
+                {showModelCircle && <g style={{ opacity: isModelActive ? 1 : 0.55, transition: "opacity 0.4s ease-out" }}>
                     <circle
                         cx="80"
                         cy="24"
@@ -1000,6 +1085,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                     >
                         <title>{"Configure Model Provider"}</title>
                     </circle>
+                    <TraceAccentPulse isActive={isModelActive} aiColor={aiColor} syncPulseAnimation={syncPulseAnimation} />
                     <foreignObject
                         x="68"
                         y="12"
@@ -1013,27 +1099,23 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                             : getAIModuleIcon(modelProvider?.type) ?? (nodeModelIconUrl ? <img src={nodeModelIconUrl} style={{ width: 24, height: 24 }} /> : <DefaultLlmIcon />)}
                     </foreignObject>
 
-                    <line
-                        x1="0"
-                        y1="25"
-                        x2="57"
-                        y2="25"
-                        style={{
-                            stroke: ThemeColors.ON_SURFACE,
-                            strokeWidth: 1.5,
-                            markerEnd: `url(#${model.node.id}-arrow-head)`,
-                            markerStart: `url(#${model.node.id}-diamond-start)`,
-                        }}
+                    <TraceAccentLine
+                        isActive={isModelActive}
+                        aiColor={aiColor}
+                        baseStroke={ThemeColors.ON_SURFACE}
+                        markerId={`${model.node.id}-arrow-head`}
+                        markerStartId={`${model.node.id}-diamond-start`}
                     />
                 </g>}
 
                 {tools.map((tool: ToolData, index: number) => {
+                    const isToolActive = activeToolNames.includes(tool.name);
                     return (
                         <g
                             key={index}
                             transform={`translate(0, ${(index + 1) * (NODE_HEIGHT + AGENT_NODE_TOOL_GAP) + AGENT_NODE_TOOL_SECTION_GAP
                                 })`}
-                            opacity={toolsReadOnly ? 0.55 : undefined}
+                            opacity={toolsReadOnly ? 0.55 : (isToolActive ? 1 : 0.55)}
                             onClick={toolsReadOnly ? undefined : () => tool.type == "MCP Server" ? onToolClick(tool) : onImplementTool(tool)}
                             onContextMenu={(e) => {
                                 if (!readOnly && !toolsReadOnly) {
@@ -1045,6 +1127,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                 cursor: not-allowed;
                             ` : css`
                             cursor: ${readOnly ? "default" : "pointer"};
+                            transition: opacity 0.4s ease-out;
                             &:hover circle:first-of-type {
                                 stroke: ${ThemeColors.SECONDARY};
                             }
@@ -1078,6 +1161,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                     transition: stroke 0.4s ease-out;
                                 `}
                             />
+                            <TraceAccentPulse isActive={isToolActive} aiColor={aiColor} syncPulseAnimation={syncPulseAnimation} />
                             <foreignObject
                                 x="68"
                                 y="12"
@@ -1106,10 +1190,11 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                 x="110"
                                 y="28"
                                 textAnchor="start"
-                                fill={ThemeColors.ON_SURFACE}
+                                fill={isToolActive ? aiColor : ThemeColors.ON_SURFACE}
                                 fontSize="14px"
                                 fontFamily="GilmerRegular"
                                 dominantBaseline="middle"
+                                style={{ transition: "fill 0.4s ease-out" }}
                             >
                                 {tool.name.length > 20 ? `${tool.name.slice(0, 20)}...` : tool.name}
                                 <title>{tool.name}</title>
@@ -1169,17 +1254,12 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                 with pointer-events: all) so the badge paints on top and still gets hover. */}
                             {tool.requiresApproval && <ApprovalBadge background={ThemeColors.SURFACE_DIM} />}
 
-                            <line
-                                x1="0"
-                                y1="25"
-                                x2="57"
-                                y2="25"
-                                style={{
-                                    stroke: ThemeColors.ON_SURFACE,
-                                    strokeWidth: 1.5,
-                                    markerEnd: `url(#${model.node.id}-arrow-head-tool-${sanitizeId(tool.name)})`,
-                                    strokeDasharray: "6 6",
-                                }}
+                            <TraceAccentLine
+                                isActive={isToolActive}
+                                aiColor={aiColor}
+                                baseStroke={ThemeColors.ON_SURFACE}
+                                baseDashArray="6 6"
+                                markerId={`${model.node.id}-arrow-head-tool-${sanitizeId(tool.name)}`}
                             />
 
                             {!toolsReadOnly && <foreignObject
@@ -1300,6 +1380,18 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                     </marker>
 
                     <marker
+                        id={`${model.node.id}-arrow-head-active`}
+                        markerWidth="4"
+                        markerHeight="4"
+                        refX="3"
+                        refY="2"
+                        viewBox="0 0 4 4"
+                        orient="auto"
+                    >
+                        <polygon points="0,4 0,0 4,2" fill={aiColor}></polygon>
+                    </marker>
+
+                    <marker
                         id={`${model.node.id}-diamond-start`}
                         markerWidth="8"
                         markerHeight="8"
@@ -1329,6 +1421,18 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                 orient="auto"
                             >
                                 <polygon points="0,4 0,0 4,2" fill={ThemeColors.ON_SURFACE}></polygon>
+                            </marker>
+
+                            <marker
+                                id={`${model.node.id}-arrow-head-tool-${sanitizeId(tool.name)}-active`}
+                                markerWidth="4"
+                                markerHeight="4"
+                                refX="3"
+                                refY="2"
+                                viewBox="0 0 4 4"
+                                orient="auto"
+                            >
+                                <polygon points="0,4 0,0 4,2" fill={aiColor}></polygon>
                             </marker>
                         </React.Fragment>
                     ))}
