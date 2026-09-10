@@ -338,6 +338,15 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
         onViewChange("configure");
     };
 
+    // A resolved agent (codedata.object set) routes to the dependency callback or the configure view.
+    const selectResolvedAgent = (agent: AvailableNode) => {
+        if (dependencyMode) {
+            onAgentSelectedForDependency?.(agent);
+            return;
+        }
+        openAgent(agent);
+    };
+
     // Central results name a package; expand it so the user picks which definition to instantiate.
     // Resolve before navigating: a single-definition package should go straight to its form.
     const expandPackage = async (agent: AvailableNode) => {
@@ -351,7 +360,7 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
             });
             const found = toAgents(model);
             if (found.length === 1) {
-                openAgent(found[0]);
+                selectResolvedAgent(found[0]);
                 return;
             }
             setPackageAgents(found);
@@ -363,15 +372,11 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
     };
 
     const handleSelectAgent = (agent: AvailableNode) => {
-        if (dependencyMode) {
-            onAgentSelectedForDependency?.(agent);
-            return;
-        }
         if (!agent.codedata.object) {
             expandPackage(agent);
             return;
         }
-        openAgent(agent);
+        selectResolvedAgent(agent);
     };
 
     if (view === "createDefinition") {
@@ -430,7 +435,7 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
                 packageNode={pendingAgent}
                 agents={packageAgents}
                 isLoading={isExpanding}
-                onSelect={openAgent}
+                onSelect={selectResolvedAgent}
             />
         );
     }
