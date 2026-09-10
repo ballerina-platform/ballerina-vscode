@@ -126,15 +126,14 @@ describe("buildTopology", () => {
         const orderEdge = graph.edges.find((edge) => edge.kind === "trigger" && edge.targetId === agentId(AGENTS_BAL, 13));
         const shipEdge = graph.edges.find((edge) => edge.kind === "trigger" && edge.targetId === agentId(AGENTS_BAL, 17));
         expect(orderEdge.sourceId).toBe(graph.triggers[0].id);
-        const steps = ["orderAgent", "shippingRatesAgent"];
-        expect(orderEdge.chips).toEqual([expect.objectContaining({ kind: "sequence", text: "1", steps })]);
+        expect(orderEdge.handlers).toEqual([{ triggerId: graph.triggers[0].id, order: 1 }]);
         expect(shipEdge.sourceId).toBe(agentId(AGENTS_BAL, 13));
-        expect(shipEdge.chips).toEqual([expect.objectContaining({ kind: "sequence", text: "2", steps })]);
+        expect(shipEdge.handlers).toEqual([{ triggerId: graph.triggers[0].id, order: 2 }]);
 
         // Nothing triggers or delegates to the supervisor itself -- it only calls out.
         const supervisorNode = graph.agents.find((agent) => agent.name === "supportSupervisorAgent");
         expect(supervisorNode.orphan).toBe(true);
-        expect(graph.legendKinds).toEqual(expect.arrayContaining(["trigger", "delegation", "sequence"]));
+        expect(graph.legendKinds).toEqual(expect.arrayContaining(["trigger", "delegation"]));
     });
 
     it("draws an if/else split as one shared stem marker with a condition chip on each branch", () => {
@@ -160,10 +159,10 @@ describe("buildTopology", () => {
         const billingEdge = graph.edges.find((edge) => edge.targetId === agentId(AGENTS_BAL, 1));
         expect(billingEdge.sourceId).toBe(graph.splits[0].id);
         const technicalEdge = graph.edges.find((edge) => edge.targetId === agentId(AGENTS_BAL, 5));
-        expect(billingEdge.chips).toEqual([{ kind: "condition", text: "isBillingQuery(msg)" }]);
-        expect(technicalEdge.chips).toEqual([{ kind: "condition", text: "else" }]);
-        // Only one item (the whole if/else chain) in this handler, so no sequence numbers.
-        expect(billingEdge.chips.some((chip) => chip.kind === "sequence")).toBe(false);
+        expect(billingEdge.chips).toEqual([{ text: "isBillingQuery(msg)" }]);
+        expect(technicalEdge.chips).toEqual([{ text: "else" }]);
+        // Only one item (the whole if/else chain) in this handler, so no step order recorded.
+        expect(billingEdge.handlers).toBeUndefined();
         expect(graph.legendKinds).toContain("condition");
     });
 
@@ -184,7 +183,7 @@ describe("buildTopology", () => {
         expect(graph.splits[0].kind).toBe("match");
         const billingEdge = graph.edges.find((edge) => edge.targetId === agentId(AGENTS_BAL, 1));
         expect(billingEdge.sourceId).toBe(graph.splits[0].id);
-        expect(billingEdge.chips).toEqual([{ kind: "condition", text: '"billing"' }]);
+        expect(billingEdge.chips).toEqual([{ text: '"billing"' }]);
     });
 
     it("draws a fork with a stem marker and no text chips on its edges", () => {
@@ -265,10 +264,10 @@ describe("buildTopology", () => {
         const edge = (source: string, target: string) => graph.edges.find((e) => e.sourceId === source && e.targetId === target);
         expect(edge(triggerId, `${triggerId}::L`).chips).toEqual([]);
         expect(edge(`${triggerId}::L`, `${triggerId}::O`).chips).toEqual([]);
-        expect(edge(`${triggerId}::O`, `${triggerId}::I`).chips).toEqual([{ kind: "condition", text: "item.total > 1000" }]);
-        expect(edge(`${triggerId}::I`, agentId(AGENTS_BAL, 1)).chips).toEqual([{ kind: "condition", text: 'item.region == "EU"' }]);
-        expect(edge(`${triggerId}::I`, agentId(AGENTS_BAL, 5)).chips).toEqual([{ kind: "condition", text: "else" }]);
-        expect(edge(`${triggerId}::O`, agentId(AGENTS_BAL, 9)).chips).toEqual([{ kind: "condition", text: "item.isGift" }]);
+        expect(edge(`${triggerId}::O`, `${triggerId}::I`).chips).toEqual([{ text: "item.total > 1000" }]);
+        expect(edge(`${triggerId}::I`, agentId(AGENTS_BAL, 1)).chips).toEqual([{ text: 'item.region == "EU"' }]);
+        expect(edge(`${triggerId}::I`, agentId(AGENTS_BAL, 5)).chips).toEqual([{ text: "else" }]);
+        expect(edge(`${triggerId}::O`, agentId(AGENTS_BAL, 9)).chips).toEqual([{ text: "item.isGift" }]);
         expect(graph.edges.filter((e) => e.sourceId === triggerId)).toHaveLength(1);
     });
 
@@ -301,16 +300,15 @@ describe("buildTopology", () => {
         });
 
         const triggerId = graph.triggers[0].id;
-        const steps = ["outlineAgent", "If", "draftAgent", "polishAgent"];
-        const chip = (edge: TopologyEdge) => edge.chips.find((c) => c.kind === "sequence");
+        const order = (edge: TopologyEdge) => edge.handlers?.[0]?.order;
         const edge = (sourceId: string, targetId: string) => graph.edges.find((e) => e.sourceId === sourceId && e.targetId === targetId);
         const splitId = `${triggerId}::g1`;
-        expect(chip(edge(triggerId, agentId(AGENTS_BAL, 1)))).toEqual(expect.objectContaining({ kind: "sequence", text: "1", steps }));
+        expect(order(edge(triggerId, agentId(AGENTS_BAL, 1)))).toBe(1);
         expect(edge(agentId(AGENTS_BAL, 1), splitId).kind).toBe("stem");
-        expect(chip(edge(agentId(AGENTS_BAL, 1), splitId))).toEqual(expect.objectContaining({ kind: "sequence", text: "2", steps }));
-        expect(edge(splitId, agentId(AGENTS_BAL, 5)).chips).toEqual([{ kind: "condition", text: "!passesGate(outline)" }]);
-        expect(chip(edge(splitId, agentId(AGENTS_BAL, 9)))).toEqual(expect.objectContaining({ kind: "sequence", text: "3", steps }));
-        expect(chip(edge(agentId(AGENTS_BAL, 9), agentId(AGENTS_BAL, 13)))).toEqual(expect.objectContaining({ kind: "sequence", text: "4", steps }));
+        expect(order(edge(agentId(AGENTS_BAL, 1), splitId))).toBe(2);
+        expect(edge(splitId, agentId(AGENTS_BAL, 5)).chips).toEqual([{ text: "!passesGate(outline)" }]);
+        expect(order(edge(splitId, agentId(AGENTS_BAL, 9)))).toBe(3);
+        expect(order(edge(agentId(AGENTS_BAL, 9), agentId(AGENTS_BAL, 13)))).toBe(4);
         expect(graph.edges.filter((e) => e.sourceId === triggerId)).toHaveLength(1);
         expect(graph.splits[0].parentId).toBe(agentId(AGENTS_BAL, 1));
     });
@@ -336,14 +334,13 @@ describe("buildTopology", () => {
         const loopId = `${triggerId}::L`;
         const ifId = `${triggerId}::I`;
         const edge = (sourceId: string, targetId: string) => graph.edges.find((e) => e.sourceId === sourceId && e.targetId === targetId);
-        const chip = (e: TopologyEdge) => e.chips.find((c) => c.kind === "sequence");
-        const steps = ["enrichAgent", "If"];
+        const order = (e: TopologyEdge) => e.handlers?.[0]?.order;
         expect(edge(triggerId, loopId).chips).toEqual([]);
-        expect(chip(edge(loopId, agentId(AGENTS_BAL, 1)))).toEqual(expect.objectContaining({ text: "1", steps }));
+        expect(order(edge(loopId, agentId(AGENTS_BAL, 1)))).toBe(1);
         expect(edge(agentId(AGENTS_BAL, 1), ifId).kind).toBe("stem");
-        expect(chip(edge(agentId(AGENTS_BAL, 1), ifId))).toEqual(expect.objectContaining({ text: "2", steps }));
-        expect(edge(ifId, agentId(AGENTS_BAL, 5)).chips).toEqual([{ kind: "condition", text: 'enriched.includes("high")' }]);
-        expect(edge(ifId, agentId(AGENTS_BAL, 9)).chips).toEqual([{ kind: "condition", text: "else" }]);
+        expect(order(edge(agentId(AGENTS_BAL, 1), ifId))).toBe(2);
+        expect(edge(ifId, agentId(AGENTS_BAL, 5)).chips).toEqual([{ text: 'enriched.includes("high")' }]);
+        expect(edge(ifId, agentId(AGENTS_BAL, 9)).chips).toEqual([{ text: "else" }]);
         expect(graph.splits.find((split) => split.id === ifId)).toMatchObject({ parentId: agentId(AGENTS_BAL, 1), depth: 1 });
         expect(graph.edges.filter((e) => e.sourceId === loopId)).toHaveLength(1);
     });
@@ -366,12 +363,11 @@ describe("buildTopology", () => {
 
         const triggerId = graph.triggers[0].id;
         const loopId = `${triggerId}::L`;
-        const number = (sourceId: string, targetId: string) =>
-            graph.edges.find((e) => e.sourceId === sourceId && e.targetId === targetId).chips.find((c) => c.kind === "sequence");
-        expect(number(triggerId, agentId(AGENTS_BAL, 1))).toEqual(expect.objectContaining({ text: "1", steps: ["outlineAgent", "Foreach"] }));
-        expect(number(agentId(AGENTS_BAL, 1), loopId)).toEqual(expect.objectContaining({ text: "2" }));
-        expect(number(loopId, agentId(AGENTS_BAL, 5))).toEqual(expect.objectContaining({ text: "2.1", steps: ["draftAgent", "polishAgent"] }));
-        expect(number(agentId(AGENTS_BAL, 5), agentId(AGENTS_BAL, 9))).toEqual(expect.objectContaining({ text: "2.2" }));
+        const order = (sourceId: string, targetId: string) => graph.edges.find((e) => e.sourceId === sourceId && e.targetId === targetId).handlers?.[0]?.order;
+        expect(order(triggerId, agentId(AGENTS_BAL, 1))).toBe(1);
+        expect(order(agentId(AGENTS_BAL, 1), loopId)).toBe(2);
+        expect(order(loopId, agentId(AGENTS_BAL, 5))).toBe(2.1);
+        expect(order(agentId(AGENTS_BAL, 5), agentId(AGENTS_BAL, 9))).toBe(2.2);
     });
 
     it("draws the step after a loop as an exit edge, apart from the loop's body edge, and lists the loop's members", () => {
@@ -391,8 +387,11 @@ describe("buildTopology", () => {
         const exit = graph.edges.find((e) => e.sourceId === loopId && e.targetId === agentId(AGENTS_BAL, 5));
         expect(body).toMatchObject({ id: `${loopId}->${agentId(AGENTS_BAL, 1)}`, kind: "trigger", chips: [] });
         expect(exit).toMatchObject({ id: `${loopId}->>${agentId(AGENTS_BAL, 5)}`, kind: "exit" });
-        expect(exit.chips).toEqual([expect.objectContaining({ kind: "sequence", text: "2", steps: ["Foreach", "afterAgent"] })]);
-        expect(graph.edges.find((e) => e.targetId === loopId).chips).toEqual([expect.objectContaining({ kind: "sequence", text: "1" })]);
+        expect(exit.chips).toEqual([]);
+        expect(exit.handlers).toEqual([{ triggerId, order: 2 }]);
+        const intoLoop = graph.edges.find((e) => e.targetId === loopId);
+        expect(intoLoop.chips).toEqual([]);
+        expect(intoLoop.handlers).toEqual([{ triggerId, order: 1 }]);
     });
 
     it("collects a loop's members through the splits nested in its body", () => {
@@ -513,8 +512,8 @@ describe("buildTopology", () => {
 
         const shared = graph.edges.filter((e) => e.sourceId === agentId(AGENTS_BAL, 1) && e.targetId === agentId(AGENTS_BAL, 5));
         expect(shared).toHaveLength(1);
-        expect(shared[0].chips.map((chip) => [chip.text, chip.handler])).toEqual([["3", "POST /pipeline"], ["2", "POST /verified"]]);
-        expect(shared[0].chips.map((chip) => chip.triggerId)).toEqual(graph.triggers.map((trigger) => trigger.id));
+        expect(shared[0].handlers.map((step) => step.order).sort()).toEqual([2, 3]);
+        expect(shared[0].handlers.map((step) => step.triggerId).sort()).toEqual(graph.triggers.map((trigger) => trigger.id).sort());
     });
 
     it("merges two conditions that lead to the same agent into one pill", () => {
@@ -529,7 +528,7 @@ describe("buildTopology", () => {
         const graph = buildTopology({ model: modelOf([billing, general], [svc]), agents: [artifact("billingAgent", AGENTS_BAL, 1), artifact("generalAgent", AGENTS_BAL, 5)] });
 
         const toBilling = graph.edges.find((e) => e.targetId === agentId(AGENTS_BAL, 1));
-        expect(toBilling.chips).toEqual([{ kind: "condition", text: 'kind == "refund" | kind == "chargeback"' }]);
+        expect(toBilling.chips).toEqual([{ text: 'kind == "refund" | kind == "chargeback"' }]);
     });
 
     it("hangs a split that follows a plain call off that agent and numbers both steps", () => {
@@ -544,9 +543,8 @@ describe("buildTopology", () => {
         const graph = buildTopology({ model: modelOf([first, second], [svc]), agents: [artifact("firstAgent", AGENTS_BAL, 1), artifact("secondAgent", AGENTS_BAL, 5)] });
 
         const triggerId = graph.triggers[0].id;
-        const steps = ["firstAgent", "If"];
-        expect(graph.edges.find((e) => e.sourceId === triggerId && e.targetId === agentId(AGENTS_BAL, 1)).chips).toEqual([expect.objectContaining({ kind: "sequence", text: "1", steps })]);
-        expect(graph.edges.find((e) => e.sourceId === agentId(AGENTS_BAL, 1) && e.kind === "stem").chips).toEqual([expect.objectContaining({ kind: "sequence", text: "2", steps })]);
+        expect(graph.edges.find((e) => e.sourceId === triggerId && e.targetId === agentId(AGENTS_BAL, 1)).handlers).toEqual([{ triggerId, order: 1 }]);
+        expect(graph.edges.find((e) => e.sourceId === agentId(AGENTS_BAL, 1) && e.kind === "stem").handlers).toEqual([{ triggerId, order: 2 }]);
     });
 
     it("draws typed-agent instances but neither their definition nor the field inside it", () => {

@@ -380,10 +380,10 @@ describe("layoutTopology", () => {
             [agent("a"), agent("b"), agent("c")],
             [trigger("t1"), trigger("t2")],
             [
-                { ...edge("t1", "a"), chips: [{ kind: "sequence", text: "1" }] },
-                { ...edge("a", "b"), chips: [{ kind: "sequence", text: "2" }] },
-                { ...edge("b", "c"), chips: [{ kind: "sequence", text: "3" }] },
-                { ...edge("t2", "b"), chips: [{ kind: "sequence", text: "1" }] },
+                { ...edge("t1", "a"), handlers: [{ triggerId: "t1", order: 1 }] },
+                { ...edge("a", "b"), handlers: [{ triggerId: "t1", order: 2 }] },
+                { ...edge("b", "c"), handlers: [{ triggerId: "t1", order: 3 }] },
+                { ...edge("t2", "b"), handlers: [{ triggerId: "t2", order: 1 }] },
             ]
         );
         const layout = layoutTopology(graph);

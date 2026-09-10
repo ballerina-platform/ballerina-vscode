@@ -96,15 +96,14 @@ export function roundedPath(points: Point[]): string {
 }
 
 export interface LinkChips {
-    // Sequence numbers sit at the middle of the final run; pills too, staggered along a vertical run when edges are bowed apart.
-    chipPoint: Point;
+    // A pill sits at the middle of the final run, staggered along a vertical run when edges are bowed apart.
     pillPoint: Point;
 }
 
 export function linkRoute(link: TopologyLinkModel): Route & LinkChips {
     const bow = link.bow * ARRIVAL_BOW_PX;
     const drawn = route(link.start ?? link.getFirstPoint().getPosition(), link.getLastPoint().getPosition(), link.via, bow, link.vertical);
-    const chipPoint = midpoint(drawn.run[0], drawn.run[1]);
-    const pillPoint = link.vertical ? { x: chipPoint.x, y: chipPoint.y + bow } : chipPoint;
-    return { ...drawn, chipPoint, pillPoint };
+    const mid = midpoint(drawn.run[0], drawn.run[1]);
+    const pillPoint = link.vertical ? { x: mid.x, y: mid.y + bow } : mid;
+    return { ...drawn, pillPoint };
 }

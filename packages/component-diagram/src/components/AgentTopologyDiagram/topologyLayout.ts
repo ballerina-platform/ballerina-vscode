@@ -367,7 +367,7 @@ function spreadArrivals(edges: TopologyEdge[]): Record<string, number> {
 // around below the cards and comes back into the target's in port.
 // The leg a wrapped edge needs before it turns, when its pill rides on that leg.
 function pillRun(edge: TopologyEdge, vertical: boolean): number {
-    const pill = edge.chips.find((chip) => chip.kind === "condition");
+    const pill = edge.chips[0];
     if (!pill) {
         return 0;
     }
@@ -587,8 +587,8 @@ function placeRank(ids: string[], children: Adjacency, provisional: Placement, f
 }
 
 function lowestStep(edge: TopologyEdge): number {
-    const numbers = edge.chips.filter((chip) => chip.kind === "sequence").map((chip) => Number(chip.text));
-    return numbers.length ? Math.min(...numbers) : Infinity;
+    const orders = (edge.handlers ?? []).map((step) => step.order);
+    return orders.length ? Math.min(...orders) : Infinity;
 }
 
 // The parent an agent lines up under: the agent that runs it earliest in a chain (delegations and a loop's exit

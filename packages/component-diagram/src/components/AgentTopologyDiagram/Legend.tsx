@@ -55,34 +55,6 @@ function Line({ dashed = false }: { dashed?: boolean }) {
     );
 }
 
-const SequenceSwatch = styled.div`
-    position: relative;
-    width: ${SWATCH_W}px;
-    height: ${SWATCH_H}px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    & > svg {
-        position: absolute;
-        inset: 0;
-    }
-`;
-
-const NumberSwatch = styled.div`
-    position: relative;
-    position: relative;
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    border: 1.5px solid ${ThemeColors.ON_SURFACE};
-    background-color: ${ThemeColors.SURFACE};
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 9px;
-    font-weight: 700;
-`;
-
 const GlyphSwatch = styled.div`
     width: 24px;
     display: flex;
@@ -110,16 +82,6 @@ const LEGEND_ROWS: Record<LegendKind, { label: string; explain: string; swatch: 
         explain: "This agent uses the other agent as a tool.",
         swatch: <Line dashed />,
     },
-    sequence: {
-        label: "Runs in sequence",
-        explain: "The same handler runs these agents in this order.",
-        swatch: (
-            <SequenceSwatch>
-                <Line />
-                <NumberSwatch>2</NumberSwatch>
-            </SequenceSwatch>
-        ),
-    },
     condition: {
         label: "Runs one, by condition",
         explain: "Only one of these branches runs, depending on the condition shown on the edge.",
@@ -145,7 +107,7 @@ const LEGEND_ROWS: Record<LegendKind, { label: string; explain: string; swatch: 
     },
 };
 
-const LEGEND_ORDER: LegendKind[] = ["trigger", "delegation", "sequence", "condition", "fork", "loop"];
+const LEGEND_ORDER: LegendKind[] = ["trigger", "delegation", "condition", "fork", "loop"];
 
 export interface LegendProps {
     kinds: LegendKind[];

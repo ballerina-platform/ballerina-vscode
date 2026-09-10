@@ -39,8 +39,8 @@ function handlerResolver(graph: TopologyGraph): (edge: TopologyEdge) => Handlers
         if (split) {
             return new Set([split]);
         }
-        const numbered = edge.chips.filter((chip) => chip.kind === "sequence" && chip.triggerId).map((chip) => chip.triggerId);
-        return numbered.length ? new Set(numbered) : undefined;
+        const stepped = (edge.handlers ?? []).map((step) => step.triggerId);
+        return stepped.length ? new Set(stepped) : undefined;
     };
 }
 

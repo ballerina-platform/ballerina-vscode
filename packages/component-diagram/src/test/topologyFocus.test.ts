@@ -31,8 +31,8 @@ function trigger(id: string): TopologyTriggerNode {
 }
 
 function edge(sourceId: string, targetId: string, kind: TopologyEdge["kind"] = "trigger", step?: [string, string]): TopologyEdge {
-    const chips = step ? [{ kind: "sequence" as const, text: step[1], triggerId: step[0] }] : [];
-    return { id: `${sourceId}->${targetId}`, sourceId, targetId, kind, chips };
+    const handlers = step ? [{ triggerId: step[0], order: Number(step[1]) }] : undefined;
+    return { id: `${sourceId}->${targetId}`, sourceId, targetId, kind, chips: [], handlers };
 }
 
 function graphOf(agents: TopologyAgentNode[], triggers: TopologyTriggerNode[], edges: TopologyEdge[], splits: TopologySplitNode[] = []): TopologyGraph {

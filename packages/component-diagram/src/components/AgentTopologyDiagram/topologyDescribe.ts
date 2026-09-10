@@ -17,21 +17,7 @@
  */
 
 import { CDAgentCall, CDFunction, CDModel, CDResourceFunction, CDService } from "@wso2/ballerina-core";
-import { EdgeChip, LayoutOptions, NodePosition, SPLIT_LABEL, TopologyAgentNode, TopologyGraph, TopologyLayout, TopologySplitNode } from "./types";
-
-const CIRCLED = "①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳";
-
-function circled(text: string): string {
-    const n = Number(text);
-    return Number.isInteger(n) && n >= 1 && n <= CIRCLED.length ? CIRCLED[n - 1] : `#${text}`;
-}
-
-function chipText(chip: EdgeChip, id: (nodeId: string) => string): string {
-    if (chip.kind !== "sequence") {
-        return `«${chip.text}»`;
-    }
-    return chip.triggerId ? `${circled(chip.text)}·${id(chip.triggerId)}` : circled(chip.text);
-}
+import { LayoutOptions, NodePosition, SPLIT_LABEL, TopologyAgentNode, TopologyGraph, TopologyLayout, TopologySplitNode } from "./types";
 
 function at(position: NodePosition | undefined): string {
     return position ? `@${Math.round(position.x)},${Math.round(position.y)}` : "@?";
@@ -104,8 +90,9 @@ function edgeLines(graph: TopologyGraph, layout: TopologyLayout, id: (nodeId: st
             vias.length >= 2 ? `${shape} via ${vias.map((via) => at(via).slice(1)).join(" ")}` : vias.length ? `bend ${at(vias[0]).slice(1)}` : "",
             bow ? `bow ${bow > 0 ? "+" : ""}${bow}` : "",
         ].filter(Boolean);
-        const chips = edge.chips.map((chip) => chipText(chip, id)).join(" ");
-        return `  ${pad(id(edge.sourceId), 4)} → ${pad(id(edge.targetId), 4)} ${pad(edge.kind, 10)} ${pad(chips, 30)} ${geometry.join("  ")}`.trimEnd();
+        const chips = edge.chips.map((chip) => `«${chip.text}»`).join(" ");
+        const handlers = (edge.handlers ?? []).map((step) => `${step.order}·${id(step.triggerId)}`).join(",");
+        return `  ${pad(id(edge.sourceId), 4)} → ${pad(id(edge.targetId), 4)} ${pad(edge.kind, 10)} ${pad(chips, 20)} ${pad(handlers, 14)} ${geometry.join("  ")}`.trimEnd();
     });
 }
 
@@ -158,7 +145,7 @@ export function describeTopology(model: CDModel, graph: TopologyGraph, layout: T
         ...agentLines(graph, layout, id, vertical),
         `SPLITS (${graph.splits.length})`,
         ...splitLines(graph, layout, id),
-        `EDGES (${graph.edges.length})  source → target  kind  chips  geometry`,
+        `EDGES (${graph.edges.length})  source → target  kind  chips  steps (order·trigger)  geometry`,
         ...edgeLines(graph, layout, id, vertical),
         "HANDLERS (design model: direct agent calls in source order, {construct:label} for the enclosing constructs)",
         ...handlerLines(model),

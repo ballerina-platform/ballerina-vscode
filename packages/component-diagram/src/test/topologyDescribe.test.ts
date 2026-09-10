@@ -92,6 +92,6 @@ describe("describeTopology", () => {
         const text = describeTopology(looped, graph, layout, { availableWidth: 1400 });
 
         expect(text).toMatch(/S1\s+Foreach .* header «s in sections»\s+BOX @\d+,\d+ \d+×\d+ holds A1/);
-        expect(text).toMatch(/S1\s+→ A3\s+exit\s+②·T1\s+from \d+,\d+\s+bend/);
+        expect(text).toMatch(/S1\s+→ A3\s+exit\s+2·T1\s+from \d+,\d+\s+bend/);
     });
 });

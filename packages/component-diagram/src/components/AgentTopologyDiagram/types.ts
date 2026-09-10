@@ -46,14 +46,18 @@ export type SplitKind = "if" | "match" | "fork" | "while" | "foreach";
 
 export const SPLIT_LABEL: Record<SplitKind, string> = { if: "If", match: "Match", fork: "Fork", while: "While", foreach: "Foreach" };
 
+// A condition pill on an if/match branch; the arrow's own direction already says "runs after", so plain
+// sequential steps carry no chip at all.
 export interface EdgeChip {
-    kind: "sequence" | "condition";
     text: string;
-    // Every step of the handler in order, so a sequence chip can list them.
-    steps?: string[];
-    // The handler a sequence number belongs to: its trigger node and its label ("POST /verified").
-    triggerId?: string;
-    handler?: string;
+}
+
+// Which handler an edge's step belongs to, and where in that handler's walk order it falls -- not shown on the
+// canvas, but still needed to know which handler's flow an edge is part of (hover focus) and, when an agent is
+// reached by more than one edge, which one ran first (layout straightens a chain under its earliest parent).
+export interface HandlerStep {
+    triggerId: string;
+    order: number;
 }
 
 export interface TopologyEdge {
@@ -62,6 +66,7 @@ export interface TopologyEdge {
     targetId: string;
     kind: TopologyEdgeKind;
     chips: EdgeChip[];
+    handlers?: HandlerStep[];
 }
 
 export interface TopologyModelProvider {
@@ -129,7 +134,7 @@ export interface TopologySplitNode {
     members?: string[];
 }
 
-export type LegendKind = "trigger" | "delegation" | "sequence" | "condition" | "fork" | "loop";
+export type LegendKind = "trigger" | "delegation" | "condition" | "fork" | "loop";
 
 export interface TopologyGraph {
     agents: TopologyAgentNode[];
