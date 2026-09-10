@@ -18,7 +18,7 @@
 
 import * as vscode from 'vscode';
 import { extension } from "../../BalExtensionContext";
-import { DEVANT_TOKEN_EXCHANGE_URL } from '../../features/ai/utils';
+import { DEVANT_TOKEN_EXCHANGE_URL, setBackendRegion } from '../../features/ai/utils';
 import axios from 'axios';
 import { AuthCredentials, BIIntelSecrets, LoginMethod, AnthropicAwsSecrets } from '@wso2/ballerina-core';
 import { IWso2PlatformExtensionAPI } from '@wso2/wso2-platform-core';
@@ -155,6 +155,10 @@ export const getPlatformStsToken = async (): Promise<string | undefined> => {
         const api = await getPlatformExtensionAPI();
         if (!api) {
             return undefined;
+        }
+        if (api.isLoggedIn()) {
+            const { region } = api.getAuthState();
+            setBackendRegion(region.toLowerCase());
         }
         return await api.getStsToken();
     } catch (error) {
