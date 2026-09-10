@@ -186,14 +186,79 @@ public class CentralSearchUtilTest {
         Assert.assertEquals(central.callCount, 0);
     }
 
-    private static SymbolResponse.Symbol function(String org, String module, String version, String symbolName,
-                                                  String description) {
-        return symbol(org, module, version, symbolName, description, "function");
+    @Test(description = "A submodule symbol keeps its own module name, distinct from the package name.")
+    public void testSubmoduleModuleNameRetained() {
+        RecordingCentralApi central = new RecordingCentralApi(symbolResponse(
+                symbol("ballerinax", "edifact.d03a.supplychain", "edifact.d03a.supplychain.mORDERS", "1.0.1",
+                        "fromEdiString", "Convert EDI string to Ballerina record.", "function")));
+
+        List<SearchResult> results = new CentralSearchUtil(central)
+                .searchFunctions("fromEdiString", 10, 0, ALLOWED_ORGS);
+
+        Assert.assertEquals(results.size(), 1);
+        SearchResult.Package packageInfo = results.getFirst().packageInfo();
+        Assert.assertEquals(packageInfo.packageName(), "edifact.d03a.supplychain");
+        Assert.assertEquals(packageInfo.moduleName(), "edifact.d03a.supplychain.mORDERS");
     }
 
-    private static SymbolResponse.Symbol symbol(String org, String module, String version, String symbolName,
+    @Test(description = "A symbol without a module name is attributed to its package, as Central responds today.")
+    public void testMissingModuleNameFallsBackToPackage() {
+        RecordingCentralApi central = new RecordingCentralApi(symbolResponse(
+                function("ballerinax", "edifact.d03a.supplychain", "1.0.1", "fromEdiString", "Convert EDI string.")));
+
+        List<SearchResult> results = new CentralSearchUtil(central)
+                .searchFunctions("fromEdiString", 10, 0, ALLOWED_ORGS);
+
+        Assert.assertEquals(results.size(), 1);
+        Assert.assertEquals(results.getFirst().packageInfo().moduleName(), "edifact.d03a.supplychain");
+    }
+
+    @Test(description = "Same-named functions in different modules of one package stay distinct results.")
+    public void testSameNameAcrossModulesNotCollapsed() {
+        RecordingCentralApi central = new RecordingCentralApi(symbolResponse(
+                symbol("ballerinax", "edifact.d03a.supplychain", "edifact.d03a.supplychain", "1.0.1",
+                        "fromEdiString", "Root", "function"),
+                symbol("ballerinax", "edifact.d03a.supplychain", "edifact.d03a.supplychain.mORDERS", "1.0.1",
+                        "fromEdiString", "Submodule", "function")));
+
+        List<SearchResult> results = new CentralSearchUtil(central)
+                .searchFunctions("fromEdiString", 10, 0, ALLOWED_ORGS);
+
+        Assert.assertEquals(results.size(), 2);
+        Assert.assertEquals(results.get(0).packageInfo().moduleName(), "edifact.d03a.supplychain");
+        Assert.assertEquals(results.get(1).packageInfo().moduleName(), "edifact.d03a.supplychain.mORDERS");
+    }
+
+    @Test(description = "The module name is retained by the single-org listing as well.")
+    public void testSearchFunctionsByOrgRetainsModuleName() {
+        RecordingCentralApi central = new RecordingCentralApi(symbolResponse(
+                symbol("ballerinax", "edifact.d03a.supplychain", "edifact.d03a.supplychain.mORDERS", "1.0.1",
+                        "fromEdiString", "Convert EDI string.", "function")));
+
+        List<SearchResult> results = new CentralSearchUtil(central)
+                .searchFunctionsByOrg("", 12, 0, "ballerinax");
+
+        Assert.assertEquals(results.size(), 1);
+        Assert.assertEquals(results.getFirst().packageInfo().moduleName(), "edifact.d03a.supplychain.mORDERS");
+    }
+
+    private static SymbolResponse.Symbol function(String org, String pkg, String version, String symbolName,
+                                                  String description) {
+        return symbol(org, pkg, version, symbolName, description, "function");
+    }
+
+    private static SymbolResponse.Symbol symbol(String org, String pkg, String version, String symbolName,
                                                 String description, String symbolType) {
-        return new SymbolResponse.Symbol("id", "pkgId", module, org, version, 0L, "icon", symbolType, "",
+        return symbol(org, pkg, null, version, symbolName, description, symbolType);
+    }
+
+    /**
+     * A symbol carrying an explicit module name, as Central returns once it indexes submodules. Passing {@code null}
+     * for {@code module} reproduces today's response, which omits the field.
+     */
+    private static SymbolResponse.Symbol symbol(String org, String pkg, String module, String version,
+                                                String symbolName, String description, String symbolType) {
+        return new SymbolResponse.Symbol("id", "pkgId", pkg, module, org, version, 0L, "icon", symbolType, "",
                 symbolName, description, "signature", false, false, false, false, false, false);
     }
 

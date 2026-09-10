@@ -19,6 +19,8 @@
 
 package io.ballerina.centralconnector.response;
 
+import com.google.gson.annotations.SerializedName;
+
 import java.util.List;
 
 /**
@@ -37,10 +39,17 @@ public record SymbolResponse(
         int limit
 ) {
 
+    // A symbol as returned by Central's `search-symbols` endpoint. `name` is the package name; `moduleName` is the
+    // module the symbol is declared in, which differs from `name` only for a submodule
+    // (edifact.d03a.supplychain.mORDERS against the package edifact.d03a.supplychain). Central indexes only the
+    // default module today, so the field is absent from the response and deserializes to null -- callers must fall
+    // back to `name`. The alternate spelling is accepted so the field binds whichever of the two names the registry
+    // ships, rather than silently staying null.
     public record Symbol(
             String id,
             String packageID,
             String name,
+            @SerializedName(value = "moduleName", alternate = {"module"}) String moduleName,
             String organization,
             String version,
             long createdDate,

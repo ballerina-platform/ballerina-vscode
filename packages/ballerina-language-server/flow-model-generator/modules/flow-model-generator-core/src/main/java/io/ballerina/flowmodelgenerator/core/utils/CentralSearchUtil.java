@@ -404,10 +404,27 @@ public class CentralSearchUtil {
         SearchResult.Package packageInfo = new SearchResult.Package(
                 symbol.organization(),
                 symbol.name(),
-                symbol.name(),
+                moduleNameOf(symbol),
                 symbol.version()
         );
         return SearchResult.from(packageInfo, symbol.symbolName(), symbol.description(), fromCurrentOrg);
+    }
+
+    /**
+     * The module a symbol is declared in, falling back to the package name.
+     * <p>
+     * The module name is what the codedata carries to the node template, and compiling a submodule function against
+     * the package default module resolves the wrong symbol -- either not found, or silently shadowed by a same-named
+     * root function. Central indexes only the default module today, so the field is absent and the fallback is what
+     * applies; for a default-module symbol the two names are equal anyway, so the fallback is also the correct answer
+     * there rather than merely a safe one.
+     *
+     * @param symbol the symbol returned by Central
+     * @return the module name to attribute the symbol to
+     */
+    private static String moduleNameOf(SymbolResponse.Symbol symbol) {
+        String moduleName = symbol.moduleName();
+        return moduleName == null || moduleName.isEmpty() ? symbol.name() : moduleName;
     }
 
     private static boolean isBlacklisted(String connectorName, Set<String> patterns) {
