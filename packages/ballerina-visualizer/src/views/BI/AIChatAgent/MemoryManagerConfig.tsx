@@ -24,7 +24,7 @@ import { cloneDeep } from "lodash";
 import { useEffect, useRef, useState } from "react";
 import { RelativeLoader } from "../../../components/RelativeLoader";
 import { FlowNodeForm } from "../Forms/FlowNodeForm";
-import { findFlowNodeByModuleVarName, getAiModuleOrg, getNodeTemplate, refreshAgentNodeLineRange, resolveAgentNodePosition } from "./utils";
+import { findAgentScopedNode, getAiModuleOrg, getNodeTemplate, refreshAgentNodeLineRange, resolveAgentNodePosition } from "./utils";
 import { MemoryStoreConfig } from "./MemoryStoreConfig";
 import { usePanelOverlay } from "../FlowDiagram/hooks/usePanelOverlay";
 import { ConnectionSelectionList } from "../../../components/ConnectionSelector/ConnectionSelectionList";
@@ -447,7 +447,9 @@ export function MemoryManagerConfig(props: MemoryConfigProps): JSX.Element {
             ),
             onBack: closeTopOverlay,
         });
-        const storeNode = await findFlowNodeByModuleVarName(storeName, rpcClient);
+        const storeNode = await findAgentScopedNode(
+            rpcClient, agentNode, "SHORT_TERM_MEMORY_STORE", storeName, agentFilePath.current
+        );
         if (!storeNode) {
             console.error("Memory store declaration not found", storeName);
             closeTopOverlay();

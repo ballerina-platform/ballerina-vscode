@@ -398,6 +398,27 @@ export const findFlowNode = async (
     }
 };
 
+/** Scopes the search to `node`'s position so local variables and class fields resolve, not just module-level declarations. */
+export const findAgentScopedNode = async (
+    rpcClient: BallerinaRpcClient,
+    node: FlowNode,
+    kind: SearchNodesQuery["kind"],
+    name?: string,
+    fallbackFilePath?: string
+): Promise<FlowNode | undefined> => {
+    if (!name?.trim() || name.trim() === "()") {
+        return undefined;
+    }
+    const fileName = node.codedata?.lineRange?.fileName;
+    const filePath = fileName
+        ? (await rpcClient.getVisualizerRpcClient().joinProjectPath({ segments: [fileName] })).filePath
+        : fallbackFilePath;
+    const nodes = await findFlowNode(rpcClient, filePath, node.codedata?.lineRange?.startLine, {
+        kind, exactMatch: name.trim(),
+    });
+    return nodes?.[0];
+};
+
 export const findAgentNodeFromAgentCallNode = async (agentCallNode: FlowNode, rpcClient: BallerinaRpcClient) => {
     if (!agentCallNode || agentCallNode.codedata?.node !== "AGENT_CALL") {
         return null;

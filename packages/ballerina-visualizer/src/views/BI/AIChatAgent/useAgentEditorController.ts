@@ -24,7 +24,7 @@ import { CodeData, EVENT_TYPE, FlowNode, MACHINE_VIEW, NodeMetadata, NodePositio
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { findFunctionByName } from "../FlowDiagram/utils";
 import {
-    findFlowNode,
+    findAgentScopedNode as findAgentScopedNodeAt,
     findFlowNodeByModuleVarName,
     refreshAgentNodeLineRange,
     removeMcpServerFromAgentNode,
@@ -132,21 +132,10 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
         return resolveToolComponent(toolName);
     }, [host.projectPath, resolveToolComponent, rpcClient]);
 
-    const findAgentScopedNode = useCallback(async (
+    const findAgentScopedNode = useCallback((
         node: FlowNode, kind: SearchNodesQuery["kind"], name?: string
-    ): Promise<FlowNode | undefined> => {
-        if (!name?.trim() || name.trim() === "()") {
-            return undefined;
-        }
-        const fileName = node.codedata?.lineRange?.fileName;
-        const filePath = fileName
-            ? (await rpcClient.getVisualizerRpcClient().joinProjectPath({ segments: [fileName] })).filePath
-            : host.filePath;
-        const nodes = await findFlowNode(rpcClient, filePath, node.codedata?.lineRange?.startLine, {
-            kind, exactMatch: name.trim(),
-        });
-        return nodes?.[0];
-    }, [host.filePath, rpcClient]);
+    ): Promise<FlowNode | undefined> => findAgentScopedNodeAt(rpcClient, node, kind, name, host.filePath),
+    [host.filePath, rpcClient]);
 
     const selectMemory = useCallback(async (node: FlowNode) => {
         activate(node);
