@@ -28,7 +28,28 @@ import {
 } from "../resources/constants";
 import { Branch, FlowNode, FlowNodeDiffState } from "./types";
 
-const WORKFLOW_NODE_KINDS = new Set(["WORKFLOW_RUN", "ACTIVITY_CALL", "SEND_DATA", "WAIT_DATA", "HUMAN_TASK"]);
+// Workflow statements carry the heavier border so they read as a distinct layer from the plain
+// statements around them. Most of the kinds below already get a dedicated widget (activity call,
+// send, wait, human task, ...) that draws that border unconditionally, so this set doesn't govern
+// them — they're only listed here for documentation. The kinds that actually consult this set via
+// isWorkflowNode() are the ones sharing a general-purpose widget with non-workflow nodes: the API
+// call box (WORKFLOW_RUN, CHILD_WORKFLOW_RUN, CHILD_WORKFLOW_CALL) and the base node fallback used
+// by any kind with no dedicated widget (UPDATE_DATA, SLEEP). Don't treat this list as the
+// authoritative index of which kinds get the workflow border — check the widget itself for that.
+const WORKFLOW_NODE_KINDS = new Set([
+    "WORKFLOW_RUN",
+    "CHILD_WORKFLOW_RUN",
+    "CHILD_WORKFLOW_CALL",
+    "CHILD_WORKFLOW_SEND_DATA",
+    "CHILD_WORKFLOW_WAIT",
+    "ACTIVITY_CALL",
+    "CONNECTION_ACTIVITY_CALL",
+    "SEND_DATA",
+    "WAIT_DATA",
+    "UPDATE_DATA",
+    "HUMAN_TASK",
+    "SLEEP",
+]);
 
 // Durable-agentic-workflow register/add statements: rendered without the module prefix and
 // with the registered name (metadata.description) as the node's second line.

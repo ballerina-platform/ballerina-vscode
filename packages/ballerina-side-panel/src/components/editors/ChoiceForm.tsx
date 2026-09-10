@@ -57,6 +57,14 @@ const ChoiceLabel = styled.span<{ selected: boolean }>`
     font-weight: ${(props: { selected: boolean }) => (props.selected ? 500 : 400)};
 `;
 
+/** A choice's own callout, shown on every option — e.g. why one is deprecated and what supersedes it. */
+const ChoiceNotice = styled.span`
+    display: block;
+    font-size: 11px;
+    opacity: 0.8;
+    color: ${ThemeColors.ON_SURFACE_VARIANT};
+`;
+
 export function ChoiceForm(props: ChoiceFormProps) {
     const { field, recordTypeFields } = props;
     const { form } = useFormContext();
@@ -187,9 +195,14 @@ export function ChoiceForm(props: ChoiceFormProps) {
                         id: index.toString(),
                         value: index + 1,
                         content: (
-                            <ChoiceLabel selected={selectedOption === index + 1}>
-                                {choice.metadata.label}
-                            </ChoiceLabel>
+                            <>
+                                <ChoiceLabel selected={selectedOption === index + 1}>
+                                    {choice.metadata.label}
+                                </ChoiceLabel>
+                                {choice.metadata.notice && (
+                                    <ChoiceNotice>{choice.metadata.notice}</ChoiceNotice>
+                                )}
+                            </>
                         ),
                         disabled: field.editable === false || !choice.editable
                     }))}

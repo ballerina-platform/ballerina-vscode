@@ -162,6 +162,9 @@ dependencies = [
 	{org = "ballerina", name = "os"},
 	{org = "ballerina", name = "time"}
 ]
+modules = [
+	{org = "ballerina", packageName = "file", moduleName = "file"}
+]
 
 [[package]]
 org = "ballerina"
@@ -995,6 +998,26 @@ dependencies = [
 
 [[package]]
 org = "ballerinax"
+name = "aws"
+version = "1.0.1"
+dependencies = [
+	{org = "ballerina", name = "jballerina.java"}
+]
+
+[[package]]
+org = "ballerinax"
+name = "aws.sqs"
+version = "5.0.1"
+dependencies = [
+	{org = "ballerina", name = "jballerina.java"},
+	{org = "ballerinax", name = "aws"}
+]
+modules = [
+	{org = "ballerinax", packageName = "aws.sqs", moduleName = "aws.sqs"}
+]
+
+[[package]]
+org = "ballerinax"
 name = "azure.ai.search"
 version = "1.0.2"
 dependencies = [
@@ -1051,6 +1074,26 @@ dependencies = [
 	{org = "ballerina", name = "http"},
 	{org = "ballerina", name = "url"},
 	{org = "ballerinai", name = "observe"}
+]
+
+[[package]]
+org = "ballerinax"
+name = "azure.storage.files"
+version = "1.0.2"
+dependencies = [
+	{org = "ballerina", name = "crypto"},
+	{org = "ballerina", name = "data.csv"},
+	{org = "ballerina", name = "data.jsondata"},
+	{org = "ballerina", name = "data.xmldata"},
+	{org = "ballerina", name = "io"},
+	{org = "ballerina", name = "jballerina.java"},
+	{org = "ballerina", name = "log"},
+	{org = "ballerina", name = "task"},
+	{org = "ballerina", name = "time"},
+	{org = "ballerinai", name = "observe"}
+]
+modules = [
+	{org = "ballerinax", packageName = "azure.storage.files", moduleName = "azure.storage.files"}
 ]
 
 [[package]]
@@ -1192,6 +1235,26 @@ dependencies = [
 	{org = "ballerina", name = "time"},
 	{org = "ballerina", name = "url"},
 	{org = "ballerinax", name = "client.config"}
+]
+
+[[package]]
+org = "ballerinax"
+name = "googleapis.chat"
+version = "0.1.1"
+dependencies = [
+	{org = "ballerina", name = "crypto"},
+	{org = "ballerina", name = "http"},
+	{org = "ballerina", name = "io"},
+	{org = "ballerina", name = "jballerina.java"},
+	{org = "ballerina", name = "jwt"},
+	{org = "ballerina", name = "log"},
+	{org = "ballerina", name = "mime"},
+	{org = "ballerina", name = "time"},
+	{org = "ballerina", name = "url"},
+	{org = "ballerinai", name = "observe"}
+]
+modules = [
+	{org = "ballerinax", packageName = "googleapis.chat", moduleName = "googleapis.chat"}
 ]
 
 [[package]]
@@ -1527,6 +1590,24 @@ modules = [
 
 [[package]]
 org = "ballerinax"
+name = "telegram"
+version = "0.9.3"
+dependencies = [
+	{org = "ballerina", name = "crypto"},
+	{org = "ballerina", name = "data.jsondata"},
+	{org = "ballerina", name = "http"},
+	{org = "ballerina", name = "jballerina.java"},
+	{org = "ballerina", name = "lang.runtime"},
+	{org = "ballerina", name = "log"},
+	{org = "ballerina", name = "mime"},
+	{org = "ballerinai", name = "observe"}
+]
+modules = [
+	{org = "ballerinax", packageName = "telegram", moduleName = "telegram"}
+]
+
+[[package]]
+org = "ballerinax"
 name = "trigger.github"
 version = "0.12.0"
 dependencies = [
@@ -1609,12 +1690,45 @@ modules = [
 
 [[package]]
 org = "ballerinax"
+name = "trigger.twilio"
+version = "0.10.0"
+dependencies = [
+	{org = "ballerina", name = "http"},
+	{org = "ballerina", name = "lang.runtime"},
+	{org = "ballerina", name = "log"},
+	{org = "ballerina", name = "mime"},
+	{org = "ballerinai", name = "observe"},
+	{org = "ballerinax", name = "asyncapi.native.handler"}
+]
+modules = [
+	{org = "ballerinax", packageName = "trigger.twilio", moduleName = "trigger.twilio"}
+]
+
+[[package]]
+org = "ballerinax"
 name = "weaviate"
 version = "1.0.2"
 dependencies = [
 	{org = "ballerina", name = "http"},
 	{org = "ballerina", name = "url"},
 	{org = "ballerinai", name = "observe"}
+]
+
+[[package]]
+org = "ballerinax"
+name = "whatsapp.business"
+version = "2.1.0"
+dependencies = [
+	{org = "ballerina", name = "data.jsondata"},
+	{org = "ballerina", name = "http"},
+	{org = "ballerina", name = "jballerina.java"},
+	{org = "ballerina", name = "lang.array"},
+	{org = "ballerina", name = "lang.runtime"},
+	{org = "ballerina", name = "mime"},
+	{org = "ballerinai", name = "observe"}
+]
+modules = [
+	{org = "ballerinax", packageName = "whatsapp.business", moduleName = "whatsapp.business"}
 ]
 
 [[package]]
@@ -1644,6 +1758,7 @@ dependencies = [
 	{org = "ballerina", name = "ai"},
 	{org = "ballerina", name = "ai.eval"},
 	{org = "ballerina", name = "data.csv"},
+	{org = "ballerina", name = "file"},
 	{org = "ballerina", name = "ftp"},
 	{org = "ballerina", name = "graphql"},
 	{org = "ballerina", name = "grpc"},
@@ -1668,13 +1783,16 @@ dependencies = [
 	{org = "ballerinax", name = "ai.pinecone"},
 	{org = "ballerinax", name = "ai.weaviate"},
 	{org = "ballerinax", name = "asb"},
+	{org = "ballerinax", name = "aws.sqs"},
 	{org = "ballerinax", name = "azure.datalake"},
+	{org = "ballerinax", name = "azure.storage.files"},
 	{org = "ballerinax", name = "azure_cosmosdb"},
 	{org = "ballerinax", name = "cdc"},
 	{org = "ballerinax", name = "covid19"},
 	{org = "ballerinax", name = "docusign.dsadmin"},
 	{org = "ballerinax", name = "docusign.dsesign"},
 	{org = "ballerinax", name = "github"},
+	{org = "ballerinax", name = "googleapis.chat"},
 	{org = "ballerinax", name = "ibm.ibmmq"},
 	{org = "ballerinax", name = "kafka"},
 	{org = "ballerinax", name = "mongodb"},
@@ -1692,11 +1810,14 @@ dependencies = [
 	{org = "ballerinax", name = "snowflake"},
 	{org = "ballerinax", name = "solace"},
 	{org = "ballerinax", name = "solace.jms"},
+	{org = "ballerinax", name = "telegram"},
 	{org = "ballerinax", name = "trigger.github"},
 	{org = "ballerinax", name = "trigger.google.calendar"},
 	{org = "ballerinax", name = "trigger.hubspot"},
 	{org = "ballerinax", name = "trigger.salesforce"},
 	{org = "ballerinax", name = "trigger.shopify"},
+	{org = "ballerinax", name = "trigger.twilio"},
+	{org = "ballerinax", name = "whatsapp.business"},
 	{org = "ballerinax", name = "wso2.controlplane"}
 ]
 modules = [

@@ -17,6 +17,7 @@
  */
 
 import { LineRange } from "./common";
+import type { IconDescriptor } from "./extended-lang-client";
 
 // Component Diagram Model
 export type CDModel = {
@@ -101,7 +102,7 @@ export type CDListener = {
     type: string;
     args: CDArg[];
     uuid: string;
-    icon: string;
+    icon: IconDescriptor | string;
     enableFlowModel: boolean;
     sortText: string;
 };
@@ -120,7 +121,7 @@ export type CDService = {
     resourceFunctions: CDResourceFunction[];
     absolutePath: string;
     type: string;
-    icon: string;
+    icon: IconDescriptor | string;
     uuid: string;
     enableFlowModel: boolean;
     sortText: string;

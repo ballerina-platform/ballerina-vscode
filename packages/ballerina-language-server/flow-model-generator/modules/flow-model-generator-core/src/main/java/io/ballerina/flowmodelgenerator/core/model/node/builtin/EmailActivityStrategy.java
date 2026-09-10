@@ -29,8 +29,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import static io.ballerina.modelgenerator.commons.ParameterData.Kind.REQUIRED;
-
 /**
  * Strategy for the {@code activity:sendEmail} builtin activity. SMTP host/port/credentials
  * live on the {@code email:SmtpClient} connection now; only the per-message fields are
@@ -72,58 +70,19 @@ public class EmailActivityStrategy implements BuiltinActivityStrategy {
 
     @Override
     public void setFormProperties(NodeBuilder nodeBuilder, NodeBuilder.TemplateContext context) {
-        // To — required, string|string[]
-        nodeBuilder.properties().custom()
-                .metadata()
-                    .label("To")
-                    .description("Recipient email address (or list of addresses)")
-                    .stepOut()
-                .type().fieldType(Property.ValueType.EXPRESSION)
-                    .ballerinaType(STRING_OR_STRING_ARRAY).selected(true).stepOut()
-                .codedata().kind(REQUIRED.name()).stepOut()
-                .value("")
-                .editable(true)
-                .stepOut()
-                .addProperty(TO_KEY);
-
-        // Subject — required string
-        nodeBuilder.properties().custom()
-                .metadata()
-                    .label("Subject")
-                    .description("Email subject line")
-                    .stepOut()
-                .type().fieldType(Property.ValueType.EXPRESSION).ballerinaType(STRING_TYPE).selected(true).stepOut()
-                .codedata().kind(REQUIRED.name()).stepOut()
-                .value("")
-                .editable(true)
-                .stepOut()
-                .addProperty(SUBJECT_KEY);
-
-        // Body — required string
-        nodeBuilder.properties().custom()
-                .metadata()
-                    .label("Body")
-                    .description("Plain-text body of the email")
-                    .stepOut()
-                .type().fieldType(Property.ValueType.EXPRESSION).ballerinaType(STRING_TYPE).selected(true).stepOut()
-                .codedata().kind(REQUIRED.name()).stepOut()
-                .value("")
-                .editable(true)
-                .stepOut()
-                .addProperty(BODY_KEY);
-
-        // From — required string (Ballerina keyword, quoted as 'from in source)
-        nodeBuilder.properties().custom()
-                .metadata()
-                    .label("From")
-                    .description("Sender address")
-                    .stepOut()
-                .type().fieldType(Property.ValueType.EXPRESSION).ballerinaType(STRING_TYPE).selected(true).stepOut()
-                .codedata().kind(REQUIRED.name()).stepOut()
-                .value("")
-                .editable(true)
-                .stepOut()
-                .addProperty(FROM_KEY);
+        // to/subject/'from/body — required, each plain text by default and switchable to an
+        // expression. The order matches the sendEmail signature, getCallActivityArgs below, and
+        // CodeAnalyzer.populateEmailProperties: FormBuilder keeps properties in insertion order, so
+        // it is the order the form renders in and a fresh node must agree with a reopened one.
+        BuiltinActivityStrategy.addRequiredDualTypeProperty(nodeBuilder, TO_KEY,
+                "To", "Recipient email address (or list of addresses)", STRING_OR_STRING_ARRAY);
+        BuiltinActivityStrategy.addRequiredDualTypeProperty(nodeBuilder, SUBJECT_KEY,
+                "Subject", "Email subject line", STRING_TYPE);
+        // Ballerina keyword, quoted as 'from in source
+        BuiltinActivityStrategy.addRequiredDualTypeProperty(nodeBuilder, FROM_KEY,
+                "From", "Sender address", STRING_TYPE);
+        BuiltinActivityStrategy.addRequiredDualTypeProperty(nodeBuilder, BODY_KEY,
+                "Body", "Plain-text body of the email", STRING_TYPE);
 
         // --- EmailOptions fields (all optional, advanced) ---
 
@@ -259,35 +218,27 @@ public class EmailActivityStrategy implements BuiltinActivityStrategy {
     public List<String> getCallActivityArgs(SourceBuilder sourceBuilder) {
         Map<String, Property> props = sourceBuilder.flowNode.properties();
         List<String> args = new ArrayList<>();
-        // Required positional params (order matches sendEmail signature)
-        addArg(args, TO_KEY, "to", props);
-        addArg(args, SUBJECT_KEY, "subject", props);
-        addArg(args, FROM_KEY, FROM_PARAM, props);
-        addArg(args, BODY_KEY, "body", props);
-        // Optional EmailOptions fields — nested in options: {...}
+        // Required params (order matches sendEmail signature). Each is TEXT/EXPRESSION dual-typed:
+        // TEXT input is emitted as a quoted string literal, EXPRESSION input verbatim.
+        BuiltinActivityStrategy.addQuotedArg(args, "to", props, TO_KEY);
+        BuiltinActivityStrategy.addQuotedArg(args, "subject", props, SUBJECT_KEY);
+        BuiltinActivityStrategy.addQuotedArg(args, FROM_PARAM, props, FROM_KEY);
+        BuiltinActivityStrategy.addQuotedArg(args, "body", props, BODY_KEY);
+        // Optional EmailOptions fields — nested in options: {...}. These are EXPRESSION-only, so
+        // addQuotedArg emits them verbatim; it is used for all of them regardless, rather than a
+        // near-identical local helper whose parameters sit in a different order.
         List<String> optFields = new ArrayList<>();
-        addArg(optFields, CC_KEY, "cc", props);
-        addArg(optFields, BCC_KEY, "bcc", props);
-        addArg(optFields, HTML_BODY_KEY, "htmlBody", props);
-        addArg(optFields, CONTENT_TYPE_KEY, "contentType", props);
-        addArg(optFields, EMAIL_HEADERS_KEY, "headers", props);
-        addArg(optFields, REPLY_TO_KEY, "replyTo", props);
-        addArg(optFields, SENDER_KEY, "sender", props);
+        BuiltinActivityStrategy.addQuotedArg(optFields, "cc", props, CC_KEY);
+        BuiltinActivityStrategy.addQuotedArg(optFields, "bcc", props, BCC_KEY);
+        BuiltinActivityStrategy.addQuotedArg(optFields, "htmlBody", props, HTML_BODY_KEY);
+        BuiltinActivityStrategy.addQuotedArg(optFields, "contentType", props, CONTENT_TYPE_KEY);
+        BuiltinActivityStrategy.addQuotedArg(optFields, "headers", props, EMAIL_HEADERS_KEY);
+        BuiltinActivityStrategy.addQuotedArg(optFields, "replyTo", props, REPLY_TO_KEY);
+        BuiltinActivityStrategy.addQuotedArg(optFields, "sender", props, SENDER_KEY);
         if (!optFields.isEmpty()) {
             args.add("options: {" + String.join(", ", optFields) + "}");
         }
         return args;
-    }
-
-    private static void addArg(List<String> args, String propKey, String paramName,
-                               Map<String, Property> properties) {
-        if (properties == null) {
-            return;
-        }
-        Property prop = properties.get(propKey);
-        if (prop != null && prop.value() != null && !prop.value().toString().isEmpty()) {
-            args.add(paramName + ": " + prop.value());
-        }
     }
 
     @Override

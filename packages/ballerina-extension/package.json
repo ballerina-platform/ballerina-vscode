@@ -241,7 +241,7 @@
                 "ballerina.enableAdditionalTriggerSearch": {
                     "type": "boolean",
                     "default": false,
-                    "description": "For trigger developer testing purposes only: also searches the local Ballerina repository (~/.ballerina/repositories/local) and Ballerina Central for trigger/connector packages.",
+                    "description": "For trigger developer testing purposes only: also searches the local Ballerina repository (~/.ballerina/repositories/local) for trigger/connector packages.",
                     "tags": [
                         "experimental"
                     ]

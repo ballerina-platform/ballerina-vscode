@@ -49,6 +49,7 @@ import io.ballerina.tools.text.TextRange;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -66,6 +67,8 @@ import static io.ballerina.servicemodelgenerator.extension.util.Constants.ARG_TY
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.ARG_TYPE_LISTENER_PARAM_INCLUDED_FIELD;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.ARG_TYPE_LISTENER_PARAM_REQUIRED;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.CD_TYPE_ENUM_VALUE;
+import static io.ballerina.servicemodelgenerator.extension.util.Constants.CD_TYPE_LISTENER_TYPE;
+import static io.ballerina.servicemodelgenerator.extension.util.Constants.CD_TYPE_LISTENER_VAR_NAME;
 
 /**
  * Builds the "use existing" listener selector for the schema-driven path, resolving each existing
@@ -87,13 +90,19 @@ public final class ExistingListenerResolver {
      */
     public static Value buildSelector(Value createNewBranch, List<String> listenerNames,
                                       SemanticModel semanticModel, Project project, String protocol) {
-        ListenerTemplate template = collectTemplate(createNewBranch);
-        Map<String, Value> createNewProps = createNewBranch == null ? null : createNewBranch.getProperties();
         // Resolved once for every name here, instead of each parseListener call re-scanning every
-        // module symbol -- O(listenerNames + moduleSymbols) instead of O(listenerNames * moduleSymbols).
+        // module symbol — O(listenerNames + moduleSymbols) instead of O(listenerNames * moduleSymbols).
         Map<String, VariableSymbol> listenerSymbolsByName = listenerSymbolsByName(semanticModel);
+        List<Value> typeBranches = listenerTypeBranches(createNewBranch);
+        Map<Value, ListenerTemplate> templatesByBranch = new IdentityHashMap<>();
+        ListenerTemplate singleTemplate = typeBranches.isEmpty() ? collectTemplate(createNewBranch) : null;
         Map<String, Value> perListenerConfigs = new LinkedHashMap<>();
         for (String name : listenerNames) {
+            Value branch = typeBranches.isEmpty() ? createNewBranch
+                    : matchByListenerType(typeBranches, declaredTypeOf(listenerSymbolsByName.get(name)));
+            ListenerTemplate template = typeBranches.isEmpty() ? singleTemplate
+                    : templatesByBranch.computeIfAbsent(branch, ExistingListenerResolver::collectTemplate);
+            Map<String, Value> createNewProps = branch == null ? null : branch.getProperties();
             Map<String, Value> fields = new LinkedHashMap<>();
             parseListener(name, listenerSymbolsByName, project).ifPresent(parsed -> {
                 fields.putAll(buildFieldsFromParsed(parsed, template));
@@ -156,6 +165,108 @@ public final class ExistingListenerResolver {
                 .setItems(new ArrayList<>(listenerNames))
                 .setProperties(perListenerConfigs)
                 .build();
+    }
+
+    /** The per-listener-type branches, or empty when the connector declares one listener. */
+    static List<Value> listenerTypeBranches(Value createNewBranch) {
+        if (createNewBranch == null) {
+            return List.of();
+        }
+        Value selector = findListenerTypeSelector(createNewBranch.getProperties());
+        return selector == null || selector.getChoices() == null ? List.of() : selector.getChoices();
+    }
+
+    private static Value findListenerTypeSelector(Map<String, Value> properties) {
+        if (properties == null) {
+            return null;
+        }
+        for (Value value : properties.values()) {
+            if (value == null) {
+                continue;
+            }
+            Codedata codedata = value.getCodedata();
+            if (codedata != null && CD_TYPE_LISTENER_TYPE.equals(codedata.getType())) {
+                return value;
+            }
+            if (isGroup(value)) {
+                Value nested = findListenerTypeSelector(value.getProperties());
+                if (nested != null) {
+                    return nested;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * The type a declared listener was written as, e.g. {@code StreamableHttpListener} for
+     * {@code listener mcp:StreamableHttpListener l = ...}. Null when it cannot be read.
+     */
+    private static String declaredTypeOf(VariableSymbol symbol) {
+        if (symbol == null || symbol.typeDescriptor() == null) {
+            return null;
+        }
+        return symbol.typeDescriptor().getName()
+                .orElseGet(() -> {
+                    String signature = symbol.typeDescriptor().signature();
+                    return signature == null || signature.isBlank()
+                            ? null : TriggerModelSynthesizer.simpleName(signature);
+                });
+    }
+
+    /**
+     * The branch describing {@code typeSimpleName}, matched on the listener type its name field states. An
+     * unreadable or unrecognised type falls back to the selected branch, then the first.
+     */
+    static Value matchByListenerType(List<Value> branches, String typeSimpleName) {
+        if (typeSimpleName != null) {
+            for (Value branch : branches) {
+                String branchType = branchListenerType(branch);
+                if (branchType != null && branchType.equalsIgnoreCase(typeSimpleName)) {
+                    return branch;
+                }
+            }
+        }
+        for (Value branch : branches) {
+            if (branch.isEnabled()) {
+                return branch;
+            }
+        }
+        return branches.isEmpty() ? null : branches.getFirst();
+    }
+
+    /** The listener type one branch describes, from its {@code LISTENER_VAR_NAME} field's declared type. */
+    private static String branchListenerType(Value branch) {
+        Value varName = findListenerVarName(branch == null ? null : branch.getProperties());
+        if (varName == null || varName.getTypes() == null) {
+            return null;
+        }
+        for (PropertyType type : varName.getTypes()) {
+            if (type.ballerinaType() != null && !type.ballerinaType().isBlank()) {
+                return TriggerModelSynthesizer.simpleName(type.ballerinaType());
+            }
+        }
+        return null;
+    }
+
+    private static Value findListenerVarName(Map<String, Value> properties) {
+        if (properties == null) {
+            return null;
+        }
+        for (Value value : properties.values()) {
+            if (value == null) {
+                continue;
+            }
+            Codedata codedata = value.getCodedata();
+            if (codedata != null && CD_TYPE_LISTENER_VAR_NAME.equals(codedata.getType())) {
+                return value;
+            }
+            Value nested = findListenerVarName(value.getProperties());
+            if (nested != null) {
+                return nested;
+            }
+        }
+        return null;
     }
 
     /** The listener-parameter field template derived from the create-new branch. */

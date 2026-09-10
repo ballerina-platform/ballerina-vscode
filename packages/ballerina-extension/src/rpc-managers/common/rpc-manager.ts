@@ -38,6 +38,7 @@ import {
     ProjectFileResponse,
     OpenExternalUrlRequest,
     PackageTomlValues,
+    PackageVisibility,
     PublishToCentralResponse,
     RunExternalCommandRequest,
     RunExternalCommandResponse,
@@ -650,7 +651,8 @@ export class CommonRpcManager implements CommonRPCAPI {
         return {
             orgName: tomlValues?.package?.org ?? getUsername(),
             packageName: tomlValues?.package?.name ?? fallbackName,
-            version: tomlValues?.package?.version ?? '0.1.0'
+            version: tomlValues?.package?.version ?? '0.1.0',
+            visibility: tomlValues?.package?.visibility === 'private' ? 'private' : 'public'
         };
     }
 
@@ -688,11 +690,38 @@ export class CommonRpcManager implements CommonRPCAPI {
             return undefined;
         }
 
+        const visibility = await this.promptForPublishVisibility(current.visibility);
+        if (visibility === undefined) {
+            return undefined;
+        }
+
         return {
             orgName: orgName.trim(),
             packageName: packageName.trim(),
-            version: version.trim()
+            version: version.trim(),
+            visibility
         };
+    }
+
+    private async promptForPublishVisibility(current: PackageVisibility): Promise<PackageVisibility | undefined> {
+        const items: (QuickPickItem & { value: PackageVisibility; })[] = [
+            {
+                label: 'Public',
+                description: 'Visible to everyone on Ballerina Central',
+                value: 'public'
+            },
+            {
+                label: 'Private',
+                description: 'Visible only to members of the organization',
+                value: 'private'
+            }
+        ];
+        const selected = await window.showQuickPick(items, {
+            title: 'Edit Package Visibility',
+            placeHolder: `Visibility (current: ${current === 'private' ? 'Private' : 'Public'})`,
+            ignoreFocusOut: true
+        });
+        return selected?.value;
     }
 
     private async updatePackageToml(projectPath: string, update: (content: string) => string): Promise<void> {
@@ -728,7 +757,10 @@ export class CommonRpcManager implements CommonRPCAPI {
         return this.updatePackageSection(content, (section) => {
             let updated = this.upsertTomlField(section, 'org', details.orgName);
             updated = this.upsertTomlField(updated, 'name', details.packageName);
-            return this.upsertTomlField(updated, 'version', details.version);
+            updated = this.upsertTomlField(updated, 'version', details.version);
+            return details.visibility === 'private'
+                ? this.upsertTomlField(updated, 'visibility', 'private')
+                : this.removeTomlField(updated, 'visibility');
         });
     }
 
@@ -752,6 +784,10 @@ export class CommonRpcManager implements CommonRPCAPI {
         return fieldPattern.test(section)
             ? section.replace(fieldPattern, fieldLine)
             : this.insertTomlField(section, fieldLine);
+    }
+
+    private removeTomlField(section: string, field: string): string {
+        return section.replace(new RegExp(`^\\s*${field}\\s*=.*\\n?`, 'm'), '');
     }
 
     private insertTomlField(section: string, fieldLine: string): string {

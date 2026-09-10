@@ -327,6 +327,7 @@ namespace S {
     `;
 
     export const CategoryCard = styled.div<{ hasBackground?: boolean }>`
+        align-self: stretch;
         background-color: ${({ hasBackground }) => hasBackground ? `rgba(255, 255, 255, 0.02)` : 'transparent'};
         border-radius: 5px;
         padding: ${({ hasBackground }) => hasBackground ? '0 12px' : '0'};
@@ -924,9 +925,9 @@ export function NodeList(props: NodeListProps) {
                                                         || action.emptyStateLabel || addButtonLabel || "Add";
                                                     
                                                     return (
-                                                        <S.HighlightedButton 
+                                                        <S.HighlightedButton
                                                             key={`empty-${group.title}-${actionIndex}`}
-                                                            style={{padding: '5px 10px', width: isSubCategory ? '160px' : '100%'}}
+                                                            style={{padding: '5px 10px', width: '100%'}}
                                                             onClick={handler}
                                                         >
                                                             <Codicon name={action?.codeIcon || "add"} iconSx={{ fontSize: 12 }} />

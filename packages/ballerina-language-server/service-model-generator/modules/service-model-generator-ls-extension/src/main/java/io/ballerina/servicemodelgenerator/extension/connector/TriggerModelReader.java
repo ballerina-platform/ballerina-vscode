@@ -23,10 +23,7 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParseException;
-import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
-import com.google.gson.stream.JsonReader;
 import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
@@ -34,23 +31,18 @@ import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.modelgenerator.commons.trigger.LibraryMetadataReader;
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerLibraryFacts;
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerMetadataModel;
+import io.ballerina.modelgenerator.commons.trigger.models.TriggerUIMetadataModel;
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerUISchemaModel;
 import io.ballerina.modelgenerator.commons.trigger.models.TypeRef;
 import io.ballerina.modelgenerator.commons.trigger.utils.TriggerLibraryIntrospector;
 import io.ballerina.projects.Package;
 import io.ballerina.projects.PackageDescriptor;
-import io.ballerina.projects.SemanticVersion;
 import io.ballerina.servicemodelgenerator.extension.model.Codedata;
 import io.ballerina.servicemodelgenerator.extension.model.Listener;
 import io.ballerina.servicemodelgenerator.extension.model.ServiceInitModel;
 import io.ballerina.servicemodelgenerator.extension.util.ListenerUtil;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.lang.reflect.Type;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -58,8 +50,10 @@ import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import static io.ballerina.servicemodelgenerator.extension.util.Constants.PROP_KEY_LISTENER;
+
 /**
- * Reads the unified {@code trigger-ui-schema.json} for a connector, bundled, shipped, or synthesized.
+ * Reads the unified {@code trigger-ui-schema.json} for a connector, synthesized from L1 with L2 overlaid.
  */
 public class TriggerModelReader {
 
@@ -70,96 +64,15 @@ public class TriggerModelReader {
     private static final List<String> INIT_IDENTITY_KEYS = List.of(
             "id", "displayName", "description", "orgName", "packageName", "moduleName", "version", "type", "icon");
 
-    private static final String BUNDLED_TRIGGER_MODEL_REGISTRY_RESOURCE = "bundled_trigger_models.json";
-    private static final Type BUNDLED_REGISTRY_TYPE = new TypeToken<Map<String, JsonElement>>() { }.getType();
-    private static final String KEY_MIN_VERSION = "minVersion";
-    private static final String KEY_RESOURCE = "resource";
-
-    /** Modules for which a {@code trigger-ui-schema.json} is bundled as a classpath resource. */
-    private static final Map<String, List<ModelVariant>> BUNDLED_TRIGGER_MODEL_RESOURCES =
-            loadBundledTriggerModelRegistry();
-
-    private static final int MAX_CACHE_SIZE = 2;
-
-    /**
-     * One version-gated variant of a connector's bundled schema.
-     *
-     * @param minVersion the lowest connector version this variant applies to
-     * @param resource   the classpath resource holding this variant's schema
-     */
-    private record ModelVariant(String minVersion, String resource) {
-
-        boolean matches(String version) {
-            if (minVersion == null || minVersion.isBlank()) {
-                return true;
-            }
-            try {
-                return SemanticVersion.from(version).greaterThanOrEqualTo(SemanticVersion.from(minVersion));
-            } catch (RuntimeException e) {
-                return true;
-            }
-        }
-    }
-
-    private static Map<String, List<ModelVariant>> loadBundledTriggerModelRegistry() {
-        try (InputStream is = TriggerModelReader.class.getClassLoader()
-                .getResourceAsStream(BUNDLED_TRIGGER_MODEL_REGISTRY_RESOURCE)) {
-            if (is == null) {
-                return Map.of();
-            }
-            try (JsonReader reader = new JsonReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
-                Map<String, JsonElement> loaded = new Gson().fromJson(reader, BUNDLED_REGISTRY_TYPE);
-                if (loaded == null) {
-                    return Map.of();
-                }
-                Map<String, List<ModelVariant>> registry = new LinkedHashMap<>();
-                loaded.forEach((moduleName, entry) -> {
-                    List<ModelVariant> variants = parseVariants(entry);
-                    if (!variants.isEmpty()) {
-                        registry.put(moduleName, variants);
-                    }
-                });
-                return Map.copyOf(registry);
-            }
-        } catch (IOException | JsonParseException e) {
-            return Map.of();
-        }
-    }
-
-    /** Normalizes both registry entry forms (a bare resource path, or an ordered variant array). */
-    private static List<ModelVariant> parseVariants(JsonElement entry) {
-        if (entry == null || entry.isJsonNull()) {
-            return List.of();
-        }
-        if (entry.isJsonPrimitive()) {
-            return List.of(new ModelVariant(null, entry.getAsString()));
-        }
-        if (!entry.isJsonArray()) {
-            return List.of();
-        }
-        List<ModelVariant> variants = new ArrayList<>();
-        for (JsonElement element : entry.getAsJsonArray()) {
-            if (!element.isJsonObject()) {
-                continue;
-            }
-            JsonObject variant = element.getAsJsonObject();
-            JsonElement resource = variant.get(KEY_RESOURCE);
-            if (resource == null || !resource.isJsonPrimitive()) {
-                continue;
-            }
-            JsonElement minVersion = variant.get(KEY_MIN_VERSION);
-            variants.add(new ModelVariant(
-                    minVersion != null && minVersion.isJsonPrimitive() ? minVersion.getAsString() : null,
-                    resource.getAsString()));
-        }
-        return List.copyOf(variants);
-    }
+    private static final int MAX_CACHE_SIZE = 3;
 
     private final Gson gson = new Gson();
-    private final Cache<String, Optional<TriggerUISchemaModel>> bundledTriggerCache =
-            Caffeine.newBuilder().maximumSize(MAX_CACHE_SIZE).build();
-    private final Cache<String, Optional<JsonObject>> bundledInitJsonCache =
-            Caffeine.newBuilder().maximumSize(MAX_CACHE_SIZE).build();
+    /** Static counterpart of {@link #gson}, for the init-form derivation that runs before binding. */
+    private static final Gson DERIVATION_GSON = new Gson();
+    private static final Type LISTENER_MODEL_LIST_TYPE =
+            new TypeToken<List<TriggerUISchemaModel.ListenerModel>>() { }.getType();
+    /** Keyed {@code org/module:version}: output genuinely varies by version (L2 variant selection,
+     * semantic facts from the resolved package), so version is part of the cache key. */
     private final Cache<String, Optional<TriggerUISchemaModel>> schemaDrivenTriggerCache =
             Caffeine.newBuilder().maximumSize(MAX_CACHE_SIZE).build();
 
@@ -186,8 +99,41 @@ public class TriggerModelReader {
                 remapped.add(key, root.get(key));
             }
         }
-        remapped.add("properties", initProperties);
+        remapped.add("properties", withDerivedListenerField(root, initProperties.getAsJsonObject()));
         return Optional.of(remapped);
+    }
+
+    /**
+     * The init form's properties with the listener field derived from a model's declared {@code listeners}
+     * placed first. An authored listener field wins, so this can be adopted per connector.
+     */
+    private static JsonObject withDerivedListenerField(JsonObject root, JsonObject authored) {
+        JsonElement listeners = root.get("listeners");
+        if (listeners == null || !listeners.isJsonArray() || listeners.getAsJsonArray().isEmpty()) {
+            return authored.deepCopy();
+        }
+        JsonElement derived = null;
+        try {
+            List<TriggerUISchemaModel.ListenerModel> declared =
+                    DERIVATION_GSON.fromJson(listeners, LISTENER_MODEL_LIST_TYPE);
+            JsonElement listenerKind = root.get("listenerKind");
+            derived = ListenerChoiceDeriver.derive(declared,
+                            listenerKind == null || listenerKind.isJsonNull()
+                                    ? null : listenerKind.getAsString(),
+                            DERIVATION_GSON.fromJson(root.get("listenerForm"),
+                                    TriggerUISchemaModel.ListenerFormModel.class))
+                    .map(DERIVATION_GSON::toJsonTree)
+                    .orElse(null);
+        } catch (RuntimeException e) {
+            LOGGER.log(Level.WARNING, "Could not derive the listener field from `listeners`", e);
+        }
+        if (derived == null) {
+            return authored.deepCopy();
+        }
+        JsonObject ordered = new JsonObject();
+        ordered.add(PROP_KEY_LISTENER, derived);
+        authored.entrySet().forEach(entry -> ordered.add(entry.getKey(), entry.getValue()));
+        return ordered;
     }
 
     /** A fresh {@link ServiceInitModel} bound from {@link #initFormJson}; never a shared instance. */
@@ -195,68 +141,7 @@ public class TriggerModelReader {
         return initFormJson(parsed).map(json -> gson.fromJson(json, ServiceInitModel.class));
     }
 
-    /** Cheap presence check for a bundled schema, used by the routers at dispatch time. */
-    public boolean hasBundledTriggerModel(String moduleName) {
-        return getBundledTriggerModel(moduleName).isPresent();
-    }
-
-    /** Reads and caches the newest bundled {@code trigger-ui-schema.json} variant for {@code moduleName}. */
-    public Optional<TriggerUISchemaModel> getBundledTriggerModel(String moduleName) {
-        return getBundledTriggerModel(moduleName, null);
-    }
-
-    /** Reads and caches the bundled {@code trigger-ui-schema.json} variant for {@code moduleName}/{@code version}. */
-    public Optional<TriggerUISchemaModel> getBundledTriggerModel(String moduleName, String version) {
-        return resolveResource(moduleName, version).flatMap(resource ->
-                bundledTriggerCache.get(resource, r ->
-                        parseBundledResource(r).map(json -> gson.fromJson(json, TriggerUISchemaModel.class))));
-    }
-
-    /** Reads and caches the newest bundled model's init form for {@code moduleName}, if any. */
-    public Optional<ServiceInitModel> getBundledServiceInitModel(String moduleName) {
-        return getBundledServiceInitModel(moduleName, null);
-    }
-
-    /** Reads the init form of the bundled model variant for {@code moduleName}/{@code version}. */
-    public Optional<ServiceInitModel> getBundledServiceInitModel(String moduleName, String version) {
-        return resolveResource(moduleName, version)
-                .flatMap(resource -> bundledInitJsonCache.get(resource,
-                        r -> parseBundledResource(r).flatMap(TriggerModelReader::initFormJson)))
-                .map(json -> gson.fromJson(json, ServiceInitModel.class));
-    }
-
-    /** The resource path of the variant describing {@code moduleName} at {@code version}. */
-    private static Optional<String> resolveResource(String moduleName, String version) {
-        if (moduleName == null) {
-            return Optional.empty();
-        }
-        List<ModelVariant> variants = BUNDLED_TRIGGER_MODEL_RESOURCES.get(moduleName);
-        if (variants == null || variants.isEmpty()) {
-            return Optional.empty();
-        }
-        if (version == null || version.isBlank()) {
-            return Optional.of(variants.getFirst().resource());
-        }
-        return Optional.of(variants.stream()
-                .filter(variant -> variant.matches(version))
-                .findFirst()
-                .orElseGet(variants::getLast)
-                .resource());
-    }
-
-    private Optional<JsonElement> parseBundledResource(String resourcePath) {
-        try (InputStream is = getClass().getClassLoader().getResourceAsStream(resourcePath)) {
-            if (is == null) {
-                return Optional.empty();
-            }
-            String json = new String(is.readAllBytes(), StandardCharsets.UTF_8);
-            return Optional.of(JsonParser.parseString(json));
-        } catch (IOException | JsonParseException e) {
-            return Optional.empty();
-        }
-    }
-
-    /** Cheap presence check across all tiers: bundled, connector-shipped, or synthesized. */
+    /** Cheap presence check: connector-shipped or synthesized from L1 (with L2 as an optional overlay). */
     public boolean hasSchemaDrivenModel(String orgName, String moduleName) {
         return getSchemaDrivenTriggerModel(orgName, moduleName, null, false).isPresent();
     }
@@ -267,7 +152,7 @@ public class TriggerModelReader {
         return getSchemaDrivenTriggerModel(orgName, moduleName, version, isLocalRepository).isPresent();
     }
 
-    /** The connector's {@link TriggerUISchemaModel}: bundled, shipped, or synthesized. */
+    /** The connector's {@link TriggerUISchemaModel}, synthesized from L1 with L2 applied as an overlay. */
     public Optional<TriggerUISchemaModel> getSchemaDrivenTriggerModel(String orgName, String moduleName) {
         return getSchemaDrivenTriggerModel(orgName, moduleName, null);
     }
@@ -284,16 +169,15 @@ public class TriggerModelReader {
         if (isLocalRepository) {
             return resolveSchemaDrivenTriggerModelFromLocalRepository(orgName, moduleName, version);
         }
-        Optional<TriggerUISchemaModel> bundled = getBundledTriggerModel(moduleName, version);
-        if (bundled.isPresent() || orgName == null || moduleName == null) {
-            return bundled;
+        if (orgName == null || moduleName == null) {
+            return Optional.empty();
         }
-        String key = orgName + "/" + moduleName;
+        String key = orgName + "/" + moduleName + ":" + (version == null ? "" : version);
         Optional<TriggerUISchemaModel> cached = schemaDrivenTriggerCache.getIfPresent(key);
         if (cached != null) {
             return cached;
         }
-        Resolution resolution = resolveSchemaDrivenTriggerModel(orgName, moduleName);
+        Resolution resolution = resolveSchemaDrivenTriggerModel(orgName, moduleName, version);
         if (resolution.cacheable()) {
             schemaDrivenTriggerCache.put(key, resolution.model());
         }
@@ -340,9 +224,8 @@ public class TriggerModelReader {
                         return initModel;
                     });
         }
-        Optional<ServiceInitModel> bundled = getBundledServiceInitModel(moduleName, version);
-        if (bundled.isPresent() || orgName == null || moduleName == null) {
-            return bundled;
+        if (orgName == null || moduleName == null) {
+            return Optional.empty();
         }
         return getSchemaDrivenTriggerModel(orgName, moduleName, version)
                 .flatMap(model -> buildServiceInitModelFromJson(gson.toJsonTree(model)));
@@ -355,12 +238,6 @@ public class TriggerModelReader {
             ModuleInfo moduleInfo = new ModuleInfo(orgName, moduleName, moduleName, version);
             LibraryMetadataReader metadataReader = LibraryMetadataReader.getInstance();
 
-            Optional<TriggerUISchemaModel> shipped = metadataReader
-                    .getTriggerUISchemaModelFromLocalRepository(moduleInfo);
-            if (shipped.isPresent()) {
-                return shipped;
-            }
-
             Optional<TriggerMetadataModel> metadata = metadataReader
                     .getTriggerMetadataModelFromLocalRepository(moduleInfo);
             if (metadata.isEmpty()) {
@@ -370,7 +247,10 @@ public class TriggerModelReader {
             if (pkg.isEmpty()) {
                 return Optional.empty();
             }
-            return synthesizeTriggerModel(metadata.get(), pkg.get(), moduleName);
+            TriggerUIMetadataModel uiMetadata = metadataReader
+                    .getTriggerUIMetadataModelFromLocalRepository(moduleInfo)
+                    .orElse(null);
+            return synthesizeTriggerModel(metadata.get(), uiMetadata, pkg.get(), moduleName);
         } catch (Throwable e) {
             LOGGER.log(Level.FINE, "Local-repository trigger model resolution failed for "
                     + orgName + "/" + moduleName, e);
@@ -378,37 +258,76 @@ public class TriggerModelReader {
         }
     }
 
-    /** Resolves a {@link TriggerUISchemaModel} for a non-bundled module via {@link LibraryMetadataReader}. */
-    private Resolution resolveSchemaDrivenTriggerModel(String orgName, String moduleName) {
+    /** Resolves a {@link TriggerUISchemaModel} via {@link LibraryMetadataReader}. */
+    private Resolution resolveSchemaDrivenTriggerModel(String orgName, String moduleName, String version) {
         try {
-            return doResolveSchemaDrivenTriggerModel(orgName, moduleName);
+            return doResolveSchemaDrivenTriggerModel(orgName, moduleName, version);
         } catch (Throwable e) {
             return Resolution.UNRESOLVED;
         }
     }
 
-    private Resolution doResolveSchemaDrivenTriggerModel(String orgName, String moduleName) {
-        ModuleInfo moduleInfo = new ModuleInfo(orgName, moduleName, moduleName, null);
+    /**
+     * {@code version} is threaded all the way through -- to the {@link ModuleInfo} used for L1/L2
+     * resolution and to the package resolver -- rather than always resolving "whatever the offline
+     * cache holds as newest". Without a pin, a module with more than one version cached offline (e.g. a
+     * connector pulled at both an older and a newer release) resolves arbitrarily, and an unversioned
+     * {@link PackageUtil#getModulePackageOffline(String, String)}
+     * lookup can fail to resolve at all in an environment whose local index doesn't already know which
+     * version is "newest" -- silently dropping this tier's model instead of resolving the version the
+     * caller actually meant.
+     */
+    private Resolution doResolveSchemaDrivenTriggerModel(String orgName, String moduleName, String version) {
+        ModuleInfo moduleInfo = new ModuleInfo(orgName, moduleName, moduleName, version);
         LibraryMetadataReader metadataReader = LibraryMetadataReader.getInstance();
-
-        Optional<TriggerUISchemaModel> shipped = metadataReader.getTriggerUISchemaModel(moduleInfo);
-        if (shipped.isPresent()) {
-            return Resolution.of(shipped);
-        }
 
         Optional<TriggerMetadataModel> metadata = metadataReader.getTriggerMetadataModel(moduleInfo);
         if (metadata.isEmpty()) {
             return metadataReader.isLocallyResolvable(moduleInfo) ? Resolution.ABSENT : Resolution.UNRESOLVED;
         }
-        Optional<Package> pkg = PackageUtil.getModulePackageOffline(orgName, moduleName);
+        Optional<Package> pkg = PackageUtil.getModulePackageOffline(orgName, moduleName, version);
         if (pkg.isEmpty()) {
             return Resolution.UNRESOLVED;
         }
-        return Resolution.of(synthesizeTriggerModel(metadata.get(), pkg.get(), moduleName));
+        TriggerUIMetadataModel uiMetadata = metadataReader.getTriggerUIMetadataModel(moduleInfo)
+                .orElse(null);
+        return Resolution.of(synthesizeTriggerModel(metadata.get(), uiMetadata, pkg.get(), moduleName));
+    }
+
+    /**
+     * Builds the L1 + semantic + L2 model for one connector directly, requiring both L1 and L2 to be
+     * present, uncached and version-precise. Production resolution goes through
+     * {@link #getSchemaDrivenTriggerModel(String, String, String)} instead, which tolerates a missing
+     * L2 and is cached; this method exists for callers (tests) that need an exact, pinned-version result.
+     */
+    Optional<TriggerUISchemaModel> getGeneratedTriggerModel(String orgName, String moduleName, String version) {
+        if (orgName == null || moduleName == null) {
+            return Optional.empty();
+        }
+        ModuleInfo moduleInfo = new ModuleInfo(orgName, moduleName, moduleName, version);
+        Optional<Package> pkg = PackageUtil.getModulePackageOffline(orgName, moduleName, version);
+        return pkg.flatMap(value -> getGeneratedTriggerModel(moduleInfo, value));
+    }
+
+    /** {@link #getGeneratedTriggerModel(String, String, String)}'s init-form counterpart. */
+    Optional<ServiceInitModel> getGeneratedServiceInitModel(String orgName, String moduleName, String version) {
+        return getGeneratedTriggerModel(orgName, moduleName, version)
+                .flatMap(model -> buildServiceInitModelFromJson(gson.toJsonTree(model)));
+    }
+
+    private Optional<TriggerUISchemaModel> getGeneratedTriggerModel(ModuleInfo moduleInfo, Package pkg) {
+        LibraryMetadataReader reader = LibraryMetadataReader.getInstance();
+        Optional<TriggerMetadataModel> metadata = reader.getTriggerMetadataModel(moduleInfo);
+        Optional<TriggerUIMetadataModel> uiMetadata = reader.getTriggerUIMetadataModel(moduleInfo);
+        if (metadata.isEmpty() || uiMetadata.isEmpty()) {
+            return Optional.empty();
+        }
+        return synthesizeTriggerModel(metadata.get(), uiMetadata.get(), pkg, moduleInfo.moduleName());
     }
 
     /** Synthesizes a {@link TriggerUISchemaModel} from a connector's metadata plus semantic introspection. */
-    private Optional<TriggerUISchemaModel> synthesizeTriggerModel(TriggerMetadataModel metadata, Package pkg,
+    private Optional<TriggerUISchemaModel> synthesizeTriggerModel(TriggerMetadataModel metadata,
+                                                                  TriggerUIMetadataModel uiMetadata, Package pkg,
                                                                   String moduleName) {
         SemanticModel semanticModel = PackageUtil.getCompilation(pkg)
                 .getSemanticModel(pkg.getDefaultModule().moduleId());
@@ -421,14 +340,15 @@ public class TriggerModelReader {
         Map<String, TriggerLibraryFacts> crossModuleFacts =
                 resolveCrossModuleFacts(metadata, resolvedOrg, resolvedPackageName);
 
-        Listener listenerModel = resolveListenerModel(metadata, semanticModel, resolvedOrg,
+        Map<String, Listener> listenerModels = resolveListenerModels(metadata, semanticModel, resolvedOrg,
                 resolvedPackageName, moduleName, resolvedVersion);
 
         String displayName = TriggerModelSynthesizer.humanize(moduleName);
         String icon = CommonUtils.generateIcon(resolvedOrg, resolvedPackageName, resolvedVersion);
 
-        return TriggerModelSynthesizer.synthesize(metadata, facts, crossModuleFacts, listenerModel, moduleName,
-                displayName, icon, "event", resolvedOrg, resolvedPackageName, moduleName, resolvedVersion);
+        return TriggerModelSynthesizer.synthesize(metadata, facts, crossModuleFacts, listenerModels, moduleName,
+                displayName, icon, "event", resolvedOrg, resolvedPackageName, moduleName, resolvedVersion,
+                uiMetadata, semanticModel);
     }
 
     /**
@@ -475,22 +395,37 @@ public class TriggerModelReader {
         }
     }
 
-    /** Resolves the listener init-form template via {@link ListenerUtil#getListenerModelFromConnectorPackage}. */
-    private static Listener resolveListenerModel(TriggerMetadataModel metadata, SemanticModel semanticModel,
-                                                 String orgName, String packageName, String moduleName,
-                                                 String version) {
-        try {
-            String listenerType = metadata.listeners().get(0).type().name();
-            Codedata codedata = new Codedata.Builder()
-                    .setType(listenerType)
-                    .setOrgName(orgName)
-                    .setPackageName(packageName)
-                    .setModuleName(moduleName)
-                    .setVersion(version)
-                    .build();
-            return ListenerUtil.getListenerModelFromConnectorPackage(codedata, semanticModel, null).orElse(null);
-        } catch (Throwable e) {
-            return null;
+    /**
+     * One listener init-form template per declared listener, keyed by its type's simple name. A type that
+     * cannot be introspected is left out, costing only that listener its parameter widgets.
+     */
+    private static Map<String, Listener> resolveListenerModels(TriggerMetadataModel metadata,
+                                                               SemanticModel semanticModel, String orgName,
+                                                               String packageName, String moduleName,
+                                                               String version) {
+        Map<String, Listener> models = new LinkedHashMap<>();
+        if (metadata.listeners() == null) {
+            return models;
         }
+        for (TriggerMetadataModel.Listener listener : metadata.listeners()) {
+            if (listener.type() == null || listener.type().name() == null) {
+                continue;
+            }
+            String listenerType = listener.type().name();
+            try {
+                Codedata codedata = new Codedata.Builder()
+                        .setType(listenerType)
+                        .setOrgName(orgName)
+                        .setPackageName(packageName)
+                        .setModuleName(moduleName)
+                        .setVersion(version)
+                        .build();
+                ListenerUtil.getListenerModelFromConnectorPackage(codedata, semanticModel, null)
+                        .ifPresent(model -> models.put(listenerType, model));
+            } catch (Throwable e) {
+                LOGGER.log(Level.FINE, "Could not resolve the listener model for " + listenerType, e);
+            }
+        }
+        return models;
     }
 }

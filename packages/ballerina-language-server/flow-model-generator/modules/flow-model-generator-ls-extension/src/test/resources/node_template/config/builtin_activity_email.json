@@ -67,9 +67,14 @@
         },
         "types": [
           {
+            "fieldType": "TEXT",
+            "ballerinaType": "string",
+            "selected": true
+          },
+          {
             "fieldType": "EXPRESSION",
             "ballerinaType": "string|string[]",
-            "selected": true
+            "selected": false
           }
         ],
         "value": "",
@@ -88,30 +93,14 @@
         },
         "types": [
           {
-            "fieldType": "EXPRESSION",
+            "fieldType": "TEXT",
             "ballerinaType": "string",
             "selected": true
-          }
-        ],
-        "value": "",
-        "optional": false,
-        "editable": true,
-        "advanced": false,
-        "hidden": false,
-        "codedata": {
-          "kind": "REQUIRED"
-        }
-      },
-      "body": {
-        "metadata": {
-          "label": "Body",
-          "description": "Plain-text body of the email"
-        },
-        "types": [
+          },
           {
             "fieldType": "EXPRESSION",
             "ballerinaType": "string",
-            "selected": true
+            "selected": false
           }
         ],
         "value": "",
@@ -130,9 +119,40 @@
         },
         "types": [
           {
-            "fieldType": "EXPRESSION",
+            "fieldType": "TEXT",
             "ballerinaType": "string",
             "selected": true
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string",
+            "selected": false
+          }
+        ],
+        "value": "",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED"
+        }
+      },
+      "body": {
+        "metadata": {
+          "label": "Body",
+          "description": "Plain-text body of the email"
+        },
+        "types": [
+          {
+            "fieldType": "TEXT",
+            "ballerinaType": "string",
+            "selected": true
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string",
+            "selected": false
           }
         ],
         "value": "",
@@ -464,9 +484,14 @@
               },
               "types": [
                 {
-                  "fieldType": "EXPRESSION",
+                  "fieldType": "TEXT",
                   "ballerinaType": "string",
                   "selected": true
+                },
+                {
+                  "fieldType": "EXPRESSION",
+                  "ballerinaType": "string",
+                  "selected": false
                 }
               ],
               "value": "",
@@ -482,9 +507,14 @@
               },
               "types": [
                 {
-                  "fieldType": "EXPRESSION",
+                  "fieldType": "TEXT",
                   "ballerinaType": "string",
                   "selected": true
+                },
+                {
+                  "fieldType": "EXPRESSION",
+                  "ballerinaType": "string",
+                  "selected": false
                 }
               ],
               "value": "",
@@ -592,9 +622,14 @@
         },
         "types": [
           {
-            "fieldType": "EXPRESSION",
+            "fieldType": "TEXT",
             "ballerinaType": "string",
             "selected": true
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string",
+            "selected": false
           }
         ],
         "value": "",
@@ -610,9 +645,14 @@
         },
         "types": [
           {
-            "fieldType": "EXPRESSION",
+            "fieldType": "TEXT",
             "ballerinaType": "string",
             "selected": true
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string",
+            "selected": false
           }
         ],
         "value": "",

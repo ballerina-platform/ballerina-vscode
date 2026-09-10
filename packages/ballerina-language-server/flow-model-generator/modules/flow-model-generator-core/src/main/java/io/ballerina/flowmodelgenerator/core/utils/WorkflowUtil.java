@@ -1169,8 +1169,17 @@ public class WorkflowUtil {
         return quoteIfBareRole(source);
     }
 
-    private static boolean isExpressionModeSelected(Property property) {
-        return property.types() != null && property.types().stream()
+    /**
+     * Whether the property's selected mode is EXPRESSION — meaning its value is source to be
+     * written through untouched, not text to be quoted. The review title and description ask this
+     * for the same reason the roles field does: once a string literal is decoded, its text is
+     * indistinguishable from an expression naming a variable.
+     *
+     * @param property the property, or {@code null}
+     * @return {@code true} when an EXPRESSION type is present and selected
+     */
+    public static boolean isExpressionModeSelected(Property property) {
+        return property != null && property.types() != null && property.types().stream()
                 .anyMatch(type -> type.fieldType() == Property.ValueType.EXPRESSION && type.selected());
     }
 

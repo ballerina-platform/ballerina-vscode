@@ -44,8 +44,10 @@ public class RetryPolicyRoundTripTest {
                 + "description: \"path C:\\\\x\\nnext\", timeout: {hours: 4}}";
 
         ActivityCallBuilder.ReviewFormValues form = CodeAnalyzer.normalizeRetryPolicy(source).review();
-        Assert.assertEquals(form.title(), "He said \"hi\"", "the escapes belong to the source, not the value");
-        Assert.assertEquals(form.description(), "path C:\\x\nnext");
+        Assert.assertEquals(form.title().value(), "He said \"hi\"",
+                "the escapes belong to the source, not the value");
+        Assert.assertFalse(form.title().expression(), "a string literal reads as text, not as source");
+        Assert.assertEquals(form.description().value(), "path C:\\x\nnext");
 
         Assert.assertEquals(rewrite(form), source);
         // A second edit of the same node must not change it either.
@@ -58,14 +60,14 @@ public class RetryPolicyRoundTripTest {
                 "{userRoles: [\"finance\", \"manager\"], title: \"Approve, please\"}");
         Assert.assertEquals(review.dropdownValue(), ActivityCallBuilder.MANUAL_RETRY_VALUE);
         Assert.assertEquals(review.review().userRoles(), "[\"finance\", \"manager\"]");
-        Assert.assertEquals(review.review().title(), "Approve, please");
+        Assert.assertEquals(review.review().title().value(), "Approve, please");
         Assert.assertEquals(rewrite(review.review()),
                 "{userRoles: [\"finance\", \"manager\"], title: \"Approve, please\"}");
 
         CodeAnalyzer.RetryPolicyForm auto = CodeAnalyzer.normalizeRetryPolicy("{maxRetries: 3, retryDelay: 1.0}");
         Assert.assertEquals(auto.dropdownValue(), ActivityCallBuilder.AUTO_RETRY_VALUE);
         Assert.assertEquals(auto.maxRetries(), "3");
-        Assert.assertEquals(auto.review().title(), "");
+        Assert.assertEquals(auto.review().title().value(), "");
     }
 
     @Test(description = "A title that is not a string literal is the form's own source and passes through "
@@ -73,21 +75,60 @@ public class RetryPolicyRoundTripTest {
     public void testExpressionTitlePassesThrough() {
         ActivityCallBuilder.ReviewFormValues form = CodeAnalyzer.normalizeRetryPolicy(
                 "{userRoles: \"ops\", title: string `Order ${id}`}").review();
-        Assert.assertEquals(form.title(), "string `Order ${id}`");
+        Assert.assertEquals(form.title().value(), "string `Order ${id}`");
+        Assert.assertTrue(form.title().expression(), "a template is the form's own source");
         Assert.assertEquals(rewrite(form), "{userRoles: \"ops\", title: string `Order ${id}`}");
+    }
+
+    @Test(description = "A title naming a variable or calling a function is a reference, not a wording: "
+            + "it survives the save instead of becoming a string literal of its own spelling")
+    public void testReferenceTitleIsNotQuoted() {
+        for (String expression : new String[]{"reviewTitle", "titles.orderReview", "getTitle()",
+                "\"Order \" + id"}) {
+            String source = "{userRoles: \"ops\", title: " + expression + "}";
+            ActivityCallBuilder.ReviewFormValues form = CodeAnalyzer.normalizeRetryPolicy(source).review();
+            Assert.assertEquals(form.title().value(), expression, "read back as source");
+            Assert.assertTrue(form.title().expression(), expression + " is not a string literal");
+            Assert.assertEquals(rewrite(form), source, "quoting " + expression + " would rewrite it");
+        }
+    }
+
+    @Test(description = "A wording typed into the text box is quoted, so it is still a title")
+    public void testTypedTitleIsQuoted() {
+        Map<String, Property> properties = new LinkedHashMap<>();
+        properties.put(ActivityCallBuilder.RETRY_USER_ROLES_KEY, property("\"ops\""));
+        properties.put(ActivityCallBuilder.RETRY_TITLE_KEY,
+                reviewTextProperty("Approve the order", false));
+        Assert.assertEquals(ActivityCallBuilder.humanReviewRecordLiteral(properties),
+                "{userRoles: \"ops\", title: \"Approve the order\"}");
     }
 
     // The record the form writes from the values it holds — the save side of the same node.
     private static String rewrite(ActivityCallBuilder.ReviewFormValues form) {
         Map<String, Property> properties = new LinkedHashMap<>();
         properties.put(ActivityCallBuilder.RETRY_USER_ROLES_KEY, property(form.userRoles()));
-        properties.put(ActivityCallBuilder.RETRY_TITLE_KEY, property(form.title()));
-        properties.put(ActivityCallBuilder.RETRY_DESCRIPTION_KEY, property(form.description()));
+        properties.put(ActivityCallBuilder.RETRY_TITLE_KEY, reviewTextProperty(form.title()));
+        properties.put(ActivityCallBuilder.RETRY_DESCRIPTION_KEY, reviewTextProperty(form.description()));
         properties.put(ActivityCallBuilder.RETRY_TIMEOUT_KEY, property(form.timeout()));
         return ActivityCallBuilder.humanReviewRecordLiteral(properties);
     }
 
     private static Property property(String value) {
         return new Property.Builder<Void>(null).value(value).build();
+    }
+
+    private static Property reviewTextProperty(ActivityCallBuilder.ReviewText text) {
+        return reviewTextProperty(text.value(), text.expression());
+    }
+
+    /** The title/description property as the node carries it: both modes, one of them selected. */
+    private static Property reviewTextProperty(String value, boolean expression) {
+        return new Property.Builder<Void>(null)
+                .type().fieldType(Property.ValueType.TEXT).ballerinaType("string")
+                    .selected(!expression).stepOut()
+                .type().fieldType(Property.ValueType.EXPRESSION).ballerinaType("string")
+                    .selected(expression).stepOut()
+                .value(value)
+                .build();
     }
 }

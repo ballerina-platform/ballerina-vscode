@@ -518,7 +518,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
         let scopes: DevantScopes[] = [];
         if (services?.length > 0) {
             const svcScopes = services
-                .map((svc) => findDevantScope(svc?.kind, svc?.moduleName))
+                .map((svc) => findDevantScope(svc?.triggerKind ?? svc?.kind, svc?.moduleName))
                 .filter((svc) => svc !== undefined);
             scopes.push(...Array.from(new Set(svcScopes)));
         }

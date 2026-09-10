@@ -37,6 +37,7 @@ import {
 } from "../../resources";
 import { NodeKind } from "../../utils/types";
 import { Icon } from "@wso2/ui-toolkit";
+import { isHighContrastTheme as isHighContrastThemeShared } from "@wso2/ballerina-core";
 
 // VSCode chart colors - guaranteed to be available in all webviews
 // These colors are visually distinct and work well in both light and dark themes
@@ -284,11 +285,8 @@ export const getNodeChartColor = (nodeType: NodeKind, symbol?: string): string =
     return CHART_COLORS.DEFAULT;
 };
 
-// Detect high contrast theme via body class set by VS Code
-export const isHighContrastTheme = (): boolean => {
-    return document.body.classList.contains("vscode-high-contrast") ||
-        document.body.classList.contains("vscode-high-contrast-light");
-};
+// Detect high contrast theme via body class set by VS Code.
+export const isHighContrastTheme = isHighContrastThemeShared;
 
 // Get AI-specific color
 export const getAIColor = (): string => {

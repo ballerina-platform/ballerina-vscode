@@ -18,9 +18,6 @@
 
 package io.ballerina.servicemodelgenerator.extension.connector;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonElement;
-import com.google.gson.reflect.TypeToken;
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerUISchemaModel;
 import io.ballerina.servicemodelgenerator.extension.connector.adapter.TriggerFunctionAdapter;
 import io.ballerina.servicemodelgenerator.extension.model.Codedata;
@@ -32,10 +29,6 @@ import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.lang.reflect.Type;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -54,9 +47,6 @@ import java.util.Set;
  */
 public class TriggerLayoutTest {
 
-    private static final String BUNDLED_REGISTRY_RESOURCE = "bundled_trigger_models.json";
-    private static final Type REGISTRY_TYPE = new TypeToken<Map<String, JsonElement>>() { }.getType();
-
     /** The ids the designer reserves for its own units. Must stay in step with handlerLayout.ts. */
     private static final Set<String> RESERVED_IDS = Set.of(
             "$variant", "$description", "$name", "$documentation", "$parameters", "$returnType", "$headers");
@@ -64,31 +54,24 @@ public class TriggerLayoutTest {
     /** The one placement directive; {@code *}-prefixed because it names no unit. */
     private static final String REST_DIRECTIVE = "*rest";
 
-    /** Every bundled module key, read off the registry. Fails hard on an empty registry. */
+    /** Every corpus module key. Fails hard on an empty corpus. */
     @DataProvider(name = "bundledModules")
     public Object[][] bundledModules() {
-        Map<String, JsonElement> registry;
-        try (InputStream stream = TriggerModelReader.class.getClassLoader()
-                .getResourceAsStream(BUNDLED_REGISTRY_RESOURCE)) {
-            Assert.assertNotNull(stream, "bundled trigger model registry not found on the classpath");
-            registry = new Gson().fromJson(
-                    new InputStreamReader(stream, StandardCharsets.UTF_8), REGISTRY_TYPE);
-        } catch (Exception e) {
-            throw new AssertionError("could not read " + BUNDLED_REGISTRY_RESOURCE, e);
-        }
-        Assert.assertNotNull(registry, "bundled trigger model registry did not parse");
-        Assert.assertFalse(registry.isEmpty(), "bundled trigger model registry is empty");
-        return registry.keySet().stream().map(key -> new Object[]{key}).toArray(Object[][]::new);
+        List<GeneratedTriggerCorpus.Entry> entries = GeneratedTriggerCorpus.all();
+        Assert.assertFalse(entries.isEmpty(), "generated trigger corpus is empty");
+        return entries.stream().map(entry -> new Object[]{entry.key()}).toArray(Object[][]::new);
     }
 
     @Test(dataProvider = "bundledModules")
-    public void testEveryAuthoredLayoutIdResolves(String moduleName) {
-        TriggerUISchemaModel model = TriggerModelReader.getInstance().getBundledTriggerModel(moduleName)
-                .orElseThrow(() -> new AssertionError(moduleName + ": bundled model failed to load"));
+    public void testEveryAuthoredLayoutIdResolves(String key) {
+        GeneratedTriggerCorpus.Entry entry = GeneratedTriggerCorpus.get(key);
+        TriggerUISchemaModel model = TriggerModelReader.getInstance()
+                .getGeneratedTriggerModel(entry.org(), entry.module(), entry.version())
+                .orElseThrow(() -> new AssertionError(key + ": generated model failed to load"));
 
         for (TriggerUISchemaModel.ServiceTypeModel serviceType : orEmpty(model.serviceTypes())) {
             for (TriggerUISchemaModel.FunctionModel handler : allHandlers(serviceType)) {
-                checkLayout(moduleName, handler);
+                checkLayout(key, handler);
             }
         }
     }
