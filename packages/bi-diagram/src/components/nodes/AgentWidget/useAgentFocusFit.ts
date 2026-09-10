@@ -23,9 +23,11 @@ import { animateAgentFocusFit, computeAgentFocusFit, findAgentFocusNode, isSingl
 
 /** Owns the agent-focus-view's center-and-fit behavior: initial placement, manual fit-to-screen, and resize. */
 export function useAgentFocusFit(diagramEngine: DiagramEngine, isAgentFocusView: boolean, embedded: boolean) {
-    const [canvasVisible, setCanvasVisible] = useState(!(isAgentFocusView && embedded));
+    const [canvasVisible, setCanvasVisible] = useState(!isAgentFocusView);
     const nodeObserverRef = useRef<ResizeObserver>();
     const cancelAnimationRef = useRef<() => void>();
+    // The first fit happens behind the fade; later ones are on screen, so they ease instead of snapping.
+    const hasFittedRef = useRef(false);
 
     const fitToContainer = useCallback(
         (animate: boolean) => {
@@ -83,7 +85,7 @@ export function useAgentFocusFit(diagramEngine: DiagramEngine, isAgentFocusView:
                 if (Math.abs(previous.width - width) < 1 && Math.abs(previous.height - height) < 1) {
                     return;
                 }
-                fitToContainer(false);
+                fitToContainer(document.hasFocus());
             });
             observer.observe(element);
             nodeObserverRef.current = observer;
@@ -103,8 +105,10 @@ export function useAgentFocusFit(diagramEngine: DiagramEngine, isAgentFocusView:
             }
             const agentNode = findAgentFocusNode(nodes);
             positionAgentFocusNode(agentNode);
+            const animate = hasFittedRef.current && document.hasFocus();
+            hasFittedRef.current = true;
             requestAnimationFrame(() => requestAnimationFrame(() => {
-                fitToContainer(false);
+                fitToContainer(animate);
                 diagramEngine.repaintCanvas();
                 setCanvasVisible(true);
                 watchNodeSize(agentNode);
