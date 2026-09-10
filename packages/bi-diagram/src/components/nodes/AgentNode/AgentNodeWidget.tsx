@@ -48,7 +48,7 @@ import { css, Keyframes } from "@emotion/react";
 import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
 import { NodeMetadata, isDefaultModelProviderExpr } from "@wso2/ballerina-core";
 
-import { flowDashAnimation, sanitizeAgentData, sanitizeId } from "../agentNodeUtils";
+import { flowDashAnimation, isToolTraceActive, sanitizeAgentData, sanitizeId, toolEntryMatchesTools } from "../agentNodeUtils";
 import { MarkdownWithTooltip } from "../AgentMarkdownTooltip";
 import { getAgentNodeContainerHeight } from "../AgentWidget/agentNodeLayout";
 import { useAgentNodeController } from "../AgentWidget/useAgentNodeController";
@@ -316,7 +316,7 @@ export namespace NodeStyles {
         width: 100%;
         margin: 8px 0;
         padding: 8px 0;
-        border: 1px solid ${ThemeColors.OUTLINE_VARIANT};
+        border: 1px solid ${ThemeColors.ON_SURFACE};
         border-radius: 4px;
         background-color: transparent;
         color: ${ThemeColors.ON_SURFACE};
@@ -326,21 +326,21 @@ export namespace NodeStyles {
         &:hover {
             background-color: ${ThemeColors.SURFACE_BRIGHT};
             border-color: ${(props: { readOnly: boolean }) =>
-            props.readOnly ? ThemeColors.OUTLINE_VARIANT : ThemeColors.SECONDARY};
+            props.readOnly ? ThemeColors.ON_SURFACE : NODE_BORDER_SELECTED_COLOR};
         }
     `;
 
     export const MemoryCard = styled.div<{ readOnly: boolean }>`
         width: 100%;
         padding: 8px 6px 8px 12px;
-        border: 1px solid ${ThemeColors.OUTLINE_VARIANT};
+        border: 1px solid ${ThemeColors.ON_SURFACE};
         border-radius: 4px;
         background-color: transparent;
         color: ${ThemeColors.ON_SURFACE};
         cursor: ${(props: { readOnly: boolean }) => (props.readOnly ? "default" : "pointer")};
         &:hover {
             border-color: ${(props: { readOnly: boolean }) =>
-            props.readOnly ? ThemeColors.OUTLINE_VARIANT : ThemeColors.SECONDARY};
+            props.readOnly ? ThemeColors.ON_SURFACE : NODE_BORDER_SELECTED_COLOR};
         }
     `;
 
@@ -794,9 +794,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
         }
         const hasToolOverlap =
             traceAnimation.activeAgentToolNames.some(t => nodeToolNames.includes(t)) ||
-            traceAnimation.entries.some(e =>
-                e.type === 'execute_tool' && e.toolName && nodeToolNames.includes(e.toolName)
-            );
+            traceAnimation.entries.some(e => e.type === 'execute_tool' && toolEntryMatchesTools(e, tools));
         if (hasToolOverlap) return true;
         return false;
     })();
@@ -806,6 +804,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
     const toolEntries = matchedEntries.filter(e => e.type === 'execute_tool');
 
     const activeToolNames = toolEntries.filter(e => e.phase === 'active').map(e => e.toolName);
+    const activeToolKitNames = toolEntries.filter(e => e.phase === 'active').map(e => e.toolKitName);
     const isAnyToolActive = activeToolNames.length > 0;
 
     const isModelActive = chatEntry?.phase === 'active' && !isAnyToolActive;
@@ -1064,13 +1063,13 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                 viewBox={`0 0 300 ${containerHeight}`}
                 style={{ marginLeft: "-10px", position: "relative", zIndex: 1 }}
             >
-                {showModelCircle && <g style={{ opacity: isModelActive ? 1 : 0.55, transition: "opacity 0.4s ease-out" }}>
+                {showModelCircle && <g>
                     <circle
                         cx="80"
                         cy="24"
                         r="22"
                         fill={ThemeColors.SURFACE_DIM}
-                        stroke={ThemeColors.OUTLINE_VARIANT}
+                        stroke={ThemeColors.ON_SURFACE}
                         strokeWidth={1.5}
                         strokeDasharray={disabled ? "5 5" : "none"}
                         opacity={disabled ? 0.7 : 1}
@@ -1079,7 +1078,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                             cursor: ${readOnly ? "default" : "pointer"};
                             transition: stroke 0.4s ease-out;
                             &:hover {
-                                stroke: ${readOnly ? ThemeColors.OUTLINE_VARIANT : ThemeColors.SECONDARY};
+                                stroke: ${readOnly ? ThemeColors.ON_SURFACE : NODE_BORDER_SELECTED_COLOR};
                             }
                         `}
                     >
@@ -1109,13 +1108,13 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                 </g>}
 
                 {tools.map((tool: ToolData, index: number) => {
-                    const isToolActive = activeToolNames.includes(tool.name);
+                    const isToolActive = isToolTraceActive(tool, activeToolNames, activeToolKitNames);
                     return (
                         <g
                             key={index}
                             transform={`translate(0, ${(index + 1) * (NODE_HEIGHT + AGENT_NODE_TOOL_GAP) + AGENT_NODE_TOOL_SECTION_GAP
                                 })`}
-                            opacity={toolsReadOnly ? 0.55 : (isToolActive ? 1 : 0.55)}
+                            opacity={toolsReadOnly ? 0.55 : undefined}
                             onClick={toolsReadOnly ? undefined : () => tool.type == "MCP Server" ? onToolClick(tool) : onImplementTool(tool)}
                             onContextMenu={(e) => {
                                 if (!readOnly && !toolsReadOnly) {
@@ -1129,13 +1128,13 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                             cursor: ${readOnly ? "default" : "pointer"};
                             transition: opacity 0.4s ease-out;
                             &:hover circle:first-of-type {
-                                stroke: ${ThemeColors.SECONDARY};
+                                stroke: ${NODE_BORDER_SELECTED_COLOR};
                             }
                             &:hover foreignObject .connector-icon path {
-                                fill: ${ThemeColors.SECONDARY};
+                                fill: ${NODE_BORDER_SELECTED_COLOR};
                             }
                             &:hover text {
-                                fill: ${ThemeColors.SECONDARY};
+                                fill: ${NODE_BORDER_SELECTED_COLOR};
                             }
                             &:hover .tool-tooltip {
                                 opacity: 1;
@@ -1153,7 +1152,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                 cy="24"
                                 r="22"
                                 fill={ThemeColors.SURFACE_DIM}
-                                stroke={ThemeColors.OUTLINE_VARIANT}
+                                stroke={ThemeColors.ON_SURFACE}
                                 strokeWidth={1.5}
                                 strokeDasharray={disabled ? "5 5" : "none"}
                                 opacity={disabled ? 0.7 : 1}
@@ -1324,7 +1323,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                         css={css`
                             cursor: ${readOnly ? "not-allowed" : "pointer"};
                             &:hover path:last-of-type {
-                                fill: ${ThemeColors.SECONDARY};
+                                fill: ${NODE_BORDER_SELECTED_COLOR};
                             }
                             &:hover + .custom-tooltip {
                                 opacity: 1;

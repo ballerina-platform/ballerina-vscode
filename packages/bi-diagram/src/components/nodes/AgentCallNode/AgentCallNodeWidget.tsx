@@ -54,7 +54,7 @@ import { css } from "@emotion/react";
 import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
 import { NodeMetadata, isDefaultModelProviderExpr } from "@wso2/ballerina-core";
 
-import { flowDashAnimation, sanitizeAgentData, sanitizeId } from "../agentNodeUtils";
+import { flowDashAnimation, isToolTraceActive, sanitizeAgentData, sanitizeId, toolEntryMatchesTools } from "../agentNodeUtils";
 import { MarkdownWithTooltip } from "../AgentMarkdownTooltip";
 import { getAgentNodeContainerHeight } from "../AgentWidget/agentNodeLayout";
 import { useAgentNodeController } from "../AgentWidget/useAgentNodeController";
@@ -538,17 +538,16 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
         // No system instructions → fall back to tool intersection
         const hasToolOverlap =
             traceAnimation.activeAgentToolNames.some(t => nodeToolNames.includes(t)) ||
-            traceAnimation.entries.some(e =>
-                e.type === 'execute_tool' && e.toolName && nodeToolNames.includes(e.toolName)
-            );
+            traceAnimation.entries.some(e => e.type === 'execute_tool' && toolEntryMatchesTools(e, tools));
         if (hasToolOverlap) return true;
         // Nothing available → no match without explicit evidence
         return false;
     })();
     const chatEntry = isTraceMatch ? traceAnimation.entries.find(e => e.type === 'chat') : undefined;
     const toolEntries = (isTraceMatch ? traceAnimation.entries : [])
-        .filter(e => e.type === 'execute_tool' && e.toolName && nodeToolNames.includes(e.toolName));
+        .filter(e => e.type === 'execute_tool' && toolEntryMatchesTools(e, tools));
     const activeToolNames = toolEntries.filter(e => e.phase === 'active').map(e => e.toolName);
+    const activeToolKitNames = toolEntries.filter(e => e.phase === 'active').map(e => e.toolKitName);
     const isAnyToolActive = activeToolNames.length > 0;
 
     // Model is active ONLY if it's chatting AND no tools are currently executing
@@ -820,7 +819,7 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
 
                 {/* circles for tools */}
                 {tools.map((tool: ToolData, index: number) => {
-                    const isToolActive = activeToolNames.includes(tool.name);
+                    const isToolActive = isToolTraceActive(tool, activeToolNames, activeToolKitNames);
                     return (
                         <g
                             key={index}

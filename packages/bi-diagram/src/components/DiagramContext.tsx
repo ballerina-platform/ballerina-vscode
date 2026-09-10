@@ -202,6 +202,7 @@ export type AnimationPhase = 'active' | 'fading-out';
 export type TraceAnimationEntry = {
     type: 'invoke_agent' | 'chat' | 'execute_tool';
     toolName?: string;
+    toolKitName?: string;
     phase: AnimationPhase;
 };
 
@@ -279,6 +280,7 @@ export function setTraceAnimationActive(
     systemInstructions?: string,
     entrypointServiceName?: string,
     entrypointFunctionName?: string,
+    activeToolKitName?: string,
 ) {
     const key = entryKey(type, activeToolName);
 
@@ -315,7 +317,7 @@ export function setTraceAnimationActive(
         });
 
     // Add the new active entry
-    updatedEntries.push({ type, toolName: activeToolName, phase: 'active' });
+    updatedEntries.push({ type, toolName: activeToolName, toolKitName: activeToolKitName, phase: 'active' });
 
     // Schedule stale cleanup for the new active entry
     scheduleStaleCleanup(key, type, activeToolName);

@@ -416,7 +416,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         rpcClient.onTraceAnimationChanged((event: TraceAnimationEvent) => {
             console.log('[TraceAnimation] Webview received event:', event.type, event.active, event.toolNames);
             if (event.active) {
-                setTraceAnimationActive(event.toolNames, event.type, event.activeToolName, event.systemInstructions, event.entrypointServiceName, event.entrypointFunctionName);
+                setTraceAnimationActive(event.toolNames, event.type, event.activeToolName, event.systemInstructions, event.entrypointServiceName, event.entrypointFunctionName, event.activeToolKitName);
             } else {
                 setTraceAnimationInactive(event.type, event.activeToolName);
             }

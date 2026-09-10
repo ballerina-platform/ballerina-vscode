@@ -1801,18 +1801,6 @@ public class AiUtils {
         }
     }
 
-    public static boolean isMcpToolKitSymbol(Symbol symbol) {
-        TypeSymbol typeSymbol;
-        if (symbol instanceof VariableSymbol variableSymbol) {
-            typeSymbol = variableSymbol.typeDescriptor();
-        } else if (symbol instanceof ClassFieldSymbol classFieldSymbol) {
-            typeSymbol = classFieldSymbol.typeDescriptor();
-        } else {
-            return false;
-        }
-        return isMcpToolKitType(typeSymbol);
-    }
-
     public static boolean isMcpToolKitType(TypeSymbol typeSymbol) {
         if (typeSymbol.nameEquals("McpToolKit") && typeSymbol.getModule()
                 .map(module -> CommonUtils.isAiModule(module.id().orgName(), module.id().packageName()))
@@ -1821,6 +1809,29 @@ public class AiUtils {
         }
         return CommonUtils.getRawType(typeSymbol) instanceof ClassSymbol classSymbol
                 && CommonUtils.isAiMcpBaseToolKit(classSymbol);
+    }
+
+    // Module-qualified so it matches the toolkit name the trace records at dev-time (ExecuteToolSpan.addToolKitName).
+    public static Optional<String> mcpToolKitClassName(Symbol symbol) {
+        TypeSymbol typeSymbol;
+        if (symbol instanceof VariableSymbol variableSymbol) {
+            typeSymbol = variableSymbol.typeDescriptor();
+        } else if (symbol instanceof ClassFieldSymbol classFieldSymbol) {
+            typeSymbol = classFieldSymbol.typeDescriptor();
+        } else {
+            return Optional.empty();
+        }
+        return mcpToolKitClassName(typeSymbol);
+    }
+
+    public static Optional<String> mcpToolKitClassName(TypeSymbol typeSymbol) {
+        if (!isMcpToolKitType(typeSymbol)
+                || !(CommonUtils.getRawType(typeSymbol) instanceof ClassSymbol classSymbol)) {
+            return Optional.empty();
+        }
+        String className = classSymbol.getName().orElse("");
+        String moduleName = classSymbol.getModule().map(module -> module.id().moduleName()).orElse("");
+        return Optional.of(moduleName.isEmpty() ? className : moduleName + ":" + className);
     }
 
     private static Optional<AgentInfo> readAgentMetadata(ClassSymbol classSymbol) {
