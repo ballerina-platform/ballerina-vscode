@@ -192,7 +192,7 @@ export const ExpandedEditor: React.FC<ExpandedPromptEditorProps> = ({
     formDiagnostics,
     inputMode,
     readOnly,
-    zIndex = 2001
+    zIndex = 2100
 }) => {
     const promptFields = ["instructions", "role"];
 
