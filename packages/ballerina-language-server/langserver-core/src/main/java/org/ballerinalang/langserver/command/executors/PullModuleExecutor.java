@@ -302,8 +302,7 @@ public class PullModuleExecutor implements LSCommandExecutor {
                             params.setReposPath(RepoUtils.createAndGetHomeReposPath()
                                     .resolve(ProjectConstants.REPOSITORIES_DIR).toString());
                             languageClient.corruptBirCache(params);
-                        }
-                        if (t.getCause() instanceof UserErrorException) {
+                        } else if (t.getCause() instanceof UserErrorException) {
                             String errorMessage = t.getCause().getMessage();
                             CommandUtil.notifyClient(languageClient, MessageType.Error, errorMessage);
                         } else {
