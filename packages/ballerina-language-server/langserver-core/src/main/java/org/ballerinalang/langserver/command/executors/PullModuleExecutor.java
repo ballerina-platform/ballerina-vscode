@@ -384,17 +384,23 @@ public class PullModuleExecutor implements LSCommandExecutor {
     private static Optional<String> resolvePackageName(Project project, String org, String moduleName,
                                                        String version) {
         try {
-            Collection<ResolvedPackageDependency> nodes =
-                    project.currentPackage().getResolution().dependencyGraph().getNodes();
-            for (ResolvedPackageDependency node : nodes) {
-                Package pkg = node.packageInstance();
-                if (!pkg.packageOrg().value().equals(org)
-                        || !pkg.packageVersion().value().toString().equals(version)) {
-                    continue;
-                }
-                for (Module module : pkg.modules()) {
-                    if (module.moduleName().toString().equals(moduleName)) {
-                        return Optional.of(pkg.packageName().value());
+            BallerinaCompilerApi compilerApi = BallerinaCompilerApi.getInstance();
+            List<Project> memberProjects = compilerApi.isWorkspaceProject(project)
+                    ? compilerApi.getWorkspaceProjectsInOrder(project)
+                    : List.of(project);
+            for (Project memberProject : memberProjects) {
+                Collection<ResolvedPackageDependency> nodes =
+                        memberProject.currentPackage().getResolution().dependencyGraph().getNodes();
+                for (ResolvedPackageDependency node : nodes) {
+                    Package pkg = node.packageInstance();
+                    if (!pkg.packageOrg().value().equals(org)
+                            || !pkg.packageVersion().value().toString().equals(version)) {
+                        continue;
+                    }
+                    for (Module module : pkg.modules()) {
+                        if (module.moduleName().toString().equals(moduleName)) {
+                            return Optional.of(pkg.packageName().value());
+                        }
                     }
                 }
             }
