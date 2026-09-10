@@ -19,29 +19,22 @@
 import { DefaultLinkModel } from "@projectstorm/react-diagrams";
 import { ThemeColors } from "@wso2/ui-toolkit";
 import { TOPOLOGY_LINK } from "../../resources/constants";
-import { EdgeChip } from "../AgentTopologyDiagram/types";
 
 export interface TopologyLinkModelOptions {
     edgeId?: string;
     dashed?: boolean;
-    arrow?: boolean;
-    chips?: EdgeChip[];
     bow?: number;
 }
 
-// Solid = trigger edge, dashed = agent-to-agent delegation. Chips (sequence number /
-// condition text) are the only labels a link carries; numbers mean order, text means
-// condition, dashed means delegation -- nothing else on the canvas is dashed.
+// Solid = an entry point runs this agent, or the next step of an ordered handler; dashed = agent-to-agent
+// delegation. A link carries no label: a condition or a step number is a fact about one call site, and an
+// edge stands for a whole handler.
 export class TopologyLinkModel extends DefaultLinkModel {
     edgeId = "";
     dashed = false;
-    arrow = true;
-    chips: EdgeChip[] = [];
     bow = 0;
     // Where the layout bends this edge.
     via: { x: number; y: number }[] = [];
-    // Where the edge starts when not at its source port: the far edge of the loop box it exits.
-    start?: { x: number; y: number };
     // Ports face each other vertically when the topology is laid out top to bottom.
     vertical = false;
 
@@ -55,8 +48,6 @@ export class TopologyLinkModel extends DefaultLinkModel {
         });
         this.edgeId = options.edgeId ?? "";
         this.dashed = Boolean(options.dashed);
-        this.arrow = options.arrow !== false;
-        this.chips = options.chips ?? [];
         this.bow = options.bow ?? 0;
     }
 }

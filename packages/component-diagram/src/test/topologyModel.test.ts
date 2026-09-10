@@ -16,7 +16,8 @@
  * under the License.
  */
 
-import { CDAgentCall, CDAutomation, CDConnection, CDModel, CDResourceFunction, CDService } from "@wso2/ballerina-core";
+import { CDAgentCall, CDAgentCallGroup, CDAutomation, CDConnection, CDModel, CDResourceFunction, CDService } from "@wso2/ballerina-core";
+import { logicTooltip } from "../components/AgentTopologyDiagram/LogicBadge";
 import { buildTopology } from "../components/AgentTopologyDiagram/topologyModel";
 import { focusAround } from "../components/AgentTopologyDiagram/topologyFocus";
 import { TopologyAgentArtifact, TopologyEdge, TopologyInput } from "../components/AgentTopologyDiagram/types";
@@ -136,139 +137,89 @@ describe("buildTopology", () => {
         expect(graph.legendKinds).toEqual(expect.arrayContaining(["trigger", "delegation"]));
     });
 
-    it("draws an if/else split as one shared stem marker with a condition chip on each branch", () => {
-        const billing = agentConnection("bil", "billingAgent", AGENTS_BAL, 1);
-        const technical = agentConnection("tech", "technicalAgent", AGENTS_BAL, 5);
-        const route = resourceFn("post", "route", SERVICES_BAL, 1, ["bil", "tech"], [
-            { connection: "bil", line: 2, groups: [{ kind: "if", id: "g1", label: 'isBillingQuery(msg)' }] },
-            { connection: "tech", line: 4, groups: [{ kind: "if", id: "g1", label: "else" }] },
+    it("chains a handler whose calls are a straight line, and marks it ordered", () => {
+        const research = agentConnection("r", "researchAgent", AGENTS_BAL, 1);
+        const writer = agentConnection("w", "writerAgent", AGENTS_BAL, 5);
+        const draft = resourceFn("post", "draft", SERVICES_BAL, 1, ["r", "w"], [
+            { connection: "r", line: 2 },
+            { connection: "w", line: 3 },
         ]);
-        const svc = service(SERVICES_BAL, 1, "http:Service", "/route", ["bil", "tech"], [route]);
-
+        const svc = service(SERVICES_BAL, 1, "http:Service", "/content", ["r", "w"], [draft]);
         const graph = buildTopology({
-            model: modelOf([billing, technical], [svc]),
-            agents: [artifact("billingAgent", AGENTS_BAL, 1), artifact("technicalAgent", AGENTS_BAL, 5)],
-        });
-
-        expect(graph.splits).toHaveLength(1);
-        expect(graph.splits[0].kind).toBe("if");
-        expect(graph.splits[0].triggerId).toBe(graph.triggers[0].id);
-        const stem = graph.edges.find((edge) => edge.kind === "stem");
-        expect(stem.sourceId).toBe(graph.triggers[0].id);
-        expect(stem.targetId).toBe(graph.splits[0].id);
-        const billingEdge = graph.edges.find((edge) => edge.targetId === agentId(AGENTS_BAL, 1));
-        expect(billingEdge.sourceId).toBe(graph.splits[0].id);
-        const technicalEdge = graph.edges.find((edge) => edge.targetId === agentId(AGENTS_BAL, 5));
-        expect(billingEdge.chips).toEqual([{ text: "isBillingQuery(msg)" }]);
-        expect(technicalEdge.chips).toEqual([{ text: "else" }]);
-        // Only one item (the whole if/else chain) in this handler, so no step order recorded.
-        expect(billingEdge.handlers).toBeUndefined();
-        expect(graph.legendKinds).toContain("condition");
-    });
-
-    it("draws a match with one condition chip per clause", () => {
-        const billing = agentConnection("bil", "billingAgent", AGENTS_BAL, 1);
-        const technical = agentConnection("tech", "technicalAgent", AGENTS_BAL, 5);
-        const classify = resourceFn("post", "classify", SERVICES_BAL, 1, ["bil", "tech"], [
-            { connection: "bil", line: 2, groups: [{ kind: "match", id: "g1", label: '"billing"' }] },
-            { connection: "tech", line: 4, groups: [{ kind: "match", id: "g1", label: '"technical"' }] },
-        ]);
-        const svc = service(SERVICES_BAL, 1, "http:Service", "/classify", ["bil", "tech"], [classify]);
-
-        const graph = buildTopology({
-            model: modelOf([billing, technical], [svc]),
-            agents: [artifact("billingAgent", AGENTS_BAL, 1), artifact("technicalAgent", AGENTS_BAL, 5)],
-        });
-
-        expect(graph.splits[0].kind).toBe("match");
-        const billingEdge = graph.edges.find((edge) => edge.targetId === agentId(AGENTS_BAL, 1));
-        expect(billingEdge.sourceId).toBe(graph.splits[0].id);
-        expect(billingEdge.chips).toEqual([{ text: '"billing"' }]);
-    });
-
-    it("draws a fork with a stem marker and no text chips on its edges", () => {
-        const billing = agentConnection("bil", "billingAgent", AGENTS_BAL, 1);
-        const technical = agentConnection("tech", "technicalAgent", AGENTS_BAL, 5);
-        const both = resourceFn("post", "both", SERVICES_BAL, 1, ["bil", "tech"], [
-            { connection: "bil", line: 2, groups: [{ kind: "fork", id: "g1", label: "billing" }] },
-            { connection: "tech", line: 4, groups: [{ kind: "fork", id: "g1", label: "technical" }] },
-        ]);
-        const svc = service(SERVICES_BAL, 1, "http:Service", "/parallel", ["bil", "tech"], [both]);
-
-        const graph = buildTopology({
-            model: modelOf([billing, technical], [svc]),
-            agents: [artifact("billingAgent", AGENTS_BAL, 1), artifact("technicalAgent", AGENTS_BAL, 5)],
-        });
-
-        expect(graph.splits[0].kind).toBe("fork");
-        const billingEdge = graph.edges.find((edge) => edge.targetId === agentId(AGENTS_BAL, 1));
-        expect(billingEdge.chips).toEqual([]);
-        expect(graph.legendKinds).toContain("fork");
-    });
-
-    it("draws a foreach as a loop split with the loop header under the node, no pill", () => {
-        const triage = agentConnection("tri", "triageAgent", AGENTS_BAL, 1);
-        const batch = resourceFn("post", "triage", SERVICES_BAL, 1, ["tri"], [
-            { connection: "tri", line: 3, groups: [{ kind: "foreach", id: "g1", label: "ticket in payload.tickets" }] },
-        ]);
-        const svc = service(SERVICES_BAL, 1, "http:Service", "/tickets", ["tri"], [batch]);
-
-        const graph = buildTopology({ model: modelOf([triage], [svc]), agents: [artifact("triageAgent", AGENTS_BAL, 1)] });
-
-        expect(graph.splits[0]).toMatchObject({ kind: "foreach", header: "ticket in payload.tickets", depth: 1 });
-        const edge = graph.edges.find((e) => e.targetId === agentId(AGENTS_BAL, 1));
-        expect(edge.sourceId).toBe(graph.splits[0].id);
-        expect(edge.chips).toEqual([]);
-        expect(graph.legendKinds).toContain("loop");
-        expect(graph.legendKinds).not.toContain("condition");
-    });
-
-    it("draws a while as a loop split with the condition under the node", () => {
-        const review = agentConnection("rev", "reviewAgent", AGENTS_BAL, 1);
-        const retry = resourceFn("post", "escalate", SERVICES_BAL, 1, ["rev"], [
-            { connection: "rev", line: 4, groups: [{ kind: "while", id: "g1", label: "attempts < 3" }] },
-        ]);
-        const svc = service(SERVICES_BAL, 1, "http:Service", "/tickets", ["rev"], [retry]);
-
-        const graph = buildTopology({ model: modelOf([review], [svc]), agents: [artifact("reviewAgent", AGENTS_BAL, 1)] });
-
-        expect(graph.splits[0]).toMatchObject({ kind: "while", header: "attempts < 3" });
-        expect(graph.edges.find((e) => e.targetId === agentId(AGENTS_BAL, 1)).chips).toEqual([]);
-        expect(graph.legendKinds).toContain("loop");
-    });
-
-    it("chains nested constructs: foreach → if → if, with the outer branch on the edge into the inner split", () => {
-        const compliance = agentConnection("comp", "complianceAgent", AGENTS_BAL, 1);
-        const fraud = agentConnection("fraud", "fraudAgent", AGENTS_BAL, 5);
-        const gift = agentConnection("gift", "giftAgent", AGENTS_BAL, 9);
-        const loop = { kind: "foreach" as const, id: "L", label: "item in payload.orders" };
-        const outer = (label: string) => ({ kind: "if" as const, id: "O", label });
-        const inner = (label: string) => ({ kind: "if" as const, id: "I", label });
-        const process = resourceFn("post", "process", SERVICES_BAL, 1, ["comp", "fraud", "gift"], [
-            { connection: "comp", line: 4, groups: [loop, outer("item.total > 1000"), inner('item.region == "EU"')] },
-            { connection: "fraud", line: 7, groups: [loop, outer("item.total > 1000"), inner("else")] },
-            { connection: "gift", line: 10, groups: [loop, outer("item.isGift")] },
-        ]);
-        const svc = service(SERVICES_BAL, 1, "http:Service", "/orders", ["comp", "fraud", "gift"], [process]);
-
-        const graph = buildTopology({
-            model: modelOf([compliance, fraud, gift], [svc]),
-            agents: [artifact("complianceAgent", AGENTS_BAL, 1), artifact("fraudAgent", AGENTS_BAL, 5), artifact("giftAgent", AGENTS_BAL, 9)],
+            model: modelOf([research, writer], [svc]),
+            agents: [artifact("researchAgent", AGENTS_BAL, 1), artifact("writerAgent", AGENTS_BAL, 5)],
         });
 
         const triggerId = graph.triggers[0].id;
-        const byId = new Map(graph.splits.map((split) => [split.id, split]));
-        expect(byId.get(`${triggerId}::L`)).toMatchObject({ kind: "foreach", parentId: triggerId, depth: 1, header: "item in payload.orders" });
-        expect(byId.get(`${triggerId}::O`)).toMatchObject({ kind: "if", parentId: `${triggerId}::L`, depth: 2 });
-        expect(byId.get(`${triggerId}::I`)).toMatchObject({ kind: "if", parentId: `${triggerId}::O`, depth: 3 });
-        const edge = (source: string, target: string) => graph.edges.find((e) => e.sourceId === source && e.targetId === target);
-        expect(edge(triggerId, `${triggerId}::L`).chips).toEqual([]);
-        expect(edge(`${triggerId}::L`, `${triggerId}::O`).chips).toEqual([]);
-        expect(edge(`${triggerId}::O`, `${triggerId}::I`).chips).toEqual([{ text: "item.total > 1000" }]);
-        expect(edge(`${triggerId}::I`, agentId(AGENTS_BAL, 1)).chips).toEqual([{ text: 'item.region == "EU"' }]);
-        expect(edge(`${triggerId}::I`, agentId(AGENTS_BAL, 5)).chips).toEqual([{ text: "else" }]);
-        expect(edge(`${triggerId}::O`, agentId(AGENTS_BAL, 9)).chips).toEqual([{ text: "item.isGift" }]);
-        expect(graph.edges.filter((e) => e.sourceId === triggerId)).toHaveLength(1);
+        expect(graph.triggers[0]).toMatchObject({ ordered: true, logic: [] });
+        expect(graph.edges.map((edge) => [edge.sourceId, edge.targetId])).toEqual([
+            [triggerId, agentId(AGENTS_BAL, 1)],
+            [agentId(AGENTS_BAL, 1), agentId(AGENTS_BAL, 5)],
+        ]);
+    });
+
+    it("fans a handler whose calls sit inside constructs, and badges the constructs it does not draw", () => {
+        const refund = agentConnection("ref", "refundAgent", AGENTS_BAL, 1);
+        const notify = agentConnection("not", "notifyAgent", AGENTS_BAL, 5);
+        const process = resourceFn("post", "process", SERVICES_BAL, 1, ["ref", "not"], [
+            { connection: "ref", line: 3, groups: [{ kind: "foreach", id: "L", label: "item in items" }, { kind: "fork", id: "F", label: "w1" }] },
+            { connection: "not", line: 6, groups: [{ kind: "foreach", id: "L", label: "item in items" }, { kind: "match", id: "M", label: "_" }] },
+        ]);
+        const svc = service(SERVICES_BAL, 1, "http:Service", "/returns", ["ref", "not"], [process]);
+        const graph = buildTopology({
+            model: modelOf([refund, notify], [svc]),
+            agents: [artifact("refundAgent", AGENTS_BAL, 1), artifact("notifyAgent", AGENTS_BAL, 5)],
+        });
+
+        const triggerId = graph.triggers[0].id;
+        expect(graph.triggers[0]).toMatchObject({ ordered: false, logic: ["branch", "fork", "loop"] });
+        expect(graph.edges.map((edge) => edge.sourceId)).toEqual([triggerId, triggerId]);
+        expect(graph.legendKinds).toContain("logic");
+    });
+
+    // A chain would have to come back to the same card and would lose a step, so the whole handler fans.
+    it("fans a handler that calls one agent twice, even with no construct around the calls", () => {
+        const notify = agentConnection("not", "notifyAgent", AGENTS_BAL, 1);
+        const refund = agentConnection("ref", "refundAgent", AGENTS_BAL, 5);
+        const twice = resourceFn("post", "twice", SERVICES_BAL, 1, ["not", "ref"], [
+            { connection: "not", line: 2 },
+            { connection: "ref", line: 3 },
+            { connection: "not", line: 4 },
+        ]);
+        const svc = service(SERVICES_BAL, 1, "http:Service", "/returns", ["not", "ref"], [twice]);
+        const graph = buildTopology({
+            model: modelOf([notify, refund], [svc]),
+            agents: [artifact("notifyAgent", AGENTS_BAL, 1), artifact("refundAgent", AGENTS_BAL, 5)],
+        });
+
+        const triggerId = graph.triggers[0].id;
+        expect(graph.triggers[0]).toMatchObject({ ordered: false, logic: [] });
+        expect(graph.edges.map((edge) => [edge.sourceId, edge.targetId])).toEqual([
+            [triggerId, agentId(AGENTS_BAL, 1)],
+            [triggerId, agentId(AGENTS_BAL, 5)],
+        ]);
+    });
+
+    // One graph cannot hold X → Y and Y → X without drawing a cycle that does not exist.
+    it("fans both handlers when two of them order the same pair the opposite way round", () => {
+        const first = agentConnection("x", "xAgent", AGENTS_BAL, 1);
+        const second = agentConnection("y", "yAgent", AGENTS_BAL, 5);
+        const forward = resourceFn("post", "forward", SERVICES_BAL, 1, ["x", "y"], [
+            { connection: "x", line: 2 },
+            { connection: "y", line: 3 },
+        ]);
+        const backward = resourceFn("post", "backward", SERVICES_BAL, 9, ["x", "y"], [
+            { connection: "y", line: 10 },
+            { connection: "x", line: 11 },
+        ]);
+        const svc = service(SERVICES_BAL, 1, "http:Service", "/pair", ["x", "y"], [forward, backward]);
+        const graph = buildTopology({
+            model: modelOf([first, second], [svc]),
+            agents: [artifact("xAgent", AGENTS_BAL, 1), artifact("yAgent", AGENTS_BAL, 5)],
+        });
+
+        expect(graph.triggers.map((trigger) => trigger.ordered)).toEqual([false, false]);
+        expect(graph.edges.every((edge) => graph.triggers.some((trigger) => trigger.id === edge.sourceId))).toBe(true);
     });
 
     it("carries the service module's icon on the trigger for modules without a brand glyph", () => {
@@ -280,173 +231,6 @@ describe("buildTopology", () => {
 
         expect(graph.triggers[0].glyphType).toBe("chat");
         expect(graph.triggers[0].icon).toBe("https://central/ballerinax_googleapis.gchat_1.0.0.png");
-    });
-
-    it("chains the steps through a split: the split hangs off the previous step and the next step leaves it", () => {
-        const outline = agentConnection("o", "outlineAgent", AGENTS_BAL, 1);
-        const rewrite = agentConnection("r", "rewriteAgent", AGENTS_BAL, 5);
-        const draft = agentConnection("d", "draftAgent", AGENTS_BAL, 9);
-        const polish = agentConnection("p", "polishAgent", AGENTS_BAL, 13);
-        const fn = resourceFn("post", "gated", SERVICES_BAL, 1, ["o", "r", "d", "p"], [
-            { connection: "o", line: 2, groups: [] },
-            { connection: "r", line: 4, groups: [{ kind: "if", id: "g1", label: "!passesGate(outline)" }] },
-            { connection: "d", line: 6, groups: [] },
-            { connection: "p", line: 7, groups: [] },
-        ]);
-        const svc = service(SERVICES_BAL, 1, "http:Service", "/content", ["o", "r", "d", "p"], [fn]);
-        const graph = buildTopology({
-            model: modelOf([outline, rewrite, draft, polish], [svc]),
-            agents: [artifact("outlineAgent", AGENTS_BAL, 1), artifact("rewriteAgent", AGENTS_BAL, 5), artifact("draftAgent", AGENTS_BAL, 9), artifact("polishAgent", AGENTS_BAL, 13)],
-        });
-
-        const triggerId = graph.triggers[0].id;
-        const order = (edge: TopologyEdge) => edge.handlers?.[0]?.order;
-        const edge = (sourceId: string, targetId: string) => graph.edges.find((e) => e.sourceId === sourceId && e.targetId === targetId);
-        const splitId = `${triggerId}::g1`;
-        expect(order(edge(triggerId, agentId(AGENTS_BAL, 1)))).toBe(1);
-        expect(edge(agentId(AGENTS_BAL, 1), splitId).kind).toBe("stem");
-        expect(order(edge(agentId(AGENTS_BAL, 1), splitId))).toBe(2);
-        expect(edge(splitId, agentId(AGENTS_BAL, 5)).chips).toEqual([{ text: "!passesGate(outline)" }]);
-        expect(order(edge(splitId, agentId(AGENTS_BAL, 9)))).toBe(3);
-        expect(order(edge(agentId(AGENTS_BAL, 9), agentId(AGENTS_BAL, 13)))).toBe(4);
-        expect(graph.edges.filter((e) => e.sourceId === triggerId)).toHaveLength(1);
-        expect(graph.splits[0].parentId).toBe(agentId(AGENTS_BAL, 1));
-    });
-
-    it("chains the steps inside a loop body: the If hangs off the agent before it and both are numbered (event_pipeline shape)", () => {
-        const enrich = agentConnection("e", "enrichAgent", AGENTS_BAL, 1);
-        const escalate = agentConnection("s", "escalateAgent", AGENTS_BAL, 5);
-        const archive = agentConnection("a", "archiveAgent", AGENTS_BAL, 9);
-        const loop = { kind: "foreach" as const, id: "L", label: "rec in records" };
-        const route = (label: string) => ({ kind: "if" as const, id: "I", label });
-        const fn = resourceFn("post", "events", SERVICES_BAL, 1, ["e", "s", "a"], [
-            { connection: "e", line: 3, groups: [loop] },
-            { connection: "s", line: 5, groups: [loop, route('enriched.includes("high")')] },
-            { connection: "a", line: 7, groups: [loop, route("else")] },
-        ]);
-        const svc = service(SERVICES_BAL, 1, "kafka:Service", "", ["e", "s", "a"], [fn]);
-        const graph = buildTopology({
-            model: modelOf([enrich, escalate, archive], [svc]),
-            agents: [artifact("archiveAgent", AGENTS_BAL, 9), artifact("enrichAgent", AGENTS_BAL, 1), artifact("escalateAgent", AGENTS_BAL, 5)],
-        });
-
-        const triggerId = graph.triggers[0].id;
-        const loopId = `${triggerId}::L`;
-        const ifId = `${triggerId}::I`;
-        const edge = (sourceId: string, targetId: string) => graph.edges.find((e) => e.sourceId === sourceId && e.targetId === targetId);
-        const order = (e: TopologyEdge) => e.handlers?.[0]?.order;
-        expect(edge(triggerId, loopId).chips).toEqual([]);
-        expect(order(edge(loopId, agentId(AGENTS_BAL, 1)))).toBe(1);
-        expect(edge(agentId(AGENTS_BAL, 1), ifId).kind).toBe("stem");
-        expect(order(edge(agentId(AGENTS_BAL, 1), ifId))).toBe(2);
-        expect(edge(ifId, agentId(AGENTS_BAL, 5)).chips).toEqual([{ text: 'enriched.includes("high")' }]);
-        expect(edge(ifId, agentId(AGENTS_BAL, 9)).chips).toEqual([{ text: "else" }]);
-        expect(graph.splits.find((split) => split.id === ifId)).toMatchObject({ parentId: agentId(AGENTS_BAL, 1), depth: 1 });
-        expect(graph.edges.filter((e) => e.sourceId === loopId)).toHaveLength(1);
-    });
-
-    it("numbers the steps inside a numbered split after it: outline ①, Foreach ②, then 2.1 and 2.2 in its body", () => {
-        const outline = agentConnection("o", "outlineAgent", AGENTS_BAL, 1);
-        const draft = agentConnection("d", "draftAgent", AGENTS_BAL, 5);
-        const polish = agentConnection("p", "polishAgent", AGENTS_BAL, 9);
-        const loop = { kind: "foreach" as const, id: "L", label: "section in sections" };
-        const fn = resourceFn("post", "book", SERVICES_BAL, 1, ["o", "d", "p"], [
-            { connection: "o", line: 2, groups: [] },
-            { connection: "d", line: 4, groups: [loop] },
-            { connection: "p", line: 5, groups: [loop] },
-        ]);
-        const svc = service(SERVICES_BAL, 1, "http:Service", "/books", ["o", "d", "p"], [fn]);
-        const graph = buildTopology({
-            model: modelOf([outline, draft, polish], [svc]),
-            agents: [artifact("outlineAgent", AGENTS_BAL, 1), artifact("draftAgent", AGENTS_BAL, 5), artifact("polishAgent", AGENTS_BAL, 9)],
-        });
-
-        const triggerId = graph.triggers[0].id;
-        const loopId = `${triggerId}::L`;
-        const order = (sourceId: string, targetId: string) => graph.edges.find((e) => e.sourceId === sourceId && e.targetId === targetId).handlers?.[0]?.order;
-        expect(order(triggerId, agentId(AGENTS_BAL, 1))).toBe(1);
-        expect(order(agentId(AGENTS_BAL, 1), loopId)).toBe(2);
-        expect(order(loopId, agentId(AGENTS_BAL, 5))).toBe(2.1);
-        expect(order(agentId(AGENTS_BAL, 5), agentId(AGENTS_BAL, 9))).toBe(2.2);
-    });
-
-    it("draws the step after a loop as an exit edge, apart from the loop's body edge, and lists the loop's members", () => {
-        const inner = agentConnection("a", "innerAgent", AGENTS_BAL, 1);
-        const after = agentConnection("b", "afterAgent", AGENTS_BAL, 5);
-        const fn = resourceFn("post", "run", SERVICES_BAL, 1, ["a", "b"], [
-            { connection: "a", line: 3, groups: [{ kind: "foreach", id: "L", label: "x in xs" }] },
-            { connection: "b", line: 5, groups: [] },
-        ]);
-        const svc = service(SERVICES_BAL, 1, "http:Service", "/run", ["a", "b"], [fn]);
-        const graph = buildTopology({ model: modelOf([inner, after], [svc]), agents: [artifact("innerAgent", AGENTS_BAL, 1), artifact("afterAgent", AGENTS_BAL, 5)] });
-
-        const triggerId = graph.triggers[0].id;
-        const loopId = `${triggerId}::L`;
-        expect(graph.splits[0]).toMatchObject({ id: loopId, kind: "foreach", members: [agentId(AGENTS_BAL, 1)] });
-        const body = graph.edges.find((e) => e.sourceId === loopId && e.targetId === agentId(AGENTS_BAL, 1));
-        const exit = graph.edges.find((e) => e.sourceId === loopId && e.targetId === agentId(AGENTS_BAL, 5));
-        expect(body).toMatchObject({ id: `${loopId}->${agentId(AGENTS_BAL, 1)}`, kind: "trigger", chips: [] });
-        expect(exit).toMatchObject({ id: `${loopId}->>${agentId(AGENTS_BAL, 5)}`, kind: "exit" });
-        expect(exit.chips).toEqual([]);
-        expect(exit.handlers).toEqual([{ triggerId, order: 2 }]);
-        const intoLoop = graph.edges.find((e) => e.targetId === loopId);
-        expect(intoLoop.chips).toEqual([]);
-        expect(intoLoop.handlers).toEqual([{ triggerId, order: 1 }]);
-    });
-
-    it("collects a loop's members through the splits nested in its body", () => {
-        const enrich = agentConnection("e", "enrichAgent", AGENTS_BAL, 1);
-        const escalate = agentConnection("s", "escalateAgent", AGENTS_BAL, 5);
-        const archive = agentConnection("a", "archiveAgent", AGENTS_BAL, 9);
-        const loop = { kind: "foreach" as const, id: "L", label: "rec in records" };
-        const fn = resourceFn("post", "events", SERVICES_BAL, 1, ["e", "s", "a"], [
-            { connection: "e", line: 3, groups: [loop] },
-            { connection: "s", line: 5, groups: [loop, { kind: "if", id: "I", label: "high" }] },
-            { connection: "a", line: 7, groups: [loop, { kind: "if", id: "I", label: "else" }] },
-        ]);
-        const svc = service(SERVICES_BAL, 1, "kafka:Service", "", ["e", "s", "a"], [fn]);
-        const graph = buildTopology({
-            model: modelOf([enrich, escalate, archive], [svc]),
-            agents: [artifact("enrichAgent", AGENTS_BAL, 1), artifact("escalateAgent", AGENTS_BAL, 5), artifact("archiveAgent", AGENTS_BAL, 9)],
-        });
-
-        const triggerId = graph.triggers[0].id;
-        const loop$ = graph.splits.find((split) => split.id === `${triggerId}::L`);
-        expect(loop$.members.sort()).toEqual([agentId(AGENTS_BAL, 1), `${triggerId}::I`, agentId(AGENTS_BAL, 5), agentId(AGENTS_BAL, 9)].sort());
-        expect(graph.splits.find((split) => split.id === `${triggerId}::I`).members).toBeUndefined();
-        expect(graph.edges.some((e) => e.kind === "exit")).toBe(false);
-    });
-
-    it("keeps a loop's exit into an agent that also runs inside it apart from the body edge", () => {
-        const both = agentConnection("x", "bothAgent", AGENTS_BAL, 1);
-        const fn = resourceFn("post", "run", SERVICES_BAL, 1, ["x"], [
-            { connection: "x", line: 3, groups: [{ kind: "while", id: "L", label: "more" }] },
-            { connection: "x", line: 5, groups: [] },
-        ]);
-        const svc = service(SERVICES_BAL, 1, "http:Service", "/run", ["x"], [fn]);
-        const graph = buildTopology({ model: modelOf([both], [svc]), agents: [artifact("bothAgent", AGENTS_BAL, 1)] });
-
-        const loopId = `${graph.triggers[0].id}::L`;
-        const into = graph.edges.filter((e) => e.targetId === agentId(AGENTS_BAL, 1));
-        expect(into.map((e) => e.kind).sort()).toEqual(["exit", "trigger"]);
-        expect(into.every((e) => e.sourceId === loopId)).toBe(true);
-    });
-
-    it("hangs a loop that follows a loop off it with an exit stem", () => {
-        const first = agentConnection("a", "firstAgent", AGENTS_BAL, 1);
-        const second = agentConnection("b", "secondAgent", AGENTS_BAL, 5);
-        const fn = resourceFn("post", "run", SERVICES_BAL, 1, ["a", "b"], [
-            { connection: "a", line: 3, groups: [{ kind: "foreach", id: "L1", label: "x in xs" }] },
-            { connection: "b", line: 6, groups: [{ kind: "foreach", id: "L2", label: "y in ys" }] },
-        ]);
-        const svc = service(SERVICES_BAL, 1, "http:Service", "/run", ["a", "b"], [fn]);
-        const graph = buildTopology({ model: modelOf([first, second], [svc]), agents: [artifact("firstAgent", AGENTS_BAL, 1), artifact("secondAgent", AGENTS_BAL, 5)] });
-
-        const triggerId = graph.triggers[0].id;
-        const [l1, l2] = [`${triggerId}::L1`, `${triggerId}::L2`];
-        expect(graph.splits.find((split) => split.id === l2)).toMatchObject({ parentId: l1, members: [agentId(AGENTS_BAL, 5)] });
-        expect(graph.edges.find((e) => e.sourceId === l1 && e.targetId === l2)).toMatchObject({ kind: "exit" });
-        expect(graph.splits.find((split) => split.id === l1).members).toEqual([agentId(AGENTS_BAL, 1)]);
     });
 
     it("draws an agent that hands off to itself with a self-delegation edge", () => {
@@ -466,9 +250,9 @@ describe("buildTopology", () => {
         const graph = buildTopology({ model: modelOf([editor, writer], [svc]), agents: [artifact("editorAgent", AGENTS_BAL, 1), artifact("writerAgent", AGENTS_BAL, 5)] });
 
         const triggerId = graph.triggers[0].id;
-        expect(graph.edges.map((e) => [e.sourceId, e.targetId, e.chips.length])).toEqual([
-            [triggerId, agentId(AGENTS_BAL, 1), 0],
-            [triggerId, agentId(AGENTS_BAL, 5), 0],
+        expect(graph.edges.map((e) => [e.sourceId, e.targetId])).toEqual([
+            [triggerId, agentId(AGENTS_BAL, 1)],
+            [triggerId, agentId(AGENTS_BAL, 5)],
         ]);
     });
 
@@ -514,37 +298,6 @@ describe("buildTopology", () => {
         expect(shared).toHaveLength(1);
         expect(shared[0].handlers.map((step) => step.order).sort()).toEqual([2, 3]);
         expect(shared[0].handlers.map((step) => step.triggerId).sort()).toEqual(graph.triggers.map((trigger) => trigger.id).sort());
-    });
-
-    it("merges two conditions that lead to the same agent into one pill", () => {
-        const billing = agentConnection("b", "billingAgent", AGENTS_BAL, 1);
-        const general = agentConnection("g", "generalAgent", AGENTS_BAL, 5);
-        const fn = resourceFn("post", "ticket", SERVICES_BAL, 1, ["b", "g"], [
-            { connection: "b", line: 2, groups: [{ kind: "if", id: "g1", label: 'kind == "refund"' }] },
-            { connection: "b", line: 4, groups: [{ kind: "if", id: "g1", label: 'kind == "chargeback"' }] },
-            { connection: "g", line: 6, groups: [{ kind: "if", id: "g1", label: "else" }] },
-        ]);
-        const svc = service(SERVICES_BAL, 1, "http:Service", "/hub", ["b", "g"], [fn]);
-        const graph = buildTopology({ model: modelOf([billing, general], [svc]), agents: [artifact("billingAgent", AGENTS_BAL, 1), artifact("generalAgent", AGENTS_BAL, 5)] });
-
-        const toBilling = graph.edges.find((e) => e.targetId === agentId(AGENTS_BAL, 1));
-        expect(toBilling.chips).toEqual([{ text: 'kind == "refund" | kind == "chargeback"' }]);
-    });
-
-    it("hangs a split that follows a plain call off that agent and numbers both steps", () => {
-        const first = agentConnection("a", "firstAgent", AGENTS_BAL, 1);
-        const second = agentConnection("b", "secondAgent", AGENTS_BAL, 5);
-        const fn = resourceFn("post", "run", SERVICES_BAL, 1, ["a", "b"], [
-            { connection: "a", line: 2, groups: [] },
-            { connection: "b", line: 4, groups: [{ kind: "if", id: "g1", label: "retry" }] },
-        ]);
-        const svc = service(SERVICES_BAL, 1, "http:Service", "/run", ["a", "b"], [fn]);
-
-        const graph = buildTopology({ model: modelOf([first, second], [svc]), agents: [artifact("firstAgent", AGENTS_BAL, 1), artifact("secondAgent", AGENTS_BAL, 5)] });
-
-        const triggerId = graph.triggers[0].id;
-        expect(graph.edges.find((e) => e.sourceId === triggerId && e.targetId === agentId(AGENTS_BAL, 1)).handlers).toEqual([{ triggerId, order: 1 }]);
-        expect(graph.edges.find((e) => e.sourceId === agentId(AGENTS_BAL, 1) && e.kind === "stem").handlers).toEqual([{ triggerId, order: 2 }]);
     });
 
     it("draws typed-agent instances but neither their definition nor the field inside it", () => {
@@ -630,18 +383,17 @@ describe("buildTopology", () => {
             agents: [artifact("billingAgent", AGENTS_BAL, 1), artifact("technicalAgent", AGENTS_BAL, 5), artifact("auditAgent", AGENTS_BAL, 9)],
         });
         const triggerId = graph.triggers[0].id;
-        const splitId = graph.splits[0].id;
 
         const onBilling = focusAround(graph, agentId(AGENTS_BAL, 1));
-        expect([...onBilling.nodes].sort()).toEqual([agentId(AGENTS_BAL, 1), agentId(AGENTS_BAL, 9), splitId, triggerId].sort());
+        expect([...onBilling.nodes].sort()).toEqual([agentId(AGENTS_BAL, 1), agentId(AGENTS_BAL, 9), triggerId].sort());
         expect(onBilling.nodes.has(agentId(AGENTS_BAL, 5))).toBe(false);
-        expect([...onBilling.edges].sort()).toEqual([`${triggerId}->${splitId}`, `${splitId}->${agentId(AGENTS_BAL, 1)}`, `${agentId(AGENTS_BAL, 1)}=>${agentId(AGENTS_BAL, 9)}`].sort());
+        expect([...onBilling.edges].sort()).toEqual([`${triggerId}->${agentId(AGENTS_BAL, 1)}`, `${agentId(AGENTS_BAL, 1)}=>${agentId(AGENTS_BAL, 9)}`].sort());
 
         const onTrigger = focusAround(graph, triggerId);
-        expect([...onTrigger.nodes].sort()).toEqual([triggerId, splitId, agentId(AGENTS_BAL, 1), agentId(AGENTS_BAL, 5), agentId(AGENTS_BAL, 9)].sort());
+        expect([...onTrigger.nodes].sort()).toEqual([triggerId, agentId(AGENTS_BAL, 1), agentId(AGENTS_BAL, 5), agentId(AGENTS_BAL, 9)].sort());
 
         const onSubAgent = focusAround(graph, agentId(AGENTS_BAL, 9));
-        expect([...onSubAgent.nodes].sort()).toEqual([agentId(AGENTS_BAL, 9), agentId(AGENTS_BAL, 1), splitId, triggerId].sort());
+        expect([...onSubAgent.nodes].sort()).toEqual([agentId(AGENTS_BAL, 9), agentId(AGENTS_BAL, 1), triggerId].sort());
         expect(onSubAgent.nodes.has(agentId(AGENTS_BAL, 5))).toBe(false);
     });
 
@@ -714,7 +466,7 @@ describe("buildTopology", () => {
         });
 
         const edge = graph.edges.find((candidate) => candidate.kind === "trigger");
-        expect(edge.chips).toEqual([]);
+        expect(edge.handlers).toBeUndefined();
     });
 
     it("ignores a non-agent uuid inside agentCalls", () => {
@@ -778,5 +530,31 @@ describe("buildTopology", () => {
         });
 
         expect(graph.agents.every((agent) => agent.orphan)).toBe(true);
+    });
+});
+
+describe("logicTooltip", () => {
+    const construct = (logic: "branch" | "fork" | "loop", kind: CDAgentCallGroup["kind"], id: string, labels: string[]) => ({ logic, kind, id, labels });
+
+    it("names each construct with the source's own wording", () => {
+        const text = logicTooltip("branch", [
+            construct("loop", "foreach", "L", ["item in request.items"]),
+            construct("branch", "if", "I", ["item.damaged"]),
+            construct("branch", "match", "M", ['"wrong-size"', "_"]),
+        ]);
+        expect(text.split("\n")).toEqual([
+            "If · item.damaged",
+            'Match · "wrong-size", _',
+            "Open the flow to see which condition leads where.",
+        ]);
+    });
+
+    it("keeps a long branch chain readable by counting the rest", () => {
+        const text = logicTooltip("branch", [construct("branch", "if", "I", ["a", "b", "c", "d", "e"])]);
+        expect(text.split("\n")[0]).toBe("If · a, b, c, +2 more");
+    });
+
+    it("falls back to the construct's word when the server sent no label", () => {
+        expect(logicTooltip("fork", [construct("fork", "fork", "F", [])]).split("\n")[0]).toBe("Fork");
     });
 });

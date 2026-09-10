@@ -23,22 +23,19 @@ import { ThemeColors } from "@wso2/ui-toolkit";
 import { Controls } from "../Controls";
 import { DiagramCanvas } from "../DiagramCanvas";
 import { OverlayLayerModel } from "../OverlayLayer";
-import { ChipLayerModel } from "../ChipLayer";
-import { LoopBoxLayerModel } from "../LoopBoxLayer";
 import { TopologyLinkModel } from "../NodeLink";
 import { AgentCardNodeModel } from "../nodes/AgentCardNode";
 import { TriggerNodeModel } from "../nodes/TriggerNode";
-import { SplitNodeModel } from "../nodes/SplitNode";
 import { generateTopologyEngine } from "./engine";
 import { buildTopology } from "./topologyModel";
 import { layoutTopology } from "./topologyLayout";
 import { describeTopology } from "./topologyDescribe";
 import { focusAround } from "./topologyFocus";
-import { LoopBoxView, TopologyContextProvider } from "./TopologyContext";
+import { TopologyContextProvider } from "./TopologyContext";
 import { Legend } from "./Legend";
 import { FlowList } from "./FlowList";
 import { Bounds, focusBounds } from "./topologyBounds";
-import { AgentSelection, SPLIT_LABEL, TopologyEdge, TopologyGraph, TopologyInput, TopologyLayout, TopologyOrientation, TopologyTriggerNode, TriggerSelection } from "./types";
+import { AgentSelection, TopologyEdge, TopologyGraph, TopologyInput, TopologyLayout, TopologyOrientation, TopologyTriggerNode, TriggerSelection } from "./types";
 
 export interface AgentTopologyDiagramProps {
     input: TopologyInput;
@@ -57,7 +54,7 @@ const SETTLE_MS = GLIDE_MS + 60;
 // Remembered across remounts so drilling into an agent and back keeps the chosen layout.
 let lastOrientation: TopologyOrientation = "horizontal";
 
-type TopologyNodeModel = AgentCardNodeModel | TriggerNodeModel | SplitNodeModel;
+type TopologyNodeModel = AgentCardNodeModel | TriggerNodeModel;
 
 function createLink(edge: TopologyEdge, nodeModels: Map<string, TopologyNodeModel>): TopologyLinkModel | null {
     const sourceNode = nodeModels.get(edge.sourceId);
@@ -70,8 +67,7 @@ function createLink(edge: TopologyEdge, nodeModels: Map<string, TopologyNodeMode
     if (!sourcePort || !targetPort) {
         return null;
     }
-    // A split node is its own marker, so nothing arriving at one (a stem, or a loop's exit) carries an arrowhead.
-    const link = new TopologyLinkModel({ edgeId: edge.id, dashed: edge.kind === "delegation", arrow: !(targetNode instanceof SplitNodeModel), chips: edge.chips });
+    const link = new TopologyLinkModel({ edgeId: edge.id, dashed: edge.kind === "delegation" });
     link.setSourcePort(sourcePort);
     link.setTargetPort(targetPort);
     sourcePort.addLink(link);
@@ -151,7 +147,6 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
     const pinnedRef = useRef<string>();
     const hoverTimerRef = useRef<ReturnType<typeof setTimeout>>();
     const [wiredNothing, setWiredNothing] = useState(false);
-    const [loopBoxes, setLoopBoxes] = useState<LoopBoxView[]>([]);
     const [previousNodeKey, setPreviousNodeKey] = useState<string>("");
     const [orientation, setOrientation] = useState<TopologyOrientation>(lastOrientation);
     const [settling, setSettling] = useState(false);
@@ -187,18 +182,11 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
             Object.entries(positions).forEach(([id, position]) => nodeModelsRef.current.get(id)?.setPosition(position.x, position.y));
         place(layout.agentPositions);
         place(layout.triggerPositions);
-        place(layout.splitPositions);
         linkModelsRef.current.forEach((link, edgeId) => {
             link.via = layout.edgeVias[edgeId] ?? [];
             link.bow = layout.edgeBows[edgeId] ?? 0;
-            link.start = layout.edgeStarts[edgeId];
             link.vertical = orientation === "vertical";
         });
-        setLoopBoxes(
-            graph.splits
-                .filter((split) => layout.loopBoxes[split.id])
-                .map((split) => ({ id: split.id, box: layout.loopBoxes[split.id], label: SPLIT_LABEL[split.kind], header: split.header }))
-        );
     }, [canvasWidth, orientation, input.model]);
 
     // Centre the laid-out graph in the canvas from its own bounds, so the first paint does not
@@ -252,7 +240,6 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
         const nodeModels = new Map<string, TopologyNodeModel>();
         graph.agents.forEach((agentNode) => nodeModels.set(agentNode.id, new AgentCardNodeModel(agentNode)));
         graph.triggers.forEach((triggerNode) => nodeModels.set(triggerNode.id, new TriggerNodeModel(triggerNode)));
-        graph.splits.forEach((splitNode) => nodeModels.set(splitNode.id, new SplitNodeModel(splitNode)));
         nodeModelsRef.current = nodeModels;
 
         const linkModels = new Map<string, TopologyLinkModel>();
@@ -272,10 +259,6 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
             }
         };
         newModel.registerListener({ zoomUpdated: markUserAdjusted, offsetUpdated: markUserAdjusted });
-        // Loop boxes go under the links and nodes the model already has layers for.
-        newModel.addLayer(new LoopBoxLayerModel());
-        newModel.getLayers().unshift(newModel.getLayers().pop());
-        newModel.addLayer(new ChipLayerModel());
         newModel.addLayer(new OverlayLayerModel());
         newModel.addAll(...nodeModels.values(), ...linkModels.values());
 
@@ -439,10 +422,9 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
             onAddTrigger,
             focus: (hoveredId ?? pinnedId) && graphRef.current ? focusAround(graphRef.current, hoveredId ?? pinnedId) : undefined,
             setHovered,
-            loopBoxes,
         }),
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [readonly, orientation, onAgentSelect, onTriggerSelect, onAddTrigger, hoveredId, pinnedId, input, setHovered, loopBoxes]
+        [readonly, orientation, onAgentSelect, onTriggerSelect, onAddTrigger, hoveredId, pinnedId, input, setHovered]
     );
 
     return (

@@ -20,7 +20,7 @@ import React from "react";
 import styled from "@emotion/styled";
 import { ThemeColors } from "@wso2/ui-toolkit";
 import { LegendKind } from "./types";
-import { SplitGlyph } from "./SplitGlyph";
+import { LogicBadge } from "./LogicBadge";
 
 const Container = styled.div`
     display: flex;
@@ -55,19 +55,12 @@ function Line({ dashed = false }: { dashed?: boolean }) {
     );
 }
 
-const GlyphSwatch = styled.div`
-    width: 24px;
+// One column for every swatch, wide enough for the widest of them, so the labels line up and no glyph
+// reaches the text.
+const Swatch = styled.div`
+    width: 50px;
     display: flex;
-    justify-content: center;
-`;
-
-// The dashed box a loop draws around its body, at swatch size.
-const LoopSwatch = styled.div`
-    width: ${SWATCH_W}px;
-    height: ${SWATCH_H}px;
-    box-sizing: border-box;
-    border: 1.5px dashed ${ThemeColors.ON_SURFACE_VARIANT};
-    border-radius: 4px;
+    justify-content: flex-start;
     flex: none;
 `;
 
@@ -75,39 +68,25 @@ const LEGEND_ROWS: Record<LegendKind, { label: string; explain: string; swatch: 
     trigger: {
         label: "Runs the agent",
         explain: "A trigger (an HTTP resource, a remote function, or main) runs this agent.",
-        swatch: <Line />,
+        swatch: <Swatch><Line /></Swatch>,
     },
     delegation: {
         label: "Delegates to",
         explain: "This agent uses the other agent as a tool.",
-        swatch: <Line dashed />,
+        swatch: <Swatch><Line dashed /></Swatch>,
     },
-    condition: {
-        label: "Runs one, by condition",
-        explain: "Only one of these branches runs, depending on the condition shown on the edge.",
+    logic: {
+        label: "Condition, loop or fork",
+        explain: "The arrows show which agents this trigger runs. Open its flow to see the conditions, loops and forks between them.",
         swatch: (
-            <GlyphSwatch>
-                <SplitGlyph kind="if" size={20} />
-            </GlyphSwatch>
+            <Swatch>
+                <LogicBadge kinds={["branch", "fork", "loop"]} size={14} />
+            </Swatch>
         ),
-    },
-    fork: {
-        label: "Runs all in parallel",
-        explain: "These branches run at the same time.",
-        swatch: (
-            <GlyphSwatch>
-                <SplitGlyph kind="fork" size={20} />
-            </GlyphSwatch>
-        ),
-    },
-    loop: {
-        label: "Repeats in a loop",
-        explain: "The handler repeats everything inside the dashed box once per item (foreach) or while the condition holds (while); the loop header is on the box.",
-        swatch: <LoopSwatch />,
     },
 };
 
-const LEGEND_ORDER: LegendKind[] = ["trigger", "delegation", "condition", "fork", "loop"];
+const LEGEND_ORDER: LegendKind[] = ["trigger", "delegation", "logic"];
 
 export interface LegendProps {
     kinds: LegendKind[];

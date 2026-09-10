@@ -1,21 +1,18 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`describeTopology prints every node, edge and handler of the canvas as text 1`] = `
-">>> agent overview · horizontal · canvas 1400px · drawn 1539×312 (left 66) · legend trigger, delegation, condition
+">>> agent overview · horizontal · canvas 1400px · drawn 1254×288 (left 66) · legend trigger, delegation, logic
 TRIGGERS (1)
-  T1   POST /gated                HTTP Service · /content            @0,116  services.bal:3
+  T1   POST /gated                HTTP Service · /content        fan logic branch       @0,145  services.bal:3
 AGENTS (3)
-  A1   outlineAgent                       AI Agent     col 1  @531,88  h112  tools 0  chips -  model -  memory -
-  A2   rewriteAgent                       AI Agent     col 2  @1271,0  h112  tools 0  chips -  model -  memory -
-  A3   draftAgent                         AI Agent     col 2  @1271,176  h112  tools 1  chips -  model -  memory -
-SPLITS (1)
-  S1   If       under A1   depth 1  @891,126
-EDGES (5)  source → target  kind  chips  steps (order·trigger)  geometry
-  T1   → A1   trigger                         1·T1           bend 342,144
-  A1   → S1   stem                            2·T1           bend 851,144
-  S1   → A2   trigger    «!passesGate(outline)»                bend 967,144
-  S1   → A3   trigger                         3·T1           bend 967,144
-  A3   → A1   delegation                                     WRAPS via 1605,232 1605,312 491,312 491,144
+  A1   outlineAgent                       AI Agent     col 2  @1040,176  h112  tools 0  chips -  model -  memory -
+  A2   rewriteAgent                       AI Agent     col 1  @531,0  h112  tools 0  chips -  model -  memory -
+  A3   draftAgent                         AI Agent     col 1  @531,176  h112  tools 1  chips -  model -  memory -
+EDGES (4)  source → target  kind  steps (order·trigger)  geometry
+  T1   → A1   trigger    1·T1           DETOURS via 507,173 507,144 1000,144 1000,212  bow -0.5
+  T1   → A2   trigger    2·T1           bend 342,173
+  T1   → A3   trigger    3·T1           bend 342,173
+  A3   → A1   delegation                bend 865,232  bow +0.5
 HANDLERS (design model: direct agent calls in source order, {construct:label} for the enclosing constructs)
   POST /content/gated                      → outlineAgent, rewriteAgent{if:!passesGate(outline)}, draftAgent"
 `;

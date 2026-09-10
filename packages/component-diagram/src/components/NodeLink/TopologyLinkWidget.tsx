@@ -55,7 +55,7 @@ export function TopologyLinkWidget({ link }: TopologyLinkWidgetProps) {
                 style={{ stroke: color, transition: `stroke ${FOCUS_FADE}` }}
                 strokeWidth={1.5}
                 strokeDasharray={link.dashed ? "6 5" : undefined}
-                markerEnd={link.arrow ? `url(#${markerId})` : undefined}
+                markerEnd={`url(#${markerId})`}
             />
             <defs>
                 <marker

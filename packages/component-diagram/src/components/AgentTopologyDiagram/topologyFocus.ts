@@ -27,17 +27,12 @@ function intersect(a: Set<string>, b: Set<string>): Set<string> {
 
 function handlerResolver(graph: TopologyGraph): (edge: TopologyEdge) => Handlers {
     const triggerIds = new Set(graph.triggers.map((trigger) => trigger.id));
-    const splitTrigger = new Map(graph.splits.map((split) => [split.id, split.triggerId]));
     return (edge) => {
         if (edge.kind === "delegation") {
             return undefined;
         }
         if (triggerIds.has(edge.sourceId)) {
             return new Set([edge.sourceId]);
-        }
-        const split = splitTrigger.get(edge.sourceId) ?? splitTrigger.get(edge.targetId);
-        if (split) {
-            return new Set([split]);
         }
         const stepped = (edge.handlers ?? []).map((step) => step.triggerId);
         return stepped.length ? new Set(stepped) : undefined;
@@ -46,7 +41,7 @@ function handlerResolver(graph: TopologyGraph): (edge: TopologyEdge) => Handlers
 
 // The flow through a node, handler by handler: upstream to the triggers whose chains reach it (through the parents
 // that delegate to it too), then downstream along those handlers' chains only, and along every delegation. A chain
-// edge that belongs to another handler passing through the same card stays dark.
+// edge that belongs to another handler running through the same card stays dark.
 export function focusAround(graph: TopologyGraph, id: string): TopologyFocus {
     const nodes = new Set([id]);
     const edges = new Set<string>();

@@ -17,26 +17,26 @@
  */
 
 import { focusAround } from "../components/AgentTopologyDiagram/topologyFocus";
-import { TopologyAgentNode, TopologyEdge, TopologyGraph, TopologySplitNode, TopologyTriggerNode } from "../components/AgentTopologyDiagram/types";
+import { TopologyAgentNode, TopologyEdge, TopologyGraph, TopologyTriggerNode } from "../components/AgentTopologyDiagram/types";
 
 function agent(id: string): TopologyAgentNode {
     return {
         id, name: id, typeName: "AI Agent", role: "", toolCount: 0, functionTools: 0, agentTools: 0, mcpTools: 0, tools: [], chips: [],
-        typed: false, orphan: false, filePath: "https://gh.072103.xyz/proj/agents.bal", position: { line: 1, offset: 0 },
+        typed: false, orphan: false, filePath: "/proj/agents.bal", position: { line: 1, offset: 0 },
     };
 }
 
 function trigger(id: string): TopologyTriggerNode {
-    return { id, label1: id, label2: "", glyphType: "http", filePath: "https://gh.072103.xyz/proj/services.bal", position: { line: 1, offset: 0 } };
+    return { id, label1: id, label2: "", glyphType: "http", filePath: "/proj/services.bal", position: { line: 1, offset: 0 }, logic: [], constructs: [], ordered: false };
 }
 
 function edge(sourceId: string, targetId: string, kind: TopologyEdge["kind"] = "trigger", step?: [string, string]): TopologyEdge {
     const handlers = step ? [{ triggerId: step[0], order: Number(step[1]) }] : undefined;
-    return { id: `${sourceId}->${targetId}`, sourceId, targetId, kind, chips: [], handlers };
+    return { id: `${sourceId}->${targetId}`, sourceId, targetId, kind, handlers };
 }
 
-function graphOf(agents: TopologyAgentNode[], triggers: TopologyTriggerNode[], edges: TopologyEdge[], splits: TopologySplitNode[] = []): TopologyGraph {
-    return { agents, triggers, splits, edges, wiredNothing: false, legendKinds: [] };
+function graphOf(agents: TopologyAgentNode[], triggers: TopologyTriggerNode[], edges: TopologyEdge[]): TopologyGraph {
+    return { agents, triggers, edges, wiredNothing: false, legendKinds: [] };
 }
 
 // helper_chains: /draft runs research ① → writer ②; /intake runs intake ① → research ②; main runs intake.
@@ -87,31 +87,4 @@ describe("focusAround", () => {
         expect(focus.edges.size).toBe(3);
     });
 
-    it("carries a trigger's focus through its split chain", () => {
-        const split: TopologySplitNode = { id: "t1::g", kind: "if", triggerId: "t1", parentId: "t1", depth: 1 };
-        const graph = graphOf(
-            [agent("a"), agent("b")],
-            [trigger("t1"), trigger("t2")],
-            [edge("t1", "t1::g", "stem"), edge("t1::g", "a"), edge("t1::g", "b"), edge("t2", "b")],
-            [split]
-        );
-        expect([...focusAround(graph, "t1").edges].sort()).toEqual(["t1->t1::g", "t1::g->a", "t1::g->b"]);
-        expect([...focusAround(graph, "b").edges].sort()).toEqual(["t1->t1::g", "t1::g->b", "t2->b"]);
-    });
-
-    it("follows a loop's exit edge in both directions, as part of the loop's handler", () => {
-        const loop: TopologySplitNode = { id: "t::L", kind: "foreach", triggerId: "t", parentId: "t", depth: 1, members: ["a"] };
-        const graph = graphOf(
-            [agent("a"), agent("b"), agent("z")],
-            [trigger("t"), trigger("other")],
-            [edge("t", "t::L", "stem"), edge("t::L", "a"), { id: "t::L->>b", sourceId: "t::L", targetId: "b", kind: "exit", chips: [] }, edge("other", "z")],
-            [loop]
-        );
-        const fromExit = focusAround(graph, "b");
-        expect([...fromExit.nodes].sort()).toEqual(["b", "t", "t::L"]);
-        expect(fromExit.edges.has("t::L->>b")).toBe(true);
-        const fromTrigger = focusAround(graph, "t");
-        expect([...fromTrigger.nodes].sort()).toEqual(["a", "b", "t", "t::L"]);
-        expect(fromTrigger.nodes.has("z")).toBe(false);
-    });
 });

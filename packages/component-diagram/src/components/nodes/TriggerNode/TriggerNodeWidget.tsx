@@ -33,6 +33,7 @@ import {
     TRIGGER_STACKED_HEIGHT,
 } from "../../../resources/constants";
 import { useTopologyContext } from "../../AgentTopologyDiagram/TopologyContext";
+import { LogicBadge } from "../../AgentTopologyDiagram/LogicBadge";
 import { useClickWithDragTolerance } from "../../../hooks/useClickWithDragTolerance";
 
 // The label is part of the node box so zoom-to-fit and the layout account for it. It sits left of
@@ -83,6 +84,13 @@ const Label1 = styled.div`
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+`;
+
+// The badge sits under the labels, on the side they are aligned to.
+const LogicRow = styled.div<{ vertical: boolean }>`
+    display: flex;
+    justify-content: ${(props) => (props.vertical ? "center" : "flex-end")};
+    margin-top: 3px;
 `;
 
 const Label2 = styled.div`
@@ -176,6 +184,11 @@ export function TriggerNodeWidget(props: TriggerNodeWidgetProps) {
             <LabelBlock vertical={vertical}>
                 <Label1>{model.node.label1}</Label1>
                 {model.node.label2 && <Label2>{model.node.label2}</Label2>}
+                {model.node.logic.length > 0 && (
+                    <LogicRow vertical={vertical}>
+                        <LogicBadge kinds={model.node.logic} constructs={model.node.constructs} />
+                    </LogicRow>
+                )}
             </LabelBlock>
             <Square hovered={isHovered} focused={isFocused}>
                 <TriggerGlyph glyphType={model.node.glyphType} icon={model.node.icon} />

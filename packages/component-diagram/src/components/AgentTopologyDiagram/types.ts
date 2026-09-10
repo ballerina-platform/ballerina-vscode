@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { CDModel, LinePosition } from "@wso2/ballerina-core";
+import { CDAgentCallGroup, CDModel, LinePosition } from "@wso2/ballerina-core";
 
 // An agent artifact from projectStructure.directoryMap[AGENT] ∪ [AGENT_DEFINITION].
 export interface TopologyAgentArtifact {
@@ -39,17 +39,21 @@ export interface ToolChip {
     icon?: string;
 }
 
-// "exit" leaves a loop after its body: drawn from the far edge of the loop's box, not from the loop node.
-export type TopologyEdgeKind = "trigger" | "delegation" | "stem" | "exit";
+export type TopologyEdgeKind = "trigger" | "delegation";
 
-export type SplitKind = "if" | "match" | "fork" | "while" | "foreach";
+// The constructs around a handler's agent calls. The overview does not draw them -- an edge is a fact about a
+// handler and an agent, while a branch or a loop is a fact about one call site -- so the handler wears them as a
+// badge, and names them in the badge's tooltip.
+export type HandlerLogic = "branch" | "fork" | "loop";
 
-export const SPLIT_LABEL: Record<SplitKind, string> = { if: "If", match: "Match", fork: "Fork", while: "While", foreach: "Foreach" };
-
-// A condition pill on an if/match branch; the arrow's own direction already says "runs after", so plain
-// sequential steps carry no chip at all.
-export interface EdgeChip {
-    text: string;
+export interface HandlerConstruct {
+    // Which glyph it wears: if and match are a branch, while and foreach are a loop.
+    logic: HandlerLogic;
+    kind: CDAgentCallGroup["kind"];
+    // The construct's own id from the language server, so two branches of one `if` read as one entry.
+    id: string;
+    // What the source says: the condition, the loop header, or the worker's name.
+    labels: string[];
 }
 
 // Which handler an edge's step belongs to, and where in that handler's walk order it falls -- not shown on the
@@ -65,7 +69,6 @@ export interface TopologyEdge {
     sourceId: string;
     targetId: string;
     kind: TopologyEdgeKind;
-    chips: EdgeChip[];
     handlers?: HandlerStep[];
 }
 
@@ -118,28 +121,19 @@ export interface TopologyTriggerNode {
     position: LinePosition;
     // The handler's end, so opening the trigger hands the resolver the whole function, as the focus rail does.
     endPosition?: LinePosition;
+    // Which glyphs the handler wears, in the order branch, fork, loop.
+    logic: HandlerLogic[];
+    // The constructs those glyphs stand for, in source order, so the tooltip can name them.
+    constructs: HandlerConstruct[];
+    // Whether this handler's agents are drawn as a chain (order known) or as a fan (order not drawn).
+    ordered: boolean;
 }
 
-// Where a handler's edges fan out: the if/match diamond, the fork square or the loop square between
-// the trigger and its agents. Nested constructs chain: the parent is the trigger or another split.
-export interface TopologySplitNode {
-    id: string;
-    kind: SplitKind;
-    triggerId: string;
-    parentId: string;
-    depth: number;
-    // Loop header shown under the node ("ticket in payload.tickets", "attempts < 3").
-    header?: string;
-    // A loop's body: every agent and split inside it, nested constructs included. The layout boxes them.
-    members?: string[];
-}
-
-export type LegendKind = "trigger" | "delegation" | "condition" | "fork" | "loop";
+export type LegendKind = "trigger" | "delegation" | "logic";
 
 export interface TopologyGraph {
     agents: TopologyAgentNode[];
     triggers: TopologyTriggerNode[];
-    splits: TopologySplitNode[];
     edges: TopologyEdge[];
     wiredNothing: boolean;
     legendKinds: LegendKind[];
@@ -150,33 +144,21 @@ export interface NodePosition {
     y: number;
 }
 
-export interface LoopBox {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-}
-
 export interface TopologyLayout {
     agentPositions: Record<string, NodePosition>;
     triggerPositions: Record<string, NodePosition>;
-    splitPositions: Record<string, NodePosition>;
     cardHeights: Record<string, number>;
     // Where each edge bends, keyed by edge id: just past its source, or just before the first rank a long edge skips.
     edgeVias: Record<string, NodePosition[]>;
     // Offset across the flow, in steps, for edges that arrive at one node together; wrapped back edges are not counted.
     edgeBows: Record<string, number>;
-    // Where an edge leaving a loop's box starts: on the box's far edge, level with the loop node.
-    edgeStarts: Record<string, NodePosition>;
-    // The dashed box around each loop's body, keyed by the loop split; absent when the body cannot be boxed.
-    loopBoxes: Record<string, LoopBox>;
     // Where the drawing starts: past the blank part of the trigger label block.
     left: number;
     width: number;
     height: number;
 }
 
-// What lights up when a node is hovered: the node, everything one hop away, and the split chains between them.
+// What lights up when a node is hovered: the node and the handlers' chains that run through it.
 export interface TopologyFocus {
     nodes: Set<string>;
     edges: Set<string>;

@@ -22,15 +22,12 @@ export enum NodeTypes {
     CONNECTION_NODE = "connection-node",
     AGENT_CARD_NODE = "agent-card-node",
     TRIGGER_NODE = "trigger-node",
-    SPLIT_NODE = "split-node",
 }
 
 export const NODE_LINK = "node-link";
 export const TOPOLOGY_LINK = "topology-link";
 export const NODE_PORT = "node-port";
 export const LOADING_OVERLAY = "loading-overlay";
-export const TOPOLOGY_CHIP_LAYER = "topology-chip-layer";
-export const TOPOLOGY_LOOP_BOX_LAYER = "topology-loop-box-layer";
 
 export const AUTOMATION_LISTENER = "automation-listener";
 
@@ -65,20 +62,8 @@ export const TRIGGER_STACKED_HEIGHT = TRIGGER_LABEL_BLOCK_HEIGHT + TRIGGER_LABEL
 export const TOPOLOGY_GAP_X = 160;
 export const TOPOLOGY_GAP_X_MAX = 520;
 export const TOPOLOGY_GAP_Y = 64;
-export const SPLIT_SIZE = 36;
-export const SPLIT_STEM_X = 80;
-export const SPLIT_STEP_X = 320;
-export const SPLIT_GAP_X_MIN = 460;
 export const TOPOLOGY_ROW_GAP = 120;
 export const TOPOLOGY_COLUMN_GAP = 48;
-export const SPLIT_STEM_Y = 56;
-export const SPLIT_STEP_Y = 160;
-export const SPLIT_GAP_Y_MIN = 280;
-// Vertical splits carry their label and loop header to the right; also keeps the triggers above them apart.
-export const SPLIT_LABEL_GAP_Y = 250;
 export const LAYOUT_FIT_MARGIN = 40;
 // How far apart, per step, edges that arrive at one node spread along its port side.
 export const ARRIVAL_BOW_PX = 40;
-// A loop's box clears its members by this much on every side, and its caption needs room above the top member.
-export const LOOP_BOX_PAD = 20;
-export const LOOP_BOX_CAPTION = 24;

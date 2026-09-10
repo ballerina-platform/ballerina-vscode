@@ -73,25 +73,4 @@ describe("describeTopology", () => {
         expect(text).toMatchSnapshot();
     });
 
-    it("prints a loop's box and members, and where its exit edge starts", () => {
-        const looped = {
-            ...model,
-            services: [{
-                ...model.services[0],
-                resourceFunctions: [{
-                    ...model.services[0].resourceFunctions[0],
-                    agentCalls: [
-                        { connection: "o", line: 3, groups: [{ kind: "foreach", id: "L", label: "s in sections" }] },
-                        { connection: "d", line: 7, groups: [] },
-                    ],
-                }],
-            }],
-        } as unknown as CDModel;
-        const graph = buildTopology({ model: looped, agents });
-        const layout = layoutTopology(graph, { availableWidth: 1400 });
-        const text = describeTopology(looped, graph, layout, { availableWidth: 1400 });
-
-        expect(text).toMatch(/S1\s+Foreach .* header «s in sections»\s+BOX @\d+,\d+ \d+×\d+ holds A1/);
-        expect(text).toMatch(/S1\s+→ A3\s+exit\s+2·T1\s+from \d+,\d+\s+bend/);
-    });
 });

@@ -21,11 +21,8 @@ import { PanAndZoomCanvasAction } from "@projectstorm/react-canvas-core";
 import { NodePortFactory } from "../NodePort";
 import { TopologyLinkFactory } from "../NodeLink";
 import { OverlayLayerFactory } from "../OverlayLayer";
-import { ChipLayerFactory } from "../ChipLayer";
-import { LoopBoxLayerFactory } from "../LoopBoxLayer";
 import { AgentCardNodeFactory } from "../nodes/AgentCardNode";
 import { TriggerNodeFactory } from "../nodes/TriggerNode";
-import { SplitNodeFactory } from "../nodes/SplitNode";
 
 export function generateTopologyEngine(): DiagramEngine {
     const engine = createEngine({
@@ -39,11 +36,8 @@ export function generateTopologyEngine(): DiagramEngine {
 
     engine.getNodeFactories().registerFactory(new AgentCardNodeFactory());
     engine.getNodeFactories().registerFactory(new TriggerNodeFactory());
-    engine.getNodeFactories().registerFactory(new SplitNodeFactory());
 
     engine.getLayerFactories().registerFactory(new OverlayLayerFactory());
-    engine.getLayerFactories().registerFactory(new ChipLayerFactory());
-    engine.getLayerFactories().registerFactory(new LoopBoxLayerFactory());
 
     engine.getActionEventBus().registerAction(new PanAndZoomCanvasAction());
     return engine;
