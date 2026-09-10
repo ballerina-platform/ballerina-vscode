@@ -76,16 +76,16 @@
               "fieldType": "SINGLE_SELECT",
               "options": [
                 {
-                  "label": "DOT_PRODUCT",
-                  "value": "\"DOT_PRODUCT\""
+                  "label": "COSINE",
+                  "value": "\"COSINE\""
                 },
                 {
                   "label": "EUCLIDEAN",
                   "value": "\"EUCLIDEAN\""
                 },
                 {
-                  "label": "COSINE",
-                  "value": "\"COSINE\""
+                  "label": "DOT_PRODUCT",
+                  "value": "\"DOT_PRODUCT\""
                 }
               ],
               "selected": false
@@ -96,7 +96,7 @@
               "selected": false
             }
           ],
-          "placeholder": "\"DOT_PRODUCT\"",
+          "placeholder": "\"COSINE\"",
           "optional": true,
           "editable": true,
           "advanced": false,

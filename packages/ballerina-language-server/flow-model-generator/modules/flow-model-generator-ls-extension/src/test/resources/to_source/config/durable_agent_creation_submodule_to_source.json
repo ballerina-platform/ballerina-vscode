@@ -167,7 +167,7 @@
     "flags": 0
   },
   "output": {
-    "workflow_submodule/workflow.bal": [
+    "workflow_submodule/workflows.bal": [
       {
         "range": {
           "start": {

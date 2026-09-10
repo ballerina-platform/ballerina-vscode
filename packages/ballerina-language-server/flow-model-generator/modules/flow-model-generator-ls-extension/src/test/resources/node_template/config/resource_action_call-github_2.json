@@ -203,12 +203,26 @@
         },
         "types": [
           {
+            "fieldType": "SINGLE_SELECT",
+            "options": [
+              {
+                "label": "desc",
+                "value": "\"desc\""
+              },
+              {
+                "label": "asc",
+                "value": "\"asc\""
+              }
+            ],
+            "selected": false
+          },
+          {
             "fieldType": "EXPRESSION",
             "ballerinaType": "\"desc\"?|\"asc\"",
             "selected": false
           }
         ],
-        "placeholder": "()",
+        "placeholder": "",
         "optional": true,
         "editable": true,
         "advanced": false,

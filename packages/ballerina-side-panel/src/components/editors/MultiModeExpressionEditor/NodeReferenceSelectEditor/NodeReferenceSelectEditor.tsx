@@ -32,6 +32,7 @@ import { Button, Codicon, LinkButton, ProgressRing, ThemeColors } from "@wso2/ui
 import { FormField } from "../../../Form/types";
 import { NodeReferenceSelect, NodeReferenceSelectItem } from "../../NodeReferenceSelect";
 import { useFormContext } from "../../../../context";
+import { formatMethodName } from "../../../../utils/formatMethodName";
 
 const EmptyPrompt = styled.div`
     display: flex;
@@ -50,14 +51,9 @@ const EmptyPromptText = styled.div`
     color: var(--vscode-descriptionForeground);
 `;
 
-function humanizeKind(kind: string): string {
-    return kind
-        .split("_")
-        .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-        .join(" ");
-}
-
 export type NodeReferenceFilter = { module?: string; object?: string };
+
+const NEW_CONNECTION_SENTINEL = "NEW_CONNECTION";
 
 interface NodeReferenceSelectEditorProps {
     value: string;
@@ -92,7 +88,7 @@ function ensureValueInItems(
     value: string,
     searchNodesKind?: string,
 ): NodeReferenceSelectItem[] {
-    if (!value || items.some(item => item.value === value)) {
+    if (!value || value === NEW_CONNECTION_SENTINEL || items.some(item => item.value === value)) {
         return items;
     }
     return [
@@ -194,7 +190,7 @@ export const NodeReferenceSelectEditor: React.FC<NodeReferenceSelectEditorProps>
     }, []);
 
     useEffect(() => {
-        if (!value || selectItems.some(item => item.value === value)) return;
+        if (!value || value === NEW_CONNECTION_SENTINEL || selectItems.some(item => item.value === value)) return;
         setSelectItems(prev => ensureValueInItems(prev, value, searchNodesKind));
         fetchItems(true);
     }, [value]);
@@ -258,11 +254,11 @@ export const NodeReferenceSelectEditor: React.FC<NodeReferenceSelectEditorProps>
         : agentCodeData?.object
             ? agentCodeData.object
             : creationCodeData?.module && creationCodeData?.object
-                ? `${humanizeKind(creationCodeData.module.split(".").pop() ?? "")} ${creationCodeData.object}`
-                : humanizeKind(searchNodesKind);
+                ? `${formatMethodName(creationCodeData.module.split(".").pop() ?? "")} ${creationCodeData.object}`
+                : formatMethodName(searchNodesKind);
 
     const creationName = agentCodeData?.object
-        ?? (creationCodeData?.module ? humanizeKind(creationCodeData.module.split(".").pop() ?? "") : "");
+        ?? (creationCodeData?.module ? formatMethodName(creationCodeData.module.split(".").pop() ?? "") : "");
     const isAgentReference = !!agentCodeData;
     const qualifier = creationName ? `${creationName} ` : "";
     const emptyTitle = isAgentReference

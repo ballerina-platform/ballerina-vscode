@@ -30,8 +30,11 @@ import com.google.gson.reflect.TypeToken;
 import io.ballerina.compiler.api.ModuleID;
 import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.api.symbols.ArrayTypeSymbol;
+import io.ballerina.compiler.api.symbols.ConstantSymbol;
+import io.ballerina.compiler.api.symbols.EnumSymbol;
 import io.ballerina.compiler.api.symbols.MapTypeSymbol;
 import io.ballerina.compiler.api.symbols.TypeDescKind;
+import io.ballerina.compiler.api.symbols.TypeReferenceTypeSymbol;
 import io.ballerina.compiler.api.symbols.TypeSymbol;
 import io.ballerina.compiler.api.symbols.UnionTypeSymbol;
 import io.ballerina.compiler.syntax.tree.BindingPatternNode;
@@ -47,10 +50,12 @@ import org.ballerinalang.langserver.common.utils.CommonUtil;
 
 import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Represents the type configuration of a property in the flow model.
@@ -105,6 +110,12 @@ public class PropertyType {
 
     public static void typeWithExpression(Value.ValueBuilder valueBuilder, TypeSymbol typeSymbol,
                                           ModuleInfo moduleInfo, Node value, SemanticModel semanticModel) {
+        typeWithExpression(valueBuilder, typeSymbol, moduleInfo, value, semanticModel, null);
+    }
+
+    public static void typeWithExpression(Value.ValueBuilder valueBuilder, TypeSymbol typeSymbol,
+                                          ModuleInfo moduleInfo, Node value, SemanticModel semanticModel,
+                                          String defaultValue) {
         if (typeSymbol == null) {
             valueBuilder.types(List.of());
             return;
@@ -119,66 +130,91 @@ public class PropertyType {
         TypeSymbol rawType = CommonUtil.getRawType(typeSymbol);
         // Handle union of singleton types as single-select options
         if (!success && rawType instanceof UnionTypeSymbol unionTypeSymbol) {
-            List<TypeSymbol> typeSymbols = unionTypeSymbol.memberTypeDescriptors();
             List<Option> options = new ArrayList<>();
-            boolean allSingletons = true;
-            for (TypeSymbol symbol : typeSymbols) {
-                if (CommonUtil.getRawType(symbol).typeKind() == TypeDescKind.SINGLETON) {
-                    String label = CommonUtils.removeQuotes(symbol.signature());
-                    Option option = new Option(label, symbol.signature());
-                    options.add(option);
-                } else {
-                    allSingletons = false;
-                    break;
+
+            // A union flattens its enum members into their singletons, hence the enums are resolved from the user
+            // specified members before the singletons are walked over below.
+            Set<String> enumMemberTypes = new HashSet<>();
+            List<TypeSymbol> unionMembers = getEnumSymbol(typeSymbol).isPresent() ? List.of(typeSymbol)
+                    : unionTypeSymbol.userSpecifiedMemberTypes();
+            for (TypeSymbol member : unionMembers) {
+                getEnumSymbol(member).ifPresent(enumSymbol ->
+                        addEnumOptions(enumSymbol, options, enumMemberTypes));
+            }
+
+            // The members that are not singletons keep an input type each, gathered here rather than turned
+            // into one on sight, so that the single select standing for the singletons can be added once its
+            // options are complete rather than while they are still arriving.
+            List<TypeSymbol> otherTypes = new ArrayList<>();
+            // Where the union declares the first singleton, which is the place the select belongs in among
+            // those members, so that the modes are offered in the order the union declares.
+            int selectPosition = -1;
+            for (TypeSymbol symbol : unionTypeSymbol.memberTypeDescriptors()) {
+                TypeDescKind memberTypeKind = CommonUtil.getRawType(symbol).typeKind();
+                if (memberTypeKind == TypeDescKind.SINGLETON) {
+                    if (selectPosition < 0) {
+                        selectPosition = otherTypes.size();
+                    }
+                    // Skip the singletons that are already covered by the options of an enum
+                    if (!enumMemberTypes.contains(symbol.signature())) {
+                        String label = CommonUtils.removeQuotes(symbol.signature());
+                        options.add(new Option(label, symbol.signature()));
+                    }
+                } else if (memberTypeKind != TypeDescKind.NIL) {
+                    // A nil member stands for no value, which no entry of a dropdown can offer and no input
+                    // mode of its own can express, hence it is left to the expression mode.
+                    otherTypes.add(symbol);
                 }
             }
 
-            // If all the member types are singletons, treat it as a single-select option
-            if (allSingletons) {
-                PropertyType propType = new Builder()
-                        .fieldType(Value.FieldType.SINGLE_SELECT)
-                        .options(options)
-                        .ballerinaType(ballerinaType)
-                        .build();
-                propertyTypes.add(propType);
-            } else {
-                // Handle union of primitive types by defining an input type for each primitive type
-                for (TypeSymbol ts : typeSymbols) {
+            for (int i = 0; i <= otherTypes.size(); i++) {
+                if (i == selectPosition) {
+                    propertyTypes.add(new Builder()
+                            .fieldType(Value.FieldType.SINGLE_SELECT)
+                            .options(options)
+                            .ballerinaType(ballerinaType)
+                            .build());
+                    alignPlaceholderWithDefault(valueBuilder, options, defaultValue);
+                }
+                if (i < otherTypes.size()) {
+                    TypeSymbol ts = otherTypes.get(i);
                     handlePrimitiveType(ts, CommonUtils.getTypeSignature(ts, moduleInfo), semanticModel, moduleInfo,
                             valueBuilder, propertyTypes);
                 }
-                // group by the fieldType
-                propertyTypes.stream()
-                        .filter(pt -> !(pt.fieldType() == Value.FieldType.REPEATABLE_LIST
-                                || pt.fieldType() == Value.FieldType.REPEATABLE_MAP))
-                        .collect(java.util.stream.Collectors.groupingBy(PropertyType::fieldType))
-                        .forEach((fieldType, groupedTypes) -> {
-                            if (groupedTypes.size() > 1) {
-                                // merge the ballerina types
-                                String mergedBallerinaType = groupedTypes.stream()
-                                        .map(PropertyType::ballerinaType)
-                                        .distinct()
-                                        .reduce((a, b) -> a + "|" + b)
-                                        .orElse("");
-                                // remove the existing types
-                                propertyTypes.removeIf(t -> t.fieldType() == fieldType);
-
-                                List<PropertyTypeMemberInfo> distinctMembers = null;
-                                if (fieldType == Value.FieldType.RECORD_MAP_EXPRESSION) {
-                                    distinctMembers = new ArrayList<>(groupedTypes.stream()
-                                            .filter(t -> t.typeMembers() != null)
-                                            .flatMap(t -> t.typeMembers().stream())
-                                            .distinct()
-                                            .toList());
-                                }
-
-                                // add the merged type
-                                propertyTypes.add(new PropertyType(fieldType, mergedBallerinaType, null,
-                                        distinctMembers, null, false, null, null,
-                                        null, null));
-                            }
-                        });
             }
+
+            // group by the fieldType
+            propertyTypes.stream()
+                    .filter(pt -> !(pt.fieldType() == Value.FieldType.REPEATABLE_LIST
+                            || pt.fieldType() == Value.FieldType.REPEATABLE_MAP
+                            || pt.fieldType() == Value.FieldType.SINGLE_SELECT))
+                    .collect(java.util.stream.Collectors.groupingBy(PropertyType::fieldType))
+                    .forEach((fieldType, groupedTypes) -> {
+                        if (groupedTypes.size() > 1) {
+                            // merge the ballerina types
+                            String mergedBallerinaType = groupedTypes.stream()
+                                    .map(PropertyType::ballerinaType)
+                                    .distinct()
+                                    .reduce((a, b) -> a + "|" + b)
+                                    .orElse("");
+                            // remove the existing types
+                            propertyTypes.removeIf(t -> t.fieldType() == fieldType);
+
+                            List<PropertyTypeMemberInfo> distinctMembers = null;
+                            if (fieldType == Value.FieldType.RECORD_MAP_EXPRESSION) {
+                                distinctMembers = new ArrayList<>(groupedTypes.stream()
+                                        .filter(t -> t.typeMembers() != null)
+                                        .flatMap(t -> t.typeMembers().stream())
+                                        .distinct()
+                                        .toList());
+                            }
+
+                            // add the merged type
+                            propertyTypes.add(new PropertyType(fieldType, mergedBallerinaType, null,
+                                    distinctMembers, null, false, null, null,
+                                    null, null));
+                        }
+                    });
         }
 
         // All the ballerina types will have a default to expression type
@@ -238,6 +274,111 @@ public class PropertyType {
             }
         }
         valueBuilder.types(propertyTypes);
+    }
+
+    /**
+     * Returns the option the given default value stands for, if any. The default may be written as the name of an
+     * enum member (e.g. {@code MEDIUM}, optionally module qualified) or as the value it holds (e.g. {@code "5"}),
+     * hence both forms are matched.
+     *
+     * @param options      the options of the single select
+     * @param defaultValue the declared default of the parameter
+     * @return the matching option, or empty when none of them stands for the default
+     */
+    private static Optional<Option> findMatchingOption(List<Option> options, String defaultValue) {
+        if (options == null || options.isEmpty() || defaultValue == null || defaultValue.isEmpty()) {
+            return Optional.empty();
+        }
+        String value = CommonUtils.removeQuotes(defaultValue);
+        // The value is looked for across every option before any label is, so that a default holding the value
+        // of one member and the name of another is read as the value it plainly is.
+        Optional<Option> byValue = options.stream()
+                .filter(option -> value.equals(CommonUtils.removeQuotes(option.value())))
+                .findFirst();
+        if (byValue.isPresent()) {
+            return byValue;
+        }
+        String memberName = removeModulePrefix(value);
+        return options.stream()
+                .filter(option -> memberName.equals(option.label()))
+                .findFirst();
+    }
+
+    /**
+     * Sets the placeholder of a single select to the option the parameter defaults to, and to nothing when there
+     * is no such option.
+     *
+     * <p>On a single select the placeholder names the member the field defaults to, never a sample value of the
+     * type: the type of a union yields an arbitrary member of it, which says nothing about the default. The
+     * declared default is therefore the only source, and it is not always resolvable to an option - the parameter
+     * may declare no default at all, or declare one the union does not offer. Both leave the placeholder empty,
+     * which presents the empty selection rather than claiming an arbitrary member is the default.
+     *
+     * @param valueBuilder the builder of the property being built
+     * @param options      the options of the single select
+     * @param defaultValue the declared default of the parameter
+     */
+    private static void alignPlaceholderWithDefault(Value.ValueBuilder valueBuilder, List<Option> options,
+                                                    String defaultValue) {
+        // A default that names none of the options leaves the field with none to present, which is said with an
+        // empty placeholder rather than none at all: the placeholder of a single select is read as a value
+        // elsewhere, and absence there is not a state those readers are prepared for.
+        valueBuilder.setPlaceholder(findMatchingOption(options, defaultValue).map(Option::value).orElse(""));
+    }
+
+    private static String removeModulePrefix(String value) {
+        int prefixEndIndex = value.lastIndexOf(':');
+        return prefixEndIndex == -1 ? value : value.substring(prefixEndIndex + 1);
+    }
+
+    /**
+     * Returns the enum definition the given type refers to, if any.
+     *
+     * @param typeSymbol the type to resolve
+     * @return the enum definition, or empty if the type does not refer to an enum
+     */
+    private static Optional<EnumSymbol> getEnumSymbol(TypeSymbol typeSymbol) {
+        if (typeSymbol instanceof TypeReferenceTypeSymbol typeRefSymbol
+                && typeRefSymbol.definition() instanceof EnumSymbol enumSymbol) {
+            return Optional.of(enumSymbol);
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Adds an option standing for the given enum member or constant, labelled by its name and holding the
+     * singleton it stands for as the generated value.
+     *
+     * <p>One that carries no name is left out entirely, registering nothing: the singleton it stands for is then
+     * still collected by the walk over the members of the union, which offers it labelled by its value rather
+     * than dropping it.
+     *
+     * @param member          the enum member or constant to offer
+     * @param options         the options to append to
+     * @param enumMemberTypes collects the signatures of the singleton types covered by the added options
+     */
+    private static void addMemberOption(ConstantSymbol member, List<Option> options, Set<String> enumMemberTypes) {
+        String memberValue = member.typeDescriptor().signature();
+        member.getName().ifPresent(name -> {
+            enumMemberTypes.add(memberValue);
+            options.add(new Option(name, memberValue));
+        });
+    }
+
+    /**
+     * Adds an option for each member of the given enum. A member is labelled with its name (e.g. `HIGH`), while
+     * the value it holds (e.g. `"10"`) stays the generated value, so that the source keeps referring to the
+     * member the way it did before the members were surfaced by name, and hence needs no module prefix.
+     *
+     * @param enumSymbol      the enum definition
+     * @param options         the options to append to
+     * @param enumMemberTypes collects the signatures of the singleton types covered by the added options
+     */
+    private static void addEnumOptions(EnumSymbol enumSymbol, List<Option> options, Set<String> enumMemberTypes) {
+        // The members are returned in the reverse order of their declaration
+        for (ConstantSymbol enumMember : enumSymbol.members().reversed()) {
+            addMemberOption(enumMember, options, enumMemberTypes);
+        }
     }
 
     private static boolean handlePrimitiveType(TypeSymbol typeSymbol, String ballerinaType,

@@ -1,24 +1,24 @@
 {
-  "filePath": "grpc_service/main.bal",
-  "description": "Test the generation of service model for a Grpc service",
+  "filePath": "udp_service/main.bal",
+  "description": "Test the generation of service model for a UDP service",
   "start": {
-    "line": 2,
+    "line": 3,
     "offset": 0
   },
   "end": {
-    "line": 18,
+    "line": 14,
     "offset": 0
   },
   "response": {
-    "id": "grpc",
-    "name": "GRPC Service",
-    "type": "grpc",
-    "displayName": "GRPC Service",
-    "moduleName": "grpc",
+    "id": "udp",
+    "name": "UDP Service",
+    "type": "udp",
+    "displayName": "UDP Service",
+    "moduleName": "udp",
     "orgName": "ballerina",
-    "packageName": "grpc",
-    "listenerProtocol": "grpc",
-    "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_grpc_1.14.2.png",
+    "packageName": "udp",
+    "listenerProtocol": "udp",
+    "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_udp_1.13.7.png",
     "documentation": {
       "metadata": {
         "label": "Description",
@@ -48,20 +48,20 @@
           "type": "LISTENER"
         },
         "placeholder": "",
-        "value": "new grpc:Listener(9090)",
+        "value": "new udp:Listener(9090)",
         "values": [],
         "properties": {
-          "new grpc:Listener(9090)": {
+          "new udp:Listener(9090)": {
             "codedata": {
               "lineRange": {
                 "fileName": "main.bal",
                 "startLine": {
-                  "line": 5,
-                  "offset": 24
+                  "line": 3,
+                  "offset": 11
                 },
                 "endLine": {
-                  "line": 5,
-                  "offset": 47
+                  "line": 3,
+                  "offset": 33
                 }
               }
             },
@@ -82,66 +82,23 @@
         "editable": true,
         "optional": false,
         "advanced": false
-      },
-      "stringLiteral": {
-        "metadata": {
-          "label": "Service Identifier",
-          "description": "Identifier for the service"
-        },
-        "codedata": {
-          "type": "STRING_LITERAL"
-        },
-        "value": "\"HelloWorld\"",
-        "values": [],
-        "types": [
-          {
-            "fieldType": "SERVICE_PATH",
-            "selected": true
-          }
-        ],
-        "enabled": true,
-        "editable": true,
-        "optional": false,
-        "advanced": false
-      },
-      "annotDescriptor": {
-        "metadata": {
-          "label": "Descriptor",
-          "description": "Descriptor"
-        },
-        "codedata": {
-          "type": "ANNOTATION_ATTACHMENT",
-          "originalName": "Descriptor",
-          "moduleName": "grpc"
-        },
-        "value": "{\n    value: \"GRPC_SERVER_STREAMING_DESC\"\n}",
-        "types": [
-          {
-            "fieldType": "EXPRESSION",
-            "selected": true
-          }
-        ],
-        "enabled": true,
-        "editable": true,
-        "optional": false,
-        "advanced": false
       }
     },
     "codedata": {
       "lineRange": {
         "fileName": "main.bal",
         "startLine": {
-          "line": 2,
+          "line": 3,
           "offset": 0
         },
         "endLine": {
-          "line": 18,
+          "line": 14,
           "offset": 1
         }
       },
       "orgName": "ballerina",
-      "packageName": "grpc",
-      "moduleName": "grpc"
+      "packageName": "udp",
+      "moduleName": "udp"
     },
     "functions": [
       {
@@ -171,7 +128,7 @@
             "label": "Function Name",
             "description": "The name of the function"
           },
-          "value": "lotsOfReplies",
+          "value": "onDatagram",
           "types": [
             {
               "fieldType": "IDENTIFIER",
@@ -186,8 +143,8 @@
         "parameters": [
           {
             "metadata": {
-              "label": "name",
-              "description": "name"
+              "label": "datagram",
+              "description": "datagram"
             },
             "kind": "REQUIRED",
             "type": {
@@ -195,7 +152,7 @@
                 "label": "Parameter Type",
                 "description": "The type of the parameter"
               },
-              "value": "string",
+              "value": "readonly & udp:Datagram",
               "types": [
                 {
                   "fieldType": "TYPE",
@@ -212,7 +169,7 @@
                 "label": "Parameter Name",
                 "description": "The name of the parameter"
               },
-              "value": "name",
+              "value": "datagram",
               "types": [
                 {
                   "fieldType": "IDENTIFIER",
@@ -345,7 +302,7 @@
             "label": "Return Type",
             "description": "The return type of the function"
           },
-          "value": "stream<string, error?>",
+          "value": "udp:Datagram",
           "types": [
             {
               "fieldType": "TYPE",
@@ -365,11 +322,11 @@
           "lineRange": {
             "fileName": "main.bal",
             "startLine": {
-              "line": 7,
+              "line": 8,
               "offset": 4
             },
             "endLine": {
-              "line": 17,
+              "line": 13,
               "offset": 5
             }
           }

@@ -24,8 +24,11 @@ import com.google.gson.reflect.TypeToken;
 import io.ballerina.compiler.api.ModuleID;
 import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.api.symbols.ArrayTypeSymbol;
+import io.ballerina.compiler.api.symbols.ConstantSymbol;
+import io.ballerina.compiler.api.symbols.EnumSymbol;
 import io.ballerina.compiler.api.symbols.MapTypeSymbol;
 import io.ballerina.compiler.api.symbols.TypeDescKind;
+import io.ballerina.compiler.api.symbols.TypeReferenceTypeSymbol;
 import io.ballerina.compiler.api.symbols.TypeSymbol;
 import io.ballerina.compiler.api.symbols.UnionTypeSymbol;
 import io.ballerina.compiler.syntax.tree.BindingPatternNode;
@@ -793,68 +796,90 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
                 Set<String> visited = TYPE_EXPANSION_VISITED.get();
                 if (visited.add(ballerinaType)) {
                     try {
-                        List<TypeSymbol> typeSymbols = unionTypeSymbol.memberTypeDescriptors();
                         List<Option> options = new ArrayList<>();
-                        boolean allSingletons = true;
-                        for (TypeSymbol symbol : typeSymbols) {
-                            if (CommonUtil.getRawType(symbol).typeKind() == TypeDescKind.SINGLETON) {
-                                String label = CommonUtils.removeQuotes(symbol.signature());
-                                Option option = new Option(label, symbol.signature());
-                                options.add(option);
-                            } else {
-                                allSingletons = false;
-                                break;
+
+                        // A union flattens its enum members into their singletons, hence the enums are resolved
+                        // from the user specified members before the singletons are walked over below.
+                        Set<String> enumMemberTypes = new HashSet<>();
+                        List<TypeSymbol> unionMembers = getEnumSymbol(typeSymbol).isPresent() ? List.of(typeSymbol)
+                                : unionTypeSymbol.userSpecifiedMemberTypes();
+                        for (TypeSymbol member : unionMembers) {
+                            getEnumSymbol(member).ifPresent(enumSymbol ->
+                                    addEnumOptions(enumSymbol, options, enumMemberTypes));
+                        }
+
+                        // The members that are not singletons keep an input type each, gathered here rather than
+                        // turned into one on sight, so that the single select standing for the singletons can be
+                        // added once its options are complete rather than while they are still arriving.
+                        List<TypeSymbol> otherTypes = new ArrayList<>();
+                        // Where the union declares the first singleton, which is the place the select belongs in
+                        // among those members, so that the modes are offered in the order the union declares.
+                        int selectPosition = -1;
+                        for (TypeSymbol symbol : unionTypeSymbol.memberTypeDescriptors()) {
+                            TypeDescKind memberTypeKind = CommonUtil.getRawType(symbol).typeKind();
+                            if (memberTypeKind == TypeDescKind.SINGLETON) {
+                                if (selectPosition < 0) {
+                                    selectPosition = otherTypes.size();
+                                }
+                                // Skip the singletons that are already covered by the options of an enum
+                                if (!enumMemberTypes.contains(symbol.signature())) {
+                                    String label = CommonUtils.removeQuotes(symbol.signature());
+                                    options.add(new Option(label, symbol.signature()));
+                                }
+                            } else if (memberTypeKind != TypeDescKind.NIL) {
+                                // A nil member stands for no value, which no entry of a dropdown can offer and
+                                // no input mode of its own can express, hence it is left to the expression mode.
+                                otherTypes.add(symbol);
                             }
                         }
 
-                        // If all the member types are singletons, treat it as a single-select option
-                        if (allSingletons) {
-                            // Reorder options so that the default value appears first
-                            if (defaultValue != null && !defaultValue.isEmpty()) {
-                                options = reorderOptionsByDefaultValue(options, defaultValue);
+                        for (int i = 0; i <= otherTypes.size(); i++) {
+                            if (i == selectPosition) {
+                                builder.type().fieldType(ValueType.SINGLE_SELECT).options(options).stepOut();
+                                alignPlaceholderWithDefault(builder, options, defaultValue);
                             }
-                            builder.type().fieldType(ValueType.SINGLE_SELECT).options(options).stepOut();
-                        } else {
-                            // Handle union of primitive types by defining an input type for each primitive type
-                            for (TypeSymbol ts : typeSymbols) {
+                            if (i < otherTypes.size()) {
+                                TypeSymbol ts = otherTypes.get(i);
                                 handlePrimitiveType(ts, CommonUtils.getTypeSignature(ts, moduleInfo), semanticModel,
                                         moduleInfo, builder);
                             }
-                            // group by the fieldType
-                            List<PropertyType> propTypes = builder.types;
-                            propTypes.stream()
-                                    .filter(pt -> !(pt.fieldType() == ValueType.REPEATABLE_LIST
-                                            || pt.fieldType() == ValueType.REPEATABLE_MAP))
-                                    .collect(java.util.stream.Collectors.groupingBy(PropertyType::fieldType))
-                                    .forEach((fieldType, groupedTypes) -> {
-                                        if (groupedTypes.size() > 1) {
-                                            // merge the ballerina types
-                                            String mergedBallerinaType = groupedTypes.stream()
-                                                    .map(PropertyType::ballerinaType)
-                                                    .distinct()
-                                                    .reduce((a, b) -> a + "|" + b)
-                                                    .orElse("");
-                                            // find the index of the first grouped type to preserve order
-                                            int insertIndex = builder.types.indexOf(groupedTypes.getFirst());
-                                            // remove the existing types
-                                            builder.types.removeIf(t -> t.fieldType() == fieldType);
-
-                                            List<PropertyTypeMemberInfo> distinctMembers = null;
-                                            if (fieldType == ValueType.RECORD_MAP_EXPRESSION) {
-                                                distinctMembers = new ArrayList<>(groupedTypes.stream()
-                                                        .filter(t -> t.typeMembers() != null)
-                                                        .flatMap(t -> t.typeMembers().stream())
-                                                        .distinct()
-                                                        .toList());
-                                            }
-
-                                            // insert the merged type at the original position
-                                            builder.types.add(insertIndex, new PropertyType(fieldType,
-                                                    mergedBallerinaType, null, null,
-                                                    null, distinctMembers, null, false));
-                                        }
-                                    });
                         }
+
+                        // group by the fieldType
+                        List<PropertyType> propTypes = builder.types;
+                        propTypes.stream()
+                                .filter(pt -> !(pt.fieldType() == ValueType.REPEATABLE_LIST
+                                        || pt.fieldType() == ValueType.REPEATABLE_MAP
+                                        || pt.fieldType() == ValueType.SINGLE_SELECT))
+                                .collect(java.util.stream.Collectors.groupingBy(PropertyType::fieldType))
+                                .forEach((fieldType, groupedTypes) -> {
+                                    if (groupedTypes.size() > 1) {
+                                        // merge the ballerina types
+                                        String mergedBallerinaType = groupedTypes.stream()
+                                                .map(PropertyType::ballerinaType)
+                                                .distinct()
+                                                .reduce((a, b) -> a + "|" + b)
+                                                .orElse("");
+                                        // find the index of the first grouped type to preserve order
+                                        int insertIndex = builder.types.indexOf(groupedTypes.getFirst());
+                                        // remove the existing types
+                                        builder.types.removeIf(t -> t.fieldType() == fieldType);
+
+                                        List<PropertyTypeMemberInfo> distinctMembers = null;
+                                        if (fieldType == ValueType.RECORD_MAP_EXPRESSION) {
+                                            distinctMembers = new ArrayList<>(groupedTypes.stream()
+                                                    .filter(t -> t.typeMembers() != null)
+                                                    .flatMap(t -> t.typeMembers().stream())
+                                                    .distinct()
+                                                    .toList());
+                                        }
+
+                                        // insert the merged type at the original position
+                                        builder.types.add(insertIndex, new PropertyType(fieldType,
+                                                mergedBallerinaType, null, null,
+                                                null, distinctMembers, null, false));
+                                    }
+                                });
                     } finally {
                         visited.remove(ballerinaType);
                     }
@@ -1374,36 +1399,118 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
         }
 
         /**
-         * Reorders enum options so that the option matching the defaultValue appears first in the list.
-         * This improves user experience by showing the default option at the top of dropdown lists.
-         * Returns a new list without modifying the input list.
+         * Returns the enum definition the given type refers to, if any.
          *
-         * @param options      The list of Option objects to reorder
-         * @param defaultValue The default value to prioritize (may contain quotes)
-         * @return A new list with the default option first, or the original list if no match found
+         * @param typeSymbol the type to resolve
+         * @return the enum definition, or empty if the type does not refer to an enum
          */
-        private static List<Option> reorderOptionsByDefaultValue(List<Option> options, String defaultValue) {
+        private static Optional<EnumSymbol> getEnumSymbol(TypeSymbol typeSymbol) {
+            if (typeSymbol instanceof TypeReferenceTypeSymbol typeRefSymbol
+                    && typeRefSymbol.definition() instanceof EnumSymbol enumSymbol) {
+                return Optional.of(enumSymbol);
+            }
+            return Optional.empty();
+        }
+
+        /**
+         * Adds an option standing for the given enum member or constant, labelled by its name and holding the
+         * singleton it stands for as the generated value.
+         *
+         * <p>One that carries no name is left out entirely, registering nothing: the singleton it stands for is
+         * then still collected by the walk over the members of the union, which offers it labelled by its value
+         * rather than dropping it.
+         *
+         * @param member          the enum member or constant to offer
+         * @param options         the options to append to
+         * @param enumMemberTypes collects the signatures of the singleton types covered by the added options
+         */
+        private static void addMemberOption(ConstantSymbol member, List<Option> options,
+                                            Set<String> enumMemberTypes) {
+            String memberValue = member.typeDescriptor().signature();
+            member.getName().ifPresent(name -> {
+                enumMemberTypes.add(memberValue);
+                options.add(new Option(name, memberValue));
+            });
+        }
+
+        /**
+         * Adds an option for each member of the given enum. A member is labelled with its name (e.g. `HIGH`), while
+         * the value it holds (e.g. `"10"`) stays the generated value, so that the source keeps referring to the
+         * member the way it did before the members were surfaced by name, and hence needs no module prefix.
+         *
+         * @param enumSymbol      the enum definition
+         * @param options         the options to append to
+         * @param enumMemberTypes collects the signatures of the singleton types covered by the added options
+         */
+        private static void addEnumOptions(EnumSymbol enumSymbol, List<Option> options, Set<String> enumMemberTypes) {
+            // The members are returned in the reverse order of their declaration
+            for (ConstantSymbol enumMember : enumSymbol.members().reversed()) {
+                addMemberOption(enumMember, options, enumMemberTypes);
+            }
+        }
+
+        /**
+         * Returns the option the given default value refers to, if any. The default of an enum member may be
+         * written as the value the member holds (e.g. `"chat_completions"`) or as the name of the member, either
+         * qualified with a module prefix (e.g. `http:HTTP_2_0`) or plain (e.g. `CHAT_COMPLETIONS`), depending on
+         * whether the source of the module declaring the enum was available to resolve it.
+         *
+         * @param options      the options of the single select
+         * @param defaultValue the default value to look up
+         * @return the matching option, or empty if the default does not refer to any of the options
+         */
+        private static Optional<Option> findMatchingOption(List<Option> options, String defaultValue) {
             if (options == null || options.isEmpty() || defaultValue == null || defaultValue.isEmpty()) {
-                return new ArrayList<>(options != null ? options : List.of());
+                return Optional.empty();
             }
-
-            String cleanedDefaultValue = CommonUtils.removeQuotes(defaultValue);
-            List<Option> reorderedOptions = new ArrayList<>(options);
-
-            // Find and move matching option to front
-            for (int i = 0; i < reorderedOptions.size(); i++) {
-                Option option = reorderedOptions.get(i);
-                String cleanedOptionValue = CommonUtils.removeQuotes(option.value());
-                if (cleanedDefaultValue.equalsIgnoreCase(cleanedOptionValue) ||
-                        cleanedDefaultValue.equalsIgnoreCase(option.value())) {
-                    if (i > 0) {
-                        reorderedOptions.remove(i);
-                        reorderedOptions.addFirst(option);
-                    }
-                    break;
-                }
+            String value = CommonUtils.removeQuotes(defaultValue);
+            // The value is looked for across every option before any label is, so that a default holding the
+            // value of one member and the name of another is read as the value it plainly is.
+            Optional<Option> byValue = options.stream()
+                    .filter(option -> value.equals(CommonUtils.removeQuotes(option.value())))
+                    .findFirst();
+            if (byValue.isPresent()) {
+                return byValue;
             }
-            return reorderedOptions;
+            String memberName = removeModulePrefix(value);
+            return options.stream()
+                    .filter(option -> memberName.equals(option.label()))
+                    .findFirst();
+        }
+
+        /**
+         * Sets the placeholder of a single select to the option the parameter defaults to, and to nothing when
+         * there is no such option.
+         *
+         * <p>On a single select the placeholder names the member the field defaults to, never a sample value of
+         * the type: the type of a union yields an arbitrary member of it, which says nothing about the default.
+         * The declared default is therefore the only source, and it does not always name one of the options -
+         * the parameter may declare no default at all, or declare one the union does not offer. Both leave the
+         * placeholder empty, which presents the empty selection rather than claiming an arbitrary member is the
+         * default.
+         *
+         * <p>The placeholder also decides the generated source: an argument matching it is omitted, and one is
+         * written for every other selection. Holding the declared default is what makes that omission correct.
+         *
+         * @param builder      the builder of the property being built
+         * @param options      the options of the single select
+         * @param defaultValue the declared default of the parameter
+         */
+        private static void alignPlaceholderWithDefault(Builder<?> builder, List<Option> options,
+                                                        String defaultValue) {
+            // Not every caller passes the default down to the type, hence the one held by the property is used
+            // when it does not, so that a declared default is not mistaken for an absent one.
+            String declaredDefault = defaultValue == null || defaultValue.isEmpty() ? builder.defaultValue
+                    : defaultValue;
+            // A default that names none of the options leaves the field with none to present, which is said
+            // with an empty placeholder rather than none at all: the placeholder of a single select is read as
+            // a value elsewhere, and absence there is not a state those readers are prepared for.
+            builder.placeholder(findMatchingOption(options, declaredDefault).map(Option::value).orElse(""));
+        }
+
+        private static String removeModulePrefix(String value) {
+            int prefixEndIndex = value.lastIndexOf(':');
+            return prefixEndIndex == -1 ? value : value.substring(prefixEndIndex + 1);
         }
 
         public Builder<T> types(List<PropertyType> existingTypes) {

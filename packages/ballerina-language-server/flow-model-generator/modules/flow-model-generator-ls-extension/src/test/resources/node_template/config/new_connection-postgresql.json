@@ -19,7 +19,7 @@
     "metadata": {
       "label": "PostgreSQL",
       "description": "PostgreSQL database client that enables interaction with PostgreSQL servers and supports standard SQL operations.",
-      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_postgresql_1.17.0.png"
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_postgresql_1.19.1.png"
     },
     "codedata": {
       "node": "NEW_CONNECTION",
@@ -28,7 +28,7 @@
       "packageName": "postgresql",
       "object": "Client",
       "symbol": "init",
-      "version": "1.17.0",
+      "version": "1.19.1",
       "isNew": true
     },
     "returning": false,
@@ -184,7 +184,7 @@
             "typeMembers": [
               {
                 "type": "Options",
-                "packageInfo": "ballerinax:postgresql:1.17.0",
+                "packageInfo": "ballerinax:postgresql:1.19.1",
                 "packageName": "postgresql",
                 "kind": "RECORD_TYPE",
                 "selected": false

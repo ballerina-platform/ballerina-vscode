@@ -511,7 +511,6 @@ enum EXTENDED_APIS {
     BI_IS_WORKFLOW_MGMT_ENABLED = 'workflowManagementService/isWorkflowManagementEnabled',
     BI_ADD_WORKFLOW_MGMT = 'workflowManagementService/addWorkflowManagement',
     BI_DISABLE_WORKFLOW_MGMT = 'workflowManagementService/disableWorkflowManagement',
-    BI_SHOULD_ENABLE_WORKFLOW_MGMT_DEFAULT = 'workflowManagementService/shouldEnableWorkflowManagementByDefault',
     BI_WORKFLOW_ALL_DATA = 'workflowManager/getAllData',
     BI_WORKFLOW_GEN_ACTIVITY = 'workflowManager/genActivity',
     BI_WORKFLOW_ANALYZE_ACTIVITY_ACTION = 'workflowManager/analyzeActivityAction',
@@ -1096,10 +1095,6 @@ export class ExtendedLangClient extends LanguageClient implements ExtendedLangCl
 
     async disableWorkflowManagement(params: WorkflowManagementRequest): Promise<TestSourceEditResponse | NOT_SUPPORTED_TYPE> {
         return this.sendRequest(EXTENDED_APIS.BI_DISABLE_WORKFLOW_MGMT, params);
-    }
-
-    async shouldEnableWorkflowManagementByDefault(params: WorkflowManagementRequest): Promise<WorkflowManagementResponse | NOT_SUPPORTED_TYPE> {
-        return this.sendRequest(EXTENDED_APIS.BI_SHOULD_ENABLE_WORKFLOW_MGMT_DEFAULT, params);
     }
 
     async getProjectDiagnostics(params: ProjectDiagnosticsRequest): Promise<ProjectDiagnosticsResponse | NOT_SUPPORTED_TYPE> {

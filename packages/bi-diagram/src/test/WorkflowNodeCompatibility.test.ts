@@ -26,7 +26,7 @@ import {
     NODE_WIDTH,
     NodeTypes,
 } from "../resources/constants";
-import { getHumanTaskUserRoles } from "../utils/node";
+import { getHumanTaskUserRoles, getNodeTitle } from "../utils/node";
 import { NodeFactoryVisitor } from "../visitors/NodeFactoryVisitor";
 import { SizingVisitor } from "../visitors/SizingVisitor";
 
@@ -192,6 +192,25 @@ describe("Workflow Nodes", () => {
             expect(getHumanTaskUserRoles(nodeWithUserRoles('[roles[0], "MANAGER"]'))).toEqual([]);
             expect(getHumanTaskUserRoles(nodeWithUserRoles("[]"))).toEqual([]);
             expect(getHumanTaskUserRoles(nodeWithUserRoles())).toEqual([]);
+        });
+    });
+
+    // `workflow:sleep()` reaches getNodeTitle in two shapes: the dedicated SLEEP node kind, and
+    // (on language servers that haven't started emitting that kind yet) a generic workflow module
+    // call keyed by symbol — both must resolve to the same friendly title.
+    describe("sleep title", () => {
+        it("titles the dedicated SLEEP node kind as Sleep", () => {
+            const node = { codedata: { node: "SLEEP" }, metadata: { label: "sleep" }, properties: {} } as any;
+            expect(getNodeTitle(node)).toBe("Sleep");
+        });
+
+        it("titles a generic workflow module call to sleep as Sleep", () => {
+            const node = {
+                codedata: { node: "EXPRESSION", org: "ballerina", module: "workflow", symbol: "sleep" },
+                metadata: { label: "workflow:sleep" },
+                properties: {},
+            } as any;
+            expect(getNodeTitle(node)).toBe("Sleep");
         });
     });
 });

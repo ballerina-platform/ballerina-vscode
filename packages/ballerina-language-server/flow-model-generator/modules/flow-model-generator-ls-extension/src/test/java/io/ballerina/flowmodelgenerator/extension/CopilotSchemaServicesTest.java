@@ -946,6 +946,7 @@ public class CopilotSchemaServicesTest {
         JsonArray services = load(MCP);
         Set<String> declared = declaredNames(MCP);
         int stated = 0;
+        int deprecatedAlternatives = 0;
         for (JsonElement element : services) {
             JsonObject svc = element.getAsJsonObject();
             JsonArray alternatives = svc.getAsJsonArray("alternativeListeners");
@@ -953,16 +954,29 @@ public class CopilotSchemaServicesTest {
                 continue;
             }
             for (JsonElement alternative : alternatives) {
-                String name = alternative.getAsString();
+                JsonObject alt = alternative.getAsJsonObject();
+                String name = alt.get("name").getAsString();
                 assertListenerIsDeclared(name, declared);
                 Assert.assertNotEquals(name, svc.getAsJsonObject("listener").get("name").getAsString(),
                         "a listener is never an alternative to itself");
+                // A deprecated alternative carries the reason: mcp's `Listener` is superseded by
+                // `StreamableHttpListener`, and dropping it would present the retired transport as an equal.
+                if (alt.has("deprecated")) {
+                    Assert.assertFalse(alt.get("deprecated").getAsString().isBlank(),
+                            "a deprecated alternative states why, not just that: " + alt);
+                    deprecatedAlternatives++;
+                }
                 stated++;
             }
         }
         Assert.assertTrue(stated > 0,
                 "mcp declares two listeners hosting the same service types; the second must be stated: "
                         + services);
+        // `StreamableHttpListener` is the first listener, so `hostOf` writes it into the `on new …` clause
+        // and the deprecated `Listener` always lands here as the alternative. Its deprecation must survive.
+        Assert.assertTrue(deprecatedAlternatives > 0,
+                "mcp's `Listener` is deprecated and is the alternative on every service; its `deprecated` "
+                        + "note must reach the wire: " + services);
     }
 
     /**

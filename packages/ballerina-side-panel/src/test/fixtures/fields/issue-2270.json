@@ -1,0 +1,17 @@
+{
+    "description": "#2270: optional AUTOCOMPLETE (Approval Function ref) still selects AutoCompleteEditor",
+    "expectedEditor": "AutoCompleteEditor",
+    "fieldInputType": { "fieldType": "AUTOCOMPLETE" },
+    "field": {
+        "key": "f_AUTOCOMPLETE",
+        "label": "Approval Function",
+        "type": "AUTOCOMPLETE",
+        "optional": true,
+        "editable": true,
+        "documentation": "",
+        "value": "approveFn",
+        "items": ["approveFn", "rejectFn"],
+        "types": [{ "fieldType": "AUTOCOMPLETE", "selected": false }],
+        "enabled": true
+    }
+}

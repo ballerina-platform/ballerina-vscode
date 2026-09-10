@@ -36,3 +36,10 @@ type ReadonlyRoot readonly & record {|
     string id;
     int count;
 |};
+
+type Timestamp readonly & [int, decimal];
+
+type Meta record {|
+    Timestamp createdAt?;
+    Timestamp modifiedAt?;
+|};

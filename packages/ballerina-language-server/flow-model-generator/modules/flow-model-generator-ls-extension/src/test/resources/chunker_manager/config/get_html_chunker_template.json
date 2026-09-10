@@ -138,24 +138,24 @@
                   "value": "\"HTML_HEADER\""
                 },
                 {
-                  "label": "CHARACTER",
-                  "value": "\"CHARACTER\""
-                },
-                {
-                  "label": "WORD",
-                  "value": "\"WORD\""
-                },
-                {
-                  "label": "SENTENCE",
-                  "value": "\"SENTENCE\""
+                  "label": "HTML_PARAGRAPH",
+                  "value": "\"HTML_PARAGRAPH\""
                 },
                 {
                   "label": "HTML_LINE",
                   "value": "\"HTML_LINE\""
                 },
                 {
-                  "label": "HTML_PARAGRAPH",
-                  "value": "\"HTML_PARAGRAPH\""
+                  "label": "SENTENCE",
+                  "value": "\"SENTENCE\""
+                },
+                {
+                  "label": "WORD",
+                  "value": "\"WORD\""
+                },
+                {
+                  "label": "CHARACTER",
+                  "value": "\"CHARACTER\""
                 }
               ],
               "selected": false
@@ -166,7 +166,7 @@
               "selected": false
             }
           ],
-          "placeholder": "\"CHARACTER\"",
+          "placeholder": "\"HTML_HEADER\"",
           "optional": true,
           "editable": true,
           "advanced": false,

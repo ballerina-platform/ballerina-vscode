@@ -165,7 +165,7 @@ public class DurableAgentUpdateBuilder extends FunctionCall {
         String agent = requireValue(sourceBuilder, AGENT_KEY, "A durable agent function must be selected");
         String agentId = requireValue(sourceBuilder, AGENT_ID_KEY, "The agent ID is required");
         // The event dropdown submits the bare channel name; sendData takes it as a string.
-        String eventName = toStringLiteral(
+        String eventName = WorkflowUtil.eventNameLiteral(
                 requireValue(sourceBuilder, EVENT_NAME_KEY, "The event name is required"));
         String data = requireValue(sourceBuilder, DATA_KEY, "The request payload is required");
 
@@ -198,18 +198,6 @@ public class DurableAgentUpdateBuilder extends FunctionCall {
                 .textEdit()
                 .acceptImport(WORKFLOW_ORG, WORKFLOW_MODULE)
                 .build();
-    }
-
-    // The channel name correlates with an event declared on the agent, so it is always emitted
-    // as a string literal even when the form submits the bare name.
-    private static String toStringLiteral(String value) {
-        String trimmed = value == null ? "" : value.trim();
-        if (trimmed.length() >= 2 && trimmed.startsWith("\"") && trimmed.endsWith("\"")) {
-            return trimmed;
-        }
-        // The field is editable, so a free-form value can carry characters that would otherwise
-        // close the literal early and produce source that does not compile.
-        return "\"" + trimmed.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
     }
 
     private static String requireValue(SourceBuilder sourceBuilder, String key, String message) {

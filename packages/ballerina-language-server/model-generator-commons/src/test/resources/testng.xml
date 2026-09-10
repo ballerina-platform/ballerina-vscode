@@ -19,6 +19,11 @@ under the License.
 
 <!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd" >
 <suite name="model-generator-commons-test-suite">
+    <test name="search-pagination-test" parallel="false">
+        <classes>
+            <class name="io.ballerina.modelgenerator.commons.FairShareWindowTest"/>
+        </classes>
+    </test>
     <test name="trigger-model-test" parallel="false">
         <classes>
             <class name="io.ballerina.modelgenerator.commons.trigger.LibraryMetadataReaderTest"/>

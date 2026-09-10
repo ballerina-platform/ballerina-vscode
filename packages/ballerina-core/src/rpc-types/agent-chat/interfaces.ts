@@ -20,7 +20,8 @@ export interface ChatReqMessage {
     message: string;
 }
 
-export type ApprovalDecision = 'APPROVE' | 'REJECT';
+// Mirrors `ai:ApprovalOutcome` (renamed from `ApprovalDecision` in module-ballerina-ai#169).
+export type ApprovalOutcome = 'APPROVE' | 'REJECT';
 
 export interface ApprovalRequest {
     id: string;
@@ -32,21 +33,23 @@ export interface ApprovalRequest {
     batchIndex: number;
 }
 
-export interface HumanResponse {
-    decision: ApprovalDecision;
+// Mirrors `ai:HumanDecision` (renamed from `HumanResponse`, field `decision` renamed to `outcome`,
+// in module-ballerina-ai#169).
+export interface HumanDecision {
+    outcome: ApprovalOutcome;
     reason?: string;
 }
 
 // Sent from the webview to the extension; the extension fills in `sessionId`
 // from the active agent-chat context before posting to the service's `decision` resource.
 export interface SubmitDecisionRequest {
-    decisions: Record<string, HumanResponse>;
+    decisions: Record<string, HumanDecision>;
 }
 
 // Mirrors `ai:DecisionMessage`, the wire payload posted to a chat service's `decision` resource.
 export interface DecisionMessage {
     sessionId: string;
-    decisions: Record<string, HumanResponse>;
+    decisions: Record<string, HumanDecision>;
 }
 
 export interface PendingApprovalInfo {
@@ -96,7 +99,7 @@ export interface ChatHistoryMessage {
     // Present when type is 'approval': the requests the agent paused on.
     pendingApproval?: PendingApprovalInfo;
     // Present once the pending approval above has been resolved by the user.
-    decisions?: Record<string, HumanResponse>;
+    decisions?: Record<string, HumanDecision>;
     // Set when the user gives up on this batch via the card's Dismiss action (typically after
     // repeated failed submissions), so the card is terminal even though some requests may
     // still lack a decision. This is a client-side choice, not something the service reports.

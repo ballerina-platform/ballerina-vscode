@@ -21,29 +21,129 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { CopilotEventHandler } from "../../utils/events";
 import { normalizeInvisibleChars } from "../../utils/string-utils";
-import { normalizeToLf, readAndNormalize, restoreEol } from "../../utils/eol-utils";
+import { detectEol, normalizeToLf, readAndNormalize, restoreEol } from "../../utils/eol-utils";
+import { applyEdit, contentsEquivalent } from "../../utils/edit-replacement";
 import { addToIntegration } from "../../../../rpc-managers/ai-panel/utils";
 import { recordAiTouchedFile } from "../../../../rpc-managers/diagram-validity";
 import { seedNewPackageBaseline } from "../../utils/project/ls-schema-notifications";
 
 /**
- * Persists a tool's computed content directly into the real workspace file via VS Code's
- * document model (workspace.applyEdit + saveAll), so open editors and diagrams see it
- * immediately. No intermediate temp-directory write: tempProjectPath is the real project
- * root, so this is the only place a live edit is actually written.
+ * Serializes the read-modify-write cycle per file. Each tool reads from disk and writes back
+ * a whole-document replace, so parallel tool calls on one file would clobber each other.
+ */
+const fileEditLocks = new Map<string, Promise<void>>();
+
+/**
+ * Runs before path validation, so it must not throw on whatever the model sent. Uses
+ * path.join, not path.resolve: validateFilePath allows "/main.bal", which resolve would key
+ * outside the project, giving the same file two locks.
+ */
+function fileLockKey(tempProjectPath: string, filePath: unknown): string {
+  if (typeof filePath !== 'string' || filePath.length === 0) {
+    return `${tempProjectPath}|<invalid>`;
+  }
+  try {
+    return path.join(tempProjectPath, filePath);
+  } catch {
+    return `${tempProjectPath}|${filePath}`;
+  }
+}
+
+function withFileLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
+  const previous = fileEditLocks.get(key) ?? Promise.resolve();
+  // Run regardless of whether the previous holder resolved or rejected.
+  const result = previous.then(fn, fn);
+  const tail = result.then(() => undefined, () => undefined);
+  fileEditLocks.set(key, tail);
+  void tail.then(() => {
+    // Drop the entry once nothing is queued behind us, so the map stays bounded.
+    if (fileEditLocks.get(key) === tail) {
+      fileEditLocks.delete(key);
+    }
+  });
+  return result;
+}
+
+/**
+ * Confirms the computed content reached disk. Only "the file is unchanged" is treated as a
+ * failure; a mismatch against the exact expected content is warned about instead, since
+ * format-on-save legitimately reshapes the file after we hand it over.
+ *
+ * Skipped when the two paths differ: the migration flow (runStagesForPackage, no
+ * existingTempPath) reads from a temp copy while the write goes to the real package root.
+ */
+function verifyPersisted(
+  writtenPath: string | undefined,
+  readPath: string,
+  preEditRaw: string,
+  expected: string,
+  logPrefix: string,
+  file_path: string
+): ValidationResult {
+  if (!writtenPath || path.resolve(writtenPath) !== path.resolve(readPath)) {
+    console.warn(`${logPrefix} Skipping write verification for ${file_path}: read from ${readPath}, wrote to ${writtenPath}.`);
+    return { valid: true };
+  }
+
+  let actual: string;
+  try {
+    actual = fs.readFileSync(readPath, 'utf-8');
+  } catch (error) {
+    console.error(`${logPrefix} Could not re-read ${file_path} to verify the edit:`, error);
+    return {
+      valid: false,
+      error: `The edit for '${file_path}' could not be verified — the file could not be read back after writing. The file may be unchanged; re-read it before retrying.`
+    };
+  }
+
+  // Exact comparison: an edit that only touches trailing whitespace still has to register as
+  // applied, and contentsEquivalent would call it unchanged.
+  if (actual === preEditRaw && expected !== preEditRaw) {
+    console.error(`${logPrefix} Edit did not reach disk for ${file_path} — content is unchanged after write.`);
+    return {
+      valid: false,
+      error: `The edit for '${file_path}' was not applied — the file is unchanged on disk. Re-read the file and retry the edit.`
+    };
+  }
+
+  if (!contentsEquivalent(actual, expected)) {
+    console.warn(`${logPrefix} ${file_path} differs from the computed content after saving (likely an on-save formatter).`);
+  }
+
+  return { valid: true };
+}
+
+/**
+ * Persists a tool's computed content. Workspace-backed edits go through VS Code's document
+ * model (workspace.applyEdit + saveAll) so open editors and diagrams see them immediately;
+ * without an ExecutionContext there is no document model and the write goes straight to disk.
+ * Either way this is the only place an edit is written, and callers must not report success
+ * when it returns ok: false.
  */
 async function persistLiveEdit(
   file_path: string,
   content: string,
   modifiedFiles: string[] | undefined,
   allModifiedFiles: Set<string> | undefined,
-  ctx: ExecutionContext | undefined
-): Promise<void> {
+  ctx: ExecutionContext | undefined,
+  tempProjectPath: string
+): Promise<{ ok: boolean; error?: string; writtenPath?: string }> {
   if (modifiedFiles) {
     insertIntoUpdateFileNames(modifiedFiles, file_path);
   }
   if (!ctx) {
-    return;
+    // No execution context (the memory tools are rooted at a plain directory outside the
+    // workspace), so there is no document model to go through. Write straight to disk.
+    try {
+      const directPath = path.join(tempProjectPath, file_path);
+      fs.mkdirSync(path.dirname(directPath), { recursive: true });
+      fs.writeFileSync(directPath, content, 'utf8');
+      allModifiedFiles?.add(file_path);
+      return { ok: true, writtenPath: directPath };
+    } catch (error) {
+      console.error("[TextEditorTool] Direct persist failed:", error);
+      return { ok: false, error: error instanceof Error ? error.message : String(error) };
+    }
   }
   const workspaceRoot = ctx.workspacePath || ctx.projectPath;
   const absolutePath = path.join(workspaceRoot, file_path);
@@ -53,6 +153,15 @@ async function persistLiveEdit(
   const isNewPackageToml = path.basename(file_path) === 'Ballerina.toml' && !fs.existsSync(absolutePath);
   try {
     await addToIntegration(workspaceRoot, [{ filePath: file_path, content }]);
+  } catch (error) {
+    console.error("[TextEditorTool] Live persist failed:", error);
+    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+  }
+
+  // The write landed; everything below is bookkeeping. A failure here must not be reported as
+  // a failed edit: the model would retry, and for a new package's Ballerina.toml the
+  // isNewPackageToml check no longer holds on the retry, so the baseline would never be seeded.
+  try {
     recordAiTouchedFile(absolutePath);
     allModifiedFiles?.add(file_path);
     if (isNewPackageToml) {
@@ -68,8 +177,9 @@ async function persistLiveEdit(
       await seedNewPackageBaseline(packageRoot, content, preexistingBalFiles);
     }
   } catch (error) {
-    console.error("[TextEditorTool] Live persist failed:", error);
+    console.error(`[TextEditorTool] Post-write bookkeeping failed for ${file_path}:`, error);
   }
+  return { ok: true, writtenPath: absolutePath };
 }
 
 // ============================================================================
@@ -157,6 +267,8 @@ const ErrorMessages = {
   EDIT_FAILED: 'Edit operation failed',
   NO_EDITS: 'No edits provided',
   FILE_READ_NOT_PERMITTED: 'File read not permitted',
+  WRITE_FAILED: 'Write operation failed',
+  WRITE_NOT_PERSISTED: 'Change was not persisted to disk',
 };
 
 // ============================================================================
@@ -260,8 +372,9 @@ export function createWriteExecute(
   return async (args: {
     file_path: string;
     content: string;
-  }): Promise<TextEditorResult> => {
-    const { file_path, content } = args;
+    overwrite?: boolean;
+  }): Promise<TextEditorResult> => withFileLock(fileLockKey(tempProjectPath, args.file_path), async () => {
+    const { file_path, content, overwrite = false } = args;
 
     // Emit tool_call event
     emitFileToolCall(eventHandler, FILE_WRITE_TOOL_NAME, file_path);
@@ -298,14 +411,15 @@ export function createWriteExecute(
     // Check if file exists (track for message generation)
     const fileExists = fs.existsSync(fullPath);
 
-    // Check if file exists with non-empty content
-    if (fileExists) {
-      const existingContent = fs.readFileSync(fullPath, 'utf-8');
-      if (existingContent.trim().length > 0) {
+    // Check if file exists with non-empty content. `overwrite` is the escape hatch for a
+    // file no old_string can uniquely address; without it there is no way to rewrite one.
+    const preEditRaw = fileExists ? fs.readFileSync(fullPath, 'utf-8') : '';
+    if (fileExists && !overwrite) {
+      if (preEditRaw.trim().length > 0) {
         console.error(`[FileWriteTool] File already exists with content: ${file_path}`);
         const result = {
           success: false,
-          message: `File '${file_path}' already exists with content. Use ${FILE_SINGLE_EDIT_TOOL_NAME} or ${FILE_BATCH_EDIT_TOOL_NAME} to modify it instead.`,
+          message: `File '${file_path}' already exists with content. Use ${FILE_SINGLE_EDIT_TOOL_NAME} or ${FILE_BATCH_EDIT_TOOL_NAME} to modify it instead. If the file is corrupted or must be rewritten wholesale, call this tool again with overwrite set to true.`,
           error: `Error: ${ErrorMessages.FILE_ALREADY_EXISTS}`
         };
         emitFileToolResult(eventHandler, FILE_WRITE_TOOL_NAME, result, file_path);
@@ -316,10 +430,36 @@ export function createWriteExecute(
     const lineCount = content.split('\n').length;
     const action: 'created' | 'updated' = fileExists ? 'updated' : 'created';
 
+    // Preserve the file's existing EOL style so a rewrite doesn't churn every line on Windows.
+    const contentToWrite = fileExists
+      ? restoreEol(normalizeToLf(content), detectEol(preEditRaw))
+      : content;
+
     // Neither case notifies the ai:// baseline: a brand-new file has to stay absent from it
     // to read as an addition, and an existing one is already frozen there from generation
     // start. See the notes in utils/project/ls-schema-notifications.ts.
-    await persistLiveEdit(file_path, content, modifiedFiles, allModifiedFiles, ctx);
+    const persisted = await persistLiveEdit(file_path, contentToWrite, modifiedFiles, allModifiedFiles, ctx, tempProjectPath);
+    if (!persisted.ok) {
+      console.error(`[FileWriteTool] Failed to persist ${file_path}: ${persisted.error}`);
+      const result = {
+        success: false,
+        message: `Failed to write '${file_path}': ${persisted.error ?? 'the write could not be applied'}. The file was not modified.`,
+        error: `Error: ${ErrorMessages.WRITE_FAILED}`
+      };
+      emitFileToolResult(eventHandler, FILE_WRITE_TOOL_NAME, result, file_path);
+      return result;
+    }
+
+    const verification = verifyPersisted(persisted.writtenPath, fullPath, preEditRaw, contentToWrite, '[FileWriteTool]', file_path);
+    if (!verification.valid) {
+      const result = {
+        success: false,
+        message: verification.error!,
+        error: `Error: ${ErrorMessages.WRITE_NOT_PERSISTED}`
+      };
+      emitFileToolResult(eventHandler, FILE_WRITE_TOOL_NAME, result, file_path);
+      return result;
+    }
 
     console.log(`[FileWriteTool] Successfully ${action} file: ${file_path} with ${lineCount} lines.`);
     const result = {
@@ -332,7 +472,7 @@ export function createWriteExecute(
     emitFileToolResult(eventHandler, FILE_WRITE_TOOL_NAME, result, file_path);
 
     return result;
-  };
+  });
 }
 
 // ============================================================================
@@ -351,7 +491,7 @@ export function createEditExecute(
     old_string: string;
     new_string: string;
     replace_all?: boolean;
-  }): Promise<TextEditorResult> => {
+  }): Promise<TextEditorResult> => withFileLock(fileLockKey(tempProjectPath, args.file_path), async () => {
     const { file_path, old_string, new_string, replace_all = false } = args;
 
     // Emit tool_call event
@@ -452,19 +592,32 @@ export function createEditExecute(
       return result;
     }
 
-    // Perform replacement
-    let newContent: string;
-    if (workingContent.trim() === "" && workingOldString.trim() === "") {
-        newContent = workingNewString;
-    } else {
-      if (replace_all) {
-        newContent = workingContent.replaceAll(workingOldString, workingNewString);
-      } else {
-        newContent = workingContent.replace(workingOldString, workingNewString);
-      }
+    // Perform replacement (applyEdit keeps `$` sequences in new_string literal).
+    const newContent = applyEdit(workingContent, workingOldString, workingNewString, replace_all);
+
+    const contentToWrite = restoreEol(newContent, originalEol);
+    const persisted = await persistLiveEdit(file_path, contentToWrite, modifiedFiles, allModifiedFiles, ctx, tempProjectPath);
+    if (!persisted.ok) {
+      console.error(`[FileEditTool] Failed to persist ${file_path}: ${persisted.error}`);
+      const result = {
+        success: false,
+        message: `Failed to apply the edit to '${file_path}': ${persisted.error ?? 'the write could not be applied'}. The file was not modified.`,
+        error: `Error: ${ErrorMessages.WRITE_FAILED}`
+      };
+      emitFileToolResult(eventHandler, FILE_SINGLE_EDIT_TOOL_NAME, result, file_path);
+      return result;
     }
 
-    await persistLiveEdit(file_path, restoreEol(newContent, originalEol), modifiedFiles, allModifiedFiles, ctx);
+    const verification = verifyPersisted(persisted.writtenPath, fullPath, rawContent, contentToWrite, '[FileEditTool]', file_path);
+    if (!verification.valid) {
+      const result = {
+        success: false,
+        message: verification.error!,
+        error: `Error: ${ErrorMessages.WRITE_NOT_PERSISTED}`
+      };
+      emitFileToolResult(eventHandler, FILE_SINGLE_EDIT_TOOL_NAME, result, file_path);
+      return result;
+    }
 
     const replacedCount = replace_all ? occurrenceCount : 1;
     console.log(`[FileEditTool] Successfully replaced ${replacedCount} occurrence(s) in file: ${file_path}`);
@@ -477,7 +630,7 @@ export function createEditExecute(
     emitFileToolResult(eventHandler, FILE_SINGLE_EDIT_TOOL_NAME, result, file_path);
 
     return result;
-  };
+  });
 }
 
 // ============================================================================
@@ -498,7 +651,7 @@ export function createMultiEditExecute(
       new_string: string;
       replace_all?: boolean;
     }>;
-  }): Promise<TextEditorResult> => {
+  }): Promise<TextEditorResult> => withFileLock(fileLockKey(tempProjectPath, args.file_path), async () => {
     const { file_path, edits } = args;
 
     // Emit tool_call event
@@ -560,12 +713,9 @@ export function createMultiEditExecute(
         useNormalizedMatching = true;
         break;
       }
-      // Simulate the edit for subsequent checks
-      if (edit.replace_all) {
-        testContent = testContent.replaceAll(edit.old_string, edit.new_string);
-      } else {
-        testContent = testContent.replace(edit.old_string, edit.new_string);
-      }
+      // Simulate the edit for subsequent checks. Must match the apply pass below, or later
+      // edits get validated against content that never gets written.
+      testContent = applyEdit(testContent, edit.old_string, edit.new_string, edit.replace_all ?? false);
     }
 
     if (useNormalizedMatching) {
@@ -605,15 +755,7 @@ export function createMultiEditExecute(
       }
 
       // Apply the edit to simulate the sequence
-      if (content.trim() === "" && workingOldString.trim() === "") {
-        content = workingNewString;
-      } else {
-        if (edit.replace_all) {
-          content = content.replaceAll(workingOldString, workingNewString);
-        } else {
-          content = content.replace(workingOldString, workingNewString);
-        }
-      }
+      content = applyEdit(content, workingOldString, workingNewString, edit.replace_all ?? false);
     }
 
     // If there were validation errors, return them without applying any edits
@@ -629,7 +771,29 @@ export function createMultiEditExecute(
     }
 
     // All validations passed, content already has all edits applied
-    await persistLiveEdit(file_path, restoreEol(content, originalEol), modifiedFiles, allModifiedFiles, ctx);
+    const contentToWrite = restoreEol(content, originalEol);
+    const persisted = await persistLiveEdit(file_path, contentToWrite, modifiedFiles, allModifiedFiles, ctx, tempProjectPath);
+    if (!persisted.ok) {
+      console.error(`[FileMultiEditTool] Failed to persist ${file_path}: ${persisted.error}`);
+      const result = {
+        success: false,
+        message: `Failed to apply the edits to '${file_path}': ${persisted.error ?? 'the write could not be applied'}. The file was not modified.`,
+        error: `Error: ${ErrorMessages.WRITE_FAILED}`
+      };
+      emitFileToolResult(eventHandler, FILE_BATCH_EDIT_TOOL_NAME, result, file_path);
+      return result;
+    }
+
+    const verification = verifyPersisted(persisted.writtenPath, fullPath, rawContent, contentToWrite, '[FileMultiEditTool]', file_path);
+    if (!verification.valid) {
+      const result = {
+        success: false,
+        message: verification.error!,
+        error: `Error: ${ErrorMessages.WRITE_NOT_PERSISTED}`
+      };
+      emitFileToolResult(eventHandler, FILE_BATCH_EDIT_TOOL_NAME, result, file_path);
+      return result;
+    }
 
     console.log(`[FileMultiEditTool] Successfully applied ${edits.length} edits to file: ${file_path}`);
     const result = {
@@ -641,7 +805,7 @@ export function createMultiEditExecute(
     emitFileToolResult(eventHandler, FILE_BATCH_EDIT_TOOL_NAME, result, file_path);
 
     return result;
-  };
+  });
 }
 
 // ============================================================================
@@ -765,6 +929,7 @@ const getFilePathDescription = (op: string) => `The relative path to the file to
 type WriteExecute = (args: {
   file_path: string;
   content: string;
+  overwrite?: boolean;
 }) => Promise<any>;
 
 type EditExecute = (args: {
@@ -794,14 +959,16 @@ export function createWriteTool(execute: WriteExecute) {
   return tool({
     description: `Writes a file to the local filesystem.
     Usage:
-    - This tool will return an error if there is a file with non-empty content at the provided path.
+    - This tool will return an error if there is a file with non-empty content at the provided path, unless **overwrite** is set to true.
     - ALWAYS prefer editing existing files in the codebase. NEVER write new files unless explicitly required.
     - If this is an existing file, Use ${FILE_BATCH_EDIT_TOOL_NAME} or ${FILE_SINGLE_EDIT_TOOL_NAME} to modify it instead.
+    - Use **overwrite** only as a last resort, to rewrite a file whose existing content is corrupted or otherwise cannot be repaired with ${FILE_SINGLE_EDIT_TOOL_NAME} (for example when the text you need to replace is duplicated throughout the file, so no old_string can be made unique). Read the file first and supply the complete intended content, since everything currently in the file is discarded.
     - NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.
     - Only use emojis if the user explicitly requests it. Avoid writing emojis to files unless asked.`,
     inputSchema: z.object({
       file_path: z.string().describe(getFilePathDescription("write")),
-      content: z.string().describe("The content to write to the file, This cannot be empty")
+      content: z.string().describe("The content to write to the file, This cannot be empty"),
+      overwrite: z.boolean().default(false).describe("Replace the file's existing content (default false). Only set this to true to recover a file that cannot be repaired with an edit tool; the current content is discarded entirely.")
     }),
     execute
   });

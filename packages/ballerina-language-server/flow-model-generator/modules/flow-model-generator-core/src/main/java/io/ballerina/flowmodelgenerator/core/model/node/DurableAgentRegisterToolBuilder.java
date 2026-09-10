@@ -56,7 +56,6 @@ public class DurableAgentRegisterToolBuilder extends CallBuilder {
 
     public static final String REQUIRES_APPROVAL_KEY = "requiresApproval";
     public static final String USER_ROLES_KEY = "userRoles";
-    public static final String REQUIRES_APPROVAL_LABEL = "Requires Approval";
     public static final String REQUIRES_APPROVAL_DOC =
             "Gate this tool: before the agent runs it, a review activity is created and the agent suspends "
             + "durably until a reviewer proceeds (optionally editing the arguments) or rejects.";
@@ -115,30 +114,9 @@ public class DurableAgentRegisterToolBuilder extends CallBuilder {
 
         // ToolDecl gating: emitted as `{tool: <ref>, requiresApproval: true, userRoles: ...}`
         // on the declaration's tools list when set; a bare reference otherwise.
-        properties().custom()
-                .metadata()
-                    .label(REQUIRES_APPROVAL_LABEL)
-                    .description(REQUIRES_APPROVAL_DOC)
-                    .stepOut()
-                .type().fieldType(Property.ValueType.FLAG).ballerinaType("boolean").selected(true).stepOut()
-                .value("false")
-                .editable(true)
-                .optional(true)
-                .advanced(true)
-                .stepOut()
-                .addProperty(REQUIRES_APPROVAL_KEY);
-        WorkflowUtil.addRoleFieldTypes(properties().custom()
-                .metadata()
-                    .label("Reviewer Roles")
-                    .description("Role(s) permitted to decide the approval review of this tool, "
-                            + "e.g. \"support-lead\" or [\"finance\", \"manager\"].")
-                    .stepOut())
-                .placeholder("")
-                .editable(true)
-                .optional(true)
-                .advanced(true)
-                .stepOut()
-                .addProperty(USER_ROLES_KEY);
+        WorkflowUtil.addApprovalGateProperties(this, REQUIRES_APPROVAL_KEY, REQUIRES_APPROVAL_DOC, USER_ROLES_KEY,
+                "Role(s) permitted to decide the approval review of this tool, "
+                        + "e.g. \"support-lead\" or [\"finance\", \"manager\"].");
         properties().checkError(true);
     }
 

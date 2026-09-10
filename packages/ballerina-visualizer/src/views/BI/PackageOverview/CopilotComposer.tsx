@@ -509,8 +509,8 @@ export function CopilotComposer({ onAddArtifactManually, hiding }: CopilotCompos
                 $interactive={showOpenCopilot}
                 disabled={!showOpenCopilot}
                 onClick={showOpenCopilot ? () => openCopilotPanel(rpcClient) : undefined}
-                title={showOpenCopilot ? "Open WSO2 Integration Intelligence" : undefined}
-                aria-label={showOpenCopilot ? "Open WSO2 Integration Intelligence" : undefined}
+                title={showOpenCopilot ? "Open WSO2 Integrator Copilot" : undefined}
+                aria-label={showOpenCopilot ? "Open WSO2 Integrator Copilot" : undefined}
             >
                 <CopilotOrb state={state} colors={colors} size={ORB_SIZE} />
             </OrbButton>
@@ -523,7 +523,7 @@ export function CopilotComposer({ onAddArtifactManually, hiding }: CopilotCompos
                 </RunBlock>
             ) : shownMode === "idle" ? (
                 <IdleBlock>
-                    <AssistantName>WSO2 Integration Intelligence</AssistantName>
+                    <AssistantName>WSO2 Integrator Copilot</AssistantName>
                     <Heading>What would you like to build?</Heading>
 
                     <ComposerRow>
@@ -575,8 +575,8 @@ export function CopilotComposer({ onAddArtifactManually, hiding }: CopilotCompos
                                         </ComposerActionButton>
                                         <ComposerActionButton
                                             type="button"
-                                            title={attachmentsReady ? "Send to WSO2 Integration Intelligence" : "Remove failed attachments to send"}
-                                            aria-label="Send to WSO2 Integration Intelligence"
+                                            title={attachmentsReady ? "Send to WSO2 Integrator Copilot" : "Remove failed attachments to send"}
+                                            aria-label="Send to WSO2 Integrator Copilot"
                                             disabled={!canSend}
                                             onClick={() => void send(text)}
                                         >

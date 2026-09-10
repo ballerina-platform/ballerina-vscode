@@ -35,7 +35,7 @@ import {
     SwitchAgentResponse,
     SubmitDecisionRequest,
     DecisionMessage,
-    HumanResponse,
+    HumanDecision,
     PendingApprovalInfo
 } from "@wso2/ballerina-core";
 import * as vscode from 'vscode';
@@ -171,7 +171,7 @@ export class AgentChatRpcManager implements AgentChatAPI {
     // to (a batch may be resolved across several submitDecision calls, one request at a time),
     // so a later getChatHistory()/switchChatAgent() replay renders resolved requests collapsed
     // rather than as if still pending.
-    private resolvePendingApprovalInHistory(sessionId: string, decisions: Record<string, HumanResponse>): void {
+    private resolvePendingApprovalInHistory(sessionId: string, decisions: Record<string, HumanDecision>): void {
         const decidedIds = Object.keys(decisions);
         const history = AgentChatRpcManager.chatHistoryMap.get(sessionId);
         if (!history) {

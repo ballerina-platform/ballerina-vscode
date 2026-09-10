@@ -93,7 +93,7 @@
         "metadata": {
           "label": "logEvent",
           "description": "Activity with no return value\n",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.8.3.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.9.0.png"
         },
         "codedata": {
           "node": "ACTIVITY_CALL",
@@ -129,7 +129,72 @@
                 "selected": false
               }
             ],
-            "value": {},
+            "value": {
+              "stepId": {
+                "metadata": {
+                  "label": "Step Id",
+                  "description": "Identity of this step within the workflow, reported by every execution of it and\nmatching a node of the descriptor's graph — so a run can be traced back to the\nexact call that ran, the one in the `if` arm rather than the `else`. Name it\n(`stepId = \"charge-card\"`) for a step you want to follow: a chosen id survives\nedits that shift the generated `<activity>#<ordinal>`. Must be a constant string;\nan id another step already has is suffixed, with a warning."
+                },
+                "types": [
+                  {
+                    "fieldType": "TEXT",
+                    "ballerinaType": "string",
+                    "selected": false
+                  },
+                  {
+                    "fieldType": "EXPRESSION",
+                    "ballerinaType": "string?",
+                    "selected": false
+                  }
+                ],
+                "placeholder": "()",
+                "optional": true,
+                "editable": true,
+                "advanced": false,
+                "hidden": false,
+                "codedata": {
+                  "kind": "DEFAULTABLE",
+                  "originalName": "stepId"
+                },
+                "defaultValue": "()"
+              },
+              "additionalValues": {
+                "metadata": {
+                  "label": "Additional Values",
+                  "description": "Capture key value pairs"
+                },
+                "types": [
+                  {
+                    "fieldType": "REPEATABLE_MAP",
+                    "ballerinaType": "anydata",
+                    "template": {
+                      "types": [
+                        {
+                          "fieldType": "EXPRESSION",
+                          "ballerinaType": "anydata",
+                          "selected": false
+                        }
+                      ],
+                      "optional": false,
+                      "editable": false,
+                      "advanced": false,
+                      "hidden": false
+                    },
+                    "selected": true
+                  }
+                ],
+                "value": {},
+                "placeholder": "{}",
+                "optional": true,
+                "editable": true,
+                "advanced": false,
+                "hidden": false,
+                "codedata": {
+                  "kind": "INCLUDED_RECORD_REST",
+                  "originalName": "Additional Values"
+                }
+              }
+            },
             "optional": false,
             "editable": false,
             "advanced": false,
@@ -332,6 +397,60 @@
                   "editable": true,
                   "advanced": false,
                   "hidden": false
+                },
+                "retryTitle": {
+                  "metadata": {
+                    "label": "Title",
+                    "description": "Short summary shown in the reviewer's inbox. Defaults to a phrase naming the activity being reviewed."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "string",
+                      "selected": true
+                    }
+                  ],
+                  "value": "",
+                  "optional": true,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "retryDescription": {
+                  "metadata": {
+                    "label": "Description",
+                    "description": "Context shown with the decision. Defaults to a description of the failure and the outcomes available."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "string",
+                      "selected": true
+                    }
+                  ],
+                  "value": "",
+                  "optional": true,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "retryTimeout": {
+                  "metadata": {
+                    "label": "Timeout",
+                    "description": "How long to wait for a decision, e.g. {hours: 4}. Empty waits indefinitely."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "workflow:Duration",
+                      "selected": true
+                    }
+                  ],
+                  "value": "",
+                  "optional": true,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
                 }
               }
             },
@@ -392,12 +511,66 @@
           "retryUserRoles": {
             "metadata": {
               "label": "Reviewer Roles",
-              "description": "Role(s) permitted to decide the retry review"
+              "description": "Role(s) permitted to decide the human review, e.g. \"manager\" or [\"finance\", \"manager\"]. Leave empty to allow any role."
             },
             "types": [
               {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
+                "selected": true
+              }
+            ],
+            "value": "",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "retryTitle": {
+            "metadata": {
+              "label": "Title",
+              "description": "Short summary shown in the reviewer's inbox. Defaults to a phrase naming the activity being reviewed."
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string",
+                "selected": true
+              }
+            ],
+            "value": "",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "retryDescription": {
+            "metadata": {
+              "label": "Description",
+              "description": "Context shown with the decision. Defaults to a description of the failure and the outcomes available."
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string",
+                "selected": true
+              }
+            ],
+            "value": "",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "retryTimeout": {
+            "metadata": {
+              "label": "Timeout",
+              "description": "How long to wait for a decision, e.g. {hours: 4}. Empty waits indefinitely."
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "workflow:Duration",
                 "selected": true
               }
             ],
@@ -511,7 +684,7 @@
         "metadata": {
           "label": "countEvents",
           "description": "Activity returning a count\n",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.8.3.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.9.0.png"
         },
         "codedata": {
           "node": "ACTIVITY_CALL",
@@ -547,7 +720,72 @@
                 "selected": false
               }
             ],
-            "value": {},
+            "value": {
+              "stepId": {
+                "metadata": {
+                  "label": "Step Id",
+                  "description": "Identity of this step within the workflow, reported by every execution of it and\nmatching a node of the descriptor's graph — so a run can be traced back to the\nexact call that ran, the one in the `if` arm rather than the `else`. Name it\n(`stepId = \"charge-card\"`) for a step you want to follow: a chosen id survives\nedits that shift the generated `<activity>#<ordinal>`. Must be a constant string;\nan id another step already has is suffixed, with a warning."
+                },
+                "types": [
+                  {
+                    "fieldType": "TEXT",
+                    "ballerinaType": "string",
+                    "selected": false
+                  },
+                  {
+                    "fieldType": "EXPRESSION",
+                    "ballerinaType": "string?",
+                    "selected": false
+                  }
+                ],
+                "placeholder": "()",
+                "optional": true,
+                "editable": true,
+                "advanced": false,
+                "hidden": false,
+                "codedata": {
+                  "kind": "DEFAULTABLE",
+                  "originalName": "stepId"
+                },
+                "defaultValue": "()"
+              },
+              "additionalValues": {
+                "metadata": {
+                  "label": "Additional Values",
+                  "description": "Capture key value pairs"
+                },
+                "types": [
+                  {
+                    "fieldType": "REPEATABLE_MAP",
+                    "ballerinaType": "anydata",
+                    "template": {
+                      "types": [
+                        {
+                          "fieldType": "EXPRESSION",
+                          "ballerinaType": "anydata",
+                          "selected": false
+                        }
+                      ],
+                      "optional": false,
+                      "editable": false,
+                      "advanced": false,
+                      "hidden": false
+                    },
+                    "selected": true
+                  }
+                ],
+                "value": {},
+                "placeholder": "{}",
+                "optional": true,
+                "editable": true,
+                "advanced": false,
+                "hidden": false,
+                "codedata": {
+                  "kind": "INCLUDED_RECORD_REST",
+                  "originalName": "Additional Values"
+                }
+              }
+            },
             "optional": false,
             "editable": false,
             "advanced": false,
@@ -700,6 +938,60 @@
                   "editable": true,
                   "advanced": false,
                   "hidden": false
+                },
+                "retryTitle": {
+                  "metadata": {
+                    "label": "Title",
+                    "description": "Short summary shown in the reviewer's inbox. Defaults to a phrase naming the activity being reviewed."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "string",
+                      "selected": true
+                    }
+                  ],
+                  "value": "",
+                  "optional": true,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "retryDescription": {
+                  "metadata": {
+                    "label": "Description",
+                    "description": "Context shown with the decision. Defaults to a description of the failure and the outcomes available."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "string",
+                      "selected": true
+                    }
+                  ],
+                  "value": "",
+                  "optional": true,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "retryTimeout": {
+                  "metadata": {
+                    "label": "Timeout",
+                    "description": "How long to wait for a decision, e.g. {hours: 4}. Empty waits indefinitely."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "workflow:Duration",
+                      "selected": true
+                    }
+                  ],
+                  "value": "",
+                  "optional": true,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
                 }
               }
             },
@@ -760,12 +1052,66 @@
           "retryUserRoles": {
             "metadata": {
               "label": "Reviewer Roles",
-              "description": "Role(s) permitted to decide the retry review"
+              "description": "Role(s) permitted to decide the human review, e.g. \"manager\" or [\"finance\", \"manager\"]. Leave empty to allow any role."
             },
             "types": [
               {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
+                "selected": true
+              }
+            ],
+            "value": "",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "retryTitle": {
+            "metadata": {
+              "label": "Title",
+              "description": "Short summary shown in the reviewer's inbox. Defaults to a phrase naming the activity being reviewed."
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string",
+                "selected": true
+              }
+            ],
+            "value": "",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "retryDescription": {
+            "metadata": {
+              "label": "Description",
+              "description": "Context shown with the decision. Defaults to a description of the failure and the outcomes available."
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string",
+                "selected": true
+              }
+            ],
+            "value": "",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "retryTimeout": {
+            "metadata": {
+              "label": "Timeout",
+              "description": "How long to wait for a decision, e.g. {hours: 4}. Empty waits indefinitely."
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "workflow:Duration",
                 "selected": true
               }
             ],
@@ -994,7 +1340,7 @@
         "metadata": {
           "label": "logEvent",
           "description": "Activity with no return value\n",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.8.3.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.9.0.png"
         },
         "codedata": {
           "node": "ACTIVITY_CALL",
@@ -1030,7 +1376,72 @@
                 "selected": false
               }
             ],
-            "value": {},
+            "value": {
+              "stepId": {
+                "metadata": {
+                  "label": "Step Id",
+                  "description": "Identity of this step within the workflow, reported by every execution of it and\nmatching a node of the descriptor's graph — so a run can be traced back to the\nexact call that ran, the one in the `if` arm rather than the `else`. Name it\n(`stepId = \"charge-card\"`) for a step you want to follow: a chosen id survives\nedits that shift the generated `<activity>#<ordinal>`. Must be a constant string;\nan id another step already has is suffixed, with a warning."
+                },
+                "types": [
+                  {
+                    "fieldType": "TEXT",
+                    "ballerinaType": "string",
+                    "selected": false
+                  },
+                  {
+                    "fieldType": "EXPRESSION",
+                    "ballerinaType": "string?",
+                    "selected": false
+                  }
+                ],
+                "placeholder": "()",
+                "optional": true,
+                "editable": true,
+                "advanced": false,
+                "hidden": false,
+                "codedata": {
+                  "kind": "DEFAULTABLE",
+                  "originalName": "stepId"
+                },
+                "defaultValue": "()"
+              },
+              "additionalValues": {
+                "metadata": {
+                  "label": "Additional Values",
+                  "description": "Capture key value pairs"
+                },
+                "types": [
+                  {
+                    "fieldType": "REPEATABLE_MAP",
+                    "ballerinaType": "anydata",
+                    "template": {
+                      "types": [
+                        {
+                          "fieldType": "EXPRESSION",
+                          "ballerinaType": "anydata",
+                          "selected": false
+                        }
+                      ],
+                      "optional": false,
+                      "editable": false,
+                      "advanced": false,
+                      "hidden": false
+                    },
+                    "selected": true
+                  }
+                ],
+                "value": {},
+                "placeholder": "{}",
+                "optional": true,
+                "editable": true,
+                "advanced": false,
+                "hidden": false,
+                "codedata": {
+                  "kind": "INCLUDED_RECORD_REST",
+                  "originalName": "Additional Values"
+                }
+              }
+            },
             "optional": false,
             "editable": false,
             "advanced": false,
@@ -1233,6 +1644,60 @@
                   "editable": true,
                   "advanced": false,
                   "hidden": false
+                },
+                "retryTitle": {
+                  "metadata": {
+                    "label": "Title",
+                    "description": "Short summary shown in the reviewer's inbox. Defaults to a phrase naming the activity being reviewed."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "string",
+                      "selected": true
+                    }
+                  ],
+                  "value": "",
+                  "optional": true,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "retryDescription": {
+                  "metadata": {
+                    "label": "Description",
+                    "description": "Context shown with the decision. Defaults to a description of the failure and the outcomes available."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "string",
+                      "selected": true
+                    }
+                  ],
+                  "value": "",
+                  "optional": true,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "retryTimeout": {
+                  "metadata": {
+                    "label": "Timeout",
+                    "description": "How long to wait for a decision, e.g. {hours: 4}. Empty waits indefinitely."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "workflow:Duration",
+                      "selected": true
+                    }
+                  ],
+                  "value": "",
+                  "optional": true,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
                 }
               }
             },
@@ -1293,12 +1758,66 @@
           "retryUserRoles": {
             "metadata": {
               "label": "Reviewer Roles",
-              "description": "Role(s) permitted to decide the retry review"
+              "description": "Role(s) permitted to decide the human review, e.g. \"manager\" or [\"finance\", \"manager\"]. Leave empty to allow any role."
             },
             "types": [
               {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
+                "selected": true
+              }
+            ],
+            "value": "",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "retryTitle": {
+            "metadata": {
+              "label": "Title",
+              "description": "Short summary shown in the reviewer's inbox. Defaults to a phrase naming the activity being reviewed."
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string",
+                "selected": true
+              }
+            ],
+            "value": "",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "retryDescription": {
+            "metadata": {
+              "label": "Description",
+              "description": "Context shown with the decision. Defaults to a description of the failure and the outcomes available."
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string",
+                "selected": true
+              }
+            ],
+            "value": "",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "retryTimeout": {
+            "metadata": {
+              "label": "Timeout",
+              "description": "How long to wait for a decision, e.g. {hours: 4}. Empty waits indefinitely."
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "workflow:Duration",
                 "selected": true
               }
             ],

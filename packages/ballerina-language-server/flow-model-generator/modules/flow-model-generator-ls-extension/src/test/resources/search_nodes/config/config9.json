@@ -181,6 +181,16 @@
           },
           "types": [
             {
+              "fieldType": "SINGLE_SELECT",
+              "options": [
+                {
+                  "label": "INFER_TOOL_COUNT",
+                  "value": "\"INFER_TOOL_COUNT\""
+                }
+              ],
+              "selected": false
+            },
+            {
               "fieldType": "NUMBER",
               "ballerinaType": "int",
               "selected": false
@@ -263,12 +273,12 @@
               "fieldType": "SINGLE_SELECT",
               "options": [
                 {
-                  "label": "LLM_FILTER",
-                  "value": "\"LLM_FILTER\""
-                },
-                {
                   "label": "NO_FILTER",
                   "value": "\"NO_FILTER\""
+                },
+                {
+                  "label": "LLM_FILTER",
+                  "value": "\"LLM_FILTER\""
                 }
               ],
               "selected": false

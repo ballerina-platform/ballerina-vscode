@@ -61,3 +61,9 @@ function reviewedOrderWorkflow(workflow:Context ctx, OrderInput input) returns e
             retryPolicy = ["finance", "manager"]);
     io:println(several.toString());
 }
+
+// Named-argument form of workflow:run — the target function arrives as `processFunction = ...`.
+public function runByName() returns error? {
+    string workflowId = check workflow:run(processFunction = orderWorkflow, input = {orderId: "456", customerName: "Jane"});
+    io:println("Workflow started with ID: " + workflowId);
+}

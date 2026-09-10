@@ -1,6 +1,6 @@
 {
   "source": "workflow_function/functions.bal",
-  "description": "ManualRetry with the Reviewer Roles field present but left empty still saves: an empty role list is the documented \"any role may decide\" policy, written as []",
+  "description": "ManualRetry with the Reviewer Roles field present but left empty still saves: an empty role list is the documented \"any role may decide\" policy, written as the review record {userRoles: []}",
   "diagram": {
     "id": "1",
     "metadata": {
@@ -115,7 +115,7 @@
             "character": 0
           }
         },
-        "newText": "\nint result = check context->callActivity(sendNotification, {time: 10, input: {message: \"Hello\", recipient: \"user@example.com\"}}, retryPolicy = []);"
+        "newText": "\nint result = check context->callActivity(sendNotification, {time: 10, input: {message: \"Hello\", recipient: \"user@example.com\"}}, retryPolicy = {userRoles: []});"
       }
     ]
   }

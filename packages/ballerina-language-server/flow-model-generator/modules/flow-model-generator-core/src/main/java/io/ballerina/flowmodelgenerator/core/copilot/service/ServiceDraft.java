@@ -18,6 +18,7 @@
 
 package io.ballerina.flowmodelgenerator.core.copilot.service;
 
+import io.ballerina.flowmodelgenerator.core.copilot.model.AlternativeListener;
 import io.ballerina.flowmodelgenerator.core.copilot.model.Listener;
 import io.ballerina.flowmodelgenerator.core.copilot.model.PlatformDependency;
 import io.ballerina.flowmodelgenerator.core.copilot.model.RequiredImport;
@@ -203,9 +204,9 @@ final class ServiceDraft {
      * <p>Omitted when there are none, which is every single-listener document — so the key appears only
      * where the document genuinely offers a choice.
      */
-    void setAlternativeListeners(List<String> names) {
-        if (names != null && !names.isEmpty()) {
-            service.setAlternativeListeners(List.copyOf(names));
+    void setAlternativeListeners(List<AlternativeListener> alternatives) {
+        if (alternatives != null && !alternatives.isEmpty()) {
+            service.setAlternativeListeners(List.copyOf(alternatives));
         }
     }
 

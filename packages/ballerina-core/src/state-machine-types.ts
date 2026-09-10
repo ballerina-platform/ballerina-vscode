@@ -661,11 +661,10 @@ export interface CompactionStartEvent {
     type: 'compaction_start';
 }
 
-/** Fired when server-side compaction completes; carries the extracted summary */
+/** Fired when server-side compaction completes. The model-authored summary is
+ * intentionally NOT carried here — it stays internal and never reaches the webview. */
 export interface CompactionEndEvent {
     type: 'compaction_end';
-    /** Extracted <summary> content from the compaction block */
-    summary?: string;
 }
 
 /** Fired once per session when compaction is disabled because the codebase floor exceeds the trigger */
