@@ -160,6 +160,12 @@ import { approvalViewManager } from '../../features/ai/state/ApprovalViewManager
 import { chatStateStorage, isRevertible } from '../../views/ai-panel/chatStateStorage';
 import { runEventStore } from '../../features/ai/utils/run-event-store';
 import { restoreWorkspaceSnapshot } from '../../views/ai-panel/checkpoint/checkpointUtils';
+import {
+    assertNoRestoreInProgress,
+    beginRestore,
+    endRestore,
+    isRestoreInProgress
+} from '../../views/ai-panel/checkpoint/restore-state';
 import { runningServicesManager } from '../../features/ai/agent/tools/running-service-manager';
 import { executeRun } from "../../features/ai/agent/tools/ballerina-run";
 import { platformExtStore } from "../platform-ext/platform-store";
@@ -201,15 +207,20 @@ const CONNECTION_FAILURE_MESSAGE: Record<ConnectionSettleReason, string> = {
 
 /**
  * A run owns the active thread until it ends, so reparenting it mid-turn would strand the
- * run's writes. The panel already disables these actions; this backstops a webview reload
- * or a click that races the turn starting.
+ * run's writes; a restore is about to truncate that thread, and recreates it if it has gone.
+ * The panel already disables these actions; this backstops a webview reload or a click that
+ * races the turn starting.
  */
-function refuseWhileRunning(projectRootPath: string, action: string): boolean {
-    if (!runEventStore.hasActiveRun(projectRootPath)) {
-        return false;
+function refuseWhileBusy(projectRootPath: string, action: string): boolean {
+    if (runEventStore.hasActiveRun(projectRootPath)) {
+        console.warn(`[RPC] Refused ${action} — a response is still running for: ${projectRootPath}`);
+        return true;
     }
-    console.warn(`[RPC] Refused ${action} — a response is still running for: ${projectRootPath}`);
-    return true;
+    if (isRestoreInProgress(projectRootPath)) {
+        console.warn(`[RPC] Refused ${action} — a checkpoint restore is still running for: ${projectRootPath}`);
+        return true;
+    }
+    return false;
 }
 
 export class AiPanelRpcManager implements AIPanelAPI {
@@ -537,8 +548,10 @@ export class AiPanelRpcManager implements AIPanelAPI {
     }
 
     async revertGeneration(params: RevertGenerationRequest): Promise<void> {
+        const projectRootPath = resolveProjectRootPath();
+        assertNoRestoreInProgress(projectRootPath, 'revertGeneration');
+        beginRestore(projectRootPath);
         try {
-            const projectRootPath = resolveProjectRootPath();
             // Resolve the thread from the generation the bar names, not the active-thread pointer:
             // another thread can hold its own revertible generation.
             const located = chatStateStorage.findGenerationScope(projectRootPath, params.generationId);
@@ -599,6 +612,8 @@ User reverted the last made changes. The files have been restored to the state b
         } catch (error) {
             console.error("[Review Actions] Error reverting generation:", error);
             throw error;
+        } finally {
+            endRestore(projectRootPath);
         }
     }
 
@@ -778,47 +793,58 @@ User reverted the last made changes. The files have been restored to the state b
     async restoreCheckpoint(params: RestoreCheckpointRequest): Promise<void> {
         // Get project root path and thread identifiers
         const projectRootPath = resolveProjectRootPath();
-        const threadId = chatStateStorage.getActiveThreadId(resolveProjectRootPath());
+        assertNoRestoreInProgress(projectRootPath, 'restoreCheckpoint');
+        if (runEventStore.hasActiveRun(projectRootPath)) {
+            // The mirror of refuseWhileBusy: a run still writing files would land its edits on top
+            // of the restored ones, and its own generation is what the truncation is about to drop.
+            throw new Error('A response is still running. Please wait for it to finish before restoring.');
+        }
+        beginRestore(projectRootPath);
+        try {
+            const threadId = chatStateStorage.getActiveThreadId(projectRootPath);
 
-        // Find the checkpoint
-        const found = chatStateStorage.findCheckpoint(projectRootPath, threadId, params.checkpointId);
+            // Find the checkpoint
+            const found = chatStateStorage.findCheckpoint(projectRootPath, threadId, params.checkpointId);
 
-        if (!found) {
-            if (chatStateStorage.hasCompactedHistory(projectRootPath, threadId)) {
-                window.showWarningMessage(
-                    "This conversation was compacted to manage memory. Undo points prior to compaction are unavailable."
-                );
-                throw new Error("Checkpoint unavailable due to compaction");
+            if (!found) {
+                if (chatStateStorage.hasCompactedHistory(projectRootPath, threadId)) {
+                    window.showWarningMessage(
+                        "This conversation was compacted to manage memory. Undo points prior to compaction are unavailable."
+                    );
+                    throw new Error("Checkpoint unavailable due to compaction");
+                }
+                throw new Error(`Checkpoint ${params.checkpointId} not found`);
             }
-            throw new Error(`Checkpoint ${params.checkpointId} not found`);
-        }
 
-        const { checkpoint } = found;
+            const { checkpoint } = found;
 
-        // 1. Restore workspace files from checkpoint snapshot.
-        // restoreWorkspaceSnapshot reports its own failures to the user but does not throw, so a
-        // failed restore must not fall through to truncating the thread history — that loss is
-        // irreversible while the files would stay unchanged.
-        const workspaceRestored = await restoreWorkspaceSnapshot(checkpoint);
-        if (!workspaceRestored) {
-            throw new Error('Restoring the workspace from the checkpoint failed; the conversation was not rewound.');
-        }
+            // 1. Restore workspace files from checkpoint snapshot.
+            // restoreWorkspaceSnapshot reports its own failures to the user but does not throw, so a
+            // failed restore must not fall through to truncating the thread history — that loss is
+            // irreversible while the files would stay unchanged.
+            const workspaceRestored = await restoreWorkspaceSnapshot(checkpoint);
+            if (!workspaceRestored) {
+                throw new Error('Restoring the workspace from the checkpoint failed; the conversation was not rewound.');
+            }
 
-        // 2. Truncate thread history to this checkpoint
-        const restored = chatStateStorage.restoreThreadToCheckpoint(
-            projectRootPath,
-            threadId,
-            params.checkpointId
-        );
+            // 2. Truncate thread history to this checkpoint
+            const restored = chatStateStorage.restoreThreadToCheckpoint(
+                projectRootPath,
+                threadId,
+                params.checkpointId
+            );
 
-        if (!restored) {
-            throw new Error('Failed to restore thread to checkpoint');
+            if (!restored) {
+                throw new Error('Failed to restore thread to checkpoint');
+            }
+        } finally {
+            endRestore(projectRootPath);
         }
     }
 
     async clearChat(): Promise<void> {
         const projectRootPath = resolveProjectRootPath();
-        if (refuseWhileRunning(projectRootPath, 'clearChat')) { return; }
+        if (refuseWhileBusy(projectRootPath, 'clearChat')) { return; }
         // Create a new thread — preserves all existing history
         const newThreadId = chatStateStorage.createNewThread(projectRootPath);
         clearCompactionDisabledWarning(projectRootPath, newThreadId);
@@ -832,13 +858,13 @@ User reverted the last made changes. The files have been restored to the state b
 
     async switchThread(params: SwitchThreadRequest): Promise<void> {
         const projectRootPath = resolveProjectRootPath();
-        if (refuseWhileRunning(projectRootPath, 'switchThread')) { return; }
+        if (refuseWhileBusy(projectRootPath, 'switchThread')) { return; }
         chatStateStorage.switchToThread(projectRootPath, params.threadId);
     }
 
     async deleteThread(params: DeleteThreadRequest): Promise<void> {
         const projectRootPath = resolveProjectRootPath();
-        if (refuseWhileRunning(projectRootPath, 'deleteThread')) { return; }
+        if (refuseWhileBusy(projectRootPath, 'deleteThread')) { return; }
         await chatStateStorage.deleteThread(projectRootPath, params.threadId);
     }
 

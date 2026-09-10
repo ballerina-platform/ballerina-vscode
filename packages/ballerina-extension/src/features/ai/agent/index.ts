@@ -17,6 +17,7 @@
 import { Command, ExecutionContext, GenerateAgentCodeRequest } from "@wso2/ballerina-core";
 import { StateMachine } from "../../../stateMachine";
 import { chatStateStorage } from '../../../views/ai-panel/chatStateStorage';
+import { assertNoRestoreInProgress } from '../../../views/ai-panel/checkpoint/restore-state';
 import { AICommandConfig } from "../executors/base/AICommandExecutor";
 import { createWebviewEventHandler } from "../utils/events";
 import { AgentExecutor } from './AgentExecutor';
@@ -126,6 +127,10 @@ export async function generateAgent(params: GenerateAgentCodeRequest): Promise<b
         ) {
             throw new Error('A generation is already in progress. Please wait for it to finish before starting a new one.');
         }
+
+        // A restore is mid-flight: it is about to truncate this thread, and finalizing below would
+        // implicitly accept the very generation it is reverting.
+        assertNoRestoreInProgress(projectRootPath, 'generateAgent');
 
         // Moving on to a new generation implicitly accepts a still-open previous one —
         // on EVERY thread of the project, not just this one: the upcoming ai:// baseline
