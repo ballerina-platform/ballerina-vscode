@@ -131,8 +131,14 @@ export function startArtifactUpdateWait(
         undefined,
         payload => {
             stopListening();
-            onArtifacts(payload.data);
+            // Settled before the callback runs: publish() swallows a throwing subscriber, so a
+            // failing callback would otherwise leave this promise pending with its timer cleared.
             settle(true);
+            try {
+                onArtifacts(payload.data);
+            } catch (error) {
+                console.error('[Artifacts] Artifact-update listener failed:', error);
+            }
         }
     );
     const timeoutId = setTimeout(() => {

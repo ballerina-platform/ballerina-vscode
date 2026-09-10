@@ -20,7 +20,7 @@
 // the artifacts of what it just wrote. That notification is advisory — it only refreshes the
 // visualizer's current location — and it can legitimately never arrive, so whether it does must
 // not decide the restore's outcome: the caller truncates the chat history on the strength of that
-// boolean, and a stale history against reverted files is what wso2/product-integrator#2406 reports.
+// boolean, and a stale history against reverted files is the state to avoid.
 
 import * as fs from "fs";
 import * as os from "os";
@@ -56,9 +56,11 @@ jest.mock("../RPCLayer", () => ({
     suppressWebviewNotifications: () => () => {},
 }));
 
-import { restoreWorkspaceSnapshot } from "../views/ai-panel/checkpoint/checkpointUtils";
+import { captureWorkspaceSnapshot, restoreWorkspaceSnapshot } from "../views/ai-panel/checkpoint/checkpointUtils";
 
 const ORIGINAL_CONFIG = 'greeting = "before the generation"\n';
+/** PNG magic bytes plus sequences no UTF-8 decoder can round-trip. */
+const RAW_BYTES = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0xff, 0xfe, 0x00, 0x80]);
 const ORIGINAL_BAL = "// before the generation\n";
 
 /** Lets the restore's promise chain run to its next timer-bound step under fake timers. */
@@ -221,17 +223,64 @@ describe("what a checkpoint restore is allowed to touch", () => {
         fs.rmSync(root, { recursive: true, force: true });
     });
 
-    it("leaves a file whose bytes are not valid UTF-8 exactly as it is", async () => {
-        // A checkpoint stores decoded strings, so this file's snapshot entry is already mangled.
-        const rawBytes = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0xff, 0xfe, 0x00, 0x80]);
-        fs.writeFileSync(at("logo.png"), rawBytes);
+    it("captures a non-text file into the file list but not into the snapshot", async () => {
+        fs.writeFileSync(at("logo.png"), RAW_BYTES);
+
+        const captured: any = await captureWorkspaceSnapshot("msg-1");
+
+        // In the file list so a restore never deletes it; out of the snapshot so a restore never
+        // writes a lossy decode over it.
+        expect(captured.fileList).toContain("logo.png");
+        expect(Object.keys(captured.workspaceSnapshot)).not.toContain("logo.png");
+        expect(captured.workspaceSnapshot["Config.toml"]).toBeDefined();
+    });
+
+    it("leaves a non-text file alone without reporting it, when the snapshot never held it", async () => {
+        fs.writeFileSync(at("logo.png"), RAW_BYTES);
         checkpoint.fileList.push("logo.png");
-        checkpoint.workspaceSnapshot["logo.png"] = rawBytes.toString("utf8");
 
         await expect(restoreWorkspaceSnapshot(checkpoint, true)).resolves.toBe(true);
 
-        expect(fs.readFileSync(at("logo.png")).equals(rawBytes)).toBe(true);
+        expect(fs.readFileSync(at("logo.png")).equals(RAW_BYTES)).toBe(true);
+        expect(warnings).toEqual([]);
+    });
+
+    it("never recreates a file from a lossy snapshot entry left by an older checkpoint", async () => {
+        // The generation deleted the image, so a restore would have to write it back — and the only
+        // content an older checkpoint has for it is the mangled decode.
+        checkpoint.fileList.push("logo.png");
+        checkpoint.workspaceSnapshot["logo.png"] = RAW_BYTES.toString("utf8");
+
+        await expect(restoreWorkspaceSnapshot(checkpoint, true)).resolves.toBe(true);
+
+        expect(fs.existsSync(at("logo.png"))).toBe(false);
         expect(warnings.join(" ")).toContain("logo.png");
+    });
+
+    it("restores a file even when an SCM diff document shares its path", async () => {
+        fs.writeFileSync(at("main.bal"), "// the generation's edit\n");
+        // A `git:` document mirrors main.bal with the same fsPath and HEAD's content, which equals
+        // the snapshot — comparing against it would skip restoring the real file.
+        workspace.textDocuments = [{
+            uri: { fsPath: at("main.bal"), toString: () => `git://${at("main.bal")}`, scheme: "git" },
+            isDirty: false,
+            save: () => Promise.resolve(true),
+            getText: () => ORIGINAL_BAL,
+        } as never];
+
+        await expect(restoreWorkspaceSnapshot(checkpoint, true)).resolves.toBe(true);
+
+        expect(applied.filter(e => e.op === "replace").map(e => e.content)).toContain(ORIGINAL_BAL);
+    });
+
+    it("leaves a file in place when the trash refuses it, rather than deleting it permanently", async () => {
+        fs.writeFileSync(at("added-by-hand.csv"), "id,name\n1,ada\n");
+        workspace.fs.delete = () => Promise.reject(new Error("trash is not available"));
+
+        await expect(restoreWorkspaceSnapshot(checkpoint, true)).resolves.toBe(true);
+
+        expect(fs.existsSync(at("added-by-hand.csv"))).toBe(true);
+        expect(warnings.join(" ")).toContain("added-by-hand.csv");
     });
 
     it("does not rewrite a file that already matches the snapshot", async () => {

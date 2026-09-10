@@ -17,8 +17,8 @@
  */
 
 // A restore spans several awaits, and anything that starts a run or reparents the active thread in
-// that window corrupts the chat store — see wso2/product-integrator#2421. The refusal has to live
-// here rather than in the panel, so this pins the mechanism the RPC layer and the agent both call.
+// that window corrupts the chat store. The refusal has to live here rather than in the panel, so
+// this pins the mechanism the RPC layer and the agent both call.
 
 import {
     assertNoRestoreInProgress,
@@ -61,16 +61,11 @@ describe("restore-in-progress guard", () => {
         expect(() => assertNoRestoreInProgress(WORKSPACE, "restoreCheckpoint")).toThrow(Error);
     });
 
-    it("releases the workspace when the restore fails, not just when it succeeds", () => {
-        // Mirrors the `finally` both RPC methods wrap their body in.
-        expect(() => {
-            beginRestore(WORKSPACE);
-            try {
-                throw new Error("restoring the workspace failed");
-            } finally {
-                endRestore(WORKSPACE);
-            }
-        }).toThrow("restoring the workspace failed");
+    it("does not stack, so one release frees the workspace", () => {
+        // Both RPC entry points claim the same workspace, and each releases it in a `finally`.
+        beginRestore(WORKSPACE);
+        beginRestore(WORKSPACE);
+        endRestore(WORKSPACE);
 
         expect(isRestoreInProgress(WORKSPACE)).toBe(false);
     });

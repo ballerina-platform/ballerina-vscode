@@ -30,9 +30,9 @@ import { notifyCurrentWebview, suppressWebviewNotifications } from '../../../../
 
 const generateId = () => `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-async function readFileBytes(fileUri: vscode.Uri): Promise<Buffer | null> {
+function readFileBytes(fileUri: vscode.Uri): Buffer | null {
     try {
-        return Buffer.from(await vscode.workspace.fs.readFile(fileUri));
+        return fs.readFileSync(fileUri.fsPath);
     } catch {
         return null;
     }
@@ -52,7 +52,11 @@ function resolveInsideWorkspace(workspaceRoot: vscode.Uri, filePath: string): vs
 }
 
 function openDocumentText(fileUri: vscode.Uri): string | undefined {
-    return vscode.workspace.textDocuments.find(doc => doc.uri.fsPath === fileUri.fsPath)?.getText();
+    // Scheme included: an SCM diff (`git:`) document carries the same fsPath as the file it
+    // mirrors, and comparing against its HEAD content would skip restoring the real file.
+    return vscode.workspace.textDocuments
+        .find(doc => doc.uri.scheme === 'file' && doc.uri.fsPath === fileUri.fsPath)
+        ?.getText();
 }
 
 export async function captureWorkspaceSnapshot(messageId: string): Promise<Checkpoint | null> {
@@ -87,7 +91,7 @@ export async function captureWorkspaceSnapshot(messageId: string): Promise<Check
             const chunkContents = await Promise.all(chunk.map(async fileUri => {
                 try {
                     const fileContent = await vscode.workspace.fs.readFile(fileUri);
-                    return { fileUri, content: Buffer.from(fileContent).toString('utf8') };
+                    return { fileUri, bytes: Buffer.from(fileContent) };
                 } catch (error) {
                     console.error(`[Checkpoint] Failed to read file ${fileUri.fsPath}:`, error);
                     return null;
@@ -97,9 +101,19 @@ export async function captureWorkspaceSnapshot(messageId: string): Promise<Check
             for (const entry of chunkContents) {
                 if (!entry) { continue; }
                 const relativePath = path.relative(workspaceRoot.fsPath, entry.fileUri.fsPath).split(path.sep).join('/');
-                workspaceSnapshot[relativePath] = entry.content;
                 fileList.push(relativePath);
-                totalSize += entry.content.length;
+
+                // Listed but not snapshotted: a snapshot holds strings, so bytes that do not survive
+                // a UTF-8 round trip cannot be reproduced. Being in fileList keeps a restore from
+                // deleting it; being out of the snapshot keeps a restore from writing a lossy decode
+                // over it. Its size is not counted either — nothing is stored for it.
+                if (!isLosslessUtf8(entry.bytes)) {
+                    continue;
+                }
+
+                const content = entry.bytes.toString('utf8');
+                workspaceSnapshot[relativePath] = content;
+                totalSize += content.length;
             }
 
             if (totalSize > config.maxSnapshotSize) {
@@ -178,12 +192,13 @@ export async function restoreWorkspaceSnapshot(checkpoint: Checkpoint, skipArtif
                     continue;
                 }
 
-                const existing = await readFileBytes(fileUri);
-                if (existing && !isLosslessUtf8(existing)) {
-                    console.warn(`[Checkpoint] Leaving non-text file untouched: ${filePath}`);
+                if (content.includes('\uFFFD')) {
+                    console.warn(`[Checkpoint] Snapshot content is a lossy decode, leaving file untouched: ${filePath}`);
                     notRestored.push(filePath);
                     continue;
                 }
+
+                const existing = readFileBytes(fileUri);
 
                 // An unsaved editor, not disk, is what the user sees and what saveAll writes back,
                 // so a file only counts as already restored when the buffer matches too. Skipping
@@ -197,14 +212,18 @@ export async function restoreWorkspaceSnapshot(checkpoint: Checkpoint, skipArtif
             }
 
             const balFilesToDelete: vscode.Uri[] = [];
-            const nonBalFilesToDelete: vscode.Uri[] = [];
+            const nonBalFilesToDelete: Array<{ fileUri: vscode.Uri; filePath: string }> = [];
             for (const filePath of filesToDelete) {
                 const fileUri = resolveInsideWorkspace(workspaceRoot, filePath);
                 if (!fileUri) {
                     console.warn(`[Checkpoint] Refusing to delete outside the workspace: ${filePath}`);
                     continue;
                 }
-                (filePath.endsWith('.bal') ? balFilesToDelete : nonBalFilesToDelete).push(fileUri);
+                if (filePath.endsWith('.bal')) {
+                    balFilesToDelete.push(fileUri);
+                } else {
+                    nonBalFilesToDelete.push({ fileUri, filePath });
+                }
             }
 
             progress.report({ message: 'Applying workspace changes...' });
@@ -225,7 +244,7 @@ export async function restoreWorkspaceSnapshot(checkpoint: Checkpoint, skipArtif
                 // WorkspaceEdit.replace() silently no-ops on a file with no open TextDocument,
                 // which is never true for .bal files but always true for the rest.
                 // Each file is isolated: one unwritable path must not abandon the rest half-restored.
-                for (const fileUri of nonBalFilesToDelete) {
+                for (const { fileUri, filePath } of nonBalFilesToDelete) {
                     if (!fs.existsSync(fileUri.fsPath)) {
                         continue;
                     }
@@ -233,12 +252,11 @@ export async function restoreWorkspaceSnapshot(checkpoint: Checkpoint, skipArtif
                         // The snapshot holds no copy of a file it never captured, so this deletion
                         // is the user's only copy — .bal deletes already get the trash via WorkspaceEdit.
                         await vscode.workspace.fs.delete(fileUri, { useTrash: true });
-                    } catch {
-                        try {
-                            fs.unlinkSync(fileUri.fsPath);
-                        } catch (error) {
-                            failed.push(`${path.basename(fileUri.fsPath)} (${(error as Error).message})`);
-                        }
+                    } catch (error) {
+                        // No unlink fallback: if the trash refused, or the user cancelled it, leaving
+                        // the file beats destroying the only copy of it.
+                        console.warn(`[Checkpoint] Could not move ${filePath} to the trash, leaving it:`, error);
+                        notRestored.push(filePath);
                     }
                 }
                 for (const { fileUri, content } of nonBalFilesToRestore) {
@@ -288,17 +306,20 @@ export async function restoreWorkspaceSnapshot(checkpoint: Checkpoint, skipArtif
             progress.report({ message: 'Checkpoint restored successfully!' });
         });
 
-        // Advisory, and deliberately outside the block above: the files are written and saved by
-        // now, so a view that fails to refresh must not turn a completed restore into a failed one.
+        // Everything from here is advisory, and deliberately outside the block above: the files are
+        // written and saved by now, so a view that fails to refresh, or an artifact update that
+        // never arrives, must not turn a completed restore into a failed one.
         try {
             await renderDatamapper();
         } catch (error) {
             console.warn('[Checkpoint] Could not refresh the data mapper after the restore:', error);
         }
-        notifyCurrentWebview();
+        try {
+            notifyCurrentWebview();
+        } catch (error) {
+            console.warn('[Checkpoint] Could not notify the webview after the restore:', error);
+        }
 
-        // Advisory only — it refreshes the visualizer's location, while the files are already
-        // written and saved. A missed notification must not be reported as a failed restore.
         if (artifactWait && !(await artifactWait.notified)) {
             console.warn('[Checkpoint] No artifact update notification arrived; the workspace was still restored');
         }
