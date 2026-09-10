@@ -338,24 +338,27 @@ async function isDataProviderUsedElsewhere(ballerinaExtInstance: BallerinaExtens
 
     for (const testName of otherNames) {
         const fn = await ballerinaExtInstance.langClient?.getTestFunction({ functionName: testName, filePath: fileUri });
-        if (isValidTestFunctionResponse(fn) && getDataProviderName(fn.function) === providerName) {
+        if (fn && isValidTestFunctionResponse(fn) && getDataProviderName(fn.function) === providerName) {
             return true;
         }
     }
     return false;
 }
 
+// Matches only names the tool itself generates (e.g. loadEvalsetData, loadEvalsetData1), not a user's own
+// similarly-prefixed function such as loadEvalsetDataFromDb.
+const GENERATED_PROVIDER_NAME_PATTERN = /^(loadEvalsetData|loadQueriesData)\d*$/;
+
 /** Adds the removal of the data provider generated alongside an evaluation. */
 async function addDataProviderDeletion(edit: WorkspaceEdit, ballerinaExtInstance: BallerinaExtension,
     fileUri: string, excludeFunctionName: string, name?: string) {
     // Custom providers may be shared by other tests; only generated ones are safe to delete.
-    const isGenerated = name?.startsWith('loadEvalsetData') || name?.startsWith('loadQueriesData');
-    if (!name || !isGenerated) { return; }
+    if (!name || !GENERATED_PROVIDER_NAME_PATTERN.test(name)) { return; }
     try {
         if (await isDataProviderUsedElsewhere(ballerinaExtInstance, fileUri, excludeFunctionName, name)) { return; }
 
         const fn = await ballerinaExtInstance.langClient?.getTestFunction({ functionName: name, filePath: fileUri });
-        const range = isValidTestFunctionResponse(fn) ? fn.function?.codedata?.lineRange : undefined;
+        const range = fn && isValidTestFunctionResponse(fn) ? fn.function?.codedata?.lineRange : undefined;
         if (!range) { return; }
 
         const res = await ballerinaExtInstance.langClient?.deleteByComponentInfo({

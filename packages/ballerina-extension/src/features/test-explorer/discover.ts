@@ -28,6 +28,8 @@ import { getTestFunctionGroups } from "../../utils/test-discovery";
 
 let groups: string[] = [];
 const fileChangeTimers = new Map<string, NodeJS.Timeout>();
+// Tracks the latest handleFileChange run per file so a slower, superseded run can't overwrite a newer tree.
+const fileChangeSequence = new Map<string, number>();
 const FILE_CHANGE_DEBOUNCE_MS = 300;
 
 export async function discoverTestFunctionsInProject(ballerinaExtInstance: BallerinaExtension,
@@ -207,8 +209,17 @@ export async function handleFileChange(ballerinaExtInstance: BallerinaExtension,
     const request: TestsDiscoveryRequest = {
         projectPath: uri.fsPath
     };
+    const fileKey = uri.fsPath;
+    const sequence = (fileChangeSequence.get(fileKey) ?? 0) + 1;
+    fileChangeSequence.set(fileKey, sequence);
+
     const response: TestsDiscoveryResponse = await ballerinaExtInstance.langClient?.getFileTestFunctions(request);
     if (!response || !response.result) {
+        return;
+    }
+
+    // A newer run for this file already started; its result will supersede ours, so skip applying this one.
+    if (fileChangeSequence.get(fileKey) !== sequence) {
         return;
     }
 

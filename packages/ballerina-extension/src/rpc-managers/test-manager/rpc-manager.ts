@@ -73,7 +73,11 @@ export class TestServiceManagerRpcManager implements TestManagerServiceAPI {
                 const result: SourceUpdateResponse = {
                     artifacts: artifacts
                 };
-                refreshTestsForFile(targetFile);
+                try {
+                    refreshTestsForFile(targetFile);
+                } catch (error) {
+                    console.warn('Failed to refresh tests after test function update:', error);
+                }
                 resolve(result);
             } catch (error) {
                 console.log(error);
@@ -93,7 +97,11 @@ export class TestServiceManagerRpcManager implements TestManagerServiceAPI {
                 const result: SourceUpdateResponse = {
                     artifacts: artifacts
                 };
-                refreshTestsForFile(targetFile);
+                try {
+                    refreshTestsForFile(targetFile);
+                } catch (error) {
+                    console.warn('Failed to refresh tests after test function creation:', error);
+                }
                 resolve(result);
             } catch (error) {
                 console.log(error);
