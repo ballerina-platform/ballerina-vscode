@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import React from "react";
+import React, { useEffect } from "react";
 import styled from "@emotion/styled";
 import { ProjectStructureArtifactResponse } from "@wso2/ballerina-core";
 import { AgentSelection, AgentTopologyDiagram, TriggerSelection } from "@wso2/component-diagram";
@@ -37,11 +37,18 @@ export interface AgentTopologyProps {
     onOpenAgent: (agent: AgentSelection) => void;
     onOpenTrigger: (trigger: TriggerSelection) => void;
     onAddTrigger?: (agent: AgentSelection) => void;
+    onReady?: () => void;
 }
 
 export default function AgentTopology(props: AgentTopologyProps) {
-    const { projectPath, agents, agentDefinitions, onOpenAgent, onOpenTrigger, onAddTrigger } = props;
+    const { projectPath, agents, agentDefinitions, onOpenAgent, onOpenTrigger, onAddTrigger, onReady } = props;
     const input = useAgentTopology(projectPath, agents, agentDefinitions);
+
+    useEffect(() => {
+        if (input) {
+            onReady?.();
+        }
+    }, [input, onReady]);
 
     if (!input) {
         return (

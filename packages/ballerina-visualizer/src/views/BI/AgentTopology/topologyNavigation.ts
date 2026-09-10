@@ -16,11 +16,15 @@
  * under the License.
  */
 
-import { EVENT_TYPE } from "@wso2/ballerina-core";
+import { EVENT_TYPE, ProjectStructureArtifactResponse } from "@wso2/ballerina-core";
 import { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
 import { TriggerSelection } from "@wso2/component-diagram";
-import { triggerLocation } from "./topologyLocation";
+import { agentLocation, triggerLocation } from "./topologyLocation";
 
 export function openTrigger(rpcClient: BallerinaRpcClient, trigger: TriggerSelection): void {
     rpcClient.getVisualizerRpcClient().openView({ type: EVENT_TYPE.OPEN_VIEW, location: triggerLocation(trigger) });
+}
+
+export function openAgent(rpcClient: BallerinaRpcClient, agent: ProjectStructureArtifactResponse): void {
+    rpcClient.getVisualizerRpcClient().openView({ type: EVENT_TYPE.OPEN_VIEW, location: agentLocation(agent) });
 }

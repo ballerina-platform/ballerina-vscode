@@ -23,10 +23,8 @@ import {
     BuildMode,
     DIRECTORY_MAP,
     EVENT_TYPE,
-    FOCUS_FLOW_DIAGRAM_VIEW,
     MACHINE_VIEW,
     ProjectStructure,
-    ProjectStructureArtifactResponse,
     isSamePath,
 } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
@@ -37,15 +35,10 @@ import { TopNavigationBar } from "../../../components/TopNavigationBar";
 import { usePlatformExtContext } from "../../../providers/platform-ext-ctx-provider";
 import { getIntegrationTypes, validateComponentName, useProjectContentRefresh } from "../PackageOverview/utils";
 import { useTracingStatus } from "../../../hooks/useProductMode";
-import { agentKey } from "./AgentTabs";
 import { EmptyState } from "./EmptyState";
-import { landingLevel, OverviewLevel } from "./landingLevel";
-import { openTrigger } from "../AgentTopology/topologyNavigation";
+import { openAgent, openTrigger } from "../AgentTopology/topologyNavigation";
 import { openAddAgentTrigger } from "../AIChatAgent/utils";
 
-const LazyFocusFlowDiagram = React.lazy(() =>
-    import("../FocusFlowDiagram").then((m) => ({ default: m.BIFocusFlowDiagram }))
-);
 const LazyAgentTopology = React.lazy(() => import("../AgentTopology"));
 const LazyAddAgentPopup = React.lazy(() => import("../AIChatAgent/AddAgentPopup"));
 const LazyAddLibraryArtifactPopup = React.lazy(() => import("./AddLibraryArtifactPopup"));
@@ -148,49 +141,6 @@ const BreadcrumbLabel = styled.div`
     color: var(--vscode-foreground);
 `;
 
-// A bordered pill so the back control reads as a control, not as a label beside the title.
-const BackButton = styled.button`
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    height: 26px;
-    padding-block: 0;
-    padding-inline: 6px 10px;
-    border: 1px solid ${ThemeColors.OUTLINE_VARIANT};
-    border-radius: 5px;
-    background: none;
-    cursor: pointer;
-    font: inherit;
-    font-size: 13px;
-    line-height: 1;
-    color: var(--vscode-foreground);
-    transition-property: background-color, transform;
-    transition-duration: 120ms;
-    transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
-
-    &:hover {
-        background-color: var(--vscode-toolbar-hoverBackground);
-    }
-
-    &:active {
-        transform: scale(0.96);
-    }
-
-    &:focus-visible {
-        outline: 1px solid var(--vscode-focusBorder);
-        outline-offset: -1px;
-    }
-`;
-
-const BreadcrumbName = styled.span`
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    max-width: 280px;
-    font-family: var(--vscode-editor-font-family, monospace);
-    font-size: 12.5px;
-`;
-
 const AddAgentButton = styled.button`
     display: flex;
     align-items: center;
@@ -253,102 +203,17 @@ function menuLabel(icon: string, text: string) {
     );
 }
 
-export interface AgentFocusRequest {
-    path: string;
-    startLine: number;
-    requestId: number;
-}
-
-const rememberedKeys = new Map<string, string>();
-// Only recorded once the package actually has ≥2 agents, so a single-agent package's forced
-// "agent" level never poses as a deliberate drill-in once a second agent appears.
-const rememberedLevel = new Map<string, OverviewLevel>();
+const OVERVIEW_TITLE = "Agent Overview";
 
 interface AgentBuilderOverviewProps {
     projectPath: string;
-    agentFocus?: AgentFocusRequest;
 }
 
-interface AgentBreadcrumbProps {
-    level: OverviewLevel;
-    agentCount: number;
-    selectedAgentName?: string;
-    onBack: () => void;
-}
-
-const OVERVIEW_TITLE = "Agent Overview";
-
-// Overview: the title. One agent: its name (there is no overview to return to). Otherwise a back
-// button to the overview, then the agent's name as the title.
-function AgentBreadcrumb({ level, agentCount, selectedAgentName, onBack }: AgentBreadcrumbProps) {
-    if (level === "overview") {
-        return <BreadcrumbLabel>{OVERVIEW_TITLE}</BreadcrumbLabel>;
-    }
-    return (
-        <BreadcrumbLabel>
-            {agentCount >= 2 && (
-                <BackButton onClick={onBack} title="Back to the agent overview (Esc)">
-                    <Codicon name="arrow-left" iconSx={{ fontSize: 14, display: "flex" }} />
-                    {OVERVIEW_TITLE}
-                </BackButton>
-            )}
-            <BreadcrumbName>{selectedAgentName}</BreadcrumbName>
-        </BreadcrumbLabel>
-    );
-}
-
-interface AgentCanvasContentProps {
-    level: OverviewLevel;
-    projectPath: string;
-    agents: ProjectStructureArtifactResponse[];
-    agentDefinitions: ProjectStructureArtifactResponse[];
-    selectedAgent?: ProjectStructureArtifactResponse;
-    onOpenAgent: (agent: AgentSelection) => void;
-    onOpenTrigger: (trigger: TriggerSelection) => void;
-    onAddTrigger: (agent: AgentSelection) => void;
-    onFocusReady: () => void;
-}
-
-function AgentCanvasContent(props: AgentCanvasContentProps) {
-    const { level, projectPath, agents, agentDefinitions, selectedAgent, onOpenAgent, onOpenTrigger, onAddTrigger, onFocusReady } = props;
-    if (level === "overview") {
-        return (
-            <LazyAgentTopology
-                projectPath={projectPath}
-                agents={agents}
-                agentDefinitions={agentDefinitions}
-                onOpenAgent={onOpenAgent}
-                onOpenTrigger={onOpenTrigger}
-                onAddTrigger={onAddTrigger}
-            />
-        );
-    }
-    if (!selectedAgent) {
-        return null;
-    }
-    return (
-        <LazyFocusFlowDiagram
-            key={agentKey(selectedAgent)}
-            embedded={true}
-            projectPath={projectPath}
-            filePath={selectedAgent.path}
-            position={selectedAgent.position}
-            view={selectedAgent.moduleName === "ai" ? FOCUS_FLOW_DIAGRAM_VIEW.AGENT : FOCUS_FLOW_DIAGRAM_VIEW.TYPED_AGENT}
-            onUpdate={() => { }}
-            onReady={onFocusReady}
-        />
-    );
-}
-
-export function AgentBuilderOverview({ projectPath, agentFocus }: AgentBuilderOverviewProps) {
+export function AgentBuilderOverview({ projectPath }: AgentBuilderOverviewProps) {
     const { rpcClient } = useRpcContext();
     const { platformExtState } = usePlatformExtContext();
     const [projectStructure, setProjectStructure] = useState<ProjectStructure>();
     const [isInProject, setIsInProject] = useState(false);
-    const [selectedKey, setSelectedKeyState] = useState<string | undefined>(() => rememberedKeys.get(projectPath));
-    const [level, setLevelState] = useState<OverviewLevel>(() => rememberedLevel.get(projectPath) ?? "overview");
-    const previousAgentCountRef = useRef<number>(-1);
-    const pendingRenameRef = useRef<{ artifact: ProjectStructureArtifactResponse; agentsAtStash: ProjectStructureArtifactResponse[] }>();
     const [showAddAgent, setShowAddAgent] = useState(false);
     const [showAddLibraryArtifact, setShowAddLibraryArtifact] = useState(false);
     const [deployAnchor, setDeployAnchor] = useState<HTMLElement | null>(null);
@@ -390,96 +255,7 @@ export function AgentBuilderOverview({ projectPath, agentFocus }: AgentBuilderOv
     );
     const hasAgents = agents.length > 0;
 
-    const setSelectedKey = useCallback((key: string) => {
-        rememberedKeys.set(projectPath, key);
-        setSelectedKeyState(key);
-    }, [projectPath]);
-
-    const setLevel = useCallback((next: OverviewLevel) => {
-        if (agents.length >= 2) {
-            rememberedLevel.set(projectPath, next);
-        }
-        setLevelState(next);
-    }, [projectPath, agents.length]);
-
     const isLibrary = projectStructure?.isLibrary ?? false;
-
-    const selectedAgent = useMemo(
-        () => agents.find((agent) => agentKey(agent) === selectedKey) ?? agents[0],
-        [agents, selectedKey]
-    );
-
-    useEffect(() => {
-        if (!selectedKey && agents.length > 0) {
-            setSelectedKey(agentKey(agents[0]));
-        }
-    }, [agents, selectedKey, setSelectedKey]);
-
-    // Landing rule: 0/1 agents force the single-agent page; ≥2 restores the last level this
-    // package was drilled to this session, defaulting to the overview on a fresh open.
-    useEffect(() => {
-        if (previousAgentCountRef.current === agents.length) {
-            return;
-        }
-        previousAgentCountRef.current = agents.length;
-        setLevel(landingLevel(agents.length, rememberedLevel.get(projectPath)));
-    }, [agents.length, projectPath, setLevel]);
-
-    useEffect(() => rpcClient.onIdentifierUpdated((artifacts) => {
-        const renamed = artifacts?.find((artifact) => artifact.type === DIRECTORY_MAP.AGENT);
-        if (renamed) {
-            pendingRenameRef.current = { artifact: renamed, agentsAtStash: agents };
-        }
-    }), [rpcClient, agents]);
-
-    useEffect(() => {
-        const pending = pendingRenameRef.current;
-        const staleSelection = selectedKey && !agents.some((agent) => agentKey(agent) === selectedKey);
-        if (pending && pending.agentsAtStash !== agents) {
-            pendingRenameRef.current = undefined;
-            if (staleSelection) {
-                setSelectedKey(agentKey(pending.artifact));
-            }
-            return;
-        }
-        // No rename in flight: a stale selection while drilled means the agent was deleted
-        // elsewhere. Land back on the overview rather than silently focusing another agent.
-        if (!pending && staleSelection && level === "agent" && agents.length >= 2) {
-            setLevel("overview");
-        }
-    }, [agents, selectedKey, setSelectedKey, level, setLevel]);
-
-    const appliedFocusRef = useRef<number>();
-
-    useEffect(() => {
-        if (!agentFocus || appliedFocusRef.current === agentFocus.requestId) {
-            return;
-        }
-        const match = agents.find(
-            (agent) => isSamePath(agent.path, agentFocus.path) && (agent.position?.startLine ?? 0) === agentFocus.startLine
-        );
-        if (!match) {
-            return;
-        }
-        appliedFocusRef.current = agentFocus.requestId;
-        setSelectedKey(agentKey(match));
-        setLevel("agent");
-        setShowAddAgent(false);
-    }, [agents, agentFocus, setSelectedKey, setLevel]);
-
-    useEffect(() => {
-        if (level !== "agent" || agents.length < 2) {
-            return;
-        }
-        const onKeyDown = (event: KeyboardEvent) => {
-            if (event.key !== "Escape" || showAddAgent || showAddLibraryArtifact || deployAnchor) {
-                return;
-            }
-            setLevel("overview");
-        };
-        document.addEventListener("keydown", onKeyDown);
-        return () => document.removeEventListener("keydown", onKeyDown);
-    }, [level, agents.length, showAddAgent, showAddLibraryArtifact, deployAnchor, setLevel]);
 
     if (projectStructure && !hasAgents) {
         sawEmptyRef.current = true;
@@ -539,10 +315,9 @@ export function AgentBuilderOverview({ projectPath, agentFocus }: AgentBuilderOv
             (candidate) => isSamePath(candidate.path, agent.path) && (candidate.position?.startLine ?? 0) === agent.startLine
         );
         if (match) {
-            setSelectedKey(agentKey(match));
+            openAgent(rpcClient, match);
         }
-        setLevel("agent");
-    }, [agents, setSelectedKey, setLevel]);
+    }, [agents, rpcClient]);
 
     const handleOpenTrigger = useCallback((trigger: TriggerSelection) => {
         openTrigger(rpcClient, trigger);
@@ -705,12 +480,7 @@ export function AgentBuilderOverview({ projectPath, agentFocus }: AgentBuilderOv
                             {hasAgents && (
                                 <Layer $show={canvasVisible}>
                                     <Strip>
-                                        <AgentBreadcrumb
-                                            level={level}
-                                            agentCount={agents.length}
-                                            selectedAgentName={selectedAgent?.name}
-                                            onBack={() => setLevel("overview")}
-                                        />
+                                        <BreadcrumbLabel>{OVERVIEW_TITLE}</BreadcrumbLabel>
                                         <AddAgentButton onClick={() => setShowAddAgent(true)} title="Add an agent to this project">
                                             <Icon name="bi-plus" sx={{ fontSize: 16, width: 16, height: 16 }} />
                                             Add Agent
@@ -724,16 +494,14 @@ export function AgentBuilderOverview({ projectPath, agentFocus }: AgentBuilderOv
                                                 </CenteredSlot>
                                             }
                                         >
-                                            <AgentCanvasContent
-                                                level={level}
+                                            <LazyAgentTopology
                                                 projectPath={projectPath}
                                                 agents={agents}
                                                 agentDefinitions={agentDefinitions}
-                                                selectedAgent={selectedAgent}
                                                 onOpenAgent={handleOpenAgentFromCanvas}
                                                 onOpenTrigger={handleOpenTrigger}
                                                 onAddTrigger={handleAddTriggerFromCanvas}
-                                                onFocusReady={handleCanvasReady}
+                                                onReady={handleCanvasReady}
                                             />
                                         </React.Suspense>
                                     </CanvasSlot>

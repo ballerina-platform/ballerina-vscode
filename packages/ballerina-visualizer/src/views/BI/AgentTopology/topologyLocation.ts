@@ -16,6 +16,7 @@
  * under the License.
  */
 
+import type { ProjectStructureArtifactResponse } from "@wso2/ballerina-core";
 import type { TriggerSelection } from "@wso2/component-diagram";
 
 // The handler's whole range when the trigger carries its end, as the focus rail's usage tiles send; a bare start
@@ -31,4 +32,9 @@ export function triggerLocation(trigger: TriggerSelection) {
             endColumn: end.offset,
         },
     };
+}
+
+// The artifact resolver matches on the declaration's exact start, so the whole range is sent.
+export function agentLocation(agent: ProjectStructureArtifactResponse) {
+    return { documentUri: agent.path, position: agent.position };
 }
