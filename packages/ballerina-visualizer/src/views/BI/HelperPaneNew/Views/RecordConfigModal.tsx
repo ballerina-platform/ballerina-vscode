@@ -156,6 +156,8 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
     // getRecordConfig request and reused for the generateValue (getRecordSource) call so the
     // backend can resolve imports.
     const codedataRef = useRef<RecordSourceGenRequest["codedata"]>(undefined);
+    // Guards against a stale getRecordSource response overwriting a newer one
+    const modelChangeRequestIdRef = useRef<number>(0);
     const [selectedMemberName, setSelectedMemberName] = useState<string>("");
     const firstRender = useRef<boolean>(true);
     const initialMountRef = useRef<boolean>(true);
@@ -171,10 +173,17 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
 
     const [promptEditTarget, setPromptEditTarget] = useState<{ param: TypeField; onChange: () => void } | null>(null);
 
+    const isWrappedPrompt = (value: string) =>
+        value.length >= 2 && value.startsWith("`") && value.endsWith("`");
     const sanitizePrompt = (value: string) =>
-        value && value.startsWith("`") && value.endsWith("`") ? value.slice(1, -1) : value;
+        value && isWrappedPrompt(value) ? value.slice(1, -1) : value;
     const wrapPrompt = (value: string) =>
-        value && !value.startsWith("`") && !value.endsWith("`") ? `\`${value}\`` : value;
+        value && !isWrappedPrompt(value) ? `\`${value}\`` : value;
+
+    // Debounced so the getRecordSource RPC and parameter-tree remount don't fire on every keystroke
+    const debouncedNotifyPromptChange = useRef(
+        debounce((target: { onChange: () => void }) => target.onChange(), 300)
+    ).current;
 
     const handlePromptChange = (updatedValue: string) => {
         if (!promptEditTarget) {
@@ -182,7 +191,12 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
         }
         promptEditTarget.param.value = wrapPrompt(updatedValue);
         promptEditTarget.param.selected = true;
-        promptEditTarget.onChange();
+        debouncedNotifyPromptChange(promptEditTarget);
+    };
+
+    const closePromptEditor = () => {
+        debouncedNotifyPromptChange.flush();
+        setPromptEditTarget(null);
     };
 
     const promptField: FormField | null = promptEditTarget && {
@@ -506,6 +520,7 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
     };
 
     const handleModelChange = async (updatedModel: TypeField[]) => {
+        const requestId = ++modelChangeRequestIdRef.current;
         // The expression editor type (e.g. the union "jco:DestinationConfig|jco:AdvancedConfig")
         // is the type the generated value is assigned to. Send it as the typeConstraint so the
         // backend can derive the correct value. Optional, so older backends remain unaffected.
@@ -518,6 +533,11 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
         }
         const recordSourceResponse: RecordSourceGenResponse = await rpcClient.getBIDiagramRpcClient().getRecordSource(request);
         console.log(">>> recordSourceResponse", recordSourceResponse);
+
+        // Drop the response if a newer call to handleModelChange has since started
+        if (requestId !== modelChangeRequestIdRef.current) {
+            return;
+        }
 
         if (recordSourceResponse.recordValue !== undefined) {
             const content = recordSourceResponse.recordValue;
@@ -856,8 +876,8 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
                     fileName={fileName}
                     targetLineRange={targetLineRange}
                     onChange={handlePromptChange}
-                    onClose={() => setPromptEditTarget(null)}
-                    onSave={() => setPromptEditTarget(null)}
+                    onClose={closePromptEditor}
+                    onSave={closePromptEditor}
                 />
             )}
         </>
