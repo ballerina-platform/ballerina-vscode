@@ -71,6 +71,9 @@ const AddButtons = styled.div`
 
 // Recursively flatten search categories (which may nest Categories within their
 // items) down to AvailableNodes.
+const emptyStateKindWord = (searchNodesKind?: string): string =>
+    searchNodesKind && searchNodesKind !== "NEW_CONNECTION" ? formatMethodName(searchNodesKind) : "Connection";
+
 const flattenAvailableNodes = (items: Item[] | undefined): AvailableNode[] => {
     const out: AvailableNode[] = [];
     for (const item of items ?? []) {
@@ -261,12 +264,13 @@ export const NodeReferenceSelectEditor: React.FC<NodeReferenceSelectEditorProps>
         ?? (creationCodeData?.module ? formatMethodName(creationCodeData.module.split(".").pop() ?? "") : "");
     const isAgentReference = !!agentCodeData;
     const qualifier = creationName ? `${creationName} ` : "";
+    const kindWord = emptyStateKindWord(searchNodesKind);
     const emptyTitle = isAgentReference
         ? `No ${creationName || "agent"} in this project`
-        : `No ${qualifier}connection in this project`;
+        : `No ${qualifier}${kindWord.toLowerCase()} in this project`;
     const emptyAction = isAgentReference
         ? `Create ${creationName || "Agent"}`
-        : `Create ${qualifier}Connection`;
+        : `Create ${qualifier}${kindWord}`;
     const showEmptyPrompt = showCreateNew && !loading && !field.optional && selectItems.length === 0;
 
     const handleCreateNode = () => onCreateNode(
