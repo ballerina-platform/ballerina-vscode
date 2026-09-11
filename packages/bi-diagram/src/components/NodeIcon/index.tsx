@@ -119,8 +119,6 @@ const NODE_COLOR_GROUPS = {
         "AGENT_RUN",
         "AGENT",
         "AGENTS",
-        // Running a durable agent reads as an agent call, same as AGENT_RUN; DURABLE_AGENT_START stays
-        // in the green work-dispatch group above, since starting one is dispatching work, not calling it.
         "DURABLE_AGENT_RUN",
         "NP_FUNCTION",
         "NP_FUNCTION_CALL",
