@@ -21,6 +21,7 @@ import React from "react";
 import styled from "@emotion/styled";
 import { DiagramEngine } from "@projectstorm/react-diagrams-core";
 import { Icon, ThemeColors } from "@wso2/ui-toolkit";
+import { TopologyOrientation } from "../AgentTopologyDiagram/types";
 
 const Container = styled.div<{}>`
     display: flex;
@@ -98,10 +99,12 @@ const BeakerBadge = styled.span`
 interface ControlsProps {
     engine: DiagramEngine;
     onCleanupTestServices?: () => void;
+    orientation?: TopologyOrientation;
+    onToggleOrientation?: () => void;
 }
 
 export function Controls(props: ControlsProps) {
-    const { engine, onCleanupTestServices } = props;
+    const { engine, onCleanupTestServices, orientation, onToggleOrientation } = props;
 
     const handleZoomToFit = () => {
         if (engine.getCanvas()?.getBoundingClientRect) {
@@ -124,6 +127,20 @@ export function Controls(props: ControlsProps) {
                         <Icon name="bi-clean" isCodicon={false} sx={{ width: 16, height: 16, fontSize: 16 }} />
                         <BeakerBadge><Icon name="beaker" isCodicon={true} iconSx={{ fontSize: 12 }} sx={{ width: 8, height: 8 }} /></BeakerBadge>
                     </CleanupIconWrapper>
+                </Button>
+            )}
+            {onToggleOrientation && (
+                <Button
+                    onClick={onToggleOrientation}
+                    title={orientation === "vertical" ? "Lay out left to right" : "Lay out top to bottom"}
+                    data-testid="topology-orientation-toggle"
+                >
+                    <Icon
+                        name="arrow-swap"
+                        isCodicon={true}
+                        sx={{ width: 16, height: 16, fontSize: 16, transform: orientation === "vertical" ? "none" : "rotate(90deg)" }}
+                        iconSx={{ fontSize: 16 }}
+                    />
                 </Button>
             )}
             <Button onClick={handleZoomToFit}>

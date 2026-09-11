@@ -1,0 +1,99 @@
+/**
+ * Copyright (c) 2026, WSO2 LLC. (https://www.wso2.com) All Rights Reserved.
+ *
+ * WSO2 LLC. licenses this file to you under the Apache License,
+ * Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+import React from "react";
+import styled from "@emotion/styled";
+import { ThemeColors } from "@wso2/ui-toolkit";
+import { LegendKind } from "./types";
+
+const Container = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    background-color: ${ThemeColors.SURFACE};
+    border: 1px solid ${ThemeColors.OUTLINE_VARIANT};
+    font-family: "GilmerRegular";
+    font-size: 11px;
+    color: ${ThemeColors.ON_SURFACE};
+`;
+
+const Row = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 8px;
+`;
+
+const SWATCH_W = 24;
+const SWATCH_H = 16;
+const TIP = 6;
+
+function Line({ dashed = false }: { dashed?: boolean }) {
+    const y = SWATCH_H / 2;
+    return (
+        <svg width={SWATCH_W} height={SWATCH_H} style={{ flex: "none", overflow: "visible" }}>
+            <line x1={0} y1={y} x2={SWATCH_W - TIP} y2={y} stroke="currentColor" strokeWidth={1.5} strokeDasharray={dashed ? "4 3" : undefined} />
+            <polygon points={`${SWATCH_W - TIP},${y - TIP / 2} ${SWATCH_W},${y} ${SWATCH_W - TIP},${y + TIP / 2}`} fill="currentColor" />
+        </svg>
+    );
+}
+
+// One column for every swatch, so the labels line up.
+const Swatch = styled.div`
+    width: ${SWATCH_W}px;
+    display: flex;
+    justify-content: flex-start;
+    flex: none;
+`;
+
+const LEGEND_ROWS: Record<LegendKind, { label: string; explain: string; swatch: React.ReactNode }> = {
+    trigger: {
+        label: "Runs the agent",
+        explain: "A trigger (an HTTP resource, a remote function, or main) runs this agent.",
+        swatch: <Swatch><Line /></Swatch>,
+    },
+    delegation: {
+        label: "Delegates to",
+        explain: "This agent uses the other agent as a tool.",
+        swatch: <Swatch><Line dashed /></Swatch>,
+    },
+};
+
+const LEGEND_ORDER: LegendKind[] = ["trigger", "delegation"];
+
+export interface LegendProps {
+    kinds: LegendKind[];
+}
+
+export function Legend({ kinds }: LegendProps) {
+    if (kinds.length === 0) {
+        return null;
+    }
+    const present = new Set(kinds);
+    return (
+        <Container>
+            {LEGEND_ORDER.filter((kind) => present.has(kind)).map((kind) => (
+                <Row key={kind} title={LEGEND_ROWS[kind].explain}>
+                    {LEGEND_ROWS[kind].swatch}
+                    <span>{LEGEND_ROWS[kind].label}</span>
+                </Row>
+            ))}
+        </Container>
+    );
+}

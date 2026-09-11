@@ -19,6 +19,7 @@
 package io.ballerina.designmodelgenerator.core;
 
 import io.ballerina.designmodelgenerator.core.model.Activity;
+import io.ballerina.designmodelgenerator.core.model.AgentCall;
 import io.ballerina.designmodelgenerator.core.model.Connection;
 import io.ballerina.designmodelgenerator.core.model.Listener;
 import io.ballerina.designmodelgenerator.core.model.Location;
@@ -85,6 +86,18 @@ public class IntermediateModel {
         }
     }
 
+    /**
+     * A call from one function to another in the same package, recorded so the callee's agent calls can be spliced
+     * in where it was called.
+     *
+     * @param name   the callee's bare name
+     * @param method true for a call on {@code self}, resolved against the enclosing service's own functions
+     * @param line   the call site's line
+     * @param groups the constructs enclosing the call, outermost first, inherited by the callee's agent calls
+     */
+    public record HelperCall(String name, boolean method, int line, List<AgentCall.Group> groups) {
+    }
+
     public static class FunctionModel {
         protected final String name;
         protected final Set<String> dependentFuncs;
@@ -106,9 +119,28 @@ public class IntermediateModel {
         // or does not match any event declared by the workflow function
         protected final Set<String> invalidWorkflowSendData = new HashSet<>();
         protected final Set<String> allDependentInvalidWorkflowSendData = new HashSet<>();
+        protected final List<AgentCall> agentCalls = new ArrayList<>();
+        // Calls to local functions and to this service's own methods, in source order with the agent calls,
+        // so a helper's agent calls can be spliced in where the helper was called.
+        protected final List<HelperCall> helperCalls = new ArrayList<>();
 
         protected void addSentEvent(String workflowUuid, String eventName) {
             this.workflowSendData.computeIfAbsent(workflowUuid, k -> new HashSet<>()).add(eventName);
+        }
+
+        // Belt-and-suspenders against a node being visited twice (see the FunctionBodyBlockNode
+        // traversal note in CodeAnalyzer): a duplicate call at the same source line is dropped.
+        protected void addAgentCall(AgentCall agentCall) {
+            boolean alreadyRecorded = agentCalls.stream().anyMatch(existing -> existing.line() == agentCall.line());
+            if (!alreadyRecorded) {
+                agentCalls.add(agentCall);
+            }
+        }
+
+        protected void addHelperCall(HelperCall helperCall) {
+            if (!helperCalls.contains(helperCall)) {
+                helperCalls.add(helperCall);
+            }
         }
 
         public FunctionModel(String name) {

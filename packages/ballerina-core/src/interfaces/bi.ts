@@ -141,6 +141,14 @@ export type ToolData = {
     // True when the tool's @ai:AgentTool annotation gates it for human-in-the-loop approval
     // (requiresApproval: true, or a predicate function). Surfaced by the language server.
     requiresApproval?: boolean;
+    // The agent this tool hands off to, when the design model knows it.
+    targetAgent?: AgentToolTarget;
+};
+
+export type AgentToolTarget = {
+    name: string;
+    documentUri: string;
+    position: NodePosition;
 };
 
 export type AgentData = {
@@ -170,6 +178,8 @@ export type AgentUsage = {
     position: NodePosition;
     trigger?: AgentUsageTrigger;
     tryIt?: AgentUsageTryIt;
+    // The caller is another agent that uses this one as a tool, not an entry point.
+    parentAgent?: boolean;
 };
 
 export type AgentUsageTryIt = {

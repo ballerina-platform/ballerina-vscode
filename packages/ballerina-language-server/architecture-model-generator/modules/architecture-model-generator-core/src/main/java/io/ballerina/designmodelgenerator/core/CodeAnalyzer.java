@@ -44,6 +44,7 @@ import io.ballerina.compiler.syntax.tree.ClassDefinitionNode;
 import io.ballerina.compiler.syntax.tree.ClientResourceAccessActionNode;
 import io.ballerina.compiler.syntax.tree.CompoundAssignmentStatementNode;
 import io.ballerina.compiler.syntax.tree.DoStatementNode;
+import io.ballerina.compiler.syntax.tree.ElseBlockNode;
 import io.ballerina.compiler.syntax.tree.ExplicitNewExpressionNode;
 import io.ballerina.compiler.syntax.tree.ExpressionNode;
 import io.ballerina.compiler.syntax.tree.ExpressionStatementNode;
@@ -68,8 +69,10 @@ import io.ballerina.compiler.syntax.tree.ModuleVariableDeclarationNode;
 import io.ballerina.compiler.syntax.tree.NameReferenceNode;
 import io.ballerina.compiler.syntax.tree.NamedArgumentNode;
 import io.ballerina.compiler.syntax.tree.NamedWorkerDeclarationNode;
+import io.ballerina.compiler.syntax.tree.NamedWorkerDeclarator;
 import io.ballerina.compiler.syntax.tree.NewExpressionNode;
 import io.ballerina.compiler.syntax.tree.Node;
+import io.ballerina.compiler.syntax.tree.NodeList;
 import io.ballerina.compiler.syntax.tree.NodeVisitor;
 import io.ballerina.compiler.syntax.tree.PanicStatementNode;
 import io.ballerina.compiler.syntax.tree.PositionalArgumentNode;
@@ -90,7 +93,9 @@ import io.ballerina.compiler.syntax.tree.TransactionStatementNode;
 import io.ballerina.compiler.syntax.tree.VariableDeclarationNode;
 import io.ballerina.compiler.syntax.tree.WhileStatementNode;
 import io.ballerina.designmodelgenerator.core.model.Activity;
+import io.ballerina.designmodelgenerator.core.model.AgentCall;
 import io.ballerina.designmodelgenerator.core.model.Connection;
+import io.ballerina.designmodelgenerator.core.model.ConnectionKind;
 import io.ballerina.designmodelgenerator.core.model.Listener;
 import io.ballerina.designmodelgenerator.core.model.Location;
 import io.ballerina.designmodelgenerator.core.model.Workflow;
@@ -99,11 +104,14 @@ import io.ballerina.flowmodelgenerator.core.utils.WorkflowUtil;
 import io.ballerina.tools.text.LineRange;
 
 import java.nio.file.Path;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Deque;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * Code analyzer to analyze ST and update the intermediate model.
@@ -121,6 +129,11 @@ public class CodeAnalyzer extends NodeVisitor {
     private IntermediateModel.ServiceClassModel currentServiceClass;
     private String serviceClassName;
     private Workflow currentWorkflow;
+    // Nearest enclosing if/match/fork construct a call site is in, so agent calls in different
+    // branches or workers can be told apart on the overview; null outside any such construct.
+    // Enclosing if/match/fork/loop constructs of the statement being visited, outermost first.
+    private final Deque<AgentCall.Group> agentCallGroups = new ArrayDeque<>();
+    private static final String SELF = "self";
 
     private static final String RUN_WORKFLOW_FN_ARG = "processFunction";
     private static final String SEND_DATA_WORKFLOW_FN_ARG = "workflow";
@@ -284,11 +297,11 @@ public class CodeAnalyzer extends NodeVisitor {
 
     @Override
     public void visit(FunctionBodyBlockNode functionBodyBlockNode) {
+        functionBodyBlockNode.namedWorkerDeclarator()
+                .ifPresent(namedWorkerDeclarator -> namedWorkerDeclarator.accept(this));
         for (StatementNode statement : functionBodyBlockNode.statements()) {
             statement.accept(this);
         }
-        // TODO: Check if we need this?
-        super.visit(functionBodyBlockNode);
     }
 
     @Override
@@ -309,10 +322,17 @@ public class CodeAnalyzer extends NodeVisitor {
             return;
         }
         if (this.currentFunctionModel != null) {
-            this.currentFunctionModel.dependentFuncs.add(functionCallExpressionNode.functionName()
-                    .toSourceCode().trim());
+            String functionName = functionCallExpressionNode.functionName().toSourceCode().trim();
+            this.currentFunctionModel.dependentFuncs.add(functionName);
+            recordHelperCall(functionName, false, functionCallExpressionNode);
         }
         functionCallExpressionNode.arguments().forEach(arg -> arg.accept(this));
+    }
+
+    private void recordHelperCall(String name, boolean method, Node callNode) {
+        int line = callNode.lineRange().startLine().line();
+        this.currentFunctionModel.addHelperCall(
+                new IntermediateModel.HelperCall(name, method, line, List.copyOf(agentCallGroups)));
     }
 
     private void handleWorkflowCall(QualifiedNameReferenceNode qualifiedName,
@@ -411,11 +431,15 @@ public class CodeAnalyzer extends NodeVisitor {
         if (this.currentFunctionModel != null) {
             String methodName = methodCallExpressionNode.methodName().toSourceCode().trim();
             this.currentFunctionModel.dependentObjFuncs.add(methodName);
+            if (SELF.equals(methodCallExpressionNode.expression().toSourceCode().trim())) {
+                recordHelperCall(methodName, true, methodCallExpressionNode);
+            }
             handleDurableAgentCall(methodCallExpressionNode);
         }
 
         if (isAiMethodCall(methodCallExpressionNode.expression())) {
-            handleConnectionExpr(methodCallExpressionNode.expression());
+            handleConnectionExpr(methodCallExpressionNode.expression())
+                    .ifPresent(connection -> recordAgentCallIfAgent(methodCallExpressionNode, connection));
         }
 
         methodCallExpressionNode.arguments().forEach(arg -> arg.accept(this));
@@ -467,8 +491,17 @@ public class CodeAnalyzer extends NodeVisitor {
     @Override
     public void visit(RemoteMethodCallActionNode remoteMethodCallActionNode) {
         handleWorkflowContextCall(remoteMethodCallActionNode);
-        handleConnectionExpr(remoteMethodCallActionNode.expression());
+        handleConnectionExpr(remoteMethodCallActionNode.expression())
+                .ifPresent(connection -> recordAgentCallIfAgent(remoteMethodCallActionNode, connection));
         remoteMethodCallActionNode.arguments().forEach(arg -> arg.accept(this));
+    }
+
+    private void recordAgentCallIfAgent(Node callNode, Connection connection) {
+        if (!ConnectionKind.AGENT.toString().equals(connection.getKind())) {
+            return;
+        }
+        int line = callNode.lineRange().startLine().line();
+        this.currentFunctionModel.addAgentCall(new AgentCall(connection.getUuid(), line, List.copyOf(agentCallGroups)));
     }
 
     private void handleWorkflowContextCall(RemoteMethodCallActionNode remoteMethodCallActionNode) {
@@ -562,37 +595,40 @@ public class CodeAnalyzer extends NodeVisitor {
                 .forEach(expr -> expr.accept(this)));
     }
 
-    private void handleConnectionExpr(ExpressionNode expressionNode) {
-        if (this.currentFunctionModel != null) {
-            if (expressionNode instanceof FieldAccessExpressionNode fieldAccessExpressionNode) {
-                NameReferenceNode fieldName = fieldAccessExpressionNode.fieldName();
-                Optional<Symbol> fieldNameSymbol = semanticModel.symbol(fieldName);
-                if (fieldNameSymbol.isPresent()) {
-                    connectionFinder.findConnection(fieldNameSymbol.get(), new ArrayList<>());
-                    String hashCode = String.valueOf(fieldNameSymbol.get().getLocation().get().hashCode());
-                    if (intermediateModel.connectionMap.containsKey(hashCode)) {
-                        Connection connection = intermediateModel.connectionMap.get(hashCode);
-                        this.currentFunctionModel.connections.add(connection.getUuid());
-                    }
+    private Optional<Connection> handleConnectionExpr(ExpressionNode expressionNode) {
+        if (this.currentFunctionModel == null) {
+            return Optional.empty();
+        }
+        Connection connection = null;
+        if (expressionNode instanceof FieldAccessExpressionNode fieldAccessExpressionNode) {
+            NameReferenceNode fieldName = fieldAccessExpressionNode.fieldName();
+            Optional<Symbol> fieldNameSymbol = semanticModel.symbol(fieldName);
+            if (fieldNameSymbol.isPresent()) {
+                connectionFinder.findConnection(fieldNameSymbol.get(), new ArrayList<>());
+                String hashCode = String.valueOf(fieldNameSymbol.get().getLocation().get().hashCode());
+                if (intermediateModel.connectionMap.containsKey(hashCode)) {
+                    connection = intermediateModel.connectionMap.get(hashCode);
+                    this.currentFunctionModel.connections.add(connection.getUuid());
                 }
-            } else {
-                Optional<Symbol> symbol = this.semanticModel.symbol(expressionNode);
-                if (symbol.isPresent()) {
-                    String symbolHash = String.valueOf(symbol.get().getLocation().hashCode());
-                    if (intermediateModel.connectionMap.containsKey(symbolHash)) {
-                        Connection connection = intermediateModel.connectionMap.get(symbolHash);
+            }
+        } else {
+            Optional<Symbol> symbol = this.semanticModel.symbol(expressionNode);
+            if (symbol.isPresent()) {
+                String symbolHash = String.valueOf(symbol.get().getLocation().hashCode());
+                if (intermediateModel.connectionMap.containsKey(symbolHash)) {
+                    connection = intermediateModel.connectionMap.get(symbolHash);
+                    this.currentFunctionModel.connections.add(connection.getUuid());
+                } else {
+                    connectionFinder.findConnection(symbol.get(), new ArrayList<>());
+                    String hashCode = String.valueOf(symbol.get().getLocation().get().hashCode());
+                    if (intermediateModel.connectionMap.containsKey(hashCode)) {
+                        connection = intermediateModel.connectionMap.get(hashCode);
                         this.currentFunctionModel.connections.add(connection.getUuid());
-                    } else {
-                        connectionFinder.findConnection(symbol.get(), new ArrayList<>());
-                        String hashCode = String.valueOf(symbol.get().getLocation().get().hashCode());
-                        if (intermediateModel.connectionMap.containsKey(hashCode)) {
-                            Connection connection = intermediateModel.connectionMap.get(hashCode);
-                            this.currentFunctionModel.connections.add(connection.getUuid());
-                        }
                     }
                 }
             }
         }
+        return Optional.ofNullable(connection);
     }
 
     @Override
@@ -602,9 +638,36 @@ public class CodeAnalyzer extends NodeVisitor {
 
     @Override
     public void visit(IfElseStatementNode ifElseStatementNode) {
+        // Every branch of an if/else-if/else chain shares one group id (the outermost statement's
+        // line range), so agent calls in different branches are recognised as alternatives.
+        String chainId = String.valueOf(ifElseStatementNode.lineRange().hashCode());
         ifElseStatementNode.condition().accept(this);
-        ifElseStatementNode.ifBody().statements().forEach(statement -> statement.accept(this));
-        ifElseStatementNode.elseBody().ifPresent(elseBody -> elseBody.accept(this));
+        visitIfChainBranch(ifElseStatementNode.condition().toSourceCode().strip(), chainId,
+                ifElseStatementNode.ifBody());
+        ifElseStatementNode.elseBody().ifPresent(elseBody -> analyzeElseChain(elseBody, chainId));
+    }
+
+    private void visitIfChainBranch(String label, String chainId, BlockStatementNode body) {
+        visitInAgentCallGroup(new AgentCall.Group("if", chainId, label), body.statements());
+    }
+
+    private void visitInAgentCallGroup(AgentCall.Group group, NodeList<StatementNode> statements) {
+        this.agentCallGroups.addLast(group);
+        statements.forEach(statement -> statement.accept(this));
+        this.agentCallGroups.removeLast();
+    }
+
+    private void analyzeElseChain(Node elseBody, String chainId) {
+        switch (elseBody) {
+            case ElseBlockNode elseBlockNode -> analyzeElseChain(elseBlockNode.elseBody(), chainId);
+            case IfElseStatementNode nestedIf -> {
+                nestedIf.condition().accept(this);
+                visitIfChainBranch(nestedIf.condition().toSourceCode().strip(), chainId, nestedIf.ifBody());
+                nestedIf.elseBody().ifPresent(inner -> analyzeElseChain(inner, chainId));
+            }
+            case BlockStatementNode blockStatementNode -> visitIfChainBranch("else", chainId, blockStatementNode);
+            default -> throw new IllegalStateException("Unexpected else body kind: " + elseBody.kind());
+        }
     }
 
     @Override
@@ -706,6 +769,9 @@ public class CodeAnalyzer extends NodeVisitor {
                     if (expressionNode instanceof NewExpressionNode newExpressionNode) {
                         SeparatedNodeList<FunctionArgumentNode> argList =
                                 connectionFinder.getArgList(newExpressionNode);
+                        connectionFinder.extractRole(connection, argList);
+                        connectionFinder.extractAgentConfig(connection, argList);
+                        connectionFinder.extractTypedAgentTools(connection, rawType);
                         List<ExpressionNode> argExprs = connectionFinder.getInitMethodArgExprs(argList);
                         for (ExpressionNode argExpr : argExprs) {
                             connectionFinder.handleInitMethodArgs(connection, argExpr);
@@ -745,9 +811,15 @@ public class CodeAnalyzer extends NodeVisitor {
     @Override
     public void visit(WhileStatementNode whileStatementNode) {
         whileStatementNode.condition().accept(this);
-        whileStatementNode.whileBody().statements().forEach(statement -> statement.accept(this));
+        visitLoopBody("while", whileStatementNode.lineRange(), whileStatementNode.condition().toSourceCode().strip(),
+                whileStatementNode.whileBody());
         whileStatementNode.onFailClause().ifPresent(onFailClauseNode -> onFailClauseNode.blockStatement()
                 .statements().forEach(statement -> statement.accept(this)));
+    }
+
+    private void visitLoopBody(String kind, LineRange loopRange, String label, BlockStatementNode body) {
+        String id = String.valueOf(loopRange.hashCode());
+        visitInAgentCallGroup(new AgentCall.Group(kind, id, label), body.statements());
     }
 
     @Override
@@ -779,7 +851,16 @@ public class CodeAnalyzer extends NodeVisitor {
 
     @Override
     public void visit(NamedWorkerDeclarationNode namedWorkerDeclarationNode) {
-        namedWorkerDeclarationNode.workerBody().statements().forEach(statement -> statement.accept(this));
+        // A worker's enclosing construct is either a `fork { }` block or, for a bare function-level
+        // worker, the NamedWorkerDeclarator; both read as "fork" (parallel) on the overview.
+        LineRange idRange = switch (namedWorkerDeclarationNode.parent()) {
+            case ForkStatementNode forkStatementNode -> forkStatementNode.lineRange();
+            case NamedWorkerDeclarator namedWorkerDeclarator -> namedWorkerDeclarator.lineRange();
+            default -> namedWorkerDeclarationNode.lineRange();
+        };
+        String id = String.valueOf(idRange.hashCode());
+        visitInAgentCallGroup(new AgentCall.Group("fork", id, namedWorkerDeclarationNode.workerName().text()),
+                namedWorkerDeclarationNode.workerBody().statements());
         namedWorkerDeclarationNode.onFailClause().ifPresent(onFailClauseNode -> onFailClauseNode.blockStatement()
                 .statements().forEach(statement -> statement.accept(this)));
     }
@@ -793,8 +874,10 @@ public class CodeAnalyzer extends NodeVisitor {
 
     @Override
     public void visit(ForEachStatementNode forEachStatementNode) {
-        forEachStatementNode.blockStatement().statements().forEach(statement -> statement.accept(this));
         forEachStatementNode.actionOrExpressionNode().accept(this);
+        String label = forEachStatementNode.typedBindingPattern().bindingPattern().toSourceCode().strip() + " in "
+                + forEachStatementNode.actionOrExpressionNode().toSourceCode().strip();
+        visitLoopBody("foreach", forEachStatementNode.lineRange(), label, forEachStatementNode.blockStatement());
     }
 
     @Override
@@ -812,8 +895,15 @@ public class CodeAnalyzer extends NodeVisitor {
     @Override
     public void visit(MatchStatementNode matchStatementNode) {
         matchStatementNode.condition().accept(this);
+        String id = String.valueOf(matchStatementNode.lineRange().hashCode());
         matchStatementNode.matchClauses().forEach(matchClause -> {
-            matchClause.blockStatement().statements().forEach(statement -> statement.accept(this));
+            String label = matchClause.matchPatterns().stream()
+                    .map(pattern -> pattern.toSourceCode().strip())
+                    .collect(Collectors.joining("|"));
+            if (matchClause.matchGuard().isPresent()) {
+                label += " " + matchClause.matchGuard().get().toSourceCode().strip();
+            }
+            visitInAgentCallGroup(new AgentCall.Group("match", id, label), matchClause.blockStatement().statements());
         });
         matchStatementNode.onFailClause().ifPresent(onFailClauseNode -> onFailClauseNode.blockStatement()
                 .statements().forEach(statement -> statement.accept(this)));

@@ -36,6 +36,7 @@ const PROMPT_CHARS_PER_LINE = 42;
 const PROMPT_LINE_HEIGHT = 17;
 const PROMPT_LINES_IN_BASE_HEIGHT = 4;
 const PROMPT_MAX_EXTRA_LINES = 6;
+const USAGE_LABEL_EXTRA_WIDTH = 48;
 
 function getPromptExtraHeight(agentInfo?: NodeMetadata["agentInfo"]): number {
     const instructions = unwrapBallerinaString(agentInfo?.systemPrompt?.instructions);
@@ -67,7 +68,7 @@ export const AGENT_USAGE_ROW_PITCH = NODE_HEIGHT + AGENT_NODE_USAGE_GAP;
 
 export const AGENT_USAGE_ROW_LIMIT = 5;
 
-export const AGENT_USAGE_COLUMN_WIDTH = NODE_GAP_X + NODE_HEIGHT + LABEL_HEIGHT + LABEL_WIDTH;
+export const AGENT_USAGE_COLUMN_WIDTH = NODE_GAP_X + NODE_HEIGHT + LABEL_HEIGHT + LABEL_WIDTH + USAGE_LABEL_EXTRA_WIDTH;
 
 export type AgentUsageOptions = {
     canAddTrigger?: boolean;

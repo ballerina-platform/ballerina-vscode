@@ -18,8 +18,10 @@
 
 package io.ballerina.designmodelgenerator.core.model;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -39,6 +41,16 @@ public class Connection extends DesignGraphNode {
     private final Set<String> dependentConnection;
     private String kind = ConnectionKind.CONNECTION.toString();
     private Map<String, Object> metadata;
+    private String role;
+    private Set<String> delegatesTo;
+    private Set<String> toolConnections;
+    // Tool functions that hand the request to another agent: tool name to that agent's uuid.
+    private Map<String, String> agentTools;
+    private ModelProvider modelProvider;
+    private MemoryStore memory;
+    private String typeName;
+    // MCP toolkits an agent lists as tools: the variable's name, or the server URL for an inline toolkit.
+    private List<String> mcpToolKits;
 
     public Connection(String symbol, String sortText, Location location, Scope scope, String icon) {
         super(sortText);
@@ -134,6 +146,103 @@ public class Connection extends DesignGraphNode {
             this.metadata = new HashMap<>();
         }
         this.metadata.put(key, value);
+    }
+
+    public String getRole() {
+        return role;
+    }
+
+    public void setRole(String role) {
+        this.role = role;
+    }
+
+    public Set<String> getDelegatesTo() {
+        return delegatesTo;
+    }
+
+    public ModelProvider getModelProvider() {
+        return modelProvider;
+    }
+
+    public void setModelProvider(ModelProvider modelProvider) {
+        this.modelProvider = modelProvider;
+    }
+
+    public MemoryStore getMemory() {
+        return memory;
+    }
+
+    public void setMemory(MemoryStore memory) {
+        this.memory = memory;
+    }
+
+    public String getTypeName() {
+        return typeName;
+    }
+
+    public List<String> getMcpToolKits() {
+        return mcpToolKits;
+    }
+
+    public void addMcpToolKit(String label) {
+        if (this.mcpToolKits == null) {
+            this.mcpToolKits = new ArrayList<>();
+        }
+        if (!this.mcpToolKits.contains(label)) {
+            this.mcpToolKits.add(label);
+        }
+    }
+
+    public void setTypeName(String typeName) {
+        this.typeName = typeName;
+    }
+
+    /**
+     * The memory store an agent is constructed with.
+     *
+     * @param symbol the memory variable's name, absent for an inline expression
+     * @param type   the memory class name, e.g. MessageWindowChatMemory
+     */
+    public record MemoryStore(String symbol, String type) {
+    }
+
+    /**
+     * The model provider an agent is constructed with.
+     *
+     * @param symbol the provider variable's name, absent for an inline expression
+     * @param type   the provider class name, e.g. Wso2ModelProvider or OpenAiProvider
+     * @param icon   the provider module's icon URL, absent for an inline default provider
+     */
+    public record ModelProvider(String symbol, String type, String icon) {
+    }
+
+    public void addDelegatesTo(String agentUuid) {
+        if (this.delegatesTo == null) {
+            this.delegatesTo = new HashSet<>();
+        }
+        this.delegatesTo.add(agentUuid);
+    }
+
+    public Set<String> getToolConnections() {
+        return toolConnections;
+    }
+
+    public Map<String, String> getAgentTools() {
+        return agentTools;
+    }
+
+    public void addAgentTool(String toolFunctionName, String agentUuid) {
+        if (this.agentTools == null) {
+            this.agentTools = new HashMap<>();
+        }
+        this.agentTools.put(toolFunctionName, agentUuid);
+    }
+
+    public void addToolConnection(String connectionUuid) {
+        if (this.toolConnections == null) {
+            this.toolConnections = new HashSet<>();
+        }
+        this.toolConnections.add(connectionUuid);
     }
 
     private void collectTransitiveDependencies(Map<String, Connection> uuidToConnectionMap,

@@ -33,7 +33,25 @@ export type CDAutomation = {
     displayName: string;
     location: CDLocation;
     connections: string[];
+    workflows?: string[];
+    type?: string;
+    agentCalls?: CDAgentCall[];
     uuid: string;
+    enableFlowModel?: boolean;
+    sortText?: string;
+};
+
+export type CDAgentCallGroup = {
+    kind: "if" | "match" | "fork" | "while" | "foreach";
+    id: string;
+    label: string;
+};
+
+export type CDAgentCall = {
+    connection: string;
+    line: number;
+    // Enclosing if/match/fork/while/foreach constructs, outermost first.
+    groups?: CDAgentCallGroup[];
 };
 
 export type CDWorkflow = {
@@ -91,6 +109,32 @@ export type CDConnection = {
     sortText: string;
     icon?: string;
     kind?: string;
+    dependentFunctions?: string[];
+    dependentConnection?: string[];
+    role?: string;
+    delegatesTo?: string[];
+    toolConnections?: string[];
+    modelProvider?: CDModelProvider;
+    memory?: CDMemoryStore;
+    // Tool functions that hand the request to another agent; the rest of dependentFunctions are plain tools.
+    // Tool name -> uuid of the agent that tool hands off to.
+    agentTools?: Record<string, string>;
+    // The agent's class name, e.g. Agent or a definition such as CalendarAssistant.
+    typeName?: string;
+    // MCP toolkits listed as tools: the variable's name, or the server URL for an inline toolkit.
+    mcpToolKits?: string[];
+};
+
+// The provider an agent is constructed with; `symbol` is absent for an inline expression.
+export type CDModelProvider = {
+    symbol?: string;
+    type: string;
+    icon?: string;
+};
+
+export type CDMemoryStore = {
+    symbol?: string;
+    type: string;
 };
 
 export type CDListener = {
@@ -134,6 +178,7 @@ export type CDFunction = {
     workflows?: string[];
     workflowSendData?: Record<string, string[]>;
     invalidWorkflowSendData?: string[];
+    agentCalls?: CDAgentCall[];
 };
 
 export type CDResourceFunction = {
@@ -144,4 +189,5 @@ export type CDResourceFunction = {
     workflows?: string[];
     workflowSendData?: Record<string, string[]>;
     invalidWorkflowSendData?: string[];
+    agentCalls?: CDAgentCall[];
 };

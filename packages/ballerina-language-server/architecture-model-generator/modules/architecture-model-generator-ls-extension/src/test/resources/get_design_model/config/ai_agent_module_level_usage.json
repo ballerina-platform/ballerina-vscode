@@ -17,12 +17,19 @@
           }
         },
         "connections": [
-          "96e7834b-9b02-f2aa-b57e-66734a507d8e",
-          "9f2be3f6-e979-11a4-ca89-074fc92c6f0a"
+          "90d1bf41-ddf6-aa08-97a0-94f69d5e753b",
+          "edfbea7d-c767-4ff7-7254-4d21c7f051cd"
         ],
         "workflows": [],
         "type": "automation",
-        "uuid": "de2277fe-0d13-bb3c-7a5d-1aebd1e4a0c1",
+        "agentCalls": [
+          {
+            "connection": "edfbea7d-c767-4ff7-7254-4d21c7f051cd",
+            "line": 2,
+            "groups": []
+          }
+        ],
+        "uuid": "80c98c6c-b622-4bf5-33d0-38741a1e03c4",
         "enableFlowModel": true,
         "sortText": "Z"
       },
@@ -45,7 +52,7 @@
           "dependentFunctions": [],
           "dependentConnection": [],
           "kind": "Model Provider",
-          "uuid": "96e7834b-9b02-f2aa-b57e-66734a507d8e",
+          "uuid": "90d1bf41-ddf6-aa08-97a0-94f69d5e753b",
           "enableFlowModel": true,
           "sortText": "agents.bal2"
         },
@@ -66,10 +73,16 @@
           "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png",
           "dependentFunctions": [],
           "dependentConnection": [
-            "96e7834b-9b02-f2aa-b57e-66734a507d8e"
+            "90d1bf41-ddf6-aa08-97a0-94f69d5e753b"
           ],
-          "kind": "Connection",
-          "uuid": "10bda648-9c24-a26d-bb22-de773d3dc590",
+          "kind": "Agent",
+          "role": "Support",
+          "modelProvider": {
+            "symbol": "mathTutorModel",
+            "type": "Wso2ModelProvider",
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png?wso2_icon"
+          },
+          "uuid": "90433222-9f1e-3fed-2432-0101a5623e33",
           "enableFlowModel": false,
           "sortText": "services.bal24"
         },
@@ -92,10 +105,17 @@
             "sum"
           ],
           "dependentConnection": [
-            "96e7834b-9b02-f2aa-b57e-66734a507d8e"
+            "90d1bf41-ddf6-aa08-97a0-94f69d5e753b"
           ],
           "kind": "Agent",
-          "uuid": "9f2be3f6-e979-11a4-ca89-074fc92c6f0a",
+          "role": "Math Tutor",
+          "modelProvider": {
+            "symbol": "mathTutorModel",
+            "type": "Wso2ModelProvider",
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png?wso2_icon"
+          },
+          "typeName": "Agent",
+          "uuid": "edfbea7d-c767-4ff7-7254-4d21c7f051cd",
           "enableFlowModel": false,
           "sortText": "agents.bal4"
         },
@@ -117,7 +137,7 @@
           "dependentFunctions": [],
           "dependentConnection": [],
           "kind": "Connection",
-          "uuid": "d1b0d981-9ba6-7ae5-b9ee-6534a3722a6d",
+          "uuid": "5cae0814-9966-81ac-d126-d45948ef3bad",
           "enableFlowModel": true,
           "sortText": "services.bal3"
         }
@@ -137,7 +157,7 @@
             }
           },
           "attachedServices": [
-            "53ae8c43-b10e-65af-eb44-a4f952c1e72d"
+            "32d5daaa-3642-02f7-179b-e781cb7e3891"
           ],
           "kind": "ANON",
           "type": "http:Listener",
@@ -148,9 +168,38 @@
             }
           ],
           "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.6.png",
-          "uuid": "4147af89-1c3e-ac06-372f-decb357a79ac",
+          "uuid": "9095daf8-ece8-7b0a-a60e-b935c056f669",
           "enableFlowModel": false,
           "sortText": "services.bal13"
+        },
+        {
+          "symbol": "ANON",
+          "location": {
+            "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_15/services.bal",
+            "startLine": {
+              "line": 37,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 41,
+              "offset": 1
+            }
+          },
+          "attachedServices": [
+            "14dc5dd7-7098-d316-50d7-e00701c71a48"
+          ],
+          "kind": "ANON",
+          "type": "http:Listener",
+          "args": [
+            {
+              "key": "port",
+              "value": "8083"
+            }
+          ],
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.6.png",
+          "uuid": "72d7daaf-c50f-4d1f-1c17-e23f22f75f2a",
+          "enableFlowModel": false,
+          "sortText": "services.bal37"
         },
         {
           "symbol": "ANON",
@@ -166,7 +215,7 @@
             }
           },
           "attachedServices": [
-            "fa406ad8-a61f-1772-07b6-2d49fcf7ec9c"
+            "64431001-b086-f816-a17f-a079ab3091e0"
           ],
           "kind": "ANON",
           "type": "http:Listener",
@@ -177,7 +226,7 @@
             }
           ],
           "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.6.png",
-          "uuid": "757b5526-67be-eced-ceb0-13a28490eab7",
+          "uuid": "2be45451-39aa-77cc-83e7-f2e7f836878c",
           "enableFlowModel": false,
           "sortText": "services.bal20"
         },
@@ -195,7 +244,7 @@
             }
           },
           "attachedServices": [
-            "2cd76579-c8a1-8492-0c4b-5b8dae33c819"
+            "d2fc86e3-b772-5cfe-d379-f6178d93930f"
           ],
           "kind": "ANON",
           "type": "http:Listener",
@@ -206,38 +255,9 @@
             }
           ],
           "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.6.png",
-          "uuid": "a5d155dc-9526-2076-7646-b132e9e4df31",
+          "uuid": "b9661567-86d1-eb0b-5a20-5b0aeb050c92",
           "enableFlowModel": false,
           "sortText": "services.bal6"
-        },
-        {
-          "symbol": "ANON",
-          "location": {
-            "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_15/services.bal",
-            "startLine": {
-              "line": 37,
-              "offset": 0
-            },
-            "endLine": {
-              "line": 41,
-              "offset": 1
-            }
-          },
-          "attachedServices": [
-            "c1264eb8-3dff-68da-d020-70d3c0ecfeca"
-          ],
-          "kind": "ANON",
-          "type": "http:Listener",
-          "args": [
-            {
-              "key": "port",
-              "value": "8083"
-            }
-          ],
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.6.png",
-          "uuid": "a83b0593-5fef-263a-3d4e-694cff5f5801",
-          "enableFlowModel": false,
-          "sortText": "services.bal37"
         }
       ],
       "services": [
@@ -254,11 +274,11 @@
             }
           },
           "attachedListeners": [
-            "a5d155dc-9526-2076-7646-b132e9e4df31"
+            "b9661567-86d1-eb0b-5a20-5b0aeb050c92"
           ],
           "connections": [
-            "96e7834b-9b02-f2aa-b57e-66734a507d8e",
-            "9f2be3f6-e979-11a4-ca89-074fc92c6f0a"
+            "90d1bf41-ddf6-aa08-97a0-94f69d5e753b",
+            "edfbea7d-c767-4ff7-7254-4d21c7f051cd"
           ],
           "workflows": [],
           "functions": [],
@@ -279,18 +299,25 @@
                 }
               },
               "connections": [
-                "96e7834b-9b02-f2aa-b57e-66734a507d8e",
-                "9f2be3f6-e979-11a4-ca89-074fc92c6f0a"
+                "90d1bf41-ddf6-aa08-97a0-94f69d5e753b",
+                "edfbea7d-c767-4ff7-7254-4d21c7f051cd"
               ],
               "workflows": [],
               "workflowSendData": {},
-              "invalidWorkflowSendData": []
+              "invalidWorkflowSendData": [],
+              "agentCalls": [
+                {
+                  "connection": "edfbea7d-c767-4ff7-7254-4d21c7f051cd",
+                  "line": 8,
+                  "groups": []
+                }
+              ]
             }
           ],
           "absolutePath": "/mathService ",
           "type": "http:Service",
           "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.6.png",
-          "uuid": "2cd76579-c8a1-8492-0c4b-5b8dae33c819",
+          "uuid": "d2fc86e3-b772-5cfe-d379-f6178d93930f",
           "enableFlowModel": true,
           "sortText": "services.bal6"
         },
@@ -307,11 +334,11 @@
             }
           },
           "attachedListeners": [
-            "a83b0593-5fef-263a-3d4e-694cff5f5801"
+            "72d7daaf-c50f-4d1f-1c17-e23f22f75f2a"
           ],
           "connections": [
-            "96e7834b-9b02-f2aa-b57e-66734a507d8e",
-            "9f2be3f6-e979-11a4-ca89-074fc92c6f0a"
+            "90d1bf41-ddf6-aa08-97a0-94f69d5e753b",
+            "edfbea7d-c767-4ff7-7254-4d21c7f051cd"
           ],
           "workflows": [],
           "functions": [],
@@ -332,18 +359,25 @@
                 }
               },
               "connections": [
-                "96e7834b-9b02-f2aa-b57e-66734a507d8e",
-                "9f2be3f6-e979-11a4-ca89-074fc92c6f0a"
+                "90d1bf41-ddf6-aa08-97a0-94f69d5e753b",
+                "edfbea7d-c767-4ff7-7254-4d21c7f051cd"
               ],
               "workflows": [],
               "workflowSendData": {},
-              "invalidWorkflowSendData": []
+              "invalidWorkflowSendData": [],
+              "agentCalls": [
+                {
+                  "connection": "edfbea7d-c767-4ff7-7254-4d21c7f051cd",
+                  "line": 39,
+                  "groups": []
+                }
+              ]
             }
           ],
           "absolutePath": "/indirectService ",
           "type": "http:Service",
           "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.6.png",
-          "uuid": "c1264eb8-3dff-68da-d020-70d3c0ecfeca",
+          "uuid": "14dc5dd7-7098-d316-50d7-e00701c71a48",
           "enableFlowModel": true,
           "sortText": "services.bal37"
         },
@@ -360,10 +394,10 @@
             }
           },
           "attachedListeners": [
-            "4147af89-1c3e-ac06-372f-decb357a79ac"
+            "9095daf8-ece8-7b0a-a60e-b935c056f669"
           ],
           "connections": [
-            "d1b0d981-9ba6-7ae5-b9ee-6534a3722a6d"
+            "5cae0814-9966-81ac-d126-d45948ef3bad"
           ],
           "workflows": [],
           "functions": [],
@@ -384,17 +418,18 @@
                 }
               },
               "connections": [
-                "d1b0d981-9ba6-7ae5-b9ee-6534a3722a6d"
+                "5cae0814-9966-81ac-d126-d45948ef3bad"
               ],
               "workflows": [],
               "workflowSendData": {},
-              "invalidWorkflowSendData": []
+              "invalidWorkflowSendData": [],
+              "agentCalls": []
             }
           ],
           "absolutePath": "/healthService ",
           "type": "http:Service",
           "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.6.png",
-          "uuid": "53ae8c43-b10e-65af-eb44-a4f952c1e72d",
+          "uuid": "32d5daaa-3642-02f7-179b-e781cb7e3891",
           "enableFlowModel": true,
           "sortText": "services.bal13"
         },
@@ -411,11 +446,11 @@
             }
           },
           "attachedListeners": [
-            "757b5526-67be-eced-ceb0-13a28490eab7"
+            "2be45451-39aa-77cc-83e7-f2e7f836878c"
           ],
           "connections": [
-            "10bda648-9c24-a26d-bb22-de773d3dc590",
-            "96e7834b-9b02-f2aa-b57e-66734a507d8e"
+            "90d1bf41-ddf6-aa08-97a0-94f69d5e753b",
+            "90433222-9f1e-3fed-2432-0101a5623e33"
           ],
           "workflows": [],
           "functions": [
@@ -435,7 +470,8 @@
               "connections": [],
               "workflows": [],
               "workflowSendData": {},
-              "invalidWorkflowSendData": []
+              "invalidWorkflowSendData": [],
+              "agentCalls": []
             }
           ],
           "remoteFunctions": [],
@@ -455,18 +491,25 @@
                 }
               },
               "connections": [
-                "10bda648-9c24-a26d-bb22-de773d3dc590",
-                "96e7834b-9b02-f2aa-b57e-66734a507d8e"
+                "90d1bf41-ddf6-aa08-97a0-94f69d5e753b",
+                "90433222-9f1e-3fed-2432-0101a5623e33"
               ],
               "workflows": [],
               "workflowSendData": {},
-              "invalidWorkflowSendData": []
+              "invalidWorkflowSendData": [],
+              "agentCalls": [
+                {
+                  "connection": "90433222-9f1e-3fed-2432-0101a5623e33",
+                  "line": 32,
+                  "groups": []
+                }
+              ]
             }
           ],
           "absolutePath": "/supportService ",
           "type": "http:Service",
           "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.6.png",
-          "uuid": "fa406ad8-a61f-1772-07b6-2d49fcf7ec9c",
+          "uuid": "64431001-b086-f816-a17f-a079ab3091e0",
           "enableFlowModel": true,
           "sortText": "services.bal20"
         }

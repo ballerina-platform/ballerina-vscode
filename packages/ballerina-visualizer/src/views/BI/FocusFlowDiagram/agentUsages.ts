@@ -17,11 +17,13 @@
  */
 
 import {
+    AgentToolTarget,
     AgentTriggerDeletionScope,
     AgentUsage,
     AgentUsageTrigger,
     AgentUsageTriggerListener,
     AgentUsageTryIt,
+    CDAgentCall,
     CDFunction,
     CDLocation,
     CDModel,
@@ -81,6 +83,13 @@ function serviceTypeLabel(type?: string): string | undefined {
     }
     const modulePart = type.includes(":") ? type.split(":")[0] : type;
     return SERVICE_TYPE_LABELS[modulePart] ?? `${modulePart.charAt(0).toUpperCase()}${modulePart.slice(1)} Service`;
+}
+
+// An Agent Chat row already names the service kind, so its sublabel is the bare path.
+function serviceSubLabel(service: CDService): string {
+    const label = serviceLabel(service);
+    const typeLabel = modulePrefix(service.type) === "ai" ? undefined : serviceTypeLabel(service.type);
+    return typeLabel && label.startsWith("/") ? `${typeLabel} · ${label}` : label;
 }
 
 function resourcePath(path: string): string {
@@ -156,6 +165,37 @@ function tryItFor(model: CDModel, service: CDService): AgentUsageTryIt | undefin
     return { basePath: service.absolutePath?.trim() || "/", listener };
 }
 
+type AgentCaller = { connections?: string[]; agentCalls?: CDAgentCall[] };
+
+// A caller's connections fold in what its agents delegate to; only its own calls make it a trigger.
+// The handler runs the agent itself or through a helper; reaching it through another agent's tool is delegation.
+function runsAgent(fn: AgentCaller, uuid: string, delegated: Set<string>): boolean {
+    const called = (fn.agentCalls ?? []).some((call) => call.connection === uuid);
+    return called || (Boolean(fn.connections?.includes(uuid)) && !delegated.has(uuid));
+}
+
+function delegatedAgentUuids(model: CDModel): Set<string> {
+    return new Set((model.connections ?? []).flatMap((connection) => (connection.kind === "Agent" ? connection.delegatesTo ?? [] : [])));
+}
+
+function mentionedByHandler(service: CDService, uuid: string): boolean {
+    return [...(service.resourceFunctions ?? []), ...(service.remoteFunctions ?? [])].some((fn) => fn.connections?.includes(uuid));
+}
+
+function parentAgentUsages(model: CDModel, uuid: string): AgentUsage[] {
+    return (model.connections ?? [])
+        .filter((connection) => connection.kind === "Agent" && connection.delegatesTo?.includes(uuid))
+        .map((parent) => ({
+            label: parent.symbol,
+            serviceLabel: "uses as a tool",
+            type: "agent",
+            typeLabel: "Agent",
+            documentUri: parent.location.filePath,
+            position: toPosition(parent.location),
+            parentAgent: true,
+        }));
+}
+
 function agentCallSite(service: CDService, uuid: string, entryPoints: number): CDLocation | undefined {
     if (entryPoints !== 1) {
         return undefined;
@@ -168,9 +208,11 @@ function usagesForService(
     model: CDModel,
     service: CDService,
     uuid: string,
+    delegated: Set<string>,
     scope?: AgentTriggerDeletionScope
 ): AgentUsage[] {
     const label = serviceLabel(service);
+    const subLabel = serviceSubLabel(service);
     const name = serviceName(service);
     const isAgentChat = modulePrefix(service.type) === "ai";
     const trigger = scope ? triggerFor(model, service) : undefined;
@@ -183,11 +225,11 @@ function usagesForService(
     const usages: AgentUsage[] = [];
 
     for (const resource of service.resourceFunctions ?? []) {
-        if (resource.connections?.includes(uuid)) {
+        if (runsAgent(resource, uuid, delegated)) {
             const rowLabel = isAgentChat ? "Agent Chat" : resourceLabel(resource.accessor, resource.path);
             usages.push({
                 label: rowLabel,
-                serviceLabel: label,
+                serviceLabel: subLabel,
                 serviceName: name,
                 functionName: resourcePath(resource.path),
                 type: service.type,
@@ -204,10 +246,10 @@ function usagesForService(
     }
 
     for (const fn of service.remoteFunctions ?? []) {
-        if (fn.connections?.includes(uuid)) {
+        if (runsAgent(fn, uuid, delegated)) {
             usages.push({
                 label: fn.name,
-                serviceLabel: label,
+                serviceLabel: subLabel,
                 serviceName: name,
                 functionName: fn.name,
                 type: service.type,
@@ -227,7 +269,7 @@ function usagesForService(
         usages[0].position = toPosition(callSite);
     }
 
-    if (usages.length === 0) {
+    if (usages.length === 0 && !mentionedByHandler(service, uuid)) {
         usages.push({
             label,
             serviceName: name,
@@ -284,11 +326,12 @@ export function findAgentUsages(
         .filter((service) => service.connections?.includes(uuid))
         .filter((service) => !isGeneratedChatService(service.location?.filePath));
 
+    const delegated = delegatedAgentUuids(model);
     const usages = groupByChannel(services).flatMap((service) =>
-        usagesForService(model, service, uuid, triggerScopes?.get(modulePrefix(service.type))));
+        usagesForService(model, service, uuid, delegated, triggerScopes?.get(modulePrefix(service.type))));
 
     const automation = model.automation;
-    if (automation?.connections?.includes(uuid)) {
+    if (automation && runsAgent(automation, uuid, delegated)) {
         usages.push({
             label: automation.displayName || automation.name,
             type: "automation",
@@ -297,11 +340,36 @@ export function findAgentUsages(
             position: toPosition(automation.location),
         });
     }
+    usages.push(...parentAgentUsages(model, uuid));
 
     return usages;
 }
 
+// Which agent each agent-tool hands off to, so the rail can offer a jump to it.
+export function findAgentToolTargets(model: CDModel, agent: AgentRef): Record<string, AgentToolTarget> {
+    const uuid = model && findAgentUuid(model, agent);
+    const connections = model?.connections ?? [];
+    const own = connections.find((connection) => connection.uuid === uuid);
+    const targets: Record<string, AgentToolTarget> = {};
+    for (const [tool, targetUuid] of Object.entries(own?.agentTools ?? {})) {
+        const target = connections.find((connection) => connection.uuid === targetUuid);
+        if (target) {
+            targets[tool] = { name: target.symbol, documentUri: target.location.filePath, position: toPosition(target.location) };
+        }
+    }
+    return targets;
+}
+
 const usageCache = new Map<string, AgentUsage[]>();
+const toolTargetCache = new Map<string, Record<string, AgentToolTarget>>();
+
+export function getCachedToolTargets(key: string): Record<string, AgentToolTarget> | undefined {
+    return toolTargetCache.get(key);
+}
+
+export function setCachedToolTargets(key: string, targets: Record<string, AgentToolTarget>): void {
+    toolTargetCache.set(key, targets);
+}
 
 export function usageCacheKey(projectPath: string, filePath: string, agentName: string): string {
     return `${projectPath}::${filePath}::${agentName}`;
