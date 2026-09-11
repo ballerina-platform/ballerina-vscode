@@ -48,7 +48,7 @@ export function getIntegrationTypes(projectStructure: ProjectStructure | undefin
     // Extract scopes from services based on their module names
     if (services) {
         const svcScopes = services
-            .map(svc => findScope(svc?.kind, svc?.moduleName))
+            .map(svc => findScope(svc?.triggerKind ?? svc?.kind, svc?.moduleName))
             .filter(svc => svc !== undefined);
         scopes = Array.from(new Set(svcScopes)); // Remove duplicates
     }

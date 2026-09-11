@@ -419,6 +419,7 @@ async function getEntryValue(artifact: BaseArtifact, projectPath: string, icon: 
             entryValue.iconColor = resolveEntryColor(serviceIcon, artifact.module);
             entryValue.iconLight = serviceIcon?.light;
             entryValue.iconDark = serviceIcon?.dark;
+            entryValue.triggerKind = artifact.triggerKind;
             entryValue.kind = serviceIcon?.kind;
             // Chat agent services (module `ai`) carry their resources (`chat`, and now the
             // human-in-the-loop `decision` resource) as real children exactly like any other
@@ -448,6 +449,7 @@ async function getEntryValue(artifact: BaseArtifact, projectPath: string, icon: 
             entryValue.iconColor = resolveEntryColor(listenerIcon, artifact.module);
             entryValue.iconLight = listenerIcon?.light;
             entryValue.iconDark = listenerIcon?.dark;
+            entryValue.triggerKind = artifact.triggerKind;
             entryValue.kind = listenerIcon?.kind;
             break;
         case DIRECTORY_MAP.CONNECTION:
@@ -760,14 +762,22 @@ async function populateLocalConnectors(projectDir: string, response: ProjectStru
  * tree (glyph -> kind default) against the shared brand-icon registry in @wso2/ballerina-core (the
  * single source shared with the Add-Artifact gallery and the component diagram): the LS-declared
  * `icon.glyph`, then the registry brand glyph keyed by module, then the `kind` default.
+ *
+ * A real theme-aware SVG pair (both `icon.light` and `icon.dark` present) is left to render via
+ * `iconLight`/`iconDark` instead: falling through to the kind-default glyph here would give the
+ * consumer a non-empty `icon` it prefers over the colored SVG, silently discarding it.
  */
-function resolveEntryGlyph(icon: IconDescriptor | undefined, module: string | undefined): string {
+function resolveEntryGlyph(icon: IconDescriptor | undefined, module: string | undefined): string | undefined {
+    if (icon?.light && icon?.dark) {
+        return icon?.glyph;
+    }
     return icon?.glyph
-        ?? resolveBrandIcon(module)?.glyph
+        ?? (icon?.source === "trigger-ui-metadata" ? undefined : resolveBrandIcon(module)?.glyph)
         ?? resolveKindDefaultIcon(icon?.kind).glyph;
 }
 
 /** Resolves the glyph tint: the LS-declared `icon.color`, else the shared registry's brand color. */
 function resolveEntryColor(icon: IconDescriptor | undefined, module: string | undefined): string | undefined {
-    return icon?.color ?? resolveBrandIcon(module)?.color;
+    return icon?.color
+        ?? (icon?.source === "trigger-ui-metadata" ? undefined : resolveBrandIcon(module)?.color);
 }

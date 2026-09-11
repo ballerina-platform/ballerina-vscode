@@ -18,6 +18,7 @@
 
 package io.ballerina.servicemodelgenerator.extension.builder.function;
 
+import io.ballerina.compiler.syntax.tree.FunctionDefinitionNode;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
 import io.ballerina.modelgenerator.commons.ModulePrefixContext;
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerUISchemaModel;
@@ -26,6 +27,7 @@ import io.ballerina.servicemodelgenerator.extension.connector.AnnotationEmitter;
 import io.ballerina.servicemodelgenerator.extension.connector.IncludedRecordBinder;
 import io.ballerina.servicemodelgenerator.extension.connector.TriggerModelReader;
 import io.ballerina.servicemodelgenerator.extension.connector.adapter.PropertyValueAdapter;
+import io.ballerina.servicemodelgenerator.extension.connector.adapter.TriggerFunctionAdapter;
 import io.ballerina.servicemodelgenerator.extension.model.Codedata;
 import io.ballerina.servicemodelgenerator.extension.model.Function;
 import io.ballerina.servicemodelgenerator.extension.model.MetaData;
@@ -208,9 +210,20 @@ public class SchemaDrivenFunctionBuilder extends AbstractFunctionBuilder {
 
     @Override
     public Function getModelFromSource(ModelFromSourceContext context) {
-        Function function = super.getModelFromSource(context);
         Optional<TriggerUISchemaModel> triggerModel = TriggerModelReader.getInstance()
                 .getSchemaDrivenTriggerModel(context.orgName(), context.moduleName(), context.version());
+        if (triggerModel.isPresent() && context.node() instanceof FunctionDefinitionNode functionDefinitionNode) {
+            TriggerUISchemaModel.FunctionModel model = findFunctionModel(triggerModel.get(), context.serviceType(),
+                    functionDefinitionNode.functionName().text().trim());
+            if (model != null) {
+                Function function = overlaySourceOntoFunctionTemplate(TriggerFunctionAdapter.toFunction(model),
+                        functionDefinitionNode);
+                function.setEditable(true);
+                stampCodedata(function, context);
+                return function;
+            }
+        }
+        Function function = super.getModelFromSource(context);
         if (triggerModel.isPresent()) {
             overlayConnectorMetadata(function, triggerModel.get(), context.serviceType());
             stampCodedata(function, context);

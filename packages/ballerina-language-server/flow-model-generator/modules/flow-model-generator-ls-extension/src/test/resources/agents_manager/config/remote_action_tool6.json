@@ -134,18 +134,7 @@
       "module": "github",
       "object": "Client",
       "symbol": "get",
-      "isNew": true,
-      "lineRange": {
-        "fileName": "agents.bal",
-        "startLine": {
-          "line": 13,
-          "offset": 0
-        },
-        "endLine": {
-          "line": 13,
-          "offset": 0
-        }
-      }
+      "isNew": true
     },
     "returning": false,
     "properties": {

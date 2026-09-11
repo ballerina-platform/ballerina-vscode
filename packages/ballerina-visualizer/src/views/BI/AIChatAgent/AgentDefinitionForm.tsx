@@ -186,7 +186,7 @@ function LibraryDetailsForm({
                         <TextField
                             label="Package Name"
                             required
-                            description="Specify the package name."
+                            description="Provide a name for the package."
                             value={data.packageName}
                             errorMsg={visibleError(packageNameError, "packageName")}
                             onTextChange={(packageName) => {
@@ -200,7 +200,7 @@ function LibraryDetailsForm({
                         <TextField
                             label="Organization"
                             required
-                            description="The organization that owns this package."
+                            description="Provide the name of the organization that owns this package."
                             value={data.orgName}
                             disabled={isOrgLocked}
                             errorMsg={visibleError(orgNameError, "orgName")}
@@ -214,7 +214,7 @@ function LibraryDetailsForm({
                         <TextField
                             label="Package Version"
                             placeholder="0.1.0"
-                            description="Version of the package."
+                            description="Provide a version for the package."
                             value={data.version}
                             onTextChange={(version) => onChange({ version })}
                             sx={{ width: "100%" }}

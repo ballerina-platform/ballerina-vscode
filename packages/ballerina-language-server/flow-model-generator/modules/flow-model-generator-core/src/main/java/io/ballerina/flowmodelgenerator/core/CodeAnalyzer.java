@@ -2405,8 +2405,8 @@ public class CodeAnalyzer extends NodeVisitor {
                     dropdownValue = ActivityCallBuilder.MANUAL_RETRY_VALUE;
                     review = new ActivityCallBuilder.ReviewFormValues(
                             fields.getOrDefault(USER_ROLES_FIELD, ""),
-                            unquoted(fields.get("title")),
-                            unquoted(fields.get("description")),
+                            reviewText(fields.get("title")),
+                            reviewText(fields.get("description")),
                             fields.getOrDefault("timeout", ""));
                 } else {
                     dropdownValue = ActivityCallBuilder.AUTO_RETRY_VALUE;
@@ -2451,13 +2451,28 @@ public class CodeAnalyzer extends NodeVisitor {
     private static final String USER_ROLES_FIELD = "userRoles";
 
     /**
-     * A string literal as the form shows it: the quotes and the escapes belong to the source, not to
-     * the value. The one inverse of the encoder the form writes with
-     * ({@link WorkflowUtil#stringLiteral}), so a title carrying a quote or a line break survives a
-     * read and a save unchanged instead of gaining a backslash on each edit.
+     * A review's title or description as the form holds it, and in which mode.
+     *
+     * <p>A string literal is shown as the text it denotes: the quotes and the escapes belong to the
+     * source, not to the value. {@link WorkflowUtil#stringLiteralText} is the one inverse of the
+     * encoder the form writes with ({@link WorkflowUtil#stringLiteral}), so a title carrying a quote
+     * or a line break survives a read and a save unchanged instead of gaining a backslash on each
+     * edit.
+     *
+     * <p>Decoding is also what settles the mode, since that method returns anything which is not a
+     * string literal unchanged: a value it altered was a literal — text mode — and one it left alone
+     * is the form's own source. Recording that here is the only chance to; once the quotes are off,
+     * {@code reviewTitle} could equally be a literal's text or a variable of that name.
      */
-    private static String unquoted(String literal) {
-        return WorkflowUtil.stringLiteralText(literal);
+    private static ActivityCallBuilder.ReviewText reviewText(String literal) {
+        if (literal == null || literal.isBlank()) {
+            return ActivityCallBuilder.ReviewText.empty();
+        }
+        String source = literal.trim();
+        String text = WorkflowUtil.stringLiteralText(source);
+        return text.equals(source)
+                ? ActivityCallBuilder.ReviewText.expression(source)
+                : ActivityCallBuilder.ReviewText.text(text);
     }
 
     // Whether the expression IS one of the named policy sentinels, bare or module-qualified.
@@ -2515,9 +2530,9 @@ public class CodeAnalyzer extends NodeVisitor {
                 .stepOut().addProperty(RestActivityStrategy.METHOD_KEY);
 
         // path — TEXT/EXPRESSION; detect existing string-literal to set mode correctly
-        addDualTypePathProperty(src, RestActivityStrategy.PATH_KEY,
+        addDualTypeProperty(src, RestActivityStrategy.PATH_KEY,
                 "Path", "Resource path appended to the connection's base URL (e.g., \"/users/1\")",
-                "/users/1", false);
+                "/users/1", "string", DualTypeUse.OPTIONAL);
 
         // Hidden top-level message property — value store for method-driven dynamic sub-field.
         String message = src.getOrDefault(RestActivityStrategy.MESSAGE_KEY, "");
@@ -2551,10 +2566,10 @@ public class CodeAnalyzer extends NodeVisitor {
                 .stepOut().addProperty(SoapActivityStrategy.BODY_KEY);
 
         // action — dual TEXT/EXPRESSION (like path: detect string literals)
-        addDualTypePathProperty(src, SoapActivityStrategy.ACTION_KEY,
+        addDualTypeProperty(src, SoapActivityStrategy.ACTION_KEY,
                 "Action",
                 "SOAPAction header. Required for SOAP 1.1 endpoints; optional for SOAP 1.2.",
-                "http://tempuri.org/Add", true);
+                "http://tempuri.org/Add", "string", DualTypeUse.OPTIONAL_ADVANCED);
 
         // headers — advanced EXPRESSION
         String headers = src.getOrDefault(SoapActivityStrategy.HEADERS_KEY, "");
@@ -2566,21 +2581,26 @@ public class CodeAnalyzer extends NodeVisitor {
                 .stepOut().addProperty(SoapActivityStrategy.HEADERS_KEY);
 
         // path — TEXT/EXPRESSION, advanced
-        addDualTypePathProperty(src, SoapActivityStrategy.PATH_KEY,
+        addDualTypeProperty(src, SoapActivityStrategy.PATH_KEY,
                 "Path", "Optional resource path appended to the connection's base URL",
-                "", true);
+                "", "string", DualTypeUse.OPTIONAL_ADVANCED);
     }
 
     /** Rebuilds Email-specific form properties from source values, preserving template shapes. */
     private void populateEmailProperties(Map<String, String> src, Map<String, String> opts) {
-        addRequiredExpressionProperty(src, EmailActivityStrategy.TO_KEY,
-                "To", "Recipient email address (or list of addresses)", "string|string[]");
-        addRequiredExpressionProperty(src, EmailActivityStrategy.SUBJECT_KEY,
-                "Subject", "Email subject line", "string");
-        addRequiredExpressionProperty(src, EmailActivityStrategy.FROM_KEY,
-                "From", "Sender address", "string");
-        addRequiredExpressionProperty(src, EmailActivityStrategy.BODY_KEY,
-                "Body", "Plain-text body of the email", "string");
+        // to/subject/'from/body are TEXT/EXPRESSION dual-typed: a string literal (or an absent
+        // argument) reopens the form in text mode, anything else in expression mode. The order must
+        // match EmailActivityStrategy.setFormProperties — properties are kept in insertion order, so
+        // it is the order the form renders in.
+        addDualTypeProperty(src, EmailActivityStrategy.TO_KEY,
+                "To", "Recipient email address (or list of addresses)", "", "string|string[]",
+                DualTypeUse.REQUIRED);
+        addDualTypeProperty(src, EmailActivityStrategy.SUBJECT_KEY,
+                "Subject", "Email subject line", "", "string", DualTypeUse.REQUIRED);
+        addDualTypeProperty(src, EmailActivityStrategy.FROM_KEY,
+                "From", "Sender address", "", "string", DualTypeUse.REQUIRED);
+        addDualTypeProperty(src, EmailActivityStrategy.BODY_KEY,
+                "Body", "Plain-text body of the email", "", "string", DualTypeUse.REQUIRED);
 
         // EmailOptions fields — all optional, advanced
         addOptionalAdvancedExpression(opts, "cc",
@@ -2617,42 +2637,55 @@ public class CodeAnalyzer extends NodeVisitor {
                 .stepOut().addProperty(propKey);
     }
 
-    /**
-     * Adds a dual TEXT/EXPRESSION path-style property. The TEXT type is selected when the source
-     * value is a Ballerina double-quoted string literal; EXPRESSION otherwise.
-     *
-     * @param advanced {@code true} to mark the property as advanced (for SOAP path/action)
-     */
-    private void addDualTypePathProperty(Map<String, String> src, String key,
-                                          String label, String description,
-                                          String placeholder, boolean advanced) {
-        String value = src.getOrDefault(key, "");
-        boolean isStringLit = value.length() >= 2 && value.startsWith("\"") && value.endsWith("\"");
-        String displayValue = isStringLit ? value.substring(1, value.length() - 1) : value;
-
-        nodeBuilder.properties().custom()
-                .metadata().label(label).description(description).stepOut()
-                .type().fieldType(Property.ValueType.TEXT).ballerinaType("string")
-                    .selected(isStringLit).stepOut()
-                .type().fieldType(Property.ValueType.EXPRESSION).ballerinaType("string")
-                    .selected(!isStringLit).stepOut()
-                .value(displayValue).placeholder(placeholder)
-                .editable(true).optional(true).advanced(advanced)
-                .stepOut().addProperty(key);
+    /** How a dual TEXT/EXPRESSION property is exposed on the form. */
+    private enum DualTypeUse {
+        /** A REQUIRED parameter: always shown, never optional. */
+        REQUIRED,
+        /** An optional parameter, shown alongside the rest of the form. */
+        OPTIONAL,
+        /** An optional parameter kept behind the form's "advanced" disclosure. */
+        OPTIONAL_ADVANCED
     }
 
-    /** Adds a REQUIRED EXPRESSION property for simple string/string[] fields. */
-    private void addRequiredExpressionProperty(Map<String, String> src,
-                                                String key, String label,
-                                                String description, String ballerinaType) {
+    /**
+     * Adds a dual TEXT/EXPRESSION property. The TEXT type is selected when the source value is a
+     * Ballerina double-quoted string literal (the quotes are stripped for display), or when the
+     * argument is absent altogether; EXPRESSION otherwise. Mirrors the node template built by the
+     * builtin activity strategies, so a saved node reopens in the mode it was entered in and an
+     * untouched field opens in the same mode a fresh node would.
+     *
+     * @param expressionType the ballerinaType advertised by the EXPRESSION type (the TEXT type is
+     *                       always {@code string})
+     * @param use            how the form exposes the property
+     */
+    private void addDualTypeProperty(Map<String, String> src, String key, String label,
+                                     String description, String placeholder, String expressionType,
+                                     DualTypeUse use) {
         String value = src.getOrDefault(key, "");
-        nodeBuilder.properties().custom()
+        // The write side re-quotes on exactly this predicate (BuiltinActivityStrategy.addQuotedArg
+        // via isTextSelected), so sharing it is what keeps a read-save cycle a no-op.
+        boolean isStringLit = BuiltinActivityStrategy.isBallerinaStringExpression(value);
+        String displayValue = isStringLit ? value.substring(1, value.length() - 1) : value;
+        // An absent argument carries no evidence of the entry mode, so fall back to the strategies'
+        // template default (TEXT) rather than reopening the field in the expression editor.
+        boolean textSelected = isStringLit || value.isEmpty();
+
+        Property.Builder<FormBuilder<NodeBuilder>> builder = nodeBuilder.properties().custom()
                 .metadata().label(label).description(description).stepOut()
-                .type().fieldType(Property.ValueType.EXPRESSION)
-                    .ballerinaType(ballerinaType).selected(true).stepOut()
-                .codedata().kind(ParameterData.Kind.REQUIRED.name()).stepOut()
-                .value(value).editable(true)
-                .stepOut().addProperty(key);
+                .type().fieldType(Property.ValueType.TEXT).ballerinaType("string")
+                    .selected(textSelected).stepOut()
+                .type().fieldType(Property.ValueType.EXPRESSION).ballerinaType(expressionType)
+                    .selected(!textSelected).stepOut()
+                .value(displayValue).placeholder(placeholder)
+                .editable(true)
+                .optional(use != DualTypeUse.REQUIRED)
+                .advanced(use == DualTypeUse.OPTIONAL_ADVANCED);
+        if (use == DualTypeUse.REQUIRED) {
+            // codedata() caches the child builder on the parent and kind() sets the field, so the
+            // property is fully configured without stepping back out.
+            builder.codedata().kind(ParameterData.Kind.REQUIRED.name());
+        }
+        builder.stepOut().addProperty(key);
     }
 
     /**

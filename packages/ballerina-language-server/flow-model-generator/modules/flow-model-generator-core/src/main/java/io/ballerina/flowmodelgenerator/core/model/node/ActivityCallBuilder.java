@@ -691,16 +691,52 @@ public class ActivityCallBuilder extends CallBuilder {
      * @param description context shown with the decision, or empty to derive it
      * @param timeout     how long to wait for a decision, or empty to wait indefinitely
      */
-    public record ReviewFormValues(String userRoles, String title, String description, String timeout) {
+    public record ReviewFormValues(String userRoles, ReviewText title, ReviewText description, String timeout) {
 
         /** A review with nothing declared — the form's starting state. */
         public static ReviewFormValues empty() {
-            return new ReviewFormValues("", "", "", "");
+            return new ReviewFormValues("", ReviewText.empty(), ReviewText.empty(), "");
         }
 
         /** Only the roles were read, as the pre-record form could express. */
         public static ReviewFormValues ofRoles(String userRoles) {
-            return new ReviewFormValues(userRoles == null ? "" : userRoles, "", "", "");
+            return new ReviewFormValues(userRoles == null ? "" : userRoles,
+                    ReviewText.empty(), ReviewText.empty(), "");
+        }
+    }
+
+    /**
+     * A review's title or description, and which mode the form holds it in.
+     *
+     * <p>The mode has to be carried rather than inferred, because decoding a string literal throws
+     * away the only thing that distinguishes the two: {@code title: "reviewTitle"} reaches the form
+     * as {@code reviewTitle}, and so does {@code title: reviewTitle} naming a variable. Guessing
+     * from the text — as a "does it start with a quote" test does — rewrites the second into the
+     * first on the next save. This mirrors the roles field, whose {@code roleSource} reads the mode
+     * before deciding whether to quote.
+     *
+     * @param value      the text in text mode, or the expression source in expression mode
+     * @param expression {@code true} when the value is source to be written through untouched
+     */
+    public record ReviewText(String value, boolean expression) {
+
+        /** Nothing declared: text mode, so a value typed into it is quoted as a literal. */
+        public static ReviewText empty() {
+            return new ReviewText("", false);
+        }
+
+        /** A string literal read from source, decoded to the text it denotes. */
+        public static ReviewText text(String value) {
+            return new ReviewText(value == null ? "" : value, false);
+        }
+
+        /** Anything that is not a string literal: held, and written back, as source. */
+        public static ReviewText expression(String source) {
+            return new ReviewText(source == null ? "" : source, true);
+        }
+
+        public boolean isBlank() {
+            return value.isBlank();
         }
     }
 
@@ -759,10 +795,12 @@ public class ActivityCallBuilder extends CallBuilder {
         Map<String, Property> manualRetryFields = new LinkedHashMap<>();
         manualRetryFields.put(RETRY_USER_ROLES_KEY,
                 buildReviewerRolesSubProperty(RETRY_USER_ROLES_LABEL, RETRY_USER_ROLES_DOC));
+        // Title and description offer a plain-text box as well as the expression editor, so a
+        // wording typed as text is quoted on save while a reference to one is written as it stands.
         manualRetryFields.put(RETRY_TITLE_KEY,
-                buildRetrySubProperty(RETRY_TITLE_LABEL, RETRY_TITLE_DOC, "string", true));
+                buildReviewTextSubProperty(RETRY_TITLE_LABEL, RETRY_TITLE_DOC));
         manualRetryFields.put(RETRY_DESCRIPTION_KEY,
-                buildRetrySubProperty(RETRY_DESCRIPTION_LABEL, RETRY_DESCRIPTION_DOC, "string", true));
+                buildReviewTextSubProperty(RETRY_DESCRIPTION_LABEL, RETRY_DESCRIPTION_DOC));
         manualRetryFields.put(RETRY_TIMEOUT_KEY,
                 buildRetrySubProperty(RETRY_TIMEOUT_LABEL, RETRY_TIMEOUT_DOC, "workflow:Duration", true));
         dynamicFields.put(MANUAL_RETRY_VALUE, manualRetryFields);
@@ -795,10 +833,10 @@ public class ActivityCallBuilder extends CallBuilder {
                 "Retry Delay", RETRY_DELAY_DOC, "decimal", retryDelay);
         addHiddenRetrySubFieldProperty(nodeBuilder, RETRY_USER_ROLES_KEY,
                 RETRY_USER_ROLES_LABEL, RETRY_USER_ROLES_DOC, "string|string[]", retryUserRoles);
-        addHiddenRetrySubFieldProperty(nodeBuilder, RETRY_TITLE_KEY,
-                RETRY_TITLE_LABEL, RETRY_TITLE_DOC, "string", review.title());
-        addHiddenRetrySubFieldProperty(nodeBuilder, RETRY_DESCRIPTION_KEY,
-                RETRY_DESCRIPTION_LABEL, RETRY_DESCRIPTION_DOC, "string", review.description());
+        addHiddenReviewTextProperty(nodeBuilder, RETRY_TITLE_KEY,
+                RETRY_TITLE_LABEL, RETRY_TITLE_DOC, review.title());
+        addHiddenReviewTextProperty(nodeBuilder, RETRY_DESCRIPTION_KEY,
+                RETRY_DESCRIPTION_LABEL, RETRY_DESCRIPTION_DOC, review.description());
         addHiddenRetrySubFieldProperty(nodeBuilder, RETRY_TIMEOUT_KEY,
                 RETRY_TIMEOUT_LABEL, RETRY_TIMEOUT_DOC, "workflow:Duration", review.timeout());
         addHiddenRetrySubFieldProperty(nodeBuilder, RETRY_BACKOFF_KEY,
@@ -828,6 +866,25 @@ public class ActivityCallBuilder extends CallBuilder {
                 .build();
     }
 
+    /**
+     * A review title/description sub-property: plain text by default, switchable to an expression.
+     * Same shape as {@link #buildRetrySubProperty}, except the field carries both modes so
+     * {@link #addQuotedRecordField} can tell a wording from a reference to one.
+     */
+    private static Property buildReviewTextSubProperty(String label, String description) {
+        return new Property.Builder<Void>(null)
+                .metadata()
+                    .label(label)
+                    .description(description)
+                    .stepOut()
+                .type().fieldType(Property.ValueType.TEXT).ballerinaType("string").selected(true).stepOut()
+                .type().fieldType(Property.ValueType.EXPRESSION).ballerinaType("string").selected(false).stepOut()
+                .value("")
+                .editable(true)
+                .optional(true)
+                .build();
+    }
+
     private static Property buildRetrySubProperty(String label, String description, String ballerinaType,
                                                   boolean optional) {
         return new Property.Builder<Void>(null)
@@ -851,6 +908,29 @@ public class ActivityCallBuilder extends CallBuilder {
                 .type().fieldType(Property.ValueType.EXPRESSION)
                     .ballerinaType(ballerinaType).selected(true).stepOut()
                 .value(value != null ? value : "")
+                .editable(true).optional(true).hidden(true)
+                .stepOut()
+                .addProperty(key);
+    }
+
+    /**
+     * The hidden store for a review's title or description. Unlike the other retry sub-fields these
+     * offer both modes, and which one is selected is the record's memory of how the value was
+     * written: {@link #addQuotedRecordField} reads it back to decide whether to quote. Selecting
+     * TEXT for an empty value matches the form's starting state, so an untouched field saves as it
+     * was rather than as a bare word.
+     */
+    private static void addHiddenReviewTextProperty(NodeBuilder nodeBuilder, String key,
+                                                    String label, String description,
+                                                    ReviewText text) {
+        boolean expression = text.expression() && !text.isBlank();
+        nodeBuilder.properties().custom()
+                .metadata().label(label).description(description).stepOut()
+                .type().fieldType(Property.ValueType.TEXT).ballerinaType("string")
+                    .selected(!expression).stepOut()
+                .type().fieldType(Property.ValueType.EXPRESSION).ballerinaType("string")
+                    .selected(expression).stepOut()
+                .value(text.value())
                 .editable(true).optional(true).hidden(true)
                 .stepOut()
                 .addProperty(key);
@@ -1211,13 +1291,27 @@ public class ActivityCallBuilder extends CallBuilder {
         return "{" + String.join(", ", fields) + "}";
     }
 
-    /** Adds {@code name: <value>} when the form holds one, quoting a bare word as a string. */
+    /**
+     * Adds {@code name: <value>} when the form holds one, quoting the value as a string literal
+     * only in text mode. In expression mode the value IS the expression — a bare {@code reviewTitle}
+     * names a variable, and quoting it would rewrite that reference into a literal of the same
+     * spelling — so it is written through untouched, exactly as {@link WorkflowUtil#roleSource}
+     * treats the roles field.
+     */
     private static void addQuotedRecordField(List<String> fields, Map<String, Property> properties,
                                              String key, String name) {
+        Property property = properties.get(key);
         String value = trimmedValue(properties, key);
         if (value.isBlank()) {
             return;
         }
+        if (WorkflowUtil.isExpressionModeSelected(property)) {
+            fields.add(name + ": " + value);
+            return;
+        }
+        // A value that arrived without expression mode selected is the text a literal denotes. It
+        // may already be source when it came from a form that offers no mode at all — a string
+        // template, or a literal the user typed complete with quotes.
         boolean quoted = value.startsWith("\"") || value.startsWith("string `");
         fields.add(name + ": " + (quoted ? value : WorkflowUtil.stringLiteral(value)));
     }

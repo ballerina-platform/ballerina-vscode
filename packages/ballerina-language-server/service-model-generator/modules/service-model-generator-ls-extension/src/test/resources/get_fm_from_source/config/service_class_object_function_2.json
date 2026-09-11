@@ -19,7 +19,7 @@
       "label": "",
       "description": ""
     },
-    "kind": "OBJECT_METHOD",
+    "kind": "RESOURCE",
     "accessor": {
       "metadata": {
         "label": "Accessor",

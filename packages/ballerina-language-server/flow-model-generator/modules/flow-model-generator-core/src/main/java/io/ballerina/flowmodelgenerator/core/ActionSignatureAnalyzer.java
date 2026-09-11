@@ -35,6 +35,7 @@ import io.ballerina.compiler.api.symbols.UnionTypeSymbol;
 import io.ballerina.flowmodelgenerator.core.utils.ParamUtils;
 import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.modelgenerator.commons.ParameterData;
+import org.ballerinalang.langserver.common.utils.CommonUtil;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -65,13 +66,24 @@ public final class ActionSignatureAnalyzer {
     /**
      * A derived activity parameter.
      *
-     * @param name        the parameter name (matches the action parameter / record field)
+     * <p>The name is carried in both spellings, because the two are needed in different places and
+     * conflating them is what {@code NewActivityFromConnection} had to work around: property keys are
+     * always bare — {@link io.ballerina.flowmodelgenerator.core.utils.ParamUtils#removeLeadingSingleQuote}
+     * is applied unconditionally when an action node template is built — and so are form labels, while
+     * only text emitted as Ballerina source may carry the quote.
+     *
+     * @param name        the bare parameter name, without a keyword quote — it matches the action
+     *                    node template's property key and is what the form labels the field
+     * @param escapedName {@code name} with a leading {@code '} when it is a Ballerina keyword
+     *                    (e.g. {@code 'from}); use this, and only this, where the name is emitted as
+     *                    source — the generated activity's parameter name and the action-call argument
      * @param type        the derived (anydata) type signature
      * @param required    whether the parameter is required (always included, not toggleable)
      * @param description the action's documentation for the parameter (empty when undocumented);
      *                    used as the generated activity parameter's doc line
      */
-    public record DerivedParam(String name, String type, boolean required, String description) {
+    public record DerivedParam(String name, String escapedName, String type, boolean required,
+                               String description) {
     }
 
     /**
@@ -111,10 +123,14 @@ public final class ActionSignatureAnalyzer {
                     continue;
                 }
                 if (pathParam.typeSymbol() == null || !pathParam.typeSymbol().subtypeOf(anydata)) {
-                    pathReasons.add("Path parameter '" + pathParam.name() + "' is not a data type");
+                    pathReasons.add("Path parameter '"
+                            + ParamUtils.removeLeadingSingleQuote(pathParam.name())
+                            + "' is not a data type");
                     continue;
                 }
-                pathParams.add(new DerivedParam(pathParam.name(), pathParam.type(), true,
+                pathParams.add(new DerivedParam(ParamUtils.removeLeadingSingleQuote(pathParam.name()),
+                        CommonUtil.escapeReservedKeyword(pathParam.name()),
+                        pathParam.type(), true,
                         pathParam.description() == null ? "" : pathParam.description()));
             }
         }
@@ -160,17 +176,25 @@ public final class ActionSignatureAnalyzer {
                 }
                 continue;
             }
-            String name = param.getName().orElse("");
+            // A keyword parameter's symbol name already carries the quote ('from), so the bare
+            // spelling is the one that has to be derived.
+            String rawName = param.getName().orElse("");
             ParameterKind kind = param.paramKind();
             if (kind == ParameterKind.REST) {
-                reasons.add("Rest parameter '" + name + "' is not supported");
+                reasons.add("Rest parameter '" + ParamUtils.removeLeadingSingleQuote(rawName)
+                        + "' is not supported");
             } else if (kind == ParameterKind.INCLUDED_RECORD) {
                 expandIncludedRecord(param.typeDescriptor(), params, reasons, anydata, semanticModel);
             } else {
-                // REQUIRED or DEFAULTABLE
+                // REQUIRED or DEFAULTABLE. The doc map is keyed by the name as written in the doc
+                // comment, which may or may not carry the keyword quote — look the description up
+                // under both spellings.
                 boolean required = kind == ParameterKind.REQUIRED;
-                addParam(params, reasons, name, param.typeDescriptor(), required, anydata, semanticModel,
-                        paramDocs.getOrDefault(name, ""));
+                String docKey = paramDocs.containsKey(rawName)
+                        ? rawName
+                        : ParamUtils.removeLeadingSingleQuote(rawName);
+                addParam(params, reasons, rawName, param.typeDescriptor(), required, anydata, semanticModel,
+                        paramDocs.getOrDefault(docKey, ""));
             }
         }
 
@@ -198,9 +222,17 @@ public final class ActionSignatureAnalyzer {
         return new Analysis(supported, reasons, params, returnType, streamElementType, dependentReturn);
     }
 
-    private static void addParam(List<DerivedParam> params, List<String> reasons, String name,
+    /**
+     * Adds a derived parameter. {@code rawName} is the symbol/field name as the semantic model
+     * reports it, which for a Ballerina keyword already carries the quote ({@code 'from}); both
+     * spellings are derived from it, since neither is safe everywhere — see {@link DerivedParam}.
+     * Both helpers are no-ops on a name that is already in the form they produce, so the pair holds
+     * whichever spelling the model hands over.
+     */
+    private static void addParam(List<DerivedParam> params, List<String> reasons, String rawName,
                                  TypeSymbol type, boolean required, TypeSymbol anydata,
                                  SemanticModel semanticModel, String description) {
+        String name = ParamUtils.removeLeadingSingleQuote(rawName);
         String derived = deriveDataType(type, anydata, semanticModel);
         if (derived == null) {
             reasons.add("Parameter '" + name + "' of type '"
@@ -208,7 +240,8 @@ public final class ActionSignatureAnalyzer {
                     + "' is not a data type (it must be, or contain, anydata)");
             return;
         }
-        params.add(new DerivedParam(name, derived, required, description == null ? "" : description));
+        params.add(new DerivedParam(name, CommonUtil.escapeReservedKeyword(rawName), derived, required,
+                description == null ? "" : description));
     }
 
     private static void expandIncludedRecord(TypeSymbol type, List<DerivedParam> params, List<String> reasons,

@@ -339,7 +339,7 @@ export function AddProjectForm() {
     }
 
     const chooserTitle = isInProject
-        ? `Add New ${resourceTypeLabel}`
+        ? `Add an Integration or Library`
         : isConvertAndAdd
             ? `Convert to Project & Add New ${resourceTypeLabel}`
             : "Convert to Project";
@@ -412,7 +412,7 @@ export function AddProjectForm() {
                         // Plain convert: nothing further to collect.
                         "Convert to Project"
                     ) : (
-                        `${isConvertAndAdd ? "Convert & Add" : "Add"} ${resourceTypeLabel}`
+                        `${isConvertAndAdd ? "Convert & Add" : "Add"}`
                     )}
                 </Button>
             </FormFooter>

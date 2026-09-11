@@ -282,29 +282,44 @@ public class SchemaDrivenServiceBuilder extends AbstractServiceBuilder {
                 }
             }
         }
+        if (node.getChoices() != null) {
+            for (Value choice : node.getChoices()) {
+                if (hasListenerParams(choice)) {
+                    return true;
+                }
+            }
+        }
         return false;
     }
 
-    /** Replaces the shipped default listener variable name with a project-unique identifier. */
+    /**
+     * Replaces the shipped default listener variable name with a project-unique identifier, on every
+     * listener-name node. The branches are mutually exclusive, so they should all offer the same name.
+     */
     private void refreshListenerName(ServiceInitModel creationModel, GetServiceInitModelContext context) {
-        // Unified model nests it inside the listener CHOICE's create-new branch; v1 has it top-level.
-        Value listenerName = creationModel.getProperties().get(KEY_LISTENER_VAR_NAME);
-        if (listenerName == null) {
-            listenerName = findListenerVarNameNode(creationModel.getProperties());
+        List<Value> listenerNames = new ArrayList<>();
+        Value topLevel = creationModel.getProperties().get(KEY_LISTENER_VAR_NAME);
+        if (topLevel != null) {
+            listenerNames.add(topLevel);
+        } else {
+            collectListenerVarNameNodes(creationModel.getProperties(), listenerNames);
         }
-        if (listenerName == null) {
+        if (listenerNames.isEmpty()) {
             return;
         }
         String baseName = LISTENER_VAR_NAME.formatted(getProtocol(context.moduleName()));
-        Codedata codedata = listenerName.getCodedata();
-        String shippedName = listenerName.getValue();
-        if (codedata != null && Boolean.TRUE.equals(codedata.getPreserveValue())
-                && shippedName != null && !shippedName.isBlank()) {
-            baseName = shippedName.trim();
+        for (Value listenerName : listenerNames) {
+            Codedata codedata = listenerName.getCodedata();
+            String shippedName = listenerName.getValue();
+            if (codedata != null && Boolean.TRUE.equals(codedata.getPreserveValue())
+                    && shippedName != null && !shippedName.isBlank()) {
+                baseName = shippedName.trim();
+                break;
+            }
         }
         String uniqueName = Utils.generateVariableIdentifier(context.semanticModel(), context.document(),
                 context.document().syntaxTree().rootNode().lineRange().endLine(), baseName);
-        listenerName.setValue(uniqueName);
+        listenerNames.forEach(listenerName -> listenerName.setValue(uniqueName));
     }
 
     /** Locates the listener create/reuse CHOICE, by the v1 key or by {@code codedata.type == LISTENER_CONFIG}. */
@@ -322,10 +337,10 @@ public class SchemaDrivenServiceBuilder extends AbstractServiceBuilder {
         return null;
     }
 
-    /** Recursively locates the listener-variable-name node ({@code codedata.type == LISTENER_VAR_NAME}). */
-    private static Value findListenerVarNameNode(Map<String, Value> properties) {
+    /** Every {@code LISTENER_VAR_NAME} node in the subtree, in document order. */
+    static void collectListenerVarNameNodes(Map<String, Value> properties, List<Value> into) {
         if (properties == null) {
-            return null;
+            return;
         }
         for (Value value : properties.values()) {
             if (value == null) {
@@ -333,21 +348,16 @@ public class SchemaDrivenServiceBuilder extends AbstractServiceBuilder {
             }
             Codedata codedata = value.getCodedata();
             if (codedata != null && ARG_TYPE_LISTENER_VAR_NAME.equals(codedata.getType())) {
-                return value;
+                into.add(value);
             }
-            Value nested = findListenerVarNameNode(value.getProperties());
-            if (nested != null) {
-                return nested;
-            }
+            collectListenerVarNameNodes(value.getProperties(), into);
             if (value.getChoices() != null) {
                 for (Value choice : value.getChoices()) {
-                    Value found = findListenerVarNameNode(choice.getProperties());
-                    if (found != null) {
-                        return found;
+                    if (choice != null) {
+                        collectListenerVarNameNodes(choice.getProperties(), into);
                     }
                 }
             }
         }
-        return null;
     }
 }

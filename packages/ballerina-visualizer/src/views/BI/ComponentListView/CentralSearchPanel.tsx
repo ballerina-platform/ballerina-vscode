@@ -101,16 +101,9 @@ export function CentralSearchPanel(props: CentralSearchPanelProps) {
     );
 
     useEffect(() => {
-        if (!additionalTriggerSearchEnabled) {
-            return;
-        }
         runSearch(props.query);
         return () => runSearch.cancel();
-    }, [props.query, runSearch, additionalTriggerSearchEnabled]);
-
-    if (!additionalTriggerSearchEnabled) {
-        return null;
-    }
+    }, [props.query, runSearch]);
 
     const handleSelect = async (model: ServiceModel, isLocalRepository: boolean) => {
         await rpcClient.getVisualizerRpcClient().openView({

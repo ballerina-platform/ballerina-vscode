@@ -27,14 +27,9 @@ export interface BrandIcon {
 }
 
 /**
- * Single source of truth for the brand glyph shown for a trigger/service module in the
- * Add-Artifact gallery and the component diagram, replacing what used to be three copies of the
- * same switch statement (one per consumer). Keyed by whatever module/type identifier the caller has
- * on hand (a `ServiceModel.moduleName`, or a `CDService.type` with its `:Service` suffix stripped).
- *
- * Not every entry-point module needs a row here: modules that already publish a real icon to
- * Ballerina Central (Azure Service Bus, Salesforce, Twilio, GitHub's plain `github` key, …) fall
- * through to the central-icon `<img>` fallback in each consumer instead.
+ * Brand glyph overrides for the trigger/entry-point picker, keyed by whatever module/type
+ * identifier the caller has on hand (a `ServiceModel.moduleName`, or a `CDService.type` with its
+ * `:Service` suffix stripped).
  */
 export const BRAND_ICON_REGISTRY: Record<string, BrandIcon> = {
     tcp: { glyph: "bi-tcp" },

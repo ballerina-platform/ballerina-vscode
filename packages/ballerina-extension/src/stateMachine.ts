@@ -6,6 +6,7 @@ import {
     EVENT_TYPE,
     SyntaxTree,
     History,
+    HistoryEntry,
     MachineStateValue,
     IUndoRedoManager,
     VisualizerLocation,
@@ -51,6 +52,7 @@ import { activateDevantFeatures } from './features/devant/activator';
 import { buildProjectsStructure } from './utils/project-artifacts';
 import { runCommandWithOutput } from './utils/runCommand';
 import { buildOutputChannel } from './utils/logger';
+import { checkAndPromptConnectorUpgrades } from './features/project/connector-upgrade';
 import { closeOrphanWebviewTabs } from './views/closeOrphanWebviewTabs';
 import { getEnclosingProjectStatus } from './utils/bi';
 
@@ -68,6 +70,7 @@ interface MachineContext extends VisualizerLocation {
     isBISupported: boolean;
     errorCode: string | null;
     dependenciesResolved?: boolean;
+    connectorUpgradesCheckedPaths?: Set<string>;
     isInDevant: boolean;
     isViewUpdateTransition?: boolean;
 }
@@ -93,6 +96,7 @@ const stateMachine = createMachine<MachineContext>(
             isBISupported: false,
             view: MACHINE_VIEW.PackageOverview,
             dependenciesResolved: false,
+            connectorUpgradesCheckedPaths: new Set(),
             isInDevant: isInDevant()
         },
         on: {
@@ -386,6 +390,10 @@ const stateMachine = createMachine<MachineContext>(
                                     cond: (context) => !context.dependenciesResolved
                                 },
                                 {
+                                    target: "checkConnectorUpgrades",
+                                    cond: (context) => !context.connectorUpgradesCheckedPaths?.has(context.projectPath)
+                                },
+                                {
                                     target: "webViewLoading"
                                 }
                             ]
@@ -395,9 +403,27 @@ const stateMachine = createMachine<MachineContext>(
                         invoke: {
                             src: 'resolveMissingDependencies',
                             onDone: {
-                                target: "webViewLoading",
+                                target: "checkConnectorUpgrades",
                                 actions: assign({
                                     dependenciesResolved: true
+                                })
+                            }
+                        }
+                    },
+                    checkConnectorUpgrades: {
+                        invoke: {
+                            src: 'checkConnectorUpgrades',
+                            onDone: {
+                                target: "webViewLoading",
+                                actions: assign({
+                                    connectorUpgradesCheckedPaths: (context) => {
+                                        if (!context.projectPath) {
+                                            return context.connectorUpgradesCheckedPaths;
+                                        }
+                                        const checkedPaths = new Set(context.connectorUpgradesCheckedPaths ?? []);
+                                        checkedPaths.add(context.projectPath);
+                                        return checkedPaths;
+                                    }
                                 })
                             }
                         }
@@ -499,6 +525,7 @@ const stateMachine = createMachine<MachineContext>(
                                         documentUri: (context, event) => event.viewLocation.documentUri,
                                         position: (context, event) => event.viewLocation.position,
                                         view: (context, event) => event.viewLocation.view,
+                                        projectPath: (context, event) => event.viewLocation?.projectPath || context?.projectPath,
                                         identifier: (context, event) => event.viewLocation.identifier,
                                         artifactType: (context, event) => event.viewLocation.artifactType,
                                         serviceType: (context, event) => event.viewLocation.serviceType,
@@ -682,6 +709,16 @@ const stateMachine = createMachine<MachineContext>(
                 resolve(true);
             });
         },
+        checkConnectorUpgrades: (context, event) => {
+            return new Promise((resolve) => {
+                if (context?.projectPath) {
+                    checkAndPromptConnectorUpgrades(context.projectPath).catch((error) => {
+                        console.error('>>> Error checking connector upgrades', error);
+                    });
+                }
+                resolve(true);
+            });
+        },
         findView(context, event): Promise<void> {
             return new Promise(async (resolve, reject) => {
                 const { orgName, packageName } = getOrgAndPackageName(context.projectInfo, context.projectPath);
@@ -698,6 +735,7 @@ const stateMachine = createMachine<MachineContext>(
                                 location: {
                                     view: MACHINE_VIEW.PackageOverview,
                                     documentUri: context.documentUri,
+                                    projectPath: context.projectPath,
                                     org: orgName || context.org,
                                     package: packageName || context.package,
                                 }
@@ -707,7 +745,7 @@ const stateMachine = createMachine<MachineContext>(
                     }
                     const view = await getView(context.documentUri, context.position, context?.projectPath);
                     view.location.package = packageName || context.package;
-                    view.location.package = packageName || context.package;
+                    view.location.projectPath = context.projectPath;
                     history.push(view);
                     return resolve();
                 } else {
@@ -715,6 +753,7 @@ const stateMachine = createMachine<MachineContext>(
                         location: {
                             view: context.view,
                             documentUri: context.documentUri,
+                            projectPath: context.projectPath,
                             position: context.position,
                             identifier: context.identifier,
                             parentIdentifier: context.parentIdentifier,
@@ -1097,7 +1136,7 @@ export function updateView(refreshTreeView?: boolean, updatedIdentifier?: string
             targetedArtifactType = DIRECTORY_MAP.SERVICE;
         }
 
-        const projectPath = StateMachine.context().projectPath;
+        const projectPath = getEntryProjectPath(lastView);
         const project = StateMachine.context().projectStructure?.projects.find(project => isSamePath(project.projectPath, projectPath));
 
         // These changes will be revisited in the revamp
@@ -1128,7 +1167,7 @@ export function updateView(refreshTreeView?: boolean, updatedIdentifier?: string
     if (!newLocationFound && lastView?.location?.type) {
         let currentArtifact: ProjectStructureArtifactResponse;
 
-        const projectPath = StateMachine.context().projectPath;
+        const projectPath = getEntryProjectPath(lastView);
         const project = StateMachine.context().projectStructure?.projects.find(project => isSamePath(project.projectPath, projectPath));
 
         project?.directoryMap[DIRECTORY_MAP.TYPE]?.forEach((artifact) => {
@@ -1193,6 +1232,10 @@ export function updateDataMapperView(codedata?: CodeData, variableName?: string)
     notifyCurrentWebview();
 }
 
+
+function getEntryProjectPath(entry: HistoryEntry): string {
+    return entry.location.projectPath || StateMachine.context().projectPath;
+}
 
 function getLastHistory() {
     const historyStack = history?.get();

@@ -1,0 +1,294 @@
+{
+  "schemaVersion": "1.0",
+  "id": "mcp",
+  "displayName": "MCP Service",
+  "description": "Create a service that exposes tools to MCP clients.",
+  "orgName": "ballerina",
+  "packageName": "mcp",
+  "moduleName": "mcp",
+  "version": "1.2.0",
+  "type": "mcp",
+  "icon": "docs/icon.png",
+  "properties": {
+    "listener": {
+      "metadata": {
+        "label": "Configure MCP Listener",
+        "description": "Select an existing MCP listener or create a new one"
+      },
+      "value": "0",
+      "types": [
+        {
+          "fieldType": "CHOICE",
+          "selected": true
+        }
+      ],
+      "codedata": {
+        "type": "LISTENER_CONFIG"
+      },
+      "enabled": true,
+      "editable": true,
+      "optional": false,
+      "advanced": false,
+      "choices": [
+        {
+          "metadata": {
+            "label": "Create new",
+            "description": "Create a new MCP listener"
+          },
+          "types": [
+            {
+              "fieldType": "FORM",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": false,
+          "advanced": false,
+          "properties": {
+            "listenerType": {
+              "metadata": {
+                "label": "Listener Type",
+                "description": "The MCP transport this listener serves"
+              },
+              "value": "0",
+              "types": [
+                {
+                  "fieldType": "CHOICE",
+                  "selected": true
+                }
+              ],
+              "codedata": {
+                "type": "LISTENER_TYPE"
+              },
+              "enabled": true,
+              "editable": true,
+              "optional": false,
+              "advanced": false,
+              "choices": [
+                {
+                  "metadata": {
+                    "label": "Streamable HTTP Listener",
+                    "description": "MCP listener over the Streamable HTTP transport."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "FORM",
+                      "selected": true
+                    }
+                  ],
+                  "enabled": true,
+                  "editable": true,
+                  "optional": false,
+                  "advanced": false,
+                  "properties": {
+                    "listenerConfig": {
+                      "metadata": {
+                        "label": "Listener Configuration",
+                        "description": "Configure the MCP listener"
+                      },
+                      "types": [
+                        {
+                          "fieldType": "GROUP_SECTION",
+                          "selected": true
+                        }
+                      ],
+                      "enabled": true,
+                      "editable": true,
+                      "optional": false,
+                      "advanced": false,
+                      "properties": {
+                        "listenerVarName": {
+                          "metadata": {
+                            "label": "Listener Name",
+                            "description": "Provide a name for the listener being created"
+                          },
+                          "codedata": {
+                            "type": "LISTENER_VAR_NAME"
+                          },
+                          "value": "mcpListener",
+                          "types": [
+                            {
+                              "fieldType": "IDENTIFIER",
+                              "selected": true,
+                              "ballerinaType": "mcp:StreamableHttpListener"
+                            }
+                          ],
+                          "enabled": true,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false
+                        },
+                        "listenTo": {
+                          "metadata": {
+                            "label": "Port",
+                            "description": "The port on which the MCP service listens."
+                          },
+                          "codedata": {
+                            "argType": "LISTENER_PARAM_REQUIRED",
+                            "originalName": "listenTo",
+                            "position": 1
+                          },
+                          "value": "8080",
+                          "types": [
+                            {
+                              "fieldType": "NUMBER",
+                              "ballerinaType": "int",
+                              "selected": true
+                            }
+                          ],
+                          "enabled": true,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false
+                        }
+                      }
+                    },
+                    "basePath": {
+                      "metadata": {
+                        "label": "Base Path",
+                        "description": "The base path of the MCP service"
+                      },
+                      "codedata": {
+                        "type": "SERVICE_BASE_PATH"
+                      },
+                      "value": "/mcp",
+                      "types": [
+                        {
+                          "fieldType": "SERVICE_PATH",
+                          "ballerinaType": "string",
+                          "selected": true
+                        }
+                      ],
+                      "enabled": true,
+                      "editable": true,
+                      "optional": false,
+                      "advanced": false
+                    }
+                  }
+                },
+                {
+                  "metadata": {
+                    "label": "Listener",
+                    "description": "Delegates every call to an internal StreamableHttpListener.",
+                    "notice": "Renamed to make the transport explicit. Use mcp:StreamableHttpListener instead.",
+                    "deprecated": true
+                  },
+                  "types": [
+                    {
+                      "fieldType": "FORM",
+                      "selected": true
+                    }
+                  ],
+                  "enabled": false,
+                  "editable": true,
+                  "optional": false,
+                  "advanced": false,
+                  "properties": {
+                    "listenerConfig": {
+                      "metadata": {
+                        "label": "Listener Configuration",
+                        "description": "Configure the MCP listener"
+                      },
+                      "types": [
+                        {
+                          "fieldType": "GROUP_SECTION",
+                          "selected": true
+                        }
+                      ],
+                      "enabled": true,
+                      "editable": true,
+                      "optional": false,
+                      "advanced": false,
+                      "properties": {
+                        "listenerVarName": {
+                          "metadata": {
+                            "label": "Listener Name",
+                            "description": "Provide a name for the listener being created"
+                          },
+                          "codedata": {
+                            "type": "LISTENER_VAR_NAME"
+                          },
+                          "value": "mcpListener",
+                          "types": [
+                            {
+                              "fieldType": "IDENTIFIER",
+                              "selected": true,
+                              "ballerinaType": "mcp:Listener"
+                            }
+                          ],
+                          "enabled": true,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false
+                        },
+                        "listenTo": {
+                          "metadata": {
+                            "label": "Port",
+                            "description": "The port on which the MCP service listens."
+                          },
+                          "codedata": {
+                            "argType": "LISTENER_PARAM_REQUIRED",
+                            "originalName": "listenTo",
+                            "position": 1
+                          },
+                          "value": "8080",
+                          "types": [
+                            {
+                              "fieldType": "NUMBER",
+                              "ballerinaType": "int",
+                              "selected": true
+                            }
+                          ],
+                          "enabled": true,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "Use existing",
+            "description": "Attach to an already-declared MCP listener"
+          },
+          "types": [
+            {
+              "fieldType": "FORM",
+              "selected": true
+            }
+          ],
+          "enabled": false,
+          "editable": false,
+          "optional": false,
+          "advanced": false,
+          "properties": {
+            "listenerConfig": {
+              "metadata": {
+                "label": "Listener Configurations",
+                "description": "Configuration of the selected listener."
+              },
+              "types": [
+                {
+                  "fieldType": "GROUP_SECTION",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": true,
+              "optional": false,
+              "advanced": false,
+              "properties": {}
+            }
+          }
+        }
+      ]
+    }
+  }
+}

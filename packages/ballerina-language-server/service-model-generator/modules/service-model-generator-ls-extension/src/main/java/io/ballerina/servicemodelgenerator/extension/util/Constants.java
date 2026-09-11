@@ -119,6 +119,7 @@ public class Constants {
     public static final String CD_TYPE_SERVICE_ANNOTATION = "SERVICE_ANNOTATION";
     public static final String CD_TYPE_INCLUDE_RECORD_PARAM = "INCLUDE_RECORD_PARAM";
     public static final String CD_TYPE_LISTENER_CONFIG = "LISTENER_CONFIG";
+    public static final String CD_TYPE_LISTENER_TYPE = "LISTENER_TYPE";
 
     public static final String ARG_TYPE_LISTENER_VAR_NAME = "LISTENER_VAR_NAME";
     public static final String ARG_TYPE_LISTENER_PARAM_REQUIRED = "LISTENER_PARAM_REQUIRED";
@@ -162,9 +163,19 @@ public class Constants {
     public static final String PROP_KEY_LISTENER = "listener";
     public static final String PROP_KEY_SERVICE_TYPE = "serviceType";
     public static final String PROP_KEY_BASE_PATH = "basePath";
+    public static final String PROP_KEY_IDENTIFIER = "identifier";
     public static final String PROP_KEY_STRING_LITERAL = "stringLiteral";
     public static final String PROP_READONLY_METADATA_KEY = "readOnlyMetadata";
     public static final String PROP_KEY_DEFAULT_LISTENER = "defaultListener";
+    public static final String PROP_KEY_PROPERTIES = "properties";
+    public static final String PROP_KEY_INIT_PROPERTIES = "initProperties";
+    public static final String PROP_KEY_CODEDATA = "codedata";
+    public static final String PROP_KEY_LISTENERS = "listeners";
+    public static final String PROP_KEY_METADATA = "metadata";
+    public static final String PROP_KEY_SERVICE_PROPERTIES = "serviceProperties";
+    public static final String PROP_KEY_LISTENER_FORM = "listenerForm";
+    public static final String PROP_KEY_SCHEMA_FUNCTIONS = "schemaFunctions";
+    public static final String PROP_KEY_TRIGGER_KIND = "triggerKind";
     public static final String DEFAULT_LISTENER_TYPE = "Listener";
 
     // protocol listeners

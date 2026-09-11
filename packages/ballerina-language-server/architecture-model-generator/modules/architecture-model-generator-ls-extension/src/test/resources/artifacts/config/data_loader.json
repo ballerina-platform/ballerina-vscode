@@ -21,7 +21,10 @@
         "name": "textLoader",
         "scope": "Global",
         "visibility": "module",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png",
+        "icon": {
+          "url": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png",
+          "source": "ballerina-central"
+        },
         "module": "ai",
         "children": {}
       }

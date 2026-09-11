@@ -183,33 +183,6 @@ export const CLIENT_VALIDATION_RULES: Record<string, ClientRule> = {
         return undefined;
     },
 
-    "common.validate.regex": (value, args) => {
-        const pattern = args?.pattern;
-        if (typeof pattern !== "string") {
-            console.warn("[validation] common.validate.regex is missing its required `pattern` arg — skipping");
-            return undefined;
-        }
-        let regex: RegExp;
-        try {
-            regex = new RegExp(pattern, typeof args?.flags === "string" ? args.flags : undefined);
-        } catch (error) {
-            // An unparseable pattern is an authoring error, never a user error — skip the rule.
-            console.warn(`[validation] common.validate.regex has an invalid pattern '${pattern}' — skipping`, error);
-            return undefined;
-        }
-        // Multi-value fields (TEXT_SET/EXPRESSION_SET) are checked per item, matching how the legacy
-        // type-level `pattern` behaved — testing the comma-joined array would be meaningless. A
-        // scalar's empty value is `required`'s concern, so it is skipped here.
-        if (isMultiValue(value)) {
-            return value.some((item) => !regex.test(asString(item))) ? "{label} has an invalid format" : undefined;
-        }
-        const raw = asString(value);
-        if (raw === "") {
-            return undefined;
-        }
-        return regex.test(raw) ? undefined : "{label} has an invalid format";
-    },
-
     "common.validate.number.range": (value, args) => {
         const raw = asString(value).trim();
         if (raw === "") {
@@ -334,6 +307,33 @@ export const CLIENT_VALIDATION_RULES: Record<string, ClientRule> = {
     // ---- vscode.* — client-environment checks ----
     // `vscode.validate.file.exists` and `vscode.validate.unique.in.form` need host RPC / sibling
     // scope plumbing and are intentionally not registered yet; they degrade to "unknown rule".
+
+    "vscode.validate.regex": (value, args) => {
+        const pattern = args?.pattern;
+        if (typeof pattern !== "string") {
+            console.warn("[validation] vscode.validate.regex is missing its required `pattern` arg — skipping");
+            return undefined;
+        }
+        let regex: RegExp;
+        try {
+            regex = new RegExp(pattern, typeof args?.flags === "string" ? args.flags : undefined);
+        } catch (error) {
+            // An unparseable pattern is an authoring error, never a user error — skip the rule.
+            console.warn(`[validation] vscode.validate.regex has an invalid pattern '${pattern}' — skipping`, error);
+            return undefined;
+        }
+        // Multi-value fields (TEXT_SET/EXPRESSION_SET) are checked per item, matching how the legacy
+        // type-level `pattern` behaved — testing the comma-joined array would be meaningless. A
+        // scalar's empty value is `required`'s concern, so it is skipped here.
+        if (isMultiValue(value)) {
+            return value.some((item) => !regex.test(asString(item))) ? "{label} has an invalid format" : undefined;
+        }
+        const raw = asString(value);
+        if (raw === "") {
+            return undefined;
+        }
+        return regex.test(raw) ? undefined : "{label} has an invalid format";
+    },
 
     "vscode.validate.status.code": (value, args) => {
         const parsed = toNumber(value);

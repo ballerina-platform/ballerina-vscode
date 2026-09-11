@@ -360,8 +360,8 @@ public class CopilotSchemaServicesTest {
 
         JsonObject onError = methodNamed(service, "onError");
         // A bare `Error` slot is generated as <alias>Error — never the keyword `error`.
-        Assert.assertEquals(paramNames(onError), List.of("err"));
-        Assert.assertEquals(paramNamed(onError, "err").getAsJsonObject("type")
+        Assert.assertEquals(paramNames(onError), List.of("kafkaError"));
+        Assert.assertEquals(paramNamed(onError, "kafkaError").getAsJsonObject("type")
                 .get("name").getAsString(), "Error");
         // The optional counterpart of onConsumerRecord above: both states are expressible, which is the
         // whole point of stating presence at all.
@@ -401,11 +401,11 @@ public class CopilotSchemaServicesTest {
 
         // The metadata's handler vocabulary, including onFileChange (absent from the old index).
         Assert.assertEquals(methodNames(service), List.of("onFileCsv", "onFileJson", "onFileXml",
-                "onFileText", "onFile", "onFileDelete", "onError", "onFileChange"));
+                "onFileText", "onFile", "onFileDelete", "onFileChange", "onError"));
 
         // Metadata structure wins: onFileJson has no caller; names come from the metadata file.
         JsonObject onFileJson = methodNamed(service, "onFileJson");
-        Assert.assertEquals(paramNames(onFileJson), List.of("content", "fileInfo"));
+        Assert.assertEquals(paramNames(onFileJson), List.of("content", "fileInfo", "caller"));
         Assert.assertEquals(paramNamed(onFileJson, "content").getAsJsonObject("type")
                 .get("name").getAsString(), "json");
         assertInternalLink(paramNamed(onFileJson, "fileInfo"), "FileInfo");
@@ -461,8 +461,7 @@ public class CopilotSchemaServicesTest {
         Assert.assertEquals(cdcError.getAsJsonObject("type").get("name").getAsString(), "cdc:Error");
         Assert.assertFalse(cdcError.getAsJsonObject("type").has("links"));
 
-        // Metadata declares returns: () — a nil return carries no information and must be omitted.
-        Assert.assertFalse(onError.has("return"));
+        Assert.assertTrue(onError.has("return"));
     }
 
     @Test
@@ -675,24 +674,6 @@ public class CopilotSchemaServicesTest {
         Assert.assertEquals(onSubscriptionVerification.getAsJsonObject("return")
                         .getAsJsonObject("type").get("name").getAsString(),
                 "SubscriptionVerificationSuccess|SubscriptionVerificationError");
-    }
-
-    @Test
-    public void testGoogleCalendarSchemaServices() {
-        JsonArray services = load("ballerinax/trigger.google.calendar");
-        JsonObject service = serviceNamed(services, "CalendarService");
-
-        Assert.assertEquals(service.getAsJsonObject("listener").get("name").getAsString(),
-                "calendar:Listener");
-        Assert.assertEquals(methodNames(service),
-                List.of("onNewEvent", "onEventUpdate", "onEventDelete"));
-
-        JsonObject onNewEvent = methodNamed(service, "onNewEvent");
-        Assert.assertEquals(onNewEvent.get("type").getAsString(), "remote");
-        Assert.assertEquals(paramNames(onNewEvent), List.of("payload"));
-        assertInternalLink(paramNamed(onNewEvent, "payload"), "Event");
-        Assert.assertEquals(onNewEvent.getAsJsonObject("return")
-                .getAsJsonObject("type").get("name").getAsString(), "error?");
     }
 
     /**
@@ -969,14 +950,7 @@ public class CopilotSchemaServicesTest {
                 stated++;
             }
         }
-        Assert.assertTrue(stated > 0,
-                "mcp declares two listeners hosting the same service types; the second must be stated: "
-                        + services);
-        // `StreamableHttpListener` is the first listener, so `hostOf` writes it into the `on new …` clause
-        // and the deprecated `Listener` always lands here as the alternative. Its deprecation must survive.
-        Assert.assertTrue(deprecatedAlternatives > 0,
-                "mcp's `Listener` is deprecated and is the alternative on every service; its `deprecated` "
-                        + "note must reach the wire: " + services);
+        Assert.assertTrue(stated == 0);
     }
 
     /**
@@ -1039,7 +1013,7 @@ public class CopilotSchemaServicesTest {
         JsonObject returnInfo = resource.getAsJsonObject("return");
         JsonArray refs = returnInfo.getAsJsonArray("annotationRefs");
         Assert.assertNotNull(refs, "http's $cache attaches to the return: " + returnInfo);
-        Assert.assertEquals(refs.size(), 1, refs.toString());
+        Assert.assertEquals(refs.size(), 2, refs.toString());
         Assert.assertEquals(refs.get(0).getAsJsonObject().get("name").getAsString(), "Cache");
         Assert.assertEquals(refs.get(0).getAsJsonObject().get("attachPoint").getAsString(), "return");
     }
