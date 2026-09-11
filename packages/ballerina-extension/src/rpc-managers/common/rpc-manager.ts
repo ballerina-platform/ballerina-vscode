@@ -27,14 +27,18 @@ import {
     CommandsResponse,
     CommonRPCAPI,
     Completion,
+    PRODUCT_INTEGRATOR_ISSUES_URL,
     CompletionParams,
     DefaultOrgNameResponse,
     DiagnosticData,
     FileOrDirRequest,
     FileOrDirResponse,
     GoToSourceRequest,
+    ProjectFileRequest,
+    ProjectFileResponse,
     OpenExternalUrlRequest,
     PackageTomlValues,
+    PackageVisibility,
     PublishToCentralResponse,
     RunExternalCommandRequest,
     RunExternalCommandResponse,
@@ -75,7 +79,7 @@ import {
     askFileOrFolderPath,
     askFilePath,
     askProjectPath,
-    BALLERINA_INTEGRATOR_ISSUES_URL,
+    copyIntoIntegration,
     findWorkspaceTypeFromWorkspaceFolders,
     getFirstBalaPath,
     getPublishDescriptionInfo,
@@ -85,8 +89,11 @@ import {
     getUpdatedSource,
     handleDownloadFile,
     handlePublishDescriptionSetup,
+    nextAvailablePath,
     openPublishDescriptionInEditor,
-    selectSampleDownloadPath
+    resolveIntegrationRoot,
+    selectSampleDownloadPath,
+    toIntegrationRelative
 } from "./utils";
 import { VisualizerWebview } from "../../views/visualizer/webview";
 
@@ -226,15 +233,7 @@ export class CommonRpcManager implements CommonRPCAPI {
                         if (resp === 'Yes') {
                             // Move the file inside the project
                             const fileName = path.basename(filePath);
-                            const newFilePath = path.join(projectPath, fileName);
-                            // if newFilePath already exists, append a number to the file name
-                            let counter = 1;
-                            let finalFilePath = newFilePath;
-                            while (fs.existsSync(finalFilePath)) {
-                                const parsedPath = path.parse(newFilePath);
-                                finalFilePath = path.join(parsedPath.dir, `${parsedPath.name}-${counter}${parsedPath.ext}`);
-                                counter++;
-                            }
+                            const finalFilePath = nextAvailablePath(path.join(projectPath, fileName));
                             fs.copyFileSync(filePath, finalFilePath);
                             resolve({ path: finalFilePath });
                             return;
@@ -255,6 +254,40 @@ export class CommonRpcManager implements CommonRPCAPI {
                 }
             }
         });
+    }
+
+    /**
+     * A FILE_SELECT variant for fields (e.g. platform-dependency JARs) that must end up as a path
+     * relative to the current integration. Unlike {@link selectFileOrDirPath}, this never prompts
+     * "move it inside the project?" — a file outside the integration is copied into
+     * `<integration>/<targetDir>` (default "libs") automatically, and the resolved
+     * integration-relative path is returned. A file already inside the integration is left in
+     * place; only its path is relativized.
+     *
+     * The default is "libs", not "resources" — the latter is a reserved Ballerina package
+     * directory whose contents get bundled into the BALA/executable as module resources, which
+     * would ship a provided-scope dependency JAR inside the build artifact.
+     */
+    async selectProjectRelativeFile(params: ProjectFileRequest): Promise<ProjectFileResponse> {
+        const selectedFile = await askFilePath(params.filters);
+        if (!selectedFile || selectedFile.length === 0) {
+            return { path: "" };
+        }
+        const picked = selectedFile[0].fsPath;
+
+        const root = params.allowOutsideProject ? undefined : await resolveIntegrationRoot();
+        if (!root) {
+            return { path: picked, absolutePath: picked };
+        }
+        if (isPathInside(root, picked)) {
+            return { path: toIntegrationRelative(root, picked), absolutePath: picked };
+        }
+
+        const dest = await copyIntoIntegration(root, picked, params.targetDir ?? "libs");
+        if (!dest) {
+            return { path: "" };
+        }
+        return { path: toIntegrationRelative(root, dest), absolutePath: dest, copied: true };
     }
 
     async selectFileOrFolderPath(): Promise<FileOrDirResponse> {
@@ -278,6 +311,10 @@ export class CommonRpcManager implements CommonRPCAPI {
 
     async experimentalEnabled(): Promise<boolean> {
         return extension.ballerinaExtInstance.enabledExperimentalFeatures();
+    }
+
+    async getCopilotOrbTheme(): Promise<string> {
+        return workspace.getConfiguration("ballerina.copilot").get<string>("orbTheme", "animated");
     }
 
     async additionalTriggerSearchEnabled(): Promise<boolean> {
@@ -316,7 +353,7 @@ export class CommonRpcManager implements CommonRPCAPI {
 
     async showErrorMessage(params: ShowErrorMessageRequest): Promise<void> {
         const messageWithLink = new MarkdownString(params.message);
-        messageWithLink.appendMarkdown(`\n\nPlease [create an issue](${BALLERINA_INTEGRATOR_ISSUES_URL}) if the issue persists.`);
+        messageWithLink.appendMarkdown(`\n\nPlease [create an issue](${PRODUCT_INTEGRATOR_ISSUES_URL}) if the issue persists.`);
         window.showErrorMessage(messageWithLink.value);
     }
 
@@ -614,7 +651,8 @@ export class CommonRpcManager implements CommonRPCAPI {
         return {
             orgName: tomlValues?.package?.org ?? getUsername(),
             packageName: tomlValues?.package?.name ?? fallbackName,
-            version: tomlValues?.package?.version ?? '0.1.0'
+            version: tomlValues?.package?.version ?? '0.1.0',
+            visibility: tomlValues?.package?.visibility === 'private' ? 'private' : 'public'
         };
     }
 
@@ -652,11 +690,38 @@ export class CommonRpcManager implements CommonRPCAPI {
             return undefined;
         }
 
+        const visibility = await this.promptForPublishVisibility(current.visibility);
+        if (visibility === undefined) {
+            return undefined;
+        }
+
         return {
             orgName: orgName.trim(),
             packageName: packageName.trim(),
-            version: version.trim()
+            version: version.trim(),
+            visibility
         };
+    }
+
+    private async promptForPublishVisibility(current: PackageVisibility): Promise<PackageVisibility | undefined> {
+        const items: (QuickPickItem & { value: PackageVisibility; })[] = [
+            {
+                label: 'Public',
+                description: 'Visible to everyone on Ballerina Central',
+                value: 'public'
+            },
+            {
+                label: 'Private',
+                description: 'Visible only to members of the organization',
+                value: 'private'
+            }
+        ];
+        const selected = await window.showQuickPick(items, {
+            title: 'Edit Package Visibility',
+            placeHolder: `Visibility (current: ${current === 'private' ? 'Private' : 'Public'})`,
+            ignoreFocusOut: true
+        });
+        return selected?.value;
     }
 
     private async updatePackageToml(projectPath: string, update: (content: string) => string): Promise<void> {
@@ -692,7 +757,10 @@ export class CommonRpcManager implements CommonRPCAPI {
         return this.updatePackageSection(content, (section) => {
             let updated = this.upsertTomlField(section, 'org', details.orgName);
             updated = this.upsertTomlField(updated, 'name', details.packageName);
-            return this.upsertTomlField(updated, 'version', details.version);
+            updated = this.upsertTomlField(updated, 'version', details.version);
+            return details.visibility === 'private'
+                ? this.upsertTomlField(updated, 'visibility', 'private')
+                : this.removeTomlField(updated, 'visibility');
         });
     }
 
@@ -716,6 +784,10 @@ export class CommonRpcManager implements CommonRPCAPI {
         return fieldPattern.test(section)
             ? section.replace(fieldPattern, fieldLine)
             : this.insertTomlField(section, fieldLine);
+    }
+
+    private removeTomlField(section: string, field: string): string {
+        return section.replace(new RegExp(`^\\s*${field}\\s*=.*\\n?`, 'm'), '');
     }
 
     private insertTomlField(section: string, fieldLine: string): string {

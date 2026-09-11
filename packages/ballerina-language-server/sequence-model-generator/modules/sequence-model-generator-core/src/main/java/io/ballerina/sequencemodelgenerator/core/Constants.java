@@ -29,4 +29,5 @@ public class Constants {
     }
 
     public static final String DEFAULT_MODULE = ".";
+    public static final String DEFAULT_RESOURCE_METHOD = "get";
 }

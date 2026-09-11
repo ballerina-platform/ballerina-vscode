@@ -38,7 +38,9 @@ import java.util.Map;
 public class AnnotationEmitterTest {
 
     private TriggerUISchemaModel.FunctionModel onFileCsv() {
-        TriggerUISchemaModel model = TriggerModelReader.getInstance().getBundledTriggerModel("ftp").orElseThrow();
+        GeneratedTriggerCorpus.Entry entry = GeneratedTriggerCorpus.get("ftp");
+        TriggerUISchemaModel model = TriggerModelReader.getInstance()
+                .getGeneratedTriggerModel(entry.org(), entry.module(), entry.version()).orElseThrow();
         return model.serviceTypes().getFirst().schemaFunctions().stream()
                 .filter(f -> "onFileCsv".equals(f.name())).findFirst().orElseThrow();
     }
@@ -75,7 +77,7 @@ public class AnnotationEmitterTest {
     private static TriggerUISchemaModel.Property leaf(boolean enabled, String value, String field, boolean optional) {
         TriggerUISchemaModel.Codedata codedata = new TriggerUISchemaModel.Codedata(null, null, null, null, null, null,
                 null, null, null, null, null, null, null, null, null, null, null, null, field, optional,
-                null, null, null, null, null);
+                null, null, null, null, null, null);
         return new TriggerUISchemaModel.Property(null, enabled, true, optional, false, null, value, null, null,
                 null, null, codedata, null);
     }
@@ -84,7 +86,7 @@ public class AnnotationEmitterTest {
                                                          Map<String, TriggerUISchemaModel.Property> fields) {
         TriggerUISchemaModel.Codedata codedata = new TriggerUISchemaModel.Codedata("COMPLEX_FUNCTION_ANNOTATION", null,
                 name, module, null, null, null, null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null, null);
         return new TriggerUISchemaModel.Property(null, true, true, false, false, null, null, null, null, null,
                 fields, codedata, null);
     }

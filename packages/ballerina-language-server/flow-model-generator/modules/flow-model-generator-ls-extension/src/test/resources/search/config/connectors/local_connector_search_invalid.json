@@ -71,7 +71,7 @@
     },
     {
       "metadata": {
-        "label": "Ctg",
+        "label": "IBM CTG",
         "description": "IBM CTG client.",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ibm.ctg_0.1.1.png",
         "data": {
@@ -92,7 +92,7 @@
     },
     {
       "metadata": {
-        "label": "Transactional",
+        "label": "Mailchimp Transactional",
         "description": "",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_mailchimp.transactional_1.0.2.png",
         "data": {
@@ -113,7 +113,7 @@
     },
     {
       "metadata": {
-        "label": "Redshift",
+        "label": "AWS Redshift",
         "description": "",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_aws.redshift_1.2.2.png",
         "data": {
@@ -134,7 +134,7 @@
     },
     {
       "metadata": {
-        "label": "Onedrive",
+        "label": "Microsoft OneDrive",
         "description": "",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_microsoft.onedrive_3.0.2.png",
         "data": {
@@ -155,7 +155,7 @@
     },
     {
       "metadata": {
-        "label": "Marketing",
+        "label": "Mailchimp Marketing",
         "description": "",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_mailchimp.marketing_1.0.2.png",
         "data": {
@@ -176,7 +176,7 @@
     },
     {
       "metadata": {
-        "label": "Jdbc",
+        "label": "Java JDBC",
         "description": "Represents a JDBC client.",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_java.jdbc_1.15.1.png",
         "data": {
@@ -218,7 +218,7 @@
     },
     {
       "metadata": {
-        "label": "Secretmanager",
+        "label": "AWS Secret Manager",
         "description": "AWS Secret Manager client.",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_aws.secretmanager_0.4.1.png",
         "data": {
@@ -239,7 +239,7 @@
     },
     {
       "metadata": {
-        "label": "Mpm",
+        "label": "AWS Marketplace MPM",
         "description": "AWS Marketplace metering client.",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_aws.marketplace.mpm_0.2.1.png",
         "data": {
@@ -260,7 +260,7 @@
     },
     {
       "metadata": {
-        "label": "Mpe",
+        "label": "AWS Marketplace MPE",
         "description": "AWS Marketplace entitlement client.",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_aws.marketplace.mpe_0.2.1.png",
         "data": {
@@ -281,7 +281,7 @@
     },
     {
       "metadata": {
-        "label": "Websocket",
+        "label": "WebSocket",
         "description": "Represents a WebSocket synchronous client endpoint.",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_websocket_2.15.2.png",
         "data": {
@@ -302,7 +302,7 @@
     },
     {
       "metadata": {
-        "label": "Associations",
+        "label": "HubSpot Associations",
         "description": "",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_hubspot.crm.associations_2.0.1.png",
         "data": {
@@ -323,7 +323,7 @@
     },
     {
       "metadata": {
-        "label": "Transactional",
+        "label": "HubSpot Transactional",
         "description": "",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_hubspot.marketing.transactional_1.0.1.png",
         "data": {
@@ -344,7 +344,7 @@
     },
     {
       "metadata": {
-        "label": "Campaigns",
+        "label": "HubSpot Campaigns",
         "description": "",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_hubspot.marketing.campaigns_2.0.1.png",
         "data": {
@@ -365,7 +365,7 @@
     },
     {
       "metadata": {
-        "label": "Events",
+        "label": "HubSpot Marketing Events",
         "description": "",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_hubspot.marketing.events_1.0.1.png",
         "data": {
@@ -386,7 +386,7 @@
     },
     {
       "metadata": {
-        "label": "Import",
+        "label": "HubSpot Import",
         "description": "",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_hubspot.crm.import_4.0.1.png",
         "data": {
@@ -407,7 +407,7 @@
     },
     {
       "metadata": {
-        "label": "Emails",
+        "label": "HubSpot Marketing Emails",
         "description": "",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_hubspot.marketing.emails_1.0.1.png",
         "data": {

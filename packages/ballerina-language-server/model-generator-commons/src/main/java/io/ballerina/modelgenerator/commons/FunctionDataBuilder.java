@@ -78,11 +78,13 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Stream;
 
 import static io.ballerina.modelgenerator.commons.FunctionData.Kind.isAiClassKind;
@@ -615,6 +617,10 @@ public class FunctionDataBuilder {
     private ReturnData getReturnData(FunctionSymbol symbol) {
         FunctionTypeSymbol functionTypeSymbol = symbol.typeDescriptor();
         Optional<TypeSymbol> returnTypeSymbol = functionTypeSymbol.returnTypeDescriptor();
+        // The qualifiers the return type is rendered under, so the imports recorded below describe the text that
+        // was actually produced. Only the signature branch renders through it; the branches above name a single
+        // known module and keep deriving their import from moduleInfo.
+        TypeQualifierAllocator returnAllocator = new TypeQualifierAllocator();
         String returnType = returnTypeSymbol
                 .map(typeSymbol -> {
                     if (isGetDefaultModelProvider(functionKind, functionName)) {
@@ -629,7 +635,7 @@ public class FunctionDataBuilder {
                         return isSameAsUserModule() ? className
                                 : CommonUtils.getClassType(moduleInfo.moduleName(), className);
                     }
-                    return getTypeSignature(typeSymbol, true);
+                    return getTypeSignature(typeSymbol, true, returnAllocator);
                 }).orElse("");
 
         ParamForTypeInfer paramForTypeInfer = null;
@@ -646,9 +652,14 @@ public class FunctionDataBuilder {
                 if (returnTypeMap.containsKey(paramName)) {
                     TypeSymbol typeDescriptor = returnTypeMap.get(paramName);
                     TypeSymbol typeSymbol = ((TypeReferenceTypeSymbol) typeDescriptor).typeDescriptor();
-                    String defaultValue = getTypeSignature(typeSymbol);
+                    // Shared so the rendered text and the imports built from it in getParameters() agree on which
+                    // qualifier a colliding module was given -- see qualifiedImports().
+                    TypeQualifierAllocator inferAllocator = new TypeQualifierAllocator();
+                    String defaultValue = getTypeSignature(typeSymbol, false, inferAllocator);
                     paramForTypeInfer = new ParamForTypeInfer(paramName, defaultValue, typeSymbol,
-                            CommonUtils.getTypeSignature(semanticModel, CommonUtils.getRawType(typeDescriptor), true));
+                            CommonUtils.getTypeSignature(semanticModel, CommonUtils.getRawType(typeDescriptor), true,
+                                    null, inferAllocator),
+                            inferAllocator);
                     break;
                 }
             }
@@ -658,7 +669,8 @@ public class FunctionDataBuilder {
         String importStatements =
                 functionKind == FunctionData.Kind.CLASS_INIT || isConnector(functionKind) || isAiClassKind(functionKind)
                         ? getImportStatement(moduleInfo)
-                        : returnTypeSymbol.map(typeSymbol -> getImportStatements(returnTypeSymbol.get())).orElse(null);
+                        : returnTypeSymbol.map(typeSymbol -> qualifiedImports(returnAllocator, typeSymbol))
+                                .orElse(null);
 
         boolean returnError = returnTypeSymbol
                 .map(returnTypeDesc -> CommonUtils.subTypeOf(returnTypeDesc, errorTypeSymbol)).orElse(false);
@@ -859,11 +871,13 @@ public class FunctionDataBuilder {
         String placeholder;
         String defaultValue = null;
         TypeSymbol typeSymbol = paramSymbol.typeDescriptor();
-        String importStatements = getImportStatements(typeSymbol);
+        // One allocator for this parameter's type, whichever branch below renders it.
+        TypeQualifierAllocator paramAllocator = new TypeQualifierAllocator();
         if (parameterKind == ParameterData.Kind.REST_PARAMETER) {
             placeholder = DefaultValueGeneratorUtil.getDefaultValueForType(
                     ((ArrayTypeSymbol) typeSymbol).memberTypeDescriptor());
-            paramType = getTypeSignature(((ArrayTypeSymbol) typeSymbol).memberTypeDescriptor());
+            paramType = getTypeSignature(((ArrayTypeSymbol) typeSymbol).memberTypeDescriptor(), false,
+                    paramAllocator);
         } else if (parameterKind == ParameterData.Kind.INCLUDED_RECORD) {
             Map<String, String> includedRecordParamDocs = new HashMap<>();
             if (typeSymbol.getModule().isPresent() && typeSymbol.getName().isPresent()) {
@@ -878,25 +892,29 @@ public class FunctionDataBuilder {
                     }
                 }
             }
-            paramType = getTypeSignature(typeSymbol);
+            paramType = getTypeSignature(typeSymbol, false, paramAllocator);
             Map<String, ParameterData> includedParameters = getIncludedRecordParams(
                     (RecordTypeSymbol) CommonUtil.getRawType(typeSymbol), true, includedRecordParamDocs, union);
             parameters.putAll(includedParameters);
             placeholder = DefaultValueGeneratorUtil.getDefaultValueForType(typeSymbol);
         } else if (parameterKind == ParameterData.Kind.REQUIRED) {
-            paramType = getTypeSignature(typeSymbol);
+            paramType = getTypeSignature(typeSymbol, false, paramAllocator);
             placeholder = DefaultValueGeneratorUtil.getDefaultValueForType(typeSymbol);
             optional = false;
         } else {
             if (paramForTypeInfer != null) {
                 if (paramForTypeInfer.paramName().equals(paramName)) {
+                    // Reconciled through the same allocator the text was rendered with, so a collision resolves to
+                    // the same qualifier here as it does in paramForTypeInfer.type().
+                    String inferredImports = qualifiedImports(paramForTypeInfer.allocator(),
+                            paramForTypeInfer.typeSymbol());
                     placeholder = paramForTypeInfer.defaultValue();
                     defaultValue = paramForTypeInfer.defaultValue();
                     paramType = paramForTypeInfer.type();
                     typeSymbol = paramForTypeInfer.typeSymbol();
                     parameters.put(paramName, ParameterData.from(paramName, paramDescription,
                             getLabel(paramSymbol.annotAttachments(), paramName), paramType, placeholder, defaultValue,
-                            ParameterData.Kind.PARAM_FOR_TYPE_INFER, optional, deprecated, importStatements,
+                            ParameterData.Kind.PARAM_FOR_TYPE_INFER, optional, false, deprecated, inferredImports,
                             typeSymbol));
                     return parameters;
                 }
@@ -904,12 +922,12 @@ public class FunctionDataBuilder {
             placeholder = DefaultValueGeneratorUtil.getDefaultValueForType(typeSymbol);
             defaultValue = CommonUtils.resolveDefaultValue(paramSymbol, typeSymbol, semanticModel, resolvedPackage,
                     document);
-            paramType = getTypeSignature(typeSymbol);
+            paramType = getTypeSignature(typeSymbol, false, paramAllocator);
         }
         ParameterData parameterData = ParameterData.from(paramName, paramDescription,
                 getLabel(paramSymbol.annotAttachments(), paramName), paramType, placeholder, defaultValue,
-                parameterKind, optional, deprecated,
-                importStatements, typeSymbol);
+                parameterKind, optional, false, deprecated,
+                qualifiedImports(paramAllocator, typeSymbol), typeSymbol);
         parameters.put(paramName, parameterData);
         addParameterMemberTypes(typeSymbol, parameterData, union);
         return parameters;
@@ -1042,11 +1060,12 @@ public class FunctionDataBuilder {
                     resolvedPackage, document);
             String paramType = getTypeSignature(typeSymbol);
             boolean optional = recordFieldSymbol.isOptional() || recordFieldSymbol.hasDefaultValue();
+            boolean advanced = recordFieldSymbol.isOptional();
             boolean deprecated = isDeprecated(recordFieldSymbol.annotAttachments());
             ParameterData parameterData = ParameterData.from(paramName, documentationMap.get(paramName),
                     getLabel(recordFieldSymbol.annotAttachments(), paramName),
-                    paramType, placeholder, defaultValue, ParameterData.Kind.INCLUDED_FIELD, optional, deprecated,
-                    getImportStatements(typeSymbol), typeSymbol);
+                    paramType, placeholder, defaultValue, ParameterData.Kind.INCLUDED_FIELD, optional, advanced,
+                    deprecated, getImportStatements(typeSymbol), typeSymbol);
             parameters.put(paramName, parameterData);
             addParameterMemberTypes(typeSymbol, parameterData, union);
         }
@@ -1055,48 +1074,116 @@ public class FunctionDataBuilder {
             String placeholder = DefaultValueGeneratorUtil.getDefaultValueForType(typeSymbol);
             parameters.put("Additional Values", new ParameterData(0, "Additional Values",
                     paramType, ParameterData.Kind.INCLUDED_RECORD_REST, placeholder, null,
-                    "Capture key value pairs", null, true, false, getImportStatements(typeSymbol),
+                    "Capture key value pairs", null, true, false, false, getImportStatements(typeSymbol),
                     new ArrayList<>(), typeSymbol));
         });
         return parameters;
     }
 
+    /**
+     * Collects every leaf type reachable from a type, flattening unions, arrays, maps, tables, streams,
+     * intersections and inline records into {@code typeMap}.
+     *
+     * <p><b>Bounded, because the type graph is not a tree.</b> An anonymous structural type can reach itself
+     * — {@code ballerinax/sap.jco} pairs an inline union with an inline record that contains it. Unbounded
+     * recursion there is a {@link StackOverflowError}, which being an {@code Error} escapes every
+     * {@code catch (RuntimeException)} on the way out and takes down the whole request.
+     *
+     * <p>Two independent guards, because either alone is insufficient:
+     * <ul>
+     *   <li><b>Depth.</b> A hard cap terminates regardless of the graph's shape and needs nothing from the
+     *       symbol API. {@value #MAX_MEMBER_DEPTH} is far past any hand-written type.</li>
+     *   <li><b>Repeat expansion.</b> A type already expanded contributes no new leaves the second time, so
+     *       skipping it keeps the common diamond-shaped graph from being walked exponentially. Keyed by
+     *       signature rather than identity, because the compiler API hands back a fresh symbol instance per
+     *       traversal.</li>
+     * </ul>
+     * The depth cap is what guarantees termination; the signature set is what keeps the walk cheap. A
+     * signature that cannot be computed degrades to depth-only rather than aborting.
+     *
+     * @param typeMap    collects the reachable leaf types, keyed by name
+     * @param typeSymbol the type to walk
+     */
     public static void allMembers(Map<String, TypeSymbol> typeMap, TypeSymbol typeSymbol) {
+        allMembers(typeMap, typeSymbol, new HashSet<>(), 0);
+    }
 
+    /** The deepest structural nesting {@link #allMembers} will walk before treating a type as a leaf. */
+    private static final int MAX_MEMBER_DEPTH = 64;
+
+    private static void allMembers(Map<String, TypeSymbol> typeMap, TypeSymbol typeSymbol,
+                                   Set<String> expanded, int depth) {
+        if (typeSymbol == null) {
+            return;
+        }
+        if (depth >= MAX_MEMBER_DEPTH) {
+            // Record what was reached rather than dropping it: a truncated leaf is still a real type.
+            typeMap.put(typeSymbol.getName().orElse(""), typeSymbol);
+            return;
+        }
         switch (typeSymbol.typeKind()) {
             case UNION -> {
+                if (alreadyExpanded(typeSymbol, expanded)) {
+                    return;
+                }
                 UnionTypeSymbol unionTypeSymbol = (UnionTypeSymbol) typeSymbol;
-                unionTypeSymbol.memberTypeDescriptors().forEach(memberType -> allMembers(typeMap, memberType));
+                unionTypeSymbol.memberTypeDescriptors()
+                        .forEach(memberType -> allMembers(typeMap, memberType, expanded, depth + 1));
             }
             case INTERSECTION -> {
+                if (alreadyExpanded(typeSymbol, expanded)) {
+                    return;
+                }
                 IntersectionTypeSymbol intersectionTypeSymbol = (IntersectionTypeSymbol) typeSymbol;
-                intersectionTypeSymbol.memberTypeDescriptors().forEach(memberType -> allMembers(typeMap, memberType));
+                intersectionTypeSymbol.memberTypeDescriptors()
+                        .forEach(memberType -> allMembers(typeMap, memberType, expanded, depth + 1));
             }
             case STREAM -> {
                 StreamTypeSymbol streamTypeSymbol = (StreamTypeSymbol) typeSymbol;
-                allMembers(typeMap, streamTypeSymbol.typeParameter());
-                allMembers(typeMap, streamTypeSymbol.completionValueTypeParameter());
+                allMembers(typeMap, streamTypeSymbol.typeParameter(), expanded, depth + 1);
+                allMembers(typeMap, streamTypeSymbol.completionValueTypeParameter(), expanded, depth + 1);
             }
             case ARRAY -> {
                 ArrayTypeSymbol arrayTypeSymbol = (ArrayTypeSymbol) typeSymbol;
-                allMembers(typeMap, arrayTypeSymbol.memberTypeDescriptor());
+                allMembers(typeMap, arrayTypeSymbol.memberTypeDescriptor(), expanded, depth + 1);
             }
             case MAP -> {
                 MapTypeSymbol mapTypeSymbol = (MapTypeSymbol) typeSymbol;
-                allMembers(typeMap, mapTypeSymbol.typeParam());
+                allMembers(typeMap, mapTypeSymbol.typeParam(), expanded, depth + 1);
             }
             case TABLE -> {
                 TableTypeSymbol tableTypeSymbol = (TableTypeSymbol) typeSymbol;
-                allMembers(typeMap, tableTypeSymbol.rowTypeParameter());
-                tableTypeSymbol.keyConstraintTypeParameter().ifPresent(keyType -> allMembers(typeMap, keyType));
+                allMembers(typeMap, tableTypeSymbol.rowTypeParameter(), expanded, depth + 1);
+                tableTypeSymbol.keyConstraintTypeParameter()
+                        .ifPresent(keyType -> allMembers(typeMap, keyType, expanded, depth + 1));
             }
             case RECORD -> {
+                if (alreadyExpanded(typeSymbol, expanded)) {
+                    return;
+                }
                 RecordTypeSymbol recordTypeSymbol = (RecordTypeSymbol) typeSymbol;
                 recordTypeSymbol.fieldDescriptors()
-                        .forEach((key, value) -> allMembers(typeMap, value.typeDescriptor()));
-                recordTypeSymbol.restTypeDescriptor().ifPresent(restType -> allMembers(typeMap, restType));
+                        .forEach((key, value) -> allMembers(typeMap, value.typeDescriptor(), expanded,
+                                depth + 1));
+                recordTypeSymbol.restTypeDescriptor()
+                        .ifPresent(restType -> allMembers(typeMap, restType, expanded, depth + 1));
             }
             default -> typeMap.put(typeSymbol.getName().orElse(""), typeSymbol);
+        }
+    }
+
+    /**
+     * Whether this composite type has been expanded already in this walk, recording it when it has not.
+     *
+     * <p>A signature that cannot be computed returns {@code false}, which means "expand it": the depth cap
+     * still bounds the walk, so degrading to depth-only is safe, whereas refusing to expand would silently
+     * drop the type's members.
+     */
+    private static boolean alreadyExpanded(TypeSymbol typeSymbol, Set<String> expanded) {
+        try {
+            return !expanded.add(typeSymbol.signature());
+        } catch (RuntimeException | StackOverflowError e) {
+            return false;
         }
     }
 
@@ -1151,10 +1238,18 @@ public class FunctionDataBuilder {
     }
 
     private String getTypeSignature(TypeSymbol typeSymbol, boolean ignoreError) {
-        if (userModuleInfo == null) {
-            return CommonUtils.getTypeSignature(semanticModel, typeSymbol, ignoreError);
-        }
-        return CommonUtils.getTypeSignature(semanticModel, typeSymbol, ignoreError, userModuleInfo);
+        return getTypeSignature(typeSymbol, ignoreError, null);
+    }
+
+    /**
+     * The type signature, rendered so that every module qualifier in it names exactly one module.
+     *
+     * @param allocator collects the modules the signature names, each under the qualifier it was rendered with, so
+     *                  the text and the recorded imports cannot disagree. Null renders as before.
+     */
+    private String getTypeSignature(TypeSymbol typeSymbol, boolean ignoreError,
+                                    TypeQualifierAllocator allocator) {
+        return CommonUtils.getTypeSignature(semanticModel, typeSymbol, ignoreError, userModuleInfo, allocator);
     }
 
     private String getTypeSignature(String type) {
@@ -1191,6 +1286,47 @@ public class FunctionDataBuilder {
 
     private boolean isSameAsUserModule() {
         return isCurrentModule && moduleInfo.equals(userModuleInfo);
+    }
+
+    /**
+     * The imports for a rendered type, keyed by the qualifier the text actually uses.
+     *
+     * <p>
+     * Which modules are importable stays with {@link #getImportStatements}, the symbol walk that has always decided
+     * it: a signature's text also names modules that are never imported -- a dependent type's {@code array:Type}
+     * resolves to {@code ballerina/lang.array} -- and recording those would have generated an import for them. The
+     * allocator contributes only the qualifier each importable module was rendered under, which is the part a module
+     * name cannot supply. So the set of imports is exactly what it was; only a key that had to be renamed differs.
+     * </p>
+     */
+    private String qualifiedImports(TypeQualifierAllocator allocator, TypeSymbol typeSymbol) {
+        String importStatements = getImportStatements(typeSymbol);
+        if (importStatements == null || importStatements.isBlank()) {
+            return importStatements;
+        }
+        Map<String, String> qualifierBySignature = allocator.qualifierBySignature();
+        if (qualifierBySignature.isEmpty()) {
+            return importStatements;
+        }
+        Map<String, String> imports = new LinkedHashMap<>();
+        for (String entry : importStatements.split(",")) {
+            String signature = entry.trim().split(":")[0];
+            if (signature.isEmpty() || imports.containsValue(signature)) {
+                continue;
+            }
+            String qualifier = qualifierBySignature.get(signature);
+            String module = signature.contains("/")
+                    ? signature.substring(signature.indexOf('/') + 1) : signature;
+            // The allocator only names the modules the rendered text mentions, and the text is rendered with
+            // error members dropped while this list is not -- so a signature can arrive with no qualifier, or
+            // with one another signature already holds. Either way it takes a free prefix rather than
+            // displacing the module that got there first, whose import would otherwise be lost.
+            if (qualifier == null || imports.containsKey(qualifier)) {
+                qualifier = ModuleAliasResolver.allocatePrefix(module, imports.keySet());
+            }
+            imports.put(qualifier, signature);
+        }
+        return CommonUtils.encodeImportStatements(imports);
     }
 
     private String getImportStatements(TypeSymbol typeSymbol) {
@@ -1306,7 +1442,8 @@ public class FunctionDataBuilder {
         return sb.toString();
     }
 
-    private record ParamForTypeInfer(String paramName, String defaultValue, TypeSymbol typeSymbol, String type) {
+    private record ParamForTypeInfer(String paramName, String defaultValue, TypeSymbol typeSymbol, String type,
+                                     TypeQualifierAllocator allocator) {
     }
 
     private record ReturnData(String returnType, ParamForTypeInfer paramForTypeInfer, boolean returnError,

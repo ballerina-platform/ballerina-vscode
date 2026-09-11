@@ -27,6 +27,8 @@ import {
     DefaultOrgNameResponse,
     FileOrDirRequest,
     FileOrDirResponse,
+    ProjectFileRequest,
+    ProjectFileResponse,
     GoToSourceRequest,
     OpenExternalUrlRequest,
     PackageTomlValues,
@@ -43,6 +45,7 @@ import {
     downloadSelectedSampleFromGithub,
     executeCommand,
     experimentalEnabled,
+    getCopilotOrbTheme,
     getAgentRunStatus,
     getBallerinaDiagnostics,
     getCurrentProjectTomlValues,
@@ -60,6 +63,7 @@ import {
     publishToCentral,
     runBackgroundTerminalCommand,
     selectFileOrDirPath,
+    selectProjectRelativeFile,
     selectFileOrFolderPath,
     setPreferredTryItOption,
     showErrorMessage,
@@ -119,12 +123,20 @@ export class CommonRpcClient implements CommonRPCAPI {
         return this._messenger.sendRequest(selectFileOrDirPath, HOST_EXTENSION, params);
     }
 
+    selectProjectRelativeFile(params: ProjectFileRequest): Promise<ProjectFileResponse> {
+        return this._messenger.sendRequest(selectProjectRelativeFile, HOST_EXTENSION, params);
+    }
+
     selectFileOrFolderPath(): Promise<FileOrDirResponse> {
         return this._messenger.sendRequest(selectFileOrFolderPath, HOST_EXTENSION);
     }
 
     experimentalEnabled(): Promise<boolean> {
         return this._messenger.sendRequest(experimentalEnabled, HOST_EXTENSION);
+    }
+
+    getCopilotOrbTheme(): Promise<string> {
+        return this._messenger.sendRequest(getCopilotOrbTheme, HOST_EXTENSION);
     }
 
     additionalTriggerSearchEnabled(): Promise<boolean> {

@@ -28,6 +28,7 @@ import { getAskResponse } from "../../features/ai/ask/index";
 import { ArtifactNotificationHandler, ArtifactsUpdated } from "../../utils/project-artifacts-handler";
 import { VisualizerRpcManager } from "../visualizer/rpc-manager";
 import { renderDatamapper } from "../../../src/views/ai-panel/checkpoint/checkpointUtils";
+import { closeTabsOpenedByEdit, openTabUris, saveEditedDocuments } from "./edit-tabs";
 
 // Common functions
 
@@ -40,6 +41,7 @@ export function isErrorCode(error: any): boolean {
 export async function addToIntegration(workspaceFolderPath: string, fileChanges: FileChanges[]) {
     const formattedWorkspaceEdit = new WorkspaceEdit();
     const nonBalFiles: FileChanges[] = [];
+    const editedBalUris: Uri[] = [];
     let isBalFileAdded = false;
     for (const fileChange of fileChanges) {
         let balFilePath = path.join(workspaceFolderPath, fileChange.filePath);
@@ -55,6 +57,7 @@ export async function addToIntegration(workspaceFolderPath: string, fileChanges:
             continue;
         }
 
+        editedBalUris.push(fileUri);
         formattedWorkspaceEdit.createFile(fileUri, { ignoreIfExists: true });
 
         formattedWorkspaceEdit.replace(
@@ -67,9 +70,23 @@ export async function addToIntegration(workspaceFolderPath: string, fileChanges:
         );
     }
 
-    // Apply all formatted changes at once
-    await workspace.applyEdit(formattedWorkspaceEdit);
-    await workspace.saveAll();
+    // applyEdit signals failure by returning false rather than throwing, usually because the
+    // document version changed underneath it. Gated on isBalFileAdded so an empty
+    // WorkspaceEdit isn't applied.
+    if (isBalFileAdded) {
+        const tabsBeforeEdit = openTabUris();
+        const applied = await workspace.applyEdit(formattedWorkspaceEdit, { isRefactoring: true });
+        if (!applied) {
+            throw new Error(
+                `Failed to apply workspace edit for: ${fileChanges.map(f => f.filePath).join(', ')}`
+            );
+        }
+        // applyEdit leaves each touched file as a dirty editor-less document, and VS Code opens a tab for
+        // one that stays dirty ~800 ms: save exactly what was touched, straight after. isRefactoring has
+        // VS Code do that save inside the edit itself, but only for edits spanning more than one resource.
+        await saveEditedDocuments(editedBalUris);
+        await closeTabsOpenedByEdit(editedBalUris, tabsBeforeEdit);
+    }
 
     // Write non ballerina files separately as ls doesn't need to be notified of those changes
     for (const fileChange of nonBalFiles) {
@@ -88,7 +105,9 @@ export async function addToIntegration(workspaceFolderPath: string, fileChanges:
 
     return new Promise((resolve, reject) => {
         if (!isBalFileAdded) {
+            // No LS notification is coming, so don't leave a subscription and timer behind.
             resolve([]);
+            return;
         }
         // Get the artifact notification handler instance
         const notificationHandler = ArtifactNotificationHandler.getInstance();

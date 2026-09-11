@@ -37,10 +37,10 @@ import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.PropertyType;
 import io.ballerina.flowmodelgenerator.core.model.RecordSelectorType;
-import io.ballerina.flowmodelgenerator.core.utils.FileSystemUtils;
 import io.ballerina.flowmodelgenerator.core.utils.FlowNodeUtil;
 import io.ballerina.flowmodelgenerator.core.utils.ParamUtils;
 import io.ballerina.modelgenerator.commons.CommonUtils;
+import io.ballerina.modelgenerator.commons.FileSystemUtils;
 import io.ballerina.modelgenerator.commons.FunctionData;
 import io.ballerina.modelgenerator.commons.FunctionDataBuilder;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
@@ -351,12 +351,13 @@ public abstract class CallBuilder extends NodeBuilder {
                 .defaultValue(paramData.defaultValue())
                 .imports(paramData.importStatements())
                 .editable()
-                .defaultable(paramData.optional());
+                .optional(paramData.optional())
+                .advanced(paramData.advanced());
 
         switch (paramData.kind()) {
             case INCLUDED_RECORD_REST -> {
                 if (hasOnlyRestParams) {
-                    customPropBuilder.defaultable(false);
+                    customPropBuilder.optional(false).advanced(false);
                 }
                 Property template = customPropBuilder.buildRepeatableTemplates(paramData.typeSymbol(),
                         semanticModel, moduleInfo);
@@ -369,7 +370,7 @@ public abstract class CallBuilder extends NodeBuilder {
             }
             case REST_PARAMETER -> {
                 if (hasOnlyRestParams) {
-                    customPropBuilder.defaultable(false);
+                    customPropBuilder.optional(false).advanced(false);
                 }
                 Property template = customPropBuilder.buildRepeatableTemplates(paramData.typeSymbol(),
                         semanticModel, moduleInfo);

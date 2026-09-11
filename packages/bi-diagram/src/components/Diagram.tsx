@@ -138,7 +138,9 @@ export function Diagram(props: DiagramProps) {
 
     const [showErrorFlow, setShowErrorFlow] = useState(false);
     const [nodeComments, setNodeComments] = useState<Map<string, FlowNode[]>>(new Map());
-    const [diagramEngine] = useState<DiagramEngine>(generateEngine());
+    // Lazy initializer: generateEngine() registers ~20 factories, and the non-lazy form
+    // would rebuild (and discard) an engine on every render of this component.
+    const [diagramEngine] = useState<DiagramEngine>(() => generateEngine());
     const [diagramModel, setDiagramModel] = useState<DiagramModel | null>(null);
     const [canvasVisible, setCanvasVisible] = useState(!(isAgentFocusView && embedded));
     const [showComponentPanel, setShowComponentPanel] = useState(false);

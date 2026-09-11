@@ -20,9 +20,9 @@ package io.ballerina.flowmodelgenerator.extension;
 
 import io.ballerina.flowmodelgenerator.core.TypesManager;
 import io.ballerina.flowmodelgenerator.core.converters.XMLToRecordConverter;
-import io.ballerina.flowmodelgenerator.core.utils.FileSystemUtils;
 import io.ballerina.flowmodelgenerator.extension.request.XMLToRecordRequest;
 import io.ballerina.flowmodelgenerator.extension.response.XMLToRecordResponse;
+import io.ballerina.modelgenerator.commons.FileSystemUtils;
 import io.ballerina.projects.Document;
 import org.ballerinalang.annotation.JavaSPIService;
 import org.ballerinalang.langserver.commons.service.spi.ExtendedLanguageServerService;

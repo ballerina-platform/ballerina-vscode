@@ -129,9 +129,10 @@ export function UseAgentTool(props: UseAgentToolProps): JSX.Element {
                 onSelect={(id: string) => onSelectAgent(id)}
                 onAdd={() => setShowAddAgentPopup(true)}
                 addButtonLabel={"Add Agent"}
+                description={"Pick an agent from your integration to hand off requests to."}
                 searchPlaceholder={"Search agents"}
             />
-            {showAddAgentPopup && createPortal(
+            {showAddAgentPopup && document.getElementById("visualizer-container") && createPortal(
                 <PopupLayer>
                     <AddAgentPopup
                         isPopup
@@ -150,7 +151,7 @@ export function UseAgentTool(props: UseAgentToolProps): JSX.Element {
                         }}
                     />
                 </PopupLayer>,
-                document.body
+                document.getElementById("visualizer-container")
             )}
         </>
     );

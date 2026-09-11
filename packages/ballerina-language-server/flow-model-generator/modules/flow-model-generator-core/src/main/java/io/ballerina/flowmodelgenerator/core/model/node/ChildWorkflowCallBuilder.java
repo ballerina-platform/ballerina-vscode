@@ -31,8 +31,8 @@ import io.ballerina.flowmodelgenerator.core.model.NodeBuilder;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
-import io.ballerina.flowmodelgenerator.core.utils.FileSystemUtils;
 import io.ballerina.modelgenerator.commons.CommonUtils;
+import io.ballerina.modelgenerator.commons.FileSystemUtils;
 import org.ballerinalang.langserver.common.utils.NameUtil;
 import org.eclipse.lsp4j.TextEdit;
 
@@ -73,7 +73,9 @@ public class ChildWorkflowCallBuilder extends NodeBuilder {
 
     @Override
     public void setConcreteConstData() {
-        metadata().label(LABEL).description(DESCRIPTION);
+        // The analysis names the target workflow as the subtitle; build() re-runs this, so
+        // the constants must not overwrite what it derived.
+        metadata().labelIfAbsent(LABEL).descriptionIfAbsent(DESCRIPTION);
         codedata()
                 .node(NodeKind.CHILD_WORKFLOW_CALL)
                 .org(WORKFLOW_ORG)

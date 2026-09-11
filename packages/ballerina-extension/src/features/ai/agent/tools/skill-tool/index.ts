@@ -21,6 +21,7 @@ import { Skill } from '../../skills/types';
 import { readProjectSkillContent, readUserSkillContent } from './skill-reader';
 import { buildAllDisabledSet } from '../../skills/context';
 import { approvalManager } from '../../../state/ApprovalManager';
+import { SkillEnableStage } from '@wso2/ballerina-core';
 
 export const SKILL_TOOL_NAME = "invoke_skill";
 
@@ -113,6 +114,14 @@ Call this tool once per skill whenever a skill's trigger condition is met. Each 
                     eventHandler({ type: "tool_result", toolName: SKILL_TOOL_NAME, toolOutput: result, toolCallId } as any);
                     return result;
                 } else {
+                    // Self-emitted (not left to the "Continue without it" RPC handler) so an abort resolves it too.
+                    eventHandler({
+                        type: "skill_enable_event",
+                        requestId: toolCallId,
+                        stage: SkillEnableStage.SKIPPED,
+                        skillName: resolved.name,
+                        skillId: effectiveId,
+                    } as any);
                     const result = { found: true, skipped: true, message: `Skill "${resolved.name}" was skipped by the user.` };
                     eventHandler({ type: "tool_result", toolName: SKILL_TOOL_NAME, toolOutput: result, toolCallId } as any);
                     return result;

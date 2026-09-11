@@ -45,11 +45,9 @@ import io.ballerina.modelgenerator.commons.FunctionDataBuilder;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.ParameterData;
 import io.ballerina.modelgenerator.commons.ServiceDatabaseManager;
-import io.ballerina.modelgenerator.commons.trigger.models.TriggerUISchemaModel;
 import io.ballerina.projects.Document;
 import io.ballerina.projects.DocumentId;
 import io.ballerina.projects.Project;
-import io.ballerina.servicemodelgenerator.extension.connector.TriggerModelReader;
 import io.ballerina.servicemodelgenerator.extension.model.Codedata;
 import io.ballerina.servicemodelgenerator.extension.model.Listener;
 import io.ballerina.servicemodelgenerator.extension.model.MetaData;
@@ -301,8 +299,7 @@ public class ListenerUtil {
      */
     public static Listener createBaseListenerModel(FunctionData functionData) {
         Map<String, Value> properties = new LinkedHashMap<>();
-        String formattedModuleName = bundledShortDisplayName(functionData.packageName())
-                .orElseGet(() -> upperCaseFirstLetter(functionData.packageName()));
+        String formattedModuleName = upperCaseFirstLetter(functionData.packageName());
         String icon = CommonUtils.generateIcon(functionData.org(), functionData.packageName(),
                 functionData.version());
 
@@ -324,19 +321,6 @@ public class ListenerUtil {
         properties.put(PROP_KEY_VARIABLE_NAME, nameProperty());
         properties.put(PROP_KEY_LISTENER_TYPE, listenerTypeProperty());
         return listenerBuilder.build();
-    }
-
-    /**
-     * The compact display name the connector's bundled trigger model ships (e.g. {@code Azure Files} for
-     * {@code azure.storage.files}), for connectors whose package name would otherwise render awkwardly.
-     *
-     * @param packageName the connector's package name
-     * @return the model's {@code shortDisplayName}, or empty when no bundled model declares one
-     */
-    private static Optional<String> bundledShortDisplayName(String packageName) {
-        return TriggerModelReader.getInstance().getBundledTriggerModel(packageName)
-                .map(TriggerUISchemaModel::shortDisplayName)
-                .filter(name -> !name.isBlank());
     }
 
     private static String getListenerProtocol(String packageName) {

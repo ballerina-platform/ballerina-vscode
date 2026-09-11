@@ -87,6 +87,14 @@ export const FooterInput = styled.input`
     }
 `;
 
+export const FooterHeaderRow = styled.div`
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+`;
+
 /**
  * 24×24 icon button — matches ActionButton in AIChatInput/index.tsx exactly.
  */

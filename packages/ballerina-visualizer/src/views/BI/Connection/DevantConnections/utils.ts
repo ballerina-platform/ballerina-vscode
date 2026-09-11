@@ -17,6 +17,7 @@
  */
 
 import { AvailableNode, Category, IntrospectCredentialsResponse, PropertyModel } from "@wso2/ballerina-core";
+import { MarketplaceItem, MarketplaceItemSchema, Project, ServiceInfoVisibilityEnum } from "@wso2/wso2-platform-core";
 import styled from "@emotion/styled";
 
 export const ProgressWrap = styled.div`
@@ -25,6 +26,40 @@ export const ProgressWrap = styled.div`
     align-items: center;
     padding: 40px;
 `;
+
+// Devant tags knowledge base services with this tag.
+export const KB_SERVICE_TAG = "knowledge-base-as-service";
+export const INTERNAL_SERVICES = "internal-services";
+export const isKnowledgeBaseService = (item: MarketplaceItem) => item.tags?.includes(KB_SERVICE_TAG) ?? false;
+
+// The filter tabs on the WSO2 Cloud connections list.
+export type ConnectionFilterType = "all" | "internal-services" | "third-party-services" | "databases";
+
+/**
+ * Filters marketplace items for the connections list: drops knowledge base services (they belong
+ * under "Add Knowledge Base"), applies the internal-services component filter, and trims to the
+ * page size. Order is preserved. The list is over-fetched because knowledge base services can only
+ * be excluded client-side, so trimming keeps the visible count independent of how many KBs are in
+ * the fetched page.
+ */
+export function filterConnectionMarketplaceItems(
+    items: MarketplaceItem[],
+    filterType: ConnectionFilterType,
+    selectedComponentId: string | undefined,
+    pageSize: number,
+): MarketplaceItem[] {
+    return items
+        .filter((item) => {
+            if (isKnowledgeBaseService(item)) {
+                return false;
+            }
+            if (filterType === INTERNAL_SERVICES && selectedComponentId) {
+                return item.component?.componentId !== selectedComponentId;
+            }
+            return true;
+        })
+        .slice(0, pageSize);
+}
 
 export enum DevantConnectionFlow {
     // Create related flows
@@ -349,3 +384,74 @@ export const dbCredentialsToFieldValues = (
     });
     return result;
 }
+
+// Devant "service -> connection params" helpers, shared by the connection form and the KB flow.
+export const getPossibleVisibilities = (marketplaceItem: MarketplaceItem, project?: Project) => {
+    const { connectionSchemas = [], visibility: visibilities = [] } = marketplaceItem ?? {};
+    const filteredVisibilities = visibilities.filter((item) => {
+        if (item === ServiceInfoVisibilityEnum.Project) {
+            return !!project?.id && marketplaceItem.projectId === project.id;
+        }
+        return item;
+    });
+    /**
+     * There can be services with multiple visibilities but only with one schema.
+     * [PROJECT, ORGANIZATION] => Default OAuth Connection - Organization
+     *
+     * In this case, the visibilities should be filtered to only include the one that matches the schema.
+     * If the schema is Unsecured, include only Organization and Public;
+     * else include only the visibilities that match the schema name.
+     */
+    if (connectionSchemas.length === 1 && filteredVisibilities.length > 1) {
+        return filteredVisibilities.filter((v) => {
+            const connectionSchemaName = connectionSchemas[0].name.toLowerCase();
+            if (connectionSchemaName.includes("Unsecured".toLowerCase())) {
+                return v === ServiceInfoVisibilityEnum.Organization || v === ServiceInfoVisibilityEnum.Public;
+            }
+            return connectionSchemaName.includes(v.toLowerCase());
+        });
+    }
+    return filteredVisibilities;
+};
+
+export const getInitialVisibility = (item: MarketplaceItem, visibilities: string[] = []) => {
+    if (item?.isThirdParty) {
+        return ServiceInfoVisibilityEnum.Public;
+    }
+    if (visibilities.includes(ServiceInfoVisibilityEnum.Project)) {
+        return ServiceInfoVisibilityEnum.Project;
+    }
+    if (visibilities.includes(ServiceInfoVisibilityEnum.Organization)) {
+        return ServiceInfoVisibilityEnum.Organization;
+    }
+    return ServiceInfoVisibilityEnum.Public;
+};
+
+export const getPossibleSchemas = (
+    item: MarketplaceItem,
+    selectedVisibility: string,
+    connectionSchemas: MarketplaceItemSchema[] = [],
+) => {
+    if (!item) {
+        return [];
+    }
+    // If third party, return schemas without filtering
+    if (item.isThirdParty) {
+        return item.connectionSchemas;
+    }
+    // Filter schemas based on the selected visibility:
+    // organization/public can have OAuth2, api key or unauthenticated; project can have only project.
+    const schemasFiltered = connectionSchemas.filter((schema) => {
+        if (
+            selectedVisibility.toLowerCase().includes("organization") ||
+            selectedVisibility.toLowerCase().includes("public")
+        ) {
+            return (
+                schema.name.toLowerCase().includes(selectedVisibility.toLowerCase()) ||
+                schema.name.toLowerCase().includes("unsecured")
+            );
+        }
+        return schema.name.toLowerCase().includes("project");
+    });
+    return schemasFiltered;
+};

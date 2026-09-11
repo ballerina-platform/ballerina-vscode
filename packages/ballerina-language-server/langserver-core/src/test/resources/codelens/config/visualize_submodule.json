@@ -1,0 +1,75 @@
+{
+  "source": "submodule_pkg/modules/utils/utils.bal",
+  "result": [
+    {
+      "range": {
+        "start": {
+          "line": 0,
+          "character": 0
+        },
+        "end": {
+          "line": 2,
+          "character": 3
+        }
+      },
+      "command": {
+        "title": "Document this",
+        "command": "ADD_DOC",
+        "arguments": [
+          {
+            "key": "doc.uri",
+            "value": "utils.bal"
+          },
+          {
+            "key": "node.range",
+            "value": {
+              "start": {
+                "line": 0,
+                "character": 0
+              },
+              "end": {
+                "line": 2,
+                "character": 3
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "range": {
+        "start": {
+          "line": 4,
+          "character": 0
+        },
+        "end": {
+          "line": 6,
+          "character": 1
+        }
+      },
+      "command": {
+        "title": "Document this",
+        "command": "ADD_DOC",
+        "arguments": [
+          {
+            "key": "doc.uri",
+            "value": "utils.bal"
+          },
+          {
+            "key": "node.range",
+            "value": {
+              "start": {
+                "line": 4,
+                "character": 0
+              },
+              "end": {
+                "line": 6,
+                "character": 1
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

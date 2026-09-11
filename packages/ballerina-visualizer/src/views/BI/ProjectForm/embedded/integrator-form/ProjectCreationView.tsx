@@ -20,6 +20,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import debounce from "lodash/debounce";
 import { Button, DirectorySelector, Icon, TextField } from "@wso2/ui-toolkit";
 import { useVisualizerContext } from "./context/WsClientContext";
+import { useBrowsePick } from "./useBrowsePick";
 import {
     joinPath,
     splitPath,
@@ -67,6 +68,22 @@ export function ProjectCreationView({ onBack, ballerinaUnavailable }: { onBack?:
     const dirCoupling = useDirectoryNameCoupling(() => sanitizePackageName(DEFAULT_PROJECT_NAME), sanitizePackageName);
     const { directoryName, dirTouched } = dirCoupling;
 
+    // Owns the Browse interaction. No `adoptProjectName`: this form only ever creates a NEW
+    // project, so the name field stays the user's — an existing project at the pick is a
+    // conflict for the path validation to report, not a name to take on.
+    const browsePick = useBrowsePick({
+        wsClient,
+        dirCoupling,
+        projectName,
+        setProjectName,
+        projectNameTouchedRef,
+        setEditablePath,
+        setPathTouched,
+        setPathError,
+        startPath: editablePath || defaultPath,
+        selectFailedMessage: "Failed to select path. Please try again.",
+    });
+
     const debouncedSetProjectNameError = useMemo(
         () => debounce((error: string) => setProjectNameError(error), 300),
         []
@@ -91,17 +108,22 @@ export function ProjectCreationView({ onBack, ballerinaUnavailable }: { onBack?:
         (async () => {
             if (defaultPathInitialized.current) return;
             try {
+                // Re-checked before EVERY write below, not just once: this seed spans
+                // several round-trips, and a Browse that lands mid-flight has already
+                // retargeted the form — applying any part of a reading taken for the
+                // default location would drag it back.
+                const superseded = () => !mounted || browsePick.pathPickedRef.current;
                 const { path: workspacePath } = await wsClient.getWorkspaceRoot();
-                if (!mounted) return;
+                if (superseded()) return;
                 const dp = workspacePath || (await wsClient.getDefaultCreationPath()).path;
-                if (!mounted) return;
+                if (superseded()) return;
                 let taken = emptyTakenNames();
                 try {
                     taken = toTakenNames(await wsClient.getProjectComponentNames({ projectPath: dp }));
                 } catch {
                     // Best effort — fall back to the un-indexed default on failure.
                 }
-                if (!mounted) return;
+                if (superseded()) return;
                 const { directoryName: dirName } = resolveDefaultNameAndDirectory(DEFAULT_PROJECT_NAME, taken, sanitizePackageName);
                 defaultPathInitialized.current = true;
                 // Set the resolved directory name BEFORE the path becomes non-empty so no
@@ -169,7 +191,9 @@ export function ProjectCreationView({ onBack, ballerinaUnavailable }: { onBack?:
         // Keep the directory name in sync with the project name until the user edits it.
         // (Only the default name is auto-indexed, at seed time — a name the user types is
         // used verbatim, matching the integration wizard.)
-        dirCoupling.handleDisplayNameChange(value);
+        // A name typed while a Browse still pins an existing project's folder would be
+        // ignored by the path, so releasing the pin also recouples the folder to the name.
+        dirCoupling.handleDisplayNameChange(value, browsePick.releaseName() ? { recouple: true } : undefined);
     };
 
     const handlePathChange = (value: string) => {
@@ -179,19 +203,20 @@ export function ProjectCreationView({ onBack, ballerinaUnavailable }: { onBack?:
         setPathTouched(true);
         setEditablePath(base);
         dirCoupling.handleDirectoryNameEdit(name, autoDirectoryName);
+        // Only an edit to the SEGMENT claims it from a pick — retyping the parent portion
+        // leaves the pinned folder exactly as the pick left it.
+        browsePick.releaseFolderIfSegmentEdited(name);
     };
 
-    const handlePathSelection = async () => {
-        try {
-            const result = await wsClient.selectFileOrDirPath({ startPath: editablePath || defaultPath });
-            if (!result.path) return;
-            setPathTouched(true);
-            setEditablePath(result.path);
-        } catch (error) {
-            console.error("Failed to select path:", error);
-            setPathError("Failed to select path. Please try again.");
-        }
-    };
+    /**
+     * Browse: the picked folder is normally the parent LOCATION, with the project folder
+     * derived from the name (`<picked>/<name>`). Picking a folder that is ITSELF a project
+     * is the exception — this form only ever creates a NEW project, so appending a folder
+     * inside the pick would nest one project in another. The pick is taken as the project
+     * root instead, which lets the realtime validation report the conflict under the path
+     * field rather than silently targeting `<project>/default`.
+     */
+    const handlePathSelection = browsePick.selectPath;
 
     const handleCreate = async () => {
         setIsValidating(true);

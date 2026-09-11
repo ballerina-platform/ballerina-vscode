@@ -1,0 +1,90 @@
+# Codecov configuration for the ballerina-vscode monorepo.
+#
+# Codecov only reads this file from the repository root, so it configures every
+# package. Today the only upload is the Ballerina language server's aggregated
+# JaCoCo report, produced by
+# `packages/ballerina-language-server` -> ./gradlew test createCodeCoverageReport
+# and uploaded under the `language-server` flag by .github/actions/ls-test.
+#
+# All statuses are informational: coverage is reported on the PR and the
+# dashboard but never fails a build. Flip `informational` to false once the
+# numbers have settled and the team wants coverage to gate merges.
+
+codecov:
+  require_ci_to_pass: false
+  # LS tests only run when language server files change, so a PR that touches
+  # nothing there has no fresh upload. Without this, Codecov would discard the
+  # carried-forward report as stale.
+  max_report_age: off
+  notify:
+    # Coverage arrives from a single job; report as soon as it lands rather than
+    # waiting for the rest of the build matrix.
+    wait_for_ci: false
+
+# Count a partially covered line as covered, so the dashboard reports the same
+# figure as the LINE counter that `createCodeCoverageReport` prints into the
+# build log.
+#
+# JaCoCo marks a line partial when it executed but not every branch on it was
+# taken. Codecov's default keeps those lines in the denominator but not the
+# numerator, so the same report yielded ~64.9% here and ~72.5% in the build log
+# — one report, two definitions, and an ~8-point gap that every reviewer who
+# read both had to rediscover.
+#
+# The trade-off is deliberate: a half-tested conditional now reads as fully
+# covered, so this number no longer says anything about branch coverage. That
+# lives in the BRANCH counter in the build log, which is where to look for it.
+parsers:
+  jacoco:
+    partials_as_hits: true
+
+coverage:
+  precision: 2
+  round: down
+  # Red below 30%, green at 80%. Calibrated against the partials-as-hits
+  # definition above, not the stricter default. Adjust once the first full CI
+  # run establishes where the language server actually sits.
+  range: "30...80"
+  status:
+    # Codecov posts an unscoped 'default' status for each type whether or not it is
+    # configured. Both are off here: with a single uploading package they would only
+    # duplicate the flagged statuses below under a name that does not say what it
+    # measures. Add a second flag's statuses here when another package starts uploading.
+    project:
+      default: off
+      language-server:
+        flags:
+          - language-server
+        target: auto
+        # Tolerate sub-1% drops: which LS tests run varies slightly between runs.
+        threshold: 1%
+        informational: true
+    patch:
+      default: off
+      language-server:
+        flags:
+          - language-server
+        target: auto
+        informational: true
+
+flags:
+  language-server:
+    paths:
+      - packages/ballerina-language-server/
+    # LS tests are conditional on changed paths (see .github/workflows/pull-request.yml).
+    # When they do not run, reuse the base commit's report instead of reporting 0%.
+    carryforward: true
+
+# Coverage is measured on production sources only; these never appear in the
+# JaCoCo report but are listed so a stray upload cannot skew the number.
+ignore:
+  - "**/src/test/**"
+  - "**/build/**"
+  - "**/node_modules/**"
+  - "**/*.bal"
+  - "packages/ballerina-language-server/langserver-stdlib/**"
+
+comment:
+  layout: "condensed_header, diff, flags, components"
+  behavior: default
+  require_changes: false

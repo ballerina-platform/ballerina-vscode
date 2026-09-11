@@ -34,6 +34,7 @@ import { AI_CHAT_AGENT_CARD, ARTIFACT_CATEGORY_META } from "../components/artifa
 import { cardMatchesSearch, isBetaModule, OutOfScopeComponentTooltip } from "./componentListUtils";
 import { RelativeLoader } from "../../../components/RelativeLoader";
 import { getEntryNodeIcon } from "./EventIntegrationPanel";
+import { effectiveTriggerKind } from "./triggerKind";
 
 interface AIAgentPanelProps {
     scope: SCOPE;
@@ -49,7 +50,7 @@ export function AIAgentPanel(props: AIAgentPanelProps) {
     const isDisabled = props.scope && props.scope !== SCOPE.AI_AGENT && props.scope !== SCOPE.ANY;
     const q = props.searchQuery;
     const mcpTriggers = useMemo(
-        () => props.triggers.local.filter((t) => t.type === "mcp" && cardMatchesSearch(t.name, q)),
+        () => props.triggers.local.filter((t) => effectiveTriggerKind(t) === "mcp" && cardMatchesSearch(t.name, q)),
         [props.triggers, q]
     );
     const agentMatches = cardMatchesSearch(AI_CHAT_AGENT_CARD.displayName, q);

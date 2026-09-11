@@ -15,6 +15,20 @@ inputs:
   package-pat:
     description: Token for maven.pkg.github.com authentication
     required: true
+  codecov-token:
+    description: >-
+      Codecov upload token. When empty the upload is attempted tokenless, which
+      works for public repositories. Either way it never fails the job.
+    required: false
+    default: ''
+  codecov-branch:
+    description: >-
+      Branch to attribute the coverage upload to. Set this only when the workflow
+      checked out a ref other than the one that triggered it (schedule.yml's
+      multi-branch matrix); leave empty to let the Codecov action derive branch
+      and commit from the event, which is what PR builds need.
+    required: false
+    default: ''
 
 runs:
   using: composite
@@ -64,3 +78,70 @@ runs:
         else
           "$GRADLE" test
         fi
+
+    # Coverage is aggregated and published from Linux only. The Windows leg runs the
+    # same suite over the same sources, so a second upload would only duplicate the
+    # report, and its Windows paths do not map onto the repository layout.
+    #
+    # !cancelled(): a failing suite still wrote JaCoCo execution data for everything that
+    # did run, and the coverage number for it is more useful than none. createCodeCoverageReport
+    # declares no task dependencies, so this re-reads build outputs instead of rebuilding.
+    # Not always(): a cancelled run (pull-request.yml cancels superseded runs) would otherwise
+    # re-invoke Gradle and publish a partial report during teardown.
+    #
+    # continue-on-error: report generation is the one step here that can fail on its own
+    # (duplicate FQCNs across modules, a parse failure in the doLast). Coverage is
+    # informational, so it must not turn a passing suite into a red job.
+    - name: Generate aggregated coverage report
+      if: ${{ !cancelled() && runner.os == 'Linux' }}
+      continue-on-error: true
+      shell: bash
+      working-directory: packages/ballerina-language-server
+      env:
+        packageUser: ${{ inputs.package-user }}
+        packagePAT: ${{ inputs.package-pat }}
+      run: ./gradlew createCodeCoverageReport
+
+    - name: Resolve coverage upload metadata
+      if: ${{ !cancelled() && runner.os == 'Linux' }}
+      id: coverage
+      shell: bash
+      env:
+        CODECOV_BRANCH: ${{ inputs.codecov-branch }}
+        REF_NAME: ${{ github.ref_name }}
+      run: |
+        # Override the commit only alongside an explicit branch: on a pull_request event
+        # the Codecov action's own detection is correct, and HEAD is a merge commit that
+        # would be attributed to the wrong place.
+        if [ -n "$CODECOV_BRANCH" ]; then
+          echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+        fi
+        # Artifact names cannot contain '/', which both branch names ('builds/nightly')
+        # and PR refs ('123/merge') do.
+        echo "label=$(echo "${CODECOV_BRANCH:-$REF_NAME}" | tr '/' '-')" >> "$GITHUB_OUTPUT"
+
+    - name: Upload coverage to Codecov
+      if: ${{ !cancelled() && runner.os == 'Linux' }}
+      uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+      with:
+        token: ${{ inputs.codecov-token }}
+        files: packages/ballerina-language-server/.jacoco/reports/jacoco/report.xml
+        flags: language-server
+        name: ballerina-language-server
+        disable_search: true
+        override_branch: ${{ inputs.codecov-branch }}
+        override_commit: ${{ steps.coverage.outputs.commit }}
+        # Coverage is informational (see codecov.yml); a Codecov outage or a missing
+        # token must never fail the build.
+        fail_ci_if_error: false
+
+    # The XML is what Codecov consumes; the HTML report next to it is how a developer
+    # finds which classes are uncovered without re-running the suite locally.
+    - name: Upload coverage report
+      if: ${{ !cancelled() && runner.os == 'Linux' }}
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      with:
+        name: ls-coverage-${{ steps.coverage.outputs.label }}
+        path: packages/ballerina-language-server/.jacoco/reports/jacoco/
+        if-no-files-found: warn
+        retention-days: 5

@@ -61,6 +61,7 @@ export interface AgentEditorController {
     selectAgent(name: string): void;
     close(position?: NodePosition): void;
     back(): void;
+    setBackHandler(handler: (() => void) | null): void;
 }
 
 const memoryKeyOf = (node?: FlowNode): string =>
@@ -73,6 +74,7 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
     const [memoryNode, setMemoryNode] = useState<FlowNode>();
     const [selectedTool, setSelectedTool] = useState<ToolData>();
     const [selectedAgentName, setSelectedAgentName] = useState("");
+    const [backOverride, setBackOverride] = useState<(() => void) | null>(null);
     const activate = useCallback((node: FlowNode) => {
         setAgentNode(node);
         host.onSelectionChange?.(node);
@@ -81,6 +83,7 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
     const setLoading = (loading: boolean) => host.onLoadingChange?.(loading);
 
     const close = useCallback((position?: NodePosition) => {
+        setBackOverride(null);
         setView("NONE");
         setMemoryNode(undefined);
         setSelectedTool(undefined);
@@ -139,6 +142,7 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
             existing = nodes?.[0];
         }
         setMemoryNode(existing);
+        setBackOverride(null);
         setView("MEMORY");
     }, [activate, host.filePath, rpcClient]);
 
@@ -302,10 +306,14 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
 
     const diagramCallbacks = useMemo<AgentNodeActions>(() => ({
         onModelSelect: (node) => { const n = resolve(node); activate(n); host.onModelSelect(n); },
-        onAddTool: (node) => { activate(resolve(node)); setView("ADD_TOOL"); },
-        onAddMcpServer: (node) => { activate(resolve(node)); setSelectedTool(undefined); setView("ADD_MCP"); },
+        onAddTool: (node) => { setBackOverride(null); activate(resolve(node)); setView("ADD_TOOL"); },
+        onAddMcpServer: (node) => {
+            setBackOverride(null); activate(resolve(node)); setSelectedTool(undefined); setView("ADD_MCP");
+        },
         onSelectTool: (tool, node) => void openTool(tool, resolve(node), true),
-        onSelectMcpToolkit: (tool, node) => { activate(resolve(node)); setSelectedTool(tool); setView("EDIT_MCP"); },
+        onSelectMcpToolkit: (tool, node) => {
+            setBackOverride(null); activate(resolve(node)); setSelectedTool(tool); setView("EDIT_MCP");
+        },
         onDeleteTool: (tool, node) => void deleteTool(tool, resolve(node)),
         goToTool: (tool, node) => void openTool(tool, resolve(node), false),
         onSelectMemoryManager: (node) => void selectMemory(resolve(node)),
@@ -313,12 +321,33 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
         onChatWithAgent: host.onChat && ((node) => host.onChat(resolve(node))),
     }), [activate, deleteMemory, deleteTool, host, openTool, resolve, selectMemory]);
 
-    const back = () => setView(view === "NEW_TOOL_AGENT_FORM" ? "NEW_TOOL_AGENT" : "ADD_TOOL");
-    const selectAgent = (name: string) => { setSelectedAgentName(name); setView("NEW_TOOL_AGENT_FORM"); };
+    const setBackHandler = useCallback(
+        (handler: (() => void) | null) => setBackOverride(() => handler),
+        []
+    );
+
+    const back = () => {
+        if (backOverride) {
+            backOverride();
+            return;
+        }
+        setView(view === "NEW_TOOL_AGENT_FORM" ? "NEW_TOOL_AGENT" : "ADD_TOOL");
+    };
+
+    const openView = useCallback((next: AgentEditorView) => {
+        setBackOverride(null);
+        setView(next);
+    }, []);
+
+    const selectAgent = (name: string) => {
+        setBackOverride(null);
+        setSelectedAgentName(name);
+        setView("NEW_TOOL_AGENT_FORM");
+    };
 
     return {
         view, agentNode, memoryNode, memoryPropertyKey: memoryKeyOf(agentNode), selectedTool, selectedAgentName,
         diagramCallbacks, onAgentCreated: host.onAgentCreated,
-        openView: setView, selectAgent, close, back,
+        openView, selectAgent, close, back, setBackHandler,
     };
 }

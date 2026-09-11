@@ -1,0 +1,40 @@
+name: 'Resolve source branch'
+description: >-
+  Resolve the branch a nightly-style pipeline should run against: an explicit
+  override if given, otherwise the latest staging/* branch if one exists, else main.
+  Runs 'git ls-remote --heads origin', so the calling job must check out the
+  repository (any ref) before this step, to have the 'origin' remote configured.
+inputs:
+  sourceBranch:
+    description: 'Explicit branch to use. Leave blank to auto-select.'
+    required: false
+    default: ''
+outputs:
+  branch:
+    description: 'The resolved branch name'
+    value: ${{ steps.resolve.outputs.branch }}
+runs:
+  using: "composite"
+  steps:
+    - id: resolve
+      shell: bash
+      env:
+        INPUT_SOURCE_BRANCH: ${{ inputs.sourceBranch }}
+      run: |
+        set -euo pipefail
+
+        if [ -n "${INPUT_SOURCE_BRANCH}" ]; then
+          SOURCE_BRANCH="${INPUT_SOURCE_BRANCH}"
+        else
+          # No explicit source given: prefer the latest staging/* branch (e.g.
+          # staging/5.14.0) if one exists, so callers follow the active release
+          # staging branch without a workflow edit each time one is cut. Falls
+          # back to main once no staging/* branch remains.
+          latest_staging=$(git ls-remote --heads origin \
+            | awk -F'refs/heads/' '/refs\/heads\/staging\// { print $2 }' \
+            | sort -t/ -k2 -V | tail -n 1)
+          SOURCE_BRANCH="${latest_staging:-main}"
+        fi
+
+        SOURCE_BRANCH="$(git check-ref-format --branch "${SOURCE_BRANCH}")"
+        echo "branch=${SOURCE_BRANCH}" >> "$GITHUB_OUTPUT"

@@ -1,0 +1,73 @@
+{
+  "source": "default_enum.bal",
+  "position": {
+    "line": 2,
+    "offset": 15
+  },
+  "description": "Function call with a union of constants, which the type carries as bare singletons, hence the options are labelled by the value each holds rather than by the constant name",
+  "codedata": {
+    "node": "FUNCTION_CALL",
+    "org": "$anon",
+    "module": ".",
+    "packageName": ".",
+    "symbol": "function10",
+    "version": "0.0.0"
+  },
+  "output": {
+    "id": "31",
+    "metadata": {
+      "label": "function10",
+      "description": "",
+      "icon": "https://bcentral-packageicons.azureedge.net/images/$anon_._0.0.0.png"
+    },
+    "codedata": {
+      "node": "FUNCTION_CALL",
+      "org": "$anon",
+      "module": ".",
+      "packageName": ".",
+      "symbol": "function10",
+      "version": "0.0.0",
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "level": {
+        "metadata": {
+          "label": "Level"
+        },
+        "types": [
+          {
+            "fieldType": "SINGLE_SELECT",
+            "options": [
+              {
+                "label": "quiet",
+                "value": "\"quiet\""
+              },
+              {
+                "label": "loud",
+                "value": "\"loud\""
+              }
+            ],
+            "selected": false
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "Level",
+            "selected": false
+          }
+        ],
+        "placeholder": "\"loud\"",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "DEFAULTABLE",
+          "originalName": "level"
+        },
+        "defaultValue": "loud"
+      }
+    },
+    "flags": 0
+  }
+}

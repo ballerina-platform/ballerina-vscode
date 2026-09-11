@@ -16,15 +16,17 @@
  * under the License.
  */
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import {
     Button,
     Codicon,
+    ProgressRing,
     SearchBox,
     SidePanelBody,
     Switch,
     TextArea,
+    Typography,
     ThemeColors,
     Tooltip,
 } from "@wso2/ui-toolkit";
@@ -118,6 +120,14 @@ namespace S {
     export const SubTitle = styled.div<{}>`
         font-size: 12px;
         opacity: 0.9;
+    `;
+
+    export const Description = styled(Typography)`
+        width: 100%;
+        font-weight: normal;
+        font-size: 13px !important;
+        margin: 0 0 12px !important;
+        color: var(--vscode-descriptionForeground);
     `;
 
     export const BodyText = styled.div<{}>`
@@ -250,11 +260,11 @@ namespace S {
         margin-top: 20px;
     `;
 
-    export const AdvancedSubcategoryContainer = styled.div`
+    export const AdvancedSubcategoryContainer = styled.div<{ isLast?: boolean }>`
         display: flex;
         flex-direction: column;
         width: 100%;
-        margin-top: 8px;
+        ${({ isLast }) => isLast && "padding-bottom: 6px;"}
     `;
 
     export const AdvancedSubcategoryHeader = styled.div`
@@ -262,8 +272,8 @@ namespace S {
         flex-direction: row;
         justify-content: space-between;
         align-items: center;
-        width: 100%;
         padding: 4px 12px;
+        margin: 0 -12px;
         border-radius: 5px;
         cursor: pointer;
         transition: all 0.2s ease;
@@ -280,10 +290,10 @@ namespace S {
     `;
 
 
-    export const AdvancedSubTitle = styled.div`
+    export const AdvancedSubTitle = styled.div<{ muted?: boolean }>`
         font-size: 12px;
-        opacity: 0.7;
-        color: ${ThemeColors.ON_SURFACE_VARIANT};
+        opacity: ${(props) => (props.muted ? 0.7 : 0.9)};
+        color: ${(props) => (props.muted ? ThemeColors.ON_SURFACE_VARIANT : "inherit")};
         transition: all 0.2s ease;
     `;
 
@@ -317,6 +327,7 @@ namespace S {
     `;
 
     export const CategoryCard = styled.div<{ hasBackground?: boolean }>`
+        align-self: stretch;
         background-color: ${({ hasBackground }) => hasBackground ? `rgba(255, 255, 255, 0.02)` : 'transparent'};
         border-radius: 5px;
         padding: ${({ hasBackground }) => hasBackground ? '0 12px' : '0'};
@@ -349,12 +360,13 @@ namespace S {
 
 // Subcategories rendered as chevron-collapsible sections that start collapsed,
 // in addition to the generic "More" section.
-const COLLAPSED_SUBCATEGORIES = ["Workflow Functions"];
+const COLLAPSED_SUBCATEGORIES = ["Child Workflows"];
 
 interface NodeListProps {
     categories: Category[];
     showAiPanel?: boolean;
     title?: string;
+    description?: string;
     onSelect: (id: string, metadata?: any) => void;
     onSelectConnector?: (id: string, metadata?: any) => void; // For connector routing
     onSearchTextChange?: (text: string) => void;
@@ -372,7 +384,14 @@ interface NodeListProps {
     searchText?: string;
     panelBodySx?: React.CSSProperties;
     alwaysCollapsedCategories?: string[];
+    alwaysExpandedCategories?: string[];
     loading?: boolean;
+    // Per-section pagination. Each category whose title is a key in sectionsWithMore (and true) gets a bottom
+    // sentinel; when it scrolls into view onLoadMoreSection is called with that category title and the parent
+    // fetches and appends that section's next page. loadingSections marks which sections are currently fetching.
+    onLoadMoreSection?: (sectionTitle: string) => void;
+    sectionsWithMore?: Record<string, boolean>;
+    loadingSections?: Record<string, boolean>;
 }
 
 export function NodeList(props: NodeListProps) {
@@ -380,6 +399,7 @@ export function NodeList(props: NodeListProps) {
         categories,
         showAiPanel,
         title,
+        description,
         onSelect,
         onSelectConnector,
         onSearchTextChange,
@@ -396,7 +416,11 @@ export function NodeList(props: NodeListProps) {
         onRefreshDevantConnections,
         panelBodySx,
         alwaysCollapsedCategories,
-        loading
+        alwaysExpandedCategories,
+        loading,
+        onLoadMoreSection,
+        sectionsWithMore,
+        loadingSections
     } = props;
 
     const [searchText, setSearchText] = useState<string>("");
@@ -439,6 +463,12 @@ export function NodeList(props: NodeListProps) {
             if (alwaysCollapsedCategories) {
                 alwaysCollapsedCategories.forEach((cat) => {
                     mergedState[cat] = false;
+                });
+            }
+
+            if (alwaysExpandedCategories) {
+                alwaysExpandedCategories.forEach((cat) => {
+                    mergedState[cat] = true;
                 });
             }
 
@@ -520,6 +550,51 @@ export function NodeList(props: NodeListProps) {
         setExpandedCategories(newExpandedState);
     };
 
+    // A paginated section (e.g. Standard/Extended Library) loads its next page when its end scrolls into view.
+    // Only top-level sections the parent flagged in sectionsWithMore are paginated, and only while not searching
+    // (search results are not paginated here).
+    const isPaginatedSection = (categoryTitle: string): boolean =>
+        !searchText && Boolean(onLoadMoreSection) && sectionsWithMore != null && categoryTitle in sectionsWithMore;
+
+    // One bottom-of-section sentinel per expanded paginated section. Collapsed sections render no content or
+    // sentinel, so they never trigger a load.
+    const panelBodyRef = useRef<HTMLDivElement>(null);
+    const sectionSentinelRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+    const setSectionSentinelRef = (categoryTitle: string) => (el: HTMLDivElement | null) => {
+        if (el) {
+            sectionSentinelRefs.current.set(categoryTitle, el);
+        } else {
+            sectionSentinelRefs.current.delete(categoryTitle);
+        }
+    };
+
+    // Loads the next page of the topmost expanded paginated section whose end has come into view within the panel.
+    const loadVisibleSection = (panelEl: HTMLElement) => {
+        if (!onLoadMoreSection || !sectionsWithMore) {
+            return;
+        }
+        const panelBottom = panelEl.getBoundingClientRect().bottom;
+        const candidate = Array.from(sectionSentinelRefs.current.entries())
+            .filter(([title]) => sectionsWithMore[title] && !loadingSections?.[title])
+            .map(([title, el]) => ({ title, top: el.getBoundingClientRect().top }))
+            .filter(({ top }) => top <= panelBottom + 150)
+            .sort((a, b) => a.top - b.top)[0];
+        if (candidate) {
+            onLoadMoreSection(candidate.title);
+        }
+    };
+
+    const handlePanelScroll = (e: React.UIEvent<HTMLDivElement>) => loadVisibleSection(e.currentTarget);
+
+    // If a freshly loaded page doesn't fill the panel there is no scroll event to trigger the next page, so nudge
+    // the first in-view section's next page whenever the panel is not yet scrollable.
+    useEffect(() => {
+        const el = panelBodyRef.current;
+        if (el && el.clientHeight > 0 && el.scrollHeight <= el.clientHeight) {
+            loadVisibleSection(el);
+        }
+    }, [categories, sectionsWithMore, loadingSections]);
+
     const handleAddNode = (node: Node, category?: string) => {
         if (node.enabled) {
             // Check if this item is from a "Connectors" category and should use connector routing
@@ -578,49 +653,48 @@ export function NodeList(props: NodeListProps) {
         const safeItems = items.filter((item) => item != null);
         const nodes = safeItems.filter((item): item is Node => "id" in item && !("title" in item));
         const subcategories = safeItems.filter((item): item is Category => "title" in item && "items" in item);
+        const visibleNodes = nodes.filter((node) => !(["NP_FUNCTION"].includes(node.id) && !isNPSupported));
 
         return (
             <>
-                <S.Grid columns={2}>
-                    {nodes.map((node, index) => {
-                        if (["NP_FUNCTION"].includes(node.id) && !isNPSupported) {
-                            return;
-                        }
-
-                        return (
-                            <Tooltip
-                                key={node.id + index}
-                                content={renderTooltipContent(node.description)}
-                                position="bottom"
-                                offset={{top: 16, left: 20}}
-                                sx={{
-                                    maxWidth: "280px",
-                                    whiteSpace: "normal",
-                                    wordWrap: "break-word",
-                                    overflowWrap: "break-word"
-                                }}
-                            >
-                                <S.Component
-                                    enabled={node.enabled}
-                                    onClick={() => handleAddNode(node, parentCategoryTitle)}
+                {visibleNodes.length > 0 && (
+                    <S.Grid columns={2}>
+                        {visibleNodes.map((node, index) => {
+                            return (
+                                <Tooltip
+                                    key={node.id + index}
+                                    content={renderTooltipContent(node.description)}
+                                    position="bottom"
+                                    offset={{top: 16, left: 20}}
+                                    sx={{
+                                        maxWidth: "280px",
+                                        whiteSpace: "normal",
+                                        wordWrap: "break-word",
+                                        overflowWrap: "break-word"
+                                    }}
                                 >
-                                    <S.IconContainer>{node.icon || <LogIcon />}</S.IconContainer>
-                                    <S.ComponentTitle
-                                        ref={(el) => {
-                                            if (el && el.scrollWidth > el.clientWidth) {
-                                                el.style.fontSize = "13px";
-                                                el.style.wordBreak = "break-word";
-                                                el.style.whiteSpace = "nowrap";
-                                            }
-                                        }}
+                                    <S.Component
+                                        enabled={node.enabled}
+                                        onClick={() => handleAddNode(node, parentCategoryTitle)}
                                     >
-                                        {node.label}
-                                    </S.ComponentTitle>
-                                </S.Component>
-                            </Tooltip>
-                        );
-                    })}
-                </S.Grid>
+                                        <S.IconContainer>{node.icon || <LogIcon />}</S.IconContainer>
+                                        <S.ComponentTitle
+                                            ref={(el) => {
+                                                if (el && el.scrollWidth > el.clientWidth) {
+                                                    el.style.fontSize = "13px";
+                                                    el.style.wordBreak = "break-word";
+                                                    el.style.whiteSpace = "nowrap";
+                                                }
+                                            }}
+                                        >
+                                            {node.label}
+                                        </S.ComponentTitle>
+                                    </S.Component>
+                                </Tooltip>
+                            );
+                        })}
+                    </S.Grid>
+                )}
                 {subcategories.map((subcategory, index) => {
                     // Chevron-collapsible subcategories that start collapsed: the generic
                     // "More" section and advanced groups like the workflow context functions.
@@ -632,11 +706,12 @@ export function NodeList(props: NodeListProps) {
                         const isExpanded = searchText?.length > 0
                             ? !searchCollapsedMoreSections[sectionKey]
                             : expandedMoreSections[sectionKey];
+                        const isLastSubcategory = index === subcategories.length - 1;
 
                         return (
-                            <S.AdvancedSubcategoryContainer key={subcategory.title + index}>
+                            <S.AdvancedSubcategoryContainer key={subcategory.title + index} isLast={isLastSubcategory}>
                                 <S.AdvancedSubcategoryHeader onClick={() => toggleMoreSection(sectionKey)}>
-                                    <S.AdvancedSubTitle>{subcategory.title}</S.AdvancedSubTitle>
+                                    <S.AdvancedSubTitle muted={subcategory.title === "More"}>{subcategory.title}</S.AdvancedSubTitle>
                                     <Button
                                         appearance="icon"
                                         sx={{
@@ -850,9 +925,9 @@ export function NodeList(props: NodeListProps) {
                                                         || action.emptyStateLabel || addButtonLabel || "Add";
                                                     
                                                     return (
-                                                        <S.HighlightedButton 
+                                                        <S.HighlightedButton
                                                             key={`empty-${group.title}-${actionIndex}`}
-                                                            style={{padding: '5px 10px', width: isSubCategory ? '160px' : '100%'}}
+                                                            style={{padding: '5px 10px', width: '100%'}}
                                                             onClick={handler}
                                                         >
                                                             <Codicon name={action?.codeIcon || "add"} iconSx={{ fontSize: 12 }} />
@@ -860,24 +935,48 @@ export function NodeList(props: NodeListProps) {
                                                         </S.HighlightedButton>
                                                     );
                                                 })}
-                                            {group.items &&
-                                            group.items.length > 0 &&
-                                            // 1. If parent group uses connection container and ALL items don't have id, use getConnectionContainer
-                                            shouldUseConnectionContainer(normalizedGroupTitle) &&
-                                            group.items.filter((item) => item != null).every((item) => !("id" in item))
-                                                ? getConnectionContainer(group.items as Category[], normalizedGroupTitle === "Agent")
-                                                : // 2. If ALL items don't have id (all are categories), use getCategoryContainer
-                                                group.items.filter((item) => item != null).every((item) => !("id" in item))
-                                                ? getCategoryContainer(
-                                                      group.items as Category[],
-                                                      true,
-                                                      !isSubCategory ? group.title : parentCategoryTitle
-                                                  )
-                                                : // 3. Otherwise (has items with id or mixed), use getNodesContainer
-                                                  getNodesContainer(
-                                                      group.items as (Node | Category)[],
-                                                      !isSubCategory ? group.title : parentCategoryTitle
-                                                  )}
+                                            {(() => {
+                                                const itemsContent =
+                                                    group.items &&
+                                                    group.items.length > 0 &&
+                                                    // 1. Connection container: parent uses it and ALL items are categories
+                                                    shouldUseConnectionContainer(normalizedGroupTitle) &&
+                                                    group.items.filter((item) => item != null).every((item) => !("id" in item))
+                                                        ? getConnectionContainer(group.items as Category[], normalizedGroupTitle === "Agent")
+                                                        : // 2. If ALL items don't have id (all are categories) and none need
+                                                        // chevron-collapsible treatment, use getCategoryContainer
+                                                        group.items.filter((item) => item != null).every((item) => !("id" in item)) &&
+                                                        !(group.items as Category[]).some(
+                                                            (item) => item && (item.title === "More" || COLLAPSED_SUBCATEGORIES.includes(item.title))
+                                                        )
+                                                        ? getCategoryContainer(
+                                                              group.items as Category[],
+                                                              true,
+                                                              !isSubCategory ? group.title : parentCategoryTitle
+                                                          )
+                                                        : // 3. Otherwise (has items with id, mixed or collapsible subcategories): node container
+                                                          getNodesContainer(
+                                                              group.items as (Node | Category)[],
+                                                              !isSubCategory ? group.title : parentCategoryTitle
+                                                          );
+
+                                                // A paginated top-level section gets a bottom sentinel; when it
+                                                // scrolls into view the parent loads that section's next page.
+                                                if (isSubCategory || !isPaginatedSection(group.title)) {
+                                                    return itemsContent;
+                                                }
+                                                return (
+                                                    <>
+                                                        {itemsContent}
+                                                        <div ref={setSectionSentinelRef(group.title)} />
+                                                        {loadingSections?.[group.title] && (
+                                                            <div style={{ display: "flex", justifyContent: "center", padding: "8px" }}>
+                                                                <ProgressRing sx={{ height: "16px", width: "16px" }} />
+                                                            </div>
+                                                        )}
+                                                    </>
+                                                );
+                                            })()}
                                         </>
                                     )}
                                 </S.CategoryRow>
@@ -952,39 +1051,44 @@ export function NodeList(props: NodeListProps) {
     return (
         <S.Container>
             <S.HeaderContainer>
-                <S.Row>
-                    {showAiPanel && (
-                        <Switch
-                            leftLabel="Search"
-                            rightLabel="Generate"
-                            checked={showGeneratePanel}
-                            checkedColor={ThemeColors.PRIMARY}
-                            enableTransition={true}
-                            onChange={() => {
-                                setShowGeneratePanel(!showGeneratePanel);
-                            }}
-                            sx={{
-                                margin: "auto",
-                                zIndex: "2",
-                                border: "unset",
-                            }}
-                            disabled={false}
-                        />
-                    )}
-                    {onBack && title && (
-                        <S.LeftAlignRow>
-                            <S.BackButton appearance="icon" onClick={handleBackClick}>
-                                <BackIcon />
-                            </S.BackButton>
-                            {title}
-                        </S.LeftAlignRow>
-                    )}
-                    {onClose && (
-                        <S.CloseButton appearance="icon" onClick={onClose}>
-                            <CloseIcon />
-                        </S.CloseButton>
-                    )}
-                </S.Row>
+                {(showAiPanel || (onBack && title) || onClose) && (
+                    <S.Row>
+                        {showAiPanel && (
+                            <Switch
+                                leftLabel="Search"
+                                rightLabel="Generate"
+                                checked={showGeneratePanel}
+                                checkedColor={ThemeColors.PRIMARY}
+                                enableTransition={true}
+                                onChange={() => {
+                                    setShowGeneratePanel(!showGeneratePanel);
+                                }}
+                                sx={{
+                                    margin: "auto",
+                                    zIndex: "2",
+                                    border: "unset",
+                                }}
+                                disabled={false}
+                            />
+                        )}
+                        {onBack && title && (
+                            <S.LeftAlignRow>
+                                <S.BackButton appearance="icon" onClick={handleBackClick}>
+                                    <BackIcon />
+                                </S.BackButton>
+                                {title}
+                            </S.LeftAlignRow>
+                        )}
+                        {onClose && (
+                            <S.CloseButton appearance="icon" onClick={onClose}>
+                                <CloseIcon />
+                            </S.CloseButton>
+                        )}
+                    </S.Row>
+                )}
+                {!showGeneratePanel && description && (
+                    <S.Description variant="body2">{description}</S.Description>
+                )}
                 {!showGeneratePanel && (
                     <S.Row>
                         <S.StyledSearchInput
@@ -1003,13 +1107,13 @@ export function NodeList(props: NodeListProps) {
                 </S.PanelBody>
             )}
             {!showGeneratePanel && !isSearching && !loading && (
-                <S.PanelBody style={{ ...props.panelBodySx }}>
+                <S.PanelBody ref={panelBodyRef} style={{ ...props.panelBodySx }} onScroll={handlePanelScroll}>
                     {getCategoryContainer(filteredCategories)}
                     {/* Show More Functions button - moved outside Logging category */}
                     {callFunctionNode && !searchText && (
                         <S.AdvancedSubcategoryContainer key={"showMoreFunctions"} style={{ marginBottom: "12px" }}>
                             <S.AdvancedSubcategoryHeader onClick={() => handleAddNode(callFunctionNode as Node)}>
-                                <S.AdvancedSubTitle>Show More Functions</S.AdvancedSubTitle>
+                                <S.AdvancedSubTitle muted>Show More Functions</S.AdvancedSubTitle>
                                 <Button
                                     appearance="icon"
                                     sx={{

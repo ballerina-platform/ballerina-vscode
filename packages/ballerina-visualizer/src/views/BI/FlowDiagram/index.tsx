@@ -74,19 +74,22 @@ import { NodePosition, STNode } from "@wso2/syntax-tree";
 import { View, ProgressIndicator, ThemeColors } from "@wso2/ui-toolkit";
 import { applyModifications, textToModifications } from "../../../utils/utils";
 import { PanelManager, SidePanelView } from "./PanelManager";
-import { transformCategories, getNodeTemplateForConnection, findFunctionByName } from "./utils";
+import { transformCategories, getNodeTemplateForConnection, findFunctionByName, filterCategoriesLocally } from "./utils";
 import { PanelOverlayProvider } from "./context/PanelOverlayContext";
 import { PanelOverlayRenderer } from "./PanelOverlayRenderer";
 import { ExpressionFormField, Category as PanelCategory, S } from "@wso2/ballerina-side-panel";
+import { PAGINATED_LIBRARY_SECTIONS } from "../../../utils/useFunctionPagination";
 import { cloneDeep, debounce } from "lodash";
 import { ConnectionKind } from "../../../components/ConnectionSelector";
 import AddAgentPopup from "../AIChatAgent/AddAgentPopup";
 import { DiagramSkeleton } from "../../../components/Skeletons";
 import { AI_COMPONENT_PROGRESS_MESSAGE, AI_COMPONENT_PROGRESS_MESSAGE_TIMEOUT, FORM_LOADING_MESSAGE, LOADING_MESSAGE } from "../../../constants";
-import { ConnectionListItem } from "@wso2/wso2-platform-core";
+import { ConnectionListItem, MarketplaceItem } from "@wso2/wso2-platform-core";
 import { usePlatformExtContext } from "../../../providers/platform-ext-ctx-provider";
 import { requestMiniChatOpen } from "../../../components/AgentStatusOrb/shared";
 import { AgentEditorView, useAgentEditorController } from "../AIChatAgent/useAgentEditorController";
+import { CloudKnowledgeBasePage } from "../Connection/DevantConnections/CloudKnowledgeBasePage";
+import { prepareDevantKnowledgeBase } from "../Connection/DevantConnections/devant-kb-utils";
 
 const Container = styled.div`
     width: 100%;
@@ -131,6 +134,17 @@ type NodePromptLaunchOptions = {
 
 const SIDE_PANEL_DEFAULT_ERROR_MESSAGE = "Error while performing the action.";
 
+// The form node kind behind each capability of the durable agent box. A capability type with
+// no entry here has no form, and is refused rather than routed to whichever branch happened
+// to be last.
+const DURABLE_CAPABILITY_NODE_KINDS: Record<string, string> = {
+    activity: "DURABLE_AGENT_ADD_ACTIVITY",
+    event: "DURABLE_AGENT_REGISTER_EVENT",
+    tool: "DURABLE_AGENT_REGISTER_TOOL",
+    humanTask: "DURABLE_AGENT_HUMAN_TASK",
+    peer: "DURABLE_AGENT_PEER",
+};
+
 // AI component pickers resolve templates from Central, so selecting one shows a full-panel loader.
 const AI_COMPONENT_PICKER_VIEWS: SidePanelView[] = [
     SidePanelView.MODEL_PROVIDERS,
@@ -140,6 +154,56 @@ const AI_COMPONENT_PICKER_VIEWS: SidePanelView[] = [
     SidePanelView.DATA_LOADERS,
     SidePanelView.CHUNKERS,
 ];
+
+const FUNCTION_PAGE_SIZE = 60;
+
+// Counts the leaf function nodes (items with an `id`) across a panel category tree, used to decide whether
+// another page exists.
+const countFunctionLeafNodes = (categories: PanelCategory[] = []): number =>
+    categories.reduce((total, category) => {
+        const items = (category?.items ?? []) as any[];
+        return total + items.reduce((sum, item) => sum + ("id" in item ? 1 : countFunctionLeafNodes([item])), 0);
+    }, 0);
+
+// Counts the leaf nodes within a single section (top-level category matched by title).
+const countSectionLeafNodes = (categories: PanelCategory[], sectionTitle: string): number =>
+    countFunctionLeafNodes(categories.filter((category) => category.title === sectionTitle));
+
+// Merges panel items, matching nested subcategories by title and de-duplicating leaf nodes by id.
+const mergePanelItems = (prev: any[] = [], next: any[] = []): any[] => {
+    const result = [...prev];
+    for (const item of next) {
+        if ("id" in item) {
+            if (!result.some((existing) => "id" in existing && existing.id === item.id)) {
+                result.push(item);
+            }
+        } else {
+            const index = result.findIndex((r) => !("id" in r) && r.title === item.title);
+            if (index >= 0) {
+                const existing = result[index];
+                result[index] = { ...existing, items: mergePanelItems(existing.items ?? [], item.items ?? []) };
+            } else {
+                result.push(item);
+            }
+        }
+    }
+    return result;
+};
+
+// Merges a newly fetched page of panel categories into the accumulated categories, matching categories and
+// nested subcategories by title and de-duplicating leaf nodes by id.
+const mergePanelCategories = (prev: PanelCategory[] = [], next: PanelCategory[] = []): PanelCategory[] => {
+    const merged: PanelCategory[] = prev.map((category) => ({ ...category, items: [...(category.items ?? [])] }));
+    for (const incoming of next) {
+        const existing = merged.find((category) => category.title === incoming.title);
+        if (existing) {
+            existing.items = mergePanelItems(existing.items ?? [], incoming.items ?? []);
+        } else {
+            merged.push({ ...incoming, items: [...(incoming.items ?? [])] });
+        }
+    }
+    return merged;
+};
 
 export function BIFlowDiagram(props: BIFlowDiagramProps) {
     const { projectPath, breakpointState, syntaxTree, onUpdate, onReady, onSave, hideAgentConfiguration } = props;
@@ -152,6 +216,15 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     const [sidePanelView, setSidePanelView] = useState<SidePanelView>(SidePanelView.NODE_LIST);
     const [categories, setCategories] = useState<PanelCategory[]>([]); //
     const [searchText, setSearchText] = useState<string>("");
+    // Per-section pagination for the function list. Each library section (keyed by category title) loads its next
+    // page independently as it scrolls into view. Offsets/in-flight flags live in refs so they never trigger a
+    // re-render or fire load-more from one; the query/type of the current list are reused for section loads.
+    const [functionSectionsWithMore, setFunctionSectionsWithMore] = useState<Record<string, boolean>>({});
+    const [loadingFunctionSections, setLoadingFunctionSections] = useState<Record<string, boolean>>({});
+    const functionSectionOffsetsRef = useRef<Record<string, number>>({});
+    const functionSectionLoadingRef = useRef<Record<string, boolean>>({});
+    const functionSearchQueryRef = useRef<string>("");
+    const functionSearchTypeRef = useRef<FUNCTION_TYPE>(FUNCTION_TYPE.REGULAR);
     // Kept here so an expanded AI package group survives switching to a form and back.
     const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
     const [fetchingAiSuggestions, setFetchingAiSuggestions] = useState(false);
@@ -186,6 +259,8 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     const isMountedRef = useRef(true);
     const selectedNodeRef = useRef<FlowNode>();
     const nodeTemplateRef = useRef<FlowNode>();
+    // The "WSO2 Cloud Knowledge Base" box node captured on click; its codedata drives the create flows.
+    const cloudKbNodeRef = useRef<AvailableNode>();
     const hasRenameOperation = useRef<boolean>(false);
     const topNodeRef = useRef<FlowNode | Branch>();
     const targetRef = useRef<LineRange>();
@@ -283,6 +358,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     // list) is up: once the toolkit variable is created, it is registered on this agent.
     const pendingDurableMcpAgentRef = useRef<{ agentVar: string | null; insertBefore: any } | null>(null);
     const initialCategoriesRef = useRef<any[]>([]);
+    const instanceListCategoriesRef = useRef<Partial<Record<SearchKind, PanelCategory[]>>>({});
     const showEditForm = useRef<boolean>(false);
     // True while the call form open is step 3 of the create-activity-from-connection wizard.
     const selectedNodeMetadata = useRef<{ nodeId: string; metadata: any; fileName: string }>();
@@ -341,7 +417,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         rpcClient.onTraceAnimationChanged((event: TraceAnimationEvent) => {
             console.log('[TraceAnimation] Webview received event:', event.type, event.active, event.toolNames);
             if (event.active) {
-                setTraceAnimationActive(event.toolNames, event.type, event.activeToolName, event.systemInstructions, event.entrypointServiceName, event.entrypointFunctionName);
+                setTraceAnimationActive(event.toolNames, event.type, event.activeToolName, event.systemInstructions, event.entrypointServiceName, event.entrypointFunctionName, event.activeToolKitName);
             } else {
                 setTraceAnimationInactive(event.type, event.activeToolName);
             }
@@ -538,7 +614,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 if (superseded()) {
                     return;
                 }
-                setCategories(convertModelProviderCategoriesToSidePanelCategories(response.categories as Category[]));
+                const modelProviderCategories = convertModelProviderCategoriesToSidePanelCategories(response.categories as Category[]);
+                instanceListCategoriesRef.current["MODEL_PROVIDER"] = modelProviderCategories;
+                setCategories(modelProviderCategories);
                 setSidePanelView(SidePanelView.MODEL_PROVIDER_LIST);
                 setShowSidePanel(true);
             } catch (error) {
@@ -567,9 +645,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 if (superseded()) {
                     return;
                 }
-                setCategories(
-                    convertVectorStoreCategoriesToSidePanelCategories(response.categories as Category[])
-                );
+                const vectorStoreCategories = convertVectorStoreCategoriesToSidePanelCategories(response.categories as Category[]);
+                instanceListCategoriesRef.current["VECTOR_STORE"] = vectorStoreCategories;
+                setCategories(vectorStoreCategories);
                 setSidePanelView(SidePanelView.VECTOR_STORE_LIST);
                 setShowSidePanel(true);
             } catch (error) {
@@ -598,9 +676,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 if (superseded()) {
                     return;
                 }
-                setCategories(
-                    convertEmbeddingProviderCategoriesToSidePanelCategories(response.categories as Category[])
-                );
+                const embeddingProviderCategories = convertEmbeddingProviderCategoriesToSidePanelCategories(response.categories as Category[]);
+                instanceListCategoriesRef.current["EMBEDDING_PROVIDER"] = embeddingProviderCategories;
+                setCategories(embeddingProviderCategories);
                 setSidePanelView(SidePanelView.EMBEDDING_PROVIDER_LIST);
                 setShowSidePanel(true);
             } catch (error) {
@@ -629,9 +707,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 if (superseded()) {
                     return;
                 }
-                setCategories(
-                    convertKnowledgeBaseCategoriesToSidePanelCategories(response.categories as Category[])
-                );
+                const knowledgeBaseCategories = convertKnowledgeBaseCategoriesToSidePanelCategories(response.categories as Category[]);
+                instanceListCategoriesRef.current["KNOWLEDGE_BASE"] = knowledgeBaseCategories;
+                setCategories(knowledgeBaseCategories);
                 setSidePanelView(SidePanelView.KNOWLEDGE_BASE_LIST);
                 setShowSidePanel(true);
             } catch (error) {
@@ -642,6 +720,71 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         } else {
             console.log(">>> KNOWLEDGE_BASE_LIST not found in navigation stack, closing panel");
             closeSidePanelAndFetchUpdatedFlowModel();
+        }
+    };
+
+    // Registers a Devant-backed WSO2 Cloud knowledge base and opens its pre-filled create form.
+    const handleCreateDevantKnowledgeBase = async (node: AvailableNode, item: MarketplaceItem) => {
+        setShowProgressIndicator(true);
+        pushToNavigationStack(sidePanelView, categories, selectedNodeRef.current, selectedClientName.current);
+        try {
+            const flowNode = await prepareDevantKnowledgeBase({
+                rpcClient,
+                platformRpcClient,
+                platformExtState,
+                item,
+                node,
+                projectPath,
+                target: targetRef.current.startLine,
+                fileName: model?.fileName,
+            });
+            if (!flowNode) {
+                showConnectorError();
+                return;
+            }
+            selectedNodeRef.current = flowNode;
+            nodeTemplateRef.current = flowNode;
+            showEditForm.current = false;
+            isCreatingNewVectorKnowledgeBase.current = true; // reuse KB post-create navigation
+            setSidePanelView(SidePanelView.FORM);
+            setShowSidePanel(true);
+        } catch (error) {
+            console.error(">>> Error setting up WSO2 Cloud knowledge base", error);
+        } finally {
+            setShowProgressIndicator(false);
+        }
+    };
+
+    // "Create new" on the WSO2 Cloud KB intermediate page: open a blank CloudKnowledgeBase form
+    // (manual entry, no Devant service pre-selected). Mirrors the generic node-template -> form path.
+    const handleCreateNewCloudKnowledgeBase = async () => {
+        const kbCodedata = cloudKbNodeRef.current?.codedata;
+        if (!kbCodedata) {
+            return;
+        }
+        setShowProgressIndicator(true);
+        pushToNavigationStack(sidePanelView, categories, selectedNodeRef.current, selectedClientName.current);
+        try {
+            const response = await rpcClient.getBIDiagramRpcClient().getNodeTemplate({
+                position: targetRef.current.startLine,
+                filePath: model?.fileName,
+                id: kbCodedata,
+            });
+            if ((response as any)?.errorMsg) {
+                showConnectorError((response as any).errorMsg);
+                return;
+            }
+            selectedNodeRef.current = response.flowNode;
+            nodeTemplateRef.current = response.flowNode;
+            showEditForm.current = false;
+            isCreatingNewVectorKnowledgeBase.current = true; // reuse KB post-create navigation
+            setSidePanelView(SidePanelView.FORM);
+            setShowSidePanel(true);
+        } catch (error) {
+            console.error(">>> Error opening WSO2 Cloud knowledge base form", error);
+            showConnectorError();
+        } finally {
+            setShowProgressIndicator(false);
         }
     };
 
@@ -660,7 +803,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 if (superseded()) {
                     return;
                 }
-                setCategories(convertDataLoaderCategoriesToSidePanelCategories(response.categories as Category[]));
+                const dataLoaderCategories = convertDataLoaderCategoriesToSidePanelCategories(response.categories as Category[]);
+                instanceListCategoriesRef.current["DATA_LOADER"] = dataLoaderCategories;
+                setCategories(dataLoaderCategories);
                 setSidePanelView(SidePanelView.DATA_LOADER_LIST);
                 setShowSidePanel(true);
             } catch (error) {
@@ -685,7 +830,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                     position: targetRef.current.startLine,
                     filePath: model?.fileName,
                 });
-                setCategories(convertChunkerCategoriesToSidePanelCategories(response.categories as Category[]));
+                const chunkerCategories = convertChunkerCategoriesToSidePanelCategories(response.categories as Category[]);
+                instanceListCategoriesRef.current["CHUNKER"] = chunkerCategories;
+                setCategories(chunkerCategories);
                 setSidePanelView(SidePanelView.CHUNKER_LIST);
                 setShowSidePanel(true);
             } catch (error) {
@@ -1190,6 +1337,11 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         if (agentEditor.view !== "NONE") {
             agentEditor.close();
         }
+        // Dismissing the panel ends the agent flow, so the flags that say "this activity list belongs
+        // to an agent" end with it. They are not cleared in resetNodeSelectionStates, which also runs
+        // on post-write refreshes the flow is meant to survive — only an explicit close means cancel.
+        durableAgentActivityListRef.current = false;
+        activityWizardForAgentRef.current = false;
         resetNodeSelectionStates();
         // Cancel draft and return to previous flow model
         if (hasDraft) {
@@ -1326,6 +1478,26 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         }
     };
 
+    // Seeds per-section pagination for a freshly loaded first page: records the query/type to reuse for section
+    // loads, resets each section's offset to 0, and marks a section as having more pages when its first page came
+    // back full (>= FUNCTION_PAGE_SIZE leaf nodes).
+    const seedFunctionPagination = useCallback(
+        (cats: PanelCategory[], query: string, type: FUNCTION_TYPE) => {
+            functionSearchQueryRef.current = query;
+            functionSearchTypeRef.current = type;
+            functionSectionOffsetsRef.current = {};
+            functionSectionLoadingRef.current = {};
+            const sectionsWithMore: Record<string, boolean> = {};
+            for (const { title } of PAGINATED_LIBRARY_SECTIONS) {
+                functionSectionOffsetsRef.current[title] = 0;
+                sectionsWithMore[title] = countSectionLeafNodes(cats, title) >= FUNCTION_PAGE_SIZE;
+            }
+            setFunctionSectionsWithMore(sectionsWithMore);
+            setLoadingFunctionSections({});
+        },
+        []
+    );
+
     const handleSearch = useCallback(async (searchText: string, functionType: FUNCTION_TYPE, searchKind: SearchKind) => {
         const searchEpoch = panelNavEpochRef.current;
         // An unfiltered activity list is owned by the post-creation refresh while it runs.
@@ -1428,6 +1600,10 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                         return;
                     }
                     setCategories(currentCategories);
+
+                    if (searchKind === "FUNCTION") {
+                        seedFunctionPagination(currentCategories, searchText, functionType);
+                    }
                 }
 
                 // Set the appropriate side panel view based on search kind and function type
@@ -1487,6 +1663,66 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         }
     }, [rpcClient, model?.fileName]);
 
+    // Loads the next page of a single library section (e.g. Standard/Extended Library) and appends it. Each section
+    // is scoped to its Central organization and paged by its own offset, so sections advance independently.
+    const loadMoreFunctionSection = useCallback(async (sectionTitle: string) => {
+        const section = PAGINATED_LIBRARY_SECTIONS.find((s) => s.title === sectionTitle);
+        if (!section || functionSectionLoadingRef.current[sectionTitle]
+            || !targetRef.current || !model?.fileName) {
+            return;
+        }
+        functionSectionLoadingRef.current[sectionTitle] = true;
+        setLoadingFunctionSections((prev) => ({ ...prev, [sectionTitle]: true }));
+        const nextOffset = (functionSectionOffsetsRef.current[sectionTitle] ?? 0) + FUNCTION_PAGE_SIZE;
+        // Capture the panel-navigation epoch so a page that arrives after the user left this list is discarded.
+        const navEpoch = panelNavEpochRef.current;
+        const request: BISearchRequest = {
+            position: {
+                startLine: targetRef.current.startLine,
+                endLine: targetRef.current.endLine,
+            },
+            filePath: model.fileName,
+            queryMap: {
+                q: functionSearchQueryRef.current.trim(),
+                limit: FUNCTION_PAGE_SIZE,
+                offset: nextOffset,
+                orgName: section.org,
+                includeAvailableFunctions: "true",
+            },
+            searchKind: "FUNCTION",
+        };
+        try {
+            const response = await rpcClient.getBIDiagramRpcClient().search(request);
+            // The user navigated to a different panel while this was in flight; discard the stale page.
+            if (panelNavEpochRef.current !== navEpoch) {
+                return;
+            }
+            if (response.categories) {
+                const pageCategories = convertFunctionCategoriesToSidePanelCategories(
+                    [...response.categories] as Category[],
+                    functionSearchTypeRef.current
+                );
+                const sectionLeafCount = countSectionLeafNodes(pageCategories, sectionTitle);
+                functionSectionOffsetsRef.current[sectionTitle] = nextOffset;
+                setFunctionSectionsWithMore((prev) => ({
+                    ...prev,
+                    [sectionTitle]: sectionLeafCount >= FUNCTION_PAGE_SIZE,
+                }));
+                if (sectionLeafCount > 0) {
+                    // Merge only the target section: the org-scoped response may also carry an Imported Functions
+                    // category (imported modules of the same org) which must not be duplicated into that section.
+                    const sectionOnly = pageCategories.filter((category) => category.title === sectionTitle);
+                    setCategories((prev) => mergePanelCategories(prev, sectionOnly));
+                }
+            }
+        } catch (error) {
+            console.error(">>> Error loading more functions", error);
+        } finally {
+            functionSectionLoadingRef.current[sectionTitle] = false;
+            setLoadingFunctionSections((prev) => ({ ...prev, [sectionTitle]: false }));
+        }
+    }, [rpcClient, model?.fileName]);
+
     const handleRetryNodeFetch = () => {
         if (topNodeRef.current && targetRef.current) {
             fetchNodesAndAISuggestions(topNodeRef.current, targetRef.current, false, false, true);
@@ -1517,28 +1753,32 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         await handleSearch(searchText, functionType, "ACTIVITY_CALL");
     };
 
-    const handleSearchModelProvider = async (_searchText: string, _functionType: FUNCTION_TYPE) => {
-        // await handleSearch(searchText, functionType, "MODEL_PROVIDER");
+    const searchInstanceList = (searchKind: SearchKind, searchText: string) => {
+        setCategories(filterCategoriesLocally(instanceListCategoriesRef.current[searchKind] ?? [], searchText));
     };
 
-    const handleSearchVectorStore = async (_searchText: string, _functionType: FUNCTION_TYPE) => {
-        // await handleSearch(searchText, functionType, "VECTOR_STORE");
+    const handleSearchModelProvider = async (searchText: string, _functionType: FUNCTION_TYPE) => {
+        searchInstanceList("MODEL_PROVIDER", searchText);
     };
 
-    const handleSearchEmbeddingProvider = async (_searchText: string, _functionType: FUNCTION_TYPE) => {
-        // await handleSearch(searchText, functionType, "EMBEDDING_PROVIDER");
+    const handleSearchVectorStore = async (searchText: string, _functionType: FUNCTION_TYPE) => {
+        searchInstanceList("VECTOR_STORE", searchText);
     };
 
-    const handleSearchVectorKnowledgeBase = async (_searchText: string, _functionType: FUNCTION_TYPE) => {
-        // await handleSearch(searchText, functionType, "KNOWLEDGE_BASE");
+    const handleSearchEmbeddingProvider = async (searchText: string, _functionType: FUNCTION_TYPE) => {
+        searchInstanceList("EMBEDDING_PROVIDER", searchText);
     };
 
-    const handleSearchDataLoader = async (_searchText: string, _functionType: FUNCTION_TYPE) => {
-        // await handleSearch(searchText, functionType, "DATA_LOADER");
+    const handleSearchVectorKnowledgeBase = async (searchText: string, _functionType: FUNCTION_TYPE) => {
+        searchInstanceList("KNOWLEDGE_BASE", searchText);
     };
 
-    const handleSearchChunker = async (_searchText: string, _functionType: FUNCTION_TYPE) => {
-        // await handleSearch(searchText, functionType, "CHUNKER");
+    const handleSearchDataLoader = async (searchText: string, _functionType: FUNCTION_TYPE) => {
+        searchInstanceList("DATA_LOADER", searchText);
+    };
+
+    const handleSearchChunker = async (searchText: string, _functionType: FUNCTION_TYPE) => {
+        searchInstanceList("CHUNKER", searchText);
     };
 
     const handleSearchTextChange = (text: string) => {
@@ -1550,45 +1790,6 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             setShowProgressIndicator(false);
         }
     };
-
-    // Frontend filtering function for cached categories - handles nested structures
-    const filterCategoriesLocally = useCallback((categories: any[], searchText: string): any[] => {
-        if (!searchText.trim()) return categories;
-
-        const lowerSearchText = searchText.toLowerCase();
-
-        const filterItemsRecursively = (items: any[]): any[] => {
-            if (!items) return [];
-
-            return items.map((item: any) => {
-                // Check if this item matches the search
-                const label = item.title || item.label;
-                const itemMatches = label.toLowerCase().includes(lowerSearchText);
-                if (itemMatches) {
-                    return item;
-                }
-                // If this item has nested items (subcategory), recursively filter them
-                if (item.items && Array.isArray(item.items)) {
-                    const filteredSubItems = filterItemsRecursively(item.items);
-
-                    // Include this subcategory if it matches OR has matching nested items
-                    if (filteredSubItems.length > 0) {
-                        return {
-                            ...item,
-                            items: filteredSubItems
-                        };
-                    }
-                    return null; // Filter out this subcategory
-                }
-                return null;
-            }).filter(item => item !== null);
-        };
-
-        return categories.map(category => ({
-            ...category,
-            items: filterItemsRecursively(category.items || [])
-        })).filter(category => category.items && category.items.length > 0);
-    }, []);
 
     // Debounced search following AddConnectionPopupContent pattern
     const debouncedSearch = useMemo(
@@ -1682,6 +1883,18 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
 
         const showFormLoader = AI_COMPONENT_PICKER_VIEWS.includes(sidePanelView);
 
+        // The "WSO2 Cloud Knowledge Base" box routes to an intermediate page (list existing cloud KBs
+        // + create new) instead of the generic form.
+        if (
+            sidePanelView === SidePanelView.KNOWLEDGE_BASES &&
+            node.codedata.packageName === "ai.wso2.integration"
+        ) {
+            cloudKbNodeRef.current = node; // reuse this codedata for the list/create flows
+            setSidePanelView(SidePanelView.WSO2_CLOUD_KB_LIST);
+            setShowSidePanel(true);
+            return;
+        }
+
         switch (node.codedata.node) {
             case "FUNCTION":
                 setShowProgressIndicator(true);
@@ -1690,16 +1903,17 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                     .search({
                         position: { startLine: targetRef.current.startLine, endLine: targetRef.current.endLine },
                         filePath: model?.fileName || fileName,
-                        queryMap: undefined,
+                        // Explicit first page so scroll pagination stays aligned with FUNCTION_PAGE_SIZE.
+                        queryMap: { q: "", limit: FUNCTION_PAGE_SIZE, offset: 0, includeAvailableFunctions: "true" },
                         searchKind: "FUNCTION",
                     })
                     .then((response) => {
-                        setCategories(
-                            convertFunctionCategoriesToSidePanelCategories(
-                                response.categories as Category[],
-                                FUNCTION_TYPE.REGULAR
-                            )
+                        const currentCategories = convertFunctionCategoriesToSidePanelCategories(
+                            response.categories as Category[],
+                            FUNCTION_TYPE.REGULAR
                         );
+                        setCategories(currentCategories);
+                        seedFunctionPagination(currentCategories, "", FUNCTION_TYPE.REGULAR);
                         setSidePanelView(SidePanelView.FUNCTION_LIST);
                         setShowSidePanel(true);
                     })
@@ -1958,13 +2172,15 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                     break;
                 }
 
-                // Selecting a project activity from the list is a complete choice — append it to
-                // the agent declaration's activities list directly (no intermediate form),
-                // unless it needs a binding.
+                // Selecting a project activity from the list opens its registration form
+                // (retry policy, approval gating, bindings) before anything is written.
                 setShowProgressIndicator(true);
                 addActivityToDurableAgent(node.codedata, fileName)
                     .catch((error) => {
                         console.error(">>> Error adding the activity to the agent", error);
+                        // The form never opens on failure, so without this the panel just sits on the
+                        // activity list with the spinner gone and no reason given.
+                        showConnectorError();
                     })
                     .finally(() => {
                         setShowProgressIndicator(false);
@@ -2050,12 +2266,11 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                         filePath: model?.fileName || fileName,
                     })
                     .then((response) => {
-                        setCategories(
-                            convertFunctionCategoriesToSidePanelCategories(
-                                response.categories as Category[],
-                                FUNCTION_TYPE.REGULAR
-                            )
+                        const modelProviderCategories = convertModelProviderCategoriesToSidePanelCategories(
+                            response.categories as Category[]
                         );
+                        instanceListCategoriesRef.current["MODEL_PROVIDER"] = modelProviderCategories;
+                        setCategories(modelProviderCategories);
                         setSidePanelView(SidePanelView.MODEL_PROVIDER_LIST);
                         setShowSidePanel(true);
                     })
@@ -2073,12 +2288,11 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                         filePath: model?.fileName || fileName,
                     })
                     .then((response) => {
-                        setCategories(
-                            convertFunctionCategoriesToSidePanelCategories(
-                                response.categories as Category[],
-                                FUNCTION_TYPE.REGULAR
-                            )
+                        const vectorStoreCategories = convertVectorStoreCategoriesToSidePanelCategories(
+                            response.categories as Category[]
                         );
+                        instanceListCategoriesRef.current["VECTOR_STORE"] = vectorStoreCategories;
+                        setCategories(vectorStoreCategories);
                         setSidePanelView(SidePanelView.VECTOR_STORE_LIST);
                         setShowSidePanel(true);
                     })
@@ -2096,12 +2310,11 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                         filePath: model?.fileName || fileName,
                     })
                     .then((response) => {
-                        setCategories(
-                            convertFunctionCategoriesToSidePanelCategories(
-                                response.categories as Category[],
-                                FUNCTION_TYPE.REGULAR
-                            )
+                        const embeddingProviderCategories = convertEmbeddingProviderCategoriesToSidePanelCategories(
+                            response.categories as Category[]
                         );
+                        instanceListCategoriesRef.current["EMBEDDING_PROVIDER"] = embeddingProviderCategories;
+                        setCategories(embeddingProviderCategories);
                         setSidePanelView(SidePanelView.EMBEDDING_PROVIDER_LIST);
                         setShowSidePanel(true);
                     })
@@ -2119,9 +2332,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                         filePath: model?.fileName || fileName,
                     })
                     .then((response) => {
-                        setCategories(
-                            convertKnowledgeBaseCategoriesToSidePanelCategories(response.categories as Category[])
-                        );
+                        const knowledgeBaseCategories = convertKnowledgeBaseCategoriesToSidePanelCategories(response.categories as Category[]);
+                        instanceListCategoriesRef.current["KNOWLEDGE_BASE"] = knowledgeBaseCategories;
+                        setCategories(knowledgeBaseCategories);
                         setSidePanelView(SidePanelView.KNOWLEDGE_BASE_LIST);
                         setShowSidePanel(true);
                     })
@@ -2139,7 +2352,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                         filePath: model?.fileName || fileName,
                     })
                     .then((response) => {
-                        setCategories(convertDataLoaderCategoriesToSidePanelCategories(response.categories as Category[]));
+                        const dataLoaderCategories = convertDataLoaderCategoriesToSidePanelCategories(response.categories as Category[]);
+                        instanceListCategoriesRef.current["DATA_LOADER"] = dataLoaderCategories;
+                        setCategories(dataLoaderCategories);
                         setSidePanelView(SidePanelView.DATA_LOADER_LIST);
                         setShowSidePanel(true);
                     })
@@ -2157,7 +2372,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                         filePath: model?.fileName || fileName,
                     })
                     .then((response) => {
-                        setCategories(convertChunkerCategoriesToSidePanelCategories(response.categories as Category[]));
+                        const chunkerCategories = convertChunkerCategoriesToSidePanelCategories(response.categories as Category[]);
+                        instanceListCategoriesRef.current["CHUNKER"] = chunkerCategories;
+                        setCategories(chunkerCategories);
                         setSidePanelView(SidePanelView.CHUNKER_LIST);
                         setShowSidePanel(true);
                     })
@@ -2256,6 +2473,46 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 updatedNode.codedata.lineRange = selectedLineRange;
             }
             hasRenameOperation.current = false;
+        }
+
+        // A durable-agent capability edit writes back to the entry's own range inside the
+        // declaration's config literal, but the form re-stamps the submitted node with
+        // targetLineRange — the expression-editor probe position at the declaration START
+        // (see probeRangeForCapability). Submitting that range would splice the entry text
+        // into the declaration line, so restore the entry range stamped on the selected node
+        // by handleOnEditDurableCapability.
+        if (
+            updatedNode.codedata?.isNew === false &&
+            Object.values(DURABLE_CAPABILITY_NODE_KINDS).includes(updatedNode.codedata.node)
+        ) {
+            // The range is only the entry's if the selected node is still the node being submitted.
+            // A panel navigation between opening the form and submitting it can move the ref, and a
+            // range taken from another node would splice this entry over that one's source.
+            //
+            // Identity has to separate two entries of the SAME kind on the same agent, which is the
+            // realistic stale case. They share `node` and `parentSymbol`, and `codedata.symbol` too —
+            // every activity entry's template carries `registerActivity`, whatever activity it
+            // registers. What distinguishes them is the capability's name, which the form preserves:
+            // createNodeWithUpdatedLineRange and updateNodeWithProperties both spread the node and
+            // replace only codedata.lineRange and properties.
+            const selectedCodedata = selectedNodeRef.current?.codedata;
+            const sameEntry =
+                !!selectedCodedata?.lineRange &&
+                selectedCodedata.node === updatedNode.codedata.node &&
+                selectedCodedata.parentSymbol === updatedNode.codedata.parentSymbol &&
+                selectedNodeRef.current?.metadata?.label === updatedNode.metadata?.label;
+            if (!sameEntry) {
+                // There is nowhere safe to write: the submitted range is the probe position at the
+                // declaration START, so going ahead would splice the entry over the declaration
+                // itself. Abort and say so, rather than corrupting the source we cannot place.
+                console.error(
+                    ">>> Cannot place a durable agent capability edit; aborting the submit",
+                    { submitted: updatedNode.codedata, selected: selectedCodedata }
+                );
+                showConnectorError();
+                return;
+            }
+            updatedNode.codedata.lineRange = selectedCodedata.lineRange;
         }
 
         setShowProgressIndicator(true);
@@ -3437,11 +3694,11 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         return node;
     };
 
-    // Appends a project activity to the agent declaration's activities. An activity that takes
-    // something the model cannot supply — the client of a connection-based activity, say — comes
-    // back with a binding selector per such parameter: those open the register form so the
-    // connection is picked, because an entry registered without it could never be invoked.
-    // Everything else is a complete choice and is written straight to the declaration.
+    // Opens the registration form for a project activity picked from the agent's activity list.
+    // The activity itself is already chosen (its selector arrives pre-selected and hidden), so
+    // the form presents the registration config: retry policy, approval gating, and a binding
+    // selector for every parameter the model cannot supply — the client of a connection-based
+    // activity, say. Saving appends the entry to the agent declaration's activities.
     const addActivityToDurableAgent = async (activityCodedata: AvailableNode["codedata"], fileName?: string) => {
         const response = await rpcClient.getBIDiagramRpcClient().getNodeTemplate({
             position: targetRef.current.startLine,
@@ -3457,20 +3714,16 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             startLine: targetRef.current.startLine,
             endLine: targetRef.current.startLine,
         } as any;
-        if (Object.keys(activityNode.properties ?? {}).some((key) => key.startsWith("bindings."))) {
-            selectedNodeRef.current = activityNode;
-            nodeTemplateRef.current = activityNode;
-            showEditForm.current = false;
-            setSidePanelView(SidePanelView.FORM);
-            setShowSidePanel(true);
-            return;
-        }
-        await rpcClient.getBIDiagramRpcClient().getSourceCode({
-            filePath: model.fileName,
-            flowNode: activityNode,
-        });
-        durableAgentActivityListRef.current = false;
-        finishCapabilityOpAfterRefresh();
+        // Title the form with the chosen activity, like the edit path does.
+        activityNode.metadata = {
+            ...activityNode.metadata,
+            label: activityCodedata?.symbol || activityNode.metadata?.label,
+        } as any;
+        selectedNodeRef.current = activityNode;
+        nodeTemplateRef.current = activityNode;
+        showEditForm.current = false;
+        setSidePanelView(SidePanelView.FORM);
+        setShowSidePanel(true);
     };
 
     // Adds a workflow activity to the durable agent: the registerActivities statement is
@@ -3608,13 +3861,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     // The form behind each capability of the agent box. A kind with no entry here has no form,
     // and is refused rather than routed to whichever branch happened to be last.
     const durableCapabilityNodeKind = (type?: string): string | undefined =>
-        ({
-            activity: "DURABLE_AGENT_ADD_ACTIVITY",
-            event: "DURABLE_AGENT_REGISTER_EVENT",
-            tool: "DURABLE_AGENT_REGISTER_TOOL",
-            humanTask: "DURABLE_AGENT_HUMAN_TASK",
-            peer: "DURABLE_AGENT_PEER",
-        } as Record<string, string>)[type ?? ""];
+        DURABLE_CAPABILITY_NODE_KINDS[type ?? ""];
 
     const handleOnEditDurableCapability = async (runNode: FlowNode, capability: any) => {
         const superseded = beginPanelNav();
@@ -3648,10 +3895,16 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         setTargetLineRange(probeRange);
         setShowProgressIndicator(true);
         try {
+            // An activity capability's template is requested with the activity function as the
+            // symbol: the selector arrives pre-selected (and hidden — the entry's activity is its
+            // identity, not a choice) and the template carries the binding selector properties,
+            // without which a declared `bindings` field could not round-trip through the form.
+            const activityRef =
+                capability?.type === "activity" ? (capability?.values as any)?.activity : undefined;
             const response = await rpcClient.getBIDiagramRpcClient().getNodeTemplate({
                 position: lineRange.startLine,
                 filePath: model?.fileName,
-                id: { node: nodeKind } as any,
+                id: (activityRef ? { node: nodeKind, symbol: activityRef } : { node: nodeKind }) as any,
             });
             const node = response.flowNode;
             // Seed the form with the existing statement's values and point it at that statement.
@@ -3893,11 +4146,13 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
 
     const flowModel = originalModel && suggestedModel ? suggestedModel : model;
 
-    // Hide "Chat" button on agent nodes when already inside a chat agent flow diagram
+    // Hide "Chat" button on agent nodes when already inside a chat agent service's flow diagram
+    // (chat or decision — the language server reports this kind for every resource of an
+    // ai:Listener service, not just chat), since the title bar already offers the same action.
     const isChatAgentFlow = (() => {
         const eventStartNode = flowModel?.nodes.find((node) => node.codedata.node === "EVENT_START");
         const meta = eventStartNode?.metadata?.data as { kind?: string; label?: string } | undefined;
-        return meta?.kind === "Chat Agent Service" && meta?.label === "chat";
+        return meta?.kind === "Chat Agent Service";
     })();
 
     // Durable Agentic Workflow agent-only view: the LS flow model carries the synthetic
@@ -4081,6 +4336,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 onUpdateExpressionField={handleUpdateExpressionField}
                 onResetUpdatedExpressionField={handleResetUpdatedExpressionField}
                 onSearchFunction={handleSearchFunction}
+                onLoadMoreFunctionSection={loadMoreFunctionSection}
+                functionSectionsWithMore={functionSectionsWithMore}
+                loadingFunctionSections={loadingFunctionSections}
                 onSearchWorkflow={handleSearchWorkflow}
                 onSearchActivity={handleSearchActivity}
                 onSearchNpFunction={handleSearchNpFunction}
@@ -4110,6 +4368,15 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                     platformExtState?.selectedContext?.project && !platformExtState?.devantConns?.loading
                         ? () => platformRpcClient?.refreshConnectionList()
                         : undefined
+                }
+                wso2CloudKbListSection={
+                    <CloudKnowledgeBasePage
+                        onCreateNew={handleCreateNewCloudKnowledgeBase}
+                        onSelectExisting={(item) =>
+                            cloudKbNodeRef.current &&
+                            handleCreateDevantKnowledgeBase(cloudKbNodeRef.current, item)
+                        }
+                    />
                 }
             />
 

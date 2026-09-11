@@ -59,3 +59,71 @@ describe("CheckBoxEditor", () => {
         await waitFor(() => expect(getForm().getValues("advanced")).toBe(expected));
     });
 });
+
+// A flag whose two states ask for different input carries the fields per state, the way the dropdown
+// choice carries them per option. The activity call relies on this: clearing Check Error is what asks
+// for a name to hold the error, so the Result field belongs to the cleared state and only to it.
+const flagWithStateFields = (value: any): FormField =>
+    ({
+        key: "checkError",
+        label: "Check Error",
+        type: "FLAG",
+        value,
+        optional: true,
+        editable: true,
+        enabled: true,
+        documentation: "Add 'check' to propagate errors. Uncheck to handle errors manually.",
+        dynamicFormFields: {
+            true: [],
+            false: [
+                // IDENTIFIER is what the activity call's Result field actually is, and it renders
+                // cleanly here - the text editors trip over selection ranges under jsdom.
+                {
+                    key: "variable",
+                    label: "Result",
+                    type: "IDENTIFIER",
+                    types: [{ fieldType: "IDENTIFIER", selected: true }],
+                    value: "",
+                    optional: false,
+                    editable: true,
+                    enabled: true,
+                    documentation: "Name of the result variable",
+                } as unknown as FormField,
+            ],
+        },
+    } as unknown as FormField);
+
+describe("CheckBoxEditor state fields", () => {
+    it("leaves the cleared state's field out while the box is ticked", async () => {
+        const { container } = renderWithForm(<CheckBoxEditor field={flagWithStateFields(true)} />, {
+            defaultValues: { checkError: true },
+        });
+        await waitFor(() => expect(container.textContent ?? "").toContain("Check Error"));
+        expect(container.textContent ?? "").not.toContain("Result");
+    });
+
+    it("renders the cleared state's field when the box is cleared", async () => {
+        const { container } = renderWithForm(<CheckBoxEditor field={flagWithStateFields(false)} />, {
+            defaultValues: { checkError: false },
+        });
+        await waitFor(() => expect(container.textContent ?? "").toContain("Result"));
+    });
+
+    it("renders nothing extra for a flag that carries no state fields", async () => {
+        const { container } = renderWithForm(<CheckBoxEditor field={flagField(false)} />, {
+            defaultValues: { advanced: false },
+        });
+        await waitFor(() => expect(container.textContent ?? "").toContain("Advanced mode"));
+        expect(container.textContent ?? "").not.toContain("Result");
+    });
+
+    it("does not overwrite the value the form already holds for a state field", async () => {
+        // The definition inside the branch carries no value; the statement being edited supplies it
+        // through the property of the same key. Rendering the branch must leave that value alone.
+        const { getForm, container } = renderWithForm(<CheckBoxEditor field={flagWithStateFields(false)} />, {
+            defaultValues: { checkError: false, variable: "reserveResult" },
+        });
+        await waitFor(() => expect(container.textContent ?? "").toContain("Result"));
+        expect(getForm().getValues("variable")).toBe("reserveResult");
+    });
+});

@@ -28,7 +28,8 @@ import { AttachmentOptions } from "../../AIChatInput/hooks/useAttachments";
 import { getTemplateTextById } from "../../../commandTemplates/utils/utils";
 import CodeContextCard from "../../CodeContextCard";
 import { AgentMode } from "../../AIChatInput/ModeToggle";
-import { Gloss, ORB_COLORS, ORB_ENERGY, Sphere } from "../../../../../components/AgentStatusOrb/shared";
+import { Gloss, ORB_ENERGY, Sphere } from "../../../../../components/AgentStatusOrb/shared";
+import { useOrbColors } from "../../../../../components/AgentStatusOrb/orbTheme";
 
 export const FooterContainer = styled.footer({
     padding: "20px 20px 12px",
@@ -125,6 +126,41 @@ const LoadingLabel = styled.span`
     }
 `;
 
+/** Cycles the trailing dots so the label reads as actively working, not stalled. */
+const dotsCycle = keyframes`
+    0%, 20% { content: ""; }
+    40% { content: "."; }
+    60% { content: ".."; }
+    80%, 100% { content: "..."; }
+`;
+
+/**
+ * Rendered as a sibling of LoadingLabel rather than nested inside it: LoadingLabel's
+ * -webkit-text-fill-color: transparent is inherited by children, which would make
+ * dots nested inside it invisible.
+ */
+const AnimatedEllipsis = styled.span`
+    flex: none;
+
+    &::after {
+        content: "";
+        animation: ${dotsCycle} 1.5s steps(1, end) infinite;
+    }
+
+    @media (prefers-reduced-motion: reduce), (forced-colors: active) {
+        &::after {
+            content: "...";
+            animation: none;
+        }
+    }
+`;
+
+const LoadingLabelRow = styled.span`
+    display: inline-flex;
+    align-items: baseline;
+    min-width: 0;
+`;
+
 /**
  * Holds each label on screen for a minimum time before showing the next one.
  * Some tool calls (a small file read, a cached lookup) resolve fast enough that
@@ -166,16 +202,23 @@ function useStickyLabel(value: string, minVisibleMs = MIN_LABEL_VISIBLE_MS): str
  */
 const LoadingIndicator: React.FC<{ label: string }> = React.memo(({ label }) => {
     const shownLabel = useStickyLabel(label);
+    // Callers may already end their label in a literal "..." (e.g. tool-call
+    // labels); strip it so the animated ellipsis below is never doubled up.
+    const baseLabel = shownLabel.replace(/\.+$/, "");
+    const runningColors = useOrbColors("running");
     return (
         // aria-live sits on the stable container: the label itself remounts on
         // every change, and a replaced node is not announced.
         <LoadingIndicatorContainer aria-live="polite">
             <LoadingOrb aria-hidden="true">
-                <Sphere colors={ORB_COLORS.running} energy={ORB_ENERGY.running} />
+                <Sphere colors={runningColors} energy={ORB_ENERGY.running} />
                 <Gloss />
             </LoadingOrb>
-            {/* Keyed so a changed label remounts and replays the enter animation. */}
-            <LoadingLabel key={shownLabel}>{shownLabel}</LoadingLabel>
+            <LoadingLabelRow>
+                {/* Keyed so a changed label remounts and replays the enter animation. */}
+                <LoadingLabel key={shownLabel}>{baseLabel}</LoadingLabel>
+                <AnimatedEllipsis aria-hidden="true" />
+            </LoadingLabelRow>
         </LoadingIndicatorContainer>
     );
 });
@@ -243,6 +286,7 @@ type FooterProps = {
     runningServicesPanel?: RunningServicesPanel;
     skills?: SkillEntry[];
     ambientState?: AgentRunState;
+    hidden?: boolean;
 };
 
 const Footer: React.FC<FooterProps> = ({
@@ -271,11 +315,12 @@ const Footer: React.FC<FooterProps> = ({
     runningServicesPanel,
     skills,
     ambientState,
+    hidden,
 }) => {
     const footerSuggestedCommandTemplates = suggestedCommandTemplates ?? defaultSuggestedCommandTemplates;
 
     return (
-        <FooterContainer>
+        <FooterContainer style={hidden ? { display: "none" } : undefined}>
             {showSuggestedCommands && (
                 <SuggestedCommandsWrapper>
                     {footerSuggestedCommandTemplates.map((item, index) => renderPrompt(item, index, aiChatInputRef))}

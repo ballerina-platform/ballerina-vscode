@@ -1,0 +1,301 @@
+[
+  {
+    "name": "ballerinax/snapshotdemo",
+    "description": "Fixture exercising the service-rendering surface: listener parameters (required and optional), spec §8 annotations at both presences, home- and cross-module references, fixed and generic services, and the type shapes a service body references.",
+    "typeDefs": [
+      {
+        "name": "ListenerConfiguration",
+        "type": "Record",
+        "description": "Configuration for the demo listener.",
+        "fields": [
+          {
+            "name": "secureSocket",
+            "type": {
+              "name": "string"
+            },
+            "description": "TLS material",
+            "optional": true
+          },
+          {
+            "name": "timeout",
+            "type": {
+              "name": "decimal"
+            },
+            "default": "30"
+          }
+        ]
+      },
+      {
+        "name": "DemoServiceConfig",
+        "type": "Record",
+        "description": "The record constraining @snapshotdemo:ServiceConfig.",
+        "fields": [
+          {
+            "name": "path",
+            "type": {
+              "name": "string"
+            },
+            "description": "Mandatory — an empty {} would not compile"
+          },
+          {
+            "name": "retries",
+            "type": {
+              "name": "int"
+            },
+            "optional": true
+          }
+        ]
+      },
+      {
+        "name": "EventKind",
+        "type": "Enum",
+        "description": "Kinds of event the service can receive.",
+        "members": [
+          {
+            "name": "CREATED"
+          },
+          {
+            "name": "UPDATED"
+          },
+          {
+            "name": "DELETED"
+          }
+        ]
+      },
+      {
+        "name": "Event",
+        "type": "Record",
+        "description": "One delivered event.",
+        "fields": [
+          {
+            "name": "kind",
+            "type": {
+              "name": "EventKind",
+              "links": [
+                {
+                  "category": "internal",
+                  "recordName": "EventKind"
+                }
+              ]
+            }
+          },
+          {
+            "name": "payload",
+            "type": {
+              "name": "Request",
+              "links": [
+                {
+                  "category": "external",
+                  "recordName": "Request",
+                  "libraryName": "ballerina/http"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "clients": [],
+    "services": [
+      {
+        "type": "fixed",
+        "name": "Service",
+        "requiredImports": [
+          {
+            "module": "ballerinax/snapshotdemo.driver",
+            "alias": "_"
+          }
+        ],
+        "annotations": [
+          {
+            "name": "ServiceConfig",
+            "presence": "required",
+            "attachPoint": "service",
+            "typeConstraint": {
+              "name": "DemoServiceConfig",
+              "links": [
+                {
+                  "category": "internal",
+                  "recordName": "DemoServiceConfig"
+                }
+              ]
+            }
+          }
+        ],
+        "listener": {
+          "name": "snapshotdemo:Listener",
+          "parameters": [
+            {
+              "name": "port",
+              "description": "Required — must NOT be given a default",
+              "type": {
+                "name": "int"
+              },
+              "default": "0"
+            },
+            {
+              "name": "config",
+              "description": "Genuinely optional",
+              "type": {
+                "name": "ListenerConfiguration",
+                "links": [
+                  {
+                    "category": "internal",
+                    "recordName": "ListenerConfiguration"
+                  }
+                ]
+              },
+              "optional": true,
+              "default": "{}"
+            }
+          ]
+        },
+        "methods": [
+          {
+            "name": "onEvent",
+            "type": "remote",
+            "description": "Handles one event.",
+            "parameters": [
+              {
+                "name": "event",
+                "type": {
+                  "name": "Event",
+                  "links": [
+                    {
+                      "category": "internal",
+                      "recordName": "Event"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "caller",
+                "type": {
+                  "name": "Caller"
+                },
+                "optional": true
+              }
+            ],
+            "return": {
+              "type": {
+                "name": "error?"
+              }
+            }
+          },
+          {
+            "name": "onFileChange",
+            "type": "resource",
+            "description": "Reports which files changed.",
+            "accessor": "get",
+            "accessorValues": [
+              "get",
+              "post"
+            ],
+            "accessorRequired": true,
+            "pathRequired": true,
+            "deprecated": "Superseded by the typed content handlers, which deliver the file body already bound to a declared type.",
+            "optional": true,
+            "parameters": [
+              {
+                "name": "event",
+                "description": "The change event.",
+                "type": {
+                  "name": "Event",
+                  "links": [
+                    {
+                      "category": "internal",
+                      "recordName": "Event"
+                    }
+                  ]
+                },
+                "optional": false
+              }
+            ],
+            "return": {
+              "type": {
+                "name": "error?"
+              }
+            }
+          }
+        ],
+        "handlerTemplates": [
+          {
+            "name": "*",
+            "type": "resource",
+            "description": "One user-named route.",
+            "accessorOpen": true,
+            "accessorRequired": true,
+            "pathRequired": true,
+            "parameters": [],
+            "return": {
+              "type": {
+                "name": "error?"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "type": "fixed",
+        "name": "Service",
+        "serviceTypeModule": "ballerinax/othermod",
+        "annotations": [
+          {
+            "name": "OtherConfig",
+            "module": "ballerinax/othermod",
+            "presence": "optional",
+            "attachPoint": "service",
+            "typeConstraint": {
+              "name": "OtherServiceConfig",
+              "links": [
+                {
+                  "category": "external",
+                  "recordName": "OtherServiceConfig",
+                  "libraryName": "ballerinax/othermod"
+                }
+              ]
+            }
+          }
+        ],
+        "listener": {
+          "name": "snapshotdemo:Listener",
+          "parameters": []
+        },
+        "methods": []
+      },
+      {
+        "type": "generic",
+        "name": "OpenService",
+        "instructions": "- Write resource functions with author-chosen paths.\n- The listener must be declared at module level.",
+        "listener": {
+          "name": "snapshotdemo:OpenListener",
+          "parameters": [
+            {
+              "name": "port",
+              "description": "Listening port",
+              "type": {
+                "name": "int"
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "annotations": [
+      {
+        "name": "ServiceConfig",
+        "attachmentPoint": "SERVICE",
+        "description": "Configures the demo service.",
+        "typeConstraint": {
+          "name": "DemoServiceConfig",
+          "links": [
+            {
+              "category": "internal",
+              "recordName": "DemoServiceConfig"
+            }
+          ]
+        }
+      }
+    ]
+  }
+]

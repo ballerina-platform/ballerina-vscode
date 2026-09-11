@@ -13,13 +13,14 @@
     "id": "0",
     "name": "Microsoft SQL Server CDC",
     "type": "mssql",
+    "triggerKind": "event",
     "displayName": "Microsoft SQL Server CDC",
     "moduleName": "mssql",
     "orgName": "ballerinax",
-    "version": "1.18.1",
+    "version": "1.19.1",
     "packageName": "mssql",
     "listenerProtocol": "mssql",
-    "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_mssql_1.18.1.png",
+    "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_mssql_1.19.1.png",
     "properties": {
       "listener": {
         "metadata": {
@@ -187,13 +188,13 @@
         "parameters": [
           {
             "metadata": {
-              "label": "Message Configuration",
+              "label": "Database Entry",
               "description": "Define the shape of the database row bound to this parameter."
             },
             "kind": "DATA_BINDING",
             "type": {
               "metadata": {
-                "label": "Message Configuration",
+                "label": "Database Entry",
                 "description": "Define the shape of the database row bound to this parameter."
               },
               "codedata": {
@@ -219,7 +220,7 @@
             },
             "name": {
               "metadata": {
-                "label": "Message Configuration",
+                "label": "Database Entry",
                 "description": "Define the shape of the database row bound to this parameter."
               },
               "placeholder": "after",
@@ -331,7 +332,7 @@
           "orgName": "ballerinax",
           "packageName": "mssql",
           "moduleName": "mssql",
-          "version": "1.18.1"
+          "version": "1.19.1"
         },
         "properties": {},
         "group": "onRead",
@@ -365,13 +366,13 @@
         "parameters": [
           {
             "metadata": {
-              "label": "Message Configuration",
+              "label": "Database Entry",
               "description": "Define the shape of the database row bound to this parameter."
             },
             "kind": "DATA_BINDING",
             "type": {
               "metadata": {
-                "label": "Message Configuration",
+                "label": "Database Entry",
                 "description": "Define the shape of the database row bound to this parameter."
               },
               "codedata": {
@@ -397,7 +398,7 @@
             },
             "name": {
               "metadata": {
-                "label": "Message Configuration",
+                "label": "Database Entry",
                 "description": "Define the shape of the database row bound to this parameter."
               },
               "placeholder": "before",
@@ -418,17 +419,18 @@
             "optional": false,
             "advanced": false,
             "hidden": false,
-            "isGraphqlId": false
+            "isGraphqlId": false,
+            "bindingGroup": "rowState"
           },
           {
             "metadata": {
-              "label": "Message Configuration",
+              "label": "Database Entry",
               "description": "Define the shape of the database row bound to this parameter."
             },
             "kind": "DATA_BINDING",
             "type": {
               "metadata": {
-                "label": "Message Configuration",
+                "label": "Database Entry",
                 "description": "Define the shape of the database row bound to this parameter."
               },
               "codedata": {
@@ -454,7 +456,7 @@
             },
             "name": {
               "metadata": {
-                "label": "Message Configuration",
+                "label": "Database Entry",
                 "description": "Define the shape of the database row bound to this parameter."
               },
               "placeholder": "after",
@@ -475,7 +477,8 @@
             "optional": false,
             "advanced": false,
             "hidden": false,
-            "isGraphqlId": false
+            "isGraphqlId": false,
+            "bindingGroup": "rowState"
           },
           {
             "metadata": {
@@ -566,7 +569,7 @@
           "orgName": "ballerinax",
           "packageName": "mssql",
           "moduleName": "mssql",
-          "version": "1.18.1"
+          "version": "1.19.1"
         },
         "properties": {},
         "group": "onUpdate",
@@ -602,13 +605,13 @@
         "parameters": [
           {
             "metadata": {
-              "label": "Message Configuration",
+              "label": "Database Entry",
               "description": "Define the shape of the database row bound to this parameter."
             },
             "kind": "DATA_BINDING",
             "type": {
               "metadata": {
-                "label": "Message Configuration",
+                "label": "Database Entry",
                 "description": "Define the shape of the database row bound to this parameter."
               },
               "codedata": {
@@ -634,7 +637,7 @@
             },
             "name": {
               "metadata": {
-                "label": "Message Configuration",
+                "label": "Database Entry",
                 "description": "Define the shape of the database row bound to this parameter."
               },
               "placeholder": "after",
@@ -735,7 +738,7 @@
           "orgName": "ballerinax",
           "packageName": "mssql",
           "moduleName": "mssql",
-          "version": "1.18.1"
+          "version": "1.19.1"
         },
         "properties": {},
         "group": "onCreate",
@@ -769,13 +772,13 @@
         "parameters": [
           {
             "metadata": {
-              "label": "Message Configuration",
+              "label": "Database Entry",
               "description": "Define the shape of the database row bound to this parameter."
             },
             "kind": "DATA_BINDING",
             "type": {
               "metadata": {
-                "label": "Message Configuration",
+                "label": "Database Entry",
                 "description": "Define the shape of the database row bound to this parameter."
               },
               "codedata": {
@@ -801,7 +804,7 @@
             },
             "name": {
               "metadata": {
-                "label": "Message Configuration",
+                "label": "Database Entry",
                 "description": "Define the shape of the database row bound to this parameter."
               },
               "placeholder": "before",
@@ -902,7 +905,7 @@
           "orgName": "ballerinax",
           "packageName": "mssql",
           "moduleName": "mssql",
-          "version": "1.18.1"
+          "version": "1.19.1"
         },
         "properties": {},
         "group": "onDelete",
@@ -1012,7 +1015,7 @@
           "orgName": "ballerinax",
           "packageName": "mssql",
           "moduleName": "mssql",
-          "version": "1.18.1"
+          "version": "1.19.1"
         },
         "properties": {},
         "group": "onError",

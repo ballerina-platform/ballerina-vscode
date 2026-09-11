@@ -18,15 +18,14 @@
 
 package io.ballerina.flowmodelgenerator.core.copilot.service;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
 import io.ballerina.compiler.api.symbols.ClassSymbol;
 import io.ballerina.compiler.api.symbols.MethodSymbol;
 import io.ballerina.compiler.api.symbols.ObjectTypeSymbol;
 import io.ballerina.compiler.api.symbols.Symbol;
 import io.ballerina.compiler.api.symbols.TypeDefinitionSymbol;
 import io.ballerina.compiler.api.symbols.TypeSymbol;
+import io.ballerina.flowmodelgenerator.core.copilot.model.Service;
+import io.ballerina.flowmodelgenerator.core.copilot.model.ServiceRemoteFunction;
 import io.ballerina.modelgenerator.commons.CommonUtils;
 
 import java.util.Collections;
@@ -37,7 +36,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Applies deprecation flags to Copilot service JSON using module symbols. The SQLite
+ * Applies deprecation flags to Copilot services using module symbols. The SQLite
  * service-index does not store deprecation, so it is resolved from the symbols and
  * written onto the services produced by {@link ServiceLoader#loadAllServices(String)}.
  * Reads the service-type {@code name} on each index-sourced entry (e.g.
@@ -48,8 +47,6 @@ import java.util.Set;
  */
 public final class CopilotDeprecationEnricher {
 
-    private static final String NAME_KEY = "name";
-
     private CopilotDeprecationEnricher() {
         // Prevent instantiation
     }
@@ -59,47 +56,45 @@ public final class CopilotDeprecationEnricher {
      * are {@code @deprecated}. Both arguments may be null; a null or empty
      * {@code moduleSymbols} is a no-op.
      */
-    public static void enrich(JsonArray services, List<Symbol> moduleSymbols) {
+    public static void enrich(List<Service> services, List<Symbol> moduleSymbols) {
         if (services == null || services.isEmpty() || moduleSymbols == null || moduleSymbols.isEmpty()) {
             return;
         }
 
         Set<String> wanted = new HashSet<>();
-        for (JsonElement element : services) {
-            JsonObject svc = element.getAsJsonObject();
-            if (svc.has(NAME_KEY)) {
-                wanted.add(svc.get(NAME_KEY).getAsString());
+        for (Service svc : services) {
+            if (svc.getName() != null) {
+                wanted.add(svc.getName());
             }
         }
 
         Map<String, ServiceTypeDeprecation> deprecationByType =
                 resolveServiceTypeDeprecations(moduleSymbols, wanted);
 
-        for (JsonElement element : services) {
-            JsonObject svc = element.getAsJsonObject();
-            if (!svc.has(NAME_KEY)) {
+        for (Service svc : services) {
+            String serviceTypeName = svc.getName();
+            if (serviceTypeName == null) {
                 continue;
             }
-            String serviceTypeName = svc.get(NAME_KEY).getAsString();
 
             ServiceTypeDeprecation deprecation = deprecationByType.get(serviceTypeName);
             if (deprecation == null) {
                 continue;
             }
             if (deprecation.typeDeprecated) {
-                svc.addProperty("isDeprecated", true);
+                svc.setDeprecated(true);
             }
-            if (!deprecation.deprecatedMethods.isEmpty() && svc.has("methods")) {
-                markDeprecatedMethods(svc.getAsJsonArray("methods"), deprecation.deprecatedMethods);
+            if (!deprecation.deprecatedMethods.isEmpty() && svc.getMethods() != null) {
+                markDeprecatedMethods(svc.getMethods(), deprecation.deprecatedMethods);
             }
         }
     }
 
-    private static void markDeprecatedMethods(JsonArray methods, Set<String> deprecatedNames) {
-        for (JsonElement element : methods) {
-            JsonObject method = element.getAsJsonObject();
-            if (method.has("name") && deprecatedNames.contains(method.get("name").getAsString())) {
-                method.addProperty("isDeprecated", true);
+    private static void markDeprecatedMethods(List<ServiceRemoteFunction> methods,
+                                              Set<String> deprecatedNames) {
+        for (ServiceRemoteFunction method : methods) {
+            if (method.getName() != null && deprecatedNames.contains(method.getName())) {
+                method.setDeprecated(true);
             }
         }
     }

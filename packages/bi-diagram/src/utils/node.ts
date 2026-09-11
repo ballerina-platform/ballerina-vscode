@@ -28,7 +28,28 @@ import {
 } from "../resources/constants";
 import { Branch, FlowNode, FlowNodeDiffState } from "./types";
 
-const WORKFLOW_NODE_KINDS = new Set(["WORKFLOW_RUN", "ACTIVITY_CALL", "SEND_DATA", "WAIT_DATA", "HUMAN_TASK"]);
+// Workflow statements carry the heavier border so they read as a distinct layer from the plain
+// statements around them. Most of the kinds below already get a dedicated widget (activity call,
+// send, wait, human task, ...) that draws that border unconditionally, so this set doesn't govern
+// them — they're only listed here for documentation. The kinds that actually consult this set via
+// isWorkflowNode() are the ones sharing a general-purpose widget with non-workflow nodes: the API
+// call box (WORKFLOW_RUN, CHILD_WORKFLOW_RUN, CHILD_WORKFLOW_CALL) and the base node fallback used
+// by any kind with no dedicated widget (UPDATE_DATA, SLEEP). Don't treat this list as the
+// authoritative index of which kinds get the workflow border — check the widget itself for that.
+const WORKFLOW_NODE_KINDS = new Set([
+    "WORKFLOW_RUN",
+    "CHILD_WORKFLOW_RUN",
+    "CHILD_WORKFLOW_CALL",
+    "CHILD_WORKFLOW_SEND_DATA",
+    "CHILD_WORKFLOW_WAIT",
+    "ACTIVITY_CALL",
+    "CONNECTION_ACTIVITY_CALL",
+    "SEND_DATA",
+    "WAIT_DATA",
+    "UPDATE_DATA",
+    "HUMAN_TASK",
+    "SLEEP",
+]);
 
 // Durable-agentic-workflow register/add statements: rendered without the module prefix and
 // with the registered name (metadata.description) as the node's second line.
@@ -38,6 +59,26 @@ const DURABLE_AGENT_REGISTER_NODE_KINDS = new Set([
     "DURABLE_AGENT_ADD_ACTIVITY",
     "DURABLE_AGENT_HUMAN_TASK",
 ]);
+
+// SLEEP is the one exception with its own dedicated node kind, matched directly here; it is also
+// included in WORKFLOW_MODULE_FUNCTION_TITLES below so that map remains the single source of truth
+// if the language server ever starts sending it as a generic statement instead.
+const WORKFLOW_UTILITY_NODE_TITLES: Record<string, string> = {
+    SLEEP: "Sleep",
+};
+
+// Workflow accessor/utility statements — `workflow:currentTime()`, `workflow:sleep()`, etc. — are plain
+// function calls on the workflow context, not calls into a module's public API, so they render with the
+// same friendly names the side panel's "Workflow Functions" list uses instead of "workflow : <symbol>".
+// The language server currently emits these as generic statement kinds (e.g. "EXPRESSION") rather than
+// the dedicated WORKFLOW_* node kinds, so matching has to key off the function symbol, not the node kind.
+const WORKFLOW_MODULE_FUNCTION_TITLES: Record<string, string> = {
+    currentTime: "Get Current Time",
+    isReplaying: "Is Replaying",
+    getWorkflowId: "Get Workflow ID",
+    getWorkflowType: "Get Workflow Type",
+    sleep: "Sleep"
+};
 
 // Workflow and durable-agent statements are actions on the context or the agent — `ctx->callActivity`,
 // `ctx->runChildWorkflow`, `agent.sendData` — not calls into a module's API. Titling them
@@ -95,8 +136,96 @@ export function isReceiveEventNode(node?: FlowNode) {
     return node?.codedata?.node === "WAIT_DATA";
 }
 
+/**
+ * Whether a node is a human task. A human task suspends the workflow on someone outside it acting,
+ * so it is drawn as a wait: the person on the left, an arrow into the body.
+ */
+export function isHumanTaskNode(node?: FlowNode) {
+    return node?.codedata?.node === "HUMAN_TASK";
+}
+
+/**
+ * The roles permitted to complete a human task, when the statement names them literally.
+ *
+ * The property holds a Ballerina expression (`string|string[]`), so it is only a set of role names
+ * we can put on the canvas when every element is a string literal — an identifier or a call is
+ * resolved at run time and would read as a role that does not exist.
+ */
+export function getHumanTaskUserRoles(node?: FlowNode): string[] {
+    const value = (node?.properties as any)?.userRoles?.value;
+    if (typeof value !== "string") {
+        return [];
+    }
+
+    const expression = value.trim();
+    const isListLiteral = expression.startsWith("[") && expression.endsWith("]");
+    const elements = splitListElements(isListLiteral ? expression.slice(1, -1) : expression);
+
+    if (elements.length === 0 || !elements.every((element) => /^(".*"|'.*')$/.test(element))) {
+        return [];
+    }
+
+    return elements.map((element) => normalizeNodePropertyValue(element)).filter(Boolean);
+}
+
+/**
+ * The elements of a list literal's body, split on the commas that separate them rather than on every
+ * comma: a comma inside a role name (`"finance,approver"`) belongs to the name, and splitting there
+ * would leave two halves that are not literals — so the roles would silently not render at all.
+ */
+function splitListElements(body: string): string[] {
+    const elements: string[] = [];
+    let current = "";
+    let quote: string | undefined;
+    let escaped = false;
+
+    for (const char of body) {
+        if (escaped) {
+            current += char;
+            escaped = false;
+            continue;
+        }
+        if (quote && char === "\\") {
+            current += char;
+            escaped = true;
+            continue;
+        }
+        if (quote) {
+            current += char;
+            if (char === quote) {
+                quote = undefined;
+            }
+            continue;
+        }
+        if (char === '"' || char === "'") {
+            quote = char;
+            current += char;
+            continue;
+        }
+        if (char === ",") {
+            elements.push(current);
+            current = "";
+            continue;
+        }
+        current += char;
+    }
+    elements.push(current);
+
+    return elements.map((element) => element.trim()).filter(Boolean);
+}
+
 export function isWaitingAgentCall(node?: FlowNode) {
     return (node?.metadata?.data as { waits?: boolean } | undefined)?.waits === true;
+}
+
+/**
+ * Whether a data-event wait or human task has a configured timeout deadline. The language server
+ * can emit an empty `timeout = ()` call, which arrives as the literal string "()" rather than an
+ * absent value, so a plain truthiness check on the property would still badge it.
+ */
+export function hasWaitTimeout(node?: FlowNode): boolean {
+    const timeoutValue = (node?.properties as any)?.timeout?.value as string | undefined;
+    return !!timeoutValue && timeoutValue.trim() !== "()";
 }
 
 /**
@@ -105,6 +234,39 @@ export function isWaitingAgentCall(node?: FlowNode) {
  */
 export function getAgentDataEventName(node?: FlowNode) {
     return (node?.metadata?.data as { dataName?: string } | undefined)?.dataName;
+}
+
+/**
+ * A property value as it should be read: a string value arrives quoted when the statement carried a
+ * string literal, and the quotes are not part of what the node names.
+ */
+export function normalizeNodePropertyValue(value?: string): string {
+    if (typeof value !== "string") {
+        return "";
+    }
+
+    const trimmed = value.trim();
+    // Only a matched pair is quoting. An unbalanced quote is part of the value, and stripping one end
+    // of it would quietly change what the node names.
+    const quote = trimmed.charAt(0);
+    if (trimmed.length >= 2 && (quote === '"' || quote === "'") && trimmed.endsWith(quote)) {
+        return trimmed.slice(1, -1);
+    }
+    return trimmed;
+}
+
+/**
+ * The bare function name of a workflow a node targets. The value reaches the widget in whatever
+ * shape the statement wrote it — quoted, module-qualified (`orders:orderWorkflow`), or as a call
+ * (`orderWorkflow(...)`) — and only the name resolves to a location.
+ */
+export function getWorkflowFunctionName(value?: string): string {
+    const normalizedValue = normalizeNodePropertyValue(value);
+    if (!normalizedValue) {
+        return "";
+    }
+
+    return normalizedValue.split(":").pop()?.split("(")[0]?.trim() ?? normalizedValue;
 }
 
 export interface DiffStatePresentation {
@@ -329,6 +491,18 @@ export function getNodeTitle(node: FlowNode) {
     // without the module prefix; the registered name renders as the node's second line instead.
     if (isDurableAgentRegisterNode(node)) {
         return node.metadata?.label ?? node.codedata.node;
+    }
+
+    if (node.codedata?.node && WORKFLOW_UTILITY_NODE_TITLES[node.codedata.node]) {
+        return WORKFLOW_UTILITY_NODE_TITLES[node.codedata.node];
+    }
+
+    if (node.codedata?.org === "ballerina" && node.codedata?.module === "workflow") {
+        const symbol = typeof node.codedata?.symbol === "string" ? node.codedata.symbol : node.metadata?.label;
+        const friendlyTitle = symbol && WORKFLOW_MODULE_FUNCTION_TITLES[symbol];
+        if (friendlyTitle) {
+            return friendlyTitle;
+        }
     }
 
     const label = node.metadata.label.includes(".") ? node.metadata.label.split(".").pop() : node.metadata.label;

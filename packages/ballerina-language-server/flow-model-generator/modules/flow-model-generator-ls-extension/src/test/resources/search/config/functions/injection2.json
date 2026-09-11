@@ -158,6 +158,17 @@
           ]
         }
       ]
+    },
+    {
+      "metadata": {
+        "label": "Extended Library",
+        "description": "Components from the ballerinax organization",
+        "keywords": [
+          "Ballerinax",
+          "Library"
+        ]
+      },
+      "items": []
     }
   ]
 }

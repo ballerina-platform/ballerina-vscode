@@ -51,6 +51,8 @@ jobs:
     needs: changes
     if: needs.changes.outputs.build == 'true'
     uses: ./.github/workflows/reusable-build.yml
+    secrets:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     with:
       runOnAWS: ${{ contains(github.event.pull_request.labels.*.name, 'Runner/AWS') }}
       # Always run the e2e suite for a PR into a release line ('5.14.x'), where a regression

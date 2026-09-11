@@ -48,13 +48,18 @@ class AgentStatusManager {
     private resetTimer: NodeJS.Timeout | undefined;
     /** Panel on screen right now, as opposed to `status.aiPanelOpen`, which is merely alive. */
     private aiPanelVisible = false;
+    /** An in-view surface (the overview composer) is already reporting the status inline. */
+    private inlineStatusVisible = false;
+    // retainContextWhenHidden keeps the composer mounted (and its inline flag set) while the
+    // visualizer tab is buried, so the flag only counts while the panel is actually on screen.
+    private visualizerVisible = false;
 
     init(context: vscode.ExtensionContext): void {
         if (this.statusBarItem) {
             return;
         }
         this.statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 98);
-        this.statusBarItem.name = 'WSO2 Integration Intelligence';
+        this.statusBarItem.name = 'WSO2 Integrator Copilot';
         this.statusBarItem.command = SHARED_COMMANDS.OPEN_AI_PANEL;
         context.subscriptions.push(this.statusBarItem, new vscode.Disposable(() => this.clearResetTimer()));
         this.render();
@@ -131,11 +136,29 @@ class AgentStatusManager {
         this.broadcast();
     }
 
+    /** The overview composer sets this while mounted so the status bar doesn't double-report. */
+    setInlineStatusVisible(visible: boolean): void {
+        if (this.inlineStatusVisible === visible) {
+            return;
+        }
+        this.inlineStatusVisible = visible;
+        this.render();
+    }
+
+    setVisualizerVisible(visible: boolean): void {
+        if (this.visualizerVisible === visible) {
+            return;
+        }
+        this.visualizerVisible = visible;
+        this.render();
+    }
+
     setAiPanelVisible(visible: boolean): void {
         if (this.aiPanelVisible === visible) {
             return;
         }
         this.aiPanelVisible = visible;
+        vscode.commands.executeCommand('setContext', 'ballerina.aiPanelVisible', visible);
         // Either direction means the panel has been on screen: becoming visible
         // shows the outcome, and going hidden means it was visible until now.
         const acknowledged = this.acknowledgeTerminalState();
@@ -187,34 +210,35 @@ class AgentStatusManager {
             return;
         }
         // Only worth a slot in the status bar when there is live status to report
-        // and no panel on screen already reporting it. A panel that is open but
-        // hidden behind another tab still needs the status bar.
-        if (this.status.state === 'idle' || this.aiPanelVisible) {
+        // and nothing on screen already reporting it — a visible panel, or the
+        // overview composer's inline status. A panel open but hidden behind another
+        // tab still needs the status bar.
+        if (this.status.state === 'idle' || this.aiPanelVisible || (this.inlineStatusVisible && this.visualizerVisible)) {
             this.statusBarItem.hide();
             return;
         }
         const label = truncate(this.status.label, STATUS_BAR_LABEL_MAX);
         switch (this.status.state) {
             case 'running':
-                this.statusBarItem.text = `$(loading~spin) ${label ?? 'WSO2 Integration Intelligence'}`;
+                this.statusBarItem.text = `$(loading~spin) ${label ?? 'WSO2 Integrator Copilot'}`;
                 this.statusBarItem.backgroundColor = undefined;
                 break;
             case 'awaiting-input':
-                this.statusBarItem.text = `$(bi-ai-chat) WSO2 Integration Intelligence needs your input`;
+                this.statusBarItem.text = `$(bi-ai-chat) WSO2 Integrator Copilot needs your input`;
                 this.statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
                 break;
             case 'completed':
-                this.statusBarItem.text = `$(check) WSO2 Integration Intelligence finished`;
+                this.statusBarItem.text = `$(check) WSO2 Integrator Copilot finished`;
                 this.statusBarItem.backgroundColor = undefined;
                 break;
             case 'error':
-                this.statusBarItem.text = `$(error) WSO2 Integration Intelligence error`;
+                this.statusBarItem.text = `$(error) WSO2 Integrator Copilot error`;
                 this.statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.errorBackground');
                 break;
         }
         const tooltip = new vscode.MarkdownString();
-        tooltip.appendMarkdown(`**WSO2 Integration Intelligence**${this.status.label ? ` — ${this.status.label}` : ''}\n\n`);
-        tooltip.appendMarkdown('Click to open the WSO2 Integration Intelligence chat.');
+        tooltip.appendMarkdown(`**WSO2 Integrator Copilot**${this.status.label ? ` — ${this.status.label}` : ''}\n\n`);
+        tooltip.appendMarkdown('Click to open the WSO2 Integrator Copilot chat.');
         this.statusBarItem.tooltip = tooltip;
         this.statusBarItem.show();
     }

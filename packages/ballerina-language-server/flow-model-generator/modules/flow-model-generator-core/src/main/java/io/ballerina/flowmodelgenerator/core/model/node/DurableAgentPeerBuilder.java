@@ -62,6 +62,8 @@ public class DurableAgentPeerBuilder extends CallBuilder {
     public static final String DESCRIPTION_KEY = "description";
     public static final String WAIT_KEY = "wait";
     public static final String CALLBACK_CHANNEL_KEY = "callbackChannel";
+    public static final String REQUIRES_APPROVAL_KEY = "requiresApproval";
+    public static final String USER_ROLES_KEY = "userRoles";
     private static final String STRING_TYPE = "string";
     private static final String LABEL = "Peer Agent";
     private static final String DESCRIPTION =
@@ -144,6 +146,15 @@ public class DurableAgentPeerBuilder extends CallBuilder {
                 "The declared data event channel the async peer replies on; required when the "
                         + "delegation does not wait",
                 "hotelResults", false);
+
+        // PeerDecl gating, the same pair the tool and activity capability forms carry: a gated
+        // delegation is held on a review activity before the peer runs.
+        WorkflowUtil.addApprovalGateProperties(this, REQUIRES_APPROVAL_KEY,
+                "Gate this delegation: before the agent delegates to the peer, a review activity is created "
+                        + "and the agent suspends durably until a reviewer proceeds or rejects.",
+                USER_ROLES_KEY,
+                "Role(s) permitted to decide the approval review of this delegation, "
+                        + "e.g. \"support-lead\" or [\"finance\", \"manager\"].");
     }
 
     private void addStringProperty(String key, String label, String doc, String placeholder, boolean required) {
@@ -220,6 +231,13 @@ public class DurableAgentPeerBuilder extends CallBuilder {
                     + "channel its answer arrives on");
         }
 
+        boolean requiresApproval = "true".equalsIgnoreCase(propertyValue(sourceBuilder, REQUIRES_APPROVAL_KEY));
+        // Multi-mode field: read it the way the tool and activity forms do. propertyValue would
+        // hand back the raw value, quoting an expression-mode reference into a role literal of
+        // the same spelling and leaving a text-mode string template unwrapped.
+        String userRoles = sourceBuilder.getProperty(USER_ROLES_KEY)
+                .map(WorkflowUtil::roleSource).orElse("");
+
         // 'wait is a keyword, so the field is written quoted; it is only emitted when it differs
         // from the declaration's default.
         StringBuilder entry = new StringBuilder("{agent: ").append(agent)
@@ -229,7 +247,18 @@ public class DurableAgentPeerBuilder extends CallBuilder {
         }
         if (!waits) {
             entry.append(", 'wait: false");
+        }
+        // PeerDecl declares callbackChannel independently of 'wait — it is *required* when the
+        // delegation does not wait, not exclusive to it. Emitting it only for the async case
+        // dropped a channel a waiting peer had declared, which now hydrates into the form.
+        if (!callbackChannel.isBlank()) {
             entry.append(", callbackChannel: ").append(WorkflowUtil.quoteIfPlain(callbackChannel));
+        }
+        if (requiresApproval) {
+            entry.append(", requiresApproval: true");
+        }
+        if (!userRoles.isBlank()) {
+            entry.append(", userRoles: ").append(userRoles);
         }
         entry.append("}");
         return WorkflowUtil.upsertAgentCapabilityEntry(sourceBuilder, "peers", entry.toString());

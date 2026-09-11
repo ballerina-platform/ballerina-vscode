@@ -36,9 +36,12 @@ import java.util.stream.Collectors;
  *   └── {org}/
  *       └── {module}/
  *           ├── library.md      → Library.instructions
- *           ├── service.md      → GenericService.instructions
- *           └── test.md         → Service.testGenerationInstruction
+ *           └── service.md      → GenericService.instructions
  * </pre>
+ *
+ * <p>The {@code test.md} channel was retired. No instance had existed since the curated corpus was
+ * removed, and test conventions live in {@code ballerina/test}'s own {@code library.md}, which every
+ * test-writing prompt already names.
  *
  * @since 1.7.0
  */
@@ -47,7 +50,6 @@ public final class InstructionLoader {
     private static final String INSTRUCTIONS_BASE_PATH = "/copilot/instructions";
     private static final String LIBRARY_INSTRUCTION_FILE = "library.md";
     private static final String SERVICE_INSTRUCTION_FILE = "service.md";
-    private static final String TEST_INSTRUCTION_FILE = "test.md";
 
     private InstructionLoader() {
         // Utility class, prevent instantiation
@@ -71,16 +73,6 @@ public final class InstructionLoader {
      */
     public static Optional<String> loadServiceInstruction(String packageName) {
         return loadInstruction(packageName, SERVICE_INSTRUCTION_FILE);
-    }
-
-    /**
-     * Loads the test generation instruction for a given package.
-     *
-     * @param packageName the full package name (e.g., "ballerina/http")
-     * @return Optional containing the instruction content, or empty if not found
-     */
-    public static Optional<String> loadTestInstruction(String packageName) {
-        return loadInstruction(packageName, TEST_INSTRUCTION_FILE);
     }
 
     /**

@@ -99,7 +99,7 @@ export function getLibrariesList(kind?: LibraryKind): Promise<LibrariesListRespo
 
         req.on('error', error => {
             debug(error.message);
-            reject();
+            reject(error);
         });
 
         req.end();
@@ -132,7 +132,7 @@ export function getAllResources(): Promise<LibrarySearchResponse | undefined> {
 
         req.on('error', error => {
             debug(error.message);
-            reject();
+            reject(error);
         });
 
         req.end();
@@ -157,18 +157,22 @@ export function getLibraryData(orgName: string, moduleName: string, version: str
             res.on('end',function(){
                 if (res.statusCode !== 200) {
                     debug(`Failed to fetch the library data for ${orgName}:${moduleName}`);
-                    return null;
-                } else {
+                    return reject(new Error(`Failed to fetch library data for ${orgName}/${moduleName}:${version} (status ${res.statusCode})`));
+                }
+                try {
                     const libraryData = JSON.parse(body);
                     cachedLibraryData.set(`${orgName}_${moduleName}_${version}`, libraryData);
                     return resolve(libraryData);
+                } catch (error) {
+                    debug(`Failed to parse the library data for ${orgName}:${moduleName}`);
+                    return reject(error);
                 }
             });
         });
 
         req.on('error', error => {
             debug(error.message);
-            reject();
+            reject(error);
         });
 
         req.end();

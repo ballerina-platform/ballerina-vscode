@@ -52,9 +52,11 @@ import java.util.List;
  */
 public class TriggerFunctionExpansionTest {
 
-    /** The shipped FTP model: file-format handlers pre-expanded, sharing the {@code onCreate} group. */
+    /** The generated FTP model: file-format handlers pre-expanded, sharing the {@code onCreate} group. */
     private Service ftpTemplate() {
-        TriggerUISchemaModel model = TriggerModelReader.getInstance().getBundledTriggerModel("ftp").orElseThrow();
+        GeneratedTriggerCorpus.Entry entry = GeneratedTriggerCorpus.get("ftp");
+        TriggerUISchemaModel model = TriggerModelReader.getInstance()
+                .getGeneratedTriggerModel(entry.org(), entry.module(), entry.version()).orElseThrow();
         return TriggerServiceAdapter.toServiceTemplate(model, "Service", "ballerina", "ftp", "ftp");
     }
 

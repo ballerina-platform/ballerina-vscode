@@ -31,10 +31,10 @@ import io.ballerina.flowmodelgenerator.core.model.FormBuilder;
 import io.ballerina.flowmodelgenerator.core.model.NodeBuilder;
 import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
-import io.ballerina.flowmodelgenerator.core.utils.FileSystemUtils;
 import io.ballerina.flowmodelgenerator.core.utils.FlowNodeUtil;
 import io.ballerina.flowmodelgenerator.core.utils.ParamUtils;
 import io.ballerina.modelgenerator.commons.CommonUtils;
+import io.ballerina.modelgenerator.commons.FileSystemUtils;
 import io.ballerina.modelgenerator.commons.FunctionData;
 import io.ballerina.modelgenerator.commons.FunctionDataBuilder;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
@@ -215,7 +215,8 @@ public class McpToolKitBuilder extends NodeBuilder {
                     .placeholder(param.placeholder())
                     .defaultValue(param.defaultValue())
                     .editable()
-                    .defaultable(param.optional());
+                    .optional(param.optional())
+                    .advanced(param.advanced());
 
             // Configure property type & defaultability by parameter kind
             switch (param.kind()) {
@@ -250,7 +251,7 @@ public class McpToolKitBuilder extends NodeBuilder {
 
     private void applyRestDefaultability(Property.Builder<FormBuilder<NodeBuilder>> builder, boolean onlyRestParam) {
         if (onlyRestParam) {
-            builder.defaultable(false);
+            builder.optional(false).advanced(false);
         }
     }
 

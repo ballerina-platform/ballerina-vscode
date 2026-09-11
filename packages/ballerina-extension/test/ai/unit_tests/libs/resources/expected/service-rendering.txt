@@ -1,0 +1,82 @@
+// ============================================================
+// Library: ballerinax/snapshotdemo
+// Fixture exercising the service-rendering surface: listener parameters (required and optional), spec §8 annotations at both presences, home- and cross-module references, fixed and generic services, and the type shapes a service body references.
+// ============================================================
+import ballerinax/snapshotdemo;
+
+// --- Types ---
+
+# Configuration for the demo listener.
+
+type ListenerConfiguration record {
+    # TLS material
+    string secureSocket?;
+    decimal timeout = 30;
+};
+
+# The record constraining @snapshotdemo:ServiceConfig.
+
+type DemoServiceConfig record {
+    # Mandatory — an empty {} would not compile
+    string path;
+    int retries?;
+};
+
+# Kinds of event the service can receive.
+enum EventKind {
+    CREATED,
+    UPDATED,
+    DELETED
+}
+
+# One delivered event.
+
+type Event record {
+    EventKind kind;
+    http:Request payload; // Special Agent Note: Request FROM ballerina/http package
+};
+
+// --- Service ---
+
+# Requires: import ballerinax/snapshotdemo.driver as _;
+# Mandatory: this service must carry the @snapshotdemo:ServiceConfig annotation. Replace {...} with its fields, which are those of snapshotdemo:DemoServiceConfig.
+@snapshotdemo:ServiceConfig {...} // required
+service snapshotdemo:Service on new snapshotdemo:Listener(int port, snapshotdemo:ListenerConfiguration config = {}) {
+    // This service type takes any number of resource handlers, and you choose each one's name.
+    // Declare as many as the requirement needs, following this shape:
+    // Only resource methods are accepted here — a remote method does not compile.
+    // One user-named route.
+    // Resource: the accessor may be any the language accepts — replace `<accessor>`; a path is required and is author-chosen — replace `pathSegment`.
+    // resource function <accessor> pathSegment() returns error?;
+
+    # Handles one event.
+    # Required parameters: event
+    # Optional parameters (may be omitted): caller
+    remote function onEvent(snapshotdemo:Event event, Caller caller) returns error?;
+
+    # Reports which files changed.
+    # Resource: the accessor must be one of `get`, `post`; a path is required and is author-chosen — replace `pathSegment`.
+    # + event - The change event.
+    #
+    # # Deprecated
+    # Superseded by the typed content handlers, which deliver the file body already bound to a declared type.
+    @deprecated
+    resource function get pathSegment(snapshotdemo:Event event) returns error?; // optional
+}
+
+# Optional: this service may carry the @othermod:OtherConfig annotation. Replace {...} with its fields, which are those of othermod:OtherServiceConfig.
+@othermod:OtherConfig {...} // optional; Special Agent Note: OtherConfig, OtherServiceConfig FROM ballerinax/othermod package
+service othermod:Service on new snapshotdemo:Listener() { // Special Agent Note: Service FROM ballerinax/othermod package
+}
+
+// --- Service (generic) ---
+// Service Type: OpenService
+// Listener: snapshotdemo:OpenListener(int port)
+// Instructions:
+- Write resource functions with author-chosen paths.
+- The listener must be declared at module level.
+
+// --- Annotations ---
+
+# Configures the demo service.
+public annotation DemoServiceConfig ServiceConfig on service;

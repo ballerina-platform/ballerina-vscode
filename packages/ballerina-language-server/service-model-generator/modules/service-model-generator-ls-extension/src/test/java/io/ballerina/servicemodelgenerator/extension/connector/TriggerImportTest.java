@@ -195,4 +195,75 @@ public class TriggerImportTest {
         Assert.assertTrue(allText.contains("import ballerina/http;"),
                 "additional import from importStatements should be emitted: " + allText);
     }
+
+    private String generateWithDriverImport(ModulePartNode root) {
+        String initJson = """
+                { "moduleName":"mssql","orgName":"ballerinax","type":"mssql",
+                  "properties":{"listener":{"enabled":true,"editable":true,"optional":false,"advanced":false,
+                    "types":[{"fieldType":"CHOICE","selected":true}],"codedata":{"type":"LISTENER_CONFIG"},
+                    "choices":[{"enabled":true,"editable":true,"optional":false,"advanced":false,
+                      "properties":{"listenerVarName":{"enabled":true,"editable":true,"optional":false,
+                        "advanced":false,"value":"mssqlListener",
+                        "types":[{"fieldType":"IDENTIFIER","selected":true}],
+                        "codedata":{"type":"LISTENER_VAR_NAME"}}}}]}}}""";
+        String triggerJson = """
+                { "schemaVersion":"1.0","displayName":"MSSQL","description":"d","orgName":"ballerinax",
+                  "packageName":"mssql","moduleName":"mssql","version":"1.0.0","type":"mssql","icon":"i",
+                  "importStatements":["ballerinax/cdc","ballerinax/mssql.cdc.driver as _"],
+                  "serviceTypes":[{"name":"Service","enabled":true,"functions":[],"schemaFunctions":[],
+                    "codedata":{"type":"SERVICE_TYPE_DESCRIPTOR","moduleName":"mssql","originalName":"Service"}}]}""";
+        ServiceInitModel init = gson.fromJson(initJson, ServiceInitModel.class);
+        TriggerUISchemaModel trigger = gson.fromJson(triggerJson, TriggerUISchemaModel.class);
+
+        Map<String, List<TextEdit>> edits = SchemaDrivenSourceGenerator.buildAddServiceEditsForTrigger(
+                init, trigger, root, "svc.bal");
+        return edits.get("svc.bal").stream().map(TextEdit::getNewText).reduce("", String::concat);
+    }
+
+    @Test
+    public void testAliasedAdditionalImportIsEmittedWithAlias() {
+        String allText = generateWithDriverImport(emptyRoot());
+
+        Assert.assertTrue(allText.contains("import ballerinax/mssql.cdc.driver as _;"),
+                "an importStatements entry with an explicit alias must keep that alias: " + allText);
+    }
+
+    @Test
+    public void testAliasedAdditionalImportIsNotDuplicatedWhenAlreadyPresent() {
+        String allText = generateWithDriverImport(rootOf(
+                "import ballerinax/cdc;\nimport ballerinax/mssql;\nimport ballerinax/mssql.cdc.driver as _;\n"));
+
+        long driverImportCount = allText.lines()
+                .filter(line -> line.contains("import ballerinax/mssql.cdc.driver"))
+                .count();
+        Assert.assertEquals(driverImportCount, 0,
+                "an already-imported aliased module must not be re-emitted: " + allText);
+    }
+
+    @Test
+    public void testCdcServiceTypeKeepsItsOwnModuleIdentity() {
+        // The mssql.cdc connector owns the listener, while the service object is declared by the
+        // separate cdc module. Both naturally end in `cdc`; the service must not be rewritten to the
+        // connector alias.
+        ServiceInitModel init = initFor("ballerinax", "mssql.cdc");
+        TriggerUISchemaModel trigger = gson.fromJson("""
+                {"schemaVersion":"1.0","displayName":"MSSQL CDC","description":"d",
+                 "orgName":"ballerinax","packageName":"mssql.cdc","moduleName":"mssql.cdc",
+                 "version":"1.0.0","type":"mssql.cdc","importStatements":["ballerinax/cdc"],
+                 "serviceTypes":[{"name":"Service","enabled":true,"functions":[],"schemaFunctions":[],
+                   "codedata":{"type":"SERVICE_TYPE_DESCRIPTOR","originalName":"Service",
+                     "moduleName":"cdc","orgName":"ballerinax","packageName":"cdc"}}]}""",
+                TriggerUISchemaModel.class);
+
+        String source = SchemaDrivenSourceGenerator.buildAddServiceEditsForTrigger(
+                init, trigger, emptyRoot(), "svc.bal").get("svc.bal").stream()
+                .map(TextEdit::getNewText).reduce("", String::concat);
+
+        Assert.assertTrue(source.contains("import ballerinax/mssql.cdc as mssqlCdc;"),
+                "connector alias must avoid the additional cdc import: " + source);
+        Assert.assertTrue(source.contains("import ballerinax/cdc;"),
+                "service type module must be imported separately: " + source);
+        Assert.assertTrue(source.contains("service cdc:Service on "),
+                "service descriptor must retain the service type module: " + source);
+    }
 }

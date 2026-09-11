@@ -101,9 +101,10 @@ interface StyledInputProps {
     onChange: (val: string) => void;
     onKeyDown: (e: KeyboardEvent<HTMLDivElement>) => void;
     placeholder: string;
+    disabled?: boolean;
 }
 
-const StyledInput = forwardRef<StyledInputRef, StyledInputProps>(({ value, onChange, onKeyDown, placeholder }, ref) => {
+const StyledInput = forwardRef<StyledInputRef, StyledInputProps>(({ value, onChange, onKeyDown, placeholder, disabled }, ref) => {
     const divRef = useRef<HTMLDivElement>(null);
 
     // Provide a focus method to parent
@@ -161,7 +162,7 @@ const StyledInput = forwardRef<StyledInputRef, StyledInputProps>(({ value, onCha
     return (
         <div
             ref={divRef}
-            contentEditable
+            contentEditable={!disabled}
             spellCheck
             suppressContentEditableWarning
             style={{
@@ -177,6 +178,8 @@ const StyledInput = forwardRef<StyledInputRef, StyledInputProps>(({ value, onCha
                 overflowY: "auto",
                 // Left-align text:
                 textAlign: "left",
+                opacity: disabled ? 0.6 : 1,
+                cursor: disabled ? "default" : "text",
             }}
             onInput={handleInput}
             onKeyDown={onKeyDown}
@@ -195,9 +198,13 @@ interface ChatInputProps {
     onStop: () => void;
     /** show "Stop" instead of "Send"? */
     isLoading: boolean;
+    /** disable typing/sending, e.g. while a pending approval blocks the conversation */
+    disabled?: boolean;
+    /** placeholder shown while disabled */
+    placeholder?: string;
 }
 
-const ChatInput: React.FC<ChatInputProps> = ({ value = "", onSend, onStop, isLoading }) => {
+const ChatInput: React.FC<ChatInputProps> = ({ value = "", onSend, onStop, isLoading, disabled = false, placeholder = "Type your message..." }) => {
     const [inputValue, setInputValue] = useState(value);
     const inputRef = useRef<StyledInputRef>(null);
 
@@ -214,6 +221,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ value = "", onSend, onStop, isLoa
      * so normal typing (including repeated keys) won't be affected.
      */
     const handleKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+        if (disabled) return;
         if (e.key === "Enter" && !e.shiftKey) {
             if (!isLoading) {
                 e.preventDefault();
@@ -225,6 +233,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ value = "", onSend, onStop, isLoa
     };
 
     const handleSend = () => {
+        if (disabled) return;
         const toSend = inputValue.trim();
         if (!toSend) return;
         onSend(toSend);
@@ -240,11 +249,12 @@ const ChatInput: React.FC<ChatInputProps> = ({ value = "", onSend, onStop, isLoa
                         value={inputValue}
                         onChange={setInputValue}
                         onKeyDown={handleKeyDown}
-                        placeholder="Type your message..."
+                        placeholder={placeholder}
+                        disabled={disabled}
                     />
                     <ActionButton
                         title={isLoading ? "Stop" : "Send"}
-                        disabled={!inputValue.trim() && !isLoading}
+                        disabled={disabled || (!inputValue.trim() && !isLoading)}
                         onClick={isLoading ? onStop : handleSend}
                     >
                         <Icon name={isLoading ? "bi-stop" : "bi-send"} sx={{ fontSize: "20px", width: "20px", height: "20px" }} />

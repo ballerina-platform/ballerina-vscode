@@ -37,7 +37,10 @@ import static io.ballerina.modelgenerator.commons.CommonUtils.removeLeadingSingl
  * @param defaultValue     the default value of the parameter
  * @param description      the description of the parameter
  * @param label            the label of the parameter
- * @param optional         whether the parameter is optional
+ * @param optional         whether the parameter can be left blank by the user
+ * @param advanced         whether the property should be rendered in the advanced section of the form. Only record
+ *                         fields declared optional (i.e. {@code field?:}) are advanced; a field or parameter that
+ *                         merely has a default value is not
  * @param deprecated       whether the parameter is deprecated
  * @param importStatements import statements of the dependent types
  * @param typeMembers      the member types of the parameter
@@ -54,6 +57,7 @@ public record ParameterData(
         String description,
         String label,
         boolean optional,
+        boolean advanced,
         boolean deprecated,
         String importStatements,
         List<ParameterMemberTypeData> typeMembers,
@@ -61,22 +65,22 @@ public record ParameterData(
 
     public static ParameterData from(String name, String type, Kind kind, String placeholder,
                                      String description, boolean optional) {
-        return new ParameterData(0, name, type, kind, placeholder, null, description, null, optional, false,
+        return new ParameterData(0, name, type, kind, placeholder, null, description, null, optional, false, false,
                 null, new ArrayList<>(), null);
     }
 
     public static ParameterData from(String name, String type, Kind kind, String placeholder,
                                      String description, boolean optional, TypeSymbol typeSymbol) {
-        return new ParameterData(0, name, type, kind, placeholder, null, description, null, optional, false,
+        return new ParameterData(0, name, type, kind, placeholder, null, description, null, optional, false, false,
                 null, new ArrayList<>(), typeSymbol);
     }
 
     public static ParameterData from(String name, String description, String label, String type, String placeholder,
-                                     String defaultValue, Kind kind, boolean optional, boolean deprecated,
-                                     String importStatements,
+                                     String defaultValue, Kind kind, boolean optional, boolean advanced,
+                                     boolean deprecated, String importStatements,
                                      TypeSymbol typeSymbol) {
         return new ParameterData(0, name, type, kind, placeholder, defaultValue, description, label, optional,
-                deprecated,
+                advanced, deprecated,
                 importStatements, new ArrayList<>(), typeSymbol);
     }
 

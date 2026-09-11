@@ -128,7 +128,7 @@ public final class TriggerLibraryIntrospector {
                 || p.paramKind() == ParameterKind.INCLUDED_RECORD;
         List<TriggerLibraryFacts.Param> fields = recordFields(type, 0, moduleInfo);
         return new TriggerLibraryFacts.Param(name, CommonUtils.getTypeSignature(type, moduleInfo), optional, kind,
-                doc(p), fields);
+                doc(p), fields, type);
     }
 
     /**
@@ -164,7 +164,7 @@ public final class TriggerLibraryIntrospector {
             fields.add(new TriggerLibraryFacts.Param(e.getKey(),
                     CommonUtils.getTypeSignature(f.typeDescriptor(), moduleInfo),
                     f.isOptional() || f.hasDefaultValue(), "RECORD_FIELD", doc(f),
-                    recordFields(f.typeDescriptor(), depth + 1, moduleInfo)));
+                    recordFields(f.typeDescriptor(), depth + 1, moduleInfo), f.typeDescriptor()));
         }
         return fields;
     }

@@ -45,6 +45,9 @@ target/
 **/bin/
 .cache/
 
+# Aggregated JaCoCo coverage report (createCodeCoverageReport)
+.jacoco/
+
 # macOS metadata files
 .DS_Store
 .claude

@@ -26,22 +26,10 @@ export interface ModelPricing {
 // Cache-write rates are the 5-minute-TTL tier, matching getProviderCacheControl().
 // Per-million-token pricing by model
 const MODEL_PRICING: Record<string, ModelPricing> = {
+    'claude-sonnet-5':              { input: 2,  cacheWrite: 2.50, cacheRead: 0.20, output: 10 },
     'claude-sonnet-4-6':            { input: 3,  cacheWrite: 3.75, cacheRead: 0.30, output: 15 },
     'claude-haiku-4-5-20251001':    { input: 1,  cacheWrite: 1.25, cacheRead: 0.10, output: 5  },
 };
-
-// Sonnet 5 is published as two price rows: launch rates until this instant, standard after.
-const SONNET_5_STANDARD_FROM = Date.parse('2026-09-01T00:00:00Z');
-const SONNET_5_LAUNCH_PRICING: ModelPricing = { input: 2, cacheWrite: 2.50, cacheRead: 0.20, output: 10 };
-const SONNET_5_STANDARD_PRICING: ModelPricing = { input: 3, cacheWrite: 3.75, cacheRead: 0.30, output: 15 };
-
-// Resolved per call, not at module load, so a long-lived host crosses the cutover correctly.
-function getModelPricing(model: string): ModelPricing | undefined {
-    if (model === 'claude-sonnet-5') {
-        return Date.now() < SONNET_5_STANDARD_FROM ? SONNET_5_LAUNCH_PRICING : SONNET_5_STANDARD_PRICING;
-    }
-    return MODEL_PRICING[model];
-}
 
 export interface CostInput {
     model: string;
@@ -52,7 +40,7 @@ export interface CostInput {
 }
 
 export function calculateCost(usage: CostInput): number {
-    const pricing = getModelPricing(usage.model);
+    const pricing = MODEL_PRICING[usage.model];
     if (!pricing) { return 0; }
 
     const cacheRead = usage.cacheReadTokens || 0;

@@ -1,5 +1,15 @@
 name: Set up Ballerina
 description: Install the Ballerina distribution required by the language-server build
+inputs:
+  gradlePropertiesRef:
+    description: >-
+      Git tag to read packages/ballerina-language-server/gradle.properties from,
+      instead of the checked-out working tree. Use this when the thing under test
+      (e.g. a VSIX built from that tag) may be older than the current checkout, so the
+      installed Ballerina distribution stays pinned to what was actually built rather
+      than drifting with the checkout. Leave blank to read from the working tree.
+    required: false
+    default: ''
 outputs:
   version:
     description: The Ballerina distribution version from the LS Gradle properties
@@ -10,12 +20,31 @@ runs:
     - name: Resolve Ballerina distribution version
       id: version
       shell: bash
+      env:
+        # Passed through env, not interpolated directly into the script below: this
+        # input could in principle carry attacker-controlled text from a future caller,
+        # and raw `${{ }}` interpolation into a run: block would execute it as script
+        # rather than data (the same pattern resolve-source-branch/action.yml uses).
+        GRADLE_PROPERTIES_REF: ${{ inputs.gradlePropertiesRef }}
       run: |
         set -euo pipefail
-        properties="${{ github.workspace }}/packages/ballerina-language-server/gradle.properties"
-        version=$(sed -n 's/^ballerinaLangVersion=//p' "${properties}")
+        if [ -n "${GRADLE_PROPERTIES_REF}" ]; then
+          source "${{ github.workspace }}/.github/scripts/retry.sh"
+          # Same race the 'nightly' release accesses in e2e-scheduled.yml retry for, and
+          # like the VSIX download there (not the metadata-only sourceSha lookup),
+          # exhausting retries here fails the whole calling job — same generous budget.
+          if ! retry 6 10 git fetch --quiet --depth 1 origin "refs/tags/${GRADLE_PROPERTIES_REF}"; then
+            echo "::error::Failed to fetch tag ${GRADLE_PROPERTIES_REF} after 6 attempts."
+            exit 1
+          fi
+          properties_content=$(git show FETCH_HEAD:packages/ballerina-language-server/gradle.properties)
+          version=$(sed -n 's/^ballerinaLangVersion=//p' <<< "${properties_content}")
+        else
+          properties="${{ github.workspace }}/packages/ballerina-language-server/gradle.properties"
+          version=$(sed -n 's/^ballerinaLangVersion=//p' "${properties}")
+        fi
         if [[ ! "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-          echo "::error::Invalid or missing ballerinaLangVersion in packages/ballerina-language-server/gradle.properties"
+          echo "::error::Invalid or missing ballerinaLangVersion in packages/ballerina-language-server/gradle.properties${GRADLE_PROPERTIES_REF:+ at tag ${GRADLE_PROPERTIES_REF}}"
           exit 1
         fi
         echo "version=${version}" >> "$GITHUB_OUTPUT"

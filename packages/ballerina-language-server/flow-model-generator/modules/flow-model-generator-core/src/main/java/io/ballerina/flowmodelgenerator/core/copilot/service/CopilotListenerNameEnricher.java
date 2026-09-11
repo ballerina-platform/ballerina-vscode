@@ -18,18 +18,17 @@
 
 package io.ballerina.flowmodelgenerator.core.copilot.service;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
 import io.ballerina.compiler.api.symbols.ClassSymbol;
 import io.ballerina.compiler.api.symbols.Symbol;
 import io.ballerina.compiler.api.symbols.TypeReferenceTypeSymbol;
+import io.ballerina.flowmodelgenerator.core.copilot.model.Listener;
+import io.ballerina.flowmodelgenerator.core.copilot.model.Service;
 
 import java.util.List;
 import java.util.Optional;
 
 /**
- * Rewrites the {@code listener.name} field of Copilot service JSON when the underlying
+ * Rewrites the {@code listener.name} field of a Copilot service when the underlying
  * Ballerina package ships its listener under a non-canonical class name. The SQLite
  * service-index records the init method name, not the class name, so
  * {@link ServiceIndexLoader} hardcodes {@code <alias>:Listener}. This is correct for
@@ -43,8 +42,6 @@ import java.util.Optional;
 public final class CopilotListenerNameEnricher {
 
     private static final String CANONICAL_LISTENER = "Listener";
-    private static final String LISTENER_KEY = "listener";
-    private static final String NAME_KEY = "name";
 
     private CopilotListenerNameEnricher() {
         // Prevent instantiation
@@ -53,7 +50,7 @@ public final class CopilotListenerNameEnricher {
     /**
      * Both arguments may be null; a null or empty {@code moduleSymbols} is a no-op.
      */
-    public static void enrich(JsonArray services, List<Symbol> moduleSymbols) {
+    public static void enrich(List<Service> services, List<Symbol> moduleSymbols) {
         if (services == null || services.isEmpty() || moduleSymbols == null || moduleSymbols.isEmpty()) {
             return;
         }
@@ -64,22 +61,18 @@ public final class CopilotListenerNameEnricher {
         }
         String className = overrideClassName.get();
 
-        for (JsonElement element : services) {
-            JsonObject svc = element.getAsJsonObject();
-            if (!svc.has(LISTENER_KEY)) {
+        for (Service svc : services) {
+            Listener listener = svc.getListener();
+            if (listener == null || listener.getName() == null) {
                 continue;
             }
-            JsonObject listener = svc.getAsJsonObject(LISTENER_KEY);
-            if (!listener.has(NAME_KEY)) {
-                continue;
-            }
-            String currentName = listener.get(NAME_KEY).getAsString();
+            String currentName = listener.getName();
             int colonIdx = currentName.lastIndexOf(':');
             if (colonIdx < 0) {
                 continue;
             }
             String prefix = currentName.substring(0, colonIdx + 1);
-            listener.addProperty(NAME_KEY, prefix + className);
+            listener.setName(prefix + className);
         }
     }
 

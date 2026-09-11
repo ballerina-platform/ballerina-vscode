@@ -20,16 +20,12 @@
  * @jest-environment node
  *
  * calculateCost returns 0 for any model missing from the pricing table, so a wrong or
- * absent key reports every turn as free rather than failing. Sonnet 5 compounds that:
- * it is published as two price rows with a dated cutover, so the same key needs
- * different rates either side of 2026-09-01.
+ * absent key reports every turn as free rather than failing.
  */
 
 import { calculateCost } from '../features/ai/utils/model-pricing';
 
 const MTOK = 1_000_000;
-const DURING_LAUNCH = Date.parse('2026-08-15T00:00:00Z');
-const AFTER_CUTOVER = Date.parse('2026-09-01T00:00:00Z');
 
 function at<T>(instant: number, fn: () => T): T {
     const spy = jest.spyOn(Date, 'now').mockReturnValue(instant);
@@ -43,30 +39,11 @@ const rates = (model: string) => ({
     cacheRead: calculateCost({ model, inputTokens: MTOK, outputTokens: 0, cacheReadTokens: MTOK }),
 });
 
-describe('claude-sonnet-5 pricing', () => {
-    it('uses launch rates before the cutover', () => {
-        expect(at(DURING_LAUNCH, () => rates('claude-sonnet-5')))
-            .toEqual({ input: 2, output: 10, cacheWrite: 2.5, cacheRead: 0.2 });
+describe('the pricing table', () => {
+    it('prices claude-sonnet-5 at its published rates', () => {
+        expect(rates('claude-sonnet-5')).toEqual({ input: 2, output: 10, cacheWrite: 2.5, cacheRead: 0.2 });
     });
 
-    it('uses standard rates from the cutover onward', () => {
-        expect(at(AFTER_CUTOVER, () => rates('claude-sonnet-5')))
-            .toEqual({ input: 3, output: 15, cacheWrite: 3.75, cacheRead: 0.3 });
-    });
-
-    it('switches exactly at the boundary, not a day early or late', () => {
-        expect(at(AFTER_CUTOVER - 1, () => rates('claude-sonnet-5')).input).toBe(2);
-        expect(at(AFTER_CUTOVER, () => rates('claude-sonnet-5')).input).toBe(3);
-    });
-
-    it('is never priced at zero, in either window', () => {
-        for (const instant of [DURING_LAUNCH, AFTER_CUTOVER]) {
-            expect(at(instant, () => rates('claude-sonnet-5')).input).toBeGreaterThan(0);
-        }
-    });
-});
-
-describe('other models in the pricing table', () => {
     it('prices claude-sonnet-4-6 at its published rates', () => {
         expect(rates('claude-sonnet-4-6')).toEqual({ input: 3, output: 15, cacheWrite: 3.75, cacheRead: 0.3 });
     });
@@ -78,4 +55,28 @@ describe('other models in the pricing table', () => {
     it('reports an unknown model as zero, which is why the key has to be right', () => {
         expect(calculateCost({ model: 'claude-sonnet-4-5', inputTokens: MTOK, outputTokens: MTOK })).toBe(0);
     });
+});
+
+/**
+ * Sonnet 5's $2/$10 is flat — the introductory-vs-standard split was cancelled, so any
+ * date-dependent rate here is a 50% over-report waiting on the clock.
+ */
+describe('rates do not depend on the wall clock', () => {
+    const INSTANTS = {
+        'during the old launch window': Date.parse('2026-08-15T00:00:00Z'),
+        'the instant before the cancelled cutover': Date.parse('2026-09-01T00:00:00Z') - 1,
+        'the cancelled cutover itself': Date.parse('2026-09-01T00:00:00Z'),
+        'well after the cancelled cutover': Date.parse('2027-01-01T00:00:00Z'),
+    };
+
+    for (const model of ['claude-sonnet-5', 'claude-sonnet-4-6', 'claude-haiku-4-5-20251001']) {
+        it(`prices ${model} identically at every instant`, () => {
+            const expected = rates(model);
+            expect(expected.input).toBeGreaterThan(0);
+            for (const [label, instant] of Object.entries(INSTANTS)) {
+                expect({ [label]: at(instant, () => rates(model)) })
+                    .toEqual({ [label]: expected });
+            }
+        });
+    }
 });

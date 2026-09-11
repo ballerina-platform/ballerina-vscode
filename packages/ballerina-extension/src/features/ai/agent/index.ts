@@ -31,7 +31,7 @@ import { getProjectMetrics } from "../../telemetry/common/project-metrics";
 import { getHashedProjectId } from "../../telemetry/common/project-id";
 import { runEventStore } from "../utils/run-event-store";
 import { sendSaveChatNotification } from "../utils/ai-utils";
-import { finalizeRevertibleGeneration } from "../utils/generation-response";
+import { finalizeRevertibleGeneration, finalizeRevertibleGenerationsAllThreads } from "../utils/generation-response";
 
 // ==================================
 // Agent Generation Functions
@@ -127,10 +127,14 @@ export async function generateAgent(params: GenerateAgentCodeRequest): Promise<b
             throw new Error('A generation is already in progress. Please wait for it to finish before starting a new one.');
         }
 
-        // Moving on to a new generation implicitly accepts a still-open previous one.
-        // Nothing to clean up: edits already land directly in the real workspace, and there's
-        // no separate temp copy anymore (see existingTempPath below).
-        finalizeLastGeneration(projectRootPath, threadId);
+        // Moving on to a new generation implicitly accepts a still-open previous one —
+        // on EVERY thread of the project, not just this one: the upcoming ai:// baseline
+        // reseed is a per-package LS slot shared by all threads, so any other thread's
+        // still-open review would be silently invalidated (and its decline would restore
+        // stale content over this run's edits). Nothing to clean up beyond that: edits
+        // already land directly in the real workspace, and there's no separate temp copy
+        // anymore (see existingTempPath below).
+        finalizeRevertibleGenerationsAllThreads(projectRootPath);
 
         // Create config using factory function. existingTempPath makes the agent operate
         // directly on the real project root instead of AICommandExecutor creating a

@@ -62,6 +62,10 @@ public record Expression(String type, String value) {
             return new Expression(STRING_TYPE, getNodeString(node));
         }
 
+        public static Expression createStringType(String value) {
+            return new Expression(STRING_TYPE, value);
+        }
+
         public static Expression createType(SemanticModel semanticModel, Node node, boolean ignoreNil) {
             return semanticModel.typeOf(node)
                     .filter(symbol -> ignoreNil && symbol.typeKind() != TypeDescKind.NIL)

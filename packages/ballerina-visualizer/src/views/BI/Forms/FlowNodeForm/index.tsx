@@ -822,7 +822,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     );
 
     const formDiagnosticsFixTooltip = !isAiUserAuthenticated
-        ? "You need to be logged into WSO2 Integration Intelligence to fix diagnostics"
+        ? "You need to be logged into WSO2 Integrator Copilot to fix diagnostics"
         : !diagnosticsTargetRange
             ? "No source location available for diagnostics"
             : formDiagnostics.length === 0
@@ -1544,6 +1544,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     }
 
     const handleCreateNode = useCreateNode(fileName, targetLineRange, props.onConnectionCreated);
+    const handleCreateNodeInModal = useCreateNode(fileName, targetLineRange, props.onConnectionCreated, { preferModal: true });
 
 
     // State to manage record config page modal
@@ -2066,7 +2067,15 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                     isInferredReturnType={!!node.codedata?.inferredReturnType}
                     formImports={formImportsRef.current}
                     handleSelectedTypeChange={handleSelectedTypeChange}
-                    preserveOrder={node.codedata.node === "VARIABLE" as NodeKind || node.codedata.node === "CONFIG_VARIABLE" as NodeKind}
+                    preserveOrder={
+                        node.codedata.node === ("VARIABLE" as NodeKind) ||
+                        node.codedata.node === ("CONFIG_VARIABLE" as NodeKind) ||
+                        // A data event declares two types — the request and the reply. The default
+                        // layout lifts "the" type field into a slot of its own, and that slot holds one
+                        // field, so the second type is skipped everywhere and never rendered. Keeping
+                        // template order renders both.
+                        node.codedata.node === ("DURABLE_AGENT_REGISTER_EVENT" as NodeKind)
+                    }
                 />
                 <EntryPointTypeCreator
                     isOpen={isTypeEditorOpen}
@@ -2149,7 +2158,9 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                                     popupManager: popupManager,
                                     nodeInfo: {
                                         kind: node.codedata.node
-                                    }
+                                    },
+                                    onCreateNode: handleCreateNodeInModal,
+                                    onRequestCreateConnection: handleRequestCreateConnection
                                 }}
                             />
                         </DynamicModal>
@@ -2239,7 +2250,10 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                         node.codedata.node === ("CONFIG_VARIABLE" as NodeKind) ||
                         node.codedata.node === ("ASSIGN" as NodeKind) ||
                         node.codedata.node === ("FUNCTION_CREATION" as NodeKind) ||
-                        node.codedata.node === ("DATA_MAPPER_CREATION" as NodeKind)
+                        node.codedata.node === ("DATA_MAPPER_CREATION" as NodeKind) ||
+                        // See the note on the other Form above: a data event's second type field is
+                        // dropped by the default layout, so this form keeps its template order.
+                        node.codedata.node === ("DURABLE_AGENT_REGISTER_EVENT" as NodeKind)
                     }
                     scopeFieldAddon={scopeFieldAddon}
                     onChange={handleFormChange}
@@ -2341,7 +2355,9 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                                 popupManager: popupManager,
                                 nodeInfo: {
                                     kind: node.codedata.node
-                                }
+                                },
+                                onCreateNode: handleCreateNodeInModal,
+                                onRequestCreateConnection: handleRequestCreateConnection
                             }}
                         />
                     </DynamicModal>

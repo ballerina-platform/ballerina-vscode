@@ -28,6 +28,8 @@ import {
     NODE_BG_COLOR,
     NODE_BG_HOVER_COLOR,
     NODE_HOVER_GLOW,
+    HIGHLIGHT_NODE_BORDER_COLOR,
+    HIGHLIGHT_NODE_BORDER_WIDTH,
     NODE_BORDER_COLOR,
     NODE_BORDER_ERROR_COLOR,
     NODE_BORDER_SELECTED_COLOR,
@@ -39,14 +41,21 @@ import {
     NODE_TEXT_COLOR,
     NODE_WIDTH,
 } from "../../../resources/constants";
-import { Button, Icon, Item, Menu, MenuItem, ThemeColors } from "@wso2/ui-toolkit";
+import { Button, Icon, Item, Menu, MenuItem } from "@wso2/ui-toolkit";
 import { MoreVertIcon } from "../../../resources";
 import { FlowNode } from "../../../utils/types";
 import NodeIcon from "../../NodeIcon";
 import ConnectorIcon from "../../ConnectorIcon";
 import { useDiagramContext } from "../../DiagramContext";
 import { DiagnosticsPopUp } from "../../DiagnosticsPopUp";
-import { getDiffContainerStyles, getDiffTitleStyles, getNodeTitle, nodeHasError } from "../../../utils/node";
+import {
+    getDiffContainerStyles,
+    getDiffTitleStyles,
+    getNodeTitle,
+    getWorkflowFunctionName,
+    isWorkflowNode,
+    nodeHasError,
+} from "../../../utils/node";
 import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
 import { NodeMetadata } from "@wso2/ballerina-core";
 
@@ -65,6 +74,7 @@ export namespace NodeStyles {
         readOnly: boolean;
         isActiveBreakpoint: boolean;
         isSelected?: boolean;
+        isWorkflowNode?: boolean;
     };
     export const Box = styled.div<NodeStyleProp>`
         display: flex;
@@ -75,16 +85,23 @@ export namespace NodeStyles {
         min-height: ${NODE_HEIGHT}px;
         padding: 0 ${NODE_PADDING}px;
         opacity: ${(props: NodeStyleProp) => (props.disabled ? 0.7 : 1)};
-        border: ${(props: NodeStyleProp) => (props.disabled ? DRAFT_NODE_BORDER_WIDTH : NODE_BORDER_WIDTH)}px;
+        border: ${(props: NodeStyleProp) =>
+            props.disabled
+                ? DRAFT_NODE_BORDER_WIDTH
+                : props.isWorkflowNode
+                    ? HIGHLIGHT_NODE_BORDER_WIDTH
+                    : NODE_BORDER_WIDTH}px;
         border-style: ${(props: NodeStyleProp) => (props.disabled ? "dashed" : "solid")};
         border-color: ${(props: NodeStyleProp) =>
             props.hasError
                 ? NODE_BORDER_ERROR_COLOR
                 : props.isSelected && !props.disabled
-                    ? ThemeColors.SECONDARY
+                    ? NODE_BORDER_SELECTED_COLOR
                     : props.hovered && !props.disabled && !props.readOnly
-                        ? ThemeColors.SECONDARY
-                        : ThemeColors.OUTLINE_VARIANT};
+                        ? NODE_BORDER_SELECTED_COLOR
+                        : props.isWorkflowNode
+                            ? HIGHLIGHT_NODE_BORDER_COLOR
+                            : NODE_BORDER_COLOR};
         border-radius: 10px;
         background-color: ${(props: NodeStyleProp) =>
             props?.isActiveBreakpoint ? NODE_BG_BREAKPOINT_COLOR : props.hovered && !props.disabled && !props.readOnly ? NODE_BG_HOVER_COLOR : NODE_BG_COLOR};
@@ -223,8 +240,18 @@ export interface NodeWidgetProps extends Omit<ApiCallNodeWidgetProps, "children"
 
 export function ApiCallNodeWidget(props: ApiCallNodeWidgetProps) {
     const { model, engine, onClick } = props;
-    const { onNodeSelect, onConnectionSelect, goToSource, onDeleteNode, removeBreakpoint, addBreakpoint, readOnly, selectedNodeId } =
-        useDiagramContext();
+    const {
+        onNodeSelect,
+        onConnectionSelect,
+        goToSource,
+        onDeleteNode,
+        removeBreakpoint,
+        addBreakpoint,
+        readOnly,
+        selectedNodeId,
+        openView,
+        project,
+    } = useDiagramContext();
 
     const isSelected = selectedNodeId === model.node.id;
 
@@ -284,6 +311,9 @@ export function ApiCallNodeWidget(props: ApiCallNodeWidgetProps) {
         : undefined;
     const endpointLabel =
         connectionValue ?? fallbackEndpointValue ?? workflowValue ?? childWorkflowTarget ?? runWorkflowTarget ?? "";
+    // The workflow the side icon stands for: clicking it opens that workflow, the way clicking a
+    // connection opens the connection it stands for.
+    const workflowTargetName = isWorkflowTarget ? getWorkflowFunctionName(endpointLabel) : "";
     const connectorType = (connectionProperty?.metadata?.data as NodeMetadata | undefined)?.connectorType;
 
     useEffect(() => {
@@ -323,6 +353,29 @@ export function ApiCallNodeWidget(props: ApiCallNodeWidgetProps) {
             onNodeClick();
         }
         setMenuPos(null);
+    };
+
+    // A workflow node's side icon is the workflow being run, so clicking it goes there. A workflow
+    // that cannot be located (one from a dependency, say) falls back to the connection behaviour
+    // rather than swallowing the click.
+    const onWorkflowClick = async (event?: React.MouseEvent<SVGElement>) => {
+        // A read-only diagram handles the click no differently than it did before this handler existed,
+        // so the event is left to propagate as it used to.
+        if (readOnly) {
+            return;
+        }
+        event?.stopPropagation();
+        if (workflowTargetName) {
+            const functionLocation = await project?.getFunctionLocation?.(workflowTargetName);
+            // Both are needed to navigate: without either, the click falls through to the connection
+            // behaviour rather than being swallowed.
+            if (functionLocation && openView) {
+                openView(functionLocation);
+                setMenuPos(null);
+                return;
+            }
+        }
+        onConnectionClick();
     };
 
     const onGoToSource = () => {
@@ -390,6 +443,7 @@ export function ApiCallNodeWidget(props: ApiCallNodeWidgetProps) {
                 readOnly={readOnly}
                 isActiveBreakpoint={isActiveBreakpoint}
                 isSelected={isSelected}
+                isWorkflowNode={isWorkflowNode(model.node)}
                 style={getDiffContainerStyles(model.node)}
                 onMouseEnter={() => setIsBoxHovered(true)}
                 onMouseLeave={() => setIsBoxHovered(false)}
@@ -475,7 +529,7 @@ export function ApiCallNodeWidget(props: ApiCallNodeWidgetProps) {
                 width={NODE_GAP_X + NODE_HEIGHT + LABEL_HEIGHT}
                 height={NODE_HEIGHT + LABEL_HEIGHT}
                 viewBox="0 0 130 70"
-                onClick={onConnectionClick}
+                onClick={isWorkflowTarget ? onWorkflowClick : onConnectionClick}
                 onMouseEnter={() => !readOnly && setIsCircleHovered(true)}
                 onMouseLeave={() => setIsCircleHovered(false)}
             >

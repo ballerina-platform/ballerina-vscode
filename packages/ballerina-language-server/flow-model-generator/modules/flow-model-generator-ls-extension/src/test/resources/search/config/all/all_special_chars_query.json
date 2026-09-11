@@ -87,7 +87,7 @@
       "items": [
         {
           "metadata": {
-            "label": "Asb Administrator",
+            "label": "Azure Service Bus Administrator",
             "description": "Ballerina Service Bus connector provides the capability to access Azure Service Bus SDK.\nService Bus API provides data access to highly reliable queues and publish/subscribe topics of Azure Service Bus with deep feature capabilities.",
             "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_asb_3.9.1.png"
           },

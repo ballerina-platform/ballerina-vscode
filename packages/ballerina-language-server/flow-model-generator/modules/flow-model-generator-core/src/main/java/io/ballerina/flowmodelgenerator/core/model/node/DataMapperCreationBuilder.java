@@ -25,8 +25,8 @@ import io.ballerina.flowmodelgenerator.core.model.NodeBuilder;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
-import io.ballerina.flowmodelgenerator.core.utils.FileSystemUtils;
 import io.ballerina.modelgenerator.commons.CommonUtils;
+import io.ballerina.modelgenerator.commons.FileSystemUtils;
 import io.ballerina.projects.Document;
 import org.ballerinalang.langserver.common.utils.NameUtil;
 import org.ballerinalang.model.types.TypeKind;
@@ -193,10 +193,12 @@ public class DataMapperCreationBuilder extends NodeBuilder {
         if (returnType.isEmpty() || returnType.get().value().toString().isEmpty()) {
             throw new IllegalStateException("The return type should be defined");
         }
+        // The written form follows the target file's prefixes; the resolution below stays on the authored form,
+        // which is what the property's imports map is keyed by.
         String returnTypeString = returnType.get().value().toString();
         sourceBuilder.token()
                 .keyword(SyntaxKind.RETURNS_KEYWORD)
-                .name(returnTypeString);
+                .name(sourceBuilder.requalifiedType(returnType.get()));
 
         Optional<String> returnBody =
                 sourceBuilder.getExpressionBodyText(returnTypeString, returnType.get().imports());

@@ -20,7 +20,7 @@ import { Type, ServiceClassModel, ModelFromCodeRequest, FieldType, FunctionModel
 import { Codicon, Typography, ProgressRing, ThemeColors, View, Icon, Overlay, LinkButton } from "@wso2/ui-toolkit";
 import { ConnectorIcon } from "@wso2/bi-diagram";
 import styled from "@emotion/styled";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { LoadingContainer } from "../../styles";
@@ -35,7 +35,7 @@ import { FlowNodeForm } from "../Forms/FlowNodeForm";
 import { ArtifactForm } from "../Forms/ArtifactForm";
 import { AgentToolHostClass, buildAgentToolNode, parseToolsString, removeToolFromAgentNode } from "../AIChatAgent/utils";
 import { AIAgentSidePanel, ExtendedAgentToolRequest } from "../AIChatAgent/AIAgentSidePanel";
-import { AddTool } from "../AIChatAgent/AddTool";
+import { ADD_TOOL_TITLE, AddTool, addToolTitle } from "../AIChatAgent/AddTool";
 import { NewToolSelectionMode } from "../AIChatAgent/NewTool";
 import { AddMcpServer } from "../AIChatAgent/AddMcpServer";
 import { AgentInfoCard } from "../AIChatAgent/AddAgentPopup/AgentInfoCard";
@@ -1126,7 +1126,8 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
     const settings = extractSettings(agentNode);
     const runFn = agentClassModel?.functions?.find((f) => f.kind === "DEFAULT" && f.name?.value === "run");
     const outputType = outputTypeOf(runFn?.returnType?.value);
-    const outputTypeFields: FormField[] = runFn ? [{
+    // Rebuilding this array resets the open form, so a type created from it must not change its identity.
+    const outputTypeFields = useMemo<FormField[]>(() => runFn ? [{
         key: "returnType",
         label: "Response Type",
         type: "TYPE",
@@ -1139,7 +1140,7 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
         types: (runFn.returnType?.types?.length ?? 0) > 0
             ? runFn.returnType.types.map((t, i) => (i === 0 ? { ...t, ballerinaType: outputType } : t))
             : [{ fieldType: "TYPE", selected: true, ballerinaType: outputType }],
-    }] : [];
+    }] : [], [Boolean(runFn), runFn?.returnType?.value]);
 
     const initFunction = agentClassModel?.functions?.find((f) => f.kind === "INIT");
     const initParameterNames = new Set(
@@ -1173,7 +1174,13 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
         (f) => f.kind !== "INIT" && !agentTools.some((t) => t.name === f.name.value)
     );
     const hasAdvanced = Boolean(initFunction) || methods.length > 0;
-    const toolPanelTitle = editingMcpNode ? "Edit MCP Server" : "Add Tool";
+    const toolPanelTitle = editingMcpNode
+        ? "Edit MCP Server"
+        : toolPanel === "CONNECTION" ? addToolTitle("CONNECTION")
+            : toolPanel === "FUNCTION" ? addToolTitle("FUNCTION")
+                : toolPanel === "CUSTOM" ? addToolTitle("CUSTOM")
+                    : toolPanel === "MCP" ? addToolTitle("MCP")
+                        : ADD_TOOL_TITLE;
     const targetLineRange = {
         startLine: { line: position.startLine, offset: position.startColumn },
         endLine: { line: position.endLine, offset: position.endColumn },

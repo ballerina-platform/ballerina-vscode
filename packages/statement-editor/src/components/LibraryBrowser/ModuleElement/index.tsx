@@ -65,16 +65,22 @@ export function ModuleElement(props: ModuleElementProps) {
         let content = keywords.includes(moduleName) ? `${moduleName}0:${id}` : `${moduleName}:${id}`;
         setClickedModuleElement(content);
         if (isFunction) {
-            const response: LibraryDataResponse = await libraryBrowserRpcClient.getLibraryData({
-                orgName: moduleOrgName,
-                moduleName: moduleId,
-                version: moduleVersion
-            });
+            let response: LibraryDataResponse;
+            try {
+                response = await libraryBrowserRpcClient.getLibraryData({
+                    orgName: moduleOrgName,
+                    moduleName: moduleId,
+                    version: moduleVersion
+                });
+            } catch (error) {
+                // tslint:disable-next-line: no-console
+                console.error("Failed to fetch library data", { moduleOrgName, moduleId, moduleVersion, error });
+            }
 
             let functionProperties: LibraryFunction = null;
-            response.docsData.modules[0].functions.map((libFunction: LibraryFunction) => {
+            response?.docsData?.modules?.[0]?.functions?.map((libFunction: LibraryFunction) => {
                 if (libFunction.name === id) {
-                    functionProperties =  libFunction;
+                    functionProperties = libFunction;
                 }
             });
 

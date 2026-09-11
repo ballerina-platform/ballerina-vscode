@@ -109,7 +109,7 @@ export function TextAreaEditor(props: TextAreaEditorProps) {
                                 onFocus={() => handleOnFieldFocus?.(field.key)}
                                 autoFocus={autoFocus}
                                 onChange={onChange}
-                                growRange={{ start: 4, offset: 12 }}
+                                growRange={field.growRange ?? { start: 4, offset: 12 }}
                             />
                             <div id="textarea-editor-expand" style={{ position: 'absolute', bottom: '9px', right: '6px' }}>
                                 <FloatingToggleButton onClick={handleOpenExpandedMode} title="Expand Editor">

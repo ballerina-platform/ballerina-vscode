@@ -52,11 +52,17 @@ import {
     addableCatalogOf,
     addedParametersOf,
     applyTypeTemplate,
+    bindingGroupDiverges,
+    bindingGroupOf,
+    bindingGroupSiblingsOf,
+    boundRepresentativeOf,
     catalogFunctionsOf,
     composePayloadType,
     computeHandlerGroups,
     decomposePayloadType,
+    editTargetsOf,
     functionSignatureKey,
+    groupedPayloadParametersOf,
     handlerGroupId,
     hasConfigurableFields,
     hasDefaultPayload,
@@ -162,7 +168,7 @@ function ftpStreamModifierProp(active: boolean): PropertyModel {
 }
 
 /** cdc's onUpdate before/after payloads — see get_sm_from_source/config/cdc_service_model.json. */
-function cdcPayloadParam(name: "before" | "after", boundType?: string): ParameterModel {
+function cdcPayloadParam(name: "before" | "after", boundType?: string, group?: string): ParameterModel {
     return param({
         kind: "DATA_BINDING",
         name: prop({ value: name, editable: false }),
@@ -177,6 +183,7 @@ function cdcPayloadParam(name: "before" | "after", boundType?: string): Paramete
                 nameEditable: false,
             } as any,
         }),
+        bindingGroup: group,
     });
 }
 
@@ -412,6 +419,114 @@ describe("isPayloadParameter / payloadParameterOf / payloadParametersOf", () => 
 
     it("returns an empty array for a handler with no payload parameters", () => {
         expect(payloadParametersOf(fn({ parameters: [param({ kind: "REQUIRED" })] }))).toEqual([]);
+    });
+});
+
+describe("bindingGroupOf / groupedPayloadParametersOf / bindingGroupSiblingsOf", () => {
+    it("bindingGroupOf reads the parameter-level bindingGroup, undefined when absent", () => {
+        expect(bindingGroupOf(cdcPayloadParam("before", undefined, "rowState"))).toBe("rowState");
+        expect(bindingGroupOf(kafkaPayloadParam())).toBeUndefined();
+    });
+
+    it("groupedPayloadParametersOf collapses cdc's before/after into one representative", () => {
+        const before = cdcPayloadParam("before", undefined, "rowState");
+        const after = cdcPayloadParam("after", undefined, "rowState");
+        const handler = fn({ parameters: [before, after] });
+        expect(groupedPayloadParametersOf(handler)).toEqual([before]);
+    });
+
+    it("groupedPayloadParametersOf leaves ungrouped payload params untouched", () => {
+        const kafka = kafkaPayloadParam();
+        const ftp = ftpPayloadParam();
+        const handler = fn({ parameters: [kafka, ftp] });
+        expect(groupedPayloadParametersOf(handler)).toEqual([kafka, ftp]);
+    });
+
+    it("groupedPayloadParametersOf only collapses params that actually share a group", () => {
+        const before = cdcPayloadParam("before", undefined, "rowState");
+        const kafka = kafkaPayloadParam();
+        const handler = fn({ parameters: [before, kafka] });
+        expect(groupedPayloadParametersOf(handler)).toEqual([before, kafka]);
+    });
+
+    it("bindingGroupSiblingsOf returns every param sharing the group, in declared order", () => {
+        const before = cdcPayloadParam("before", undefined, "rowState");
+        const after = cdcPayloadParam("after", undefined, "rowState");
+        const handler = fn({ parameters: [before, after] });
+        expect(bindingGroupSiblingsOf(handler, before)).toEqual([before, after]);
+        expect(bindingGroupSiblingsOf(handler, after)).toEqual([before, after]);
+    });
+
+    it("bindingGroupSiblingsOf returns just the param itself when ungrouped", () => {
+        const kafka = kafkaPayloadParam();
+        const handler = fn({ parameters: [kafka] });
+        expect(bindingGroupSiblingsOf(handler, kafka)).toEqual([kafka]);
+    });
+});
+
+describe("boundRepresentativeOf / bindingGroupDiverges / editTargetsOf", () => {
+    it("boundRepresentativeOf falls back to the first param when no sibling is bound", () => {
+        const before = cdcPayloadParam("before", undefined, "rowState");
+        const after = cdcPayloadParam("after", undefined, "rowState");
+        const handler = fn({ parameters: [before, after] });
+        expect(boundRepresentativeOf(handler, before)).toBe(before);
+    });
+
+    it("boundRepresentativeOf returns a later sibling when it is the one actually bound", () => {
+        const before = cdcPayloadParam("before", undefined, "rowState");
+        const after = cdcPayloadParam("after", "AfterSchema", "rowState");
+        const handler = fn({ parameters: [before, after] });
+        expect(boundRepresentativeOf(handler, before)).toBe(after);
+    });
+
+    it("bindingGroupDiverges is false when siblings agree (both unbound or same bound type)", () => {
+        const before = cdcPayloadParam("before", undefined, "rowState");
+        const after = cdcPayloadParam("after", undefined, "rowState");
+        const handler = fn({ parameters: [before, after] });
+        expect(bindingGroupDiverges(handler, before)).toBe(false);
+
+        const before2 = cdcPayloadParam("before", "Employee", "rowState");
+        const after2 = cdcPayloadParam("after", "Employee", "rowState");
+        const handler2 = fn({ parameters: [before2, after2] });
+        expect(bindingGroupDiverges(handler2, before2)).toBe(false);
+    });
+
+    it("bindingGroupDiverges is true when siblings hold different bound types", () => {
+        const before = cdcPayloadParam("before", "Employee", "rowState");
+        const after = cdcPayloadParam("after", "EmployeeV2", "rowState");
+        const handler = fn({ parameters: [before, after] });
+        expect(bindingGroupDiverges(handler, before)).toBe(true);
+        expect(bindingGroupDiverges(handler, after)).toBe(true);
+    });
+
+    it("boundRepresentativeOf returns the param itself when its group diverges", () => {
+        const before = cdcPayloadParam("before", "Employee", "rowState");
+        const after = cdcPayloadParam("after", "EmployeeV2", "rowState");
+        const handler = fn({ parameters: [before, after] });
+        expect(boundRepresentativeOf(handler, before)).toBe(before);
+        expect(boundRepresentativeOf(handler, after)).toBe(after);
+    });
+
+    it("groupedPayloadParametersOf falls back to one entry per sibling when they diverge", () => {
+        const before = cdcPayloadParam("before", "Employee", "rowState");
+        const after = cdcPayloadParam("after", "EmployeeV2", "rowState");
+        const handler = fn({ parameters: [before, after] });
+        expect(groupedPayloadParametersOf(handler)).toEqual([before, after]);
+    });
+
+    it("editTargetsOf returns the whole group when siblings agree", () => {
+        const before = cdcPayloadParam("before", undefined, "rowState");
+        const after = cdcPayloadParam("after", undefined, "rowState");
+        const handler = fn({ parameters: [before, after] });
+        expect(editTargetsOf(handler, before)).toEqual([before, after]);
+    });
+
+    it("editTargetsOf returns just the target when its group diverges", () => {
+        const before = cdcPayloadParam("before", "Employee", "rowState");
+        const after = cdcPayloadParam("after", "EmployeeV2", "rowState");
+        const handler = fn({ parameters: [before, after] });
+        expect(editTargetsOf(handler, before)).toEqual([before]);
+        expect(editTargetsOf(handler, after)).toEqual([after]);
     });
 });
 

@@ -39,6 +39,7 @@ public class LibraryFunction {
     private Return returnInfo;
     @SerializedName("isDeprecated")
     private Boolean deprecated;
+    private List<AnnotationAttachment> annotations;
 
     public LibraryFunction() {
         this.parameters = new ArrayList<>();
@@ -106,5 +107,13 @@ public class LibraryFunction {
 
     public void setDeprecated(Boolean deprecated) {
         this.deprecated = deprecated;
+    }
+
+    public List<AnnotationAttachment> getAnnotations() {
+        return annotations;
+    }
+
+    public void setAnnotations(List<AnnotationAttachment> annotations) {
+        this.annotations = annotations;
     }
 }

@@ -119,4 +119,7 @@ export interface BaseVisitor {
 
     beginVisitWaitData?(node: FlowNode, parent?: FlowNode): void;
     endVisitWaitData?(node: FlowNode, parent?: FlowNode): void;
+
+    beginVisitHumanTask?(node: FlowNode, parent?: FlowNode): void;
+    endVisitHumanTask?(node: FlowNode, parent?: FlowNode): void;
 }

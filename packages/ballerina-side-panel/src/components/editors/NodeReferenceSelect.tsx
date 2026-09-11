@@ -32,6 +32,7 @@ const NODE_ICON_MAP: Record<string, string> = {
     SHORT_TERM_MEMORY_STORE: "bi-memory",
     AGENT: "bi-ai-agent",
     TYPED_AGENT: "bi-ai-agent",
+    NEW_CONNECTION: "bi-connection",
 };
 
 // Modules that always use node-type icons, skipping the icon URL fallback
@@ -216,6 +217,8 @@ export const NodeReferenceSelect: React.FC<NodeReferenceSelectProps> = ({
 
     const isEmpty = items.length === 0;
     const selectedItem = items.find((item) => item.value === value);
+    const showLoading = loading && !selectedItem;
+    const inert = disabled || isEmpty || showLoading;
 
     const handleSelect = (itemValue: string) => {
         onChange(itemValue);
@@ -228,7 +231,7 @@ export const NodeReferenceSelect: React.FC<NodeReferenceSelectProps> = ({
     };
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (disabled || isEmpty || loading) return;
+        if (inert) return;
         if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
             setOpen(!open);
@@ -272,13 +275,13 @@ export const NodeReferenceSelect: React.FC<NodeReferenceSelectProps> = ({
                     role="combobox"
                     aria-expanded={open}
                     aria-haspopup="listbox"
-                    tabIndex={disabled || isEmpty || loading ? -1 : 0}
-                    disabled={disabled || isEmpty || loading}
-                    onClick={() => !disabled && !isEmpty && !loading && setOpen(!open)}
+                    tabIndex={inert ? -1 : 0}
+                    disabled={inert}
+                    onClick={() => !inert && setOpen(!open)}
                     onKeyDown={handleKeyDown}
                 >
                     <SelectedDisplay>
-                        {loading ? (
+                        {showLoading ? (
                             <>
                                 <ProgressRing sx={{ height: 16, width: 16 }} color="var(--vscode-input-placeholderForeground)" />
                                 <Placeholder>Loading...</Placeholder>
@@ -292,9 +295,9 @@ export const NodeReferenceSelect: React.FC<NodeReferenceSelectProps> = ({
                             <Placeholder>{isEmpty ? emptyMessage : placeholder}</Placeholder>
                         )}
                     </SelectedDisplay>
-                    {!loading && !isEmpty && <Codicon name="chevron-down" sx={{ fontSize: 14, flexShrink: 0 }} />}
+                    {!showLoading && !isEmpty && <Codicon name="chevron-down" sx={{ fontSize: 14, flexShrink: 0 }} />}
                 </SelectTrigger>
-                {open && !disabled && !loading && items.length > 0 && (
+                {open && !disabled && !showLoading && items.length > 0 && (
                     <DropdownPanel role="listbox">
                         {items.map((item, index) => (
                             <OptionItem

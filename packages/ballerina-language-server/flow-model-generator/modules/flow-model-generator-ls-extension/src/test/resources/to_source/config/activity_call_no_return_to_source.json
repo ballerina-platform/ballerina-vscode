@@ -1,0 +1,62 @@
+{
+  "source": "workflow_function/functions.bal",
+  "description": "Generate activity call for an activity with no return value: binds to a wildcard, no named result variable is invented",
+  "diagram": {
+    "id": "1",
+    "metadata": {
+      "label": "logEvent",
+      "description": "Call a workflow activity function"
+    },
+    "codedata": {
+      "node": "ACTIVITY_CALL",
+      "org": "test",
+      "module": "workflow_function",
+      "symbol": "logEvent",
+      "lineRange": {
+        "fileName": "functions.bal",
+        "startLine": {
+          "line": 16,
+          "offset": 0
+        },
+        "endLine": {
+          "line": 16,
+          "offset": 0
+        }
+      },
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "message": {
+        "metadata": {
+          "label": "message"
+        },
+        "valueType": "EXPRESSION",
+        "valueTypeConstraint": "string",
+        "value": "\"order received\"",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      }
+    },
+    "flags": 1
+  },
+  "output": {
+    "workflow_function/functions.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 16,
+            "character": 0
+          },
+          "end": {
+            "line": 16,
+            "character": 0
+          }
+        },
+        "newText": "\n() _ = check context->callActivity(logEvent, {message: \"order received\"});"
+      }
+    ]
+  }
+}

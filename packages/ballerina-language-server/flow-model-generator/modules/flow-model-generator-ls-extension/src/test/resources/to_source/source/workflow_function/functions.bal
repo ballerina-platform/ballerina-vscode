@@ -46,3 +46,9 @@ function workflowWithNoInput() returns error? {
 function ctxOnlyWorkflow(workflow:Context ctx) returns error? {
 
 }
+
+# Activity with no return value
+@workflow:Activity
+function logEvent(string message) returns error? {
+    io:println(message);
+}

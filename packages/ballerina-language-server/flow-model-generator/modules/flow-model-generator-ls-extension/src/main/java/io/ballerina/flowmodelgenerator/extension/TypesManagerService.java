@@ -19,6 +19,7 @@
 package io.ballerina.flowmodelgenerator.extension;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonIOException;
 import com.google.gson.JsonObject;
@@ -37,9 +38,9 @@ import io.ballerina.flowmodelgenerator.core.model.Codedata;
 import io.ballerina.flowmodelgenerator.core.model.PropertyTypeMemberInfo;
 import io.ballerina.flowmodelgenerator.core.model.TypeData;
 import io.ballerina.flowmodelgenerator.core.type.AmbiguousTypeCastResolver;
+import io.ballerina.flowmodelgenerator.core.type.IntersectionNormalizer;
 import io.ballerina.flowmodelgenerator.core.type.RecordValueGenerator;
 import io.ballerina.flowmodelgenerator.core.type.TypeSymbolAnalyzerFromTypeModel;
-import io.ballerina.flowmodelgenerator.core.utils.FileSystemUtils;
 import io.ballerina.flowmodelgenerator.extension.request.DeleteTypeRequest;
 import io.ballerina.flowmodelgenerator.extension.request.FilePathRequest;
 import io.ballerina.flowmodelgenerator.extension.request.FindTypeRequest;
@@ -61,6 +62,7 @@ import io.ballerina.flowmodelgenerator.extension.response.TypeOfExpressionRespon
 import io.ballerina.flowmodelgenerator.extension.response.TypeResponse;
 import io.ballerina.flowmodelgenerator.extension.response.TypeUpdateResponse;
 import io.ballerina.flowmodelgenerator.extension.response.VerifyTypeDeleteResponse;
+import io.ballerina.modelgenerator.commons.FileSystemUtils;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.projects.Document;
@@ -134,17 +136,18 @@ public class TypesManagerService implements ExtendedLanguageServerService {
             try {
                 Path filePath = PathUtil.convertUriStringToPath(request.filePath());
                 WorkspaceManager workspaceManager = this.workspaceManagerProxy.get(request.filePath());
-                workspaceManager.loadProject(filePath);
-                Optional<Document> document = workspaceManager.document(filePath);
-                Optional<SemanticModel> semanticModel = workspaceManager.semanticModel(filePath);
-                if (document.isEmpty() || semanticModel.isEmpty()) {
+                Optional<FileSystemUtils.ModuleModel> moduleModel =
+                        FileSystemUtils.resolveModuleModel(workspaceManager, filePath);
+                if (moduleModel.isEmpty()) {
+                    response.setTypes(new JsonArray());
                     return response;
                 }
-                TypesManager typesManager = new TypesManager(document.get());
-                JsonElement allTypes = typesManager.getAllTypes(semanticModel.get());
+                TypesManager typesManager = new TypesManager(moduleModel.get().document());
+                JsonElement allTypes = typesManager.getAllTypes(moduleModel.get().semanticModel());
                 response.setTypes(allTypes);
             } catch (Throwable e) {
-                throw new RuntimeException(e);
+                response.setTypes(new JsonArray());
+                response.setError(e);
             }
             return response;
         });
@@ -717,9 +720,12 @@ public class TypesManagerService implements ExtendedLanguageServerService {
     }
 
     private void serializeRecordConfig(Type type, RecordConfigResponse response) {
+        // The single choke point for every record config response. The record editor has no intersection renderer,
+        // so a `readonly & T` node must reach it as T; normalizing here means no endpoint can leak one.
+        Type normalizedType = IntersectionNormalizer.normalize(type);
         SizeLimitedWriter writer = new SizeLimitedWriter(MAX_RECORD_CONFIG_JSON_CHARS);
         try {
-            new Gson().toJson(type, writer);
+            new Gson().toJson(normalizedType, writer);
             response.setRecordConfig(JsonParser.parseString(writer.getContent()));
         } catch (JsonIOException e) {
             response.setError(new RuntimeException(RECORD_CONFIG_ERROR_MESSAGE));

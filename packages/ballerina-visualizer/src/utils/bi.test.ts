@@ -40,6 +40,11 @@ import { convertNodePropertiesToFormFields, updateNodeProperties } from './node-
 // Helpers
 // ---------------------------------------------------------------------------
 
+// NodePropertyKey does not list every key the product uses (options, retryPolicy, maxRetries, ...),
+// so property maps are read as a record of Property rather than through `any`.
+const rootProperty = (properties: NodeProperties, key: string): Property =>
+    (properties as Record<string, Property>)[key];
+
 function makeProperty(overrides: Partial<Property> & { fieldType: string }): Property {
     const { fieldType, metadata: metaOverride, ...rest } = overrides;
     return {
@@ -174,6 +179,24 @@ describe('convertNodePropertiesToFormFields', () => {
             expect(fields.map((f) => f.key).sort()).toEqual(['options__retryOptions', 'variable'].sort());
         });
     });
+
+    describe('GROUP_SECTION children', () => {
+        it('becomes a form field under its own key, which is the key its value is stored under', () => {
+            const fields = convertNodePropertiesToFormFields({
+                autoRetryOptions: makeProperty({
+                    fieldType: 'GROUP_SECTION',
+                    metadata: { label: 'Advanced Configurations', description: '' },
+                    advanceProperties: {
+                        maxRetries: makeProperty({ fieldType: 'EXPRESSION', optional: true }),
+                        retryDelay: makeProperty({ fieldType: 'EXPRESSION', optional: true }),
+                    },
+                } as any),
+            } as NodeProperties);
+
+            const group = fields.find((f) => f.key === 'autoRetryOptions');
+            expect(group?.advanceProps?.map((f) => f.key)).toEqual(['maxRetries', 'retryDelay']);
+        });
+    });
 });
 
 // ---------------------------------------------------------------------------
@@ -181,6 +204,61 @@ describe('convertNodePropertiesToFormFields', () => {
 // ---------------------------------------------------------------------------
 
 describe('updateNodeProperties', () => {
+    // The Auto Retry tuning fields are declared inside the retry policy's AutoRetry branch, but their
+    // values live in root properties of the same key - which is what source generation reads. The form
+    // registers each field under its own key, so submitting carries the edit to the root property.
+    describe('retry policy group fields', () => {
+        const retryNodeProperties = (): NodeProperties => {
+            const child = (fieldType: string) => makeProperty({ fieldType, value: '', optional: true });
+            return {
+                retryPolicy: makeProperty({
+                    fieldType: 'DROPDOWN_CHOICE',
+                    value: 'NoRetry',
+                    dynamicFormFields: {
+                        NoRetry: {},
+                        AutoRetry: {
+                            autoRetryOptions: makeProperty({
+                                fieldType: 'GROUP_SECTION',
+                                value: '',
+                                optional: true,
+                                advanceProperties: {
+                                    maxRetries: child('EXPRESSION'),
+                                    retryDelay: child('EXPRESSION'),
+                                },
+                            } as any),
+                        },
+                    },
+                } as any),
+                maxRetries: makeProperty({ fieldType: 'EXPRESSION', value: '', hidden: true, optional: true }),
+                retryDelay: makeProperty({ fieldType: 'EXPRESSION', value: '1.5', hidden: true, optional: true }),
+            } as NodeProperties;
+        };
+
+        it('carries an edited group field to the root property source generation reads', () => {
+            const updated = updateNodeProperties(
+                { retryPolicy: 'AutoRetry', maxRetries: '5', retryDelay: '2.5' },
+                retryNodeProperties(),
+                {}
+            );
+
+            expect(rootProperty(updated, 'retryPolicy').value).toBe('AutoRetry');
+            expect(rootProperty(updated, 'maxRetries').value).toBe('5');
+            expect(rootProperty(updated, 'retryDelay').value).toBe('2.5');
+        });
+
+        it('keeps a root field that the submitted form did not carry', () => {
+            const updated = updateNodeProperties(
+                { retryPolicy: 'AutoRetry', maxRetries: '5' },
+                retryNodeProperties(),
+                {}
+            );
+
+            expect(rootProperty(updated, 'maxRetries').value).toBe('5');
+            // Seeded with a value, so this asserts the field was preserved rather than merely empty.
+            expect(rootProperty(updated, 'retryDelay').value).toBe('1.5');
+        });
+    });
+
     describe('ADVANCE_PARAM_LIST re-nesting', () => {
         it('writes form values back into the correct sub-property', () => {
             const subOptionsProp = makeProperty({

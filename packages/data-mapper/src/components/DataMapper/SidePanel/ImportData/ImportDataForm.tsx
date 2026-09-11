@@ -117,7 +117,7 @@ export function ImportDataForm(props: ImportDataWizardProps) {
         <SidePanel
             isOpen={isOpen}
             alignment="right"
-            width={312}
+            width={400}
             overlay={false}
         >
             <SidePanelTitleContainer>

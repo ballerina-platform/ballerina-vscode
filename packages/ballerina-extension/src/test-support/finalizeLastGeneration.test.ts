@@ -64,9 +64,13 @@ jest.mock('../features/ai/migration/orchestrator', () => ({ getMigrationSourcePa
 jest.mock('../features/ai/utils/events', () => ({ createWebviewEventHandler: jest.fn() }));
 jest.mock('../features/telemetry/common/project-metrics', () => ({ getProjectMetrics: jest.fn() }));
 jest.mock('../features/telemetry/common/project-id', () => ({ getHashedProjectId: jest.fn() }));
+jest.mock('../features/ai/state/ApprovalViewManager', () => ({
+    approvalViewManager: { closeReviewModeIfOpen: jest.fn() },
+}));
 
 import { finalizeLastGeneration } from '../features/ai/agent';
 import { chatStateStorage } from '../views/ai-panel/chatStateStorage';
+import { approvalViewManager } from '../features/ai/state/ApprovalViewManager';
 
 const ROOT = '/workspace';
 
@@ -112,5 +116,13 @@ describe('finalizeLastGeneration', () => {
 
         expect(sendTelemetryEvent).not.toHaveBeenCalled();
         expect(sendSaveChatNotification).not.toHaveBeenCalled();
+    });
+
+    it('closes review mode even when there was no done generation to finalize', () => {
+        chatStateStorage.getOrCreateThread(ROOT, 'thread-noreview');
+
+        finalizeLastGeneration(ROOT, 'thread-noreview');
+
+        expect(approvalViewManager.closeReviewModeIfOpen).toHaveBeenCalled();
     });
 });

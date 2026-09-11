@@ -20,7 +20,7 @@ import React, { useState } from "react";
 import styled from "@emotion/styled";
 import { DiagramEngine, PortWidget } from "@projectstorm/react-diagrams-core";
 import { ConnectionNodeModel } from "./ConnectionNodeModel";
-import { NODE_BORDER_WIDTH, CON_NODE_WIDTH, CON_NODE_HEIGHT } from "../../../resources/constants";
+import { NODE_BORDER_WIDTH, CON_NODE_WIDTH, CON_NODE_HEIGHT, NODE_BORDER_COLOR } from "../../../resources/constants";
 import { Button, Icon, Item, Menu, MenuItem, Popover, ThemeColors } from "@wso2/ui-toolkit";
 import { useDiagramContext } from "../../DiagramContext";
 import { MoreVertIcon } from "../../../resources/icons/nodes/MoreVertIcon";
@@ -66,7 +66,7 @@ const Circle = styled.div<NodeStyleProp>`
     width: ${CON_NODE_HEIGHT}px;
     height: ${CON_NODE_HEIGHT}px;
     border: ${NODE_BORDER_WIDTH}px solid
-        ${(props: NodeStyleProp) => (props.hovered ? ThemeColors.HIGHLIGHT : ThemeColors.OUTLINE_VARIANT)};
+        ${(props: NodeStyleProp) => (props.hovered ? ThemeColors.HIGHLIGHT : NODE_BORDER_COLOR)};
     border-radius: 50%;
     background-color: ${ThemeColors.SURFACE_DIM};
     color: ${ThemeColors.ON_SURFACE};

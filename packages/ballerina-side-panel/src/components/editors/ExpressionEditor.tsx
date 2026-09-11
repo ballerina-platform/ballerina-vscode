@@ -136,12 +136,16 @@ export namespace S {
         display: 'block'
     });
 
-    export const HeaderContainer = styled.div({
-        display: 'flex',
-        alignItems: 'flex-end',
-        justifyContent: 'space-between',
-        minHeight: '26px'
-    });
+    // The min-height reserves the mode switcher's row. Fields that hide the switcher have nothing
+    // to reserve it for, so the slack reads as uneven spacing above the label.
+    export const HeaderContainer = styled.div<{ reserveSwitcherRow?: boolean }>(
+        ({ reserveSwitcherRow = true }: { reserveSwitcherRow?: boolean }) => ({
+            display: 'flex',
+            alignItems: 'flex-end',
+            justifyContent: 'space-between',
+            ...(reserveSwitcherRow ? { minHeight: '26px' } : {}),
+        })
+    );
 
     export const Header = styled.div({
         display: 'flex',
@@ -550,6 +554,16 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
                 } else {
                     setValue(key, value);
                 }
+                setFormDiagnostics([]);
+                liveDiagnostics.onValueChange(value);
+                if (getExpressionEditorDiagnostics) {
+                    getExpressionEditorDiagnostics(
+                        (required ?? !field.optional) || value !== '',
+                        value,
+                        key,
+                        getPropertyFromFormField(field)
+                    );
+                }
             };
             onOpenRecordConfigPage(key, currentValue, recordTypeField, onChangeCallback);
             return;
@@ -635,7 +649,7 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
             : `${field.documentation}.`
         : '';
 
-    const modeSwitcherNode = modeSwitcherContext?.isModeSwitcherEnabled ? (
+    const modeSwitcherNode = modeSwitcherContext?.isModeSwitcherEnabled && !field.hideModeSwitcher ? (
         <S.FieldInfoSection>
             {isLoading ? (
                 <SkeletonBase height="24px" width="112px" style={{ borderRadius: '2px', marginTop: '2px' }} />
@@ -663,7 +677,7 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
                 {showHeader && (
                     <S.Header>
                         {field.label && (
-                            <S.HeaderContainer>
+                            <S.HeaderContainer reserveSwitcherRow={!field.hideModeSwitcher}>
                                 {isLoading ? (
                                     <SkeletonBase height="14px" width="40%" />
                                 ) : (

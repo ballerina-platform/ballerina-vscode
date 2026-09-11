@@ -38,6 +38,7 @@ import io.ballerina.compiler.syntax.tree.ServiceDeclarationNode;
 import io.ballerina.compiler.syntax.tree.SimpleNameReferenceNode;
 import io.ballerina.compiler.syntax.tree.SyntaxInfo;
 import io.ballerina.compiler.syntax.tree.TypeDefinitionNode;
+import io.ballerina.modelgenerator.commons.FileSystemUtils;
 import io.ballerina.projects.Document;
 import io.ballerina.projects.Project;
 import io.ballerina.servicemodelgenerator.extension.model.Codedata;
@@ -55,6 +56,7 @@ import org.ballerinalang.langserver.common.utils.CommonUtil;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceManager;
 import org.eclipse.lsp4j.TextEdit;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -71,7 +73,9 @@ import static io.ballerina.servicemodelgenerator.extension.util.Constants.DATA_B
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.DATA_BINDING_TEMPLATE;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.EMPTY_ARRAY;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.KIND_REQUIRED;
+import static io.ballerina.servicemodelgenerator.extension.util.Constants.MAIN_BAL;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.PAYLOAD_FIELD_NAME_PROPERTY;
+import static io.ballerina.servicemodelgenerator.extension.util.Constants.TYPES_BAL;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.WRAPPER_TYPE_NAME_PROPERTY;
 import static io.ballerina.servicemodelgenerator.extension.util.Utils.getFunctionModel;
 import static io.ballerina.servicemodelgenerator.extension.util.Utils.getImportStmt;
@@ -360,7 +364,7 @@ public final class DatabindUtil {
         String wrapperTypeName = "";
         if (match.sourceFunctionNode() != null && context.semanticModel() != null && context.project() != null) {
             String paramName = dataBindingParam.getName().getValue();
-            Document mainDocument = getDocumentByName(context.filePath(), "main.bal", context.workspaceManager());
+            Document mainDocument = getDocumentByName(context.filePath(), MAIN_BAL, context.workspaceManager());
 
             if (mainDocument != null) {
                 String extractedTypeName = extractExistingDatabindTypeName(match.sourceFunctionNode(), paramName,
@@ -786,7 +790,7 @@ public final class DatabindUtil {
         TextEdit deleteEdit = new TextEdit(Utils.toRange(typeDefToDelete.lineRange()), "");
         edits.add(deleteEdit);
 
-        Path typesFilePath = getFilePathForFile(context.filePath(), context.workspaceManager(), "types.bal");
+        Path typesFilePath = getFilePathForFile(context.filePath(), context.workspaceManager(), TYPES_BAL);
         if (typesFilePath == null) {
             return Map.of();
         }
@@ -873,7 +877,7 @@ public final class DatabindUtil {
             return prefix;
         }
 
-        Document mainDocument = getDocumentByName(contextFilePath, "main.bal", workspaceManager);
+        Document mainDocument = getDocumentByName(contextFilePath, MAIN_BAL, workspaceManager);
         if (mainDocument == null) {
             return prefix;
         }
@@ -945,7 +949,7 @@ public final class DatabindUtil {
                                                                               String contextFilePath,
                                                                               WorkspaceManager workspaceManager,
                                                                               Map<String, String> importsForTypeDef) {
-        Document typesDocument = getTypesDocument(contextFilePath, workspaceManager);
+        Document typesDocument = getOrCreateTypesDocument(contextFilePath, workspaceManager);
         if (typesDocument == null || typesDocument.syntaxTree() == null) {
             return null;
         }
@@ -1022,7 +1026,7 @@ public final class DatabindUtil {
         edits.add(typeEdit);
 
         // Construct the path to types.bal
-        Path typesFilePath = getFilePathForFile(contextFilePath, workspaceManager, "types.bal");
+        Path typesFilePath = getFilePathForFile(contextFilePath, workspaceManager, TYPES_BAL);
         if (typesFilePath == null) {
             return Map.of();
         }
@@ -1040,7 +1044,9 @@ public final class DatabindUtil {
     private static Document getDocumentByName(String contextFilePath, String fileName,
                                               WorkspaceManager workspaceManager) {
         Path filePath = getFilePathForFile(contextFilePath, workspaceManager, fileName);
-        if (filePath == null) {
+        // WorkspaceManager.document() rejects a path that does not exist on disk with a ProjectException. Hence, the
+        // absence of the file is checked beforehand, since the document is only read here.
+        if (filePath == null || !Files.exists(filePath)) {
             return null;
         }
         Optional<Document> documentOpt = workspaceManager.document(filePath);
@@ -1048,15 +1054,39 @@ public final class DatabindUtil {
     }
 
     /**
+     * Gets the types.bal document in the project, and creates it when it does not exist.
+     * <p>
+     * The type definition of the data binding is written to types.bal, which is one of the files that the project
+     * need not hold yet. Hence, the document is resolved through {@link FileSystemUtils#getDocument}, which creates
+     * the file when it is absent.
+     * <p>
+     * Creating the file is deliberate. The callers of this method are the add and the update operations of a
+     * function, which the user has already committed to, and the text edits that they return are anchored to this
+     * document and are applied to it right away. A text edit cannot bring the file into being on its own.
+     *
+     * @param contextFilePath  The context file path for locating types.bal
+     * @param workspaceManager The workspace manager for document retrieval
+     * @return The types.bal Document, or null if the path cannot be resolved
+     */
+    private static Document getOrCreateTypesDocument(String contextFilePath,
+                                                     WorkspaceManager workspaceManager) {
+        Path typesFilePath = getFilePathForFile(contextFilePath, workspaceManager, TYPES_BAL);
+        if (typesFilePath == null) {
+            return null;
+        }
+        return FileSystemUtils.getDocument(workspaceManager, typesFilePath);
+    }
+
+    /**
      * Gets the types.bal document in the project.
      *
      * @param contextFilePath  The context file path for locating types.bal
      * @param workspaceManager The workspace manager for document retrieval
-     * @return The types.bal Document
+     * @return The types.bal Document, or null if it does not exist
      */
     private static Document getTypesDocument(String contextFilePath,
                                              WorkspaceManager workspaceManager) {
-        return getDocumentByName(contextFilePath, "types.bal", workspaceManager);
+        return getDocumentByName(contextFilePath, TYPES_BAL, workspaceManager);
     }
 
     /**
@@ -1273,7 +1303,7 @@ public final class DatabindUtil {
         // Create a TextEdit to replace the old definition
         TextEdit replaceEdit = new TextEdit(Utils.toRange(existingTypeDef.lineRange()), newTypeDefinition);
         edits.add(replaceEdit);
-        Path typesFilePath = getFilePathForFile(context.filePath(), context.workspaceManager(), "types.bal");
+        Path typesFilePath = getFilePathForFile(context.filePath(), context.workspaceManager(), TYPES_BAL);
         if (typesFilePath == null) {
             return Map.of();
         }

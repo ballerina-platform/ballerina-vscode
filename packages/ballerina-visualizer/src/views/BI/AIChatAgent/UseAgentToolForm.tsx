@@ -16,40 +16,28 @@
  * under the License.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import styled from "@emotion/styled";
-import { ArtifactData, FlowNode, NodePosition } from "@wso2/ballerina-core";
-import { FormField, FormValues } from "@wso2/ballerina-side-panel";
+import { ArtifactData, AvailableNode, BISearchRequest, Category, FlowNode, LinePosition, NodePosition, Property,
+    RecordTypeField } from "@wso2/ballerina-core";
+import { FieldGroup, FormField, FormImports, FormValues } from "@wso2/ballerina-side-panel";
 import { Icon } from "@wso2/ui-toolkit";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import ArtifactForm from "../Forms/ArtifactForm";
 import { RelativeLoader } from "../../../components/RelativeLoader";
 import { ImplementationBadge } from "../../../components/ImplementationBadge";
-import { addToolToAgentNode, AgentToolHostClass, buildAgentCallToolNode, refreshAgentNodeLineRange, resolveAgentNodePosition } from "./utils";
-import { buildAgentToolFields, stripCodeFencesInline } from "./formUtils";
+import { getImportsForProperty } from "../../../utils/bi";
+import { INCLUDE_CONTEXT_KEY, RESULT_TYPE_GROUP, buildIncludeContextField, buildToolFormGroups } from "./toolForm";
+import { addToolToAgentNode, AgentToolHostClass, buildAgentCallToolNode, buildOAuthFields, fetchAgentRunReturnType, fetchOAuthConfigProperties, refreshAgentNodeLineRange, resolveAgentNodePosition, ZERO_LINE_RANGE } from "./utils";
+import { buildAgentToolFields, buildApprovalToolData, buildRequiresApprovalField,
+    collectLocalFunctionNames, createRequiresApprovalField, extractRecordTypeFieldsFromEntries,
+    stripCodeFencesInline } from "./formUtils";
 
 const LoaderContainer = styled.div`
     display: flex;
     justify-content: center;
     align-items: center;
     height: 100%;
-`;
-
-const ContextOption = styled.label`
-    display: flex;
-    align-items: flex-start;
-    gap: 8px;
-    cursor: pointer;
-    font-size: var(--vscode-font-size);
-    color: var(--vscode-foreground);
-    margin-top: 4px;
-`;
-
-const ContextHint = styled.div`
-    font-size: 11px;
-    color: var(--vscode-descriptionForeground);
-    margin-top: 2px;
-    line-height: 1.4;
 `;
 
 interface UseAgentToolFormProps {
@@ -73,28 +61,97 @@ export function UseAgentToolForm(props: UseAgentToolFormProps): JSX.Element {
     const [agentFilePath, setAgentFilePath] = useState<string>("");
     const [ready, setReady] = useState<boolean>(false);
     const [saving, setSaving] = useState<boolean>(false);
-    const [includeContext, setIncludeContext] = useState<boolean>(false);
+    const [oauthProperties, setOauthProperties] = useState<{ key: string; property: Property }[]>([]);
+    const [defaultReturnType, setDefaultReturnType] = useState<string>("");
+    // null (not []) when the fetch failed, so buildRequiresApprovalField can drop the picker rather
+    // than offer an empty one. Consulted at submit to decide whether a free-typed name scaffolds a
+    // new predicate. See formUtils.buildApprovalToolData.
+    const [approvalCandidates, setApprovalCandidates] = useState<string[] | null>(null);
+
+    // Fetch the project's own module-level functions as approval-predicate candidates. Same shape as
+    // the other tool-creation forms; see formUtils.collectLocalFunctionNames for the filtering rules.
+    const fetchCompatibleApprovalFunctions = async (
+        filePath: string, position: LinePosition
+    ): Promise<string[] | null> => {
+        try {
+            const request: BISearchRequest = {
+                position: { startLine: position, endLine: position },
+                filePath,
+                queryMap: undefined,
+                searchKind: "FUNCTION",
+            };
+            const response = await rpcClient.getBIDiagramRpcClient().search(request);
+            const names = new Set<string>();
+            collectLocalFunctionNames((response?.categories ?? []) as (Category | AvailableNode)[], names);
+            return Array.from(names);
+        } catch (error) {
+            console.error(">>> Error fetching compatible approval functions", error);
+            return null;
+        }
+    };
 
     useEffect(() => {
-        if (hostClass) {
-            setAgentFilePath(hostClass.filePath);
-            setReady(true);
-            return;
-        }
+        let cancelled = false;
         (async () => {
-            const fileName = agentNode?.codedata?.lineRange?.fileName ?? "agents.bal";
-            const { filePath } = await rpcClient.getVisualizerRpcClient().joinProjectPath({ segments: [fileName] });
+            const filePath = hostClass
+                ? hostClass.filePath
+                : (await rpcClient.getVisualizerRpcClient().joinProjectPath({
+                    segments: [agentNode?.codedata?.lineRange?.fileName ?? "agents.bal"],
+                })).filePath;
+            if (cancelled) return;
+            const position = agentNode?.codedata?.lineRange?.startLine ?? { line: 0, offset: 0 };
+            const candidates = await fetchCompatibleApprovalFunctions(filePath, position);
+            if (cancelled) return;
+            setApprovalCandidates(candidates);
             setAgentFilePath(filePath);
+            setOauthProperties(await fetchOAuthConfigProperties(rpcClient, filePath));
+            setDefaultReturnType(await fetchAgentRunReturnType(rpcClient, filePath, agentVarName,
+                hostClass?.className));
+            if (cancelled) return;
             setReady(true);
         })();
-    }, [agentNode]);
+        return () => {
+            cancelled = true;
+        };
+    }, [agentNode, hostClass, agentVarName, agentLabel]);
 
-    const fields: FormField[] = buildAgentToolFields(
-        `${agentVarName}Tool`,
-        `Delegates a query to ${agentLabel === "Agent" ? "the generic agent" : agentLabel}.`
+    const oauthFields = useMemo<FormField[]>(() => buildOAuthFields(oauthProperties), [oauthProperties]);
+
+    const recordTypeFields = useMemo<RecordTypeField[]>(
+        () => extractRecordTypeFieldsFromEntries(oauthProperties),
+        [oauthProperties]
     );
 
-    const handleSubmit = async (data: FormValues) => {
+    const fields = useMemo<FormField[]>(() => [
+        ...buildAgentToolFields(
+            `${agentVarName}Tool`,
+            `Delegates a query to ${agentLabel === "Agent" ? "the generic agent" : agentLabel}.`
+        ),
+        buildRequiresApprovalField(createRequiresApprovalField(), approvalCandidates),
+        buildIncludeContextField() as FormField,
+        ...oauthFields,
+        {
+            key: "returnType",
+            label: "Result Type",
+            type: "TYPE",
+            optional: true,
+            editable: true,
+            documentation: "The data type this tool will return to the agent.",
+            value: defaultReturnType,
+            placeholder: "string",
+            types: [{ fieldType: "TYPE", selected: true }],
+            group: RESULT_TYPE_GROUP,
+            advanced: false,
+            enabled: true,
+        },
+    ], [agentVarName, agentLabel, approvalCandidates, oauthFields, defaultReturnType]);
+
+    const groups = useMemo<FieldGroup[]>(() => buildToolFormGroups(fields), [fields]);
+
+    const overriddenReturnType = (submitted: string): string =>
+        submitted.trim() === defaultReturnType.trim() ? "" : submitted;
+
+    const handleSubmit = async (data: FormValues, formImports?: FormImports) => {
         if (saving) {
             return;
         }
@@ -104,10 +161,34 @@ export function UseAgentToolForm(props: UseAgentToolFormProps): JSX.Element {
             const toolName = String(data["name"] ?? "").trim() || `${agentVarName}Tool`;
             const description = stripCodeFencesInline(String(data["description"] ?? ""));
             const toolFilePath = hostClass ? hostClass.filePath : agentFilePath;
+            const approvalData = buildApprovalToolData(data, approvalCandidates ?? []);
+            const returnType = overriddenReturnType(String(data["returnType"] ?? ""));
+            const toolNode = buildAgentCallToolNode(toolName, agentVarName, data[INCLUDE_CONTEXT_KEY] === true,
+                description, hostClass, agentReceiver, returnType, approvalData);
+
+            // The LS only registers the import itself when it resolves the type itself.
+            const returnTypeImports = returnType ? getImportsForProperty("returnType", formImports) : undefined;
+            if (returnTypeImports && Object.keys(returnTypeImports).length > 0) {
+                toolNode.codedata.data = {
+                    ...toolNode.codedata.data,
+                    returnTypeImports: JSON.stringify(returnTypeImports),
+                };
+            }
+
+            const authConfig: Record<string, string> = {};
+            for (const { key } of oauthProperties) {
+                const value = data[key];
+                if (value !== undefined && value !== "") {
+                    authConfig[key] = String(value);
+                }
+            }
+            if (Object.keys(authConfig).length > 0) {
+                toolNode.codedata.data = { ...toolNode.codedata.data, auth: JSON.stringify(authConfig) };
+            }
+
             const toolResponse = await rpcClient.getBIDiagramRpcClient().getSourceCode({
                 filePath: toolFilePath,
-                flowNode: buildAgentCallToolNode(toolName, agentVarName, includeContext, description,
-                    hostClass, agentReceiver),
+                flowNode: toolNode,
                 artifactData,
             });
             let agentPosition: NodePosition | undefined;
@@ -145,9 +226,11 @@ export function UseAgentToolForm(props: UseAgentToolFormProps): JSX.Element {
         <ArtifactForm
             preserveFieldOrder={false}
             fileName={agentFilePath}
-            targetLineRange={{ startLine: { line: 0, offset: 0 }, endLine: { line: 0, offset: 0 } }}
+            targetLineRange={ZERO_LINE_RANGE}
             fields={fields}
-            recordTypeFields={[]}
+            groups={groups}
+            opensPrefilled
+            recordTypeFields={recordTypeFields}
             onSubmit={handleSubmit}
             submitText={submitText}
             isSaving={saving}
@@ -161,26 +244,6 @@ export function UseAgentToolForm(props: UseAgentToolFormProps): JSX.Element {
                         </ImplementationBadge>
                     ),
                     index: 0,
-                },
-                {
-                    component: (
-                        <ContextOption>
-                            <input
-                                type="checkbox"
-                                checked={includeContext}
-                                onChange={(e) => setIncludeContext(e.target.checked)}
-                            />
-                            <div>
-                                Pass agent context
-                                <ContextHint>
-                                    Adds ai:Context ctx as the first parameter so this tool can access the invoking
-                                    agent's context.
-                                </ContextHint>
-                            </div>
-                        </ContextOption>
-                    ),
-                    index: 2,
-                    advanced: true,
                 },
             ]}
         />

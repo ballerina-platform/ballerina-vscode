@@ -3,6 +3,39 @@
   "projectPath": "listener_changes",
   "output": {
     "loadDesignDiagrams": true,
-    "semanticDiffs": []
+    "semanticDiffs": [
+      {
+        "changeType": "MODIFICATION",
+        "nodeKind": "LISTENER",
+        "uri": "ai:///main.bal",
+        "lineRange": {
+          "fileName": "main.bal",
+          "startLine": {
+            "line": 2,
+            "offset": 0
+          },
+          "endLine": {
+            "line": 2,
+            "offset": 49
+          }
+        },
+        "previousLineRange": {
+          "fileName": "main.bal",
+          "startLine": {
+            "line": 2,
+            "offset": 0
+          },
+          "endLine": {
+            "line": 2,
+            "offset": 49
+          }
+        },
+        "metadata": {
+          "name": "httpListener",
+          "oldSource": "listener http:Listener httpListener = new (8080);",
+          "newSource": "listener http:Listener httpListener = new (9090);"
+        }
+      }
+    ]
   }
 }

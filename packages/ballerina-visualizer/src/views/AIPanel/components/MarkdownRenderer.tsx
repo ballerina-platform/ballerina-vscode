@@ -28,7 +28,7 @@ import Badge from "./ChatBadge";
 import ballerina from "../../../languages/ballerina.js";
 import { SYSTEM_BADGE_SECRET, SYSTEM_ERROR_SECRET } from "./AIChatInput/constants";
 import ErrorBox from "./ErrorBox";
-import { ColorThemeKind } from "@wso2/ballerina-core";
+import { ColorThemeKind, isLightTheme } from "@wso2/ballerina-core";
 
 // Register custom languages with highlight.js
 hljs.registerLanguage("yaml", yaml);
@@ -148,28 +148,65 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ markdownContent }) 
         };
 
         /**
-         * Applies theme on initial load and theme changes.
+         * The theme class VS Code puts on `document.body`, as "light" or "dark".
          */
-        const applyCurrentTheme = async () => {
-            const themeKind = await rpcClient.getVisualizerRpcClient().getThemeKind(); // Returns "light" or "dark"
-            let extractedTheme: string;
+        const resolveThemeFromBodyClass = (): string => (isLightTheme() ? "light" : "dark");
+
+        /**
+         * The current theme, as "light" or "dark".
+         *
+         * `useRpcContext` defaults `rpcClient` to null, so any host that renders this
+         * outside a VisualizerContext provider gets null rather than a client — the
+         * migration wizard's AI enhancement step reaches here through the federated
+         * remote, which has no provider. Fall back to the body class instead of
+         * dereferencing null, and likewise when the RPC round trip fails, so a rejected
+         * `getThemeKind` still yields a usable theme rather than an unhandled rejection.
+         */
+        const resolveTheme = async (): Promise<string> => {
+            if (!rpcClient) {
+                return resolveThemeFromBodyClass();
+            }
+            let themeKind: ColorThemeKind;
+            try {
+                themeKind = await rpcClient.getVisualizerRpcClient().getThemeKind();
+            } catch {
+                return resolveThemeFromBodyClass();
+            }
             switch (themeKind) {
                 case ColorThemeKind.Light:
                 case ColorThemeKind.HighContrastLight:
-                    extractedTheme = "light";
-                    break;
+                    return "light";
                 default:
-                    extractedTheme = "dark";
-                    break;
+                    return "dark";
             }
-            injectHighlightTheme(extractedTheme);
         };
 
-        rpcClient.onProjectContentUpdated(() => {
-            applyCurrentTheme();
-        });
+        /**
+         * Applies theme on initial load and theme changes.
+         */
+        const applyCurrentTheme = async () => {
+            injectHighlightTheme(await resolveTheme());
+        };
 
-        applyCurrentTheme();
+        void applyCurrentTheme();
+
+        if (!rpcClient) {
+            // No client means no `onProjectContentUpdated` to hang a theme change off, so
+            // watch the class VS Code rewrites on <body> instead - otherwise the fallback
+            // theme is applied once at mount and a later host theme switch is never picked up.
+            const observer = new MutationObserver(() => {
+                void applyCurrentTheme();
+            });
+            observer.observe(document.body, { attributes: true, attributeFilter: ["class"] });
+            return () => observer.disconnect();
+        }
+
+        // Returns an unsubscribe; without calling it every mount of this renderer leaks a
+        // listener, and a streaming agent view mounts one per markdown block.
+        const unsubscribe = rpcClient.onProjectContentUpdated(() => {
+            void applyCurrentTheme();
+        });
+        return () => unsubscribe?.();
     }, [rpcClient]);
 
     /**

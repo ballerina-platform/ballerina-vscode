@@ -121,15 +121,18 @@ public abstract class BallerinaCompilerApi {
     }
 
     /**
-     * Gets the singleton instance. {@link #initialize()} must be called first.
+     * Gets the singleton instance, initializing it on first use.
+     * <p>
+     * {@link #initialize()} runs in the language server constructor, before any request thread is started, so the
+     * instance is always resolved there. This fallback covers single-threaded entry points that skip that path (e.g.
+     * the index generators), which is why it needs no locking.
      *
      * @return The singleton instance of BallerinaCompilerApi.
-     * @throws IllegalStateException if not initialized.
+     * @throws IllegalStateException if no implementation can be found.
      */
     public static BallerinaCompilerApi getInstance() {
         if (instance == null) {
-            throw new IllegalStateException("BallerinaCompilerApi is not initialized. " +
-                    "Please call BallerinaCompilerApi.initialize() before using this method.");
+            initialize();
         }
         return instance;
     }
@@ -254,6 +257,24 @@ public abstract class BallerinaCompilerApi {
      * @return The loaded project.
      */
     public abstract Project loadProject(Path path, BuildOptions buildOptions);
+
+    /**
+     * Gets the build options to use when loading an already resolved bala.
+     * <p>
+     * How a bala's baked transitive versions are re-resolved is expressed differently across versions
+     * ({@code PackageLockingMode} only exists from 2201.13.0), so the knob is chosen here rather than by the caller.
+     * Concrete on purpose: implementations compiled against an earlier version of this SPI keep working and inherit
+     * the pre-2201.13.0 behaviour.
+     *
+     * @param offline {@code true} to load without contacting Ballerina Central, re-resolving transitives to whatever
+     *                the local repositories hold; {@code false} for the default sticky behaviour.
+     * @return The build options to pass to {@code BalaProject.loadProject}.
+     */
+    public BuildOptions getBalaBuildOptions(boolean offline) {
+        // PackageLockingMode only exists from 2201.13.0; sticky = false is the equivalent knob before it.
+        return offline ? BuildOptions.builder().setOffline(true).setSticky(false).build()
+                : BuildOptions.builder().setSticky(true).build();
+    }
 
     /**
      * Loads a project from the given path with custom project environment builder.

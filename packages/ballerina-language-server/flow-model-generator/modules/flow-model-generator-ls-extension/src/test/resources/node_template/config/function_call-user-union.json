@@ -38,16 +38,16 @@
             "fieldType": "SINGLE_SELECT",
             "options": [
               {
-                "label": "PENDING",
-                "value": "\"PENDING\""
+                "label": "ACTIVE",
+                "value": "\"ACTIVE\""
               },
               {
                 "label": "INACTIVE",
                 "value": "\"INACTIVE\""
               },
               {
-                "label": "ACTIVE",
-                "value": "\"ACTIVE\""
+                "label": "PENDING",
+                "value": "\"PENDING\""
               }
             ],
             "selected": false
@@ -58,7 +58,7 @@
             "selected": false
           }
         ],
-        "placeholder": "\"PENDING\"",
+        "placeholder": "",
         "optional": false,
         "editable": true,
         "advanced": false,
@@ -101,7 +101,7 @@
             "selected": false
           }
         ],
-        "placeholder": "\"Engineering\"",
+        "placeholder": "",
         "optional": false,
         "editable": true,
         "advanced": false,
@@ -148,7 +148,7 @@
             "selected": false
           }
         ],
-        "placeholder": "1",
+        "placeholder": "",
         "optional": false,
         "editable": true,
         "advanced": false,

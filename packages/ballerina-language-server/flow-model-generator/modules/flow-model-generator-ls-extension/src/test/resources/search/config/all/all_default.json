@@ -276,7 +276,7 @@
       "items": [
         {
           "metadata": {
-            "label": "Asb Administrator",
+            "label": "Azure Service Bus Administrator",
             "description": "Ballerina Service Bus connector provides the capability to access Azure Service Bus SDK.\nService Bus API provides data access to highly reliable queues and publish/subscribe topics of Azure Service Bus with deep feature capabilities.",
             "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_asb_3.9.1.png"
           },
@@ -330,7 +330,7 @@
         },
         {
           "metadata": {
-            "label": "Pubsub Caller",
+            "label": "Google Pub/Sub Caller",
             "description": "Provides functionality to acknowledge or reject messages received by the listener service.",
             "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_gcloud.pubsub_0.1.1.png"
           },
@@ -348,7 +348,7 @@
         },
         {
           "metadata": {
-            "label": "SQS Caller",
+            "label": "AWS SQS Caller",
             "description": "Provides control over message deletion from the queue after processing.",
             "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_aws.sqs_4.1.3.png"
           },
@@ -384,7 +384,7 @@
         },
         {
           "metadata": {
-            "label": "Ibmmq Caller",
+            "label": "IBM MQ Caller",
             "description": "Represents a IBM MQ caller, which can be used to mark IBM MQ message as received.",
             "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ibm.ibmmq_1.4.4.png"
           },
@@ -402,7 +402,7 @@
         },
         {
           "metadata": {
-            "label": "Smb Caller",
+            "label": "SMB Caller",
             "description": "SMB caller for interacting with SMB servers from within file handlers.\nProvides a convenience wrapper around the Client class with simplified method signatures.",
             "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_smb_1.0.2.png"
           },

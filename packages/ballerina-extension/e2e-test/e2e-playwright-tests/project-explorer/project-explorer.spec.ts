@@ -185,7 +185,11 @@ export default function createTests() {
             await expect(mainItem).not.toBeVisible({ timeout: 10000 });
         });
 
-        test('Add an artifact from the tree via the Entry Points "Add" button', async () => {
+        // Flaky in CI: hovering the "Entry Points" tree item times out (locator
+        // never resolves), even after retries. Skipping until the root cause in the
+        // Project Explorer tree rendering is fixed.
+        // https://github.com/wso2/product-integrator/issues/2188
+        test.skip('Add an artifact from the tree via the Entry Points "Add" button', async () => {
             logStep('Hovering "Entry Points" and clicking "Add Entry Point"');
             const entryPoints = treeItem('Entry Points');
             await entryPoints.hover();

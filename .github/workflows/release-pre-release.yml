@@ -35,6 +35,7 @@ jobs:
       COPILOT_ROOT_URL: ${{ secrets.COPILOT_ROOT_URL }}
       COPILOT_DEV_ROOT_URL: ${{ secrets.COPILOT_DEV_ROOT_URL }}
       APPINSIGHTS_INSTRUMENTATION_KEY: ${{ secrets.APPINSIGHTS_INSTRUMENTATION_KEY }}
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     with:
       runOnAWS: false
       isPreRelease: ${{ inputs.isPreRelease }}

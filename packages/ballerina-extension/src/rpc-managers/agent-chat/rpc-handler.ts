@@ -32,7 +32,9 @@ import {
     getSessionInfo,
     getAvailableChatAgents,
     switchChatAgent,
-    SwitchAgentRequest
+    SwitchAgentRequest,
+    submitDecision,
+    SubmitDecisionRequest
 } from "@wso2/ballerina-core";
 import { Messenger } from "vscode-messenger";
 import { AgentChatRpcManager } from "./rpc-manager";
@@ -41,6 +43,7 @@ export function registerAgentChatRpcHandlers(messenger: Messenger) {
     const rpcManger = new AgentChatRpcManager();
     messenger.onRequest(getChatMessage, (args: ChatReqMessage) => rpcManger.getChatMessage(args));
     messenger.onNotification(abortChatRequest, () => rpcManger.abortChatRequest());
+    messenger.onRequest(submitDecision, (args: SubmitDecisionRequest) => rpcManger.submitDecision(args));
     messenger.onRequest(getTracingStatus, (params) => rpcManger.getTracingStatus(params));
     messenger.onNotification(showTraceView, (args: TraceInput) => rpcManger.showTraceView(args));
     messenger.onNotification(showSessionOverview, (args: SessionInput) => rpcManger.showSessionOverview(args));

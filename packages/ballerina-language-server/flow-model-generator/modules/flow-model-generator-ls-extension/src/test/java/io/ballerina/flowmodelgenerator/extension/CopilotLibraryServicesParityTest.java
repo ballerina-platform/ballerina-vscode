@@ -23,6 +23,9 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import io.ballerina.flowmodelgenerator.core.copilot.model.Library;
+import io.ballerina.flowmodelgenerator.core.copilot.model.ModelToJsonConverter;
+import io.ballerina.flowmodelgenerator.core.copilot.model.Service;
 import io.ballerina.flowmodelgenerator.core.copilot.service.ServiceLoader;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
@@ -31,6 +34,7 @@ import org.testng.annotations.Test;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 /**
  * Tests for the DB-backed Copilot service loader.
@@ -44,17 +48,18 @@ public class CopilotLibraryServicesParityTest {
     private static final Gson PRETTY = new GsonBuilder().setPrettyPrinting().create();
     private static final Path OUTPUT_DIR = Path.of("build", "services-comparison");
 
-    @DataProvider(name = "coveredLibraries")
-    public Object[][] coveredLibraries() {
-        return new Object[][]{
-                {"ballerinax/kafka"},
-                {"ballerinax/asb"},
-                {"ballerinax/rabbitmq"},
-                {"ballerina/ftp"},
-                {"ballerina/mqtt"},
-                {"ballerinax/salesforce"},
-                {"ballerinax/trigger.github"},
-        };
+    /**
+     * The services as they go on the wire.
+     *
+     * <p>Routed through {@link ModelToJsonConverter} rather than a bare {@code Gson}, because that is the
+     * one place a Copilot service becomes JSON in production. Asserting on this output keeps these tests a
+     * check on the <b>wire contract</b> — a wrong {@code @SerializedName} or a collection that stopped being
+     * omitted when empty fails here, which reading the POJOs directly would not catch.
+     */
+    private static JsonArray wireJson(List<Service> services) {
+        Library library = new Library("test", "test");
+        library.setServices(services);
+        return ModelToJsonConverter.libraryToJson(library).getAsJsonObject().getAsJsonArray("services");
     }
 
     @DataProvider(name = "allLibraries")
@@ -73,31 +78,9 @@ public class CopilotLibraryServicesParityTest {
         };
     }
 
-    @Test(dataProvider = "coveredLibraries")
-    public void testServiceLoaderProducesNonEmptyResults(String libraryName) {
-        JsonArray services = ServiceLoader.loadAllServices(libraryName);
-
-        Assert.assertFalse(services.isEmpty(),
-                "loadAllServices returned empty for covered library: " + libraryName);
-
-        // Verify each service entry has the expected structure
-        for (int i = 0; i < services.size(); i++) {
-            JsonObject svc = services.get(i).getAsJsonObject();
-            Assert.assertTrue(svc.has("type"), "Missing 'type' in service entry " + i + " for " + libraryName);
-            Assert.assertEquals(svc.get("type").getAsString(), "fixed",
-                    "Expected type 'fixed' for trigger service " + libraryName);
-            Assert.assertTrue(svc.has("listener"),
-                    "Missing 'listener' in service entry " + i + " for " + libraryName);
-
-            JsonObject listener = svc.getAsJsonObject("listener");
-            Assert.assertTrue(listener.has("name"), "Missing listener name for " + libraryName);
-            Assert.assertTrue(listener.has("parameters"), "Missing listener parameters for " + libraryName);
-        }
-    }
-
     @Test(dataProvider = "allLibraries")
     public void dumpServicesJson(String libraryName) throws IOException {
-        JsonArray services = ServiceLoader.loadAllServices(libraryName);
+        JsonArray services = wireJson(ServiceLoader.loadAllServices(libraryName));
 
         String shortName = libraryName.contains("/")
                 ? libraryName.substring(libraryName.indexOf('/') + 1)
@@ -112,7 +95,7 @@ public class CopilotLibraryServicesParityTest {
     @Test
     public void testGenericServicesProduced() {
         for (String lib : new String[]{"ballerina/http", "ballerina/graphql"}) {
-            JsonArray services = ServiceLoader.loadAllServices(lib);
+            JsonArray services = wireJson(ServiceLoader.loadAllServices(lib));
             Assert.assertFalse(services.isEmpty(),
                     "loadAllServices returned empty for generic library: " + lib);
 
@@ -132,7 +115,7 @@ public class CopilotLibraryServicesParityTest {
     @Test
     public void testUncoveredLibraryReturnsEmpty() {
         for (String lib : new String[]{"ballerinax/jms", "ballerinax/nats"}) {
-            JsonArray services = ServiceLoader.loadAllServices(lib);
+            JsonArray services = wireJson(ServiceLoader.loadAllServices(lib));
             Assert.assertTrue(services.isEmpty(),
                     "Expected empty services for uncovered library: " + lib);
         }

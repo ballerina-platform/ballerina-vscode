@@ -44,6 +44,7 @@ import io.ballerina.compiler.api.symbols.TypeSymbol;
 import io.ballerina.compiler.api.symbols.UnionTypeSymbol;
 import io.ballerina.compiler.api.symbols.VariableSymbol;
 import io.ballerina.compiler.api.values.ConstantValue;
+import io.ballerina.compiler.syntax.tree.AnnotationNode;
 import io.ballerina.compiler.syntax.tree.AssignmentStatementNode;
 import io.ballerina.compiler.syntax.tree.CheckExpressionNode;
 import io.ballerina.compiler.syntax.tree.ExpressionNode;
@@ -55,11 +56,14 @@ import io.ballerina.compiler.syntax.tree.MappingConstructorExpressionNode;
 import io.ballerina.compiler.syntax.tree.MappingFieldNode;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
 import io.ballerina.compiler.syntax.tree.NamedArgumentNode;
+import io.ballerina.compiler.syntax.tree.Node;
 import io.ballerina.compiler.syntax.tree.NonTerminalNode;
 import io.ballerina.compiler.syntax.tree.PositionalArgumentNode;
+import io.ballerina.compiler.syntax.tree.QualifiedNameReferenceNode;
 import io.ballerina.compiler.syntax.tree.SeparatedNodeList;
 import io.ballerina.compiler.syntax.tree.SpecificFieldNode;
 import io.ballerina.compiler.syntax.tree.StatementNode;
+import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.flowmodelgenerator.core.model.AvailableNode;
 import io.ballerina.flowmodelgenerator.core.model.Category;
 import io.ballerina.flowmodelgenerator.core.model.Codedata;
@@ -80,17 +84,10 @@ import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.projects.DependenciesToml;
 import io.ballerina.projects.Document;
 import io.ballerina.projects.Package;
-import io.ballerina.projects.PackageDescriptor;
-import io.ballerina.projects.PackageName;
-import io.ballerina.projects.PackageOrg;
 import io.ballerina.projects.Project;
 import io.ballerina.projects.TomlDocument;
-import io.ballerina.projects.environment.PackageMetadataResponse;
-import io.ballerina.projects.environment.PackageResolver;
-import io.ballerina.projects.environment.ResolutionOptions;
-import io.ballerina.projects.environment.ResolutionRequest;
-import io.ballerina.projects.environment.ResolutionResponse;
 import io.ballerina.tools.diagnostics.Location;
+import org.ballerinalang.langserver.common.utils.CommonUtil;
 import org.ballerinalang.langserver.commons.BallerinaCompilerApi;
 import org.wso2.ballerinalang.compiler.tree.BLangConstantValue;
 
@@ -100,7 +97,6 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -207,6 +203,7 @@ public class AiUtils {
     private static final String PRESENTATION_KEY = "presentation";
     private static final String MEMORY_INTERFACE_NAME = "Memory";
     private static final String AGENT_TOOL_ANNOT = "AgentTool";
+    private static final String REQUIRES_APPROVAL = "requiresApproval";
     private static final String DISPLAY_ANNOT = "display";
     private static final String SYSTEM_PROMPT_ROLE = "role";
     private static final String SYSTEM_PROMPT_INSTRUCTIONS = "instructions";
@@ -627,21 +624,10 @@ public class AiUtils {
     }
 
     public static Optional<String> resolvePackageVersion(String org, String packageName) {
-        try {
-            PackageResolver resolver = PackageUtil.getSampleProject()
-                    .projectEnvironmentContext().getService(PackageResolver.class);
-            ResolutionRequest resolutionRequest = ResolutionRequest.from(
-                    PackageDescriptor.from(PackageOrg.from(org), PackageName.from(packageName)));
-            Collection<PackageMetadataResponse> metadataResponses = resolver.resolvePackageMetadata(
-                    Collections.singletonList(resolutionRequest),
-                    ResolutionOptions.builder().setOffline(true).build());
-            return metadataResponses.stream().findFirst()
-                    .filter(meta -> meta.resolutionStatus() != ResolutionResponse.ResolutionStatus.UNRESOLVED)
-                    .map(PackageMetadataResponse::resolvedDescriptor)
-                    .map(descriptor -> descriptor.version().value().toString());
-        } catch (RuntimeException e) {
-            return Optional.empty();
-        }
+        // Delegate to PackageUtil.cachedVersion, which performs the same offline metadata resolution
+        // on the current thread's sample project. Doing it here directly would be a second consumer
+        // of the sample-project resolver to keep thread-safe; keeping a single owner avoids that.
+        return Optional.ofNullable(PackageUtil.cachedVersion(org, packageName));
     }
 
     private static synchronized void ensureDependentModulesResolved() {
@@ -688,7 +674,7 @@ public class AiUtils {
         Collection<List<Module>> candidateModules = (version == null)
                 ? dependentModules.values()
                 : dependentModules.entrySet().stream()
-                .filter(entry -> compareSemver(version, entry.getKey()) >= 0)
+                .filter(entry -> compareMajorMinor(version, entry.getKey()) >= 0)
                 .map(Map.Entry::getValue)
                 .toList();
 
@@ -723,6 +709,20 @@ public class AiUtils {
         int length = Math.max(parts1.length, parts2.length);
 
         for (int i = 0; i < length; i++) {
+            int num1 = i < parts1.length ? Integer.parseInt(parts1[i]) : 0;
+            int num2 = i < parts2.length ? Integer.parseInt(parts2[i]) : 0;
+            if (num1 != num2) {
+                return Integer.compare(num1, num2);
+            }
+        }
+        return 0;
+    }
+
+    // Compares only major.minor (ignores patch) — patch bumps within the same minor are backward-compatible.
+    static int compareMajorMinor(String version1, String version2) {
+        String[] parts1 = version1.split("\\.");
+        String[] parts2 = version2.split("\\.");
+        for (int i = 0; i < 2; i++) {
             int num1 = i < parts1.length ? Integer.parseInt(parts1[i]) : 0;
             int num2 = i < parts2.length ? Integer.parseInt(parts2[i]) : 0;
             if (num1 != num2) {
@@ -1475,7 +1475,8 @@ public class AiUtils {
         return false;
     }
 
-    private record AgentToolData(String name, String path, String description, String type) {
+    private record AgentToolData(String name, String path, String description, String type,
+                                 boolean requiresApproval) {
     }
 
     private record WiredParam(String name, int index) {
@@ -1566,7 +1567,7 @@ public class AiUtils {
         if (!isWorkspaceClass(classSymbol, project)) {
             return AgentInfo.EMPTY;
         }
-        return new AgentInfo(workspaceSystemPrompt(classSymbol, project), toolMethodsOf(classSymbol),
+        return new AgentInfo(workspaceSystemPrompt(classSymbol, project), toolMethodsOf(classSymbol, project),
                 initParamOfType(classSymbol, Ai.MODEL_PROVIDER_TYPE_NAME).orElse(null),
                 initParamOfType(classSymbol, MEMORY_INTERFACE_NAME).orElse(null));
     }
@@ -1684,14 +1685,15 @@ public class AiUtils {
         return findInitParam(classSymbol, param -> isAiInterfaceType(param.typeDescriptor(), interfaceName));
     }
 
-    private static List<AgentToolData> toolMethodsOf(ClassSymbol classSymbol) {
+    private static List<AgentToolData> toolMethodsOf(ClassSymbol classSymbol, Project project) {
         List<AgentToolData> tools = new ArrayList<>();
         for (MethodSymbol method : classSymbol.methods().values()) {
             Optional<String> name = method.getName();
             if (name.isEmpty() || !hasAiAnnotation(method.annotAttachments(), AGENT_TOOL_ANNOT)) {
                 continue;
             }
-            tools.add(new AgentToolData(name.get(), readDisplayIcon(method), null, null));
+            tools.add(new AgentToolData(name.get(), readDisplayIcon(method), null, null,
+                    readRequiresApproval(method, project)));
         }
         return tools;
     }
@@ -1723,16 +1725,80 @@ public class AiUtils {
         return null;
     }
 
-    public static boolean isMcpToolKitSymbol(Symbol symbol) {
-        TypeSymbol typeSymbol;
-        if (symbol instanceof VariableSymbol variableSymbol) {
-            typeSymbol = variableSymbol.typeDescriptor();
-        } else if (symbol instanceof ClassFieldSymbol classFieldSymbol) {
-            typeSymbol = classFieldSymbol.typeDescriptor();
-        } else {
+    /**
+     * Reports whether a tool function is gated for human-in-the-loop approval, by reading its
+     * {@code @ai:AgentTool} annotation from the syntax tree. The tool is gated when a
+     * {@code requiresApproval} field is present with any value other than the literal {@code false}
+     * (i.e. {@code true}, a predicate-function reference, or any other non-literal-{@code false}
+     * expression such as a {@code boolean}-typed reference that itself evaluates to false). A bare
+     * {@code @ai:AgentTool}, an explicit {@code requiresApproval: false}, or a missing field are all
+     * not gated.
+     * <p>
+     * The annotation value is read syntactically rather than via
+     * {@code AnnotationAttachmentSymbol.attachmentValue()} because the AgentTool config record has a
+     * function-typed field ({@code RequiresApproval = boolean | isolated function}), which makes the
+     * compiler's constant-value construction throw for every AgentTool annotation.
+     */
+    public static boolean readRequiresApproval(Symbol toolSymbol, Project project) {
+        if (!(toolSymbol instanceof FunctionSymbol functionSymbol)
+                || !hasAiAnnotation(functionSymbol.annotAttachments(), AGENT_TOOL_ANNOT)) {
             return false;
         }
-        return isMcpToolKitType(typeSymbol);
+        try {
+            Optional<Location> location = functionSymbol.getLocation();
+            if (location.isEmpty()) {
+                return false;
+            }
+            Optional<ModuleID> module = functionSymbol.getModule().map(ModuleSymbol::id);
+            String org = module.map(ModuleID::orgName).orElse(null);
+            String packageName = module.map(ModuleID::packageName).orElse(null);
+            for (Project owner : getProjectsForModule(org, packageName, project)) {
+                Document document = CommonUtils.getDocument(owner, location.get());
+                if (document == null) {
+                    continue;
+                }
+                NonTerminalNode node = CommonUtil.findNode(functionSymbol, document.syntaxTree()).orElse(null);
+                while (node != null && !(node instanceof FunctionDefinitionNode)) {
+                    node = node.parent();
+                }
+                if (node == null) {
+                    continue;
+                }
+                FunctionDefinitionNode functionDefinition = (FunctionDefinitionNode) node;
+                if (functionDefinition.metadata().isEmpty()) {
+                    continue;
+                }
+                for (AnnotationNode annotation : functionDefinition.metadata().get().annotations()) {
+                    Node annotRef = annotation.annotReference();
+                    if (annotRef.kind() != SyntaxKind.QUALIFIED_NAME_REFERENCE) {
+                        continue;
+                    }
+
+                    QualifiedNameReferenceNode qualifiedNameRef = (QualifiedNameReferenceNode) annotRef;
+                    if (!AGENT_TOOL_ANNOT.equals(qualifiedNameRef.identifier().text())) {
+                        continue;
+                    }
+
+                    return annotation.annotValue()
+                            .flatMap(mapping -> mapping.fields().stream()
+                                    .filter(field -> field instanceof SpecificFieldNode specificField
+                                            && REQUIRES_APPROVAL.equals(
+                                                    specificField.fieldName().toSourceCode().trim()))
+                                    .map(field -> (SpecificFieldNode) field)
+                                    .findFirst())
+                            // Gated unless the value is the literal `false`; absent field -> not gated.
+                            .map(specificField -> !"false".equals(
+                                    specificField.valueExpr().map(expr -> expr.toSourceCode().trim()).orElse("")))
+                            .orElse(false);
+                }
+            }
+            return false;
+        } catch (RuntimeException e) {
+            // Never let annotation reading break flow-model generation.
+            LOGGER.log(Level.FINE, "Failed to read requiresApproval for tool "
+                    + functionSymbol.getName().orElse(""), e);
+            return false;
+        }
     }
 
     public static boolean isMcpToolKitType(TypeSymbol typeSymbol) {
@@ -1741,8 +1807,37 @@ public class AiUtils {
                 .orElse(false)) {
             return true;
         }
-        return CommonUtils.getRawType(typeSymbol) instanceof ClassSymbol classSymbol
-                && CommonUtils.isAiMcpBaseToolKit(classSymbol);
+        return asMcpToolKitClass(typeSymbol).isPresent();
+    }
+
+    // Module-qualified so it matches the toolkit name the trace records at dev-time (ExecuteToolSpan.addToolKitName).
+    public static Optional<String> mcpToolKitClassName(Symbol symbol) {
+        TypeSymbol typeSymbol;
+        if (symbol instanceof VariableSymbol variableSymbol) {
+            typeSymbol = variableSymbol.typeDescriptor();
+        } else if (symbol instanceof ClassFieldSymbol classFieldSymbol) {
+            typeSymbol = classFieldSymbol.typeDescriptor();
+        } else {
+            return Optional.empty();
+        }
+        return mcpToolKitClassName(typeSymbol);
+    }
+
+    public static Optional<String> mcpToolKitClassName(TypeSymbol typeSymbol) {
+        return asMcpToolKitClass(typeSymbol).map(classSymbol -> {
+            String className = classSymbol.getName().orElse("");
+            String moduleName = classSymbol.getModule().map(module -> module.id().moduleName()).orElse("");
+            return moduleName.isEmpty() ? className : moduleName + ":" + className;
+        });
+    }
+
+    // Resolves the raw type once so callers don't each recompute it to check and then extract the class.
+    private static Optional<ClassSymbol> asMcpToolKitClass(TypeSymbol typeSymbol) {
+        if (CommonUtils.getRawType(typeSymbol) instanceof ClassSymbol classSymbol
+                && CommonUtils.isAiMcpBaseToolKit(classSymbol)) {
+            return Optional.of(classSymbol);
+        }
+        return Optional.empty();
     }
 
     private static Optional<AgentInfo> readAgentMetadata(ClassSymbol classSymbol) {
@@ -1806,7 +1901,13 @@ public class AiUtils {
             return null;
         }
         boolean isMcp = "MCP_TOOLKIT".equals(constantString(toolMap.get("kind")));
-        return new AgentToolData(name, constantString(toolMap.get("icon")), null, isMcp ? "MCP Server" : null);
+        // Prebuilt/published agents carry tool metadata in the compiled @display{agentMetadata}. The
+        // requiresApproval flag is read here defensively so it works once the generation side emits it;
+        // absent → false. As of now the generation side does not emit this field, so this always
+        // evaluates to false and prebuilt/published agents show no approval badge.
+        boolean requiresApproval = "true".equals(constantString(toolMap.get(REQUIRES_APPROVAL)));
+        return new AgentToolData(name, constantString(toolMap.get("icon")), null,
+                isMcp ? "MCP Server" : null, requiresApproval);
     }
 
     private static Object unwrapConstant(Object value) {

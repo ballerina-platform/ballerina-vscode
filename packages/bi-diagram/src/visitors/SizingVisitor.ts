@@ -19,6 +19,7 @@
 import { BaseVisitor } from "@wso2/ballerina-core";
 
 import {
+    AGENT_BOX_BOTTOM_AFFORDANCE_GAP,
     AGENT_NODE_TOOL_GAP,
     AGENT_NODE_TOOL_SECTION_GAP,
     EMPTY_NODE_CONTAINER_WIDTH,
@@ -28,6 +29,7 @@ import {
     LABEL_WIDTH,
     LAST_NODE,
     NODE_BORDER_WIDTH,
+    NODE_DESCRIPTION_SINGLE_LINE_CHARS,
     NODE_GAP_X,
     NODE_GAP_Y,
     NODE_HEIGHT,
@@ -35,6 +37,7 @@ import {
     NODE_WIDTH,
     PROMPT_NODE_HEIGHT,
     PROMPT_NODE_WIDTH,
+    HUMAN_TASK_ROLES_LABEL_WIDTH,
     WAIT_DATA_CORE_HEIGHT,
     WAIT_DATA_CORE_WIDTH,
     WAIT_DATA_ARROW_WIDTH,
@@ -46,7 +49,7 @@ import {
 import { getEvalNodeContainerHeight } from "../components/nodes/EvalNode/evalNodePresentation";
 import { isEvalTemplateCall, NodeMetadata } from "@wso2/ballerina-core";
 import { getAgentNodeContainerHeight } from "../components/nodes/AgentWidget/agentNodeLayout";
-import { isWaitingAgentCall, reverseCustomNodeId } from "../utils/node";
+import { getHumanTaskUserRoles, isWaitingAgentCall, reverseCustomNodeId } from "../utils/node";
 import { Branch, FlowNode } from "../utils/types";
 
 export class SizingVisitor implements BaseVisitor {
@@ -81,12 +84,31 @@ export class SizingVisitor implements BaseVisitor {
         node.viewState.ch = containerHeight || height;
     }
 
+    // Mirrors the description BaseNodeWidget/CallActivityNodeWidget/ApiCallNodeWidget actually
+    // render: a full assignment concatenates "variable = expression"; otherwise whichever single
+    // value is shown. Used only to estimate whether that text wraps to a second line.
+    private estimateDescriptionLength(node: FlowNode): number {
+        const variable = node.properties?.variable?.value;
+        const expression = node.properties?.expression?.value;
+        const type = node.properties?.type?.value;
+        const msg = node.properties?.msg?.value;
+        const text =
+            typeof variable === "string" && typeof expression === "string" && variable && expression
+                ? `${variable} = ${expression}`
+                : [variable, expression, type, msg].find((value) => typeof value === "string" && value) ?? "";
+        return (text as string).length;
+    }
+
     private createBaseNode(node: FlowNode): void {
         const totalWidth = NODE_WIDTH;
         const halfWidth = totalWidth / 2;
         let height = NODE_HEIGHT + NODE_BORDER_WIDTH * 2;
 
-        if (node.properties?.variable?.value || node.properties?.type?.value) {
+        // The description line only pushes the box past its own min-height once it wraps to a
+        // second line — a short value (or a bare "-" placeholder) fits with room to spare.
+        // Reserving the wrap allowance for every node with any description, regardless of length,
+        // stretched the links leading into short-description nodes well past NODE_GAP_Y.
+        if (this.estimateDescriptionLength(node) > NODE_DESCRIPTION_SINGLE_LINE_CHARS) {
             height += LABEL_HEIGHT;
         }
 
@@ -101,7 +123,7 @@ export class SizingVisitor implements BaseVisitor {
 
         const nodeHeight = NODE_HEIGHT;
         let containerHeight = nodeHeight;
-        if (node.properties?.variable?.value || node.properties?.type?.value) {
+        if (this.estimateDescriptionLength(node) > NODE_DESCRIPTION_SINGLE_LINE_CHARS) {
             containerHeight += LABEL_HEIGHT;
         }
 
@@ -124,13 +146,23 @@ export class SizingVisitor implements BaseVisitor {
         // The mirror of a send: same body, with the room for the source box and its arrow on the
         // left instead of the right.
         const halfNodeWidth = NODE_WIDTH / 2;
+        // A human task names the roles it waits on beside the person icon, so the strip they are
+        // drawn in has to be reserved out here — the widget places the icon after it.
+        const rolesLabelWidth = getHumanTaskUserRoles(node).length > 0 ? HUMAN_TASK_ROLES_LABEL_WIDTH : 0;
         // The widths are the node's own bounds, not an inner box's: passing the body's half-width
         // while the container reached further left put the body off the node's centre, and the
         // links bent sideways to meet it. LABEL_WIDTH keeps the source's name from being clipped.
-        const containerLeftWidth = halfNodeWidth + NODE_GAP_X + NODE_HEIGHT + LABEL_HEIGHT;
+        const containerLeftWidth = halfNodeWidth + NODE_GAP_X + NODE_HEIGHT + LABEL_HEIGHT + rolesLabelWidth;
         const containerRightWidth = halfNodeWidth;
+        // The circle (with the ports) is flush with the top of the row and is only NODE_HEIGHT
+        // tall; the source-arrow SVG beside it is taller (it reserves room for the label under the
+        // arrow) but that extra height is dead space below the circle, not more room the ports
+        // need. Using the taller figure as the link-spacing height (like the old center-aligned
+        // layout did) recessed the ports and stretched every link touching this node — so the
+        // per-step height stays NODE_HEIGHT, while the container height keeps the taller figure to
+        // reserve room for the SVG within its branch.
         const containerHeight = NODE_HEIGHT + LABEL_HEIGHT;
-        this.setNodeSize(node, containerLeftWidth, containerRightWidth, containerHeight);
+        this.setNodeSize(node, containerLeftWidth, containerRightWidth, NODE_HEIGHT, containerLeftWidth, containerRightWidth, containerHeight);
     }
 
     private createBlockNode(node: Branch): void {
@@ -411,7 +443,9 @@ export class SizingVisitor implements BaseVisitor {
             NODE_HEIGHT +
             AGENT_NODE_TOOL_SECTION_GAP +
             AGENT_NODE_TOOL_GAP * 2 +
-            (numberOfRows - 1) * (NODE_HEIGHT + AGENT_NODE_TOOL_GAP);
+            (numberOfRows - 1) * (NODE_HEIGHT + AGENT_NODE_TOOL_GAP) +
+            // Reserve space so the corner "+" affordance buttons don't overlap the role/instructions text.
+            AGENT_BOX_BOTTOM_AFFORDANCE_GAP;
         this.setNodeSize(node, containerLeftWidth, containerRightWidth, containerHeight);
     }
 
@@ -571,6 +605,11 @@ export class SizingVisitor implements BaseVisitor {
     }
 
     endVisitWaitData(node: FlowNode, parent?: FlowNode): void {
+        if (!this.validateNode(node)) return;
+        this.createWaitDataNode(node);
+    }
+
+    endVisitHumanTask(node: FlowNode, parent?: FlowNode): void {
         if (!this.validateNode(node)) return;
         this.createWaitDataNode(node);
     }

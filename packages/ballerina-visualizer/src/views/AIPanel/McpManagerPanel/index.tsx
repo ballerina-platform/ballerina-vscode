@@ -29,6 +29,7 @@ import { Loader } from "../components/Loader";
 
 interface Props {
     onClose: () => void;
+    backTooltip?: string;
 }
 
 // ── Layout ────────────────────────────────────────────────────────────────────
@@ -525,7 +526,7 @@ function scopeHelperText(scope: McpScope): string {
     return "Available across all your projects";
 }
 
-export const McpManagerPanel: React.FC<Props> = ({ onClose }) => {
+export const McpManagerPanel: React.FC<Props> = ({ onClose, backTooltip }) => {
     const { rpcClient } = useRpcContext();
     const [servers, setServers] = useState<McpServerStatusDTO[]>([]);
     const [loadErrors, setLoadErrors] = useState<McpLoadErrorsDTO>({});
@@ -830,7 +831,7 @@ export const McpManagerPanel: React.FC<Props> = ({ onClose }) => {
     return (
         <AIChatView>
             <PanelHeader>
-                <Button appearance="icon" onClick={onClose} tooltip="Back to chat">
+                <Button appearance="icon" onClick={onClose} tooltip={backTooltip ?? "Back"}>
                     <Codicon name="arrow-left" />
                 </Button>
                 <TitleGroup>

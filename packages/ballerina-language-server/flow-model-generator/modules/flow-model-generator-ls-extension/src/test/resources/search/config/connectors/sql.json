@@ -50,7 +50,7 @@
     },
     {
       "metadata": {
-        "label": "Connect",
+        "label": "Cdata Connect",
         "description": "The [Ballerina](https://ballerina.io/) connector for [CData Connect](https://cloud.cdata.com/docs/JDBC.html) \nallows you to programmatically access all of the CData Connect applications, databases, APIs, and services\nacross an organization via the Java Database Connectivity (JDBC) API using [Ballerina](https://ballerina.io/). \nFor detailed information on working with each data source, see [Data Sources](https://cloud.cdata.com/docs/Data-Sources.html).\nCData Connect supports a wide range of standard DDL commands, SQL commands, and SQL functions to query data sources. \nFor reference information on all the CData Connect SQL commands (i.e., DDL, DML, and query syntax), \nsee the [SQL Reference](https://cloud.cdata.com/docs/SQL-Reference.html).",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_cdata.connect_1.2.0.png",
         "data": {
@@ -113,7 +113,7 @@
     },
     {
       "metadata": {
-        "label": "Azure CosmosDB DataPlane",
+        "label": "Azure CosmosDB Data Plane",
         "description": "This is the Azure Cosmos DB SQL API, a fast NoSQL database servic offers rich querying over diverse data, helps \ndeliver configurable and reliable performance, is globally distributed, and enables rapid development. ",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure_cosmosdb_4.2.0.png",
         "data": {

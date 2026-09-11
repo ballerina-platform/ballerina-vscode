@@ -43,7 +43,7 @@ export function findDevantScopeByModule(moduleName: string): DevantScopes | unde
 }
 
 /**
- * Connector-declared semantic `kind` -> Devant scope (mirrors {@link findDevantScopeByModule}).
+ * Connector-declared semantic `triggerKind` -> Devant scope (mirrors {@link findDevantScopeByModule}).
  * Keyed by the shared {@link IntegrationKind} union so this table is kept in lockstep with
  * `KIND_TO_SCOPE` in `utils/identifier-utils.ts` at compile time.
  */
@@ -57,12 +57,12 @@ const KIND_TO_DEVANT_SCOPE: Record<IntegrationKind, DevantScopes> = {
 };
 
 /**
- * Resolves a Devant scope, preferring the connector-declared `kind` and falling back to the (legacy)
- * module allow-lists for connectors that ship no kind.
+ * Resolves a Devant scope, preferring the connector-declared `triggerKind` and falling back to the
+ * legacy module allow-lists for connectors that ship no semantic kind.
  */
-export function findDevantScope(kind: string | undefined, moduleName: string): DevantScopes | undefined {
-    if (kind && isIntegrationKind(kind)) {
-        return KIND_TO_DEVANT_SCOPE[kind];
+export function findDevantScope(triggerKind: string | undefined, moduleName: string): DevantScopes | undefined {
+    if (triggerKind && isIntegrationKind(triggerKind)) {
+        return KIND_TO_DEVANT_SCOPE[triggerKind];
     }
     return findDevantScopeByModule(moduleName);
 }

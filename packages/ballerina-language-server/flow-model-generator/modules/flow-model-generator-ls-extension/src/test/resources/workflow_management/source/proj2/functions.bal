@@ -1,1 +1,1 @@
-import ballerina/workflow.management as _;
+import ballerina/workflow.management.rest as _;

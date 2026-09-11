@@ -246,8 +246,7 @@ public class ConnectionActionProvider {
     }
 
     private ConnectorContext createContext(Codedata codedata, Project project) {
-        ModuleInfo moduleInfo = new ModuleInfo(codedata.org(),
-                codedata.packageName() == null ? codedata.module() : codedata.packageName(),
+        ModuleInfo moduleInfo = new ModuleInfo(codedata.org(), codedata.resolvePackageName(),
                 codedata.module(), codedata.version());
         Package resolvedPackage = resolvePackage(moduleInfo, project).orElse(null);
         SemanticModel semanticModel = resolveSemanticModel(moduleInfo, project, resolvedPackage);

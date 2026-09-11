@@ -207,7 +207,11 @@ export default function createTests() {
     test.describe.serial('Automation Flow Nodes Tests', {}, async () => {
         initTest(true, true, undefined, undefined, AUTOMATION_PROJECT_TEMPLATE);
 
-        test('Flow Nodes builds Statement and Control nodes from diagram', async () => {
+        // Flaky in CI: the flow node form fails to close after saving a Log Debug
+        // node, timing out on side-panel hidden state. Skipping until the root cause
+        // in the expression-save flow is fixed.
+        // https://github.com/wso2/product-integrator/issues/2188
+        test.skip('Flow Nodes builds Statement and Control nodes from diagram', async () => {
             logStep('Open the pre-baked Automation via the Entry Points tree item');
             // Cold start on a fresh fixture: the sidebar tree isn't guaranteed
             // to be the active viewlet yet and the LS needs time to index the

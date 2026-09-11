@@ -90,15 +90,13 @@ public class ModelProviderBuilder extends CallBuilder {
     }
 
     private static String methodCallWithModulePrefix(SourceBuilder sourceBuilder) {
-        String module = sourceBuilder.flowNode.codedata().module();
-        String methodCallPrefix = (module != null) ? module.substring(module.lastIndexOf('.') + 1) + ":" : "";
-        return methodCallPrefix + GET_DEFAULT_MODEL_PROVIDER_FUNCTION_NAME;
+        return sourceBuilder.importQualifier() + GET_DEFAULT_MODEL_PROVIDER_FUNCTION_NAME;
     }
 
     @Override
     public void setConcreteTemplateData(TemplateContext context) {
         Codedata codedata = context.codedata();
-        ModuleInfo codedataModuleInfo = new ModuleInfo(codedata.org(), codedata.packageName(),
+        ModuleInfo codedataModuleInfo = new ModuleInfo(codedata.org(), codedata.resolvePackageName(),
                 codedata.module(), codedata.version());
 
         FunctionData functionData = new FunctionDataBuilder().moduleInfo(codedataModuleInfo).userModuleInfo(moduleInfo)
@@ -158,12 +156,13 @@ public class ModelProviderBuilder extends CallBuilder {
                     .placeholder(paramResult.placeholder())
                     .defaultValue(paramResult.defaultValue())
                     .editable()
-                    .defaultable(paramResult.optional());
+                    .optional(paramResult.optional())
+                    .advanced(paramResult.advanced());
 
             switch (paramResult.kind()) {
                 case INCLUDED_RECORD_REST -> {
                     if (hasOnlyRestParams) {
-                        customPropBuilder.defaultable(false);
+                        customPropBuilder.optional(false).advanced(false);
                     }
                     unescapedParamName = "additionalValues";
                     Property template = customPropBuilder.buildRepeatableTemplates(paramResult.typeSymbol(),
@@ -177,7 +176,7 @@ public class ModelProviderBuilder extends CallBuilder {
                 }
                 case REST_PARAMETER -> {
                     if (hasOnlyRestParams) {
-                        customPropBuilder.defaultable(false);
+                        customPropBuilder.optional(false).advanced(false);
                     }
                     Property template = customPropBuilder.buildRepeatableTemplates(paramResult.typeSymbol(),
                             semanticModel, moduleInfo);

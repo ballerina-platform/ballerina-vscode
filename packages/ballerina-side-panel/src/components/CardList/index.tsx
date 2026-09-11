@@ -24,8 +24,13 @@ import { Category, Item, Node } from "../NodeList/types";
 import { cloneDeep, debounce } from "lodash";
 
 namespace S {
-    export const Container = styled.div<{}>`
+    export const Container = styled.div<{ fillContainerHeight?: boolean }>`
         width: 100%;
+        ${({ fillContainerHeight }: { fillContainerHeight?: boolean }) => fillContainerHeight && `
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        `}
     `;
 
     export const HeaderContainer = styled.div<{}>`
@@ -34,10 +39,17 @@ namespace S {
         align-items: center;
         gap: 8px;
         padding: 16px;
+        flex-shrink: 0;
     `;
 
-    export const PanelBody = styled(SidePanelBody)`
-        height: calc(100vh - 100px);
+    export const PanelBody = styled(SidePanelBody)<{ fillContainerHeight?: boolean }>`
+        ${({ fillContainerHeight }: { fillContainerHeight?: boolean }) => fillContainerHeight ? `
+            height: auto;
+            flex: 1;
+            min-height: 0;
+        ` : `
+            height: calc(100vh - 100px);
+        `}
         padding-top: 0;
         overflow-y: auto;
     `;
@@ -396,11 +408,15 @@ export interface CardListProps {
     // Supply both to keep a group expanded across view switches (e.g. returning from a form).
     expandedGroupId?: string | null;
     onExpandedGroupChange?: (groupId: string | null) => void;
+    // Optional extra content rendered below the categories (e.g. a WSO2 Cloud section).
+    extraSection?: React.ReactNode;
+    fillContainerHeight?: boolean;
 }
 
 function CardList(props: CardListProps) {
     const { categories, title, searchPlaceholder, onSelect, onSearch, onBack, onClose,
-        expandedGroupId: controlledExpandedGroupId, onExpandedGroupChange } = props;
+        expandedGroupId: controlledExpandedGroupId, onExpandedGroupChange, extraSection,
+        fillContainerHeight } = props;
 
     const [searchText, setSearchText] = useState<string>("");
     const [isSearching, setIsSearching] = useState(false);
@@ -620,7 +636,7 @@ function CardList(props: CardListProps) {
     const canGoBack = Boolean(onBack);
     const shouldShowHeaderActions = (canGoBack && headerTitle) || onClose;
     return (
-        <S.Container>
+        <S.Container fillContainerHeight={fillContainerHeight}>
             <S.HeaderContainer>
                 {shouldShowHeaderActions && (
                     <S.Row>
@@ -651,7 +667,7 @@ function CardList(props: CardListProps) {
             </S.HeaderContainer>
 
             {isSearching && (
-                <S.PanelBody>
+                <S.PanelBody fillContainerHeight={fillContainerHeight}>
                     <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100%" }}>
                         <ProgressRing />
                     </div>
@@ -659,28 +675,31 @@ function CardList(props: CardListProps) {
             )}
 
             {!isSearching && (
-                <S.PanelBody>
-                    {!hasContent ? (
+                <S.PanelBody fillContainerHeight={fillContainerHeight}>
+                    {!hasContent && !extraSection ? (
                         <S.EmptyState>
                             <S.EmptyStateText>No results found</S.EmptyStateText>
                             <S.EmptyStateSubText>Try adjusting your search terms</S.EmptyStateSubText>
                         </S.EmptyState>
                     ) : (
-                        filteredCategories.map((category, index) => {
-                            if (!category?.items || category.items.length === 0) {
-                                return null;
-                            }
+                        <>
+                            {filteredCategories.map((category, index) => {
+                                if (!category?.items || category.items.length === 0) {
+                                    return null;
+                                }
 
-                            return (
-                                <S.CategorySection key={category.title + index}>
-                                    <S.CategoryTitle>{category.title}</S.CategoryTitle>
-                                    {category.description && (
-                                        <S.CategoryDescription>{category.description}</S.CategoryDescription>
-                                    )}
-                                    {renderCards(category.items)}
-                                </S.CategorySection>
-                            );
-                        })
+                                return (
+                                    <S.CategorySection key={category.title + index}>
+                                        <S.CategoryTitle>{category.title}</S.CategoryTitle>
+                                        {category.description && (
+                                            <S.CategoryDescription>{category.description}</S.CategoryDescription>
+                                        )}
+                                        {renderCards(category.items)}
+                                    </S.CategorySection>
+                                );
+                            })}
+                            {extraSection}
+                        </>
                     )}
                 </S.PanelBody>
             )}

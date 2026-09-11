@@ -46,7 +46,13 @@ jest.mock("../stateMachine", () => ({
     openView: jest.fn(),
 }));
 
-import { getSoleIntegration, resolveSingleIntegrationOverride } from "../utils/state-machine-utils";
+import {
+    claimCreateLanding,
+    getSoleIntegration,
+    releaseCreateLanding,
+    resolveCreateLandingOverride,
+    resolveSingleIntegrationOverride,
+} from "../utils/state-machine-utils";
 
 const WORKSPACE_ROOT = "/workspace";
 
@@ -132,5 +138,92 @@ describe("resolveSingleIntegrationOverride", () => {
         expect(
             resolveSingleIntegrationOverride({}, { projectPath: "/standalone", projectStructure: workspaceOf(pkg("standalone")) })
         ).toBeUndefined();
+    });
+});
+
+describe("resolveCreateLandingOverride", () => {
+    const CREATED = `${WORKSPACE_ROOT}/orders`;
+    const OTHER = `${WORKSPACE_ROOT}/shipping`;
+    const redirected = { view: MACHINE_VIEW.PackageOverview, projectPath: CREATED };
+    const workspaceOverview: VisualizerLocation = { view: MACHINE_VIEW.WorkspaceOverview };
+
+    afterEach(releaseCreateLanding);
+
+    it("sends a workspace-overview navigation back to the package the create landed on", () => {
+        claimCreateLanding(CREATED);
+
+        expect(resolveCreateLandingOverride(workspaceOverview, true)).toEqual(redirected);
+    });
+
+    it("does nothing without a claim", () => {
+        expect(resolveCreateLandingOverride(workspaceOverview, true)).toBeUndefined();
+    });
+
+    it("does nothing once the claim is released", () => {
+        claimCreateLanding(CREATED);
+        releaseCreateLanding();
+
+        expect(resolveCreateLandingOverride(workspaceOverview, true)).toBeUndefined();
+    });
+
+    // The regression the spend rule exists for. Startup fires a bare "show the visualizer" whose
+    // order relative to the create varies run to run; when it landed after the create it used to
+    // spend the claim, and the workspace overview behind it then won.
+    it.each<[string, VisualizerLocation]>([
+        ["a bare navigation", {}],
+        ["a bare navigation carrying a document", { documentUri: "/workspace/orders/main.bal" }],
+        ["the claimed package's own overview", { view: MACHINE_VIEW.PackageOverview, projectPath: CREATED }],
+        ["a package overview naming no path", { view: MACHINE_VIEW.PackageOverview }],
+    ])("survives %s, so the workspace overview behind it is still redirected", (_label, viewLocation) => {
+        claimCreateLanding(CREATED);
+
+        expect(resolveCreateLandingOverride(viewLocation, true)).toBeUndefined();
+        expect(resolveCreateLandingOverride(workspaceOverview, true)).toEqual(redirected);
+    });
+
+    it("is spent by the navigation it answers, not held for the next one", () => {
+        claimCreateLanding(CREATED);
+
+        expect(resolveCreateLandingOverride(workspaceOverview, true)).toEqual(redirected);
+        expect(resolveCreateLandingOverride(workspaceOverview, true)).toBeUndefined();
+    });
+
+    // Anything that leaves the created package is the user moving on, and must not leave a claim
+    // behind to redirect a workspace overview they ask for later. A DIFFERENT package's overview
+    // counts: several commands navigate to one (the config generator, Try It, the doc command).
+    it.each<[string, VisualizerLocation]>([
+        ["another view", { view: MACHINE_VIEW.ServiceDesigner }],
+        ["a different package's overview", { view: MACHINE_VIEW.PackageOverview, projectPath: OTHER }],
+    ])("is released by a navigation to %s", (_label, viewLocation) => {
+        claimCreateLanding(CREATED);
+
+        expect(resolveCreateLandingOverride(viewLocation, true)).toBeUndefined();
+        expect(resolveCreateLandingOverride(workspaceOverview, true)).toBeUndefined();
+    });
+
+    // A package overview carrying no path resolves against the context's, which is often another
+    // package. The claim has to be compared against the path `openView` will actually resolve.
+    it("is released by a pathless package overview that resolves to another package", () => {
+        claimCreateLanding(CREATED);
+
+        expect(resolveCreateLandingOverride({ view: MACHINE_VIEW.PackageOverview }, true, OTHER)).toBeUndefined();
+        expect(resolveCreateLandingOverride(workspaceOverview, true)).toBeUndefined();
+    });
+
+    it("survives a pathless package overview that resolves to the claimed package", () => {
+        claimCreateLanding(CREATED);
+
+        expect(resolveCreateLandingOverride({ view: MACHINE_VIEW.PackageOverview }, true, CREATED)).toBeUndefined();
+        expect(resolveCreateLandingOverride(workspaceOverview, true)).toEqual(redirected);
+    });
+
+    // `OPEN_VIEW` is dropped outside `extensionReady` and `viewActive.viewReady`. Spending the
+    // claim on a navigation that never happens would leave the next workspace overview unopposed.
+    it("ignores a navigation that will not be delivered, claim intact", () => {
+        claimCreateLanding(CREATED);
+
+        expect(resolveCreateLandingOverride(workspaceOverview, false)).toBeUndefined();
+        expect(resolveCreateLandingOverride({ view: MACHINE_VIEW.ServiceDesigner }, false)).toBeUndefined();
+        expect(resolveCreateLandingOverride(workspaceOverview, true)).toEqual(redirected);
     });
 });

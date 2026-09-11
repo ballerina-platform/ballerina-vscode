@@ -34,10 +34,10 @@ import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.PropertyCodedata;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.ActivityBuilder;
-import io.ballerina.flowmodelgenerator.core.utils.FileSystemUtils;
 import io.ballerina.flowmodelgenerator.core.utils.FlowNodeUtil;
 import io.ballerina.flowmodelgenerator.core.utils.ParamUtils;
 import io.ballerina.modelgenerator.commons.CommonUtils;
+import io.ballerina.modelgenerator.commons.FileSystemUtils;
 import io.ballerina.modelgenerator.commons.ParameterData;
 import io.ballerina.projects.Document;
 import org.ballerinalang.langserver.common.utils.NameUtil;
@@ -358,7 +358,8 @@ public class ActivityGenerator {
      * appears in the generated return type or parameter list.
      */
     private static boolean needsModuleImport(FlowNode flowNode, String returnType, List<String> paramList) {
-        String modulePrefix = flowNode.codedata().getModulePrefix() + ":";
+        // getModulePrefix() is escaped for emission; the signature/params here are raw, so unescape before matching.
+        String modulePrefix = CommonUtils.unescapeModuleName(flowNode.codedata().getModulePrefix()) + ":";
         if (returnType.contains(modulePrefix)) {
             return true;
         }

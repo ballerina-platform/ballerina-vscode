@@ -18,8 +18,11 @@
 
 package io.ballerina.flowmodelgenerator.core.copilot.service;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
+import io.ballerina.flowmodelgenerator.core.copilot.model.Type;
+import io.ballerina.flowmodelgenerator.core.copilot.model.TypeLink;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Shared type-resolution utilities for Copilot service loaders.
@@ -40,33 +43,26 @@ final class TypeResolver {
      *
      * @param typeName the raw type name (e.g., "salesforce:ListenerConfig", "error?")
      * @param packageName the current package name (e.g., "salesforce")
-     * @return JsonObject with "name" and optionally "links"
+     * @return the type, carrying its name and — only when there is one — its links
      */
-    static JsonObject resolveTypeWithLinks(String typeName, String packageName) {
-        JsonObject typeObj = new JsonObject();
+    static Type resolveTypeWithLinks(String typeName, String packageName) {
+        Type type = new Type();
 
         // Fast path for non-union types (the common case)
         if (!typeName.contains("|")) {
             String prefix = findMatchingPrefix(typeName, packageName);
             if (prefix != null) {
                 String strippedName = typeName.substring(prefix.length());
-                String recordName = strippedName.endsWith("?") ?
-                        strippedName.substring(0, strippedName.length() - 1) : strippedName;
-                typeObj.addProperty("name", strippedName);
-                JsonArray links = new JsonArray();
-                JsonObject link = new JsonObject();
-                link.addProperty("category", "internal");
-                link.addProperty("recordName", recordName);
-                links.add(link);
-                typeObj.add("links", links);
+                type.setName(strippedName);
+                type.setLinks(List.of(internalLink(strippedName)));
             } else {
-                typeObj.addProperty("name", typeName);
+                type.setName(typeName);
             }
-            return typeObj;
+            return type;
         }
 
         // Union type handling
-        JsonArray links = new JsonArray();
+        List<TypeLink> links = new ArrayList<>();
         String[] parts = typeName.split("\\|");
         StringBuilder resolvedBuilder = new StringBuilder();
         for (int i = 0; i < parts.length; i++) {
@@ -75,14 +71,8 @@ final class TypeResolver {
             String prefix = findMatchingPrefix(part, packageName);
             if (prefix != null) {
                 String strippedName = part.substring(prefix.length());
-                String recordName = strippedName.endsWith("?") ?
-                        strippedName.substring(0, strippedName.length() - 1) : strippedName;
                 part = strippedName;
-
-                JsonObject link = new JsonObject();
-                link.addProperty("category", "internal");
-                link.addProperty("recordName", recordName);
-                links.add(link);
+                links.add(internalLink(strippedName));
             }
 
             if (i > 0) {
@@ -91,12 +81,56 @@ final class TypeResolver {
             resolvedBuilder.append(part);
         }
 
-        typeObj.addProperty("name", resolvedBuilder.toString());
+        type.setName(resolvedBuilder.toString());
+        // Left null rather than set to an empty list, so a type with no home-module member omits the key
+        // instead of carrying `"links": []`.
         if (!links.isEmpty()) {
-            typeObj.add("links", links);
+            type.setLinks(List.copyOf(links));
         }
 
-        return typeObj;
+        return type;
+    }
+
+    /** An {@code internal} link to a home-module type, whose record name drops a trailing {@code ?}. */
+    private static TypeLink internalLink(String strippedName) {
+        String recordName = strippedName.endsWith("?")
+                ? strippedName.substring(0, strippedName.length() - 1) : strippedName;
+        return new TypeLink("internal", recordName, null);
+    }
+
+    /**
+     * Resolves an annotation's constraining type, which may belong to another package.
+     *
+     * <p>A home-module constraint behaves exactly like any other type: the prefix is stripped and an
+     * {@code internal} link records it. A <b>foreign</b> constraint instead gets an {@code external} link
+     * naming the owning library, which is what carries the record's definition into the prompt — the same
+     * mechanism every other cross-package type reference in the catalog already travels by.
+     *
+     * <p>The name is emitted <b>bare</b> in both cases, because the renderer is what re-applies a prefix;
+     * emitting an already-prefixed name alongside a link would prefix it twice.
+     *
+     * @param signature      the constraint's module-prefixed signature, e.g. {@code "cdc:CdcServiceConfig"}
+     * @param packageName    the library being rendered, e.g. {@code "mssql"}
+     * @param foreignLibrary the {@code org/module} owning the annotation, or {@code null} when it is the
+     *                       library's own
+     * @return the {@code {name, links}} pair
+     */
+    static Type resolveAnnotationConstraint(String signature, String packageName,
+                                            String foreignLibrary) {
+        if (foreignLibrary == null) {
+            return resolveTypeWithLinks(signature, packageName);
+        }
+
+        String bareName = stripAlias(signature);
+        Type type = new Type(bareName);
+        type.setLinks(List.of(new TypeLink("external", bareName, foreignLibrary)));
+        return type;
+    }
+
+    /** Drops a leading {@code alias:} qualifier, leaving the bare type name. */
+    private static String stripAlias(String signature) {
+        int idx = signature.lastIndexOf(':');
+        return idx >= 0 ? signature.substring(idx + 1) : signature;
     }
 
     /**

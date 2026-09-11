@@ -54,8 +54,6 @@ public class InstructionLoaderTest {
                 "Bundled library instruction should be gone for " + packageName);
         Assert.assertFalse(InstructionLoader.loadServiceInstruction(packageName).isPresent(),
                 "Bundled service instruction should be gone for " + packageName);
-        Assert.assertFalse(InstructionLoader.loadTestInstruction(packageName).isPresent(),
-                "Bundled test instruction should be gone for " + packageName);
     }
 
     @DataProvider(name = "packagesWithMigratedInstructions")

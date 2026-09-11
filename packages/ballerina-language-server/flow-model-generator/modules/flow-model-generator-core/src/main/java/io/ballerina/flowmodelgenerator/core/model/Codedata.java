@@ -19,6 +19,7 @@
 package io.ballerina.flowmodelgenerator.core.model;
 
 import io.ballerina.compiler.syntax.tree.Node;
+import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.tools.text.LineRange;
 
 import java.util.LinkedHashMap;
@@ -64,6 +65,19 @@ public record Codedata(NodeKind node, String org, String module, String packageN
         return sb.toString();
     }
 
+    /**
+     * Returns the package name of the codedata, and the module when the package name is absent.
+     * <p>
+     * The codedata of a node that is derived from the source does not carry the package name, since
+     * {@code CodeAnalyzer} assigns the package name to the module. A request that is built out of such a node
+     * therefore holds no package name, and the package cannot be resolved without this fallback.
+     *
+     * @return the package name to resolve the package with
+     */
+    public String resolvePackageName() {
+        return packageName == null || packageName.isEmpty() ? module : packageName;
+    }
+
     public String getImportSignature() {
         return org + "/" + module;
     }
@@ -73,7 +87,8 @@ public record Codedata(NodeKind node, String org, String module, String packageN
     }
 
     public String getModulePrefix() {
-        return module.substring(module.lastIndexOf('.') + 1);
+        // Emission-time prefix: escaped so it is valid when written into generated source / editor templates.
+        return CommonUtils.escapeModulePrefix(org, module);
     }
 
     public static class Builder<T> extends FacetedBuilder<T> {

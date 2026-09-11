@@ -40,6 +40,8 @@ on:
         required: false
       APPINSIGHTS_INSTRUMENTATION_KEY:
         required: false
+      CODECOV_TOKEN:
+        required: false
 
 jobs:
   Build:
@@ -49,6 +51,7 @@ jobs:
       COPILOT_ROOT_URL: ${{ secrets.COPILOT_ROOT_URL }}
       COPILOT_DEV_ROOT_URL: ${{ secrets.COPILOT_DEV_ROOT_URL }}
       APPINSIGHTS_INSTRUMENTATION_KEY: ${{ secrets.APPINSIGHTS_INSTRUMENTATION_KEY }}
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     with:
       ref: ${{ inputs.ref }}
       runOnAWS: false

@@ -20,10 +20,48 @@ export interface ChatReqMessage {
     message: string;
 }
 
+// Mirrors `ai:ApprovalOutcome` (renamed from `ApprovalDecision` in module-ballerina-ai#169).
+export type ApprovalOutcome = 'APPROVE' | 'REJECT';
+
+export interface ApprovalRequest {
+    id: string;
+    sessionId: string;
+    toolName: string;
+    toolDescription: string;
+    arguments: Record<string, any>;
+    toolCallId?: string;
+    batchIndex: number;
+}
+
+// Mirrors `ai:HumanDecision` (renamed from `HumanResponse`, field `decision` renamed to `outcome`,
+// in module-ballerina-ai#169).
+export interface HumanDecision {
+    outcome: ApprovalOutcome;
+    reason?: string;
+}
+
+// Sent from the webview to the extension; the extension fills in `sessionId`
+// from the active agent-chat context before posting to the service's `decision` resource.
+export interface SubmitDecisionRequest {
+    decisions: Record<string, HumanDecision>;
+}
+
+// Mirrors `ai:DecisionMessage`, the wire payload posted to a chat service's `decision` resource.
+export interface DecisionMessage {
+    sessionId: string;
+    decisions: Record<string, HumanDecision>;
+}
+
+export interface PendingApprovalInfo {
+    requests: ApprovalRequest[];
+}
+
 export interface ChatRespMessage {
     message: string;
     traceId?: string;
     executionSteps?: ExecutionStep[];
+    // Present when the agent paused for human approval instead of returning a normal reply.
+    pendingApproval?: PendingApprovalInfo;
 }
 
 export interface ExecutionStep {
@@ -53,11 +91,19 @@ export interface TraceInput {
 }
 
 export interface ChatHistoryMessage {
-    type: 'message' | 'error';
+    type: 'message' | 'error' | 'approval';
     text: string;
     isUser: boolean;
     traceId?: string;
     executionSteps?: ExecutionStep[];
+    // Present when type is 'approval': the requests the agent paused on.
+    pendingApproval?: PendingApprovalInfo;
+    // Present once the pending approval above has been resolved by the user.
+    decisions?: Record<string, HumanDecision>;
+    // Set when the user gives up on this batch via the card's Dismiss action (typically after
+    // repeated failed submissions), so the card is terminal even though some requests may
+    // still lack a decision. This is a client-side choice, not something the service reports.
+    unresolvable?: boolean;
 }
 
 export interface ChatHistoryResponse {

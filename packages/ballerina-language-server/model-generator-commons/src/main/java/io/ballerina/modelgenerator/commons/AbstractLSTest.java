@@ -444,6 +444,10 @@ public abstract class AbstractLSTest {
 
     @AfterClass
     public void shutDownLanguageServer() {
+        // The files that FileSystemUtils creates are tracked in a static list that every test class of the JVM shares.
+        // Hence, this relies on the test classes running one after the other, which the suites of this repository do.
+        // Running the classes in parallel would let this delete the files that another class is still using.
+        FileSystemUtils.deleteCreatedFiles();
         if (this.serviceEndpoint == null) {
             return;
         }

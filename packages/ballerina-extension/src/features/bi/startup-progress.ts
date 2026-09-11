@@ -35,14 +35,8 @@ export const PENDING_INTEGRATION_ARTIFACT_KEY = "ballerina.pendingIntegrationArt
 export const PENDING_ARTIFACT_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
 /**
- * Where the reloaded window lands once the create finishes. A brand-new project opens on
- * its own overview (the user just made the project, so that is the thing they made);
- * adding into a project that already exists opens the new package instead, since the
- * project itself is not the news.
+ * globalState value written before the reload; the filled artifact model lives in the project's `target/.wizard-pending-artifact.json`.
  */
-export type PendingIntegrationLanding = "project" | "package";
-
-/** globalState value written before the reload; the filled artifact model lives in the project's `target/.wizard-pending-artifact.json`. */
 export interface PendingIntegrationArtifactPointer {
     projectRoot: string;
     /** epoch ms — used to discard stale entries (> 10 min). */
@@ -57,8 +51,6 @@ export interface PendingIntegrationArtifactPointer {
     isNewProject?: boolean;
     /** Integration vs library — the progress screen names them differently. */
     componentLabel?: IntegrationComponentLabel;
-    /** Decided at submit time, where all the routing context is; absent on pointers written by an older build. */
-    landing?: PendingIntegrationLanding;
 }
 
 /** What the reloaded window narrates while it finishes a create started before the reload. */

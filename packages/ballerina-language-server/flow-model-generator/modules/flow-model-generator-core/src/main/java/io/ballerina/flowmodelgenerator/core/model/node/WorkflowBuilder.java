@@ -29,10 +29,10 @@ import io.ballerina.flowmodelgenerator.core.model.NodeBuilder;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
-import io.ballerina.flowmodelgenerator.core.utils.FileSystemUtils;
 import io.ballerina.flowmodelgenerator.core.utils.TypeUtils;
 import io.ballerina.flowmodelgenerator.core.utils.WorkflowUtil;
 import io.ballerina.modelgenerator.commons.CommonUtils;
+import io.ballerina.modelgenerator.commons.FileSystemUtils;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.tools.text.LineRange;
@@ -76,10 +76,24 @@ public class WorkflowBuilder extends FunctionDefinitionBuilder {
     }
 
     public static void setInputTypeProperty(NodeBuilder nodeBuilder, String inputType) {
+        setInputTypeProperty(nodeBuilder, inputType, INPUT_LABEL, INPUT_DOC);
+    }
+
+    /**
+     * Adds the input-type property under a caller-supplied label. A durable agent declares the
+     * same field on its config record rather than as a function parameter, so it reads as
+     * "Input Data Type" there instead of "Workflow Input Data type".
+     *
+     * @param nodeBuilder the node builder to add the property to
+     * @param inputType the declared input type, empty when none
+     * @param label the form label
+     * @param doc the form description
+     */
+    public static void setInputTypeProperty(NodeBuilder nodeBuilder, String inputType, String label, String doc) {
         nodeBuilder.properties().custom()
                 .metadata()
-                    .label(INPUT_LABEL)
-                    .description(INPUT_DOC)
+                    .label(label)
+                    .description(doc)
                     .stepOut()
                 .type()
                     .fieldType(Property.ValueType.TYPE)

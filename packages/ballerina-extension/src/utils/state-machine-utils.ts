@@ -28,6 +28,73 @@ import { getConstructBodyString } from "./history/util";
 import { extension } from "../BalExtensionContext";
 import path from "path";
 
+/** The package a create landed on, held until the next navigation resolves. */
+let createLanding: string | undefined;
+
+/**
+ * Marks a package as the view a create just landed on.
+ *
+ * The project explorer issues its own Open Overview once its tree finishes loading, which can
+ * be after a create has landed, and would replace the new integration with the workspace
+ * overview. Claim AFTER navigating: {@link resolveCreateLandingOverride} spends the claim on the
+ * next workspace-overview navigation, and the landing must not spend its own.
+ */
+export function claimCreateLanding(projectPath: string): void {
+    createLanding = projectPath;
+}
+
+/** Drops the claim — for a caller that means the workspace overview literally, i.e. Home. */
+export function releaseCreateLanding(): void {
+    createLanding = undefined;
+}
+
+/**
+ * Redirects a workspace-overview navigation after a create back to the package it landed on.
+ *
+ * Startup issues more than one navigation, and their order relative to the create varies run to
+ * run: a bare "show the visualizer" arrives either side of the landing, and the workspace
+ * overview follows it. Spending the claim on the first navigation of any kind therefore made the
+ * fix intermittent — the bare one would spend it, leaving the workspace overview to win.
+ *
+ * So only the navigation the claim exists for spends it. A bare navigation resolves against the
+ * context, which the landing has already pointed at the new package, so letting it pass changes
+ * nothing. A navigation naming some other view is the user moving on, and releases the claim so
+ * it cannot affect a workspace overview they ask for later.
+ */
+export function resolveCreateLandingOverride(
+    viewLocation: VisualizerLocation,
+    deliverable: boolean,
+    contextProjectPath?: string
+): VisualizerLocation | undefined {
+    // `OPEN_VIEW` is handled only in `extensionReady` and `viewActive.viewReady`, so a navigation
+    // sent mid-load is dropped. Spending the claim on one that never happens would leave the next
+    // workspace overview unopposed, so a navigation that will not be delivered is not an event
+    // this claim has any business reacting to.
+    if (!createLanding || !deliverable) {
+        return undefined;
+    }
+    if (viewLocation.view === MACHINE_VIEW.WorkspaceOverview) {
+        const claimed = createLanding;
+        createLanding = undefined;
+        return { view: MACHINE_VIEW.PackageOverview, projectPath: claimed };
+    }
+    // Only the claimed package's own overview leaves the claim standing. Any other view — including
+    // a different package's overview, reachable from the config generator, Try It, the doc command
+    // and the BI diagram manager — is the user somewhere else, and must not leave a claim behind to
+    // redirect them back here.
+    // Compared against the path `openView` will actually resolve, not just the one named here: a
+    // package overview carrying no path falls back to the context's, which is frequently a
+    // different package (several commands navigate that way).
+    const resolvedProjectPath = viewLocation.projectPath || contextProjectPath;
+    const staysOnClaimedPackage =
+        viewLocation.view === MACHINE_VIEW.PackageOverview &&
+        (!resolvedProjectPath || isSamePath(resolvedProjectPath, createLanding));
+    if (viewLocation.view && !staysOnClaimedPackage) {
+        createLanding = undefined;
+    }
+    return undefined;
+}
+
 /**
  * The single integration a workspace holds, or undefined when it holds anything else.
  *
@@ -83,6 +150,16 @@ export function resolveSingleIntegrationOverride(
     return soleIntegration
         ? { view: MACHINE_VIEW.PackageOverview, projectPath: soleIntegration.projectPath }
         : undefined;
+}
+
+const DISRUPTIVE_TRANSITION_EVENTS = new Set(["VIEW_UPDATE", "UPDATE_PROJECT_STRUCTURE"]);
+
+// The agent's live edits replay VIEW_UPDATE on every write; navigation the user asked for is never withheld.
+export function shouldSuppressDisruptiveTransition(
+    event: { type: string; userInitiated?: boolean },
+    generationActive: boolean
+): boolean {
+    return generationActive && DISRUPTIVE_TRANSITION_EVENTS.has(event.type) && !event.userInitiated;
 }
 
 export async function getView(documentUri: string, position: NodePosition, projectPath: string): Promise<HistoryEntry> {
@@ -336,6 +413,11 @@ function getViewByArtifacts(documentUri: string, position: NodePosition, project
     if (currentProjectArtifacts) {
         // Iterate through each category in the directory map
         const project = currentProjectArtifacts.projects.find(project => isSamePath(project.projectPath, projectPath));
+        if (!project) {
+            // The project structure can be mid-rebuild (e.g. a live Copilot generation editing
+            // files) when this runs; fall back to the overview rather than dereference undefined.
+            return { location: { view: MACHINE_VIEW.PackageOverview, documentUri: documentUri } };
+        }
         for (const [key, directory] of Object.entries(project.directoryMap)) {
             // Check each artifact in the category
             for (const dir of directory) {
@@ -396,18 +478,15 @@ function findViewByArtifact(
                             artifactType: DIRECTORY_MAP.SERVICE
                         }
                     };
-                } else if (dir.moduleName === "ai") {
-                    return {
-                        location: {
-                            view: MACHINE_VIEW.BIDiagram,
-                            identifier: dir.name,
-                            documentUri: currentDocumentUri,
-                            position: position,
-                            projectPath: projectPath,
-                            artifactType: DIRECTORY_MAP.SERVICE,
-                        }
-                    };
                 } else {
+                    // `ai` (chat agent) services used to force MACHINE_VIEW.BIDiagram here so that
+                    // clicking the service always landed straight on the chat flow. That's no
+                    // longer needed: a click on the `chat` or `decision` resource itself already
+                    // resolves to BIDiagram via the DIRECTORY_MAP.RESOURCE case below (matched
+                    // against `dir.resources` before this parent entry is even checked). This
+                    // branch is only reached for a click on the service's own declaration — the
+                    // component diagram's outer-box click for a HITL-wired agent — which should
+                    // land on the same resource listing every other service type gets.
                     return {
                         location: {
                             view: MACHINE_VIEW.ServiceDesigner,

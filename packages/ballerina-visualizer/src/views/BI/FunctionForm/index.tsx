@@ -17,7 +17,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { CodeData, FunctionNode, LineRange, NodeKind, NodeProperties, NodePropertyKey, DIRECTORY_MAP, EVENT_TYPE, getPrimaryInputType, isTemplateType, RecordTypeField } from "@wso2/ballerina-core";
+import { FunctionNode, LineRange, NodeKind, NodeProperties, NodePropertyKey, DIRECTORY_MAP, EVENT_TYPE, getPrimaryInputType, isTemplateType, RecordTypeField } from "@wso2/ballerina-core";
 import { Button, Codicon, Typography, View, ViewContent } from "@wso2/ui-toolkit";
 import styled from "@emotion/styled";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
@@ -26,22 +26,9 @@ import ArtifactForm from "../Forms/ArtifactForm";
 import { TitleBar } from "../../../components/TitleBar";
 import { TopNavigationBar } from "../../../components/TopNavigationBar";
 import { FormHeader } from "../../../components/FormHeader";
-import { convertConfig, getImportsForProperty } from "../../../utils/bi";
-import { getNodeTemplate } from "../AIChatAgent/utils";
+import { convertConfig, getImportsForProperty, orderFormFields, DURABLE_AGENT_FORM_ORDER } from "../../../utils/bi";
 import { BodyText, LoadingContainer, TopBar } from "../../styles";
 import { LoadingRing } from "../../../components/Loader";
-
-
-// Durable agents run their LLM calls through a module-level `ai:ModelProvider`. Creating a
-// durable agent ensures the shared WSO2 default provider exists (mirrors AIChatAgentWizard).
-const WSO2_MODEL_PROVIDER_CODEDATA: CodeData = {
-    node: "MODEL_PROVIDER",
-    org: "ballerina",
-    module: "ai",
-    packageName: "ai",
-    symbol: "getDefaultModelProvider",
-};
-const WSO2_MODEL_PROVIDER_VAR = "wso2ModelProvider";
 
 // Default (auto-numbered) name offered by the Durable Agentic Workflow creation form.
 const DURABLE_AGENT_DEFAULT_NAME = "durableAgenticWorkflow";
@@ -181,12 +168,12 @@ export function FunctionForm(props: FunctionFormProps) {
             }
         });
 
-        // Durable Agentic Workflow form. Create mode is name-only: the function template
-        // supplies the context/input parameters, and the model, instructions and
-        // capabilities are configured on the agent diagram afterwards. Edit mode
-        // additionally shows the input parameter (type + name) but still hides the Public
-        // checkbox, the return type fields, the workflow:AgenticWorkflowContext context
-        // parameter row and the Add Parameter action.
+        // Durable Agentic Workflow form. Create mode asks for the agent's identity — Name,
+        // Model, Role, Instructions and an optional Input Data Type — which is everything the
+        // declaration is generated from; its capabilities are added on the agent diagram
+        // afterwards. Edit mode additionally shows the input parameter (type + name) but still
+        // hides the Public checkbox, the return type fields, the workflow:AgenticWorkflowContext
+        // context parameter row and the Add Parameter action.
         if (isDurableAgent) {
             const isCreateMode = !functionName;
             const isContextParam = (param: Parameter) =>
@@ -215,6 +202,11 @@ export function FunctionForm(props: FunctionFormProps) {
                     }
                 }
             });
+            if (isCreateMode) {
+                // convertConfig sorts by property key, which reads as Name, Input Data Type,
+                // Instructions, Model, Role. Restore the order the fields are filled in.
+                fields = orderFormFields(fields, DURABLE_AGENT_FORM_ORDER);
+            }
         }
 
         setFunctionFields(fields);
@@ -379,37 +371,14 @@ export function FunctionForm(props: FunctionFormProps) {
         console.log("Existing Function Node: ", flowNode);
     }
 
-    // Ensure the project has a model provider for the new durable agent. If ANY provider
-    // already exists, reuse it and create nothing (the generated run call references the
-    // existing provider). Only when the project has no provider at all do we create the
-    // shared WSO2 default provider and write its Config.toml entry. Failures are non-fatal:
-    // the agent function is already created and a provider can be configured from the model
-    // circle. */
-    const ensureWso2ModelProvider = async () => {
+    // Writes the WSO2 default provider's Config.toml entry (service URL + token) after an
+    // agent creation that declared the provider. Failures are non-fatal: the agent is already
+    // created and the provider can be configured from the agent's model circle.
+    const configureWso2ModelProvider = async () => {
         try {
-            const existingModelProviders = await rpcClient.getBIDiagramRpcClient().searchNodes({
-                filePath: projectPath,
-                query: { kind: "MODEL_PROVIDER" as NodeKind }
-            });
-            const hasAnyProvider = (existingModelProviders?.output?.length ?? 0) > 0;
-            if (hasAnyProvider) {
-                // A provider already exists — the agent's run call references it; nothing to create.
-                return;
-            }
-            const modelNodeTemplate = await getNodeTemplate(rpcClient, WSO2_MODEL_PROVIDER_CODEDATA, projectPath);
-            modelNodeTemplate.properties.variable.value = WSO2_MODEL_PROVIDER_VAR;
-            const response = await rpcClient
-                .getBIDiagramRpcClient()
-                .getSourceCode({ filePath: projectPath, flowNode: modelNodeTemplate });
-            if (response?.error) {
-                // `getSourceCode` reports LS failures as `{ artifacts: [], error }` rather than
-                // rejecting; the provider was never written, so don't configure it.
-                console.error("Failed to create the default model provider:", response.error);
-                return;
-            }
             await rpcClient.getAIAgentRpcClient().configureDefaultModelProvider("model");
         } catch (error) {
-            console.error("Failed to ensure a default model provider:", error);
+            console.error("Failed to configure the default model provider:", error);
         }
     };
 
@@ -528,8 +497,13 @@ export function FunctionForm(props: FunctionFormProps) {
         } else {
             const newArtifact = sourceCode.artifacts.find(res => res.isNew);
             if (newArtifact) {
-                if (isDurableAgent) {
-                    await ensureWso2ModelProvider();
+                // The LS reports whether it declared the shared WSO2 default provider; that
+                // provider reads its URL and token from Config.toml, so those entries are written
+                // exactly when it was declared. Asking the project beforehand instead answered a
+                // different question — "any model provider at all" — and skipped the write for a
+                // package whose only provider was, say, an OpenAI one.
+                if (sourceCode.declaredDefaultModelProvider) {
+                    await configureWso2ModelProvider();
                 }
                 if (isPopup) {
                     handleClosePopup(functionNodeCopy.properties.functionName.value as string);

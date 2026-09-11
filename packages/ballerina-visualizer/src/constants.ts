@@ -51,6 +51,7 @@ export const RESOURCE_ACTION_CALL = "RESOURCE_ACTION_CALL";
 export const REMOTE_ACTION_CALL = "REMOTE_ACTION_CALL";
 export const FUNCTION_CALL = "FUNCTION_CALL";
 export const METHOD_CALL = "METHOD_CALL";
+export const NEW_CONNECTION = "NEW_CONNECTION";
 
 export const LOADING_MESSAGE = "Loading...";
 export const FORM_LOADING_MESSAGE = "Loading form...";

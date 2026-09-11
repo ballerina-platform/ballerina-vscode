@@ -28,15 +28,22 @@ import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
 import { DiagnosticsPopUp } from "../../DiagnosticsPopUp";
 import {
     getAgentDataEventName,
+    getHumanTaskUserRoles,
+    getNodeTitle,
+    isHumanTaskNode,
     isReceiveEventNode,
     getDiffContainerStyles,
     getDiffTitleStyles,
+    hasWaitTimeout,
     nodeHasError,
+    normalizeNodePropertyValue,
 } from "../../../utils/node";
 import { WaitDataNodeModel } from "./WaitDataNodeModel";
 import {
     HIGHLIGHT_NODE_BORDER_COLOR,
     HIGHLIGHT_NODE_BORDER_WIDTH,
+    HUMAN_TASK_ROLES_LABEL_GAP,
+    HUMAN_TASK_ROLES_LABEL_WIDTH,
     NODE_BG_BREAKPOINT_COLOR,
     NODE_BG_COLOR,
     NODE_BG_HOVER_COLOR,
@@ -59,6 +66,18 @@ import {
 const EXTERNAL_DOT_RADIUS = 4;
 const SOURCE_BOX_SIZE = 44;
 const EXTERNAL_DOT_STROKE = 2.5;
+// The source box's stroke is centered on its path, so its left edge needs at least half this
+// margin from x=0 or the SVG viewport clips it — see sourceBoxX below.
+const SOURCE_BOX_STROKE_WIDTH = 1.5;
+// The roles beside the source box are drawn as SVG text, which neither wraps nor ellipsizes, so
+// they are trimmed to what the reserved strip holds. The advance approximates the label font's.
+const SOURCE_LABEL_FONT_SIZE = 12;
+const SOURCE_LABEL_CHAR_WIDTH = 6.6;
+
+function fitSourceLabel(label: string, availableWidth: number): string {
+    const maxChars = Math.max(4, Math.floor(availableWidth / SOURCE_LABEL_CHAR_WIDTH));
+    return label.length > maxChars ? `${label.slice(0, maxChars - 1)}…` : label;
+}
 
 export namespace NodeStyles {
     export type NodeStyleProp = {
@@ -72,7 +91,10 @@ export namespace NodeStyles {
     export const Node = styled.div<{ readOnly: boolean }>`
         display: flex;
         flex-direction: row;
-        align-items: center;
+        /* Flush the circle (and its ports) to the top, like every other node's outer row
+           (ApiCallNode, SendDataNode, CallActivityNode) — centering it inside the taller
+           source-arrow SVG would recess the ports and stretch the links connecting here. */
+        align-items: flex-start;
         color: ${NODE_TEXT_COLOR};
         cursor: ${(props: { readOnly: boolean }) => (props.readOnly ? "default" : "pointer")};
     `;
@@ -161,7 +183,6 @@ export namespace NodeStyles {
         display: flex;
         flex-direction: row;
         /* Pinned to the top-right of the box, as on every other node. */
-        align-self: flex-start;
         margin-left: auto;
         align-items: center;
         gap: 2px;
@@ -179,15 +200,16 @@ interface WaitDataNodeWidgetProps {
     onClick?: (node: FlowNode) => void;
 }
 
-function normalizeNodePropertyValue(value?: string): string {
-    if (typeof value !== "string") {
-        return "";
+function getWaitDataInfo(node: FlowNode): { title: string; subtitle: string } {
+    // A human task waits on a person, not on a declared channel, so it keeps the label and the
+    // result variable it read as a plain node — only the shape changes.
+    if (isHumanTaskNode(node)) {
+        return {
+            title: getNodeTitle(node),
+            subtitle: normalizeNodePropertyValue((node.properties as any)?.variable?.value as string | undefined),
+        };
     }
 
-    return value.trim().replace(/^["']|["']$/g, "");
-}
-
-function getWaitDataInfo(node: FlowNode): { title: string; subtitle: string } {
     // A durable agent's wait names the channel it is waiting on. The call itself carries only the
     // correlation token, so the channel comes from metadata — the language server recovers it from
     // the sendData that issued the token.
@@ -283,6 +305,18 @@ export function WaitDataNodeWidget(props: WaitDataNodeWidgetProps) {
     const { title: nodeTitle, subtitle: nodeSubtitle } = getWaitDataInfo(model.node);
     // The counterpart of the send node's target: who the awaited event comes from.
     const sourceName = (model.node.metadata?.data as { agentName?: string } | undefined)?.agentName;
+    const isHumanTask = isHumanTaskNode(model.node);
+    // A human task is waiting on a person, so the person is the source on the left and the body
+    // carries the same glyph — the wait node keeps one icon on both ends of its arrow.
+    const nodeIconName = isHumanTask ? "bi-user" : isReceiveEventNode(model.node) ? "bi-import" : "bi-wait";
+    const sourceIconName = isHumanTask ? "bi-user" : sourceName ? "bi-ai-agent" : "bi-import";
+    // A configured timeout is a deadline on the wait: surface it with the same clock badge the
+    // plain node used.
+    const hasTimeout = hasWaitTimeout(model.node);
+    // Who the task is waiting on: the roles named on the statement, reading into the person icon
+    // they describe.
+    const userRoles = isHumanTask ? getHumanTaskUserRoles(model.node) : [];
+    const userRolesLabel = userRoles.join(", ");
 
     // Compute layout positions for the external arrow SVG
     const circleRadius = WAIT_DATA_CIRCLE_SIZE / 2;
@@ -293,10 +327,21 @@ export function WaitDataNodeWidget(props: WaitDataNodeWidgetProps) {
         ? Math.max(model.node.viewState.lw - NODE_WIDTH / 2, SOURCE_BOX_SIZE + NODE_GAP_X)
         : SOURCE_BOX_SIZE + NODE_GAP_X;
     const svgHeight = NODE_HEIGHT + LABEL_HEIGHT;
-    const svgMidY = (NODE_HEIGHT + LABEL_HEIGHT) / 2;
-    // The source sits at the far left, and the arrow runs from it into the body.
+    // The circle now sits flush at the top of the row (see NodeStyles.Node), so the arrow and
+    // source box must aim at the circle's own center, not the taller SVG's center.
+    const svgMidY = NODE_HEIGHT / 2;
+    // The roles read into the person they name, so they take the strip the sizing visitor reserved
+    // at the far left and the source box starts after it. Clamped, so a stale view state shrinks
+    // the strip rather than pushing the box out of the node.
+    const rolesLabelWidth = userRolesLabel
+        ? Math.max(0, Math.min(HUMAN_TASK_ROLES_LABEL_WIDTH, svgWidth - SOURCE_BOX_SIZE))
+        : 0;
+    // The source sits at the far left, and the arrow runs from it into the body. Clamped to at
+    // least half the box's stroke width so the left edge always has room to render its full
+    // stroke inside the SVG viewport instead of getting clipped at x=0.
+    const sourceBoxX = Math.max(rolesLabelWidth, SOURCE_BOX_STROKE_WIDTH / 2);
     const sourceBoxY = svgMidY - SOURCE_BOX_SIZE / 2;
-    const lineX1 = SOURCE_BOX_SIZE;
+    const lineX1 = sourceBoxX + SOURCE_BOX_SIZE;
     const arrowColor = isHovered && !readOnly ? NODE_BORDER_SELECTED_COLOR : NODE_TEXT_COLOR;
 
     const selectNode = () => {
@@ -386,16 +431,16 @@ export function WaitDataNodeWidget(props: WaitDataNodeWidgetProps) {
                 style={{ flexShrink: 0 }}
             >
                 <rect
-                    x={0}
+                    x={sourceBoxX}
                     y={sourceBoxY}
                     width={SOURCE_BOX_SIZE}
                     height={SOURCE_BOX_SIZE}
                     rx={12}
                     fill={NODE_BG_COLOR}
                     stroke={arrowColor}
-                    strokeWidth={1.5}
+                    strokeWidth={SOURCE_BOX_STROKE_WIDTH}
                 />
-                <foreignObject x={0} y={sourceBoxY} width={SOURCE_BOX_SIZE} height={SOURCE_BOX_SIZE}>
+                <foreignObject x={sourceBoxX} y={sourceBoxY} width={SOURCE_BOX_SIZE} height={SOURCE_BOX_SIZE}>
                     <div
                         style={{
                             width: `${SOURCE_BOX_SIZE}px`,
@@ -405,12 +450,12 @@ export function WaitDataNodeWidget(props: WaitDataNodeWidgetProps) {
                             justifyContent: "center",
                         }}
                     >
-                        <Icon name={sourceName ? "bi-ai-agent" : "bi-import"} sx={{ width: 24, height: 24, fontSize: 24 }} />
+                        <Icon name={sourceIconName} sx={{ width: 24, height: 24, fontSize: 24 }} />
                     </div>
                 </foreignObject>
                 {sourceName && (
                     <text
-                        x={0}
+                        x={sourceBoxX}
                         y={svgHeight - 2}
                         textAnchor="start"
                         fill={NODE_TEXT_COLOR}
@@ -418,6 +463,20 @@ export function WaitDataNodeWidget(props: WaitDataNodeWidgetProps) {
                         fontFamily="GilmerRegular"
                     >
                         {sourceName}
+                    </text>
+                )}
+                {userRolesLabel && rolesLabelWidth > 0 && (
+                    <text
+                        x={sourceBoxX - HUMAN_TASK_ROLES_LABEL_GAP}
+                        y={svgMidY}
+                        textAnchor="end"
+                        dominantBaseline="central"
+                        fill={NODE_TEXT_COLOR}
+                        fontSize={`${SOURCE_LABEL_FONT_SIZE}px`}
+                        fontFamily="GilmerRegular"
+                    >
+                        <title>{userRolesLabel}</title>
+                        {fitSourceLabel(userRolesLabel, rolesLabelWidth - HUMAN_TASK_ROLES_LABEL_GAP)}
                     </text>
                 )}
                 <line
@@ -471,14 +530,37 @@ export function WaitDataNodeWidget(props: WaitDataNodeWidgetProps) {
                         style={getDiffContainerStyles(model.node)}
                         onClick={handleOnClick}
                     >
-                        <Icon
-                            // Receiving a declared event is the same act whether a workflow or an
-                            // agent does it, so it carries the agent box's receive-event icon. The
-                            // timer is kept for the waits that are only waits — a child workflow's
-                            // result, or an agent's answer to a turn.
-                            name={isReceiveEventNode(model.node) ? "bi-import" : "bi-wait"}
-                            sx={{ fontSize: 24, width: 24, height: 24, color: NODE_TEXT_COLOR }}
-                        />
+                        <div style={{ position: "relative", display: "flex", flexShrink: 0 }}>
+                            <Icon
+                                // Receiving a declared event is the same act whether a workflow or an
+                                // agent does it, so it carries the agent box's receive-event icon. The
+                                // timer is kept for the waits that are only waits — a child workflow's
+                                // result, or an agent's answer to a turn.
+                                name={nodeIconName}
+                                sx={{ fontSize: 24, width: 24, height: 24, color: NODE_TEXT_COLOR }}
+                            />
+                            {hasTimeout && (
+                                <div
+                                    style={{
+                                        position: "absolute",
+                                        right: "-3px",
+                                        bottom: "-1px",
+                                        width: "12px",
+                                        height: "12px",
+                                        borderRadius: "50%",
+                                        background: NODE_BG_COLOR,
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                    }}
+                                >
+                                    <Icon
+                                        name="bi-clock"
+                                        sx={{ fontSize: "13px", width: "13px", height: "13px", color: NODE_TEXT_COLOR }}
+                                    />
+                                </div>
+                            )}
+                        </div>
                         <NodeStyles.TextGroup>
                             <NodeStyles.Title style={getDiffTitleStyles(model.node)}>{nodeTitle}</NodeStyles.Title>
                             <NodeStyles.Subtitle>{nodeSubtitle}</NodeStyles.Subtitle>

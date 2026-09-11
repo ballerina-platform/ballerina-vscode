@@ -24,7 +24,7 @@ import { Button, Codicon, Dropdown, Tooltip, Typography } from "@wso2/ui-toolkit
 import { TypeProps } from "../../ParameterBranch";
 import { useHelperPaneStyles } from "../../styles";
 import { MemoizedParameterBranch } from "../../ParameterBranch";
-import { isRequiredParam, updateFieldsSelection, resetFieldValues, getUnionFormFieldName } from "../../utils";
+import { getOptionalityLabel, isRequiredParam, updateFieldsSelection, resetFieldValues, getUnionFormFieldName } from "../../utils";
 
 interface ElementEntry {
     id: number;
@@ -274,7 +274,7 @@ export default function ArrayType(props: TypeProps & { bodyOnly?: boolean }) {
                     </Typography>
                     <Typography className={helperStyleClass.suggestionDataType} variant="body3">
                         {elementTypeName}[]
-                        {(param.optional || param.defaultable) && " (Optional)"}
+                        {getOptionalityLabel(param)}
                     </Typography>
                     {param.documentation && (
                         <Tooltip

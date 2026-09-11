@@ -18,7 +18,7 @@
 
 import { FlowNode } from "@wso2/ballerina-core";
 import { AddMcpServer } from "./AddMcpServer";
-import { AddTool } from "./AddTool";
+import { ADD_TOOL_TITLE, AddTool, addToolTitle } from "./AddTool";
 import { MemoryManagerConfig } from "./MemoryManagerConfig";
 import { NewTool, NewToolSelectionMode } from "./NewTool";
 import { UseAgentTool } from "./UseAgentTool";
@@ -28,10 +28,14 @@ import { AgentEditorController } from "./useAgentEditorController";
 export function getAgentEditorPanelTitle(controller: AgentEditorController): string {
     switch (controller.view) {
         case "MEMORY": return "Configure Memory";
-        case "NEW_TOOL_AGENT_FORM": return "Use Agent";
-        case "ADD_MCP": return "Add MCP Server";
+        case "NEW_TOOL_CONNECTION": return addToolTitle("CONNECTION");
+        case "NEW_TOOL_FUNCTION": return addToolTitle("FUNCTION");
+        case "NEW_TOOL_CUSTOM": return addToolTitle("CUSTOM");
+        case "NEW_TOOL_AGENT":
+        case "NEW_TOOL_AGENT_FORM": return addToolTitle("AGENT");
+        case "ADD_MCP": return addToolTitle("MCP");
         case "EDIT_MCP": return "Edit MCP Server";
-        default: return "Add Tool";
+        default: return ADD_TOOL_TITLE;
     }
 }
 
@@ -56,7 +60,8 @@ export function AgentEditorPanelContent({ controller }: { controller: AgentEdito
                 mode={controller.view === "NEW_TOOL_CUSTOM" ? NewToolSelectionMode.CUSTOM_TOOL
                     : controller.view === "NEW_TOOL_CONNECTION" ? NewToolSelectionMode.CONNECTION
                         : NewToolSelectionMode.FUNCTION}
-                onSave={controller.close} onBack={controller.back} />;
+                onSave={controller.close} onBack={controller.back}
+                onSetBackOverride={controller.setBackHandler} />;
         case "NEW_TOOL_AGENT":
             return <UseAgentTool agentNode={agent} onSelectAgent={controller.selectAgent}
                 onAgentCreated={controller.onAgentCreated} />;

@@ -31,6 +31,7 @@ import io.ballerina.compiler.api.symbols.TypeDescKind;
 import io.ballerina.compiler.api.symbols.TypeSymbol;
 import io.ballerina.compiler.api.symbols.UnionTypeSymbol;
 import io.ballerina.compiler.api.values.ConstantValue;
+import io.ballerina.compiler.syntax.tree.SyntaxInfo;
 import io.ballerina.modelgenerator.commons.FieldData;
 import io.ballerina.modelgenerator.commons.FunctionDataBuilder;
 import io.ballerina.modelgenerator.commons.TypeDefData;
@@ -145,6 +146,24 @@ public class TypeDefDataBuilder {
                 new ArrayList<>(), constantValue);
     }
 
+    /**
+     * A field name the model can copy into a record literal verbatim. A field whose name is not a legal bare
+     * identifier must be written quoted (googleapis.calendar declares {@code 'start} and {@code 'source}) or
+     * the emitted Ballerina does not compile. The symbol carries that leading quote only when it was built
+     * from source: for a field whose symbol comes from a BALA-loaded dependency the name arrives bare, so
+     * requote at emission rather than trusting the symbol.
+     *
+     * <p>{@link SyntaxInfo#isIdentifier} rather than {@code isKeyword} is the right test: {@code key} is a
+     * keyword yet legal bare (ballerina/crypto declares it unquoted), so keying off {@code isKeyword} would
+     * quote names that must stay bare. Idempotent -- an already-quoted name is returned unchanged.
+     */
+    private static String quoteIfRequired(String fieldName) {
+        if (fieldName.isEmpty() || fieldName.startsWith("'") || SyntaxInfo.isIdentifier(fieldName)) {
+            return fieldName;
+        }
+        return "'" + fieldName;
+    }
+
     private static void extractRecordFields(RecordTypeSymbol recordType, List<FieldData> fields,
                                             TypeDefinitionSymbol typeDefSymbol) {
         // Get parameter documentation map from type definition
@@ -165,7 +184,7 @@ public class TypeDefDataBuilder {
             boolean optional = fieldSymbol.isOptional() || fieldSymbol.hasDefaultValue();
 
             FieldData.FieldType fieldType = new FieldData.FieldType(fieldTypeSymbol.signature(), fieldTypeSymbol);
-            fields.add(new FieldData(fieldName, fieldDescription, fieldType, optional));
+            fields.add(new FieldData(quoteIfRequired(fieldName), fieldDescription, fieldType, optional));
         });
 
         // Handle rest field if present and not ANYDATA

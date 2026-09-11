@@ -22,6 +22,33 @@ export interface GetFunctionsRequest {
     clients: MinifiedClient[];
     functions?: MinifiedRemoteFunction[];
     services?: MinifiedService[];
+    classes?: MinifiedClassTypeDef[];
+    annotations?: MinifiedAnnotation[];
+}
+
+/**
+ * One class or object type as the request states it.
+ *
+ * Without these the selection model never saw a library's class members, so a query about one matched
+ * nothing and the library was dropped whole. Shaped like {@link MinifiedClient}: structurally the same
+ * thing, and the difference (a client is invoked with `->`) is not one this model reasons about.
+ */
+export interface MinifiedClassTypeDef {
+    name: string;
+    description?: string;
+    functions: (MinifiedRemoteFunction | MinifiedResourceFunction)[];
+}
+
+/**
+ * One annotation as the request states it.
+ *
+ * Evidence only — annotations have no response field, because the library keeps all of them either way.
+ * Sending them lets a library be *matched* on one rather than depending on a function mentioning it.
+ */
+export interface MinifiedAnnotation {
+    name: string;
+    attachmentPoint: string;
+    description?: string;
 }
 
 export interface MinifiedClient {
@@ -33,7 +60,72 @@ export interface MinifiedClient {
 export interface MinifiedService {
     listener: string;
     name?: string;
-    methods?: string[];
+    /**
+     * The spec §3 `doc` — what this service type is for, as the document states it.
+     *
+     * The strongest relevance signal a service entry has, and the reason it is worth sending: spec `$defs
+     * .serviceType` gives a service type no description a symbol could carry, so before this the selection
+     * model saw a bare type name (`Service`, `CalendarService`) and had to infer from it whether a library
+     * answered the query. The 2026-08-19 revision made `doc` required on every service type — `concrete`
+     * ones included — precisely so every construct is self-describing, which makes it available here.
+     */
+    doc?: string;
+    /**
+     * The spec §2 `doc` of the listener this service attaches to.
+     *
+     * Carried per service entry rather than once per library because the request has no library-level
+     * listener slot, and because an entry that stated nothing about its trigger mechanism would read as
+     * less relevant than its siblings — which is the opposite of what deduplication is for. A library's
+     * service types usually share one listener, so the repetition is real; it is bounded by the cap in
+     * `library-selection`, and the largest corpus case ({@code ballerinax/trigger.github}, ten service
+     * types) costs under 2 KB of a request that already carries ten entries.
+     *
+     * It answers a different question from {@link doc}: what the service *receives* versus how it is
+     * *triggered*. "Polls the watched directory", "webhook that dispatches each inbound update" and
+     * "consumes from the subscribed topics" are all matches a query can be about, and none of them is
+     * recoverable from a listener class named `Listener`.
+     */
+    listenerDoc?: string;
+    methods?: MinifiedHandler[];
+}
+
+/**
+ * One handler, as the *request* states it for the selection model.
+ *
+ * Carries `doc` because a handler is the finest grain a query can match on, and nothing else states what
+ * one is for: a marker service type declares no method, so no symbol carries a doc comment for its
+ * handlers, and the document's authored line (58 of 58 handler options in the corpus carry one) is the
+ * only description of it that exists. They were being dropped on the way in while being rendered for the
+ * generating model.
+ *
+ * It is no longer the *whole* semantic signal a service carries — the 2026-08-19 spec made `doc` required
+ * on `serviceTypes[]` and `listeners[]` too, and {@link MinifiedService} now sends both — but it remains
+ * the only per-handler one, which is what lets a query about one event match a library declaring twelve.
+ *
+ * First line only, and capped: the judgement needs what the handler is *for*, not the paragraph on how to
+ * write it, and an uncapped field would let one verbose document dominate the request.
+ */
+export interface MinifiedHandler {
+    name: string;
+    doc?: string;
+}
+
+/**
+ * One service the selection model kept, as it comes back in the response.
+ *
+ * Deliberately narrower than {@link MinifiedService}, which is the *request* shape. The request carries
+ * `methods` because handler names are what make a service recognisably relevant to a query — that is input
+ * the model reasons over. The response does not, because a selected service is re-inflated from the original
+ * library whole: its methods, handler templates and constraints have to agree with each other, and
+ * `renderConstraintLines` emits notes naming handlers by name, so a per-method selection would produce
+ * constraint notes pointing at handlers no longer in the body.
+ *
+ * `listener` and `name` are therefore the entire response surface — exactly enough to identify which service
+ * was kept, and nothing the renderer would have to reconcile.
+ */
+export interface SelectedService {
+    listener: string;
+    name?: string;
 }
 
 export interface MinifiedRemoteFunction extends MiniFunction {
@@ -59,12 +151,25 @@ export interface GetFunctionResponse {
     name: string;
     clients?: MinifiedClient[];
     functions?: MinifiedRemoteFunction[];
-    services?: MinifiedService[];
+    services?: SelectedService[];
+    /**
+     * The classes the model judged relevant, by name only.
+     *
+     * Names, not member selections: a class already reaches the catalog whole when a selected function
+     * names it, so a member-level selection could only narrow what renders today. This field exists for
+     * the opposite case — pulling in a class nothing references.
+     */
+    classes?: (string | { name: string })[];
 }
 
 export interface PathParameter {
     name: string;
     type: string;
+}
+
+/** The response's class entries as plain names, whichever of the two accepted shapes the model used. */
+export function toSelectedClassNames(classes: GetFunctionResponse["classes"]): string[] {
+    return (classes ?? []).map((entry) => (typeof entry === "string" ? entry : entry?.name)).filter(Boolean) as string[];
 }
 
 const pathItemSchema = z.union([
@@ -96,17 +201,21 @@ const clientSchema = z.object({
     functions: z.array(z.union([resourceFunctionSchema, remoteFunctionSchema])),
 });
 
-const minifiedServiceSchema = z.object({
+// The response counterpart of `MinifiedService` — see `SelectedService` for why `methods` is absent here
+// while the request carries it.
+const selectedServiceSchema = z.object({
     listener: z.string(),
     name: z.string().optional(),
-    methods: z.array(z.string()).optional(),
 });
 
 const libraryResponseSchema = z.object({
     name: z.string(),
     clients: z.array(clientSchema).optional(),
     functions: z.array(remoteFunctionSchema).optional(),
-    services: z.array(minifiedServiceSchema).optional(),
+    services: z.array(selectedServiceSchema).optional(),
+    // Tolerant of the object form, because every sibling field here is an object and the model reaches for
+    // it by habit. A schema violation is total: `generateObject` throws and the agent is handed `[]`.
+    classes: z.array(z.union([z.string(), z.object({ name: z.string() })])).optional(),
 });
 
 export const getFunctionsResponseSchema = z.object({

@@ -255,6 +255,7 @@ export interface ConnectionConfigurationFormProps extends Omit<ConnectionConfigu
     devantExpressionEditor?: ExpressionEditorDevantProps;
     onSaveConfiguredConnection?: (node: FlowNode) => Promise<void>;
     footerActionButton?: boolean;
+    submitText?: string;
 }
 
 export function ConnectionConfigurationForm(props: ConnectionConfigurationFormProps) {
@@ -270,6 +271,7 @@ export function ConnectionConfigurationForm(props: ConnectionConfigurationFormPr
         overrideFlowNode,
         onSaveConfiguredConnection,
         footerActionButton,
+        submitText,
     } = props;
     const { rpcClient } = useRpcContext();
 
@@ -534,7 +536,7 @@ export function ConnectionConfigurationForm(props: ConnectionConfigurationFormPr
                         <FormContainer>
                             <ConnectionConfigView
                                 fileName={fileName}
-                                submitText={loading || savingFormStatus === SavingFormStatus.SAVING ? "Saving..." : "Save Connection"}
+                                submitText={loading || savingFormStatus === SavingFormStatus.SAVING ? "Saving..." : (submitText ?? "Save Connection")}
                                 isSaving={loading || savingFormStatus === SavingFormStatus.SAVING}
                                 selectedNode={getNodeForForm(selectedNodeRef.current)}
                                 onSubmit={handleOnFormSubmit}
