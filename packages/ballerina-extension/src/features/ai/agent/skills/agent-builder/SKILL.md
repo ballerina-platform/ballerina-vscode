@@ -185,21 +185,51 @@ supplies a fresh id per conversation, which is the behaviour the doc line descri
 
 ### Toolkits
 
-A toolkit bundles many tools behind one entry in the `tools` array. List it there directly, mixed
-with plain function tools — no wrapping, no spreading:
+Reach for a toolkit instead of separate `@ai:AgentTool` functions when the tools need to share
+state across calls — the same client connection, session, or cache — not merely because they
+relate to the same task. A toolkit bundles many tools behind one entry in the `tools` array. List
+it there directly, mixed with plain function tools — no wrapping, no spreading:
 
 ```ballerina
 tools = [<toolkitVar>, <toolName>]
 ```
 
-**MCP** — connect to an MCP server that is already running elsewhere by constructing the library's
-own toolkit class with its URL; do not implement a toolkit or an MCP server yourself:
+**MCP** — connect to an MCP server that is already running elsewhere; do not implement an MCP
+server yourself. Write this small wrapper class exactly as shown (only the names and `serverUrl`
+change) — every tool the server exposes becomes available through the one `callTool` dispatcher:
 
 ```ballerina
 import ballerina/ai;
 import ballerina/mcp;
 
-final ai:McpToolKit <toolkit> = check new ("<serverUrl>", info = {name: "<name>", version: "<version>"});
+isolated class <Toolkit> {
+    *ai:McpBaseToolKit;
+    private final mcp:StreamableHttpClient mcpClient;
+    private final readonly & ai:ToolConfig[] tools;
+
+    public isolated function init(string serverUrl, mcp:Implementation info = {name: "<name>", version: "<version>"},
+            *mcp:StreamableHttpClientTransportConfig config) returns ai:Error? {
+        do {
+            self.mcpClient = check new mcp:StreamableHttpClient(serverUrl, config);
+            self.tools = check ai:getPermittedMcpToolConfigs(self.mcpClient, info, self.callTool).cloneReadOnly();
+        } on fail error e {
+            return error ai:Error("Failed to initialize MCP toolkit", e);
+        }
+    }
+
+    public isolated function getTools() returns ai:ToolConfig[] => self.tools;
+
+    @ai:AgentTool
+    public isolated function callTool(mcp:CallToolParams params) returns mcp:CallToolResult|error {
+        return self.mcpClient->callTool(params);
+    }
+}
+```
+
+Construct it with the server's URL and list it in `tools` like any other toolkit:
+
+```ballerina
+final <Toolkit> <toolkitVar> = check new ("<serverUrl>");
 ```
 
 **OpenAPI has no toolkit type.** Despite sounding parallel to MCP, an OpenAPI spec does not produce
