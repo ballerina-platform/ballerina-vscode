@@ -18,24 +18,28 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { parse, stringify } from '@iarna/toml';
+import { TracingProvider } from '@wso2/ballerina-core';
 import { OTLP_PORT } from './constants';
 
 /**
  * Sets tracing configuration in Config.toml and Ballerina.toml files
- * 
+ *
  * This function will:
  * - Read existing Config.toml if it exists
- * - Update or add [ballerina.observe] section with tracingEnabled = true and tracingProvider = "idetraceprovider"
- * - Update or add [ballerinax.idetraceprovider] section with endpoint = "http://localhost:<port>/v1/traces"
+ * - Update or add [ballerina.observe] section with tracingEnabled = true and tracingProvider = "idetraceprovider" or "amp"
  * - Read existing Ballerina.toml if it exists
  * - Update or add [build-options] section with observabilityIncluded = true
  * - Preserve all other existing configuration
- * 
+ *
+ * Note: this does NOT create a [ballerinax.amp] section — those otelEndpoint/apiKey values are
+ * only written once the user fills them in through the configurable-variables panel.
+ *
  * @param workspaceDir The workspace directory where Config.toml and Ballerina.toml should be created/updated
+ * @param provider The tracing provider to configure, defaults to "idetraceprovider"
  * @returns Promise<void> Resolves when configuration is successfully written
  * @throws Error if file operations fail
  */
-export async function setTracingConfig(workspaceDir: string): Promise<void> {
+export async function setTracingConfig(workspaceDir: string, provider: TracingProvider = 'idetraceprovider'): Promise<void> {
     // Update Config.toml
     const configFilePath = path.join(workspaceDir, 'Config.toml');
     
@@ -62,11 +66,11 @@ export async function setTracingConfig(workspaceDir: string): Promise<void> {
     }
     
     parsedConfig['ballerina']['observe']['tracingEnabled'] = true;
-    parsedConfig['ballerina']['observe']['tracingProvider'] = 'idetraceprovider';
-    
+    parsedConfig['ballerina']['observe']['tracingProvider'] = provider;
+
     // Convert the updated config object back to TOML string
     const updatedContent = convertObjectToToml(parsedConfig, existingContent);
-    
+
     // Write the updated content to Config.toml
     fs.writeFileSync(configFilePath, updatedContent, 'utf-8');
     
@@ -112,7 +116,7 @@ export async function setTracingConfig(workspaceDir: string): Promise<void> {
  */
 function convertObjectToToml(config: any, originalContent: string): string {
     let updatedContent = originalContent || '';
-    
+
     // Update or add [ballerina.observe] section
     updatedContent = updateOrAddSection(
         updatedContent,
@@ -122,12 +126,12 @@ function convertObjectToToml(config: any, originalContent: string): string {
             tracingProvider: config.ballerina?.observe?.tracingProvider ?? 'idetraceprovider'
         }
     );
-    
+
     // Ensure file ends with newline
     if (!updatedContent.endsWith('\n')) {
         updatedContent += '\n';
     }
-    
+
     return updatedContent;
 }
 
@@ -224,7 +228,7 @@ function updateOrAddSection(content: string, sectionName: string, values: Record
  * - Read existing Config.toml if it exists
  * - Remove tracingEnabled and tracingProvider from [ballerina.observe] section
  *   (removes the entire section if it becomes empty)
- * - Remove the entire [ballerinax.idetraceprovider] section
+ * - Remove the entire [ballerinax.idetraceprovider] and [ballerinax.amp] sections
  * - Read existing Ballerina.toml if it exists
  * - Remove observabilityIncluded from [build-options] section
  *   (removes the entire section if it becomes empty)
@@ -252,9 +256,10 @@ export async function removeTracingConfig(workspaceDir: string): Promise<void> {
         throw error;
     }
     
-    // Remove the tracing configuration sections
+    // Remove the tracing configuration sections (whichever provider was in use)
     let updatedContent = removeSection(existingContent, 'ballerinax.idetraceprovider');
-    
+    updatedContent = removeSection(updatedContent, 'ballerinax.amp');
+
     // Remove tracing keys from [ballerina.observe] section
     updatedContent = removeKeysFromSection(
         updatedContent,
@@ -303,6 +308,75 @@ export async function removeTracingConfig(workspaceDir: string): Promise<void> {
     
     // Write the updated content to Ballerina.toml
     fs.writeFileSync(ballerinaTomlPath, ballerinaTomlContent, 'utf-8');
+}
+
+/**
+ * Determines which tracing provider (if any) is currently active for a project, based on the
+ * `import ballerinax/<provider> as _;` statement written to trace_enabled.bal when tracing was enabled.
+ *
+ * @param workspaceDir The project directory to check
+ * @returns The active provider, or undefined if tracing is not enabled in this project
+ */
+export function getActiveTracingProvider(workspaceDir: string): TracingProvider | undefined {
+    const traceFilePath = path.join(workspaceDir, 'trace_enabled.bal');
+    if (!fs.existsSync(traceFilePath)) {
+        return undefined;
+    }
+    try {
+        const content = fs.readFileSync(traceFilePath, 'utf-8');
+        return content.includes('ballerinax/amp') ? 'amp' : 'idetraceprovider';
+    } catch (error) {
+        console.error(`Failed to read ${traceFilePath}:`, error);
+        return 'idetraceprovider';
+    }
+}
+
+/**
+ * Removes the [ballerinax.amp] section from Config.toml, if present. Used when switching the
+ * tracing provider away from "amp" (e.g. to "idetraceprovider") while tracing stays enabled —
+ * a case `removeTracingConfig` (which only runs when tracing is fully disabled) doesn't cover.
+ *
+ * @param workspaceDir The project directory whose Config.toml should be updated
+ */
+export function removeAmpConfig(workspaceDir: string): void {
+    const configFilePath = path.join(workspaceDir, 'Config.toml');
+    if (!fs.existsSync(configFilePath)) {
+        return;
+    }
+    try {
+        const existingContent = fs.readFileSync(configFilePath, 'utf-8');
+        let updatedContent = removeSection(existingContent, 'ballerinax.amp');
+        updatedContent = updatedContent.trimEnd();
+        if (updatedContent.length > 0 && !updatedContent.endsWith('\n')) {
+            updatedContent += '\n';
+        }
+        fs.writeFileSync(configFilePath, updatedContent, 'utf-8');
+    } catch (error) {
+        console.error('Failed to remove [ballerinax.amp] section from Config.toml:', error);
+    }
+}
+
+/**
+ * Checks whether the [ballerinax.amp] section in Config.toml is missing its required
+ * otelEndpoint/apiKey values (either the section/keys are absent, or the values are blank).
+ *
+ * @param workspaceDir The project directory whose Config.toml should be checked
+ * @returns true if otelEndpoint or apiKey still need to be filled in
+ */
+export function isAmpConfigIncomplete(workspaceDir: string): boolean {
+    const configFilePath = path.join(workspaceDir, 'Config.toml');
+    if (!fs.existsSync(configFilePath)) {
+        return true;
+    }
+    try {
+        const content = fs.readFileSync(configFilePath, 'utf-8');
+        const parsedConfig: any = parse(content);
+        const amp = parsedConfig?.ballerinax?.amp;
+        return !amp?.otelEndpoint || !amp?.apiKey;
+    } catch (error) {
+        console.error('Failed to parse Config.toml while checking amp configuration:', error);
+        return true;
+    }
 }
 
 /**
