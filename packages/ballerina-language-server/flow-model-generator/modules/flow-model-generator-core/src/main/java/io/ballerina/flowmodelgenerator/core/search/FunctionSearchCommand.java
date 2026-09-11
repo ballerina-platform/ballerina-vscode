@@ -35,11 +35,9 @@ import io.ballerina.tools.text.LineRange;
 
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeSet;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -79,16 +77,13 @@ class FunctionSearchCommand extends SearchCommand {
     // Organizations whose functions can be loaded page-by-page as an independent library section.
     private static final Set<String> PAGINATED_SECTION_ORGS = Set.of(STANDARD_LIBRARY_ORG, EXTENDED_LIBRARY_ORG);
     // A searched page is a window onto a result set that a reindexed Central makes far larger: a function-name query
-    // now matches one row per declaring module rather than one per package, so a package with thirty modules can fill
-    // a page on its own and push another package's rows past the end of it. These bound the top-up that keeps an
-    // imported package's functions reachable. Central has no module filter, so a topped-up package arrives whole and
-    // the modules the project does not import are dropped below; the per-package budget therefore has to cover the
-    // package rather than the handful of rows that survive it. A d03a EDI package declares a little over two hundred
-    // functions whose names contain "fromEdiString" across its thirty modules, and a broad query against a tighter
-    // budget would be truncated before it reached the one module the project actually imports.
-    private static final int IMPORTED_PACKAGE_FUNCTION_LIMIT = 250;
-    private static final int MAX_TOPPED_UP_PACKAGES = 5;
-    private final Map<PackageCoordinate, Set<ModuleCoordinate>> importedModulesByPackage;
+    // now matches one row per declaring module rather than one per package, so a single package can fill a page on
+    // its own and push another package's rows past the end of it. These bound the top-up that keeps an imported
+    // module's functions reachable. A module holds a handful of matching functions - seven for a d03a EDI submodule
+    // queried by function name, thirteen for its whole surface - so the per-module budget is headroom rather than a
+    // figure fitted to one package's size.
+    private static final int IMPORTED_MODULE_FUNCTION_LIMIT = 50;
+    private static final int MAX_TOPPED_UP_MODULES = 5;
     private final Set<ModuleCoordinate> importedModules;
     private final Document functionsDoc;
     // When set (to "ballerina" or "ballerinax"), the request loads the next page of that single library section
@@ -98,10 +93,7 @@ class FunctionSearchCommand extends SearchCommand {
     public FunctionSearchCommand(Project project, LineRange position, Map<String, String> queryMap,
                                  Document functionsDoc) {
         super(project, position, queryMap);
-        this.importedModulesByPackage = ImportedModules.collectByPackage(project);
-        Set<ModuleCoordinate> collectedModules = new TreeSet<>();
-        this.importedModulesByPackage.values().forEach(collectedModules::addAll);
-        this.importedModules = collectedModules;
+        this.importedModules = ImportedModules.collect(project);
         this.functionsDoc = functionsDoc;
         String requestedSectionOrg = queryMap != null ? queryMap.getOrDefault("orgName", "") : "";
         this.sectionOrg = PAGINATED_SECTION_ORGS.contains(requestedSectionOrg) ? requestedSectionOrg : "";
@@ -174,100 +166,87 @@ class FunctionSearchCommand extends SearchCommand {
         if (functionSearchList == null) {
             functionSearchList = dbManager.searchFunctions(query, limit, offset);
         } else {
-            functionSearchList = withImportedPackageFunctions(centralSearch, functionSearchList, allowedOrgs);
+            functionSearchList = withImportedModuleFunctions(centralSearch, functionSearchList);
         }
         buildLibraryNodes(functionSearchList, true);
         return rootBuilder.build().items();
     }
 
     /**
-     * Adds the matching functions of imported packages that the general Central page leaves out.
+     * Adds the matching functions of imported modules that the general Central page leaves out.
      *
      * <p>The default view fetches the imported modules' functions in their own right, so they are always present.
      * A search did not: it took whichever rows the one general page happened to hold, leaving a function from a
      * module the project already imports to compete with every unrelated package that matched the same name - and
      * lose, if the page filled up first. A module the user has imported is the strongest relevance signal
-     * available, and it costs nothing to honour, so it is no longer left to the ranking.</p>
+     * available, so it is no longer left to the ranking.</p>
      *
-     * <p>Whether a row is missing because the page filled up depends on the organization that published it. The page
-     * keeps only the organizations in {@code allowedOrgs}, so a package outside them cannot appear on it however
-     * short it is, and page length says nothing about that package - which is the usual shape of the problem, since
-     * an integration's own EDI or partner packages are published by neither {@code ballerina} nor {@code ballerinax}.
-     * Those are always topped up. For a package the page would have accepted, a short page does mean Central had
-     * nothing more to give, so no request is spent - the common case while typing.</p>
+     * <p>Nothing about what the page is missing is inferred from the page. Neither of the two signals it appears to
+     * offer holds up. Its length does not say whether Central had more to give: the fetch loop behind it gives up
+     * after a fixed number of iterations and then discards every row from an organization the page does not carry,
+     * so a short page is the normal outcome of a broad query - eight rows survived of the hundred and eighty
+     * scanned out of Central's thirteen hundred matches, in the case this was measured against. And a module having
+     * a row on the page does not say its matching functions are all there; one arbitrary row would otherwise
+     * suppress every other function the module declares. So every imported module is asked about, and the answers
+     * are deduplicated against the page by function rather than by module.</p>
      *
-     * <p>Packages that already have rows on the page are topped up first: their presence proves they hold matching
-     * functions, whereas a package with no rows at all may simply have none, and asking about it is the guess that
-     * spends the budget last. Only the modules the project imports are kept from what comes back; the package's
-     * other modules are the general search's business, and prepending a package's worth of them would bury the page
-     * this is meant to complete.</p>
+     * <p>Modules with no rows on the page are asked about first, being the likeliest to be missing something, and
+     * the budget bounds how many requests one keystroke can cost.</p>
      *
-     * <p>The decision is {@link #mergeImportedPackageFunctions} and is kept free of this command's state so it can
-     * be exercised without a compiled project or a reachable Central; this method only supplies that state.</p>
+     * <p>The decision is {@link #mergeImportedModuleFunctions} and is kept free of this command's state so it can be
+     * exercised without a compiled project or a reachable Central; this method only supplies that state.</p>
      *
      * @param centralSearch  the Central client to query with
      * @param centralResults the general page, kept in its original order
-     * @param allowedOrgs    the organizations the general page was filtered to
      * @return the page with the missing imported functions ahead of it, or the page unchanged
      */
-    private List<SearchResult> withImportedPackageFunctions(CentralSearchUtil centralSearch,
-                                                            List<SearchResult> centralResults,
-                                                            Set<String> allowedOrgs) {
-        return mergeImportedPackageFunctions(centralResults, importedModulesByPackage, allowedOrgs, limit, offset,
-                candidate -> centralSearch.searchFunctionsInPackage(
-                        query, IMPORTED_PACKAGE_FUNCTION_LIMIT, candidate.org(), candidate.packageName()));
+    private List<SearchResult> withImportedModuleFunctions(CentralSearchUtil centralSearch,
+                                                           List<SearchResult> centralResults) {
+        return mergeImportedModuleFunctions(centralResults, importedModules, offset,
+                module -> centralSearch.searchFunctionsInModule(query, IMPORTED_MODULE_FUNCTION_LIMIT, module));
     }
 
     /**
-     * Merges an imported package's matching functions into the general page, as described by
-     * {@link #withImportedPackageFunctions}.
+     * Merges the imported modules' matching functions into the general page, as described by
+     * {@link #withImportedModuleFunctions}.
      *
-     * @param centralResults           the general page, kept in its original order
-     * @param importedModulesByPackage the modules the project imports, grouped by their package
-     * @param allowedOrgs              the organizations the general page was filtered to
-     * @param limit                    the page size that was requested, which decides whether the page is full
-     * @param offset                   the page being requested; only the first page is topped up
-     * @param packageLookup            asks Central for one package's matching functions, or null if that failed
+     * @param centralResults  the general page, kept in its original order
+     * @param importedModules the modules the project imports, in the order to consider them
+     * @param offset          the page being requested; only the first page is topped up
+     * @param moduleLookup    asks Central for one module's matching functions, or null if that failed
      * @return the page with the missing imported functions ahead of it, or the page unchanged
      */
-    static List<SearchResult> mergeImportedPackageFunctions(
+    static List<SearchResult> mergeImportedModuleFunctions(
             List<SearchResult> centralResults,
-            Map<PackageCoordinate, Set<ModuleCoordinate>> importedModulesByPackage,
-            Set<String> allowedOrgs,
-            int limit,
+            Set<ModuleCoordinate> importedModules,
             int offset,
-            Function<PackageCoordinate, List<SearchResult>> packageLookup) {
-        if (offset > 0 || importedModulesByPackage.isEmpty()) {
+            Function<ModuleCoordinate, List<SearchResult>> moduleLookup) {
+        if (offset > 0 || importedModules.isEmpty()) {
             return centralResults;
         }
 
         Set<ModuleCoordinate> pagedModules = new HashSet<>();
-        Set<PackageCoordinate> pagedPackages = new HashSet<>();
+        Set<FunctionCoordinate> pagedFunctions = new HashSet<>();
         for (SearchResult result : centralResults) {
-            SearchResult.Package packageInfo = result.packageInfo();
-            pagedModules.add(packageInfo.coordinate());
-            pagedPackages.add(new PackageCoordinate(packageInfo.org(), packageInfo.packageName()));
+            ModuleCoordinate coordinate = result.packageInfo().coordinate();
+            pagedModules.add(coordinate);
+            pagedFunctions.add(new FunctionCoordinate(coordinate, result.name()));
         }
 
-        boolean pageIsFull = centralResults.size() >= limit;
         List<SearchResult> importedResults = new ArrayList<>();
         int queried = 0;
-        for (PackageCoordinate candidate : topUpOrder(importedModulesByPackage, pagedModules, pagedPackages)) {
-            if (queried == MAX_TOPPED_UP_PACKAGES) {
+        for (ModuleCoordinate candidate : topUpOrder(importedModules, pagedModules)) {
+            if (queried == MAX_TOPPED_UP_MODULES) {
                 break;
             }
-            if (!isTopUpWorthwhile(candidate, allowedOrgs, pageIsFull)) {
-                continue;
-            }
             queried++;
-            List<SearchResult> packageResults = packageLookup.apply(candidate);
-            if (packageResults == null) {
+            List<SearchResult> moduleResults = moduleLookup.apply(candidate);
+            if (moduleResults == null) {
                 continue;
             }
-            Set<ModuleCoordinate> wantedModules = importedModulesByPackage.get(candidate);
-            packageResults.stream()
-                    .filter(result -> wantedModules.contains(result.packageInfo().coordinate()))
-                    .filter(result -> !pagedModules.contains(result.packageInfo().coordinate()))
+            moduleResults.stream()
+                    .filter(result -> !pagedFunctions.contains(
+                            new FunctionCoordinate(result.packageInfo().coordinate(), result.name())))
                     .forEach(importedResults::add);
         }
 
@@ -280,48 +259,40 @@ class FunctionSearchCommand extends SearchCommand {
     }
 
     /**
-     * Whether an extra request for this package can tell us anything the page has not already.
+     * The imported modules in the order to spend the request budget on them: those with no rows on the page first,
+     * then those with some. A module absent from the page is the likelier to be missing a function; one that is
+     * present may already be listed in full, and asking about it is the guess that pays off least often.
      *
-     * <p>A package the page's organization filter excludes is invisible to the page whatever its length, so it is
-     * always worth asking about. One the filter admits is only missing rows when the page ran out of room.</p>
+     * <p>Neither group is skipped. A module's absence does not prove it has nothing to offer, and its presence does
+     * not prove it has everything - only the request settles either.</p>
      *
-     * @param candidate   the imported package being considered
-     * @param allowedOrgs the organizations the general page was filtered to
-     * @param pageIsFull  whether the general page filled to the requested limit
-     * @return whether to spend a request on this package
+     * @param importedModules the modules the project imports, iterated in their own stable order
+     * @param pagedModules    the modules the general page covers
+     * @return the modules to query, in the order to query them
      */
-    static boolean isTopUpWorthwhile(PackageCoordinate candidate, Set<String> allowedOrgs, boolean pageIsFull) {
-        return pageIsFull || !allowedOrgs.contains(candidate.org());
+    static List<ModuleCoordinate> topUpOrder(Set<ModuleCoordinate> importedModules,
+                                             Set<ModuleCoordinate> pagedModules) {
+        List<ModuleCoordinate> unpaged = new ArrayList<>();
+        List<ModuleCoordinate> paged = new ArrayList<>();
+        for (ModuleCoordinate importedModule : importedModules) {
+            if (pagedModules.contains(importedModule)) {
+                paged.add(importedModule);
+            } else {
+                unpaged.add(importedModule);
+            }
+        }
+        unpaged.addAll(paged);
+        return unpaged;
     }
 
     /**
-     * The imported packages worth asking Central about, most-likely-to-pay-off first: those with rows already on the
-     * page but not for every module the project imports, then those with no rows at all. A package whose every
-     * imported module is already listed is not returned at all.
+     * One declared function, identified the way the page lists it. Deduplication is by function rather than by
+     * module so that a module already holding a row on the page still contributes the functions it does not.
      *
-     * @param importedModulesByPackage the imported modules, grouped by their package
-     * @param pagedModules             the modules the general page covers
-     * @param pagedPackages            the packages the general page covers
-     * @return the packages to query, in the order to query them
+     * @param module the module that declares the function
+     * @param name   the function name
      */
-    static List<PackageCoordinate> topUpOrder(Map<PackageCoordinate, Set<ModuleCoordinate>> importedModulesByPackage,
-                                              Set<ModuleCoordinate> pagedModules,
-                                              Set<PackageCoordinate> pagedPackages) {
-        Set<PackageCoordinate> partiallyPaged = new LinkedHashSet<>();
-        Set<PackageCoordinate> unpaged = new LinkedHashSet<>();
-        importedModulesByPackage.forEach((importedPackage, modules) -> {
-            if (pagedModules.containsAll(modules)) {
-                return;
-            }
-            if (pagedPackages.contains(importedPackage)) {
-                partiallyPaged.add(importedPackage);
-            } else {
-                unpaged.add(importedPackage);
-            }
-        });
-        List<PackageCoordinate> order = new ArrayList<>(partiallyPaged);
-        order.addAll(unpaged);
-        return order;
+    private record FunctionCoordinate(ModuleCoordinate module, String name) {
     }
 
     @Override

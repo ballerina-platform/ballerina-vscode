@@ -23,14 +23,12 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
-import java.util.TreeMap;
+import java.util.TreeSet;
 
 /**
- * Tests for {@link FunctionSearchCommand#topUpOrder(Map, Set, Set)} and
- * {@link FunctionSearchCommand#isTopUpWorthwhile(PackageCoordinate, Set, boolean)}, which together decide which
- * imported packages are worth an extra request when a search page cannot hold every match.
+ * Tests for {@link FunctionSearchCommand#topUpOrder(Set, Set)}, which decides the order in which a search spends its
+ * request budget on the modules the project imports.
  *
  * @since 1.8.0
  */
@@ -39,108 +37,68 @@ public class FunctionSearchTopUpOrderTest {
     private static final String ORG = "ballerinax";
     private static final String SUPPLYCHAIN = "edifact.d03a.supplychain";
     private static final String SHIPPING = "edifact.d03a.shipping";
-    // The organizations a general function-search page keeps, plus the project's own.
-    private static final Set<String> ALLOWED_ORGS = Set.of("ballerina", "ballerinax", "wso2", "myorg");
 
-    @Test(description = "A package whose every imported module is already listed is not queried again.")
-    public void testFullyPagedPackageSkipped() {
-        Map<PackageCoordinate, Set<ModuleCoordinate>> imported = imported(
-                Map.entry(SUPPLYCHAIN, Set.of(module(SUPPLYCHAIN), module(SUPPLYCHAIN + ".mORDERS"))));
+    @Test(description = "A module with no rows on the page is asked about before one that has some.")
+    public void testUnpagedModulesComeFirst() {
+        // Ordering by evidence has to override the natural order: shipping sorts first, but supplychain's presence
+        // on the page makes it the likelier of the two to be listed in full already.
+        Set<ModuleCoordinate> imported = imported(SUPPLYCHAIN, SHIPPING + ".mIFTMIN");
 
-        List<PackageCoordinate> order = FunctionSearchCommand.topUpOrder(imported,
-                Set.of(module(SUPPLYCHAIN), module(SUPPLYCHAIN + ".mORDERS")),
-                Set.of(new PackageCoordinate(ORG, SUPPLYCHAIN)));
+        List<ModuleCoordinate> order = FunctionSearchCommand.topUpOrder(imported, Set.of(module(SUPPLYCHAIN)));
 
-        Assert.assertTrue(order.isEmpty());
+        Assert.assertEquals(order, List.of(module(SHIPPING + ".mIFTMIN"), module(SUPPLYCHAIN)));
     }
 
-    @Test(description = "A package listed for some of its imported modules but not all of them is queried.")
-    public void testPartiallyPagedPackageQueried() {
-        // The reported case: the package root is on the page, the submodule the project imports is not.
-        Map<PackageCoordinate, Set<ModuleCoordinate>> imported = imported(
-                Map.entry(SUPPLYCHAIN, Set.of(module(SUPPLYCHAIN), module(SUPPLYCHAIN + ".mORDERS"))));
+    @Test(description = "A module already listed on the page is still asked about, never skipped.")
+    public void testPagedModuleStillQueried() {
+        // One arbitrary row does not prove the module's matching functions are all on the page. Skipping on that
+        // evidence is what hid the rest of a module's functions behind whichever one happened to rank highest.
+        Set<ModuleCoordinate> imported = imported(SUPPLYCHAIN + ".mORDERS");
 
-        List<PackageCoordinate> order = FunctionSearchCommand.topUpOrder(imported,
-                Set.of(module(SUPPLYCHAIN)),
-                Set.of(new PackageCoordinate(ORG, SUPPLYCHAIN)));
+        List<ModuleCoordinate> order =
+                FunctionSearchCommand.topUpOrder(imported, Set.of(module(SUPPLYCHAIN + ".mORDERS")));
 
-        Assert.assertEquals(order, List.of(new PackageCoordinate(ORG, SUPPLYCHAIN)));
+        Assert.assertEquals(order, List.of(module(SUPPLYCHAIN + ".mORDERS")));
     }
 
-    @Test(description = "A package with rows on the page is queried before one with none, being proven relevant.")
-    public void testPartiallyPagedOrderedBeforeUnpaged() {
-        // shipping sorts first alphabetically, so ordering by evidence has to override the natural order.
-        Map<PackageCoordinate, Set<ModuleCoordinate>> imported = imported(
-                Map.entry(SHIPPING, Set.of(module(SHIPPING), module(SHIPPING + ".mIFTMIN"))),
-                Map.entry(SUPPLYCHAIN, Set.of(module(SUPPLYCHAIN), module(SUPPLYCHAIN + ".mORDERS"))));
-
-        List<PackageCoordinate> order = FunctionSearchCommand.topUpOrder(imported,
-                Set.of(module(SUPPLYCHAIN)),
-                Set.of(new PackageCoordinate(ORG, SUPPLYCHAIN)));
-
-        Assert.assertEquals(order, List.of(new PackageCoordinate(ORG, SUPPLYCHAIN),
-                new PackageCoordinate(ORG, SHIPPING)));
-    }
-
-    @Test(description = "A package absent from the page is still queried once the proven ones are exhausted.")
-    public void testUnpagedPackageQueried() {
-        Map<PackageCoordinate, Set<ModuleCoordinate>> imported = imported(
-                Map.entry(SUPPLYCHAIN, Set.of(module(SUPPLYCHAIN + ".mORDERS"))));
-
-        List<PackageCoordinate> order = FunctionSearchCommand.topUpOrder(imported,
-                Set.of(module("edifact.d03a.finance")),
-                Set.of(new PackageCoordinate(ORG, "edifact.d03a.finance")));
-
-        Assert.assertEquals(order, List.of(new PackageCoordinate(ORG, SUPPLYCHAIN)));
-    }
-
-    @Test(description = "A same-named package from another organization does not count as covering this one.")
+    @Test(description = "A same-named module from another organization does not count as covering this one.")
     public void testOtherOrganizationDoesNotCover() {
-        Map<PackageCoordinate, Set<ModuleCoordinate>> imported = imported(
-                Map.entry(SUPPLYCHAIN, Set.of(module(SUPPLYCHAIN))));
+        Set<ModuleCoordinate> imported = imported(SUPPLYCHAIN);
 
-        List<PackageCoordinate> order = FunctionSearchCommand.topUpOrder(imported,
-                Set.of(new ModuleCoordinate("someoneelse", SUPPLYCHAIN)),
-                Set.of(new PackageCoordinate("someoneelse", SUPPLYCHAIN)));
+        List<ModuleCoordinate> order = FunctionSearchCommand.topUpOrder(imported,
+                Set.of(new ModuleCoordinate("someoneelse", SUPPLYCHAIN)));
 
-        Assert.assertEquals(order, List.of(new PackageCoordinate(ORG, SUPPLYCHAIN)));
+        // Unpaged as far as this organization is concerned, so it leads rather than trails.
+        Assert.assertEquals(order, List.of(module(SUPPLYCHAIN)));
+    }
+
+    @Test(description = "The imported modules' own order is kept within each group, so the budget is predictable.")
+    public void testOrderIsStableWithinEachGroup() {
+        Set<ModuleCoordinate> imported =
+                imported(SHIPPING, SHIPPING + ".mIFTMIN", SUPPLYCHAIN, SUPPLYCHAIN + ".mORDERS");
+
+        List<ModuleCoordinate> order = FunctionSearchCommand.topUpOrder(imported,
+                Set.of(module(SHIPPING), module(SUPPLYCHAIN)));
+
+        Assert.assertEquals(order, List.of(
+                module(SHIPPING + ".mIFTMIN"), module(SUPPLYCHAIN + ".mORDERS"),
+                module(SHIPPING), module(SUPPLYCHAIN)));
     }
 
     @Test(description = "Nothing is queried when the project imports nothing.")
     public void testNoImportsQueriesNothing() {
-        Assert.assertTrue(FunctionSearchCommand.topUpOrder(Map.of(),
-                Set.of(module(SUPPLYCHAIN)), Set.of(new PackageCoordinate(ORG, SUPPLYCHAIN))).isEmpty());
-    }
-
-    @Test(description = "A package the page's organization filter excludes is topped up however short the page is.")
-    public void testFilteredOutOrganizationToppedUpOnShortPage() {
-        // The reported shape: a partner EDI package published by neither ballerina nor ballerinax. Its rows are
-        // dropped from the general page whatever the ranking, so page length carries no information about it.
-        PackageCoordinate candidate = new PackageCoordinate("neatfox", "edifact.d03a.finance");
-
-        Assert.assertTrue(FunctionSearchCommand.isTopUpWorthwhile(candidate, ALLOWED_ORGS, false));
-        Assert.assertTrue(FunctionSearchCommand.isTopUpWorthwhile(candidate, ALLOWED_ORGS, true));
-    }
-
-    @Test(description = "A package the page would have accepted is topped up only once the page has filled up.")
-    public void testAllowedOrganizationToppedUpOnlyWhenPageIsFull() {
-        PackageCoordinate candidate = new PackageCoordinate(ORG, SUPPLYCHAIN);
-
-        Assert.assertFalse(FunctionSearchCommand.isTopUpWorthwhile(candidate, ALLOWED_ORGS, false));
-        Assert.assertTrue(FunctionSearchCommand.isTopUpWorthwhile(candidate, ALLOWED_ORGS, true));
+        Assert.assertTrue(FunctionSearchCommand.topUpOrder(Set.of(), Set.of(module(SUPPLYCHAIN))).isEmpty());
     }
 
     private static ModuleCoordinate module(String moduleName) {
         return new ModuleCoordinate(ORG, moduleName);
     }
 
-    @SafeVarargs
-    private static Map<PackageCoordinate, Set<ModuleCoordinate>> imported(
-            Map.Entry<String, Set<ModuleCoordinate>>... entries) {
-        // A TreeMap, matching what ImportedModules hands over, so the natural order is the one under test.
-        Map<PackageCoordinate, Set<ModuleCoordinate>> imported = new TreeMap<>();
-        for (Map.Entry<String, Set<ModuleCoordinate>> entry : entries) {
-            imported.put(new PackageCoordinate(ORG, entry.getKey()), entry.getValue());
+    private static Set<ModuleCoordinate> imported(String... moduleNames) {
+        // A TreeSet, matching what ImportedModules hands over, so the natural order is the one under test.
+        Set<ModuleCoordinate> imported = new TreeSet<>();
+        for (String moduleName : moduleNames) {
+            imported.add(module(moduleName));
         }
         return imported;
     }

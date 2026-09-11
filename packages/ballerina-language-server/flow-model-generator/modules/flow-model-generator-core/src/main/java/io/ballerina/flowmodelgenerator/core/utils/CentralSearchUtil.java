@@ -21,6 +21,7 @@ package io.ballerina.flowmodelgenerator.core.utils;
 import io.ballerina.centralconnector.CentralAPI;
 import io.ballerina.centralconnector.response.ConnectorsResponse;
 import io.ballerina.centralconnector.response.SymbolResponse;
+import io.ballerina.modelgenerator.commons.ModuleCoordinate;
 import io.ballerina.modelgenerator.commons.SearchResult;
 import org.ballerinalang.diagramutil.connector.models.connector.Connector;
 
@@ -30,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 /**
  * Centralizes all Ballerina Central API search operations. This class encapsulates the logic for searching connectors
@@ -320,57 +322,38 @@ public class CentralSearchUtil {
     }
 
     /**
-     * Searches functions declared by a single package, across all of its modules.
+     * Searches the functions a single module declares.
      *
-     * <p>Central has no package filter. Its {@code q} is matched against package and module names as well as symbol
-     * names, and additional terms narrow the match, so naming the package alongside the query is the only way to
-     * scope a symbol search to it. Naming it only biases the ranking rather than restricting it, so the package is
-     * matched exactly here to drop the near misses that come back anyway - a same-named package from another
-     * organization, or a {@code d04a} sibling of a {@code d03a} package.</p>
+     * <p>Central has no module parameter, but its {@code q} is matched against module names as well as symbol names
+     * and additional terms narrow the match, so naming the module alongside the query scopes the search to it:
+     * {@code q=fromEdiString edifact.d03a.finance.mINVOIC} matches seven symbols, all of that module's, where
+     * {@code q=fromEdiString edifact.d03a.finance} matches two hundred and ten across the package's thirty modules.
+     * Naming it only biases the ranking rather than restricting it, so the module is matched exactly here to drop
+     * the near misses that come back anyway - a package root alongside its submodules, or a {@code d04a} sibling of
+     * a {@code d03a} module.</p>
      *
-     * <p>A reindexed Central returns one row per declaring module, so a whole package's worth of rows can come back
-     * from a single query: an EDI package declares upwards of two hundred functions whose names contain
-     * {@code fromEdiString} across its thirty modules. {@code limit} is the caller's budget for that.</p>
+     * <p>The request itself is {@link #searchFunctionsByOrg}: same query keys, same guards, same symbol-type check,
+     * same null-on-failure contract. Only the scoping of {@code q} and the exact-module filter are new.</p>
      *
-     * @param query       the search query string (empty to list all of the package's functions)
-     * @param limit       the maximum number of the package's functions to return
-     * @param org         the organization that published the package
-     * @param packageName the package name to scope the search to
-     * @return the package's matching functions, or null if the request failed
+     * @param query  the search query string (empty to list all of the module's functions)
+     * @param limit  the maximum number of the module's functions to return
+     * @param module the module to scope the search to
+     * @return the module's matching functions, or null if the request failed
      */
-    public List<SearchResult> searchFunctionsInPackage(String query, int limit, String org, String packageName) {
-        limit = Math.max(limit, 0);
-        if (org == null || org.isEmpty() || packageName == null || packageName.isEmpty()) {
+    public List<SearchResult> searchFunctionsInModule(String query, int limit, ModuleCoordinate module) {
+        if (module == null || module.moduleName().isEmpty()) {
             return new ArrayList<>();
         }
-        try {
-            Map<String, String> queryMap = new HashMap<>();
-            queryMap.put("q", query == null || query.isEmpty() ? packageName : query + " " + packageName);
-            queryMap.put("org", org);
-            queryMap.put("symbolType", FUNCTION_SYMBOL_TYPE);
-            queryMap.put("limit", String.valueOf(limit));
-            queryMap.put("offset", "0");
-            SymbolResponse symbolResponse = centralClient.searchSymbols(queryMap);
-
-            if (symbolResponse == null || symbolResponse.symbols() == null) {
-                return new ArrayList<>();
-            }
-
-            List<SearchResult> results = new ArrayList<>();
-            for (SymbolResponse.Symbol symbol : symbolResponse.symbols()) {
-                if (symbol == null || !FUNCTION_SYMBOL_TYPE.equals(symbol.symbolType())) {
-                    continue;
-                }
-                if (!packageName.equals(symbol.name()) || !org.equals(symbol.organization())) {
-                    continue;
-                }
-                results.add(toSearchResult(symbol, false));
-            }
-            return results;
-        } catch (RuntimeException e) {
-            // Failed to fetch the package's functions; the caller keeps whatever general results it already has.
+        String scopedQuery = query == null || query.isEmpty()
+                ? module.moduleName() : query + " " + module.moduleName();
+        List<SearchResult> results = searchFunctionsByOrg(scopedQuery, limit, 0, module.org());
+        if (results == null) {
+            // The request failed; the caller keeps whatever general results it already has.
             return null;
         }
+        return results.stream()
+                .filter(result -> module.equals(result.packageInfo().coordinate()))
+                .collect(Collectors.toCollection(ArrayList::new));
     }
 
     /**

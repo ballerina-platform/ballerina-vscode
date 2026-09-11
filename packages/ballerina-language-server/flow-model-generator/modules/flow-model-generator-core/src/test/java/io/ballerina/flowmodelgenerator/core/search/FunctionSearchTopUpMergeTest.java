@@ -28,15 +28,15 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.function.Function;
 
 /**
- * Tests for {@link FunctionSearchCommand#mergeImportedPackageFunctions}, which decides when a search page is topped
- * up with the functions of a package the project imports, and what is kept from the answer.
+ * Tests for {@link FunctionSearchCommand#mergeImportedModuleFunctions}, which tops a search page up with the
+ * functions of the modules the project imports.
  *
  * <p>The production method takes the Central lookup as a function so these tests can assert not only what comes back
- * but which packages were asked about at all - the request budget and the ordering are otherwise invisible.</p>
+ * but which modules were asked about at all - the request budget and its ordering are otherwise invisible.</p>
  *
  * @since 1.8.0
  */
@@ -46,21 +46,19 @@ public class FunctionSearchTopUpMergeTest {
     private static final String EXTENDED_ORG = "ballerinax";
     private static final String FINANCE = "edifact.d03a.finance";
     private static final String SUPPLYCHAIN = "edifact.d03a.supplychain";
-    // What a general function-search page is filtered to: the three library organizations plus the project's own.
-    private static final Set<String> ALLOWED_ORGS = Set.of("ballerina", EXTENDED_ORG, "wso2", "testorg");
-    private static final int LIMIT = 3;
-    // FunctionSearchCommand.MAX_TOPPED_UP_PACKAGES, which is private.
-    private static final int MAX_TOPPED_UP_PACKAGES = 5;
+    private static final String INVOIC = FINANCE + ".mINVOIC";
+    private static final String ORDERS = SUPPLYCHAIN + ".mORDERS";
+    // FunctionSearchCommand.MAX_TOPPED_UP_MODULES, which is private.
+    private static final int MAX_TOPPED_UP_MODULES = 5;
 
     @Test(description = "A page past the first is returned untouched, so paging cannot repeat a topped-up function.")
     public void testLaterPagesAreNotToppedUp() {
         List<SearchResult> page = List.of(result("ballerina", "edi", "edi", "fromEdiString"));
-        RecordingLookup lookup = lookup(Map.of(pkg(PARTNER_ORG, FINANCE),
-                List.of(result(PARTNER_ORG, FINANCE, FINANCE + ".mINVOIC", "fromEdiString"))));
+        RecordingLookup lookup = lookup(Map.of(module(PARTNER_ORG, INVOIC),
+                List.of(result(PARTNER_ORG, FINANCE, INVOIC, "fromEdiString"))));
 
-        List<SearchResult> merged = FunctionSearchCommand.mergeImportedPackageFunctions(page,
-                imported(pkg(PARTNER_ORG, FINANCE), Set.of(module(PARTNER_ORG, FINANCE + ".mINVOIC"))),
-                ALLOWED_ORGS, LIMIT, 1, lookup);
+        List<SearchResult> merged = FunctionSearchCommand.mergeImportedModuleFunctions(page,
+                imported(module(PARTNER_ORG, INVOIC)), 1, lookup);
 
         Assert.assertSame(merged, page);
         Assert.assertTrue(lookup.queried.isEmpty());
@@ -71,183 +69,125 @@ public class FunctionSearchTopUpMergeTest {
         List<SearchResult> page = List.of(result("ballerina", "edi", "edi", "fromEdiString"));
         RecordingLookup lookup = lookup(Map.of());
 
-        List<SearchResult> merged = FunctionSearchCommand.mergeImportedPackageFunctions(page, Map.of(),
-                ALLOWED_ORGS, LIMIT, 0, lookup);
+        List<SearchResult> merged = FunctionSearchCommand.mergeImportedModuleFunctions(page, Set.of(), 0, lookup);
 
         Assert.assertSame(merged, page);
         Assert.assertTrue(lookup.queried.isEmpty());
     }
 
-    @Test(description = "A package outside the page's organization filter is topped up even when the page is short.")
-    public void testPartnerPackageToppedUpOnShortPage() {
-        // The regression this guards: the page keeps only ballerina/ballerinax/wso2/own-org rows, so a partner
-        // package's rows can never reach it however short it is. Gating the top-up on page length hid them.
+    @Test(description = "A short page does not stop an imported module being topped up.")
+    public void testShortPageStillTopsUp() {
+        // A short page is the normal outcome of a broad query: the fetch loop behind it gives up after a fixed
+        // number of iterations and discards every row from an organization the page does not carry. Measured
+        // against a reindexed registry, eight rows survived of the hundred and eighty scanned out of thirteen
+        // hundred matches - so page length says nothing about what Central still held.
         List<SearchResult> page = List.of(result("ballerina", "edi", "edi", "fromEdiString"));
-        SearchResult imported = result(PARTNER_ORG, FINANCE, FINANCE + ".mINVOIC", "fromEdiString");
-        RecordingLookup lookup = lookup(Map.of(pkg(PARTNER_ORG, FINANCE), List.of(imported)));
+        SearchResult imported = result(EXTENDED_ORG, SUPPLYCHAIN, ORDERS, "fromEdiString");
+        RecordingLookup lookup = lookup(Map.of(module(EXTENDED_ORG, ORDERS), List.of(imported)));
 
-        List<SearchResult> merged = FunctionSearchCommand.mergeImportedPackageFunctions(page,
-                imported(pkg(PARTNER_ORG, FINANCE), Set.of(module(PARTNER_ORG, FINANCE + ".mINVOIC"))),
-                ALLOWED_ORGS, LIMIT, 0, lookup);
+        List<SearchResult> merged = FunctionSearchCommand.mergeImportedModuleFunctions(page,
+                imported(module(EXTENDED_ORG, ORDERS)), 0, lookup);
 
-        Assert.assertEquals(lookup.queried, List.of(pkg(PARTNER_ORG, FINANCE)));
-        Assert.assertEquals(merged.size(), 2);
+        Assert.assertEquals(lookup.queried, List.of(module(EXTENDED_ORG, ORDERS)));
         Assert.assertSame(merged.getFirst(), imported);
-    }
-
-    @Test(description = "A package the page would have accepted costs no request while the page is still short.")
-    public void testAllowedOrganizationNotQueriedOnShortPage() {
-        List<SearchResult> page = List.of(result("ballerina", "edi", "edi", "fromEdiString"));
-        RecordingLookup lookup = lookup(Map.of(pkg(EXTENDED_ORG, SUPPLYCHAIN),
-                List.of(result(EXTENDED_ORG, SUPPLYCHAIN, SUPPLYCHAIN + ".mORDERS", "fromEdiString"))));
-
-        List<SearchResult> merged = FunctionSearchCommand.mergeImportedPackageFunctions(page,
-                imported(pkg(EXTENDED_ORG, SUPPLYCHAIN), Set.of(module(EXTENDED_ORG, SUPPLYCHAIN + ".mORDERS"))),
-                ALLOWED_ORGS, LIMIT, 0, lookup);
-
-        Assert.assertSame(merged, page);
-        Assert.assertTrue(lookup.queried.isEmpty());
-    }
-
-    @Test(description = "A package the page would have accepted is topped up once the page has filled up.")
-    public void testAllowedOrganizationQueriedOnFullPage() {
-        List<SearchResult> page = fullPage();
-        SearchResult imported = result(EXTENDED_ORG, SUPPLYCHAIN, SUPPLYCHAIN + ".mORDERS", "fromEdiString");
-        RecordingLookup lookup = lookup(Map.of(pkg(EXTENDED_ORG, SUPPLYCHAIN), List.of(imported)));
-
-        List<SearchResult> merged = FunctionSearchCommand.mergeImportedPackageFunctions(page,
-                imported(pkg(EXTENDED_ORG, SUPPLYCHAIN), Set.of(module(EXTENDED_ORG, SUPPLYCHAIN + ".mORDERS"))),
-                ALLOWED_ORGS, LIMIT, 0, lookup);
-
-        Assert.assertEquals(lookup.queried, List.of(pkg(EXTENDED_ORG, SUPPLYCHAIN)));
-        Assert.assertSame(merged.getFirst(), imported);
-        Assert.assertEquals(merged.size(), page.size() + 1);
-    }
-
-    @Test(description = "Only the modules the project imports are kept; the package's other modules are dropped.")
-    public void testSiblingModulesDropped() {
-        // Central answers a package at a time, and an EDI package has thirty modules. Merging them all would bury
-        // the page the top-up exists to complete.
-        List<SearchResult> page = List.of(result("ballerina", "edi", "edi", "fromEdiString"));
-        SearchResult wanted = result(PARTNER_ORG, FINANCE, FINANCE + ".mINVOIC", "fromEdiString");
-        RecordingLookup lookup = lookup(Map.of(pkg(PARTNER_ORG, FINANCE), List.of(
-                wanted,
-                result(PARTNER_ORG, FINANCE, FINANCE + ".mORDERS", "fromEdiString"),
-                result(PARTNER_ORG, FINANCE, FINANCE + ".mDESADV", "fromEdiString"))));
-
-        List<SearchResult> merged = FunctionSearchCommand.mergeImportedPackageFunctions(page,
-                imported(pkg(PARTNER_ORG, FINANCE), Set.of(module(PARTNER_ORG, FINANCE + ".mINVOIC"))),
-                ALLOWED_ORGS, LIMIT, 0, lookup);
-
         Assert.assertEquals(merged.size(), 2);
+    }
+
+    @Test(description = "A module already holding a row on the page is still topped up with the rest of its "
+            + "functions.")
+    public void testModuleWithARowOnThePageStillToppedUp() {
+        // Treating one row as proof the module is fully represented is what hid the function the user was after
+        // behind whichever of its siblings happened to rank highest.
+        SearchResult onPage = result(EXTENDED_ORG, SUPPLYCHAIN, ORDERS, "fromEdiStringWithSchema");
+        List<SearchResult> page = List.of(onPage, result("ballerina", "edi", "edi", "fromEdiString"));
+        SearchResult wanted = result(EXTENDED_ORG, SUPPLYCHAIN, ORDERS, "fromEdiString");
+        RecordingLookup lookup = lookup(Map.of(module(EXTENDED_ORG, ORDERS), List.of(
+                wanted, result(EXTENDED_ORG, SUPPLYCHAIN, ORDERS, "fromEdiStringWithSchema"))));
+
+        List<SearchResult> merged = FunctionSearchCommand.mergeImportedModuleFunctions(page,
+                imported(module(EXTENDED_ORG, ORDERS)), 0, lookup);
+
+        Assert.assertEquals(lookup.queried, List.of(module(EXTENDED_ORG, ORDERS)));
         Assert.assertSame(merged.getFirst(), wanted);
     }
 
-    @Test(description = "A module the page already lists is not added a second time.")
-    public void testModuleAlreadyOnThePageNotDuplicated() {
-        SearchResult onPage = result(EXTENDED_ORG, SUPPLYCHAIN, SUPPLYCHAIN, "fromEdiString");
-        List<SearchResult> page = List.of(onPage,
-                result("ballerina", "edi", "edi", "fromEdiString"),
-                result("ballerina", "io", "io", "println"));
-        SearchResult missing = result(EXTENDED_ORG, SUPPLYCHAIN, SUPPLYCHAIN + ".mORDERS", "fromEdiString");
-        RecordingLookup lookup = lookup(Map.of(pkg(EXTENDED_ORG, SUPPLYCHAIN), List.of(
-                result(EXTENDED_ORG, SUPPLYCHAIN, SUPPLYCHAIN, "fromEdiString"), missing)));
+    @Test(description = "A function already listed on the page is not repeated ahead of it.")
+    public void testFunctionAlreadyOnThePageNotRepeated() {
+        SearchResult onPage = result(EXTENDED_ORG, SUPPLYCHAIN, ORDERS, "fromEdiStringWithSchema");
+        List<SearchResult> page = List.of(onPage, result("ballerina", "edi", "edi", "fromEdiString"));
+        SearchResult wanted = result(EXTENDED_ORG, SUPPLYCHAIN, ORDERS, "fromEdiString");
+        RecordingLookup lookup = lookup(Map.of(module(EXTENDED_ORG, ORDERS), List.of(
+                wanted, result(EXTENDED_ORG, SUPPLYCHAIN, ORDERS, "fromEdiStringWithSchema"))));
 
-        List<SearchResult> merged = FunctionSearchCommand.mergeImportedPackageFunctions(page,
-                imported(pkg(EXTENDED_ORG, SUPPLYCHAIN),
-                        Set.of(module(EXTENDED_ORG, SUPPLYCHAIN), module(EXTENDED_ORG, SUPPLYCHAIN + ".mORDERS"))),
-                ALLOWED_ORGS, LIMIT, 0, lookup);
+        List<SearchResult> merged = FunctionSearchCommand.mergeImportedModuleFunctions(page,
+                imported(module(EXTENDED_ORG, ORDERS)), 0, lookup);
 
-        Assert.assertEquals(merged, List.of(missing, onPage, page.get(1), page.get(2)));
+        // Deduplication is by function, not by module: the new one arrives, the listed one keeps its place.
+        Assert.assertEquals(merged, List.of(wanted, onPage, page.get(1)));
     }
 
-    @Test(description = "A package whose lookup fails leaves the page as it was rather than emptying it.")
+    @Test(description = "A module whose lookup fails leaves the page as it was rather than emptying it.")
     public void testFailedLookupLeavesThePageIntact() {
         List<SearchResult> page = List.of(result("ballerina", "edi", "edi", "fromEdiString"));
-        // A null answer is how CentralSearchUtil reports a failed request, as distinct from an empty list.
-        RecordingLookup lookup = lookup(Map.of());
+        SearchResult wanted = result(PARTNER_ORG, FINANCE, INVOIC, "fromEdiString");
+        // A null answer is how CentralSearchUtil reports a failed request, as distinct from an empty list. The
+        // failing module must not take the ones after it down with it.
+        RecordingLookup lookup = lookup(Map.of(module(PARTNER_ORG, INVOIC), List.of(wanted)));
 
-        List<SearchResult> merged = FunctionSearchCommand.mergeImportedPackageFunctions(page,
-                imported(pkg(PARTNER_ORG, FINANCE), Set.of(module(PARTNER_ORG, FINANCE + ".mINVOIC"))),
-                ALLOWED_ORGS, LIMIT, 0, lookup);
+        List<SearchResult> merged = FunctionSearchCommand.mergeImportedModuleFunctions(page,
+                imported(module(EXTENDED_ORG, ORDERS), module(PARTNER_ORG, INVOIC)), 0, lookup);
 
-        Assert.assertEquals(lookup.queried, List.of(pkg(PARTNER_ORG, FINANCE)));
-        Assert.assertSame(merged, page);
+        Assert.assertEquals(lookup.queried.size(), 2);
+        Assert.assertSame(merged.getFirst(), wanted);
     }
 
-    @Test(description = "The request budget caps how many imported packages one search asks Central about.")
+    @Test(description = "The request budget caps how many imported modules one search asks Central about.")
     public void testRequestBudgetIsCapped() {
         List<SearchResult> page = List.of(result("ballerina", "edi", "edi", "fromEdiString"));
-        Map<PackageCoordinate, Set<ModuleCoordinate>> importedModules = new TreeMap<>();
-        Map<PackageCoordinate, List<SearchResult>> responses = new LinkedHashMap<>();
-        List<PackageCoordinate> expected = new ArrayList<>();
-        for (int index = 0; index < MAX_TOPPED_UP_PACKAGES + 1; index++) {
-            String packageName = "partner.pkg" + index;
-            PackageCoordinate coordinate = pkg(PARTNER_ORG, packageName);
-            importedModules.put(coordinate, Set.of(module(PARTNER_ORG, packageName)));
-            responses.put(coordinate, List.of(result(PARTNER_ORG, packageName, packageName, "fromEdiString")));
-            if (index < MAX_TOPPED_UP_PACKAGES) {
+        Set<ModuleCoordinate> importedModules = new TreeSet<>();
+        Map<ModuleCoordinate, List<SearchResult>> responses = new LinkedHashMap<>();
+        List<ModuleCoordinate> expected = new ArrayList<>();
+        for (int index = 0; index < MAX_TOPPED_UP_MODULES + 1; index++) {
+            String moduleName = "partner.pkg.m" + index;
+            ModuleCoordinate coordinate = module(PARTNER_ORG, moduleName);
+            importedModules.add(coordinate);
+            responses.put(coordinate, List.of(result(PARTNER_ORG, "partner.pkg", moduleName, "fromEdiString")));
+            if (index < MAX_TOPPED_UP_MODULES) {
                 expected.add(coordinate);
             }
         }
         RecordingLookup lookup = lookup(responses);
 
-        List<SearchResult> merged = FunctionSearchCommand.mergeImportedPackageFunctions(page, importedModules,
-                ALLOWED_ORGS, LIMIT, 0, lookup);
+        List<SearchResult> merged =
+                FunctionSearchCommand.mergeImportedModuleFunctions(page, importedModules, 0, lookup);
 
-        // Ordered by package name, so the budget is spent predictably rather than on whichever package hashes first.
+        // Spent in the imported modules' own order, so which ones are reached is predictable rather than arbitrary.
         Assert.assertEquals(lookup.queried, expected);
-        Assert.assertEquals(merged.size(), MAX_TOPPED_UP_PACKAGES + page.size());
+        Assert.assertEquals(merged.size(), MAX_TOPPED_UP_MODULES + page.size());
     }
 
-    @Test(description = "Packages that are not worth a request do not spend the budget meant for those that are.")
-    public void testSkippedCandidatesDoNotSpendTheBudget() {
-        // The budget is counted where the request is made, not where the candidate is considered. Counting the
-        // skips too would let a handful of library imports starve the one partner package that needed topping up.
-        List<SearchResult> page = List.of(result("ballerina", "edi", "edi", "fromEdiString"));
-        Map<PackageCoordinate, Set<ModuleCoordinate>> importedModules = new TreeMap<>();
-        Map<PackageCoordinate, List<SearchResult>> responses = new LinkedHashMap<>();
-        // Sort ahead of the partner package, and skipped on a short page because the page would have accepted them.
-        for (int index = 0; index < MAX_TOPPED_UP_PACKAGES; index++) {
-            String packageName = "aaa.library" + index;
-            importedModules.put(pkg(EXTENDED_ORG, packageName), Set.of(module(EXTENDED_ORG, packageName)));
-        }
-        PackageCoordinate partner = pkg(PARTNER_ORG, "zzz.partner");
-        SearchResult imported = result(PARTNER_ORG, "zzz.partner", "zzz.partner", "fromEdiString");
-        importedModules.put(partner, Set.of(module(PARTNER_ORG, "zzz.partner")));
-        responses.put(partner, List.of(imported));
-        RecordingLookup lookup = lookup(responses);
+    @Test(description = "The budget is spent on the modules missing from the page before those already on it.")
+    public void testUnpagedModulesGetTheBudgetFirst() {
+        SearchResult onPage = result(EXTENDED_ORG, SUPPLYCHAIN, ORDERS, "fromEdiStringWithSchema");
+        List<SearchResult> page = List.of(onPage);
+        RecordingLookup lookup = lookup(Map.of());
 
-        List<SearchResult> merged = FunctionSearchCommand.mergeImportedPackageFunctions(page, importedModules,
-                ALLOWED_ORGS, LIMIT, 0, lookup);
+        FunctionSearchCommand.mergeImportedModuleFunctions(page,
+                imported(module(EXTENDED_ORG, ORDERS), module(PARTNER_ORG, INVOIC)), 0, lookup);
 
-        Assert.assertEquals(lookup.queried, List.of(partner));
-        Assert.assertSame(merged.getFirst(), imported);
+        Assert.assertEquals(lookup.queried, List.of(module(PARTNER_ORG, INVOIC), module(EXTENDED_ORG, ORDERS)));
     }
 
-    @Test(description = "A package with no matching function leaves the page exactly as it was.")
+    @Test(description = "A module with no matching function leaves the page exactly as it was.")
     public void testNothingFoundLeavesThePageUnchanged() {
         List<SearchResult> page = List.of(result("ballerina", "edi", "edi", "fromEdiString"));
-        RecordingLookup lookup = lookup(Map.of(pkg(PARTNER_ORG, FINANCE), List.of()));
+        RecordingLookup lookup = lookup(Map.of(module(PARTNER_ORG, INVOIC), List.of()));
 
-        List<SearchResult> merged = FunctionSearchCommand.mergeImportedPackageFunctions(page,
-                imported(pkg(PARTNER_ORG, FINANCE), Set.of(module(PARTNER_ORG, FINANCE + ".mINVOIC"))),
-                ALLOWED_ORGS, LIMIT, 0, lookup);
+        List<SearchResult> merged = FunctionSearchCommand.mergeImportedModuleFunctions(page,
+                imported(module(PARTNER_ORG, INVOIC)), 0, lookup);
 
-        Assert.assertEquals(lookup.queried, List.of(pkg(PARTNER_ORG, FINANCE)));
+        Assert.assertEquals(lookup.queried, List.of(module(PARTNER_ORG, INVOIC)));
         Assert.assertSame(merged, page);
-    }
-
-    /**
-     * A page holding exactly the requested limit, which is what tells the merge that Central had more to give.
-     */
-    private static List<SearchResult> fullPage() {
-        List<SearchResult> page = List.of(
-                result("ballerina", "edi", "edi", "fromEdiString"),
-                result("ballerina", "io", "io", "println"),
-                result("ballerinax", "rabbitmq", "rabbitmq", "publish"));
-        Assert.assertEquals(page.size(), LIMIT);
-        return page;
     }
 
     private static SearchResult result(String org, String packageName, String moduleName, String functionName) {
@@ -258,37 +198,32 @@ public class FunctionSearchTopUpMergeTest {
         return new ModuleCoordinate(org, moduleName);
     }
 
-    private static PackageCoordinate pkg(String org, String packageName) {
-        return new PackageCoordinate(org, packageName);
+    private static Set<ModuleCoordinate> imported(ModuleCoordinate... modules) {
+        // A TreeSet, matching what ImportedModules hands over, so the natural order is the one under test.
+        Set<ModuleCoordinate> imported = new TreeSet<>();
+        imported.addAll(List.of(modules));
+        return imported;
     }
 
-    private static Map<PackageCoordinate, Set<ModuleCoordinate>> imported(PackageCoordinate coordinate,
-                                                                          Set<ModuleCoordinate> modules) {
-        // A TreeMap, matching what ImportedModules hands over, so the natural order is the one under test.
-        Map<PackageCoordinate, Set<ModuleCoordinate>> importedModules = new TreeMap<>();
-        importedModules.put(coordinate, modules);
-        return importedModules;
-    }
-
-    private static RecordingLookup lookup(Map<PackageCoordinate, List<SearchResult>> responses) {
+    private static RecordingLookup lookup(Map<ModuleCoordinate, List<SearchResult>> responses) {
         return new RecordingLookup(responses);
     }
 
     /**
-     * Stands in for the Central request the command would make, recording which packages were asked about and
-     * replaying a fixed answer. A package with no entry answers null, which is how a failed request is reported.
+     * Stands in for the Central request the command would make, recording which modules were asked about and
+     * replaying a fixed answer. A module with no entry answers null, which is how a failed request is reported.
      */
-    private static final class RecordingLookup implements Function<PackageCoordinate, List<SearchResult>> {
+    private static final class RecordingLookup implements Function<ModuleCoordinate, List<SearchResult>> {
 
-        private final Map<PackageCoordinate, List<SearchResult>> responses;
-        private final List<PackageCoordinate> queried = new ArrayList<>();
+        private final Map<ModuleCoordinate, List<SearchResult>> responses;
+        private final List<ModuleCoordinate> queried = new ArrayList<>();
 
-        private RecordingLookup(Map<PackageCoordinate, List<SearchResult>> responses) {
+        private RecordingLookup(Map<ModuleCoordinate, List<SearchResult>> responses) {
             this.responses = responses;
         }
 
         @Override
-        public List<SearchResult> apply(PackageCoordinate candidate) {
+        public List<SearchResult> apply(ModuleCoordinate candidate) {
             queried.add(candidate);
             return responses.get(candidate);
         }

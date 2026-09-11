@@ -30,10 +30,8 @@ import io.ballerina.projects.directory.BuildProject;
 import io.ballerina.projects.directory.WorkspaceProject;
 
 import java.util.Collections;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.TreeMap;
 import java.util.TreeSet;
 
 /**
@@ -62,40 +60,19 @@ final class ImportedModules {
      * same-named packages from two organizations keeps both.
      */
     static Set<ModuleCoordinate> collect(Project project) {
-        Set<ModuleCoordinate> importedModules = new TreeSet<>();
-        collectByPackage(project).values().forEach(importedModules::addAll);
-        return Collections.unmodifiableSet(importedModules);
-    }
-
-    /**
-     * Collects the same imported modules, grouped by the package that declares them.
-     *
-     * <p>The grouping cannot be reconstructed from the module names alone: a package name may itself contain dots
-     * ({@code edifact.d03a.supplychain}), so which part of {@code edifact.d03a.supplychain.mORDERS} is the package
-     * is only knowable from the resolved descriptor. Callers that need to address a whole package - to ask Central
-     * about it, say - have to be handed the pairing rather than derive it.</p>
-     *
-     * @param project the project whose active package's imports are collected
-     * @return an unmodifiable map from package to the imported modules of that package, both ordered for stability
-     */
-    static Map<PackageCoordinate, Set<ModuleCoordinate>> collectByPackage(Project project) {
         Package currentPackage = project.currentPackage();
         PackageUtil.getCompilation(currentPackage);
-        Map<PackageCoordinate, Set<ModuleCoordinate>> modulesByPackage = new TreeMap<>();
+        Set<ModuleCoordinate> importedModules = new TreeSet<>();
         for (Module module : PackageModuleUtils.modules(currentPackage)) {
             for (ModuleDependency moduleDependency : module.moduleDependencies()) {
                 if (!isDefaultScope(moduleDependency) || isWorkspaceMember(project, currentPackage, moduleDependency)) {
                     continue;
                 }
-                String org = moduleDependency.descriptor().org().value();
-                PackageCoordinate packageCoordinate =
-                        new PackageCoordinate(org, moduleDependency.descriptor().packageName().value());
-                modulesByPackage.computeIfAbsent(packageCoordinate, key -> new TreeSet<>())
-                        .add(ModuleCoordinate.of(org, moduleDependency.descriptor().name()));
+                importedModules.add(ModuleCoordinate.of(moduleDependency.descriptor().org().value(),
+                        moduleDependency.descriptor().name()));
             }
         }
-        modulesByPackage.replaceAll((key, modules) -> Collections.unmodifiableSet(modules));
-        return Collections.unmodifiableMap(modulesByPackage);
+        return Collections.unmodifiableSet(importedModules);
     }
 
     /**
