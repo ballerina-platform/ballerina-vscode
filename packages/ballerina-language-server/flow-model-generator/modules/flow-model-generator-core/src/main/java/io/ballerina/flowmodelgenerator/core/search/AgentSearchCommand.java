@@ -21,7 +21,6 @@ package io.ballerina.flowmodelgenerator.core.search;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.reflect.TypeToken;
-import io.ballerina.centralconnector.CentralAPI;
 import io.ballerina.centralconnector.RemoteCentral;
 import io.ballerina.centralconnector.response.PackageResponse;
 import io.ballerina.compiler.api.ModuleID;
@@ -49,10 +48,12 @@ import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.regex.Pattern;
 
 /**
  * Handles the search command for agents.
@@ -68,6 +69,7 @@ public class AgentSearchCommand extends SearchCommand {
     private static final String INIT_SYMBOL = "init";
     private static final String AGENTS_LANDING_JSON = "agents_landing.json";
     private static final Type LANDING_AGENTS_TYPE = new TypeToken<List<AvailableNode>>() { }.getType();
+    private static final Pattern RESERVED_OPERATOR = Pattern.compile("(?i)\\b(AND|OR|NOT)\\b");
 
     private static final String SOURCE_DEFAULT = "default";
     private static final String SOURCE_ALL = "all";
@@ -175,51 +177,81 @@ public class AgentSearchCommand extends SearchCommand {
     }
 
     private List<Item> getOrganizationAgents(String searchQuery) {
+        String currentOrg = project.currentPackage().packageOrg().value();
+        addCategory(LOCAL_AGENTS_CATEGORY, filterAgents(getWorkspaceAgents(), searchQuery).stream()
+                .filter(agent -> agent.codedata().org().equalsIgnoreCase(currentOrg))
+                .toList());
         addCategory(CENTRAL_AGENTS_CATEGORY, fetchAgentsFromCentral(searchQuery, true));
         return rootBuilder.build().items();
     }
 
     private List<AvailableNode> fetchAgentsFromCentral(String searchQuery, boolean orgScoped) {
         try {
-            PackageResponse response = getPackageResponse(searchQuery, orgScoped);
-            if (response == null || response.packages() == null) {
-                return List.of();
+            if (!orgScoped) {
+                return toAgentNodes(searchPackages(searchQuery, null, false));
             }
-            return response.packages().stream().map(AgentSearchCommand::generateCentralAgentNode).toList();
+            return fetchOrganizationScopedAgents(searchQuery);
         } catch (RuntimeException ignored) {
             return List.of();
         }
     }
 
-    private PackageResponse getPackageResponse(String searchQuery, boolean orgScoped) {
-        CentralAPI centralClient = RemoteCentral.getInstance();
-        Map<String, String> centralQueryMap = new HashMap<>();
-        // Keyword must lead: `<text> AND keywords:"..."` mis-associates on multi-word text and returns nothing.
-        String q = searchQuery == null || searchQuery.isEmpty()
-                ? AGENT_KEYWORD_FILTER
-                : AGENT_KEYWORD_FILTER + " AND " + searchQuery;
-        centralQueryMap.put("q", q);
-        centralQueryMap.put("limit", String.valueOf(limit));
-        centralQueryMap.put("offset", String.valueOf(offset));
-
-        if (orgScoped && !addOrgScope(centralQueryMap, centralClient)) {
-            return null;
+    // Central ANDs `org` with `user-packages`, so an authorized user's own packages and the current org's
+    // packages are fetched as separate requests and merged, rather than dropping one for the other.
+    private List<AvailableNode> fetchOrganizationScopedAgents(String searchQuery) {
+        String currentOrg = project.currentPackage().packageOrg().value();
+        boolean hasOrg = currentOrg != null && !currentOrg.isEmpty();
+        boolean authorized = RemoteCentral.getInstance().hasAuthorizedAccess();
+        if (!hasOrg && !authorized) {
+            return List.of();
         }
-        return centralClient.searchPackages(centralQueryMap);
+
+        Map<String, AvailableNode> merged = new LinkedHashMap<>();
+        if (hasOrg) {
+            toAgentNodes(searchPackages(searchQuery, currentOrg, false))
+                    .forEach(node -> merged.putIfAbsent(node.codedata().org() + "/" + node.codedata().module(), node));
+        }
+        if (authorized) {
+            toAgentNodes(searchPackages(searchQuery, null, true))
+                    .forEach(node -> merged.putIfAbsent(node.codedata().org() + "/" + node.codedata().module(), node));
+        }
+        return List.copyOf(merged.values());
     }
 
-    // Central ANDs `org` with `user-packages`, so sending both drops everything the user owns under another org.
-    private boolean addOrgScope(Map<String, String> centralQueryMap, CentralAPI centralClient) {
-        if (centralClient.hasAuthorizedAccess()) {
+    private PackageResponse searchPackages(String searchQuery, String org, boolean userPackages) {
+        Map<String, String> centralQueryMap = new HashMap<>();
+        // Keyword must lead: `<text> AND keywords:"..."` mis-associates on multi-word text and returns nothing.
+        String sanitizedQuery = sanitizeSearchQuery(searchQuery);
+        centralQueryMap.put("q", sanitizedQuery.isEmpty()
+                ? AGENT_KEYWORD_FILTER
+                : AGENT_KEYWORD_FILTER + " AND " + sanitizedQuery);
+        centralQueryMap.put("limit", String.valueOf(limit));
+        centralQueryMap.put("offset", String.valueOf(offset));
+        if (org != null) {
+            centralQueryMap.put("org", org);
+        }
+        if (userPackages) {
             centralQueryMap.put("user-packages", "true");
-            return true;
         }
-        String currentOrg = project.currentPackage().packageOrg().value();
-        if (currentOrg == null || currentOrg.isEmpty()) {
-            return false;
+        return RemoteCentral.getInstance().searchPackages(centralQueryMap);
+    }
+
+    // Solr treats bare AND/OR/NOT as operators, so a trailing or stray one leaves the query unparsable.
+    private static String sanitizeSearchQuery(String searchQuery) {
+        if (searchQuery == null || searchQuery.isEmpty()) {
+            return "";
         }
-        centralQueryMap.put("org", currentOrg);
-        return true;
+        return RESERVED_OPERATOR.matcher(searchQuery.replace("\"", " "))
+                .replaceAll(" ")
+                .trim()
+                .replaceAll("\\s+", " ");
+    }
+
+    private static List<AvailableNode> toAgentNodes(PackageResponse response) {
+        if (response == null || response.packages() == null) {
+            return List.of();
+        }
+        return response.packages().stream().map(AgentSearchCommand::generateCentralAgentNode).toList();
     }
 
     private static AvailableNode generateCentralAgentNode(PackageResponse.Package pkg) {

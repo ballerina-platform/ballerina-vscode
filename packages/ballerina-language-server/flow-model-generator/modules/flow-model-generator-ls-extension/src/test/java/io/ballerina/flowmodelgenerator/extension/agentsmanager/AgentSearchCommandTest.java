@@ -43,6 +43,7 @@ import org.testng.annotations.Test;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -72,16 +73,21 @@ public class AgentSearchCommandTest {
         RemoteCentral.resetTestInstance();
     }
 
-    @Test(description = "Authorized access scopes by user-packages and omits org")
-    public void testAuthorizedAccessScopesByUserPackages() {
+    @Test(description = "Authorized access with a current org queries user-packages and org separately, since "
+            + "Central ANDs the two and would otherwise drop everything the user owns under another org")
+    public void testAuthorizedAccessQueriesUserPackagesAndOrgSeparately() {
         RecordingCentral central = new RecordingCentral(true);
         RemoteCentral.setTestInstance(central);
 
         new AgentSearchCommand(project, POSITION, Map.of("source", "organization", "q", "chat")).execute();
 
-        Assert.assertEquals(central.lastQuery.get("q"), "keywords:\"Type/Agent\" AND chat");
-        Assert.assertEquals(central.lastQuery.get("user-packages"), "true");
-        Assert.assertFalse(central.lastQuery.containsKey("org"));
+        Assert.assertEquals(central.queries.size(), 2);
+        Assert.assertTrue(central.queries.stream().anyMatch(query ->
+                "agent_search_org".equals(query.get("org")) && !query.containsKey("user-packages")));
+        Assert.assertTrue(central.queries.stream().anyMatch(query ->
+                "true".equals(query.get("user-packages")) && !query.containsKey("org")));
+        central.queries.forEach(query ->
+                Assert.assertEquals(query.get("q"), "keywords:\"Type/Agent\" AND chat"));
     }
 
     @Test(description = "Unauthorized access falls back to the current package's org")
@@ -91,9 +97,34 @@ public class AgentSearchCommandTest {
 
         new AgentSearchCommand(project, POSITION, Map.of("source", "organization", "q", "")).execute();
 
-        Assert.assertEquals(central.lastQuery.get("q"), "keywords:\"Type/Agent\"");
-        Assert.assertEquals(central.lastQuery.get("org"), "agent_search_org");
-        Assert.assertFalse(central.lastQuery.containsKey("user-packages"));
+        Assert.assertEquals(central.queries.size(), 1);
+        Assert.assertEquals(central.lastQuery().get("q"), "keywords:\"Type/Agent\"");
+        Assert.assertEquals(central.lastQuery().get("org"), "agent_search_org");
+        Assert.assertFalse(central.lastQuery().containsKey("user-packages"));
+    }
+
+    @Test(description = "Org-scoped and user-owned Central results are merged without duplicates")
+    public void testOrganizationScopeMergesResultsWithoutDuplicates() {
+        RecordingCentral central = new RecordingCentral(true,
+                packageResponse(samplePackage()),
+                packageResponse(samplePackage(), otherPackage()));
+        RemoteCentral.setTestInstance(central);
+
+        JsonArray result = new AgentSearchCommand(project, POSITION, Map.of("source", "organization", "q", "chat"))
+                .execute();
+
+        JsonArray items = result.get(0).getAsJsonObject().getAsJsonArray("items");
+        Assert.assertEquals(items.size(), 2, "the package returned by both calls must be merged, not duplicated");
+    }
+
+    @Test(description = "A search term with a stray boolean operator and quote is sanitized before reaching Central")
+    public void testSearchQueryStripsReservedOperatorsAndQuotes() {
+        RecordingCentral central = new RecordingCentral(true);
+        RemoteCentral.setTestInstance(central);
+
+        new AgentSearchCommand(project, POSITION, Map.of("source", "organization", "q", "chat AND \"bot")).execute();
+
+        Assert.assertEquals(central.lastQuery().get("q"), "keywords:\"Type/Agent\" AND chat bot");
     }
 
     @Test(description = "An empty query on the 'all' source stays offline and never calls Central")
@@ -103,7 +134,8 @@ public class AgentSearchCommandTest {
 
         new AgentSearchCommand(project, POSITION, Map.of("source", "all", "q", "")).execute();
 
-        Assert.assertNull(central.lastQuery, "an empty query must resolve from the bundled landing list, not Central");
+        Assert.assertTrue(central.queries.isEmpty(), "an empty query must resolve from the bundled landing list, "
+                + "not Central");
     }
 
     @Test(description = "A non-empty query on the 'all' source maps a Central package to its agent node")
@@ -156,8 +188,8 @@ public class AgentSearchCommandTest {
         Assert.assertEquals(result.size(), 0);
     }
 
-    private static PackageResponse packageResponse(PackageResponse.Package pkg) {
-        return new PackageResponse(List.of(pkg), List.of(), Map.of(), 1, 0, 1);
+    private static PackageResponse packageResponse(PackageResponse.Package... pkgs) {
+        return new PackageResponse(List.of(pkgs), List.of(), Map.of(), pkgs.length, 0, pkgs.length);
     }
 
     private static PackageResponse.Package samplePackage() {
@@ -166,37 +198,51 @@ public class AgentSearchCommandTest {
                 null, null, null, 0L, 0, null, List.of(), null, null);
     }
 
-    /** Records the query map passed to {@code searchPackages}; every other method is unused by the paths under test. */
+    private static PackageResponse.Package otherPackage() {
+        return new PackageResponse.Package(2, "acme", "helper_agent", "2.0.0", null, null, false, null, null,
+                null, null, null, "Helper agent package", null, false, List.of(), List.of(), null, List.of(),
+                null, null, null, 0L, 0, null, List.of(), null, null);
+    }
+
+    /** Records every query map passed to {@code searchPackages}; every other method is unused by the paths under
+     * test. Responses are returned in call order and the last one repeats once exhausted. */
     private static final class RecordingCentral implements CentralAPI {
 
         private final boolean authorized;
-        private final PackageResponse response;
+        private final List<PackageResponse> responses;
         private final RuntimeException failure;
-        private Map<String, String> lastQuery;
+        private final List<Map<String, String>> queries = new ArrayList<>();
 
         private RecordingCentral(boolean authorized) {
             this(authorized, new PackageResponse(List.of(), List.of(), Map.of(), 0, 0, 0));
         }
 
-        private RecordingCentral(boolean authorized, PackageResponse response) {
+        private RecordingCentral(boolean authorized, PackageResponse... responses) {
             this.authorized = authorized;
-            this.response = response;
+            this.responses = List.of(responses);
             this.failure = null;
         }
 
         private RecordingCentral(RuntimeException failure) {
             this.authorized = false;
-            this.response = null;
+            this.responses = List.of();
             this.failure = failure;
+        }
+
+        private Map<String, String> lastQuery() {
+            return queries.isEmpty() ? null : queries.get(queries.size() - 1);
         }
 
         @Override
         public PackageResponse searchPackages(Map<String, String> queryMap) {
-            lastQuery = new HashMap<>(queryMap);
+            queries.add(new HashMap<>(queryMap));
             if (failure != null) {
                 throw failure;
             }
-            return response;
+            if (responses.isEmpty()) {
+                return null;
+            }
+            return responses.get(Math.min(queries.size() - 1, responses.size() - 1));
         }
 
         @Override
