@@ -40,6 +40,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -201,6 +202,9 @@ class FunctionSearchCommand extends SearchCommand {
      * other modules are the general search's business, and prepending a package's worth of them would bury the page
      * this is meant to complete.</p>
      *
+     * <p>The decision is {@link #mergeImportedPackageFunctions} and is kept free of this command's state so it can
+     * be exercised without a compiled project or a reachable Central; this method only supplies that state.</p>
+     *
      * @param centralSearch  the Central client to query with
      * @param centralResults the general page, kept in its original order
      * @param allowedOrgs    the organizations the general page was filtered to
@@ -209,6 +213,30 @@ class FunctionSearchCommand extends SearchCommand {
     private List<SearchResult> withImportedPackageFunctions(CentralSearchUtil centralSearch,
                                                             List<SearchResult> centralResults,
                                                             Set<String> allowedOrgs) {
+        return mergeImportedPackageFunctions(centralResults, importedModulesByPackage, allowedOrgs, limit, offset,
+                candidate -> centralSearch.searchFunctionsInPackage(
+                        query, IMPORTED_PACKAGE_FUNCTION_LIMIT, candidate.org(), candidate.packageName()));
+    }
+
+    /**
+     * Merges an imported package's matching functions into the general page, as described by
+     * {@link #withImportedPackageFunctions}.
+     *
+     * @param centralResults           the general page, kept in its original order
+     * @param importedModulesByPackage the modules the project imports, grouped by their package
+     * @param allowedOrgs              the organizations the general page was filtered to
+     * @param limit                    the page size that was requested, which decides whether the page is full
+     * @param offset                   the page being requested; only the first page is topped up
+     * @param packageLookup            asks Central for one package's matching functions, or null if that failed
+     * @return the page with the missing imported functions ahead of it, or the page unchanged
+     */
+    static List<SearchResult> mergeImportedPackageFunctions(
+            List<SearchResult> centralResults,
+            Map<PackageCoordinate, Set<ModuleCoordinate>> importedModulesByPackage,
+            Set<String> allowedOrgs,
+            int limit,
+            int offset,
+            Function<PackageCoordinate, List<SearchResult>> packageLookup) {
         if (offset > 0 || importedModulesByPackage.isEmpty()) {
             return centralResults;
         }
@@ -232,8 +260,7 @@ class FunctionSearchCommand extends SearchCommand {
                 continue;
             }
             queried++;
-            List<SearchResult> packageResults = centralSearch.searchFunctionsInPackage(
-                    query, IMPORTED_PACKAGE_FUNCTION_LIMIT, candidate.org(), candidate.packageName());
+            List<SearchResult> packageResults = packageLookup.apply(candidate);
             if (packageResults == null) {
                 continue;
             }

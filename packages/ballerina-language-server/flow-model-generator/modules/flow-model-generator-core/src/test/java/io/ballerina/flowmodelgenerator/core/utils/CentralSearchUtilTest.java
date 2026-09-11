@@ -28,7 +28,10 @@ import io.ballerina.centralconnector.response.FunctionsResponse;
 import io.ballerina.centralconnector.response.Listeners;
 import io.ballerina.centralconnector.response.PackageResponse;
 import io.ballerina.centralconnector.response.SymbolResponse;
+import io.ballerina.modelgenerator.commons.ModuleCoordinate;
 import io.ballerina.modelgenerator.commons.SearchResult;
+import io.ballerina.projects.ModuleName;
+import io.ballerina.projects.PackageName;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -350,6 +353,68 @@ public class CentralSearchUtilTest {
                 List.of("submodulecheck", "submodulecheck.mORDERS"));
         // The package name is the same for every row, so attribution cannot be recovered from it.
         results.forEach(result -> Assert.assertEquals(result.packageInfo().packageName(), "submodulecheck"));
+    }
+
+    @Test(description = "A symbol's module is spelled the way a resolved dependency spells it, so the two can be "
+            + "matched.")
+    public void testModuleNameMatchesTheResolvedDescriptorSpelling() {
+        // The load-bearing coupling of the whole feature, and the one that fails silently. A result's coordinate is
+        // built from Central's moduleName; an imported module's coordinate is built by ModuleCoordinate.of from the
+        // compiler's resolved descriptor. FunctionSearchCommand matches imports against results by comparing the
+        // two. If the spellings ever diverge - Central serving a bare "mORDERS", say - every match fails, the
+        // imported functions quietly stop being listed, and nothing that asserts only one side would notice.
+        RecordingCentralApi central = new RecordingCentralApi(loadFixture("search-symbols-submodule.json"));
+
+        List<SearchResult> results = new CentralSearchUtil(central)
+                .searchFunctions("submodulecheck", 10, 0, Set.of("yaseematest"));
+
+        PackageName packageName = PackageName.from("submodulecheck");
+        Assert.assertEquals(coordinateOf(results, "getSchema"),
+                ModuleCoordinate.of("yaseematest", ModuleName.from(packageName, "mORDERS")));
+        Assert.assertEquals(coordinateOf(results, "getEDINames"),
+                ModuleCoordinate.of("yaseematest", ModuleName.from(packageName)));
+    }
+
+    @Test(description = "A null query scopes to the package alone, as an empty one does.")
+    public void testSearchFunctionsInPackageWithNullQueryUsesPackageName() {
+        RecordingCentralApi central = new RecordingCentralApi(symbolResponse(
+                function("ballerinax", "edifact.d03a.supplychain", "1.0.1", "fromEdiString", "Convert.")));
+
+        List<SearchResult> results = new CentralSearchUtil(central)
+                .searchFunctionsInPackage(null, 50, "ballerinax", "edifact.d03a.supplychain");
+
+        Assert.assertEquals(central.lastQueryMap.get("q"), "edifact.d03a.supplychain");
+        Assert.assertEquals(results.size(), 1);
+    }
+
+    @Test(description = "A null organization or package short circuits without contacting Central.")
+    public void testSearchFunctionsInPackageWithNullCoordinatesReturnsEmpty() {
+        RecordingCentralApi central = new RecordingCentralApi(symbolResponse(
+                function("ballerinax", "edifact.d03a.supplychain", "1.0.1", "fromEdiString", "Convert.")));
+        CentralSearchUtil centralSearch = new CentralSearchUtil(central);
+
+        Assert.assertTrue(centralSearch.searchFunctionsInPackage("fromEdiString", 50, null, "edifact").isEmpty());
+        Assert.assertTrue(centralSearch.searchFunctionsInPackage("fromEdiString", 50, "ballerinax", null).isEmpty());
+        Assert.assertEquals(central.callCount, 0);
+    }
+
+    @Test(description = "A response carrying no symbols yields an empty list rather than failing.")
+    public void testSearchFunctionsInPackageWithoutSymbolsReturnsEmpty() {
+        RecordingCentralApi central = new RecordingCentralApi(new SymbolResponse(null, 0, 0, 0));
+
+        List<SearchResult> results = new CentralSearchUtil(central)
+                .searchFunctionsInPackage("fromEdiString", 50, "ballerinax", "edifact.d03a.supplychain");
+
+        Assert.assertTrue(results.isEmpty());
+        Assert.assertEquals(central.callCount, 1);
+    }
+
+    private static ModuleCoordinate coordinateOf(List<SearchResult> results, String symbolName) {
+        return results.stream()
+                .filter(result -> result.name().equals(symbolName))
+                .map(result -> result.packageInfo().coordinate())
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("no result named " + symbolName));
     }
 
     private static String moduleOf(List<SearchResult> results, String symbolName) {

@@ -41,10 +41,11 @@ public record SymbolResponse(
 
     // A symbol as returned by Central's `search-symbols` endpoint. `name` is the package name; `moduleName` is the
     // module the symbol is declared in, which differs from `name` only for a submodule
-    // (edifact.d03a.supplychain.mORDERS against the package edifact.d03a.supplychain). Central indexes only the
-    // default module today, so the field is absent from the response and deserializes to null -- callers must fall
-    // back to `name`. The alternate spelling is accepted so the field binds whichever of the two names the registry
-    // ships, rather than silently staying null.
+    // (edifact.d03a.supplychain.mORDERS against the package edifact.d03a.supplychain). A reindexed registry serves
+    // the field and returns one row per module; one that has not been reindexed omits it, so it deserializes to null
+    // and callers fall back to `name` -- which is the right answer there, since only default modules are indexed.
+    // The alternate spelling is accepted so the field binds whichever of the two names the registry ships, rather
+    // than silently staying null.
     public record Symbol(
             String id,
             String packageID,
