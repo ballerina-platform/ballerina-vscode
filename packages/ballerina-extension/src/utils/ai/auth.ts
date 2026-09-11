@@ -18,7 +18,7 @@
 
 import * as vscode from 'vscode';
 import { extension } from "../../BalExtensionContext";
-import { DEVANT_TOKEN_EXCHANGE_URL } from '../../features/ai/utils';
+import { DEVANT_TOKEN_EXCHANGE_URL, setBackendRegion } from '../../features/ai/utils';
 import axios from 'axios';
 import { AuthCredentials, BIIntelSecrets, LoginMethod, AnthropicAwsSecrets } from '@wso2/ballerina-core';
 import { IWso2PlatformExtensionAPI } from '@wso2/wso2-platform-core';
@@ -162,6 +162,16 @@ export const getPlatformStsToken = async (): Promise<string | undefined> => {
         const api = await getPlatformExtensionAPI();
         if (!api) {
             return undefined;
+        }
+        if (api.isLoggedIn()) {
+            try {
+                const region = api.getAuthState()?.region;
+                if (region) {
+                    setBackendRegion(region.toLowerCase());
+                }
+            } catch {
+                /* region resolution non-fatal; keep default backend */
+            }
         }
         return await api.getStsToken();
     } catch (error) {
@@ -405,10 +415,17 @@ export const getRefreshedAccessToken = async (): Promise<string> => {
                 console.log('Refreshing token via STS exchange...');
                 const newSecrets = await refreshTokenViaStsExchange();
 
-                // Update stored credentials
+                // Update stored credentials, persisting region so warm restarts restore it
+                let region: string | undefined;
+                try {
+                    const api = await getPlatformExtensionAPI();
+                    region = api?.getAuthState()?.region?.trim().toLowerCase();
+                } catch {
+                    /* region persistence is best-effort */
+                }
                 const updatedCredentials: AuthCredentials = {
                     loginMethod: LoginMethod.BI_INTEL,
-                    secrets: newSecrets
+                    secrets: { ...newSecrets, ...(region && { region }) }
                 };
                 await storeAuthCredentials(updatedCredentials);
 

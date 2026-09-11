@@ -48,15 +48,43 @@ const PLATFORM_ENV_SETTING = "WSO2.WSO2-Platform.Advanced.ChoreoEnvironment";
 const devantEnv = (process.env.CHOREO_ENV || process.env.CLOUD_ENV
     || workspace.getConfiguration().get<string>(PLATFORM_ENV_SETTING) || "").trim().toLowerCase();
 const COPILOT_ROOT_URLS = new Map<string, string>([
-    ["dev", process.env.COPILOT_DEV_ROOT_URL],
-    ["stage", process.env.COPILOT_STAGE_ROOT_URL || process.env.COPILOT_DEV_ROOT_URL],
+    ["us", process.env.COPILOT_ROOT_URL],
+    ["us-prod", process.env.COPILOT_ROOT_URL],
+    ["us-dev", process.env.COPILOT_DEV_ROOT_URL],
+    ["us-stage", process.env.COPILOT_STAGE_ROOT_URL || process.env.COPILOT_DEV_ROOT_URL],
+    ["eu", process.env.COPILOT_EU_ROOT_URL],
+    ["eu-prod", process.env.COPILOT_EU_ROOT_URL],
+    ["eu-dev", process.env.COPILOT_EU_DEV_ROOT_URL],
+    ["eu-stage", process.env.COPILOT_EU_STAGE_ROOT_URL || process.env.COPILOT_EU_DEV_ROOT_URL],
 ]);
-export const BACKEND_URL: string = config.get('rootUrl') || COPILOT_ROOT_URLS.get(devantEnv) || process.env.COPILOT_ROOT_URL;
 
-export const DEVANT_TOKEN_EXCHANGE_URL: string = BACKEND_URL + "/auth-api/v1.0/auth/token-exchange";
+const defaultRegionKey = devantEnv ? `us-${devantEnv}` : "us";
+const _defaultBackendUrl: string = config.get('rootUrl') || COPILOT_ROOT_URLS.get(defaultRegionKey) || process.env.COPILOT_ROOT_URL;
+
+export let BACKEND_URL: string = _defaultBackendUrl;
+
+export let DEVANT_TOKEN_EXCHANGE_URL: string = _defaultBackendUrl + "/auth-api/v1.0/auth/token-exchange";
 
 // This refers to old backend before FE Migration. We need to eventually remove this.
-export const OLD_BACKEND_URL: string = BACKEND_URL + "/v2.0";
+export let OLD_BACKEND_URL: string = _defaultBackendUrl + "/v2.0";
+
+export const setBackendRegion = (region: string): boolean => {
+    if (config.get('rootUrl')) {
+        return true;
+    }
+    const normalized = region?.trim().toLowerCase();
+    const key = devantEnv ? `${normalized}-${devantEnv}` : normalized;
+    const regionalUrl = COPILOT_ROOT_URLS.get(key) || (devantEnv ? COPILOT_ROOT_URLS.get(normalized) : undefined);
+    if (!regionalUrl) {
+        console.error(`No backend URL configured for region '${normalized}'`);
+        return false;
+    }
+    BACKEND_URL = regionalUrl;
+    DEVANT_TOKEN_EXCHANGE_URL = regionalUrl + "/auth-api/v1.0/auth/token-exchange";
+    OLD_BACKEND_URL = regionalUrl + "/v2.0";
+    console.log(`[Region] ${region} → BACKEND_URL: ${BACKEND_URL}`);
+    return true;
+};
 
 export async function closeAllBallerinaFiles(dirPath: string): Promise<void> {
     // Check if the directory exists
