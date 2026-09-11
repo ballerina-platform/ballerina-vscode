@@ -157,8 +157,14 @@ export const getPlatformStsToken = async (): Promise<string | undefined> => {
             return undefined;
         }
         if (api.isLoggedIn()) {
-            const { region } = api.getAuthState();
-            setBackendRegion(region.toLowerCase());
+            try {
+                const region = api.getAuthState()?.region;
+                if (region) {
+                    setBackendRegion(region.toLowerCase());
+                }
+            } catch {
+                /* keep default region */
+            }
         }
         return await api.getStsToken();
     } catch (error) {
@@ -402,10 +408,12 @@ export const getRefreshedAccessToken = async (): Promise<string> => {
                 console.log('Refreshing token via STS exchange...');
                 const newSecrets = await refreshTokenViaStsExchange();
 
-                // Update stored credentials
+                // Update stored credentials, persisting region so warm restarts restore it
+                const api = await getPlatformExtensionAPI();
+                const region = api?.getAuthState()?.region?.trim().toLowerCase();
                 const updatedCredentials: AuthCredentials = {
                     loginMethod: LoginMethod.BI_INTEL,
-                    secrets: newSecrets
+                    secrets: { ...newSecrets, ...(region && { region }) }
                 };
                 await storeAuthCredentials(updatedCredentials);
 

@@ -18,7 +18,7 @@
 
 import * as vscode from 'vscode';
 import * as fs from 'fs';
-import { AIUserToken, LoginMethod, AuthCredentials } from '@wso2/ballerina-core';
+import { AIUserToken, LoginMethod, AuthCredentials, BIIntelSecrets } from '@wso2/ballerina-core';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createAmazonBedrock } from '@ai-sdk/amazon-bedrock';
 import { createAnthropicAws } from '@ai-sdk/anthropic-aws';
@@ -33,9 +33,11 @@ import {
     isPlatformExtensionAvailable,
     isDevantUserLoggedIn,
     getPlatformStsToken,
-    exchangeStsToCopilotToken
+    exchangeStsToCopilotToken,
+    getPlatformExtensionAPI
 } from '../../utils/ai/auth';
 import { getBedrockRegionalPrefix } from '../../features/ai/utils/ai-client';
+import { setBackendRegion } from '../../features/ai/utils';
 import { WICommandIds } from '@wso2/wso2-platform-core';
 
 const LEGACY_ACCESS_TOKEN_SECRET_KEY = 'BallerinaAIUser';
@@ -50,6 +52,13 @@ export const checkToken = async (): Promise<AuthCredentials | undefined> => {
             // First check if we have stored credentials
             const credentials = await getAccessToken();
             if (credentials) {
+                // Warm restart: restore the backend region so we don't hit US when the user is EU
+                if (credentials.loginMethod === LoginMethod.BI_INTEL) {
+                    const { region } = credentials.secrets as BIIntelSecrets;
+                    if (region) {
+                        setBackendRegion(region);
+                    }
+                }
                 resolve(credentials);
                 return;
             }
@@ -64,9 +73,11 @@ export const checkToken = async (): Promise<AuthCredentials | undefined> => {
                         const stsToken = await getPlatformStsToken();
                         if (stsToken) {
                             const secrets = await exchangeStsToCopilotToken(stsToken);
+                            const api = await getPlatformExtensionAPI();
+                            const region = api?.getAuthState()?.region?.trim().toLowerCase();
                             const newCredentials: AuthCredentials = {
                                 loginMethod: LoginMethod.BI_INTEL,
-                                secrets
+                                secrets: { ...secrets, ...(region && { region }) }
                             };
                             await storeAuthCredentials(newCredentials);
                             resolve(newCredentials);

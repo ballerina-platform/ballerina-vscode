@@ -60,6 +60,7 @@ export function getBedrockRegionalPrefix(region: string): string {
 
 let cachedAnthropic: ReturnType<typeof createAnthropic> | null = null;
 let cachedAuthMethod: LoginMethod | null = null;
+let cachedBaseUrl: string | null = null;
 
 /**
  * Reusable fetch function that handles authentication with token refresh.
@@ -71,7 +72,7 @@ let cachedAuthMethod: LoginMethod | null = null;
  * @param options - Fetch options
  * @returns Promise<Response>
  */
-export async function fetchWithAuth(input: string | URL | Request, options: RequestInit = {}): Promise<Response | undefined> {
+export async function fetchWithAuth(input: string | URL | Request, options: RequestInit = {}): Promise<Response> {
     try {
         const credentials = await getAccessToken();
         const loginMethod = credentials.loginMethod;
@@ -120,17 +121,20 @@ export async function fetchWithAuth(input: string | URL | Request, options: Requ
                         if (response.status === 401) {
                             console.log("Still unauthorized after token refresh. Logging out.");
                             AIStateMachine.service().send(AIMachineEventType.SILENT_LOGOUT);
-                            return;
+                            throw new Error("Session expired. Please log in again.");
                         }
                     } else {
                         console.log("Token refresh returned null. Logging out.");
                         AIStateMachine.service().send(AIMachineEventType.SILENT_LOGOUT);
-                        return;
+                        throw new Error("Session expired. Please log in again.");
                     }
-                } catch (refreshError) {
+                } catch (refreshError: any) {
+                    if (refreshError?.message === "Session expired. Please log in again.") {
+                        throw refreshError;
+                    }
                     console.error("Token refresh failed:", refreshError);
                     AIStateMachine.service().send(AIMachineEventType.SILENT_LOGOUT);
-                    return;
+                    throw new Error("Session expired. Please log in again.");
                 }
             }
         }
@@ -148,6 +152,7 @@ export async function fetchWithAuth(input: string | URL | Request, options: Requ
     } catch (error: any) {
         if (error?.message === "TOKEN_EXPIRED") {
             AIStateMachine.service().send(AIMachineEventType.SILENT_LOGOUT);
+            throw new Error("Session expired. Please log in again.");
         } else {
             throw error;
         }
@@ -161,9 +166,10 @@ export async function fetchWithAuth(input: string | URL | Request, options: Requ
 export const getAnthropicClient = async (model: AnthropicModel): Promise<any> => {
     const loginMethod = await getLoginMethod();
 
-    // Recreate client if login method has changed or no cached instance
-    if (!cachedAnthropic || cachedAuthMethod !== loginMethod) {
-        let url = BACKEND_URL + LLM_API_BASE_PATH + "/claude";
+    // Recreate client if login method or backend URL has changed
+    const currentUrl = BACKEND_URL + LLM_API_BASE_PATH + "/claude";
+    if (!cachedAnthropic || cachedAuthMethod !== loginMethod || cachedBaseUrl !== currentUrl) {
+        let url = currentUrl;
         if (loginMethod === LoginMethod.BI_INTEL) {
             cachedAnthropic = createAnthropic({
                 baseURL: url,
@@ -249,6 +255,7 @@ export const getAnthropicClient = async (model: AnthropicModel): Promise<any> =>
         }
 
         cachedAuthMethod = loginMethod;
+        cachedBaseUrl = currentUrl;
     }
 
     // For AWS Bedrock, we return directly above, so this is for other methods

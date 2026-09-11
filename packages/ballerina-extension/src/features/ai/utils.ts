@@ -64,12 +64,20 @@ export let DEVANT_TOKEN_EXCHANGE_URL: string = _defaultBackendUrl + "/auth-api/v
 export let OLD_BACKEND_URL: string = _defaultBackendUrl + "/v2.0";
 
 export const setBackendRegion = (region: string): void => {
+    if (config.get('rootUrl')) {
+        return;
+    }
     const normalized = region?.trim().toLowerCase();
     const key = devantEnv ? `${normalized}-${devantEnv}` : normalized;
-    const regionalUrl = COPILOT_ROOT_URLS.get(key) || COPILOT_ROOT_URLS.get(normalized);
+    const regionalUrl = COPILOT_ROOT_URLS.get(key);
+    if (!regionalUrl) {
+        console.error(`No backend URL configured for region '${normalized}'`);
+        return;
+    }
     BACKEND_URL = regionalUrl;
     DEVANT_TOKEN_EXCHANGE_URL = regionalUrl + "/auth-api/v1.0/auth/token-exchange";
     OLD_BACKEND_URL = regionalUrl + "/v2.0";
+    console.log(`[Region] ${region} → BACKEND_URL: ${BACKEND_URL}`);
 };
 
 export async function closeAllBallerinaFiles(dirPath: string): Promise<void> {
