@@ -213,6 +213,16 @@ If `minCount` is less than the number of futures passed in, some tuple members m
 A non-nilable member type paired with a `minCount` smaller than the future count is rejected by
 the compiler plugin.
 
+`ctx->await` also takes a named `timeout` (the same `Duration` record used elsewhere): pass it to
+give up waiting instead of blocking forever. A timeout behaves like an unmet `minCount` — treat it
+the same way, with nilable member types for whichever futures may not have resolved yet.
+
+```ballerina
+[ValidationResult?, ValidationResult?, ValidationResult?] results =
+        check ctx->await([events.validatorA, events.validatorB, events.validatorC], minCount = 2,
+                timeout = {hours: 48});
+```
+
 ## Starting and observing a workflow
 
 ```ballerina
@@ -234,11 +244,17 @@ public function main() returns error? {
 ### Sending data into a running workflow
 
 `workflow:sendData` delivers a value into a running workflow's events record so a `wait` on that
-field can resolve. **This module has more than one released signature for `sendData` across
-versions, with the position of the payload and the field-name argument differing between them** —
-do not guess the argument order from memory. Check the actual resolved signature for the
-project's `ballerina/workflow` version (hover or go-to-definition) before writing the call, and
-match it exactly.
+field can resolve:
+
+```ballerina
+check workflow:sendData(<name>Workflow, workflowId, "<fieldName>", <data>);
+```
+
+The module's own current documentation gives this order — `(workflow, workflowId, dataName,
+data)`, `dataName` before `data`, and `dataName` matching the events record field name exactly.
+**Older `ballerina/workflow` versions swapped `data` and `dataName`** — a real fixture from an
+older version shows the opposite order. Confirm the resolved signature (hover or go-to-definition)
+before writing the call rather than trusting either order from memory.
 
 ## Human tasks
 
@@ -300,6 +316,44 @@ This import alone turns on a REST API for listing and completing pending human t
 `Config.toml` flag for it. Its exact endpoint paths and request/response shapes are not verified
 here; don't hand-write calls against it from memory, and don't invent a `[ballerina.workflow...]`
 configuration table for it — check the module's own documentation for the real surface first.
+
+### Alternative: approval over a data channel
+
+`awaitHumanTask` is not the only way to model a human decision. When the decision will come from a
+system the user already has — an existing approval UI, a webhook, a Slack action — rather than
+needing this module's own task inbox, roles, and generated form, use the plain events-record
+mechanism from "Waiting on data events" and "Sending data into a running workflow" instead:
+
+```ballerina
+type OrderEvents record {|
+    future<ApprovalDecision> approval;
+|};
+
+@workflow:Workflow
+function <name>Workflow(workflow:Context ctx, OrderInput input, OrderEvents events) returns OrderResult|error {
+    check ctx->callActivity(validateOrder, {orderId: input.orderId});
+    ApprovalDecision decision = check wait events.approval;
+    if !decision.approved {
+        return {orderId: input.orderId, status: "REJECTED"};
+    }
+    string fulfillmentId = check ctx->callActivity(fulfillOrder, {orderId: input.orderId});
+    return {orderId: input.orderId, status: "COMPLETED", fulfillmentId};
+}
+```
+
+The external system resolves it with an ordinary `workflow:sendData` call — for example, from an
+HTTP resource the user's own approval UI calls:
+
+```ballerina
+resource function post orders/[string workflowId]/approve(ApprovalDecision decision) returns json|error {
+    check workflow:sendData(<name>Workflow, workflowId, "approval", decision);
+    return {status: "accepted"};
+}
+```
+
+Reach for this instead of `awaitHumanTask` when the user describes an approval source outside this
+module's own task mechanism — there is no inbox, no roles, and no generated form; the workflow
+simply resumes when the data arrives.
 
 ## Child workflows
 
