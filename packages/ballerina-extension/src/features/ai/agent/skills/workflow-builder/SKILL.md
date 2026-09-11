@@ -240,8 +240,66 @@ do not guess the argument order from memory. Check the actual resolved signature
 project's `ballerina/workflow` version (hover or go-to-definition) before writing the call, and
 match it exactly.
 
-The same caution applies to `ctx->awaitHumanTask` and the shape of `HumanTaskDefinition` — verify
-the resolved signature before hand-writing a call rather than assuming a particular argument order.
+## Human tasks
+
+`ctx->awaitHumanTask` pauses the workflow — durably, for hours or days if needed — until a person
+completes it or it times out. This is a different mechanism from a `HumanReview` retry policy on
+`callActivity` above: that one escalates an activity's *failure* to a human; this one is an
+explicit pause point the workflow function reaches on its own, whether or not anything failed.
+
+```ballerina
+<Result> decision = check ctx->awaitHumanTask("<taskName>", userRoles = "<role>",
+        taskInput = {<field>: <value>}, title = "<title>", description = "<description>");
+```
+
+- `taskName` is positional; everything else is named.
+- `userRoles` (`string|string[]`) says who may complete the task.
+- `taskInput` (`map<json>`) is the data shown to the reviewer. **Some `ballerina/workflow`
+  versions before 0.9.0 named this field `payload` instead** — the same kind of version drift
+  `sendData` has above. Check the resolved version before writing either name.
+- `title` and `description` are both optional `string`s shown to the reviewer.
+- `timeout` (optional `Duration`, the same record `callActivity`'s retry policy uses) gives up
+  instead of waiting forever; omit it to wait indefinitely.
+
+`awaitHumanTask` returns `<Result>|HumanTaskError`. Branch on the specific failure the workflow
+needs to react to, not just the union:
+
+```ballerina
+<Result>|error decision = ctx->awaitHumanTask(...);
+if decision is workflow:HumanTaskTimeoutError {
+    // nobody acted before decision.detail().timedOutAfter
+} else if decision is workflow:HumanTaskRejectedError {
+    // decision.detail().reason, .rejectedBy
+} else if decision is workflow:HumanTaskFailedError {
+    // the task workflow itself failed or was terminated — no further detail
+} else if decision is error {
+    return decision;
+} else {
+    // decision is <Result> — the reviewer's actual answer
+}
+```
+
+### Completing a task from outside the workflow
+
+A pending task is completed by a separate call, not by the workflow itself:
+
+```ballerina
+check workflow:completeHumanTask(<taskWorkflowId>, <result>);
+```
+
+Pass `callerRoles` to require that the caller holds one of the task's `userRoles`; omit it to skip
+that check. Pass `userId` to record who acted, for auditing.
+
+### Reaching a pending task from outside
+
+```ballerina
+import ballerina/workflow.management.rest as _;
+```
+
+This import alone turns on a REST API for listing and completing pending human tasks — there is no
+`Config.toml` flag for it. Its exact endpoint paths and request/response shapes are not verified
+here; don't hand-write calls against it from memory, and don't invent a `[ballerina.workflow...]`
+configuration table for it — check the module's own documentation for the real surface first.
 
 ## Child workflows
 
