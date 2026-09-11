@@ -22,7 +22,7 @@ import { useEffect, useRef, useState } from "react";
 import { RelativeLoader } from "../../../components/RelativeLoader";
 import { LoaderContainer } from "../../../components/RelativeLoader/styles";
 import { FlowNodeForm } from "../Forms/FlowNodeForm";
-import { getNodeTemplate, resolveAgentNodePosition } from "./utils";
+import { getNodeTemplate, resolveAgentNodePosition, resolveFilePath } from "./utils";
 
 interface MemoryStoreConfigProps {
     storeNode: FlowNode;
@@ -41,8 +41,7 @@ export function MemoryStoreConfig(props: MemoryStoreConfigProps): JSX.Element {
     useEffect(() => {
         void (async () => {
             const lineRange = storeNode.codedata.lineRange;
-            filePath.current = (await rpcClient.getVisualizerRpcClient()
-                .joinProjectPath({ segments: [lineRange.fileName] })).filePath;
+            filePath.current = await resolveFilePath(rpcClient, lineRange.fileName, "");
             const storeTemplate = await getNodeTemplate(rpcClient, storeNode.codedata, filePath.current);
             if (storeTemplate) {
                 storeTemplate.codedata.lineRange = lineRange;

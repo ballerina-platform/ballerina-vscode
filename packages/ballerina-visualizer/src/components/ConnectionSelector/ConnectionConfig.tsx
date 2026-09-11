@@ -237,7 +237,13 @@ export function ConnectionConfig(props: ConnectionConfigProps): JSX.Element {
             {!loading && selectedConnectionFields?.length > 0 && (
                 <>
                     <ArtifactForm
-                        key={selectedConnectionValue}
+                        key={
+                            !selectedConnectionValue
+                                || connectionNodesMap.current.has(selectedConnectionValue)
+                                || selectedConnectionValue === DEFAULT_MODEL_PROVIDER_ITEM.value
+                                ? selectedConnectionValue
+                                : "__expression__"
+                        }
                         fileName={currentFilePath.current || projectPath.current}
                         targetLineRange={targetLineRangeRef.current}
                         fields={selectedConnectionFields}

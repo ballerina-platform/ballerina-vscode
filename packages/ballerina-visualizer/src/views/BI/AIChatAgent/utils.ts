@@ -419,6 +419,17 @@ export const findAgentScopedNode = async (
     return nodes?.[0];
 };
 
+// `fileName` may already be absolute (e.g. via ConnectionSelector's updateNodeLineRange); joining again would double the project prefix.
+export const resolveFilePath = async (
+    rpcClient: BallerinaRpcClient, fileName: string | undefined, fallback: string
+): Promise<string> => {
+    if (!fileName) return fallback;
+    if (fileName.startsWith("/") || fileName.startsWith("\\\\") || /^[a-zA-Z]:[\\/]/.test(fileName)) {
+        return fileName;
+    }
+    return (await rpcClient.getVisualizerRpcClient().joinProjectPath({ segments: [fileName] })).filePath;
+};
+
 export const findAgentNodeFromAgentCallNode = async (agentCallNode: FlowNode, rpcClient: BallerinaRpcClient) => {
     if (!agentCallNode || agentCallNode.codedata?.node !== "AGENT_CALL") {
         return null;

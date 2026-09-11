@@ -24,7 +24,7 @@ import { cloneDeep } from "lodash";
 import { useEffect, useRef, useState } from "react";
 import { RelativeLoader } from "../../../components/RelativeLoader";
 import { FlowNodeForm } from "../Forms/FlowNodeForm";
-import { findAgentScopedNode, getAiModuleOrg, getNodeTemplate, refreshAgentNodeLineRange, resolveAgentNodePosition } from "./utils";
+import { findAgentScopedNode, getAiModuleOrg, getNodeTemplate, refreshAgentNodeLineRange, resolveAgentNodePosition, resolveFilePath } from "./utils";
 import { MemoryStoreConfig } from "./MemoryStoreConfig";
 import { usePanelOverlay } from "../FlowDiagram/hooks/usePanelOverlay";
 import { ConnectionSelectionList } from "../../../components/ConnectionSelector/ConnectionSelectionList";
@@ -261,17 +261,6 @@ export function MemoryManagerConfig(props: MemoryConfigProps): JSX.Element {
         await loadMemoryTemplate(memoryCodeData);
     };
 
-    const resolveFilePath = async (fileName: string | undefined, fallback: string): Promise<string> => {
-        if (!fileName) return fallback;
-        // `fileName` may be relative (e.g. "agents.bal") or already absolute
-        // (ConnectionSelector's updateNodeLineRange writes the artifact's absolute path).
-        // Skip joinProjectPath when already absolute to avoid doubling the project prefix.
-        if (fileName.startsWith("/") || /^[a-zA-Z]:[\\/]/.test(fileName)) {
-            return fileName;
-        }
-        return (await rpcClient.getVisualizerRpcClient().joinProjectPath({ segments: [fileName] })).filePath;
-    };
-
     const handleOnSave = async (updatedNode?: FlowNode): Promise<void> => {
         if (!agentNode) {
             console.error("Agent node not found", { agentNode, agentNodeRef });
@@ -282,7 +271,7 @@ export function MemoryManagerConfig(props: MemoryConfigProps): JSX.Element {
 
         try {
             const memoryFileName = updatedNode?.codedata?.lineRange?.fileName;
-            const memoryFilePath = await resolveFilePath(memoryFileName, agentFilePath.current);
+            const memoryFilePath = await resolveFilePath(rpcClient, memoryFileName, agentFilePath.current);
 
             const agentVarName = agentNode?.properties?.variable?.value as string;
 
@@ -296,6 +285,7 @@ export function MemoryManagerConfig(props: MemoryConfigProps): JSX.Element {
             await refreshAgentNodeLineRange(updatedAgentNode, rpcClient, memoryResponse?.artifacts);
 
             const agentNodeFilePath = await resolveFilePath(
+                rpcClient,
                 updatedAgentNode?.codedata?.lineRange?.fileName,
                 agentFilePath.current
             );
