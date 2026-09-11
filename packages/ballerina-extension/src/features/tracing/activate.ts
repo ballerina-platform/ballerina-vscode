@@ -109,13 +109,13 @@ export function activateTracing(ballerinaExtInstance: BallerinaExtension) {
         await showTraceWindow();
     });
 
-    const enableTracingCommand = vscode.commands.registerCommand(ENABLE_TRACING_COMMAND, async () => {
+    const enableTracingCommand = vscode.commands.registerCommand(ENABLE_TRACING_COMMAND, async (useAmpProvider?: boolean) => {
         const targetPath = await resolveTracingTargetPath("Select an integration to enable tracing");
         if (!targetPath) {
             return;
         }
 
-        TracerMachine.enable(targetPath);
+        TracerMachine.enable(targetPath, useAmpProvider === true);
         await notifyTracingToggle(true, targetPath);
     });
 

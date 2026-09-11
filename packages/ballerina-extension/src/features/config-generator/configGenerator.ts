@@ -30,7 +30,7 @@ import { fileURLToPath } from "url";
 import { startDebugging } from "../editor-support/activator";
 import { openView, StateMachine } from "../../stateMachine";
 import * as path from "path";
-import { TracerMachine } from "../tracing";
+import { TracerMachine, getActiveTracingProvider, isAmpConfigIncomplete } from "../tracing";
 import { VisualizerWebview } from "../../views/visualizer/webview";
 import { selectIntegrationOrPrompt } from "../../utils/command-utils";
 
@@ -106,11 +106,10 @@ export async function prepareAndGenerateConfig(
     const ignoreFile = path.join(packagePath, ".gitignore");
     const configFile = path.join(packagePath, BAL_CONFIG_FILE);
 
-    const hasWarnings = (
-        await checkConfigUpdateRequired(
-            ballerinaExtInstance,
-            packagePath
-        )).hasWarnings;
+    const { hasWarnings, ampConfigMissing } = await checkConfigUpdateRequired(
+        ballerinaExtInstance,
+        packagePath
+    );
 
     if (!hasWarnings) {
         if (!isCommand && executeRun) {
@@ -119,13 +118,13 @@ export async function prepareAndGenerateConfig(
         return true;
     }
 
-    return await handleOnUnSetValues(packageName, packagePath, configFile, ignoreFile, ballerinaExtInstance, isCommand, isBi, executeRun);
+    return await handleOnUnSetValues(packageName, packagePath, configFile, ignoreFile, ballerinaExtInstance, isCommand, isBi, executeRun, ampConfigMissing);
 }
 
 export async function checkConfigUpdateRequired(
     ballerinaExtInstance: BallerinaExtension,
     projectPath: string
-): Promise<{ hasWarnings: boolean }> {
+): Promise<{ hasWarnings: boolean; ampConfigMissing?: boolean }> {
     try {
         const showLibraryConfigVariables = ballerinaExtInstance.showLibraryConfigVariables();
 
@@ -162,7 +161,13 @@ export async function checkConfigUpdateRequired(
             if (hasWarnings) { break; }
         }
 
-        return { hasWarnings };
+        // Publishing traces to Agent Manager requires otelEndpoint/apiKey in [ballerinax.amp] of Config.toml
+        const ampConfigMissing = getActiveTracingProvider(projectPath) === 'amp' && isAmpConfigIncomplete(projectPath);
+        if (ampConfigMissing) {
+            hasWarnings = true;
+        }
+
+        return { hasWarnings, ampConfigMissing };
     } catch (error) {
         console.error('Error while checking config update requirement:', error);
         return { hasWarnings: false };
@@ -222,7 +227,7 @@ export async function getCurrentBIProject(projectPath: string): Promise<Ballerin
     }
 }
 
-export async function handleOnUnSetValues(packageName: string, packagePath: string, configFile: string, ignoreFile: string, ballerinaExtInstance: BallerinaExtension, isCommand: boolean, isBi: boolean, executeRun: boolean = true): Promise<boolean> {
+export async function handleOnUnSetValues(packageName: string, packagePath: string, configFile: string, ignoreFile: string, ballerinaExtInstance: BallerinaExtension, isCommand: boolean, isBi: boolean, executeRun: boolean = true, ampConfigMissing: boolean = false): Promise<boolean> {
     let result;
     let btnTitle: string;
     let message: string;
@@ -237,7 +242,9 @@ export async function handleOnUnSetValues(packageName: string, packagePath: stri
 
     const openConfigButton = { title: btnTitle };
     const ignoreButton = { title: 'Run Anyway' };
-    const details = "It is recommended to create/update the configurable variables with all mandatory configuration values before running the program.";
+    const details = ampConfigMissing
+        ? "Publishing traces to Agent Manager requires an OTel endpoint and API key. Provide values for otelEndpoint and apiKey under [ballerinax.amp] in the configuration panel before running the program."
+        : "It is recommended to create/update the configurable variables with all mandatory configuration values before running the program.";
 
     if (!isCommand) {
         await new Promise((resolve) => setTimeout(resolve, 500));

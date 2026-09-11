@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2025, WSO2 LLC. (https://www.wso2.com) All Rights Reserved.
+ * Copyright (c) 2026, WSO2 LLC. (https://www.wso2.com) All Rights Reserved.
  *
  * WSO2 LLC. licenses this file to you under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
@@ -16,7 +16,5 @@
  * under the License.
  */
 
-export { activateTracing, TRACE_WINDOW_COMMAND, ENABLE_TRACING_COMMAND, TRACE_VIEW_ID } from './activate';
-export { TracerMachine } from './tracer-machine';
-export { TraceServer } from './trace-server';
-export { getActiveTracingProvider, isAmpConfigIncomplete } from './utils';
+export { TracingMenu, tracingSelectionLabel } from "./TracingMenu";
+export type { TracingMenuProps } from "./TracingMenu";

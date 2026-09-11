@@ -33,6 +33,7 @@ import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Button, Codicon, Icon, Menu, MenuItem, Popover, ProgressRing, ThemeColors } from "@wso2/ui-toolkit";
 import { PageHeader } from "../components/PageHeader";
 import { TopNavigationBar } from "../../../components/TopNavigationBar";
+import { TracingMenu, tracingSelectionLabel } from "../../../components/TracingControl";
 import { usePlatformExtContext } from "../../../providers/platform-ext-ctx-provider";
 import { getIntegrationTypes, validateComponentName, useProjectContentRefresh } from "../PackageOverview/utils";
 import { useTracingStatus } from "../../../hooks/useProductMode";
@@ -121,16 +122,6 @@ const CenteredSlot = styled.div`
     padding: 24px;
 `;
 
-const TracingState = styled.div`
-    display: inline-grid;
-    justify-items: start;
-
-    > div {
-        grid-area: 1 / 1;
-        transition: opacity 150ms ease;
-    }
-`;
-
 // Below this the labels are dropped and the header actions become icon-only.
 const COMPACT_HEADER_WIDTH = 800;
 
@@ -192,7 +183,8 @@ export function AgentBuilderOverview({ projectPath, agentFocus }: AgentBuilderOv
     // project that already has an agent never flashes it.
     const [emptyMounted, setEmptyMounted] = useState(false);
     const compactHeader = useCompactHeader();
-    const { isTracingEnabled, toggleTracing } = useTracingStatus(rpcClient, projectPath);
+    const { tracingSelection, isToggling: isTracingToggling, selectTracingProvider } = useTracingStatus(rpcClient, projectPath);
+    const [tracingAnchor, setTracingAnchor] = useState<HTMLElement | null>(null);
     const revealTimerRef = useRef<ReturnType<typeof setTimeout>>();
     const sawEmptyRef = useRef(false);
 
@@ -387,21 +379,26 @@ export function AgentBuilderOverview({ projectPath, agentFocus }: AgentBuilderOv
                 <>
                     <Button
                         appearance="icon"
-                        onClick={toggleTracing}
-                        tooltip={isTracingEnabled ? "Tracing is on. Click to disable." : "Tracing is off. Click to enable."}
-                        buttonSx={{ padding: "4px 8px", color: isTracingEnabled ? "var(--vscode-textLink-foreground)" : undefined }}
+                        onClick={(e: React.MouseEvent<HTMLElement | SVGSVGElement>) =>
+                            setTracingAnchor(e.currentTarget as HTMLElement)
+                        }
+                        disabled={isTracingToggling}
+                        tooltip={compactHeader ? `Tracing: ${tracingSelectionLabel(tracingSelection)}` : undefined}
+                        buttonSx={{ padding: "4px 8px", color: tracingSelection !== "off" ? "var(--vscode-textLink-foreground)" : undefined }}
                     >
                         <Codicon name="telescope" sx={{ marginRight: compactHeader ? 0 : 5 }} />
-                        {!compactHeader && (
-                            <>
-                                Tracing:&nbsp;
-                                <TracingState>
-                                    <div style={{ opacity: isTracingEnabled ? 1 : 0 }}>On</div>
-                                    <div style={{ opacity: isTracingEnabled ? 0 : 1 }}>Off</div>
-                                </TracingState>
-                            </>
-                        )}
+                        {!compactHeader && `Tracing: ${tracingSelectionLabel(tracingSelection)}`}
+                        <Codicon name="chevron-down" sx={{ marginLeft: 4, fontSize: 12 }} />
                     </Button>
+                    <TracingMenu
+                        tracingSelection={tracingSelection}
+                        anchorEl={tracingAnchor}
+                        onClose={() => setTracingAnchor(null)}
+                        onSelect={(selection) => {
+                            setTracingAnchor(null);
+                            selectTracingProvider(selection);
+                        }}
+                    />
                     <Button
                         appearance="icon"
                         onClick={handleRun}
