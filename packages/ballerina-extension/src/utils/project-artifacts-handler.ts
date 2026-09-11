@@ -146,7 +146,16 @@ export function startArtifactUpdateWait(
         settle(false);
     }, timeoutMs);
 
+    let stopped = false;
+
+    // Idempotent on purpose: unsubscribe() closes over the subscriber Set and drops the whole
+    // notification entry once that Set is empty, so calling it twice would delete the Set a later
+    // subscriber created — silently unsubscribing every other listener of this notification.
     function stopListening(): void {
+        if (stopped) {
+            return;
+        }
+        stopped = true;
         clearTimeout(timeoutId);
         unsubscribe();
     }

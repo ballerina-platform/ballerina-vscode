@@ -813,7 +813,7 @@ User reverted the last made changes. The files have been restored to the state b
             if (!found) {
                 if (chatStateStorage.hasCompactedHistory(projectRootPath, threadId)) {
                     window.showWarningMessage(
-                        "This conversation was compacted to manage memory. Undo points prior to compaction are unavailable."
+                        "This conversation was compacted to manage memory. Earlier undo points are no longer available."
                     );
                     throw new Error("Checkpoint unavailable due to compaction");
                 }

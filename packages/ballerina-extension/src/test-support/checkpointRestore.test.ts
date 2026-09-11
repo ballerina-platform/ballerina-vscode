@@ -273,6 +273,44 @@ describe("what a checkpoint restore is allowed to touch", () => {
         expect(applied.filter(e => e.op === "replace").map(e => e.content)).toContain(ORIGINAL_BAL);
     });
 
+    it("restores a file whose open editor still holds pre-generation text", async () => {
+        // The agent writes non-.bal files straight to disk, so an open, unmodified editor can lag
+        // behind: its buffer matches the snapshot while disk holds the generation's content.
+        workspace.textDocuments = [{
+            uri: Uri.file(at("Config.toml")),
+            isDirty: false,
+            save: () => Promise.resolve(true),
+            getText: () => ORIGINAL_CONFIG,
+        } as never];
+
+        await expect(restoreWorkspaceSnapshot(checkpoint, true)).resolves.toBe(true);
+
+        expect(fs.readFileSync(at("Config.toml"), "utf8")).toBe(ORIGINAL_CONFIG);
+    });
+
+    it("follows the user's trash setting when deleting a file the snapshot never captured", async () => {
+        fs.writeFileSync(at("added-by-hand.csv"), "id,name\n1,ada\n");
+        const deletes: Array<boolean | undefined> = [];
+        workspace.fs.delete = (_uri: { fsPath: string }, options?: { useTrash?: boolean }) => {
+            deletes.push(options?.useTrash);
+            return Promise.resolve();
+        };
+        const originalGetConfiguration = workspace.getConfiguration;
+        workspace.getConfiguration = ((section?: string) => ({
+            get: (key: string, defaultValue?: unknown) =>
+                section === "files" && key === "enableTrash" ? false : defaultValue,
+            update: () => Promise.resolve(),
+            inspect: () => undefined,
+        })) as never;
+
+        try {
+            await expect(restoreWorkspaceSnapshot(checkpoint, true)).resolves.toBe(true);
+            expect(deletes).toEqual([false]);
+        } finally {
+            workspace.getConfiguration = originalGetConfiguration;
+        }
+    });
+
     it("leaves a file in place when the trash refuses it, rather than deleting it permanently", async () => {
         fs.writeFileSync(at("added-by-hand.csv"), "id,name\n1,ada\n");
         workspace.fs.delete = () => Promise.reject(new Error("trash is not available"));

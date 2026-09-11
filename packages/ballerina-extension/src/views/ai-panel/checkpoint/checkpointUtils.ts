@@ -200,11 +200,13 @@ export async function restoreWorkspaceSnapshot(checkpoint: Checkpoint, skipArtif
 
                 const existing = readFileBytes(fileUri);
 
-                // An unsaved editor, not disk, is what the user sees and what saveAll writes back,
-                // so a file only counts as already restored when the buffer matches too. Skipping
-                // the rest spares the Language Server a recompile per untouched file.
-                const currentText = openDocumentText(fileUri) ?? existing?.toString('utf8');
-                if (currentText === content) {
+                // Both have to agree before a file counts as already restored: an unsaved editor is
+                // what the user sees and what saveAll writes back, while an open but unmodified one
+                // can still hold pre-generation text after the agent wrote straight to disk.
+                // Skipping the rest spares the Language Server a recompile per untouched file.
+                const openText = openDocumentText(fileUri);
+                const diskText = existing?.toString('utf8');
+                if (diskText === content && (openText === undefined || openText === content)) {
                     continue;
                 }
 
@@ -244,18 +246,20 @@ export async function restoreWorkspaceSnapshot(checkpoint: Checkpoint, skipArtif
                 // WorkspaceEdit.replace() silently no-ops on a file with no open TextDocument,
                 // which is never true for .bal files but always true for the rest.
                 // Each file is isolated: one unwritable path must not abandon the rest half-restored.
+                // The snapshot holds no copy of a file it never captured, so this deletion is the
+                // user's only copy. Which is why it follows their own trash setting rather than a
+                // hardcoded choice — the same setting WorkspaceEdit honours for the .bal deletions.
+                const useTrash = vscode.workspace.getConfiguration('files').get<boolean>('enableTrash', true);
                 for (const { fileUri, filePath } of nonBalFilesToDelete) {
                     if (!fs.existsSync(fileUri.fsPath)) {
                         continue;
                     }
                     try {
-                        // The snapshot holds no copy of a file it never captured, so this deletion
-                        // is the user's only copy — .bal deletes already get the trash via WorkspaceEdit.
-                        await vscode.workspace.fs.delete(fileUri, { useTrash: true });
+                        await vscode.workspace.fs.delete(fileUri, { useTrash });
                     } catch (error) {
-                        // No unlink fallback: if the trash refused, or the user cancelled it, leaving
-                        // the file beats destroying the only copy of it.
-                        console.warn(`[Checkpoint] Could not move ${filePath} to the trash, leaving it:`, error);
+                        // Trash enabled but refused (a provider without trash support, or a cancelled
+                        // confirmation): leaving the file beats destroying the only copy of it.
+                        console.warn(`[Checkpoint] Could not delete ${filePath}, leaving it in place:`, error);
                         notRestored.push(filePath);
                     }
                 }
@@ -325,9 +329,11 @@ export async function restoreWorkspaceSnapshot(checkpoint: Checkpoint, skipArtif
         }
 
         if (notRestored.length > 0) {
+            const shown = notRestored.slice(0, 5).join(', ');
+            const rest = notRestored.length - 5;
             vscode.window.showWarningMessage(
-                `Checkpoint restored, except for ${notRestored.length} file(s) a checkpoint cannot ` +
-                `restore, left as they are: ${notRestored.slice(0, 3).join(', ')}`
+                `Checkpoint restored, except for ${notRestored.length} file(s) left as they are: ` +
+                `${shown}${rest > 0 ? ` and ${rest} more` : ''}`
             );
         } else {
             vscode.window.showInformationMessage('Checkpoint restored successfully');
