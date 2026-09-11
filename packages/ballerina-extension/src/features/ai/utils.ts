@@ -49,10 +49,12 @@ const COPILOT_ROOT_URLS = new Map<string, string>([
     ["us-dev", process.env.COPILOT_DEV_ROOT_URL],
     ["us-stage", process.env.COPILOT_STAGE_ROOT_URL || process.env.COPILOT_DEV_ROOT_URL],
     ["eu", process.env.COPILOT_EU_ROOT_URL],
-    ["eu-dev", process.env.COPILOT_EU_DEV_ROOT_URL || process.env.COPILOT_EU_ROOT_URL],
-    ["eu-stage", process.env.COPILOT_EU_STAGE_ROOT_URL || process.env.COPILOT_EU_DEV_ROOT_URL || process.env.COPILOT_EU_ROOT_URL],
+    ["eu-dev", process.env.COPILOT_EU_DEV_ROOT_URL],
+    ["eu-stage", process.env.COPILOT_EU_STAGE_ROOT_URL || process.env.COPILOT_EU_DEV_ROOT_URL],
 ]);
-const _defaultBackendUrl: string = config.get('rootUrl') || COPILOT_ROOT_URLS.get(devantEnv) || process.env.COPILOT_ROOT_URL;
+
+const defaultRegionKey = devantEnv ? `us-${devantEnv}` : "us";
+const _defaultBackendUrl: string = config.get('rootUrl') || COPILOT_ROOT_URLS.get(defaultRegionKey) || process.env.COPILOT_ROOT_URL;
 
 export let BACKEND_URL: string = _defaultBackendUrl;
 
@@ -65,14 +67,9 @@ export const setBackendRegion = (region: string): void => {
     const normalized = region?.trim().toLowerCase();
     const key = devantEnv ? `${normalized}-${devantEnv}` : normalized;
     const regionalUrl = COPILOT_ROOT_URLS.get(key) || COPILOT_ROOT_URLS.get(normalized);
-    if (regionalUrl) {
-        BACKEND_URL = regionalUrl;
-        DEVANT_TOKEN_EXCHANGE_URL = regionalUrl + "/auth-api/v1.0/auth/token-exchange";
-        OLD_BACKEND_URL = regionalUrl + "/v2.0";
-        console.log(`[Region] ${region} → BACKEND_URL: ${BACKEND_URL}`);
-    } else {
-        console.log(`[Region] ${region} → no URL found, keeping current: ${BACKEND_URL}`);
-    }
+    BACKEND_URL = regionalUrl;
+    DEVANT_TOKEN_EXCHANGE_URL = regionalUrl + "/auth-api/v1.0/auth/token-exchange";
+    OLD_BACKEND_URL = regionalUrl + "/v2.0";
 };
 
 export async function closeAllBallerinaFiles(dirPath: string): Promise<void> {
