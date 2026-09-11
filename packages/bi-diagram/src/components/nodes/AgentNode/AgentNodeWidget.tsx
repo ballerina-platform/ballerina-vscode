@@ -439,6 +439,9 @@ const USAGE_LABEL_CHAR_WIDTH = 7.4;
 const USAGE_SERVICE_CHAR_WIDTH = 7.2;
 const USAGE_SERVICE_LABEL_MAX = 32;
 const USAGE_MENU_SIZE = 24;
+// The glyph spans y 2..46, and `middle` renders ~3px below its y, as the model label's 28 against cy 24 does.
+const USAGE_TEXT_CENTER_Y = 21;
+const USAGE_LINE_GAP = 19;
 const USAGE_ROW_HIT_RIGHT_X = 291;
 const USAGE_ROW_HIT_HEIGHT = 48;
 const TOOL_LABEL_X = 110;
@@ -1105,22 +1108,10 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                 <UsageIcon usage={usage} codedata={model.node?.codedata} />
                             </foreignObject>
 
-                            <text
-                                x={USAGE_TEXT_RIGHT_X}
-                                y="20"
-                                textAnchor="end"
-                                fill={ThemeColors.ON_SURFACE}
-                                fontSize="14px"
-                                fontFamily="GilmerRegular"
-                                dominantBaseline="middle"
-                            >
-                                {usage.label.length > 20 ? `${usage.label.slice(0, 20)}...` : usage.label}
-                                <title>{[usage.label, usage.serviceLabel ?? usage.typeLabel].filter(Boolean).join(" — ")}</title>
-                            </text>
                             {usage.serviceLabel && (
                                 <text
                                     x={USAGE_TEXT_RIGHT_X}
-                                    y="36"
+                                    y={USAGE_TEXT_CENTER_Y - USAGE_LINE_GAP / 2}
                                     textAnchor="end"
                                     fill={ThemeColors.ON_SURFACE_VARIANT}
                                     fontSize="12px"
@@ -1132,6 +1123,18 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                         : usage.serviceLabel}
                                 </text>
                             )}
+                            <text
+                                x={USAGE_TEXT_RIGHT_X}
+                                y={usage.serviceLabel ? USAGE_TEXT_CENTER_Y + USAGE_LINE_GAP / 2 : USAGE_TEXT_CENTER_Y}
+                                textAnchor="end"
+                                fill={ThemeColors.ON_SURFACE}
+                                fontSize="14px"
+                                fontFamily="GilmerRegular"
+                                dominantBaseline="middle"
+                            >
+                                {usage.label.length > 20 ? `${usage.label.slice(0, 20)}...` : usage.label}
+                                <title>{[usage.serviceLabel ?? usage.typeLabel, usage.label].filter(Boolean).join(" — ")}</title>
+                            </text>
 
                             <line
                                 x1="291"
