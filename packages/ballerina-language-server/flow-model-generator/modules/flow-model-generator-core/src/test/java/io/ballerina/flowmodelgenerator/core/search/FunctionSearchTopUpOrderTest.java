@@ -28,8 +28,9 @@ import java.util.Set;
 import java.util.TreeMap;
 
 /**
- * Tests for {@link FunctionSearchCommand#topUpOrder(Map, Set, Set)}, which decides which imported packages are worth
- * an extra request when a search page cannot hold every match.
+ * Tests for {@link FunctionSearchCommand#topUpOrder(Map, Set, Set)} and
+ * {@link FunctionSearchCommand#isTopUpWorthwhile(PackageCoordinate, Set, boolean)}, which together decide which
+ * imported packages are worth an extra request when a search page cannot hold every match.
  *
  * @since 1.8.0
  */
@@ -38,6 +39,8 @@ public class FunctionSearchTopUpOrderTest {
     private static final String ORG = "ballerinax";
     private static final String SUPPLYCHAIN = "edifact.d03a.supplychain";
     private static final String SHIPPING = "edifact.d03a.shipping";
+    // The organizations a general function-search page keeps, plus the project's own.
+    private static final Set<String> ALLOWED_ORGS = Set.of("ballerina", "ballerinax", "wso2", "myorg");
 
     @Test(description = "A package whose every imported module is already listed is not queried again.")
     public void testFullyPagedPackageSkipped() {
@@ -107,6 +110,24 @@ public class FunctionSearchTopUpOrderTest {
     public void testNoImportsQueriesNothing() {
         Assert.assertTrue(FunctionSearchCommand.topUpOrder(Map.of(),
                 Set.of(module(SUPPLYCHAIN)), Set.of(new PackageCoordinate(ORG, SUPPLYCHAIN))).isEmpty());
+    }
+
+    @Test(description = "A package the page's organization filter excludes is topped up however short the page is.")
+    public void testFilteredOutOrganizationToppedUpOnShortPage() {
+        // The reported shape: a partner EDI package published by neither ballerina nor ballerinax. Its rows are
+        // dropped from the general page whatever the ranking, so page length carries no information about it.
+        PackageCoordinate candidate = new PackageCoordinate("neatfox", "edifact.d03a.finance");
+
+        Assert.assertTrue(FunctionSearchCommand.isTopUpWorthwhile(candidate, ALLOWED_ORGS, false));
+        Assert.assertTrue(FunctionSearchCommand.isTopUpWorthwhile(candidate, ALLOWED_ORGS, true));
+    }
+
+    @Test(description = "A package the page would have accepted is topped up only once the page has filled up.")
+    public void testAllowedOrganizationToppedUpOnlyWhenPageIsFull() {
+        PackageCoordinate candidate = new PackageCoordinate(ORG, SUPPLYCHAIN);
+
+        Assert.assertFalse(FunctionSearchCommand.isTopUpWorthwhile(candidate, ALLOWED_ORGS, false));
+        Assert.assertTrue(FunctionSearchCommand.isTopUpWorthwhile(candidate, ALLOWED_ORGS, true));
     }
 
     private static ModuleCoordinate module(String moduleName) {

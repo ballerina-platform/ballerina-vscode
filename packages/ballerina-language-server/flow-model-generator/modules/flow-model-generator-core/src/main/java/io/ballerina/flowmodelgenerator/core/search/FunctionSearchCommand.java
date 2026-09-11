@@ -80,8 +80,12 @@ class FunctionSearchCommand extends SearchCommand {
     // A searched page is a window onto a result set that a reindexed Central makes far larger: a function-name query
     // now matches one row per declaring module rather than one per package, so a package with thirty modules can fill
     // a page on its own and push another package's rows past the end of it. These bound the top-up that keeps an
-    // imported package's functions reachable.
-    private static final int IMPORTED_PACKAGE_FUNCTION_LIMIT = 50;
+    // imported package's functions reachable. Central has no module filter, so a topped-up package arrives whole and
+    // the modules the project does not import are dropped below; the per-package budget therefore has to cover the
+    // package rather than the handful of rows that survive it. A d03a EDI package declares a little over two hundred
+    // functions whose names contain "fromEdiString" across its thirty modules, and a broad query against a tighter
+    // budget would be truncated before it reached the one module the project actually imports.
+    private static final int IMPORTED_PACKAGE_FUNCTION_LIMIT = 250;
     private static final int MAX_TOPPED_UP_PACKAGES = 5;
     private final Map<PackageCoordinate, Set<ModuleCoordinate>> importedModulesByPackage;
     private final Set<ModuleCoordinate> importedModules;
@@ -169,7 +173,7 @@ class FunctionSearchCommand extends SearchCommand {
         if (functionSearchList == null) {
             functionSearchList = dbManager.searchFunctions(query, limit, offset);
         } else {
-            functionSearchList = withImportedPackageFunctions(centralSearch, functionSearchList);
+            functionSearchList = withImportedPackageFunctions(centralSearch, functionSearchList, allowedOrgs);
         }
         buildLibraryNodes(functionSearchList, true);
         return rootBuilder.build().items();
@@ -184,18 +188,28 @@ class FunctionSearchCommand extends SearchCommand {
      * lose, if the page filled up first. A module the user has imported is the strongest relevance signal
      * available, and it costs nothing to honour, so it is no longer left to the ranking.</p>
      *
-     * <p>A short page means Central had nothing more to give, so nothing is hidden and no extra request is made -
-     * which is the common case while typing. When the page is full, packages that already have rows on it are
-     * topped up first: their presence proves they hold matching functions, whereas a package with no rows at all
-     * may simply have none, and asking about it is the guess that spends the budget last.</p>
+     * <p>Whether a row is missing because the page filled up depends on the organization that published it. The page
+     * keeps only the organizations in {@code allowedOrgs}, so a package outside them cannot appear on it however
+     * short it is, and page length says nothing about that package - which is the usual shape of the problem, since
+     * an integration's own EDI or partner packages are published by neither {@code ballerina} nor {@code ballerinax}.
+     * Those are always topped up. For a package the page would have accepted, a short page does mean Central had
+     * nothing more to give, so no request is spent - the common case while typing.</p>
+     *
+     * <p>Packages that already have rows on the page are topped up first: their presence proves they hold matching
+     * functions, whereas a package with no rows at all may simply have none, and asking about it is the guess that
+     * spends the budget last. Only the modules the project imports are kept from what comes back; the package's
+     * other modules are the general search's business, and prepending a package's worth of them would bury the page
+     * this is meant to complete.</p>
      *
      * @param centralSearch  the Central client to query with
      * @param centralResults the general page, kept in its original order
+     * @param allowedOrgs    the organizations the general page was filtered to
      * @return the page with the missing imported functions ahead of it, or the page unchanged
      */
     private List<SearchResult> withImportedPackageFunctions(CentralSearchUtil centralSearch,
-                                                            List<SearchResult> centralResults) {
-        if (offset > 0 || importedModulesByPackage.isEmpty() || centralResults.size() < limit) {
+                                                            List<SearchResult> centralResults,
+                                                            Set<String> allowedOrgs) {
+        if (offset > 0 || importedModulesByPackage.isEmpty()) {
             return centralResults;
         }
 
@@ -207,11 +221,15 @@ class FunctionSearchCommand extends SearchCommand {
             pagedPackages.add(new PackageCoordinate(packageInfo.org(), packageInfo.packageName()));
         }
 
+        boolean pageIsFull = centralResults.size() >= limit;
         List<SearchResult> importedResults = new ArrayList<>();
         int queried = 0;
         for (PackageCoordinate candidate : topUpOrder(importedModulesByPackage, pagedModules, pagedPackages)) {
             if (queried == MAX_TOPPED_UP_PACKAGES) {
                 break;
+            }
+            if (!isTopUpWorthwhile(candidate, allowedOrgs, pageIsFull)) {
+                continue;
             }
             queried++;
             List<SearchResult> packageResults = centralSearch.searchFunctionsInPackage(
@@ -219,7 +237,9 @@ class FunctionSearchCommand extends SearchCommand {
             if (packageResults == null) {
                 continue;
             }
+            Set<ModuleCoordinate> wantedModules = importedModulesByPackage.get(candidate);
             packageResults.stream()
+                    .filter(result -> wantedModules.contains(result.packageInfo().coordinate()))
                     .filter(result -> !pagedModules.contains(result.packageInfo().coordinate()))
                     .forEach(importedResults::add);
         }
@@ -230,6 +250,21 @@ class FunctionSearchCommand extends SearchCommand {
         List<SearchResult> merged = new ArrayList<>(importedResults);
         merged.addAll(centralResults);
         return merged;
+    }
+
+    /**
+     * Whether an extra request for this package can tell us anything the page has not already.
+     *
+     * <p>A package the page's organization filter excludes is invisible to the page whatever its length, so it is
+     * always worth asking about. One the filter admits is only missing rows when the page ran out of room.</p>
+     *
+     * @param candidate   the imported package being considered
+     * @param allowedOrgs the organizations the general page was filtered to
+     * @param pageIsFull  whether the general page filled to the requested limit
+     * @return whether to spend a request on this package
+     */
+    static boolean isTopUpWorthwhile(PackageCoordinate candidate, Set<String> allowedOrgs, boolean pageIsFull) {
+        return pageIsFull || !allowedOrgs.contains(candidate.org());
     }
 
     /**

@@ -324,10 +324,13 @@ public class CentralSearchUtil {
      *
      * <p>Central has no package filter. Its {@code q} is matched against package and module names as well as symbol
      * names, and additional terms narrow the match, so naming the package alongside the query is the only way to
-     * scope a symbol search to it ({@code q=fromEdiString edifact.d03a.supplychain} matches six symbols where
-     * {@code q=fromEdiString} matches seventy). Naming it only biases the ranking rather than restricting it, so the
-     * package is matched exactly here to drop the near misses that come back anyway - a same-named package from
-     * another organization, or a {@code d04a} sibling of a {@code d03a} package.</p>
+     * scope a symbol search to it. Naming it only biases the ranking rather than restricting it, so the package is
+     * matched exactly here to drop the near misses that come back anyway - a same-named package from another
+     * organization, or a {@code d04a} sibling of a {@code d03a} package.</p>
+     *
+     * <p>A reindexed Central returns one row per declaring module, so a whole package's worth of rows can come back
+     * from a single query: an EDI package declares upwards of two hundred functions whose names contain
+     * {@code fromEdiString} across its thirty modules. {@code limit} is the caller's budget for that.</p>
      *
      * @param query       the search query string (empty to list all of the package's functions)
      * @param limit       the maximum number of the package's functions to return
@@ -466,9 +469,10 @@ public class CentralSearchUtil {
      * <p>
      * The module name is what the codedata carries to the node template, and compiling a submodule function against
      * the package default module resolves the wrong symbol -- either not found, or silently shadowed by a same-named
-     * root function. Central indexes only the default module today, so the field is absent and the fallback is what
-     * applies; for a default-module symbol the two names are equal anyway, so the fallback is also the correct answer
-     * there rather than merely a safe one.
+     * root function. A reindexed Central reports the declaring module in its own field, one row per module, so that
+     * is what is used. The fallback covers a registry that has not been reindexed yet, where the field is absent and
+     * only default-module symbols are indexed: there the package name <i>is</i> the module name, so the fallback is
+     * the correct answer rather than merely a safe one.
      *
      * @param symbol the symbol returned by Central
      * @return the module name to attribute the symbol to
