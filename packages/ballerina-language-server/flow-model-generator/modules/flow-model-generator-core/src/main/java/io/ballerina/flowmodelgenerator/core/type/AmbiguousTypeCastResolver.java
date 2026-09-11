@@ -342,7 +342,9 @@ public final class AmbiguousTypeCastResolver {
         // Building it by hand bound the module to its natural prefix while the casts used the allocated one.
         StringBuilder statements = new StringBuilder();
         for (String signature : prefixes.pendingImportStatements()) {
-            statements.append("import ").append(signature).append(";").append(System.lineSeparator());
+            // Escape reserved-keyword module segments at emission; the ledger keeps signatures raw.
+            statements.append("import ").append(CommonUtils.escapeImportStatement(signature))
+                    .append(";").append(System.lineSeparator());
         }
         return statements.toString();
     }

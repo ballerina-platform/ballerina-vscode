@@ -19,6 +19,7 @@
 import { CSSProperties, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { keyframes } from "@emotion/react";
 import styled from "@emotion/styled";
+import { VSCodeLink } from "@vscode/webview-ui-toolkit/react";
 import { AgentRunStatus, AttachmentStatus, SHARED_COMMANDS } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Button, Icon, ThemeColors } from "@wso2/ui-toolkit";
@@ -520,6 +521,11 @@ export function CopilotComposer({ onAddArtifactManually, hiding }: CopilotCompos
                     <Heading>{runHeading}</Heading>
                     {runDetail && <Subtitle $visible={!aiPanelOpen}>{runDetail}</Subtitle>}
                     {submittedPrompt && <PromptEcho>{submittedPrompt}</PromptEcho>}
+                    {showOpenCopilot && (
+                        <VSCodeLink onClick={() => openCopilotPanel(rpcClient)} style={{ marginTop: 8 }}>
+                            Open WSO2 Integrator Copilot
+                        </VSCodeLink>
+                    )}
                 </RunBlock>
             ) : shownMode === "idle" ? (
                 <IdleBlock>

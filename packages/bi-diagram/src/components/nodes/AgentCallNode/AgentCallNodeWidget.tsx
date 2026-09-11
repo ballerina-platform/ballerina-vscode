@@ -44,7 +44,7 @@ import { getDiffContainerStyles, getDiffTitleStyles, getResultVariableName, node
 import { css } from "@emotion/react";
 import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
 import { NodeMetadata } from "@wso2/ballerina-core";
-import { sanitizeAgentData } from "../agentNodeUtils";
+import { sanitizeAgentData, toolEntryMatchesTools } from "../agentNodeUtils";
 import { useAgentNodeController } from "../AgentWidget/useAgentNodeController";
 import { AgentReferenceRow } from "../AgentWidget/AgentReferenceRow";
 
@@ -403,16 +403,14 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
         // No system instructions → fall back to tool intersection
         const hasToolOverlap =
             traceAnimation.activeAgentToolNames.some(t => nodeToolNames.includes(t)) ||
-            traceAnimation.entries.some(e =>
-                e.type === 'execute_tool' && e.toolName && nodeToolNames.includes(e.toolName)
-            );
+            traceAnimation.entries.some(e => e.type === 'execute_tool' && toolEntryMatchesTools(e, tools));
         if (hasToolOverlap) return true;
         // Nothing available → no match without explicit evidence
         return false;
     })();
     const chatEntry = isTraceMatch ? traceAnimation.entries.find(e => e.type === 'chat') : undefined;
     const toolEntries = (isTraceMatch ? traceAnimation.entries : [])
-        .filter(e => e.type === 'execute_tool' && e.toolName && nodeToolNames.includes(e.toolName));
+        .filter(e => e.type === 'execute_tool' && toolEntryMatchesTools(e, tools));
     const activeToolNames = toolEntries.filter(e => e.phase === 'active').map(e => e.toolName);
     const isAnyToolActive = activeToolNames.length > 0;
 

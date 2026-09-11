@@ -23,6 +23,10 @@ import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Icon, ThemeColors, Typography } from "@wso2/ui-toolkit";
 import React from "react";
 import { Banner } from "../../../components/Banner";
+import { CopilotOrb } from "../../../components/AgentStatusOrb/CopilotOrb";
+import { useOrbColors } from "../../../components/AgentStatusOrb/orbTheme";
+
+const LOGIN_ORB_SIZE = 58;
 
 const PanelWrapper = styled.div`
     display: flex;
@@ -47,6 +51,42 @@ const HeaderContent = styled.div`
     align-items: center;
     text-align: center;
     margin-bottom: 32px;
+`;
+
+const WelcomeOrbHalo = styled.div`
+    position: relative;
+    width: 86px;
+    height: 86px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &::before {
+        content: "";
+        position: absolute;
+        inset: -14px;
+        border-radius: 50%;
+        background: radial-gradient(
+            circle,
+            color-mix(in srgb, var(--vscode-button-background) 28%, transparent),
+            transparent 70%
+        );
+        filter: blur(8px);
+        pointer-events: none;
+    }
+
+    @media (forced-colors: active) {
+        &::before {
+            display: none;
+        }
+    }
+`;
+
+const WelcomeOrb = styled.div`
+    position: relative;
+    width: ${LOGIN_ORB_SIZE}px;
+    height: ${LOGIN_ORB_SIZE}px;
+    flex: none;
 `;
 
 const Title = styled.h2`
@@ -241,6 +281,7 @@ const InstallButton = styled.button`
 
 const LoginPanel: React.FC = () => {
     const { rpcClient } = useRpcContext();
+    const idleColors = useOrbColors("idle");
 
     const { data: isPlatformAvailable, refetch: refetchPlatformAvailability } = useQuery({
         queryKey: ["platform-availability"],
@@ -280,11 +321,11 @@ const LoginPanel: React.FC = () => {
         <PanelWrapper>
             <TopSpacer />
             <HeaderContent>
-                <Icon
-                    name="bi-ai-chat"
-                    sx={{ width: 54, height: 54 }}
-                    iconSx={{ fontSize: "54px", color: "var(--vscode-foreground)", cursor: "default" }}
-                />
+                <WelcomeOrbHalo>
+                    <WelcomeOrb role="img" aria-label="WSO2 Integrator Copilot">
+                        <CopilotOrb state="idle" colors={idleColors} size={LOGIN_ORB_SIZE} iconSize={24} />
+                    </WelcomeOrb>
+                </WelcomeOrbHalo>
                 <Title>Welcome to WSO2 Integrator Copilot</Title>
                 <Typography
                     variant="body1"

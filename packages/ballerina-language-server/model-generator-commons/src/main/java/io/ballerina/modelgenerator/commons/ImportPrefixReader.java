@@ -21,6 +21,7 @@ package io.ballerina.modelgenerator.commons;
 import io.ballerina.compiler.syntax.tree.IdentifierToken;
 import io.ballerina.compiler.syntax.tree.ImportDeclarationNode;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
+import io.ballerina.compiler.syntax.tree.SeparatedNodeList;
 
 import java.util.HashSet;
 import java.util.Optional;
@@ -264,16 +265,20 @@ public final class ImportPrefixReader {
     }
 
     private static String moduleNameOf(ImportDeclarationNode importDeclarationNode) {
-        return importDeclarationNode.moduleName().stream()
+        // Unescape so a name read from source (whose tokens carry the leading quote on reserved-keyword
+        // segments, e.g. hubspot.crm.'import) compares equal to the raw module name the model stores.
+        return CommonUtils.unescapeModuleName(importDeclarationNode.moduleName().stream()
                 .map(IdentifierToken::text)
-                .collect(Collectors.joining("."));
+                .collect(Collectors.joining(".")));
     }
 
     private static String importPrefixOf(ImportDeclarationNode importDeclarationNode, String moduleName) {
         if (importDeclarationNode.prefix().isPresent()) {
             return importDeclarationNode.prefix().get().prefix().text();
         }
-        int lastDot = moduleName.lastIndexOf('.');
-        return lastDot < 0 ? moduleName : moduleName.substring(lastDot + 1);
+        // The bound prefix is the module's last segment as written in source (escaped when it is a reserved
+        // keyword). Read it straight off the token rather than the module name, which is unescaped for lookup.
+        SeparatedNodeList<IdentifierToken> segments = importDeclarationNode.moduleName();
+        return segments.get(segments.size() - 1).text();
     }
 }

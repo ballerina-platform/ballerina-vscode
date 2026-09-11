@@ -248,8 +248,10 @@ public class SourceCodeGenerator {
         if (typeDescriptor instanceof String text) { // Type reference or in-line type as string
             // The one place an authored `prefix:Type` reaches the output, so the one place it has to be
             // resolved. Every structural branch below either recurses here or joins children already resolved,
-            // which is what keeps each qualifier rewritten exactly once.
-            return prefixes.requalifyAuthored(text, importScopes.peek());
+            // which is what keeps each qualifier rewritten exactly once. The resolved prefix is then escaped for
+            // source emission, so a reserved-keyword qualifier becomes e.g. `'import:Type`.
+            return CommonUtils.escapeTypeSignatureModulePrefixes(
+                    prefixes.requalifyAuthored(text, importScopes.peek()));
         }
 
         TypeData typeData = toTypeData(typeDescriptor);
@@ -291,7 +293,7 @@ public class SourceCodeGenerator {
             typeData.includes().forEach(include -> inclusionsBuilder
                     .append(LS)
                     .append("\t*")
-                    .append(include)
+                    .append(CommonUtils.escapeTypeSignatureModulePrefixes(include))
                     .append(";"));
         }
 
