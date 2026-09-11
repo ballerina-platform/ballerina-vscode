@@ -27,6 +27,7 @@ import * as fs from "fs";
 import * as path from "path";
 import type { ModelMessage } from "ai";
 import { SubagentMetadata, SubagentType } from "./types";
+import { writeAtomic } from "../../utils/atomic-write";
 
 const SUBAGENTS_DIR = "subagents";
 const HISTORY_FILE = "history.jsonl";
@@ -78,10 +79,4 @@ export function loadSubagentMetadata(threadDir: string, subagentId: string): Sub
     } catch {
         return null;
     }
-}
-
-function writeAtomic(file: string, content: string): void {
-    const tmp = `${file}.${process.pid}.tmp`;
-    fs.writeFileSync(tmp, content, "utf8");
-    fs.renameSync(tmp, file);
 }

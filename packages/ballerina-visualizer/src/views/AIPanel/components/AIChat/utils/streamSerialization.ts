@@ -85,10 +85,11 @@ export function appendToLastEntry(entries: StreamEntry[], item: StreamItem): Str
  */
 export function upsertToolResult(
     entries: StreamEntry[],
-    evt: { toolCallId?: string; toolName?: string; toolOutput?: any; failed?: boolean }
+    evt: { toolCallId?: string; toolName?: string; toolOutput?: any; failed?: boolean; partial?: boolean }
 ): StreamEntry[] {
     const resultItem: StreamItem = {
         kind: "tool_result", toolCallId: evt.toolCallId, toolName: evt.toolName, toolOutput: evt.toolOutput, failed: evt.failed,
+        ...(evt.partial ? { partial: true } : {}),
     };
     const replaceIn = (kind: "tool_call" | "tool_result"): StreamEntry[] | null => {
         let matched = false;

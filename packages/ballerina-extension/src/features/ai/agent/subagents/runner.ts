@@ -23,6 +23,7 @@ import { buildSubagentMessages, collectResponseMessages } from "./messages";
 import { addCacheControlToMessages, AnthropicEffort, ANTHROPIC_HAIKU, ANTHROPIC_SONNET, getAnthropicClient, getProviderCacheControl } from "../../utils/ai-client";
 import { emitModelUsage } from "../../utils/events";
 import { getSubagentDefinition } from "./definitions";
+import { describeSubagentStep, SubagentProgress } from "./progress";
 import { SubagentModel, SubagentResult, SubagentRunContext, SubagentType } from "./types";
 
 /** Runaway guard only — the prompt is what keeps a lookup short. Same ceiling as the main agent loop. */
@@ -49,6 +50,8 @@ export interface RunSubagentParams {
     abortSignal?: AbortSignal;
     ctx: SubagentRunContext;
     reasoning?: SubagentReasoningOptions;
+    /** Called after every step that made tool calls, so the caller can show what the subagent is doing. */
+    onProgress?: (progress: SubagentProgress) => void;
 }
 
 export function buildReasoningProviderOptions(reasoning: SubagentReasoningOptions | undefined) {
@@ -64,8 +67,7 @@ export function buildReasoningProviderOptions(reasoning: SubagentReasoningOption
 export async function runSubagent(params: RunSubagentParams): Promise<SubagentResult> {
     const definition = getSubagentDefinition(params.type);
     const modelId = params.model === "haiku" ? ANTHROPIC_HAIKU : ANTHROPIC_SONNET;
-    const model = await getAnthropicClient(modelId);
-    const cacheControl = await getProviderCacheControl();
+    const [model, cacheControl] = await Promise.all([getAnthropicClient(modelId), getProviderCacheControl()]);
 
     const conversation = buildSubagentMessages(params.prompt, params.previousMessages, definition.followUpHint);
     const messages: ModelMessage[] = [
@@ -74,6 +76,8 @@ export async function runSubagent(params: RunSubagentParams): Promise<SubagentRe
     ];
 
     const started = Date.now();
+    let stepCount = 0;
+    const onProgress = params.onProgress;
     const result = await generateText({
         model,
         messages,
@@ -82,6 +86,13 @@ export async function runSubagent(params: RunSubagentParams): Promise<SubagentRe
         maxOutputTokens: SUBAGENT_MAX_OUTPUT_TOKENS,
         abortSignal: params.abortSignal,
         providerOptions: buildReasoningProviderOptions(params.reasoning),
+        // The final step (report text, no tool calls) is followed at once by the completion result, so
+        // only steps that called tools are worth announcing.
+        onStepFinish: onProgress ? (step) => {
+            stepCount++;
+            const calls = step.toolCalls.map(c => ({ toolName: c.toolName, input: (c as { input?: unknown }).input }));
+            if (calls.length > 0) { onProgress(describeSubagentStep(calls, stepCount)); }
+        } : undefined,
         // Same incremental caching as the main loop: mark the last message each step so the growing
         // prefix (system + earlier doc reads) is served from cache instead of re-billed every step.
         prepareStep: async ({ messages: stepMessages }) => ({

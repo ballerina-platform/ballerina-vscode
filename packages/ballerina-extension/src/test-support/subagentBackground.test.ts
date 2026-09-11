@@ -130,3 +130,19 @@ describe("withBackgroundNotifications", () => {
         expect(withBackgroundNotifications(noExec, "run-a")).toBe(noExec);
     });
 });
+
+describe("run-end cleanup reports the abort inside the owning run", () => {
+    it("marks the entry runEnded and calls onRunEnd before aborting", () => {
+        const events: string[] = [];
+        const controller = new AbortController();
+        registerBackgroundSubagent({
+            id: "task-subagent-0000ab12", subagentType: "Librarian", description: "bg", runKey: "run-a", toolCallId: "c", startTime: new Date(),
+            output: "", completed: false, success: null, aborted: false, abortController: controller, notified: false,
+            onRunEnd: () => events.push(`aborted-reported signal=${controller.signal.aborted}`),
+        });
+        expect(cleanupRunningBackgroundSubagents("run-a")).toBe(1);
+        // Reported synchronously, and before the abort signal fires, so the late rejection has nothing left to say.
+        expect(events).toEqual(["aborted-reported signal=false"]);
+        expect(controller.signal.aborted).toBe(true);
+    });
+});

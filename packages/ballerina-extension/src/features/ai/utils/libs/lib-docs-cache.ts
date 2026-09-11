@@ -32,6 +32,7 @@ import * as os from "os";
 import * as path from "path";
 import type { Library, Client, TypeDefinition } from "./library-types";
 import { toSyntaxString } from "./to-syntax-string";
+import { writeAtomic } from "../atomic-write";
 
 export const LIB_DOCS_ROOT = path.join(os.homedir(), ".ballerina", "copilot", "lib-docs");
 
@@ -216,6 +217,13 @@ function normalizeName(name: string): string {
     return name.trim().toLowerCase();
 }
 
+/** Renders in progress, keyed by directory and library, so concurrent callers share one fetch. */
+const inFlightFetches = new Map<string, Promise<unknown>>();
+
+function inFlightKey(dir: string, name: string): string {
+    return `${dir}|${name}`;
+}
+
 /**
  * Renders the named libraries to the cache directory, fetching only the misses (or everything when
  * `refresh` is set). Never returns content: each entry carries the path and a table of contents.
@@ -238,16 +246,50 @@ export async function ensureLibraryDocs(names: string[], opts: EnsureLibraryDocs
     }
 
     if (misses.length > 0) {
-        const fetched = await opts.fetch(misses);
-        const byName = new Map(fetched.map(lib => [normalizeName(lib.name), lib]));
+        // Parallel subagents often need the same library at the same moment (two connectors that both bind
+        // through ballerina/data.csv). A miss already being fetched by another caller is awaited, not
+        // fetched again; each render is one package compilation in the language server.
+        const awaiting: Promise<unknown>[] = [];
+        const toFetch = new Set<string>();
         for (const name of misses) {
-            const lib = byName.get(name);
-            if (!lib) { continue; }
+            const pending = inFlightFetches.get(inFlightKey(opts.dir, name));
+            if (pending) { awaiting.push(pending); } else { toFetch.add(name); }
+        }
+        // The TOCs this call renders, kept in memory so they are not read back from disk below.
+        const rendered = new Map<string, string>();
+        if (toFetch.size > 0) {
+            const names = [...toFetch];
+            const batch = opts.fetch(names).then(fetched => {
+                const byName = new Map(fetched.map(lib => [normalizeName(lib.name), lib]));
+                for (const name of names) {
+                    const lib = byName.get(name);
+                    if (!lib) { continue; }
+                    const file = path.join(opts.dir, libDocsFileName(name));
+                    const toc = libraryToc(lib);
+                    writeAtomic(file, renderLibraryMarkdown(lib));
+                    writeAtomic(tocPath(file), toc);
+                    rendered.set(name, toc);
+                }
+            });
+            for (const name of names) {
+                const key = inFlightKey(opts.dir, name);
+                inFlightFetches.set(key, batch);
+                batch.then(() => inFlightFetches.delete(key), () => inFlightFetches.delete(key));
+            }
+            awaiting.push(batch);
+        }
+        await Promise.all(awaiting);
+        for (const name of misses) {
             const file = path.join(opts.dir, libDocsFileName(name));
-            const toc = libraryToc(lib);
-            writeAtomic(file, renderLibraryMarkdown(lib));
-            writeAtomic(tocPath(file), toc);
-            found.push({ name, path: file, source: "fetched", toc });
+            const ownToc = rendered.get(name);
+            if (ownToc !== undefined) {
+                found.push({ name, path: file, source: "fetched", toc: ownToc });
+                continue;
+            }
+            if (!fs.existsSync(file)) { continue; }
+            const tocFile = tocPath(file);
+            const toc = fs.existsSync(tocFile) ? fs.readFileSync(tocFile, "utf8") : "- (table of contents unavailable; grep the file)";
+            found.push({ name, path: file, source: "cached", toc });
         }
     }
 
@@ -260,12 +302,6 @@ export async function ensureLibraryDocs(names: string[], opts: EnsureLibraryDocs
 /** Sidecar holding the table of contents so a cache hit never re-parses the markdown. */
 function tocPath(docFile: string): string {
     return docFile.replace(/\.md$/, ".toc.txt");
-}
-
-function writeAtomic(file: string, content: string): void {
-    const tmp = `${file}.${process.pid}.tmp`;
-    fs.writeFileSync(tmp, content, "utf8");
-    fs.renameSync(tmp, file);
 }
 
 /** The text the `library_docs` tool returns to the librarian. */

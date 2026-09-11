@@ -63,10 +63,11 @@ export function describeToolCall(toolName: string, toolInput?: any): string {
         case 'hurlRunnerTool':
             return 'Testing HTTP endpoints';
         case 'Subagent': {
-            const what = typeof toolInput?.description === 'string' && toolInput.description.trim()
-                ? toolInput.description.trim()
-                : (toolInput?.subagent_type === 'LibraryResearcher' ? 'Researching libraries' : 'Looking up libraries');
-            return toolInput?.run_in_background ? `${what} (background)` : what;
+            const who = subagentName(toolInput?.subagent_type);
+            const what = typeof toolInput?.description === 'string' && toolInput.description.trim() ? toolInput.description.trim() : '';
+            const verb = toolInput?.resume ? 'Following up with' : 'Consulting';
+            const head = toolInput?.run_in_background ? `${verb} the ${who} (background)` : `${verb} the ${who}`;
+            return what ? `${head}: ${what}` : head;
         }
         case 'task_output': {
             const what = typeof toolInput?.description === 'string' && toolInput.description.trim()
@@ -97,4 +98,31 @@ export function describeToolCall(toolName: string, toolInput?: any): string {
             }
             return `Running ${toolName}`;
     }
+}
+
+/** "Librarian" / "Library Researcher" — the subagent as the status line names it. */
+export function subagentName(subagentType: unknown): string {
+    return subagentType === 'LibraryResearcher' ? 'Library Researcher' : 'Librarian';
+}
+
+/**
+ * Status-line wording for a partial `tool_result` (a progress report, not the call's final result).
+ * Returns undefined for a final result, so the status line keeps whatever the last tool call set.
+ * Only the Subagent tool sends partial results today; a new tool that does adds its own case here.
+ */
+export function describeToolResultProgress(result: { toolName: string; toolOutput?: any; partial?: boolean }): string | undefined {
+    if (!result.partial) {
+        return undefined;
+    }
+    const { toolOutput } = result;
+    if (result.toolName === 'Subagent') {
+        const who = subagentName(toolOutput?.subagent_type);
+        const what = typeof toolOutput?.description === 'string' && toolOutput.description.trim() ? toolOutput.description.trim() : '';
+        if (toolOutput?.status === 'started') {
+            return what ? `${who} running in background: ${what}` : `${who} running in background`;
+        }
+        const progress = typeof toolOutput?.progress === 'string' && toolOutput.progress.trim() ? toolOutput.progress.trim() : what;
+        return progress ? `${who}: ${progress}` : `Consulting the ${who}`;
+    }
+    return describeToolCall(result.toolName, toolOutput);
 }

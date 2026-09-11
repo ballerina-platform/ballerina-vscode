@@ -23,6 +23,7 @@
 import { generateObject, ModelMessage } from "ai";
 import { z } from "zod";
 import { MinifiedLibrary } from "@wso2/ballerina-core";
+import { MANDATORY_HEALTHCARE_LIBRARIES } from "./healthcare-libraries";
 import { GenerationType, getAllLibraries } from "./libraries";
 import { ModelUsage } from "./function-registry";
 import { ANTHROPIC_SONNET, getAnthropicClient, getProviderCacheControl, getProviderModelOptions } from "../ai-client";
@@ -81,6 +82,6 @@ function getUserPrompt(prompt: string): string {
 ${prompt}
 
 ${
-" ALWAYS include `ballerinax/health.base`, `ballerinax/health.fhir.r4`, `ballerinax/health.fhir.r4.parser`, `ballerinax/health.fhir.r4utils`, `ballerinax/health.fhir.r4.international401`, `ballerinax/health.hl7v2commons` and `ballerinax/health.hl7v2` libraries in the selection in addition to what you selected."
+` ALWAYS include ${MANDATORY_HEALTHCARE_LIBRARIES.map(l => `\`${l}\``).join(", ")} libraries in the selection in addition to what you selected.`
 }`;
 }

@@ -94,6 +94,19 @@ function subagentLabel(payload: any): string {
     return payload?.subagent_type === "LibraryResearcher" ? "Researching libraries" : "Looking up libraries";
 }
 
+/** "Librarian" / "Library Researcher" — how the rows name the subagent. */
+export function subagentName(payload: any): string {
+    return payload?.subagent_type === "LibraryResearcher" ? "Library Researcher" : "Librarian";
+}
+
+/**
+ * A `tool_result` that is a progress report, not the call's final result (`partial` on the event and
+ * on the persisted item). Rows for these keep spinning and the composer indicator keeps its entry.
+ */
+export function isToolResultInProgress(result: { partial?: boolean } | undefined): boolean {
+    return result?.partial === true;
+}
+
 export function getFileName(filePath: string | undefined): string {
     if (!filePath) return "file";
     const i = filePath.lastIndexOf("/");
@@ -122,9 +135,11 @@ export function getToolCallDisplay(toolName: string | undefined, toolInput: any)
         case "file_batch_edit": return { label: "Updating", detail: getFileName(toolInput?.fileName) + "..." };
         case "TaskWrite":    return { label: "Planning..." };
         case "Subagent": {
-            const what = subagentLabel(toolInput);
+            const who = subagentName(toolInput);
             const bg = toolInput?.run_in_background ? " (background)" : "";
-            return { label: toolInput?.resume ? `Following up: ${what}${bg}...` : `${what}${bg}...` };
+            const verb = toolInput?.resume ? "Following up with" : "Consulting";
+            const what = typeof toolInput?.description === "string" && toolInput.description.trim() ? toolInput.description.trim() : "";
+            return { label: what ? `${verb} the ${who}${bg} — ${what}...` : `${verb} the ${who}${bg}...` };
         }
         case "task_output": {
             const what = typeof toolInput?.description === "string" && toolInput.description.trim() ? toolInput.description.trim() : "background task";
@@ -167,7 +182,12 @@ export function getToolResultDisplay(toolName: string | undefined, toolOutput: a
         case "Subagent": {
             const what = subagentLabel(toolOutput);
             switch (toolOutput?.status) {
-                case "running": return { label: `${what} — running in background` };
+                case "started": return { label: `${subagentName(toolOutput)} running in background — ${what}` };
+                case "running": {
+                    const progress = typeof toolOutput?.progress === "string" && toolOutput.progress.trim() ? toolOutput.progress.trim() : what;
+                    const step = typeof toolOutput?.step === "number" ? ` (step ${toolOutput.step})` : "";
+                    return { label: `Consulting the ${subagentName(toolOutput)}${toolOutput?.background ? " (background)" : ""} — ${progress}${step}...` };
+                }
                 case "aborted": return { label: `${what} — stopped` };
                 case "failed": return { label: `${what} — failed` };
                 default: {

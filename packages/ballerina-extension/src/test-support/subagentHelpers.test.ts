@@ -89,10 +89,10 @@ describe("report helpers", () => {
 
 describe("describeToolCall for subagent tools", () => {
     it("labels the Subagent row from the description and marks background runs", () => {
-        expect(describeToolCall("Subagent", { description: "Kafka connector lookup" })).toBe("Kafka connector lookup");
-        expect(describeToolCall("Subagent", { description: "Kafka connector lookup", run_in_background: true })).toBe("Kafka connector lookup (background)");
-        expect(describeToolCall("Subagent", { subagent_type: "LibraryResearcher" })).toBe("Researching libraries");
-        expect(describeToolCall("Subagent", {})).toBe("Looking up libraries");
+        expect(describeToolCall("Subagent", { description: "Kafka connector lookup" })).toBe("Consulting the Librarian: Kafka connector lookup");
+        expect(describeToolCall("Subagent", { description: "Kafka connector lookup", run_in_background: true })).toBe("Consulting the Librarian (background): Kafka connector lookup");
+        expect(describeToolCall("Subagent", { subagent_type: "LibraryResearcher" })).toBe("Consulting the Library Researcher");
+        expect(describeToolCall("Subagent", {})).toBe("Consulting the Librarian");
     });
 
     it("labels the wait and the kill", () => {

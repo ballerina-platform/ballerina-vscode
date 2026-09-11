@@ -32,7 +32,7 @@ import {
     getToolResultDisplay,
     getToolResultIcon,
     parseMcpName,
-} from "./toolDisplay";
+ isToolResultInProgress } from "./toolDisplay";
 
 describe("parseMcpName", () => {
     it("splits a namespaced MCP tool into server and tool", () => {
@@ -160,15 +160,23 @@ describe("tool icons", () => {
 
 describe("subagent tool rows", () => {
     it("labels the Subagent call from the description and marks background and resume runs", () => {
-        expect(getToolCallDisplay("Subagent", { description: "kafka connector lookup" })).toEqual({ label: "Kafka connector lookup..." });
-        expect(getToolCallDisplay("Subagent", { description: "Kafka lookup", run_in_background: true })).toEqual({ label: "Kafka lookup (background)..." });
-        expect(getToolCallDisplay("Subagent", { description: "Kafka lookup", resume: "task-subagent-0123abcd" })).toEqual({ label: "Following up: Kafka lookup..." });
-        expect(getToolCallDisplay("Subagent", { subagent_type: "LibraryResearcher" })).toEqual({ label: "Researching libraries..." });
-        expect(getToolCallDisplay("Subagent", {})).toEqual({ label: "Looking up libraries..." });
+        expect(getToolCallDisplay("Subagent", { description: "kafka connector lookup" })).toEqual({ label: "Consulting the Librarian — kafka connector lookup..." });
+        expect(getToolCallDisplay("Subagent", { description: "Kafka lookup", run_in_background: true })).toEqual({ label: "Consulting the Librarian (background) — Kafka lookup..." });
+        expect(getToolCallDisplay("Subagent", { description: "Kafka lookup", resume: "task-subagent-0123abcd" })).toEqual({ label: "Following up with the Librarian — Kafka lookup..." });
+        expect(getToolCallDisplay("Subagent", { subagent_type: "LibraryResearcher" })).toEqual({ label: "Consulting the Library Researcher..." });
+        expect(getToolCallDisplay("Subagent", {})).toEqual({ label: "Consulting the Librarian..." });
     });
 
     it("words each Subagent result status, listing found libraries", () => {
-        expect(getToolResultDisplay("Subagent", { description: "Kafka lookup", status: "running" })).toEqual({ label: "Kafka lookup — running in background" });
+        expect(getToolResultDisplay("Subagent", { description: "Kafka lookup", status: "started", background: true })).toEqual({ label: "Librarian running in background — Kafka lookup" });
+        // Heartbeats carry what the subagent just did; the row keeps spinning while the result is partial.
+        expect(getToolResultDisplay("Subagent", { description: "Kafka lookup", status: "running", progress: "reading ballerinax/kafka docs", step: 3 }))
+            .toEqual({ label: "Consulting the Librarian — reading ballerinax/kafka docs (step 3)..." });
+        expect(getToolResultDisplay("Subagent", { subagent_type: "LibraryResearcher", status: "running", background: true, progress: "searching the web", step: 2 }))
+            .toEqual({ label: "Consulting the Library Researcher (background) — searching the web (step 2)..." });
+        expect(isToolResultInProgress({ partial: true })).toBe(true);
+        expect(isToolResultInProgress({})).toBe(false);
+        expect(isToolResultInProgress(undefined)).toBe(false);
         expect(getToolResultDisplay("Subagent", { description: "Kafka lookup", status: "completed", libraries: ["ballerinax/kafka"] }))
             .toEqual({ label: "Kafka lookup — found:", detail: "ballerinax/kafka" });
         expect(getToolResultDisplay("Subagent", { description: "Kafka lookup", status: "completed", libraries: [] })).toEqual({ label: "Kafka lookup — done", detail: undefined });

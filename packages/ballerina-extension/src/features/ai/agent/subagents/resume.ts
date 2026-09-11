@@ -31,7 +31,26 @@ export type ResumeValidation =
     | { kind: "ok"; messages: ModelMessage[]; description: string }
     | { kind: "error"; message: string; error: ResumeValidationError };
 
+/**
+ * Foreground runs in flight, by subagent id. A background task is visible through the background map;
+ * a foreground run is not, so two parallel `resume` calls on one id would both load the same history
+ * and the last `saveSubagentRun` would silently discard the other's. Returns the release function.
+ */
+const foregroundRuns = new Set<string>();
+
+export function markForegroundRun(subagentId: string): () => void {
+    foregroundRuns.add(subagentId);
+    return () => { foregroundRuns.delete(subagentId); };
+}
+
 export function validateResume(threadDir: string, resumeId: string, requestedType: SubagentType): ResumeValidation {
+    if (foregroundRuns.has(resumeId)) {
+        return {
+            kind: "error",
+            error: "SUBAGENT_STILL_RUNNING",
+            message: `Subagent ${resumeId} is still running in the foreground. Wait for its report, then resume it with one follow-up at a time.`,
+        };
+    }
     const running = getBackgroundSubagent(resumeId);
     if (running && !running.completed) {
         return {

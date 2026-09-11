@@ -70,7 +70,8 @@ export function parseKeywordString(raw: string): string[] {
             if (Array.isArray(parsed)) { return parsed.map(String); }
         } catch { /* fall through to the plain split */ }
     }
-    return text.split(/[\s,]+/);
+    // Bracketed but not valid JSON ("[xlsx, kafka]"): drop the brackets and quotes before splitting.
+    return text.replace(/[\[\]"']/g, " ").split(/[\s,]+/).filter(Boolean);
 }
 
 export function formatSearchResults(response: CopilotSearchLibrariesBySearchResponse): string {

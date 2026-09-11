@@ -356,6 +356,14 @@ describe("appendToLastEntry", () => {
 });
 
 describe("upsertToolResult", () => {
+    it("keeps the partial flag on a progress result and drops it on the final one", () => {
+        const call: StreamEntry[] = [{ description: "", items: [{ kind: "tool_call", toolCallId: "c1", toolName: "Subagent", toolInput: {} }] }];
+        const partial = upsertToolResult(call, { toolCallId: "c1", toolName: "Subagent", toolOutput: { status: "running", progress: "reading docs" }, partial: true });
+        expect(partial[0].items[0]).toMatchObject({ kind: "tool_result", toolCallId: "c1", partial: true });
+        const final = upsertToolResult(partial, { toolCallId: "c1", toolName: "Subagent", toolOutput: { status: "completed" } });
+        expect(final[0].items[0]).toEqual({ kind: "tool_result", toolCallId: "c1", toolName: "Subagent", toolOutput: { status: "completed" }, failed: undefined });
+    });
+
     const call = { kind: "tool_call", toolCallId: "c1", toolName: "Subagent", toolInput: { description: "Kafka lookup" } } as const;
 
     it("replaces the open tool_call with the result (the ordinary case)", () => {

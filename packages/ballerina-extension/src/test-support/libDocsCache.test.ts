@@ -182,6 +182,23 @@ describe("ensureLibraryDocs", () => {
         expect(text).toContain("Read sections, not whole files.");
     });
 
+    it("shares one fetch between concurrent callers of the same library", async () => {
+        // Two parallel Librarians both miss ballerina/http at the same instant: one LS render, both served.
+        let release: (() => void) | undefined;
+        const gate = new Promise<void>(resolve => { release = resolve; });
+        const fetch = jest.fn(async (names: string[]) => { await gate; return libraries.filter(l => names.includes(l.name)); });
+        const first = ensureLibraryDocs(["ballerina/http"], { dir, fetch });
+        const second = ensureLibraryDocs(["ballerina/http"], { dir, fetch });
+        await new Promise(resolve => setImmediate(resolve));
+        release!();
+        const [a, b] = await Promise.all([first, second]);
+        expect(fetch).toHaveBeenCalledTimes(1);
+        expect(a.found[0].source).toBe("fetched");
+        expect(b.found[0].source).toBe("cached");
+        expect(b.found[0].path).toBe(a.found[0].path);
+        expect(b.found[0].toc).toBe(a.found[0].toc);
+    });
+
     it("dedupes and normalises requested names", async () => {
         const fetch = jest.fn(async (names: string[]) => libraries.filter(l => names.includes(l.name)));
         const result = await ensureLibraryDocs(["ballerina/http", " Ballerina/Http", ""], { dir, fetch });

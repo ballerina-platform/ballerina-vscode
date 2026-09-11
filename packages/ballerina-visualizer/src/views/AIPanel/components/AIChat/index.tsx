@@ -50,7 +50,7 @@ import TryItScenariosSegment from "../TryItScenariosSegment";
 import TodoSection from "../TodoSection";
 import AgentStreamView from "../AgentStreamView";
 import { StreamEntry, StreamItem } from "../AgentStreamView/types";
-import { getToolCallDisplay } from "../AgentStreamView/toolDisplay";
+import { getToolCallDisplay, getToolResultDisplay, isToolResultInProgress } from "../AgentStreamView/toolDisplay";
 import { ConnectorGeneratorSegment } from "../ConnectorGeneratorSegment";
 import { ConfigurationCollectorSegment } from "../ConfigurationCollectorSegment";
 import CheckpointSeparator from "../CheckpointSeparator";
@@ -1362,6 +1362,14 @@ const AIChat: React.FC = () => {
             const { label, detail } = getToolCallDisplay(response.toolName, response.toolInput);
             const entry = { id: response.toolCallId ?? "", label: detail ? `${label} ${detail}` : label };
             setInFlightTools(prev => [...prev, entry]);
+        } else if (type === "tool_result" && isToolResultInProgress(response)) {
+            // A partial result (progress report): the call is still running, so reword its entry instead of retiring it.
+            const runningId = response.toolCallId ?? "";
+            const { label, detail } = getToolResultDisplay(response.toolName, response.toolOutput);
+            const text = detail ? `${label} ${detail}` : label;
+            setInFlightTools(prev => prev.some(tool => tool.id === runningId)
+                ? prev.map(tool => (tool.id === runningId ? { ...tool, label: text } : tool))
+                : [...prev, { id: runningId, label: text }]);
         } else if (type === "tool_result") {
             // Drop only the matching call. Tools without an id share the "" key,
             // so each anonymous result retires the oldest anonymous call.
@@ -1453,7 +1461,7 @@ const AIChat: React.FC = () => {
                     const last = msgs[targetIndex];
                     const entries = parseStream(last.content);
                     const updated = upsertToolResult(entries, {
-                        toolCallId: response.toolCallId, toolName: response.toolName, toolOutput: response.toolOutput, failed: response.failed,
+                        toolCallId: response.toolCallId, toolName: response.toolName, toolOutput: response.toolOutput, failed: response.failed, partial: response.partial,
                     });
                     msgs[targetIndex] = { ...last, content: serializeStream(updated, last.content) };
                     return msgs;

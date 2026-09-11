@@ -133,8 +133,7 @@ interface ToolCategory {
 }
 
 const FILE_TOOLS = ["file_write", "file_edit", "file_batch_edit"];
-const LIBRARY_SEARCH_TOOLS: string[] = [];
-const LIBRARY_FETCH_TOOLS = ["Subagent", "task_output"];
+const LIBRARY_TOOLS = ["Subagent", "task_output"];
 const RUN_TOOLS = ["runBallerinaPackage", "getServiceLogs", "stopBallerinaService"];
 const CURL_TOOLS = ["curlRequest"];
 
@@ -142,9 +141,7 @@ function getGroupCategory(toolNames: (string | undefined)[]): ToolCategory {
     const names = toolNames.filter(Boolean) as string[];
 
     const hasFile = names.some(n => FILE_TOOLS.includes(n));
-    const hasLibrarySearch = names.some(n => LIBRARY_SEARCH_TOOLS.includes(n));
-    const hasLibraryFetch = names.some(n => LIBRARY_FETCH_TOOLS.includes(n));
-    const hasLibrary = hasLibrarySearch || hasLibraryFetch;
+    const hasLibrary = names.some(n => LIBRARY_TOOLS.includes(n));
     const hasDiagnostics = names.includes("getCompilationErrors");
     const hasConfig = names.includes("ConfigCollector");
     const hasConnector = names.includes("ConnectorGeneratorTool");
@@ -158,11 +155,8 @@ function getGroupCategory(toolNames: (string | undefined)[]): ToolCategory {
     if (hasDiagnostics && !hasFile && !hasLibrary) {
         return { running: "Checking for errors...", done: "No issues found" };
     }
-    if (hasLibrarySearch && !hasLibraryFetch && !hasFile && !hasDiagnostics) {
-        return { running: "Searching libraries...", done: "Libraries found" };
-    }
-    if (hasLibraryFetch && !hasFile && !hasDiagnostics) {
-        return { running: "Fetching libraries...", done: "Libraries fetched" };
+    if (hasLibrary && !hasFile && !hasDiagnostics) {
+        return { running: "Consulting the Librarian...", done: "Librarian consulted" };
     }
     if (hasConfig) {
         return { running: "Reading config...", done: "Config loaded" };

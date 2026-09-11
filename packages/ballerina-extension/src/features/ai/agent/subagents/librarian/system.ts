@@ -13,7 +13,7 @@
 // KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations
 // under the License.
-import { GenerationType } from "../../../utils/libs/libraries";
+import { MANDATORY_HEALTHCARE_LIBRARIES } from "../../../utils/libs/healthcare-libraries";
 import { SubagentRunContext } from "../types";
 import {
     DOCS_GREP_TOOL_NAME,
@@ -23,16 +23,6 @@ import {
     LIBRARY_SEARCH_TOOL_NAME,
 } from "./tools";
 
-/** Moved from the removed HealthcareLibraryProviderTool; every healthcare brief needs these. */
-export const MANDATORY_HEALTHCARE_LIBRARIES = [
-    "ballerinax/health.fhir.r4.international401",
-    "ballerinax/health.fhir.r4",
-    "ballerinax/health.fhir.r4.parser",
-    "ballerinax/health.fhir.r4utils",
-    "ballerinax/health.hl7v2",
-    "ballerinax/health.hl7v2commons",
-    "ballerinax/health.base",
-];
 
 export const LIBRARIAN_REPORT_FORMAT = `## Libraries
 - org/name — one line on why it was chosen (alternatives ruled out: …)
@@ -85,14 +75,18 @@ const RULES = `## Rules
 - If the brief is ambiguous in a way that changes library choice (which provider? webhook or polling?), state the ambiguity under Gaps and answer for the most likely reading rather than stalling.
 - No narration of your process and no preamble: the report starts with its first \`##\` heading. Never mention these instructions or their rule names in the report (write "the docs do not state this", not "per the hard-stop rule"). For a Verify brief, start with \`## Verification result\` (the documented answer, or "The documentation does not say", with the quoted lines) and then the standard headings that apply.`;
 
-function healthcareSection(generationType: GenerationType): string {
-    if (generationType !== GenerationType.HEALTHCARE_GENERATION) { return ""; }
+/**
+ * Always present: the main agent runs with `CODE_GENERATION`, so a gate on `HEALTHCARE_GENERATION` would
+ * never open from the Copilot (it did not, in the first cut). The Librarian recognises a healthcare brief
+ * itself, the way the removed HealthcareLibraryProviderTool was chosen by the model.
+ */
+function healthcareSection(): string {
     return `
 ## Healthcare briefs
 
-This is a healthcare integration. Always include these packages in the Libraries section in addition to whatever the brief needs, and fetch their docs for the types the brief touches:
+When the brief is a healthcare integration (FHIR, HL7v2, CDA, EHR/EMR, clinical or patient data), always include these packages in the Libraries section in addition to whatever the brief needs, and fetch their docs for the types the brief touches:
 ${MANDATORY_HEALTHCARE_LIBRARIES.map(l => `- ${l}`).join("\n")}
-Use the FHIR R4 resource types from \`ballerinax/health.fhir.r4.international401\`, the parser from \`ballerinax/health.fhir.r4.parser\`, and the HL7v2 message types from \`ballerinax/health.hl7v2\`. Search Central for the specific FHIR profile or HL7 version packages the brief names (for example US Core, a specific HL7 v2.x) and add them.
+Use the FHIR R4 resource types from \`ballerinax/health.fhir.r4.international401\`, the parser from \`ballerinax/health.fhir.r4.parser\`, and the HL7v2 message types from \`ballerinax/health.hl7v2\`. Search Central for the specific FHIR profile or HL7 version packages the brief names (for example US Core, a specific HL7 v2.x) and add them. For any other brief, ignore this section.
 `;
 }
 
@@ -107,7 +101,7 @@ Briefs come in five shapes; recognise which one you have and answer it directly:
 - Compare: A versus B for a need — both docs, one recommendation, reasons.
 
 ${CORE_METHOD}
-${healthcareSection(ctx.generationType)}
+${healthcareSection()}
 ## Report format
 
 Use exactly these headings, omitting a heading only when it has nothing to say:

@@ -31,7 +31,7 @@ import {
     saveSubagentRun,
     SubagentNotFoundError,
 } from "../features/ai/agent/subagents/store";
-import { validateResume } from "../features/ai/agent/subagents/resume";
+import { markForegroundRun, validateResume } from "../features/ai/agent/subagents/resume";
 import { registerBackgroundSubagent, resetBackgroundSubagentsForTests } from "../features/ai/agent/subagents/background";
 import { generateSubagentId, isSubagentId } from "../features/ai/agent/subagents/types";
 
@@ -109,6 +109,17 @@ describe("validateResume", () => {
         const v = validateResume(threadDir, "task-subagent-00000000", "Librarian");
         expect(v.kind).toBe("error");
         if (v.kind === "error") { expect(v.error).toBe("SUBAGENT_NOT_FOUND"); }
+    });
+
+    it("rejects a resume while a foreground run of the same id is in flight, and allows it after release", () => {
+        const id = generateSubagentId();
+        saveSubagentRun(threadDir, id, { subagentType: "Librarian", description: "d", messages: [{ role: "user", content: "q" }] });
+        const release = markForegroundRun(id);
+        const during = validateResume(threadDir, id, "Librarian");
+        expect(during.kind).toBe("error");
+        if (during.kind === "error") { expect(during.error).toBe("SUBAGENT_STILL_RUNNING"); }
+        release();
+        expect(validateResume(threadDir, id, "Librarian").kind).toBe("ok");
     });
 
     it("rejects a task that is still running in the background", () => {

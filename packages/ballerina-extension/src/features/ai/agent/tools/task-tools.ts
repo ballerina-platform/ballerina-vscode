@@ -54,10 +54,11 @@ export function createTaskOutputTool(eventHandler: CopilotEventHandler) {
                 return `Task not found: ${task_id}. No background task with that id exists — it may have completed and been cleaned up, or it was a foreground run whose report was already returned.`;
             }
 
-            const finish = (status: "completed" | "running" | "aborted" | "failed"): string => {
+            const finish = (status: "completed" | "running" | "aborted" | "failed", waitedMs = 0): string => {
                 eventHandler({ type: "tool_result", toolName: TASK_OUTPUT_TOOL_NAME, toolOutput: { task_id, status, description: task.description }, toolCallId, failed: status === "failed" });
                 if (status === "running") {
-                    return `Task ${task_id} ("${task.description}") is still running after ${Math.round(effectiveTimeout / 1000)}s. Call ${TASK_OUTPUT_TOOL_NAME} again to keep waiting, or ${KILL_TASK_TOOL_NAME} to stop it.`;
+                    const waited = waitedMs > 0 ? ` after ${Math.round(waitedMs / 1000)}s` : "";
+                    return `Task ${task_id} ("${task.description}") is still running${waited}. Call ${TASK_OUTPUT_TOOL_NAME} again to keep waiting, or ${KILL_TASK_TOOL_NAME} to stop it.`;
                 }
                 task.notified = true;
                 const header = status === "completed"
@@ -80,10 +81,10 @@ export function createTaskOutputTool(eventHandler: CopilotEventHandler) {
                         resolve(finish(statusOf()));
                     } else if (options?.abortSignal?.aborted) {
                         clearInterval(timer);
-                        resolve(finish("running"));
+                        resolve(finish("running", Date.now() - started));
                     } else if (Date.now() - started >= effectiveTimeout) {
                         clearInterval(timer);
-                        resolve(finish("running"));
+                        resolve(finish("running", Date.now() - started));
                     }
                 }, POLL_INTERVAL_MS);
             });

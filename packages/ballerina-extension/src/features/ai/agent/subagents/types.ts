@@ -82,6 +82,13 @@ export interface BackgroundSubagent {
     abortController: AbortController;
     /** True once the completion has reached the main agent (drain reminder or task_output). */
     notified: boolean;
+    /**
+     * Set by run-end cleanup. The task's own completion/abort settles later, in a turn that may already
+     * belong to another run, so the starter reports the abort synchronously through `onRunEnd` and
+     * ignores the late settlement.
+     */
+    runEnded?: boolean;
+    onRunEnd?: () => void;
 }
 
 export function buildRunKey(projectRootPath: string, threadId: string): string {

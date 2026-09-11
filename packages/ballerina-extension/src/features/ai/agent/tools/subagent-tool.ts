@@ -39,10 +39,11 @@ import {
 } from "../subagents/types";
 import { describeSubagentTypes } from "../subagents/definitions";
 import { runSubagent } from "../subagents/runner";
+import type { SubagentProgress } from "../subagents/progress";
 import { saveSubagentRun } from "../subagents/store";
 import { ensureBackgroundCapacity, getBackgroundSubagent, registerBackgroundSubagent } from "../subagents/background";
 import { extractReportedLibraries, truncateReport } from "../subagents/report";
-import { validateResume } from "../subagents/resume";
+import { markForegroundRun, validateResume } from "../subagents/resume";
 
 export const SubagentInputSchema = z.object({
     description: z.string().describe("A short (3-5 word) description of what the subagent will do. Shown to the user."),
@@ -71,6 +72,27 @@ function describeFailure(error: unknown): string {
 
 function emitResult(eventHandler: CopilotEventHandler, toolCallId: string, output: Record<string, unknown>, failed?: boolean): void {
     eventHandler({ type: "tool_result", toolName: SUBAGENT_TOOL_NAME, toolOutput: output, toolCallId, ...(failed ? { failed: true } : {}) });
+}
+
+/** A non-final result on the same call id (`partial`): the row stays in its running state until the real result. */
+function emitPartial(eventHandler: CopilotEventHandler, toolCallId: string, output: Record<string, unknown>): void {
+    eventHandler({ type: "tool_result", toolName: SUBAGENT_TOOL_NAME, toolOutput: output, toolCallId, partial: true });
+}
+
+/**
+ * A heartbeat for the row while the subagent works: a partial `tool_result` with `status: "running"` and
+ * what the subagent just did. The webview's `upsertToolResult` replaces by `toolCallId`, so each
+ * heartbeat overwrites the last and the completion overwrites the heartbeat.
+ */
+function emitProgress(
+    ctx: SubagentRunContext,
+    toolCallId: string,
+    input: SubagentInput,
+    taskId: string,
+    background: boolean,
+    progress: SubagentProgress
+): void {
+    emitPartial(ctx.eventHandler, toolCallId, { ...labelFields(input), status: "running", taskId, background, progress: progress.activity, step: progress.step });
 }
 
 /** Result payloads repeat the row label inputs: a tool_result item does not keep its tool_call's input. */
@@ -123,6 +145,7 @@ Resume (resume=<task id>): continues that subagent's conversation with a follow-
                 return startBackground(ctx, input, subagentId, model, previousMessages, mainSignal, toolCallId);
             }
 
+            const releaseForeground = markForegroundRun(subagentId);
             try {
                 const result = await runSubagent({
                     type: input.subagent_type,
@@ -131,6 +154,7 @@ Resume (resume=<task id>): continues that subagent's conversation with a follow-
                     previousMessages,
                     abortSignal: mainSignal,
                     ctx,
+                    onProgress: progress => emitProgress(ctx, toolCallId, input, subagentId, false, progress),
                 });
                 try {
                     saveSubagentRun(ctx.threadDir, subagentId, { subagentType: input.subagent_type, description: input.description, messages: result.messages });
@@ -146,6 +170,8 @@ Resume (resume=<task id>): continues that subagent's conversation with a follow-
                 console.error(`[SubagentTool] ${input.subagent_type} ${subagentId} failed`, error);
                 emitResult(ctx.eventHandler, toolCallId, { ...labelFields(input), status: "failed", taskId: subagentId }, true);
                 return describeFailure(error);
+            } finally {
+                releaseForeground();
             }
         },
     });
@@ -194,12 +220,17 @@ function startBackground(
         aborted: false,
         abortController,
         notified: false,
+        onRunEnd: () => emitResult(ctx.eventHandler, toolCallId, { ...labelFields(input), status: "aborted", taskId: subagentId }, true),
     };
     registerBackgroundSubagent(entry);
 
-    runSubagent({ type: input.subagent_type, prompt: input.prompt, model, previousMessages, abortSignal: abortController.signal, ctx })
+    runSubagent({
+        type: input.subagent_type, prompt: input.prompt, model, previousMessages, abortSignal: abortController.signal, ctx,
+        onProgress: progress => emitProgress(ctx, toolCallId, input, subagentId, true, progress),
+    })
         .then(result => {
             removeAbortListener?.();
+            if (entry.runEnded) { return; } // settled after its run ended: already reported as aborted
             const report = truncateReport(result.text);
             entry.output = `${report}\n\nResume id: ${subagentId}`;
             entry.completed = true;
@@ -215,6 +246,7 @@ function startBackground(
         })
         .catch(error => {
             removeAbortListener?.();
+            if (entry.runEnded) { return; } // the run-end cleanup reported the abort synchronously
             entry.completed = true;
             entry.success = false;
             entry.completedAt = new Date();
@@ -229,6 +261,6 @@ function startBackground(
             console.error(`[SubagentTool] Background ${input.subagent_type} ${subagentId} failed`, error);
         });
 
-    emitResult(ctx.eventHandler, toolCallId, { ...labelFields(input), status: "running", taskId: subagentId });
+    emitPartial(ctx.eventHandler, toolCallId, { ...labelFields(input), status: "started", taskId: subagentId, background: true });
     return `${input.subagent_type} subagent ${previousMessages ? "resumed" : "started"} in the background with task id ${subagentId}. Continue your own work; call ${TASK_OUTPUT_TOOL_NAME} (block=true) when you need the report, or ${KILL_TASK_TOOL_NAME} to stop it.`;
 }

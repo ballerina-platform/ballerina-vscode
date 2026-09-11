@@ -38,6 +38,7 @@ import { upsertToolResult,
     applyTaskWriteResult,
     COMPACTION_DISABLED_NOTICE,
 } from "../../views/AIPanel/components/AIChat/utils/streamSerialization";
+import { getToolResultDisplay, isToolResultInProgress, subagentName } from "../../views/AIPanel/components/AgentStreamView/toolDisplay";
 import {
     Anchor,
     EDGE_MARGIN,
@@ -175,7 +176,7 @@ function describeTool(toolName: string, toolInput: any): string {
         case "ConfigCollector":
             return "Managing configuration";
         case "Subagent":
-            return "Looking up libraries";
+            return `Consulting the ${subagentName(toolInput)}`;
         case "task_output":
             return "Waiting for a background task";
         case "kill_task":
@@ -262,9 +263,9 @@ function applyContentEvent(prevContent: string, evt: FoldableNotify): string {
             return serializeStream(applyTaskWriteResult(entries, evt.toolOutput?.tasks ?? []), prevContent);
         }
         // Shared fold: resolves the open tool_call, or updates an earlier result of the
-        // same call id (a background subagent reports "running" then "completed").
+        // same call id (a subagent reports partial progress, then the final result).
         return serializeStream(upsertToolResult(entries, {
-            toolCallId: evt.toolCallId, toolName: evt.toolName, toolOutput: evt.toolOutput, failed: evt.failed,
+            toolCallId: evt.toolCallId, toolName: evt.toolName, toolOutput: evt.toolOutput, failed: evt.failed, partial: evt.partial,
         }), prevContent);
     }
     if (evt.type === "chat_component") {
@@ -667,6 +668,9 @@ function renderTranscript(msgs: MiniMsg[], streaming: boolean): React.ReactNode[
                     }
                 } else if (item.kind === "tool_call") {
                     nodes.push(toolRowNode(key, describeTool(item.toolName ?? "", item.toolInput), streaming ? "running" : "pending"));
+                } else if (item.kind === "tool_result" && isToolResultInProgress(item)) {
+                    // A partial result (progress report): still running, worded with what it is doing right now.
+                    nodes.push(toolRowNode(key, getToolResultDisplay(item.toolName, item.toolOutput).label, streaming ? "running" : "pending"));
                 } else if (item.kind === "tool_result") {
                     nodes.push(toolRowNode(key, describeTool(item.toolName ?? "", undefined), item.failed ? "failed" : "done"));
                 }

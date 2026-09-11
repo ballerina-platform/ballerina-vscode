@@ -104,6 +104,10 @@ export function cleanupRunningBackgroundSubagents(runKey?: string): number {
         s.success = false;
         s.completedAt = new Date();
         if (!s.output) { s.output = `Subagent ${id} was terminated because the main agent run ended.`; }
+        // Report the abort now, inside the run that owns the row; the task's own rejection lands later and
+        // would otherwise be delivered into whatever turn is active by then.
+        s.runEnded = true;
+        s.onRunEnd?.();
         s.abortController.abort();
         backgroundSubagents.delete(id);
         cleaned++;
