@@ -1801,26 +1801,43 @@ public class AiUtils {
         }
     }
 
-    public static boolean isMcpToolKitSymbol(Symbol symbol) {
-        TypeSymbol typeSymbol;
-        if (symbol instanceof VariableSymbol variableSymbol) {
-            typeSymbol = variableSymbol.typeDescriptor();
-        } else if (symbol instanceof ClassFieldSymbol classFieldSymbol) {
-            typeSymbol = classFieldSymbol.typeDescriptor();
-        } else {
-            return false;
-        }
-        return isMcpToolKitType(typeSymbol);
-    }
-
     public static boolean isMcpToolKitType(TypeSymbol typeSymbol) {
         if (typeSymbol.nameEquals("McpToolKit") && typeSymbol.getModule()
                 .map(module -> CommonUtils.isAiModule(module.id().orgName(), module.id().packageName()))
                 .orElse(false)) {
             return true;
         }
-        return CommonUtils.getRawType(typeSymbol) instanceof ClassSymbol classSymbol
-                && CommonUtils.isAiMcpBaseToolKit(classSymbol);
+        return asMcpToolKitClass(typeSymbol).isPresent();
+    }
+
+    // Module-qualified so it matches the toolkit name the trace records at dev-time (ExecuteToolSpan.addToolKitName).
+    public static Optional<String> mcpToolKitClassName(Symbol symbol) {
+        TypeSymbol typeSymbol;
+        if (symbol instanceof VariableSymbol variableSymbol) {
+            typeSymbol = variableSymbol.typeDescriptor();
+        } else if (symbol instanceof ClassFieldSymbol classFieldSymbol) {
+            typeSymbol = classFieldSymbol.typeDescriptor();
+        } else {
+            return Optional.empty();
+        }
+        return mcpToolKitClassName(typeSymbol);
+    }
+
+    public static Optional<String> mcpToolKitClassName(TypeSymbol typeSymbol) {
+        return asMcpToolKitClass(typeSymbol).map(classSymbol -> {
+            String className = classSymbol.getName().orElse("");
+            String moduleName = classSymbol.getModule().map(module -> module.id().moduleName()).orElse("");
+            return moduleName.isEmpty() ? className : moduleName + ":" + className;
+        });
+    }
+
+    // Resolves the raw type once so callers don't each recompute it to check and then extract the class.
+    private static Optional<ClassSymbol> asMcpToolKitClass(TypeSymbol typeSymbol) {
+        if (CommonUtils.getRawType(typeSymbol) instanceof ClassSymbol classSymbol
+                && CommonUtils.isAiMcpBaseToolKit(classSymbol)) {
+            return Optional.of(classSymbol);
+        }
+        return Optional.empty();
     }
 
     private static Optional<AgentInfo> readAgentMetadata(ClassSymbol classSymbol) {

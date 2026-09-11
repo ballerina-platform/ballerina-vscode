@@ -18,7 +18,7 @@
 
 import { keyframes } from "@emotion/react";
 import { unwrapBallerinaString } from "@wso2/ballerina-core";
-import { AgentData } from "../../utils/types";
+import { AgentData, ToolData } from "../../utils/types";
 
 export const getSyncPulseAnimation = (color: string) => keyframes`
     0% { filter: drop-shadow(0 0 2px color-mix(in srgb, ${color} 30%, transparent)); }
@@ -44,4 +44,34 @@ export function sanitizeAgentData(data: AgentData): AgentData {
         role: data.role ? unwrapBallerinaString(data.role) : data.role,
         instructions: data.instructions ? unwrapBallerinaString(data.instructions) : data.instructions,
     };
+}
+
+function mcpToolKitSimpleClassName(tool: ToolData): string | undefined {
+    return tool.type === "MCP Server" ? tool.className?.split(":").pop() : undefined;
+}
+
+function simpleClassName(name: string): string {
+    return name.split(":").pop() ?? name;
+}
+
+// MCP tools trace by toolkit class name, not tool.name (which is the toolkit variable name, never seen in a trace).
+export function isToolTraceActive(tool: ToolData, activeToolNames: string[], activeToolKitNames: string[]): boolean {
+    const mcpClassName = mcpToolKitSimpleClassName(tool);
+    if (mcpClassName) {
+        return activeToolKitNames.some(name => name !== undefined && simpleClassName(name) === mcpClassName);
+    }
+    return activeToolNames.includes(tool.name);
+}
+
+// Whether a trace entry belongs to this agent's tools, matching MCP entries by toolkit class name.
+export function toolEntryMatchesTools(entry: { toolName?: string; toolKitName?: string }, tools: ToolData[]): boolean {
+    if (entry.toolName && tools.some(t => t.name === entry.toolName)) {
+        return true;
+    }
+    const toolKitName = entry.toolKitName;
+    if (!toolKitName) {
+        return false;
+    }
+    const traceClassName = simpleClassName(toolKitName);
+    return tools.some(t => mcpToolKitSimpleClassName(t) === traceClassName);
 }
