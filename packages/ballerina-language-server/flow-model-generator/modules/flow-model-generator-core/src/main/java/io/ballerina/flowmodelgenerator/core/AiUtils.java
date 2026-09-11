@@ -38,6 +38,7 @@ import io.ballerina.compiler.api.symbols.ParameterSymbol;
 import io.ballerina.compiler.api.symbols.Qualifier;
 import io.ballerina.compiler.api.symbols.StreamTypeSymbol;
 import io.ballerina.compiler.api.symbols.Symbol;
+import io.ballerina.compiler.api.symbols.SymbolKind;
 import io.ballerina.compiler.api.symbols.TypeDescKind;
 import io.ballerina.compiler.api.symbols.TypeReferenceTypeSymbol;
 import io.ballerina.compiler.api.symbols.TypeSymbol;
@@ -85,6 +86,7 @@ import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.projects.DependenciesToml;
 import io.ballerina.projects.Document;
 import io.ballerina.projects.Package;
+import io.ballerina.projects.PackageCompilation;
 import io.ballerina.projects.Project;
 import io.ballerina.projects.TomlDocument;
 import io.ballerina.tools.diagnostics.Location;
@@ -2174,6 +2176,20 @@ public class AiUtils {
             }
         }
         return null;
+    }
+
+    public static List<ClassSymbol> findAgentClasses(Package agentPackage) {
+        PackageCompilation compilation = PackageUtil.getCompilation(agentPackage);
+        List<ClassSymbol> agentClasses = new ArrayList<>();
+        for (io.ballerina.projects.Module module : agentPackage.modules()) {
+            SemanticModel semanticModel = compilation.getSemanticModel(module.moduleId());
+            for (Symbol symbol : semanticModel.moduleSymbols()) {
+                if (symbol.kind() == SymbolKind.CLASS && CommonUtils.isAiAgentType(symbol)) {
+                    agentClasses.add((ClassSymbol) symbol);
+                }
+            }
+        }
+        return agentClasses;
     }
 
     public record ModelData(String name, String path, String type) {

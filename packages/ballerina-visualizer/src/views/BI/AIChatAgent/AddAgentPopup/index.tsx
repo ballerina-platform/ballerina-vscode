@@ -100,7 +100,8 @@ export function AddAgentPopup(props: AddAgentPopupProps) {
     const [transitionDirection, setTransitionDirection] = useState<"forward" | "backward">("forward");
     const [pendingAgent, setPendingAgent] = useState<AvailableNode>();
     const isDependencyToolForm = Boolean(dependencyToolForm);
-    const isForm = isDependencyToolForm || view === "configure" || view === "create" || view === "createDefinition";
+    const isForm = isDependencyToolForm || view === "package" || view === "configure" || view === "create"
+        || view === "createDefinition";
 
     const changeView = (nextView: AddAgentView, direction: "forward" | "backward" = "forward") => {
         setTransitionDirection(direction);
@@ -119,7 +120,10 @@ export function AddAgentPopup(props: AddAgentPopupProps) {
         <>
             <PopupOverlay sx={{ background: `${ThemeColors.SURFACE_CONTAINER}`, opacity: `0.5`, zIndex: 2050 }} />
             <PopupContainer style={{ zIndex: 2051 }}>
-                <AgentModalStep key={isDependencyToolForm ? "agent-tool-form" : view} $direction={transitionDirection}>
+                <AgentModalStep
+                    key={isDependencyToolForm ? "agent-tool-form" : view === "package" ? "gallery" : view}
+                    $direction={transitionDirection}
+                >
                     <PopupHeader>
                         {isForm && (
                             <BackButton
@@ -132,6 +136,7 @@ export function AddAgentPopup(props: AddAgentPopupProps) {
                         <HeaderTitleContainer>
                             <PopupTitle variant="h2">
                                 {isDependencyToolForm ? "Add Agent Tool"
+                                    : view === "package" ? pendingAgent?.metadata.label ?? "Select Agent"
                                     : view === "configure" ? "Configure Agent"
                                     : view === "create" ? "Create Agent"
                                     : view === "createDefinition" ? "Create Agent Definition"
