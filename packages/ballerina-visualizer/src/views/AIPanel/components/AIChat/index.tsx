@@ -91,7 +91,7 @@ import WelcomeMessage from "./Welcome";
 import { getOnboardingOpens, incrementOnboardingOpens, convertToUIMessages, isContainsSyntaxError } from "./utils/utils";
 import { applyGenerationStatus, deriveReviewBarState, PanelMessage } from "./utils/reviewBarState";
 import { backTooltipFor, PanelRoute } from "./utils/panelNav";
-import {
+import { upsertToolResult,
     serializeStream, parseStream, appendToLastEntry, upsertComponent, upsertRequestCard,
     buildRequestCardData, buildPlanItem, applyPlanApprovalResolution, appendAbortMarker, applyTaskWriteResult,
     COMPACTION_DISABLED_NOTICE,
@@ -1445,28 +1445,17 @@ const AIChat: React.FC = () => {
                     return msgs;
                 });
             } else {
-                // Replace the matching tool_call item with tool_result
+                // Resolve the matching tool_call (or update an earlier result of the
+                // same call — background subagents report "running" then "completed").
                 setMessages(prevMessages => {
                     const msgs = [...prevMessages];
                     const targetIndex = ensureAssistantMessage(msgs);
                     const last = msgs[targetIndex];
                     const entries = parseStream(last.content);
-                    const resultItem: StreamItem = { kind: "tool_result", toolCallId: response.toolCallId, toolName: response.toolName, toolOutput: response.toolOutput, failed: response.failed };
-                    let matched = false;
-                    const updated = entries.map(entry => {
-                        if (matched) return entry;
-                        const idx = entry.items.findIndex(i => i.kind === "tool_call" && i.toolCallId === response.toolCallId);
-                        if (idx === -1) return entry;
-                        matched = true;
-                        const updatedItems = entry.items.map((item, i) => i === idx ? resultItem : item);
-                        return { ...entry, items: updatedItems };
+                    const updated = upsertToolResult(entries, {
+                        toolCallId: response.toolCallId, toolName: response.toolName, toolOutput: response.toolOutput, failed: response.failed,
                     });
-                    if (!matched) {
-                        // No matching call found — append as new item to last entry
-                        msgs[targetIndex] = { ...last, content: serializeStream(appendToLastEntry(entries, resultItem), last.content) };
-                    } else {
-                        msgs[targetIndex] = { ...last, content: serializeStream(updated, last.content) };
-                    }
+                    msgs[targetIndex] = { ...last, content: serializeStream(updated, last.content) };
                     return msgs;
                 });
             }

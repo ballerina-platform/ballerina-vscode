@@ -133,8 +133,8 @@ interface ToolCategory {
 }
 
 const FILE_TOOLS = ["file_write", "file_edit", "file_batch_edit"];
-const LIBRARY_SEARCH_TOOLS = ["LibrarySearchTool"];
-const LIBRARY_FETCH_TOOLS = ["LibraryGetTool", "HealthcareLibraryProviderTool"];
+const LIBRARY_SEARCH_TOOLS: string[] = [];
+const LIBRARY_FETCH_TOOLS = ["Subagent", "task_output"];
 const RUN_TOOLS = ["runBallerinaPackage", "getServiceLogs", "stopBallerinaService"];
 const CURL_TOOLS = ["curlRequest"];
 

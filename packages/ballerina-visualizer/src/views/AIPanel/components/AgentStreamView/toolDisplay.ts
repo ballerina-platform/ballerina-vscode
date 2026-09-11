@@ -37,9 +37,9 @@ const TOOL_ICON_MAP: Record<string, ToolIconEntry> = {
     file_write:                    { loading: "codicon-edit" },
     file_edit:                     { loading: "codicon-edit" },
     file_batch_edit:               { loading: "codicon-edit" },
-    LibrarySearchTool:             { loading: "codicon-package" },
-    LibraryGetTool:                { loading: "codicon-package" },
-    HealthcareLibraryProviderTool: { loading: "codicon-package" },
+    Subagent:                      { loading: "codicon-package" },
+    task_output:                   { loading: "codicon-clock" },
+    kill_task:                     { loading: "codicon-debug-stop" },
     web_search:                    { loading: "codicon-search" },
     web_fetch:                     { loading: "codicon-globe" },
     runTests:                      { loading: "codicon-beaker" },
@@ -87,6 +87,13 @@ export function getToolResultIcon(toolName: string | undefined, toolOutput: any)
 
 // ── Tool display helpers ───────────────────────────────────────────────────────
 
+/** The Subagent row is labelled from the model's `description`; the type is the fallback. */
+function subagentLabel(payload: any): string {
+    const desc = typeof payload?.description === "string" ? payload.description.trim() : "";
+    if (desc) return desc.charAt(0).toUpperCase() + desc.slice(1);
+    return payload?.subagent_type === "LibraryResearcher" ? "Researching libraries" : "Looking up libraries";
+}
+
 export function getFileName(filePath: string | undefined): string {
     if (!filePath) return "file";
     const i = filePath.lastIndexOf("/");
@@ -114,12 +121,16 @@ export function getToolCallDisplay(toolName: string | undefined, toolInput: any)
         case "file_edit":
         case "file_batch_edit": return { label: "Updating", detail: getFileName(toolInput?.fileName) + "..." };
         case "TaskWrite":    return { label: "Planning..." };
-        case "LibrarySearchTool": {
-            const desc = toolInput?.searchDescription;
-            return { label: desc ? `Searching for ${desc}...` : "Searching libraries..." };
+        case "Subagent": {
+            const what = subagentLabel(toolInput);
+            const bg = toolInput?.run_in_background ? " (background)" : "";
+            return { label: toolInput?.resume ? `Following up: ${what}${bg}...` : `${what}${bg}...` };
         }
-        case "LibraryGetTool": return { label: "Fetching library details..." };
-        case "HealthcareLibraryProviderTool": return { label: "Analyzing healthcare libraries..." };
+        case "task_output": {
+            const what = typeof toolInput?.description === "string" && toolInput.description.trim() ? toolInput.description.trim() : "background task";
+            return { label: toolInput?.block === false ? `Checking: ${what}...` : `Waiting for: ${what}...` };
+        }
+        case "kill_task": return { label: "Stopping background task..." };
         case "getCompilationErrors": return { label: "Checking for errors..." };
         case "ConfigCollector": return { label: "Reading config..." };
         case "Clarify": return { label: "Waiting for answers..." };
@@ -153,18 +164,29 @@ export function getToolResultDisplay(toolName: string | undefined, toolOutput: a
         case "file_edit":
         case "file_batch_edit": return { label: "Updated", detail: getFileName(toolOutput?.fileName) };
         case "TaskWrite":    return { label: "Plan ready" };
-        case "LibrarySearchTool": {
-            const desc = toolOutput?.searchDescription;
-            return { label: desc ? `${desc.charAt(0).toUpperCase() + desc.slice(1)} search completed` : "Library search completed" };
+        case "Subagent": {
+            const what = subagentLabel(toolOutput);
+            switch (toolOutput?.status) {
+                case "running": return { label: `${what} — running in background` };
+                case "aborted": return { label: `${what} — stopped` };
+                case "failed": return { label: `${what} — failed` };
+                default: {
+                    const names: string[] = Array.isArray(toolOutput?.libraries) ? toolOutput.libraries : [];
+                    return { label: names.length > 0 ? `${what} — found:` : `${what} — done`, detail: names.length > 0 ? names.join(", ") : undefined };
+                }
+            }
         }
-        case "LibraryGetTool": {
-            const names: string[] = toolOutput || [];
-            return { label: names.length > 0 ? `Fetched: [${names.join(", ")}]` : "No relevant libraries found" };
+        case "task_output": {
+            const what = typeof toolOutput?.description === "string" && toolOutput.description.trim() ? toolOutput.description.trim() : "Background task";
+            switch (toolOutput?.status) {
+                case "running": return { label: `${what} — still running` };
+                case "not_found": return { label: "Background task not found" };
+                case "aborted": return { label: `${what} — stopped` };
+                case "failed": return { label: `${what} — failed` };
+                default: return { label: `${what} — result received` };
+            }
         }
-        case "HealthcareLibraryProviderTool": {
-            const names: string[] = toolOutput || [];
-            return { label: names.length > 0 ? `Fetched: [${names.join(", ")}]` : "No relevant healthcare libraries found" };
-        }
+        case "kill_task": return { label: toolOutput?.status === "not_found" ? "Background task not found" : "Background task stopped" };
         case "getCompilationErrors": {
             const count = toolOutput?.diagnostics?.length ?? 0;
             return { label: count > 0 ? `Found ${count} error(s)` : "No issues found" };

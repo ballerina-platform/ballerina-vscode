@@ -62,9 +62,20 @@ export function describeToolCall(toolName: string, toolInput?: any): string {
             return 'Stopping a service';
         case 'hurlRunnerTool':
             return 'Testing HTTP endpoints';
-        case 'LibrarySearchTool':
-        case 'LibraryGetTool':
-            return 'Looking up libraries';
+        case 'Subagent': {
+            const what = typeof toolInput?.description === 'string' && toolInput.description.trim()
+                ? toolInput.description.trim()
+                : (toolInput?.subagent_type === 'LibraryResearcher' ? 'Researching libraries' : 'Looking up libraries');
+            return toolInput?.run_in_background ? `${what} (background)` : what;
+        }
+        case 'task_output': {
+            const what = typeof toolInput?.description === 'string' && toolInput.description.trim()
+                ? toolInput.description.trim()
+                : 'a background task';
+            return toolInput?.block === false ? 'Checking a background task' : `Waiting for ${what}`;
+        }
+        case 'kill_task':
+            return 'Stopping a background task';
         case 'ConnectorGeneratorTool':
             return 'Generating a connector';
         case 'ConfigCollector':

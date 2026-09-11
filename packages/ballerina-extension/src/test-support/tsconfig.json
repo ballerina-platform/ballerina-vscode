@@ -1,0 +1,12 @@
+// Editor-only project marker. `src/test-support` is excluded from the package's
+// tsconfig.json (it must not reach the webpack/tsc build), and VS Code's TS server
+// only auto-discovers files named tsconfig.json — so without this file every test
+// here lands in an inferred project with default options and reports bogus
+// "Cannot find name 'fs'/'describe'/'expect'" errors in the Problems panel.
+//
+// Delegates to tsconfig.spec.json, the config `pnpm run test:typecheck` uses, so the
+// editor and CI agree. Relative paths in the base (include/files/rootDir) resolve
+// against the base config's directory, so the file set is unchanged.
+{
+    "extends": "../../tsconfig.spec.json"
+}
