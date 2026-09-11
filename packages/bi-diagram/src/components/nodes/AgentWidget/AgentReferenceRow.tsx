@@ -97,6 +97,7 @@ export function AgentReferenceRow({ label, buttonLabel = "Open Agent", clickable
     }
     const handleKeyDown = (event: React.KeyboardEvent) => {
         if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
             onOpen(event);
         }
     };

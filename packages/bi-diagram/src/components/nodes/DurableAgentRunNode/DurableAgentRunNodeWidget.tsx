@@ -903,6 +903,7 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
                     isSelected={isSelected}
                     onMouseEnter={() => setIsBoxHovered(true)}
                     onMouseLeave={() => setIsBoxHovered(false)}
+                    onClick={!readOnly ? handleOnClick : undefined}
                     onContextMenu={!readOnly ? handleOnContextMenu : undefined}
                     title="Configure Run"
                 >
@@ -933,7 +934,7 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
                                 <NodeStyles.Header onClick={handleOnClick}>
                                     <NodeStyles.Title>durable agent : run</NodeStyles.Title>
                                     <NodeStyles.Description>
-                                        {getResultVariableName(model.node) as ReactNode}
+                                        {getResultVariableName(model.node)}
                                     </NodeStyles.Description>
                                 </NodeStyles.Header>
                                 <NodeStyles.ActionButtonGroup>
@@ -1175,7 +1176,7 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
 
                 {/* Capability add-affordances at fixed anchors; the model affordance hides
                     once the declaration has a model. */}
-                {!readOnly && !isAgentReference &&
+                {!readOnly &&
                     ADD_AFFORDANCES
                         .filter((affordance) => affordance.kind !== "model" || !nodeMetadata?.model)
                         .map((affordance) => (
@@ -1322,7 +1323,7 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
                                 />
                             )}
 
-                            {!isAgentReference && <g
+                            <g
                                 transform="translate(96, 8)"
                                 onClick={onCapabilityDelete(item)}
                                 css={css`
@@ -1336,7 +1337,7 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
                                 <title>Remove</title>
                                 <circle cx="0" cy="0" r="7" fill={NODE_BG_COLOR} stroke={NODE_BORDER_COLOR} strokeWidth={1} />
                                 <text x="0" y="2.8" textAnchor="middle" fontSize="9" fill={NODE_TEXT_COLOR}>✕</text>
-                            </g>}
+                            </g>
 
                             <text
                                 x="110"

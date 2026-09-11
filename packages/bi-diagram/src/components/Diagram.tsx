@@ -152,7 +152,7 @@ export function Diagram(props: DiagramProps) {
             setNodeComments(comments);
             drawDiagram(nodes, links);
         }
-    }, [model, showErrorFlow, expandedErrorHandler]);
+    }, [model, showErrorFlow, expandedErrorHandler, agentNode?.durableAgentReference]);
 
     useEffect(() => {
         console.log(">>> Init diagram model", model);

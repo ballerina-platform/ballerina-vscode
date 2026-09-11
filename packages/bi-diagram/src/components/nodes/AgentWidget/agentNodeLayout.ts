@@ -38,12 +38,17 @@ const layoutStrategies = {
         const descriptionHeight = hasPrompt ? 115 : agentInfo?.description ? 95 : 0;
         return Math.max(NODE_HEIGHT + memoryHeight + descriptionHeight, NODE_HEIGHT + AGENT_NODE_TOOL_SECTION_GAP + toolHeight);
     },
-    [NodeTypes.AGENT_CALL_NODE]: () => NODE_HEIGHT + AGENT_CALL_REFERENCE_HEIGHT,
-} satisfies Record<AgentWidgetType, (toolHeight: number, agentInfo?: NodeMetadata["agentInfo"]) => number>;
+    [NodeTypes.AGENT_CALL_NODE]: (_toolHeight: number, _agentInfo: NodeMetadata["agentInfo"] | undefined, node?: FlowNode) => {
+        const hasReferenceRow =
+            node?.codedata?.node !== "AGENT_CALL" ||
+            (typeof node.properties?.connection?.value === "string" && node.properties.connection.value.trim().length > 0);
+        return NODE_HEIGHT + (hasReferenceRow ? AGENT_CALL_REFERENCE_HEIGHT : 0);
+    },
+} satisfies Record<AgentWidgetType, (toolHeight: number, agentInfo?: NodeMetadata["agentInfo"], node?: FlowNode) => number>;
 
 export function getAgentNodeContainerHeight(node: FlowNode, type: AgentWidgetType): number {
     const agentInfo = (node.metadata?.data as NodeMetadata | undefined)?.agentInfo;
     const toolCount = agentInfo?.tools?.length ?? 0;
     const toolHeight = toolCount * (NODE_HEIGHT + AGENT_NODE_TOOL_GAP);
-    return layoutStrategies[type](toolHeight, agentInfo);
+    return layoutStrategies[type](toolHeight, agentInfo, node);
 }
