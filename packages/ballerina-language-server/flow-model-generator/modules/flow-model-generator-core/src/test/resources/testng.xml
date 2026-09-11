@@ -26,7 +26,6 @@
             <class name="io.ballerina.flowmodelgenerator.core.model.node.HumanReviewLiteralTest"/>
             <class name="io.ballerina.flowmodelgenerator.core.model.node.HumanTaskFormTest"/>
             <class name="io.ballerina.flowmodelgenerator.core.model.node.HumanTaskKeyFallbackTest"/>
-            <class name="io.ballerina.flowmodelgenerator.core.model.node.TypedAgentBuilderTest"/>
             <class name="io.ballerina.flowmodelgenerator.core.utils.WorkflowUtilLiteralTest"/>
         </classes>
     </test>

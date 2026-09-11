@@ -18,16 +18,12 @@
 
 package io.ballerina.flowmodelgenerator.core.model.node;
 
-import io.ballerina.compiler.api.symbols.ClassSymbol;
 import io.ballerina.flowmodelgenerator.core.AiUtils;
-import io.ballerina.flowmodelgenerator.core.model.Codedata;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Property;
-import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.projects.DocumentId;
 import io.ballerina.projects.Module;
-import io.ballerina.projects.Package;
 import io.ballerina.projects.Project;
 import org.ballerinalang.langserver.common.utils.NameUtil;
 import org.ballerinalang.langserver.commons.eventsync.exceptions.EventSyncException;
@@ -35,7 +31,6 @@ import org.ballerinalang.langserver.commons.workspace.WorkspaceDocumentException
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Optional;
 
 public class TypedAgentBuilder extends ClassInitBuilder {
 
@@ -54,7 +49,7 @@ public class TypedAgentBuilder extends ClassInitBuilder {
 
     @Override
     public void setConcreteTemplateData(TemplateContext context) {
-        TemplateContext resolvedContext = resolveAgentClass(anchorToExistingFile(context));
+        TemplateContext resolvedContext = anchorToExistingFile(context);
         super.setConcreteTemplateData(resolvedContext);
         suggestResultVariableName(resolvedContext);
         try {
@@ -64,39 +59,6 @@ public class TypedAgentBuilder extends ClassInitBuilder {
             AiUtils.markAgentParams(this, resolvedContext.codedata(), project);
         } catch (RuntimeException ignored) {
         }
-    }
-
-    // Central search results carry no class name, so resolve it from the package before the init form is built.
-    TemplateContext resolveAgentClass(TemplateContext context) {
-        if (context == null || !needsAgentClass(context.codedata())) {
-            return context;
-        }
-
-        Codedata codedata = context.codedata();
-        ModuleInfo moduleInfo = new ModuleInfo(codedata.org(), codedata.packageName(), codedata.module(),
-                codedata.version());
-        try {
-            return PackageUtil.pullModuleAndNotify(context.lsClientLogger(), moduleInfo)
-                    .flatMap(TypedAgentBuilder::findAgentClass)
-                    .map(className -> withAgentClass(context, className))
-                    .orElse(context);
-        } catch (RuntimeException ignored) {
-            return context;
-        }
-    }
-
-    static boolean needsAgentClass(Codedata codedata) {
-        return codedata != null && (codedata.object() == null || codedata.object().isEmpty());
-    }
-
-    static TemplateContext withAgentClass(TemplateContext context, String className) {
-        Codedata resolved = new Codedata.Builder<>(null).from(context.codedata()).object(className).build();
-        return new TemplateContext(context.workspaceManager(), context.filePath(), context.position(), resolved,
-                context.lsClientLogger());
-    }
-
-    static Optional<String> findAgentClass(Package agentPackage) {
-        return AiUtils.findAgentClasses(agentPackage).stream().findFirst().flatMap(ClassSymbol::getName);
     }
 
     private TemplateContext anchorToExistingFile(TemplateContext context) {
