@@ -212,7 +212,7 @@ const CONNECTION_FAILURE_MESSAGE: Record<ConnectionSettleReason, string> = {
  * races the turn starting.
  */
 function refuseWhileBusy(projectRootPath: string, action: string): boolean {
-    if (runEventStore.hasActiveRun(projectRootPath)) {
+    if (runEventStore.hasActiveRun(projectRootPath) || chatStateStorage.hasActiveExecutionFor(projectRootPath)) {
         console.warn(`[RPC] Refused ${action} — a response is still running for: ${projectRootPath}`);
         return true;
     }
@@ -797,10 +797,11 @@ User reverted the last made changes. The files have been restored to the state b
         // Get project root path and thread identifiers
         const projectRootPath = resolveProjectRootPath();
         assertNoRestoreInProgress(projectRootPath, 'restoreCheckpoint');
-        if (runEventStore.hasActiveRun(projectRootPath)) {
-            // A run still writing files would land its edits on top of the restored ones, and its
-            // own generation is what the truncation is about to drop. revertGeneration needs no
-            // such check: a running generation is never `done`, so it is never revertible.
+        if (runEventStore.hasActiveRun(projectRootPath) || chatStateStorage.hasActiveExecutionFor(projectRootPath)) {
+            // Anything still writing would land its edits on top of the restored ones, and its own
+            // generation is what the truncation is about to drop. The execution check is the one
+            // that covers executors which never begin a tracked run, the type creator among them.
+            // revertGeneration needs neither: a running generation is never `done`, so never revertible.
             throw new Error('A response is still running. Please wait for it to finish before restoring.');
         }
         beginRestore(projectRootPath);

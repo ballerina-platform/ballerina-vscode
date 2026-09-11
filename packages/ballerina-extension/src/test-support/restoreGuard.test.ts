@@ -20,6 +20,30 @@
 // that window corrupts the chat store. The refusal has to live here rather than in the panel, so
 // this pins the mechanism the RPC layer and the agent both call.
 
+jest.mock("@wso2/copilot-utilities/chat-persistence", () => ({
+    CopilotPersistenceStore: class {
+        saveThread() { return true; }
+        loadThread() { return undefined; }
+        listThreadIds() { return []; }
+        getWorkspaceMetadata() { return undefined; }
+        saveWorkspaceMetadata() { return true; }
+        listCheckpoints() { return []; }
+        loadCheckpoint() { return undefined; }
+        deleteThread() { return true; }
+        saveCheckpoint() { return true; }
+        loadCheckpoints() { return []; }
+        deleteCheckpoints() { return true; }
+    },
+}));
+jest.mock("../features/ai/state/ApprovalManager", () => ({
+    approvalManager: { cancelAllPending: jest.fn() },
+}));
+jest.mock("../features/ai/utils/project/temp-project", () => ({
+    cleanupTempProject: jest.fn(),
+    getReviewBaselinePath: (p: string) => `${p}-review-baseline`,
+}));
+
+import { ChatStateStorage } from "../views/ai-panel/chatStateStorage";
 import {
     assertNoRestoreInProgress,
     beginRestore,
@@ -68,5 +92,48 @@ describe("restore-in-progress guard", () => {
         endRestore(WORKSPACE);
 
         expect(isRestoreInProgress(WORKSPACE)).toBe(false);
+    });
+});
+
+// The other direction: a restore must not start while something is still writing. runEventStore
+// only sees runs buffered for panel reconnection, so an executor that never begins one — the type
+// creator among them — is invisible there and has to be seen through its registered execution.
+describe("workspace busy while an execution is registered", () => {
+    const WORKSPACE = "/ws/orders";
+    const THREAD = "thread-1";
+    let storage: ChatStateStorage;
+
+    beforeEach(() => {
+        storage = new ChatStateStorage();
+    });
+
+    it("reports the workspace busy for an execution that never begins a tracked run", () => {
+        expect(storage.hasActiveExecutionFor(WORKSPACE)).toBe(false);
+
+        storage.setActiveExecution(WORKSPACE, THREAD, {
+            generationId: "gen-1",
+            abortController: new AbortController(),
+        } as never);
+
+        expect(storage.hasActiveExecutionFor(WORKSPACE)).toBe(true);
+    });
+
+    it("frees the workspace once the execution is cleared", () => {
+        storage.setActiveExecution(WORKSPACE, THREAD, {
+            generationId: "gen-1",
+            abortController: new AbortController(),
+        } as never);
+        storage.clearActiveExecution(WORKSPACE, THREAD);
+
+        expect(storage.hasActiveExecutionFor(WORKSPACE)).toBe(false);
+    });
+
+    it("does not report another workspace busy", () => {
+        storage.setActiveExecution(WORKSPACE, THREAD, {
+            generationId: "gen-1",
+            abortController: new AbortController(),
+        } as never);
+
+        expect(storage.hasActiveExecutionFor("/ws/payments")).toBe(false);
     });
 });
