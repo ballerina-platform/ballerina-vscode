@@ -66,120 +66,120 @@
             "fieldType": "SINGLE_SELECT",
             "options": [
               {
-                "label": "SUPRES",
-                "value": "\"SUPRES\""
+                "label": "EDI_RECECO",
+                "value": "\"RECECO\""
               },
               {
-                "label": "DESADV",
-                "value": "\"DESADV\""
-              },
-              {
-                "label": "IFTSTQ",
-                "value": "\"IFTSTQ\""
-              },
-              {
-                "label": "STLRPT",
-                "value": "\"STLRPT\""
-              },
-              {
-                "label": "DOCAMR",
-                "value": "\"DOCAMR\""
-              },
-              {
-                "label": "INVRPT",
-                "value": "\"INVRPT\""
-              },
-              {
-                "label": "DESTIM",
-                "value": "\"DESTIM\""
-              },
-              {
-                "label": "DELJIT",
-                "value": "\"DELJIT\""
-              },
-              {
-                "label": "SUPCOT",
-                "value": "\"SUPCOT\""
-              },
-              {
-                "label": "PARTIN",
-                "value": "\"PARTIN\""
-              },
-              {
-                "label": "DMSTAT",
-                "value": "\"DMSTAT\""
-              },
-              {
-                "label": "DOCINF",
-                "value": "\"DOCINF\""
-              },
-              {
-                "label": "OSTRPT",
-                "value": "\"OSTRPT\""
-              },
-              {
-                "label": "ORDRSP",
-                "value": "\"ORDRSP\""
-              },
-              {
-                "label": "RECADV",
-                "value": "\"RECADV\""
-              },
-              {
-                "label": "DOCAMI",
-                "value": "\"DOCAMI\""
-              },
-              {
-                "label": "OSTENQ",
-                "value": "\"OSTENQ\""
-              },
-              {
-                "label": "SUPMAN",
-                "value": "\"SUPMAN\""
-              },
-              {
-                "label": "ICSOLI",
-                "value": "\"ICSOLI\""
-              },
-              {
-                "label": "DOCADV",
-                "value": "\"DOCADV\""
-              },
-              {
-                "label": "DELFOR",
-                "value": "\"DELFOR\""
-              },
-              {
-                "label": "DOCAPP",
-                "value": "\"DOCAPP\""
-              },
-              {
-                "label": "DOCARE",
-                "value": "\"DOCARE\""
-              },
-              {
-                "label": "ORDERS",
-                "value": "\"ORDERS\""
-              },
-              {
-                "label": "DOCAMA",
-                "value": "\"DOCAMA\""
-              },
-              {
-                "label": "ORDCHG",
-                "value": "\"ORDCHG\""
-              },
-              {
-                "label": "APERAK",
-                "value": "\"APERAK\""
-              },
-              {
-                "label": "IFTICL",
+                "label": "EDI_IFTICL",
                 "value": "\"IFTICL\""
               },
               {
-                "label": "RECECO",
-                "value": "\"RECECO\""
+                "label": "EDI_APERAK",
+                "value": "\"APERAK\""
+              },
+              {
+                "label": "EDI_ORDCHG",
+                "value": "\"ORDCHG\""
+              },
+              {
+                "label": "EDI_DOCAMA",
+                "value": "\"DOCAMA\""
+              },
+              {
+                "label": "EDI_ORDERS",
+                "value": "\"ORDERS\""
+              },
+              {
+                "label": "EDI_DOCARE",
+                "value": "\"DOCARE\""
+              },
+              {
+                "label": "EDI_DOCAPP",
+                "value": "\"DOCAPP\""
+              },
+              {
+                "label": "EDI_DELFOR",
+                "value": "\"DELFOR\""
+              },
+              {
+                "label": "EDI_DOCADV",
+                "value": "\"DOCADV\""
+              },
+              {
+                "label": "EDI_ICSOLI",
+                "value": "\"ICSOLI\""
+              },
+              {
+                "label": "EDI_SUPMAN",
+                "value": "\"SUPMAN\""
+              },
+              {
+                "label": "EDI_OSTENQ",
+                "value": "\"OSTENQ\""
+              },
+              {
+                "label": "EDI_DOCAMI",
+                "value": "\"DOCAMI\""
+              },
+              {
+                "label": "EDI_RECADV",
+                "value": "\"RECADV\""
+              },
+              {
+                "label": "EDI_ORDRSP",
+                "value": "\"ORDRSP\""
+              },
+              {
+                "label": "EDI_OSTRPT",
+                "value": "\"OSTRPT\""
+              },
+              {
+                "label": "EDI_DOCINF",
+                "value": "\"DOCINF\""
+              },
+              {
+                "label": "EDI_DMSTAT",
+                "value": "\"DMSTAT\""
+              },
+              {
+                "label": "EDI_PARTIN",
+                "value": "\"PARTIN\""
+              },
+              {
+                "label": "EDI_SUPCOT",
+                "value": "\"SUPCOT\""
+              },
+              {
+                "label": "EDI_DELJIT",
+                "value": "\"DELJIT\""
+              },
+              {
+                "label": "EDI_DESTIM",
+                "value": "\"DESTIM\""
+              },
+              {
+                "label": "EDI_INVRPT",
+                "value": "\"INVRPT\""
+              },
+              {
+                "label": "EDI_DOCAMR",
+                "value": "\"DOCAMR\""
+              },
+              {
+                "label": "EDI_STLRPT",
+                "value": "\"STLRPT\""
+              },
+              {
+                "label": "EDI_IFTSTQ",
+                "value": "\"IFTSTQ\""
+              },
+              {
+                "label": "EDI_DESADV",
+                "value": "\"DESADV\""
+              },
+              {
+                "label": "EDI_SUPRES",
+                "value": "\"SUPRES\""
               }
             ],
             "selected": false
@@ -190,7 +190,7 @@
             "selected": false
           }
         ],
-        "placeholder": "\"SUPRES\"",
+        "placeholder": "",
         "optional": false,
         "editable": true,
         "advanced": false,

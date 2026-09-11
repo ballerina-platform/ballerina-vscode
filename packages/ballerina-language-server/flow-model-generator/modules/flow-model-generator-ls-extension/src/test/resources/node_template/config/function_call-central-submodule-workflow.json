@@ -11,14 +11,14 @@
     "module": "workflow.management",
     "packageName": "workflow",
     "symbol": "getWorkflowInfo",
-    "version": "0.8.3"
+    "version": "0.9.0"
   },
   "output": {
     "id": "31",
     "metadata": {
       "label": "getWorkflowInfo",
       "description": "Gets current execution info for a workflow without waiting for it to finish.\nReturns the status, workflow type, and ID.\n\n```ballerina\nimport ballerina/workflow.management;\nWorkflowExecutionInfo info = check management:getWorkflowInfo(workflowId);\n```\n",
-      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.8.3.png"
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.9.0.png"
     },
     "codedata": {
       "node": "FUNCTION_CALL",
@@ -26,7 +26,7 @@
       "module": "workflow.management",
       "packageName": "workflow",
       "symbol": "getWorkflowInfo",
-      "version": "0.8.3",
+      "version": "0.9.0",
       "isNew": true
     },
     "returning": false,
