@@ -73,8 +73,8 @@ export enum MACHINE_VIEW {
     BIAddProjectForm = "BI Add Project SKIP",
     BIComponentView = "BI Component View",
     AddConnectionWizard = "Add Connection Wizard",
-    AddAgent = "Add Agent",
-    AddAgentDefinition = "Add Agent Definition",
+    AddAgent = "Add Agent SKIP",
+    AddAgentDefinition = "Add Agent Definition SKIP",
     ConnectionConfiguration = "Connection Configuration",
     AddCustomConnector = "Add Custom Connector",
     ViewConfigVariables = "View Config Variables",
@@ -1129,6 +1129,7 @@ export interface TraceAnimationEvent {
     type: 'invoke_agent' | 'chat' | 'execute_tool';
     toolNames: string[];
     activeToolName?: string;
+    activeToolKitName?: string;
     spanId: string;
     active: boolean;
     systemInstructions?: string;

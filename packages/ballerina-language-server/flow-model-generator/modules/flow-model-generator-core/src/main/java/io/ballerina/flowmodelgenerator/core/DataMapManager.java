@@ -2407,15 +2407,17 @@ public class DataMapManager {
                 continue;
             }
 
+            String escapedImportStatement = CommonUtils.escapeImportStatement(importStatement);
+
             boolean importExists = importDeclNodes.stream().anyMatch(importDeclarationNode -> {
                 String importText = importDeclarationNode.toSourceCode().trim();
-                return importText.startsWith("import " + importStatement) && importText.endsWith(";");
+                return importText.startsWith("import " + escapedImportStatement) && importText.endsWith(";");
             });
 
             if (!importExists) {
                 String stmt = new SourceBuilder.TokenBuilder(null)
                         .keyword(SyntaxKind.IMPORT_KEYWORD)
-                        .name(importStatement)
+                        .name(escapedImportStatement)
                         .endOfStatement()
                         .build(SourceBuilder.SourceKind.IMPORT);
                 textEdits.add(new TextEdit(CommonUtils.toRange(0, 0),
@@ -3441,7 +3443,7 @@ public class DataMapManager {
     }
 
     private static String getImportStmt(String org, String module) {
-        return String.format("import %s/%s;%n", org, module);
+        return String.format("import %s/%s;%n", org, CommonUtils.escapeModuleName(module));
     }
 
     private static String getExpressionBody(String returnType) {

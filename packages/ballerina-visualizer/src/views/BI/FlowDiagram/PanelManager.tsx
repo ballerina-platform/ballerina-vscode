@@ -239,6 +239,7 @@ export function PanelManager(props: PanelManagerProps) {
         expandedGroupId,
         onExpandedGroupChange,
         onSearchAll,
+        onSearchModelProvider,
         onSearchVectorStore,
         onSearchEmbeddingProvider,
         onSearchVectorKnowledgeBase,
@@ -404,6 +405,7 @@ export function PanelManager(props: PanelManagerProps) {
                         onClose={onClose}
                         title={"Model Providers"}
                         searchPlaceholder={"Search model providers"}
+                        onSearchTextChange={(searchText) => onSearchModelProvider?.(searchText, FUNCTION_TYPE.REGULAR)}
                         searchText={searchText}
                         onBack={canGoBack ? onBack : undefined}
                     />

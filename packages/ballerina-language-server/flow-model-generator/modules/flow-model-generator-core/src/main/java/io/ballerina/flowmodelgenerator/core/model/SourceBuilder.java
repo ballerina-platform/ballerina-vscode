@@ -25,7 +25,6 @@ import io.ballerina.compiler.api.symbols.TypeDefinitionSymbol;
 import io.ballerina.compiler.api.symbols.TypeDescKind;
 import io.ballerina.compiler.api.symbols.TypeReferenceTypeSymbol;
 import io.ballerina.compiler.api.symbols.TypeSymbol;
-import io.ballerina.compiler.syntax.tree.IdentifierToken;
 import io.ballerina.compiler.syntax.tree.ImportDeclarationNode;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
 import io.ballerina.compiler.syntax.tree.Node;
@@ -126,9 +125,9 @@ public class SourceBuilder {
             NodeKind nodeKind = codedata.node();
             if (filePath.endsWith(AGENTS_BAL) && (nodeKind == NodeKind.FUNCTION_DEFINITION
                     || nodeKind == NodeKind.CLASS_INIT
-                    || nodeKind == NodeKind.RESOURCE_ACTION_CALL
+                    || ((nodeKind == NodeKind.RESOURCE_ACTION_CALL
                     || nodeKind == NodeKind.REMOTE_ACTION_CALL
-                    || nodeKind == NodeKind.FUNCTION_CALL)) {
+                    || nodeKind == NodeKind.FUNCTION_CALL) && codedata.lineRange() == null))) {
                 nodeKind = NodeKind.AGENT;
             }
             this.filePath = resolvePath(filePath, nodeKind, codedata.lineRange(), codedata.isNew());
@@ -401,8 +400,23 @@ public class SourceBuilder {
     /** The node's own module as a reference qualifier, or empty when the node names no module. */
     public String importQualifier() {
         Codedata codedata = flowNode.codedata();
-        String prefix = codedata == null ? "" : importPrefix(codedata.org(), codedata.module());
-        return prefix.isEmpty() ? "" : prefix + ":";
+        return codedata == null ? "" : referenceQualifier(codedata.org(), codedata.module());
+    }
+
+    /**
+     * The reference qualifier {@code prefix:} that {@code org/module} is written under in source, escaped for
+     * emission (a reserved-keyword segment becomes e.g. {@code 'import}), or empty when the module needs no
+     * qualifier. Records the import and resolves the prefix exactly as {@link #importPrefix(String, String)} does;
+     * predefined lang-lib prefixes (e.g. {@code int}, {@code error}) are legal unescaped and left as-is.
+     */
+    public String referenceQualifier(String org, String module) {
+        String prefix = importPrefix(org, module);
+        if (prefix.isEmpty()) {
+            return "";
+        }
+        String escaped = CommonUtils.isPredefinedLangLib(org, module)
+                ? prefix : CommonUtil.escapeReservedKeyword(prefix);
+        return escaped + ":";
     }
 
     private String importPrefix(String org, String module, boolean defaultNamespace) {
@@ -1055,8 +1069,10 @@ public class SourceBuilder {
     private void removeExistingImports(SyntaxTree syntaxTree) {
         ModulePartNode rootNode = syntaxTree.rootNode();
         for (ImportDeclarationNode existingImport : rootNode.imports()) {
+            // Import identifier tokens carry the escape quote for reserved-keyword segments; normalize back to
+            // the raw form so it matches the (raw) entries held in the imports set.
             String moduleName = existingImport.moduleName().stream()
-                    .map(IdentifierToken::text)
+                    .map(token -> CommonUtil.unescapeReservedKeyword(token.text()))
                     .collect(Collectors.joining("."));
             String orgName = existingImport.orgName().map(org -> org.orgName().text() + "/").orElse("");
             imports.remove(orgName + moduleName);
@@ -1067,7 +1083,8 @@ public class SourceBuilder {
         for (Map.Entry<String, String> moduleImport : imports.entrySet()) {
             tokenBuilder
                     .keyword(SyntaxKind.IMPORT_KEYWORD)
-                    .name(ModuleAliasResolver.withAliasClause(moduleImport.getKey(), moduleImport.getValue()))
+                    .name(CommonUtils.escapeImportStatement(
+                            ModuleAliasResolver.withAliasClause(moduleImport.getKey(), moduleImport.getValue())))
                     .endOfStatement();
             textEdit(SourceKind.IMPORT, filePath, startLineRange);
         }
@@ -1207,7 +1224,8 @@ public class SourceBuilder {
         // Note there is deliberately no Property overload: a type must be rendered through
         // SourceBuilder.requalifiedType so its module qualifiers follow the target file's imports.
         public TokenBuilder expressionWithType(String type, Property variable) {
-            sb.append(type).append(WHITE_SPACE).append(variable.toSourceCode()).append(WHITE_SPACE);
+            sb.append(CommonUtils.escapeTypeSignatureModulePrefixes(type)).append(WHITE_SPACE)
+                    .append(variable.toSourceCode()).append(WHITE_SPACE);
             return this;
         }
 

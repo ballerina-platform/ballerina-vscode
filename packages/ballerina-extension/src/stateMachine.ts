@@ -6,6 +6,7 @@ import {
     EVENT_TYPE,
     SyntaxTree,
     History,
+    HistoryEntry,
     MachineStateValue,
     IUndoRedoManager,
     VisualizerLocation,
@@ -524,6 +525,7 @@ const stateMachine = createMachine<MachineContext>(
                                         documentUri: (context, event) => event.viewLocation.documentUri,
                                         position: (context, event) => event.viewLocation.position,
                                         view: (context, event) => event.viewLocation.view,
+                                        projectPath: (context, event) => event.viewLocation?.projectPath || context?.projectPath,
                                         identifier: (context, event) => event.viewLocation.identifier,
                                         artifactType: (context, event) => event.viewLocation.artifactType,
                                         serviceType: (context, event) => event.viewLocation.serviceType,
@@ -733,6 +735,7 @@ const stateMachine = createMachine<MachineContext>(
                                 location: {
                                     view: MACHINE_VIEW.PackageOverview,
                                     documentUri: context.documentUri,
+                                    projectPath: context.projectPath,
                                     org: orgName || context.org,
                                     package: packageName || context.package,
                                 }
@@ -742,7 +745,7 @@ const stateMachine = createMachine<MachineContext>(
                     }
                     const view = await getView(context.documentUri, context.position, context?.projectPath);
                     view.location.package = packageName || context.package;
-                    view.location.package = packageName || context.package;
+                    view.location.projectPath = context.projectPath;
                     history.push(view);
                     return resolve();
                 } else {
@@ -750,6 +753,7 @@ const stateMachine = createMachine<MachineContext>(
                         location: {
                             view: context.view,
                             documentUri: context.documentUri,
+                            projectPath: context.projectPath,
                             position: context.position,
                             identifier: context.identifier,
                             parentIdentifier: context.parentIdentifier,
@@ -1132,7 +1136,7 @@ export function updateView(refreshTreeView?: boolean, updatedIdentifier?: string
             targetedArtifactType = DIRECTORY_MAP.SERVICE;
         }
 
-        const projectPath = StateMachine.context().projectPath;
+        const projectPath = getEntryProjectPath(lastView);
         const project = StateMachine.context().projectStructure?.projects.find(project => isSamePath(project.projectPath, projectPath));
 
         // These changes will be revisited in the revamp
@@ -1163,7 +1167,7 @@ export function updateView(refreshTreeView?: boolean, updatedIdentifier?: string
     if (!newLocationFound && lastView?.location?.type) {
         let currentArtifact: ProjectStructureArtifactResponse;
 
-        const projectPath = StateMachine.context().projectPath;
+        const projectPath = getEntryProjectPath(lastView);
         const project = StateMachine.context().projectStructure?.projects.find(project => isSamePath(project.projectPath, projectPath));
 
         project?.directoryMap[DIRECTORY_MAP.TYPE]?.forEach((artifact) => {
@@ -1228,6 +1232,10 @@ export function updateDataMapperView(codedata?: CodeData, variableName?: string)
     notifyCurrentWebview();
 }
 
+
+function getEntryProjectPath(entry: HistoryEntry): string {
+    return entry.location.projectPath || StateMachine.context().projectPath;
+}
 
 function getLastHistory() {
     const historyStack = history?.get();

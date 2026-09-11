@@ -1,0 +1,173 @@
+{
+    "automation": {
+        "name": "automation",
+        "location": {
+            "filePath": "/project/path/test_sample/automation.bal",
+            "startLine": { "line": 2, "offset": 0 },
+            "endLine": { "line": 8, "offset": 1 }
+        },
+        "connections": ["b45f2a3e-1a2b-4c3d-9e8f-7a6b5c4d3e2f"],
+        "type": "automation",
+        "uuid": "46687985-6a81-ae2d-c8db-f8fac6cc7fd2",
+        "enableFlowModel": true,
+        "sortText": "Z"
+    },
+    "connections": [
+        {
+            "symbol": "httpServiceClient",
+            "location": {
+                "filePath": "/project/path/test_sample/connections.bal",
+                "startLine": { "line": 2, "offset": 0 },
+                "endLine": { "line": 2, "offset": 46 }
+            },
+            "scope": "GLOBAL",
+            "uuid": "b45f2a3e-1a2b-4c3d-9e8f-7a6b5c4d3e2f",
+            "enableFlowModel": true,
+            "sortText": "connections.bal1"
+        },
+        {
+            "symbol": "ftpClient",
+            "location": {
+                "filePath": "/project/path/test_sample/connections.bal",
+                "startLine": { "line": 4, "offset": 0 },
+                "endLine": { "line": 4, "offset": 40 }
+            },
+            "scope": "GLOBAL",
+            "uuid": "d8e9f0a1-3c4d-4e5f-8a9b-2c3d4e5f6a7b",
+            "enableFlowModel": true,
+            "sortText": "connections.bal2"
+        }
+    ],
+    "listeners": [
+        {
+            "symbol": "httpDefaultListener",
+            "location": {
+                "filePath": "/project/path/test_sample/main.bal",
+                "startLine": { "line": 2, "offset": 0 },
+                "endLine": { "line": 2, "offset": 71 }
+            },
+            "attachedServices": ["c02f504e-acd6-0a2a-1c71-2aea4c0cbdef"],
+            "kind": 1,
+            "type": "http:Listener",
+            "args": [],
+            "icon": "",
+            "uuid": "65643546-418f-e567-1ecf-978e5f5c706a",
+            "enableFlowModel": true,
+            "sortText": "main.bal1"
+        },
+        {
+            "symbol": "httpDefaultListener2",
+            "location": {
+                "filePath": "/project/path/test_sample/main.bal",
+                "startLine": { "line": 10, "offset": 0 },
+                "endLine": { "line": 10, "offset": 71 }
+            },
+            "attachedServices": ["f1a2b3c4-5d6e-4f7a-8b9c-0d1e2f3a4b5c"],
+            "kind": 1,
+            "type": "http:Listener",
+            "args": [],
+            "icon": "",
+            "uuid": "76754657-529f-f678-2fdf-089f6f6d817b",
+            "enableFlowModel": true,
+            "sortText": "main.bal2"
+        }
+    ],
+    "services": [
+        {
+            "location": {
+                "filePath": "/project/path/test_sample/main.bal",
+                "startLine": { "line": 4, "offset": 0 },
+                "endLine": { "line": 9, "offset": 1 }
+            },
+            "attachedListeners": ["65643546-418f-e567-1ecf-978e5f5c706a"],
+            "connections": [],
+            "functions": [],
+            "remoteFunctions": [],
+            "resourceFunctions": [
+                {
+                    "accessor": "get",
+                    "path": "f",
+                    "location": {
+                        "filePath": "/project/path/test_sample/main.bal",
+                        "startLine": { "line": 5, "offset": 4 },
+                        "endLine": { "line": 7, "offset": 5 }
+                    },
+                    "connections": ["d8e9f0a1-3c4d-4e5f-8a9b-2c3d4e5f6a7b"]
+                }
+            ],
+            "absolutePath": "/",
+            "type": "http:Service",
+            "icon": "",
+            "uuid": "c02f504e-acd6-0a2a-1c71-2aea4c0cbdef",
+            "enableFlowModel": true,
+            "sortText": "main.bal4"
+        },
+        {
+            "location": {
+                "filePath": "/project/path/test_sample/main.bal",
+                "startLine": { "line": 12, "offset": 0 },
+                "endLine": { "line": 17, "offset": 1 }
+            },
+            "attachedListeners": ["76754657-529f-f678-2fdf-089f6f6d817b"],
+            "connections": [],
+            "functions": [],
+            "remoteFunctions": [],
+            "resourceFunctions": [
+                {
+                    "accessor": "post",
+                    "path": "s",
+                    "location": {
+                        "filePath": "/project/path/test_sample/main.bal",
+                        "startLine": { "line": 13, "offset": 4 },
+                        "endLine": { "line": 15, "offset": 5 }
+                    },
+                    "connections": ["b45f2a3e-1a2b-4c3d-9e8f-7a6b5c4d3e2f"]
+                }
+            ],
+            "absolutePath": "/",
+            "type": "http:Service",
+            "icon": "",
+            "uuid": "f1a2b3c4-5d6e-4f7a-8b9c-0d1e2f3a4b5c",
+            "enableFlowModel": true,
+            "sortText": "main.bal5"
+        }
+    ],
+    "workflows": [
+        {
+            "symbol": "workflow1",
+            "location": {
+                "filePath": "/project/path/test_sample/workflows.bal",
+                "startLine": { "line": 2, "offset": 0 },
+                "endLine": { "line": 10, "offset": 1 }
+            },
+            "kind": "WORKFLOW",
+            "attachedServices": [],
+            "attachedFunctions": [],
+            "events": [],
+            "humanTasks": [],
+            "activities": [],
+            "connections": ["b45f2a3e-1a2b-4c3d-9e8f-7a6b5c4d3e2f"],
+            "uuid": "c6d7e8f9-2b3a-4c5d-9e8f-1a2b3c4d5e6f",
+            "enableFlowModel": true,
+            "sortText": "workflows.bal1"
+        },
+        {
+            "symbol": "workflow2",
+            "location": {
+                "filePath": "/project/path/test_sample/workflows.bal",
+                "startLine": { "line": 12, "offset": 0 },
+                "endLine": { "line": 20, "offset": 1 }
+            },
+            "kind": "WORKFLOW",
+            "attachedServices": [],
+            "attachedFunctions": [],
+            "events": [],
+            "humanTasks": [],
+            "activities": [],
+            "connections": [],
+            "uuid": "e0f1a2b3-4c5d-4e6f-9a0b-1c2d3e4f5a6b",
+            "enableFlowModel": true,
+            "sortText": "workflows.bal2"
+        }
+    ]
+}

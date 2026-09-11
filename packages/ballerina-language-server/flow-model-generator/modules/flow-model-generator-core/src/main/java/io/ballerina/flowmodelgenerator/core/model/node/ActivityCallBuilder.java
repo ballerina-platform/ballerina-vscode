@@ -1415,6 +1415,6 @@ public class ActivityCallBuilder extends CallBuilder {
             return functionSymbol;
         }
 
-        return sourceBuilder.importPrefix(org, module) + ":" + functionSymbol;
+        return sourceBuilder.referenceQualifier(org, module) + functionSymbol;
     }
 }

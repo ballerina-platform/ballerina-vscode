@@ -87,5 +87,5 @@ export function ConnectionCreateWizard(props: ConnectionCreateWizardProps): JSX.
         );
     }
 
-    return <ConnectionSelectionList connectionKind={connectionKind} onSelect={handleSelect} />;
+    return <ConnectionSelectionList connectionKind={connectionKind} onSelect={handleSelect} fillContainerHeight />;
 }

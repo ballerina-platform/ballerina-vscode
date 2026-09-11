@@ -36,6 +36,12 @@ under the License.
             <class name="io.ballerina.modelgenerator.commons.ModulePrefixContextTest"/>
             <class name="io.ballerina.modelgenerator.commons.ImportStatementsCodecTest"/>
             <class name="io.ballerina.modelgenerator.commons.ModuleAliasResolverTest"/>
+            <class name="io.ballerina.modelgenerator.commons.ImportPrefixReaderTest"/>
+        </classes>
+    </test>
+    <test name="common-utils-test" parallel="false">
+        <classes>
+            <class name="io.ballerina.modelgenerator.commons.CommonUtilsTest"/>
         </classes>
     </test>
 </suite>
