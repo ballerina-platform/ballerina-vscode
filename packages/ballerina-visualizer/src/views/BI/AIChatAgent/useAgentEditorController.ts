@@ -25,7 +25,6 @@ import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { findFunctionByName } from "../FlowDiagram/utils";
 import {
     findAgentScopedNode as findAgentScopedNodeAt,
-    findFlowNodeByModuleVarName,
     refreshAgentNodeLineRange,
     removeMcpServerFromAgentNode,
     removeToolFromAgentNode,
@@ -168,7 +167,7 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
             const updated = structuredClone(node);
             let deleteArtifacts: ProjectStructureArtifactResponse[] | undefined;
             if (typeof memory === "string" && memory.trim() && memory.trim() !== "()") {
-                const memoryVar = await findFlowNodeByModuleVarName(memory.trim(), rpcClient);
+                const memoryVar = await findAgentScopedNode(node, "MEMORY", memory.trim());
                 if (memoryVar) {
                     const path = (await rpcClient.getVisualizerRpcClient().joinProjectPath({
                         segments: [memoryVar.codedata.lineRange.fileName],
@@ -196,7 +195,7 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
             setLoading(false);
             close(nextPosition);
         }
-    }, [activate, close, rpcClient]);
+    }, [activate, close, findAgentScopedNode, rpcClient]);
 
     const openTool = useCallback(async (tool: ToolData, node: FlowNode, form: boolean) => {
         if (!tool?.name) {
