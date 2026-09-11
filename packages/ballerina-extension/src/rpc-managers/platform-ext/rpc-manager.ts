@@ -514,6 +514,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
 
         const services = project.directoryMap[DIRECTORY_MAP.SERVICE];
         const automation = project.directoryMap[DIRECTORY_MAP.AUTOMATION];
+        const workflows = project.directoryMap[DIRECTORY_MAP.WORKFLOW];
 
         let scopes: DevantScopes[] = [];
         if (services?.length > 0) {
@@ -521,6 +522,9 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
                 .map((svc) => findDevantScope(svc?.triggerKind ?? svc?.kind, svc?.moduleName))
                 .filter((svc) => svc !== undefined);
             scopes.push(...Array.from(new Set(svcScopes)));
+        }
+        if (workflows?.length > 0) {
+            scopes.push(DevantScopes.WORKFLOW);
         }
         if (automation?.length > 0) {
             scopes.push(DevantScopes.AUTOMATION);
