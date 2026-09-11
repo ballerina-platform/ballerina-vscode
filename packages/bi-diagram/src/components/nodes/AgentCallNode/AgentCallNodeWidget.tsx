@@ -16,7 +16,7 @@
  * under the License.
  */
 /** @jsxImportSource @emotion/react */
-import React from "react";
+import React, { useState } from "react";
 import styled from "@emotion/styled";
 import { DiagramEngine, PortWidget } from "@projectstorm/react-diagrams-core";
 import { AgentCallNodeModel } from "./AgentCallNodeModel";
@@ -286,7 +286,7 @@ const OpenAgentButton = styled.div`
     transition: border-color 0.15s ease, background-color 0.15s ease;
 
     &:hover {
-        border-color: ${ThemeColors.ON_SURFACE};
+        border-color: ${ThemeColors.PRIMARY};
         background-color: ${ThemeColors.SURFACE_BRIGHT};
     }
 `;
@@ -309,10 +309,11 @@ type AgentReferenceProps = {
     agentVarName: string;
     clickable: boolean;
     onOpen: (event: React.SyntheticEvent) => void;
+    onButtonHoverChange: (hovered: boolean) => void;
 };
 
 // Read-only metadata (model/tools/memory) lives in the property panel now; this row only opens the agent.
-function AgentReference({ agentVarName, clickable, onOpen }: AgentReferenceProps) {
+function AgentReference({ agentVarName, clickable, onOpen, onButtonHoverChange }: AgentReferenceProps) {
     if (!agentVarName) {
         return null;
     }
@@ -327,7 +328,16 @@ function AgentReference({ agentVarName, clickable, onOpen }: AgentReferenceProps
             <ReferenceRow data-testid="agent-reference-row">
                 <ReferenceName>{agentVarName}</ReferenceName>
                 {clickable && (
-                    <OpenAgentButton data-testid="open-agent-button" role="button" tabIndex={0} onClick={onOpen} onKeyDown={handleKeyDown}>
+                    <OpenAgentButton
+                        data-testid="open-agent-button"
+                        role="button"
+                        tabIndex={0}
+                        title="Open Agent"
+                        onClick={onOpen}
+                        onKeyDown={handleKeyDown}
+                        onMouseEnter={() => onButtonHoverChange(true)}
+                        onMouseLeave={() => onButtonHoverChange(false)}
+                    >
                         Open agent
                         <ChipGlyph name="bi-arrow-outward" size={13} />
                     </OpenAgentButton>
@@ -355,6 +365,7 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
     const agentVarName = typeof model.node.properties?.connection?.value === "string"
         ? (model.node.properties.connection.value as string).trim() : "";
     const canViewAgent = Boolean(goToAgent) && agentVarName.length > 0;
+    const [isOpenAgentHovered, setIsOpenAgentHovered] = useState(false);
 
     const handleOnClick = (event: React.MouseEvent<HTMLDivElement>) => {
         if (readOnly) {
@@ -518,7 +529,7 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
         <NodeStyles.Node data-testid="agent-call-node" readOnly={readOnly}>
             <NodeStyles.Box
                 disabled={disabled}
-                hovered={isBoxHovered}
+                hovered={isBoxHovered && !isOpenAgentHovered}
                 hasError={hasError}
                 readOnly={readOnly}
                 isActiveBreakpoint={isActiveBreakpoint}
@@ -633,6 +644,7 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
                         agentVarName={agentVarName}
                         clickable={canViewAgent}
                         onOpen={handleOpenAgent}
+                        onButtonHoverChange={setIsOpenAgentHovered}
                     />
                 </NodeStyles.Column>
                 <NodeStyles.BottomPortWidget port={model.getPort("out")!} engine={engine} />
