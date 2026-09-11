@@ -21,6 +21,7 @@ import styled from "@emotion/styled";
 import { DiagramEngine, PortWidget } from "@projectstorm/react-diagrams-core";
 import { AgentCallNodeModel } from "./AgentCallNodeModel";
 import {
+    AGENT_NODE_USAGE_GAP,
     DRAFT_NODE_BORDER_WIDTH,
     NODE_BG_BREAKPOINT_COLOR,
     NODE_BORDER_ERROR_COLOR,
@@ -162,7 +163,7 @@ export namespace NodeStyles {
         flex-direction: column;
         justify-content: flex-start;
         align-items: flex-start;
-        gap: 10px;
+        gap: ${AGENT_NODE_USAGE_GAP}px;
         width: 100%;
         padding-bottom: 12px;
         overflow: hidden;
