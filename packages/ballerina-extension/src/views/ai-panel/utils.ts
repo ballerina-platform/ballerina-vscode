@@ -73,8 +73,13 @@ export const checkToken = async (): Promise<AuthCredentials | undefined> => {
                         const stsToken = await getPlatformStsToken();
                         if (stsToken) {
                             const secrets = await exchangeStsToCopilotToken(stsToken);
-                            const api = await getPlatformExtensionAPI();
-                            const region = api?.getAuthState()?.region?.trim().toLowerCase();
+                            let region: string | undefined;
+                            try {
+                                const api = await getPlatformExtensionAPI();
+                                region = api?.getAuthState()?.region?.trim().toLowerCase();
+                            } catch {
+                                /* region persistence is best-effort */
+                            }
                             const newCredentials: AuthCredentials = {
                                 loginMethod: LoginMethod.BI_INTEL,
                                 secrets: { ...secrets, ...(region && { region }) }

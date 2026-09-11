@@ -157,9 +157,13 @@ export const getPlatformStsToken = async (): Promise<string | undefined> => {
             return undefined;
         }
         if (api.isLoggedIn()) {
-            const region = api.getAuthState()?.region;
-            if (region && !setBackendRegion(region.toLowerCase())) {
-                throw new Error(`No backend URL configured for region '${region}'. Rebuild the extension to pick up regional backend URLs from .env.`);
+            try {
+                const region = api.getAuthState()?.region;
+                if (region) {
+                    setBackendRegion(region.toLowerCase());
+                }
+            } catch {
+                /* region resolution non-fatal; keep default backend */
             }
         }
         return await api.getStsToken();
@@ -405,8 +409,13 @@ export const getRefreshedAccessToken = async (): Promise<string> => {
                 const newSecrets = await refreshTokenViaStsExchange();
 
                 // Update stored credentials, persisting region so warm restarts restore it
-                const api = await getPlatformExtensionAPI();
-                const region = api?.getAuthState()?.region?.trim().toLowerCase();
+                let region: string | undefined;
+                try {
+                    const api = await getPlatformExtensionAPI();
+                    region = api?.getAuthState()?.region?.trim().toLowerCase();
+                } catch {
+                    /* region persistence is best-effort */
+                }
                 const updatedCredentials: AuthCredentials = {
                     loginMethod: LoginMethod.BI_INTEL,
                     secrets: { ...newSecrets, ...(region && { region }) }
