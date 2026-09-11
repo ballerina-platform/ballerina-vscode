@@ -211,6 +211,12 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
                     return [...current, ...orgAgents.filter((agent) => !seen.has(moduleId(agent)))];
                 });
             })
+            .catch((error) => {
+                console.error("Error loading organization agents:", error);
+                rpcClient.getCommonRpcClient().showErrorMessage({
+                    message: "Failed to load organization agents. Please try again.",
+                });
+            })
             .finally(() => {
                 if (request === searchRequestRef.current) {
                     setIsLoadingOrgAgents(false);
@@ -541,7 +547,9 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
                             ? "No agents found in this project."
                             : filterType === "Organization"
                                 ? "No agents found in your organization."
-                                : "No agents found."}
+                                : !searchText
+                                    ? "No agents found. Type to search for agents from other organizations."
+                                    : "No agents found."}
                     </EmptyState>
                 ) : (
                     <AgentsGrid>
