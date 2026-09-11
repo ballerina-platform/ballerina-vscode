@@ -58,6 +58,7 @@ export interface ConnectionSelectionListProps {
     onSelect?: (id: string, metadata?: any) => void;
     expandedGroupId?: string | null;
     onExpandedGroupChange?: (groupId: string | null) => void;
+    fillContainerHeight?: boolean;
 }
 
 export interface ConnectionCreatorProps {

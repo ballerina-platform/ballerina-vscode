@@ -1129,6 +1129,7 @@ export interface TraceAnimationEvent {
     type: 'invoke_agent' | 'chat' | 'execute_tool';
     toolNames: string[];
     activeToolName?: string;
+    activeToolKitName?: string;
     spanId: string;
     active: boolean;
     systemInstructions?: string;

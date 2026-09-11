@@ -146,8 +146,10 @@ export default function CreateMemoryForm({ onCreated }: CreateMemoryFormProps) {
             showProgressIndicator={submitting}
             disableSaveButton={submitting}
             footerActionButton
+            hideInfoBanner
             fieldOverrides={{
                 store: {
+                    advanced: false,
                     type: "ACTION_EXPRESSION",
                     types: [
                         { fieldType: "ACTION_EXPRESSION", selected: true },

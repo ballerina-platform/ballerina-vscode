@@ -676,9 +676,13 @@ public class TestManagerService implements ExtendedLanguageServerService {
         // Extract current file path from the source
         String currentFilePath = extractCurrentFilePath(textDocument, filePathRange.get());
 
+        // Normalize before comparing so a backslash-containing path on Windows isn't seen as a change.
+        String normalizedNewEvalSetFile = newEvalSetFile.replace('\\', '/');
+
         // If changed, add edit to update it
-        if (!currentFilePath.equals(newEvalSetFile)) {
-            edits.add(new TextEdit(Utils.toRange(filePathRange.get()), "\"" + newEvalSetFile + "\""));
+        if (!currentFilePath.equals(normalizedNewEvalSetFile)) {
+            edits.add(new TextEdit(Utils.toRange(filePathRange.get()),
+                    "\"" + normalizedNewEvalSetFile + "\""));
         }
     }
 

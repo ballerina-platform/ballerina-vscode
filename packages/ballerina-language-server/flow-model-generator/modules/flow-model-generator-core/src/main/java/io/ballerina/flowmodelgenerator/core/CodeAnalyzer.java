@@ -22,7 +22,6 @@ import com.google.gson.Gson;
 import io.ballerina.compiler.api.ModuleID;
 import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.api.symbols.AnnotationAttachmentSymbol;
-import io.ballerina.compiler.api.symbols.ClassFieldSymbol;
 import io.ballerina.compiler.api.symbols.ClassSymbol;
 import io.ballerina.compiler.api.symbols.Documentation;
 import io.ballerina.compiler.api.symbols.FunctionSymbol;
@@ -129,6 +128,7 @@ import io.ballerina.compiler.syntax.tree.VariableDeclarationNode;
 import io.ballerina.compiler.syntax.tree.WaitActionNode;
 import io.ballerina.compiler.syntax.tree.WaitFieldsListNode;
 import io.ballerina.compiler.syntax.tree.WhileStatementNode;
+import io.ballerina.flowmodelgenerator.core.AiUtils.ModelData;
 import io.ballerina.flowmodelgenerator.core.model.Branch;
 import io.ballerina.flowmodelgenerator.core.model.Codedata;
 import io.ballerina.flowmodelgenerator.core.model.CommentProperty;
@@ -322,7 +322,6 @@ public class CodeAnalyzer extends NodeVisitor {
     private static final String FIELD_MODEL = "model";
     private static final String FIELD_SYSTEM_PROMPT = "systemPrompt";
     private static final String FIELD_MEMORY = "memory";
-    private static final String MODEL_PROVIDER_INTERFACE_NAME = "ModelProvider";
 
     // Metadata data keys
     private static final String KIND_KEY = "kind";
@@ -652,14 +651,14 @@ public class CodeAnalyzer extends NodeVisitor {
     }
 
     private void populateAgentRunMetaData(ExpressionNode expressionNode, ClassSymbol classSymbol) {
-        SeparatedNodeList<FunctionArgumentNode> argumentNodes = getAgentInstanceNewExpr(expressionNode)
+        SeparatedNodeList<FunctionArgumentNode> argumentNodes = getInstanceNewExpr(expressionNode)
                 .flatMap(ImplicitNewExpressionNode::parenthesizedArgList)
                 .map(ParenthesizedArgList::arguments)
                 .orElse(null);
         AiUtils.applyAgentRunMetadata(nodeBuilder, classSymbol, argumentNodes, project, this::getModelIconUrl);
     }
 
-    private Optional<ImplicitNewExpressionNode> getAgentInstanceNewExpr(ExpressionNode expressionNode) {
+    private Optional<ImplicitNewExpressionNode> getInstanceNewExpr(ExpressionNode expressionNode) {
         if (isClassField(expressionNode)) {
             FieldAccessExpressionNode fieldAccess = (FieldAccessExpressionNode) expressionNode;
             Optional<Symbol> fieldSymbol = semanticModel.symbol(fieldAccess.fieldName());
@@ -799,8 +798,9 @@ public class CodeAnalyzer extends NodeVisitor {
                         continue;
                     }
                     String toolName = fieldName.name().text();
-                    if (isMcpToolKitExpression(fieldAccess)) {
-                        toolsData.add(new ToolData(toolName, ICON_PATH, "", MCP_SERVER, false));
+                    Optional<String> mcpClassName = resolveMcpToolKitClassName(fieldAccess);
+                    if (mcpClassName.isPresent()) {
+                        toolsData.add(new ToolData(toolName, ICON_PATH, "", MCP_SERVER, false, mcpClassName.get()));
                         continue;
                     }
                     MethodSymbol method = resolveToolMethod(fieldAccess, toolName).orElse(null);
@@ -811,19 +811,21 @@ public class CodeAnalyzer extends NodeVisitor {
                             .orElse("");
                     boolean requiresApproval = method != null
                             && AiUtils.readRequiresApproval(method, project);
-                    toolsData.add(new ToolData(toolName, icon, description, type, requiresApproval));
+                    toolsData.add(new ToolData(toolName, icon, description, type, requiresApproval, null));
                 } else if (element instanceof SimpleNameReferenceNode nameRef) {
                     String toolName = nameRef.name().text();
                     Symbol symbol = semanticModel.symbol(element).orElse(null);
-                    if (AiUtils.isMcpToolKitSymbol(symbol) || isMcpToolKitExpression(nameRef)) {
-                        toolsData.add(new ToolData(toolName, ICON_PATH, getToolDescription(""), MCP_SERVER, false));
+                    Optional<String> mcpClassName = resolveMcpToolKitClassName(nameRef);
+                    if (mcpClassName.isPresent()) {
+                        toolsData.add(new ToolData(toolName, ICON_PATH, getToolDescription(""), MCP_SERVER, false,
+                                mcpClassName.get()));
                     } else {
                         String type = symbol instanceof FunctionSymbol function && isAgentDelegationTool(function)
                                 ? AGENT_TOOL_TYPE : null;
                         boolean requiresApproval = symbol != null
                                 && AiUtils.readRequiresApproval(symbol, project);
                         toolsData.add(new ToolData(toolName, getIcon(toolName), getToolDescription(toolName), type,
-                                requiresApproval));
+                                requiresApproval, null));
                     }
                 }
             }
@@ -4759,38 +4761,7 @@ public class CodeAnalyzer extends NodeVisitor {
     }
 
     private ModelData getModelIconUrl(ExpressionNode expressionNode) {
-        if (expressionNode.kind() == SyntaxKind.SIMPLE_NAME_REFERENCE) {
-            Optional<Symbol> optSymbol = semanticModel.symbol(expressionNode);
-            if (optSymbol.isEmpty()) {
-                return null;
-            }
-            Symbol symbol = optSymbol.get();
-            TypeSymbol typeDescriptor;
-            if (symbol.kind() == SymbolKind.VARIABLE) {
-                typeDescriptor = ((VariableSymbol) symbol).typeDescriptor();
-            } else if (symbol.kind() == SymbolKind.CLASS_FIELD) {
-                typeDescriptor = ((ClassFieldSymbol) symbol).typeDescriptor();
-            } else {
-                return null;
-            }
-            Optional<String> symbolName = typeDescriptor.getName();
-            Optional<ModuleSymbol> optModule = typeDescriptor.getModule();
-            if (optModule.isEmpty()) {
-                return null;
-            }
-            ModuleID id = optModule.get().id();
-            String iconType = symbolName.orElse("");
-            if (iconType.isEmpty() || iconType.equals(MODEL_PROVIDER_INTERFACE_NAME)) {
-                iconType = id.packageName();
-            }
-            return new ModelData(optSymbol.get().getName().orElse(""),
-                    CommonUtils.generateIcon(id.orgName(), id.packageName(), id.version()),
-                    iconType);
-        } else if (expressionNode.kind() == SyntaxKind.FIELD_ACCESS) {
-            FieldAccessExpressionNode fieldAccessExpressionNode = (FieldAccessExpressionNode) expressionNode;
-            return getModelIconUrl(fieldAccessExpressionNode.fieldName());
-        }
-        return new ModelData(expressionNode.toSourceCode().strip(), null, null);
+        return AiUtils.getModelIconUrl(semanticModel, expressionNode);
     }
 
     private MemoryManagerData getMemoryData(ExpressionNode memory) {
@@ -4800,13 +4771,18 @@ public class CodeAnalyzer extends NodeVisitor {
         if (memory.kind() == SyntaxKind.EXPLICIT_NEW_EXPRESSION) {
             ExplicitNewExpressionNode newExpr = (ExplicitNewExpressionNode) memory;
             SeparatedNodeList<FunctionArgumentNode> arguments = newExpr.parenthesizedArgList().arguments();
-            String size = arguments.size() == 1 ? arguments.get(0).toSourceCode() : "";
-            return new MemoryManagerData(newExpr.typeDescriptor().toSourceCode(), size);
+            ModelData store = AiUtils.getMemoryStoreData(semanticModel, arguments);
+            String size = store == null && arguments.size() == 1 ? arguments.get(0).toSourceCode() : "";
+            return new MemoryManagerData(newExpr.typeDescriptor().toSourceCode(), size, store);
         }
         if (memory.kind() == SyntaxKind.SIMPLE_NAME_REFERENCE) {
+            ModelData store = getInstanceNewExpr(memory)
+                    .flatMap(ImplicitNewExpressionNode::parenthesizedArgList)
+                    .map(argList -> AiUtils.getMemoryStoreData(semanticModel, argList.arguments()))
+                    .orElse(null);
             return semanticModel.typeOf(memory)
                     .map(typeSymbol -> new MemoryManagerData(typeSymbol.getName().orElse("Memory Not Configured"),
-                            AiUtils.MEMORY_DEFAULT_VALUE))
+                            AiUtils.MEMORY_DEFAULT_VALUE, store))
                     .orElse(null);
         }
         return null;
@@ -4814,7 +4790,7 @@ public class CodeAnalyzer extends NodeVisitor {
 
     private MemoryManagerData defaultMemoryData(ClassSymbol classSymbol) {
         String name = getDefaultMemoryManagerName(classSymbol);
-        return name.isEmpty() ? null : new MemoryManagerData(name, AiUtils.MEMORY_DEFAULT_VALUE);
+        return name.isEmpty() ? null : new MemoryManagerData(name, AiUtils.MEMORY_DEFAULT_VALUE, null);
     }
 
     private static String getIdentifierName(NameReferenceNode nameReferenceNode) {
@@ -5317,11 +5293,13 @@ public class CodeAnalyzer extends NodeVisitor {
         return "";
     }
 
-    private boolean isMcpToolKitExpression(ExpressionNode expressionNode) {
-        return AiUtils.isMcpToolKitSymbol(semanticModel.symbol(expressionNode).orElse(null))
-                || semanticModel.typeOf(expressionNode)
-                .map(AiUtils::isMcpToolKitType)
-                .orElse(false);
+    private Optional<String> resolveMcpToolKitClassName(ExpressionNode expressionNode) {
+        Optional<String> fromSymbol =
+                AiUtils.mcpToolKitClassName(semanticModel.symbol(expressionNode).orElse(null));
+        if (fromSymbol.isPresent()) {
+            return fromSymbol;
+        }
+        return semanticModel.typeOf(expressionNode).flatMap(AiUtils::mcpToolKitClassName);
     }
 
     private Optional<MethodSymbol> resolveToolMethod(FieldAccessExpressionNode fieldAccess, String toolName) {
@@ -5790,16 +5768,12 @@ public class CodeAnalyzer extends NodeVisitor {
     }
 
     private record ToolData(String name, String path, String description, String type,
-                            boolean requiresApproval) {
-
-    }
-
-    private record ModelData(String name, String path, String type) {
+                            boolean requiresApproval, String className) {
 
     }
 
     // TODO: Update data based on requirements
-    private record MemoryManagerData(String type, String size) {
+    private record MemoryManagerData(String type, String size, ModelData store) {
 
     }
 

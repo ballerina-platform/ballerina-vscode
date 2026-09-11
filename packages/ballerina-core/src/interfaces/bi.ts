@@ -141,6 +141,8 @@ export type ToolData = {
     // True when the tool's @ai:AgentTool annotation gates it for human-in-the-loop approval
     // (requiresApproval: true, or a predicate function). Surfaced by the language server.
     requiresApproval?: boolean;
+    // MCP toolkit's module-qualified class name, used to match dev-time trace spans.
+    className?: string;
 };
 
 export type AgentData = {
@@ -168,7 +170,8 @@ export type AgentMemoryInfo = {
 
 export type MemoryData = {
     type: string;
-    size: string
+    size: string;
+    store?: ToolData;
 };
 
 export type Imports = {
