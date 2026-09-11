@@ -35,11 +35,13 @@ import {
     FILE_SINGLE_EDIT_TOOL_NAME,
     FILE_WRITE_TOOL_NAME
 } from './tools/text-editor';
-import { getLibraryGetTool, LIBRARY_GET_TOOL } from './tools/library-get';
 import { GenerationType } from '../utils/libs/libraries';
-import { getHealthcareLibraryProviderTool, HEALTHCARE_LIBRARY_PROVIDER_TOOL } from './tools/healthcare-library';
 import { createConnectorGeneratorTool, CONNECTOR_GENERATOR_TOOL } from './tools/connector-generator';
-import { LIBRARY_SEARCH_TOOL, getLibrarySearchTool } from './tools/library-search';
+import { createSubagentTool } from './tools/subagent-tool';
+import { createKillTaskTool, createTaskOutputTool } from './tools/task-tools';
+import { buildRunKey, KILL_TASK_TOOL_NAME, SUBAGENT_TOOL_NAME, SubagentRunContext, TASK_OUTPUT_TOOL_NAME } from './subagents/types';
+import { withBackgroundNotifications } from './subagents/background';
+import { chatStateStorage } from '../../../views/ai-panel/chatStateStorage';
 import { createConfigCollectorTool, CONFIG_COLLECTOR_TOOL } from './tools/config-collector';
 import { createTestRunnerTool, TEST_RUNNER_TOOL_NAME } from './tools/test-runner';
 import {
@@ -86,7 +88,18 @@ export interface ToolRegistryOptions {
 
 export function createToolRegistry(opts: ToolRegistryOptions) {
     const { eventHandler, toolModelUsage, tempProjectPath, modifiedFiles, allModifiedFiles, projects, generationType, projectRootPath, generationId, threadId, migrationSourcePath, webSearchEnabled, ctx } = opts;
-    return {
+    const resolvedThreadId = threadId || 'default';
+    // Library lookups happen only inside subagents; their histories live next to the thread.
+    const subagentCtx: SubagentRunContext = {
+        eventHandler,
+        toolModelUsage,
+        generationType,
+        projectRootPath,
+        threadId: resolvedThreadId,
+        threadDir: chatStateStorage.getThreadDir(projectRootPath, resolvedThreadId),
+        runKey: buildRunKey(projectRootPath, resolvedThreadId),
+    };
+    const tools = {
         [TASK_WRITE_TOOL_NAME]: createTaskWriteTool(
             eventHandler,
             tempProjectPath,
@@ -95,18 +108,9 @@ export function createToolRegistry(opts: ToolRegistryOptions) {
             generationId,
             threadId || 'default'
         ),
-        [LIBRARY_GET_TOOL]: getLibraryGetTool(
-            generationType,
-            eventHandler,
-            toolModelUsage
-        ),
-        [LIBRARY_SEARCH_TOOL]: getLibrarySearchTool(
-            eventHandler
-        ),
-        [HEALTHCARE_LIBRARY_PROVIDER_TOOL]: getHealthcareLibraryProviderTool(
-            eventHandler,
-            toolModelUsage
-        ),
+        [SUBAGENT_TOOL_NAME]: createSubagentTool(subagentCtx),
+        [TASK_OUTPUT_TOOL_NAME]: createTaskOutputTool(eventHandler, subagentCtx.runKey),
+        [KILL_TASK_TOOL_NAME]: createKillTaskTool(eventHandler, subagentCtx.runKey),
         [CONNECTOR_GENERATOR_TOOL]: createConnectorGeneratorTool(
             eventHandler,
             tempProjectPath,
@@ -157,4 +161,9 @@ export function createToolRegistry(opts: ToolRegistryOptions) {
         //     [CONSOLIDATE_MEMORIES_TOOL_NAME]: createConsolidateMemoriesTool(projectRootPath, eventHandler),
         // } : {}),
     };
+    // Every tool result of this run carries a <system-reminder> for background subagents that have
+    // finished since the last one, so the main agent learns of completion without polling.
+    return Object.fromEntries(
+        Object.entries(tools).map(([name, t]) => [name, withBackgroundNotifications(t as any, subagentCtx.runKey)])
+    ) as typeof tools;
 }

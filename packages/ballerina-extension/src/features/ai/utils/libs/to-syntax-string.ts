@@ -643,6 +643,40 @@ function renderParam(param: Parameter, externalLinks: ExternalLinkInfo[]): strin
 }
 
 /**
+ * One `# + <label><text>` line per physical line of `description`. A description carrying `\n` would
+ * otherwise emit raw continuation text with no `#` marker, which is not Ballerina documentation.
+ */
+function documentedLines(label: string, description: string, indent: string): string[] {
+    return description.split("\n").map((line, i) => `${indent}# ${i === 0 ? `+ ${label}` : ""}${line}`);
+}
+
+/**
+ * Renders a method's documentation block: the description, then `# + <param> - …` for every documented
+ * parameter and `# + return - …` when the return value is documented. Returns "" when there is nothing
+ * to say, otherwise the lines end with a newline so the signature can follow directly.
+ *
+ * Class, client and resource methods used to render only the description, which dropped statements
+ * such as `time:Zone.utcFromCivil`'s "an error if `civil.timeAbbrev` is missing" — exactly the kind of
+ * load-bearing fact the Librarian is asked to report (alpha tracker #47, 2026-09-11). Module-level
+ * functions always had these lines (`renderStandaloneFunction`).
+ */
+function renderFunctionDocs(func: { description?: string; parameters: Parameter[]; return?: RemoteFunction["return"] }, indent: string): string {
+    const lines: string[] = [];
+    if (func.description) {
+        lines.push(...func.description.split("\n").map((l) => `${indent}# ${l}`));
+    }
+    for (const param of func.parameters) {
+        if (param.description) {
+            lines.push(...documentedLines(`${param.name} - `, param.description, indent));
+        }
+    }
+    if (func.return?.description) {
+        lines.push(...documentedLines("return - ", func.return.description, indent));
+    }
+    return lines.length > 0 ? `${lines.join("\n")}\n` : "";
+}
+
+/**
  * Renders a constructor function.
  */
 function renderConstructor(func: RemoteFunction): string {
@@ -660,7 +694,7 @@ function renderConstructor(func: RemoteFunction): string {
  */
 function renderMethod(func: RemoteFunction, qualifier: string, indent: string): string {
     const allExternalLinks = collectFunctionExternalLinks(func.parameters, func.return?.type);
-    const desc = func.description ? `${indent}# ${func.description.split("\n").join(`\n${indent}# `)}\n` : "";
+    const desc = renderFunctionDocs(func, indent);
     const dep = func.isDeprecated ? `${indent}@deprecated\n` : "";
     const anns = renderAttachmentBlock(func.annotations, indent);
     const params = func.parameters.map((param) => renderParam(param, allExternalLinks)).join(", ");
@@ -713,7 +747,7 @@ function renderClassMember(func: RemoteFunction | ResourceFunction): string[] {
  */
 function renderResourceFunction(func: ResourceFunction, indent: string = "    "): string {
     const allExternalLinks = collectFunctionExternalLinks(func.parameters, func.return?.type);
-    const desc = func.description ? `${indent}# ${func.description.split("\n").join(`\n${indent}# `)}\n` : "";
+    const desc = renderFunctionDocs(func, indent);
     const dep = func.isDeprecated ? `${indent}@deprecated\n` : "";
     const anns = renderAttachmentBlock(func.annotations, indent);
 

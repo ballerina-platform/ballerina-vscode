@@ -22,7 +22,7 @@ import { Library, LibraryWithUrl } from "../utils/libs/library-types";
 import { getAnthropicClient, ANTHROPIC_HAIKU, fetchWithAuth } from "../utils/ai-client";
 import { z } from 'zod';
 import { tool } from 'ai';
-import { getSelectedLibraries } from "../agent/tools/healthcare-library";
+import { getSelectedLibraries } from "../utils/libs/select-libraries";
 
 interface Document {
     document: string;

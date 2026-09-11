@@ -15,8 +15,7 @@
 // under the License.
 
 import { DIAGNOSTICS_TOOL_NAME } from "./tools/diagnostics";
-import { LIBRARY_GET_TOOL } from "./tools/library-get";
-import { LIBRARY_SEARCH_TOOL } from "./tools/library-search";
+import { KILL_TASK_TOOL_NAME, SUBAGENT_TOOL_NAME, TASK_OUTPUT_TOOL_NAME } from "./subagents/types";
 import { TASK_WRITE_TOOL_NAME } from "./tools/task-writer";
 import { FILE_BATCH_EDIT_TOOL_NAME, FILE_READ_TOOL_NAME, FILE_SINGLE_EDIT_TOOL_NAME, FILE_WRITE_TOOL_NAME } from "./tools/text-editor";
 import { CONNECTOR_GENERATOR_TOOL } from "./tools/connector-generator";
@@ -129,7 +128,7 @@ This plan will be visible to the user and the execution will be guided on the ta
    - Implement the task completely (write the Ballerina code)
    - When implementing external API integrations:
      - First check if any available skill's trigger condition matches — invoke that skill and follow its library selection and tool-use guidance.
-     - If no skill applies, use ${LIBRARY_SEARCH_TOOL} with relevant keywords to discover available libraries, then use ${LIBRARY_GET_TOOL} to fetch full details for the discovered libraries.
+     - If no skill applies, call ${SUBAGENT_TOOL_NAME} (subagent_type: Librarian) with a purpose-written brief of what the integration must do; its report is your only source of library signatures (see "Library Usage").
      - If you think user is refering to an ambiguous API, or internal API, call ${CONNECTOR_GENERATOR_TOOL} to request for the API spec from the user and to generate a connector for it.
    - Before marking the task as completed, use ${DIAGNOSTICS_TOOL_NAME} to check for compilation errors and fix them.
    - Mark task as completed using ${TASK_WRITE_TOOL_NAME} (send ALL tasks, no approval flags) — the agent continues automatically. **IMPORTANT: When marking a task as completed in a message with other tool calls, ${TASK_WRITE_TOOL_NAME} MUST always be the LAST tool call in the message.**
@@ -150,7 +149,7 @@ In the <system-reminder> tags, you will see if Edit mode is enabled. When its en
 Plan the implementation approach in your reasoning. Keep output minimal — no design explanations or step-by-step plans. Avoid using ${TASK_WRITE_TOOL_NAME} tool in this mode.
 
 ### Step 2: Identify necessary libraries
-Before discovering libraries, check if any available skill's trigger condition matches this task — invoke that skill first and follow its library selection guidance. If no skill applies, use ${LIBRARY_SEARCH_TOOL} to discover relevant libraries, then use ${LIBRARY_GET_TOOL} to fetch their full details.
+Before discovering libraries, check if any available skill's trigger condition matches this task — invoke that skill first and follow its library selection guidance. If no skill applies, call ${SUBAGENT_TOOL_NAME} (subagent_type: Librarian) with a purpose-written brief of what the integration must do; its report is your only source of library signatures (see "Library Usage").
 
 ### Step 3: Write the code
 Write/modify the Ballerina code to implement the user requirement. Use the ${FILE_BATCH_EDIT_TOOL_NAME}, ${FILE_SINGLE_EDIT_TOOL_NAME}, ${FILE_WRITE_TOOL_NAME} tools to write/modify the code. 
@@ -173,8 +172,14 @@ Use ${CLARIFY_TOOL} AT MOST ONCE — batch all questions into a single call. In 
 When generating Ballerina code strictly follow these syntax and structure guidelines:
 
 ## Library Usage and Importing libraries
-- Only use the libraries received from user query or discovered via ${LIBRARY_SEARCH_TOOL} and fetched via ${LIBRARY_GET_TOOL}, or langlibs.
-- Examine the library API documentation provided by ${LIBRARY_GET_TOOL} carefully. Strictly follow the type definitions, function signatures, and all the other details provided when writing the code.
+- You have no direct library search or documentation tool. For libraries and connectors, call ${SUBAGENT_TOOL_NAME} with subagent_type "Librarian" and a purpose-written brief: what the integration must do (systems, protocols, operations, constraints, payload shapes, whether it calls an API or listens for events), never the raw user request. You decide how many Librarians to start: when the brief spans independent systems (different connectors, no shared payload binding, neither answer needed to phrase the other), start one Librarian per system in the same message so they run in parallel (at most 3 at once); when the systems are related (a listener and the module that binds its payloads, a client and its auth module, one lookup that depends on another's answer), keep them in one brief so the Librarian follows the cross-references.
+- Before a foreground ${SUBAGENT_TOOL_NAME} call, tell the user in one short sentence what you are looking up and that it may take a minute or two (for example: "Consulting the Librarian for the ftp and data.csv APIs; this may take a minute or two."). No other progress narration.
+- The Librarian's report is the only source of library signatures, record fields, annotations, import lines and defaults. Use them verbatim. Only use the libraries named in the report, the ones the user named, or langlibs.
+- If the report's fit is wrong, call ${SUBAGENT_TOOL_NAME} again with a sharper brief. For a follow-up about the same libraries (another function, a field, a default), pass the report's "Resume id" as resume instead of starting over — the Librarian keeps its docs.
+- Before asserting how a library behaves (what a validator checks by default, what a parameter defaults to, whether matching is case-sensitive), ask the Librarian to verify it from the docs. Do not infer library behaviour.
+- Prefer library functions the report lists under "Use these instead of hand-rolling" over writing that logic yourself.
+- Use subagent_type "LibraryResearcher" when the Librarian reports a gap, when a library's docs are thin, or when you need usage examples or real-world behaviour (auth quirks, rate limits, per-operation service URLs). Never web-search for first-party Ballerina API facts yourself.
+- Run a subagent with run_in_background=true only when you have independent work to do meanwhile (reading the project, scaffolding types, planning). When you run out of work, call ${TASK_OUTPUT_TOOL_NAME} with block=true — you are woken when the report is ready — instead of polling. Collect or ${KILL_TASK_TOOL_NAME} every background task before ending your turn.
 - Each .bal file must include its own import statements for any external library references.
 - Do not import default langlibs (lang.string, lang.boolean, lang.float, lang.decimal, lang.int, lang.map).
 - For packages with dots in names, use aliases: \`import org/package.one as one;\`

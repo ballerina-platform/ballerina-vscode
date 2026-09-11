@@ -53,6 +53,7 @@ import {
     getToolIcon,
     getToolResultDisplay,
     getToolResultIcon,
+    isToolResultInProgress,
 } from "./toolDisplay";
 
 // ── Item renderer — order-preserving, used by both floating and named entries ─
@@ -147,12 +148,14 @@ function renderItem(item: StreamItem, idx: number, streamActive: boolean, rpcCli
             }
             const hint = item.toolOutput?.query ?? item.toolOutput?.url;
             const { label, detail } = getToolResultDisplay(item.toolName, item.toolOutput, hint);
+            // A subagent heartbeat (`status: "running"`) is still work in progress: keep the row spinning.
+            const inProgress = streamActive && isToolResultInProgress(item);
             return (
                 <ItemRow key={idx}>
-                    <ToolIcon loading={false} failed={item.failed}>
-                        <span className={`codicon ${getToolResultIcon(item.toolName, item.toolOutput)}`} />
+                    <ToolIcon loading={inProgress} failed={item.failed}>
+                        <span className={`codicon ${inProgress ? getToolIcon(item.toolName, "loading") : getToolResultIcon(item.toolName, item.toolOutput)}`} />
                     </ToolIcon>
-                    <ItemLabel loading={false} failed={item.failed}>
+                    <ItemLabel loading={inProgress} failed={item.failed}>
                         {label}{detail && <ItemDetail title={detail}>{detail}</ItemDetail>}
                     </ItemLabel>
                 </ItemRow>
@@ -216,7 +219,7 @@ function renderItem(item: StreamItem, idx: number, streamActive: boolean, rpcCli
 
 function getNodeStatus(entry: StreamEntry, isLast: boolean, isLoading: boolean): "active" | "done" {
     if (entry.status === "completed") return "done";
-    const hasActiveItem = entry.items.some(i => i.kind === "tool_call");
+    const hasActiveItem = entry.items.some(i => i.kind === "tool_call" || (i.kind === "tool_result" && isToolResultInProgress(i)));
     if (hasActiveItem || (isLast && isLoading)) return "active";
     return "done";
 }
