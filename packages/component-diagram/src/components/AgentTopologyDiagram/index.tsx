@@ -44,13 +44,15 @@ import {
     LAYOUT_FIT_MARGIN,
     TOPOLOGY_GAP_Y,
 } from "../../resources/constants";
-import { AgentSelection, TopologyEdge, TopologyEntryNode, TopologyGraph, TopologyInput, TopologyLayout, TopologyOrientation, TriggerSelection } from "./types";
+import { AgentSelection, EntrySelection, TopologyEdge, TopologyEntryNode, TopologyGraph, TopologyInput, TopologyLayout, TopologyOrientation, TriggerSelection } from "./types";
 
 export interface AgentTopologyDiagramProps {
     input: TopologyInput;
     onAgentSelect: (agent: AgentSelection) => void;
     onTriggerSelect: (trigger: TriggerSelection) => void;
     onAddTrigger?: (agent: AgentSelection) => void;
+    onConfigureEntry?: (entry: EntrySelection) => void;
+    onDeleteEntry?: (entry: EntrySelection) => void;
     readonly?: boolean;
 }
 
@@ -145,7 +147,7 @@ const EmptyNote = styled.div`
 `;
 
 export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
-    const { input, onAgentSelect, onTriggerSelect, onAddTrigger, readonly } = props;
+    const { input, onAgentSelect, onTriggerSelect, onAddTrigger, onConfigureEntry, onDeleteEntry, readonly } = props;
     const [diagramEngine] = useState(() => generateTopologyEngine());
     const [diagramModel, setDiagramModel] = useState<DiagramModel | null>(null);
     const [legendKinds, setLegendKinds] = useState<ReturnType<typeof buildTopology>["legendKinds"]>([]);
@@ -459,13 +461,15 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
             onAgentSelect,
             onTriggerSelect,
             onAddTrigger,
+            onConfigureEntry,
+            onDeleteEntry,
             focus: (hoveredId ?? pinnedId) && graphRef.current ? focusAround(graphRef.current, hoveredId ?? pinnedId) : undefined,
             setHovered,
             visibleRows: layoutRef.current?.visibleRows,
             onExpandEntry: (entryId: string) => setExpanded((current) => new Set(current).add(entryId)),
         }),
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [readonly, orientation, onAgentSelect, onTriggerSelect, onAddTrigger, hoveredId, pinnedId, input, setHovered, expanded]
+        [readonly, orientation, onAgentSelect, onTriggerSelect, onAddTrigger, onConfigureEntry, onDeleteEntry, hoveredId, pinnedId, input, setHovered, expanded]
     );
 
     return (

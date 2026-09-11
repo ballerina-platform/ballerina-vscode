@@ -195,6 +195,14 @@ export interface AgentSelection {
     moduleName?: string;
 }
 
+export interface EntrySelection {
+    filePath: string;
+    position: LinePosition;
+    endPosition?: LinePosition;
+    label: string;
+    handlerCount: number;
+}
+
 export interface TriggerSelection {
     filePath: string;
     position: LinePosition;

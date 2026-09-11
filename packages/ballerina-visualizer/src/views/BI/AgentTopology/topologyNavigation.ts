@@ -16,10 +16,10 @@
  * under the License.
  */
 
-import { EVENT_TYPE, ProjectStructureArtifactResponse } from "@wso2/ballerina-core";
+import { EVENT_TYPE, MACHINE_VIEW, ProjectStructureArtifactResponse } from "@wso2/ballerina-core";
 import { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
-import { TriggerSelection } from "@wso2/component-diagram";
-import { agentLocation, triggerLocation } from "./topologyLocation";
+import { EntrySelection, TriggerSelection } from "@wso2/component-diagram";
+import { agentLocation, entryRange, triggerLocation } from "./topologyLocation";
 
 export function openTrigger(rpcClient: BallerinaRpcClient, trigger: TriggerSelection): void {
     rpcClient.getVisualizerRpcClient().openView({ type: EVENT_TYPE.OPEN_VIEW, location: triggerLocation(trigger) });
@@ -27,4 +27,11 @@ export function openTrigger(rpcClient: BallerinaRpcClient, trigger: TriggerSelec
 
 export function openAgent(rpcClient: BallerinaRpcClient, agent: ProjectStructureArtifactResponse): void {
     rpcClient.getVisualizerRpcClient().openView({ type: EVENT_TYPE.OPEN_VIEW, location: agentLocation(agent) });
+}
+
+export function openServiceConfig(rpcClient: BallerinaRpcClient, entry: EntrySelection): void {
+    rpcClient.getVisualizerRpcClient().openView({
+        type: EVENT_TYPE.OPEN_VIEW,
+        location: { view: MACHINE_VIEW.BIServiceConfigView, documentUri: entry.filePath, position: entryRange(entry) },
+    });
 }

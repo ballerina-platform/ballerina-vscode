@@ -19,7 +19,7 @@
 import React, { useEffect } from "react";
 import styled from "@emotion/styled";
 import { ProjectStructureArtifactResponse } from "@wso2/ballerina-core";
-import { AgentSelection, AgentTopologyDiagram, TriggerSelection } from "@wso2/component-diagram";
+import { AgentSelection, AgentTopologyDiagram, EntrySelection, TriggerSelection } from "@wso2/component-diagram";
 import { ProgressRing, ThemeColors } from "@wso2/ui-toolkit";
 import { useAgentTopology } from "./useAgentTopology";
 
@@ -37,11 +37,13 @@ export interface AgentTopologyProps {
     onOpenAgent: (agent: AgentSelection) => void;
     onOpenTrigger: (trigger: TriggerSelection) => void;
     onAddTrigger?: (agent: AgentSelection) => void;
+    onConfigureEntry?: (entry: EntrySelection) => void;
+    onDeleteEntry?: (entry: EntrySelection) => void;
     onReady?: () => void;
 }
 
 export default function AgentTopology(props: AgentTopologyProps) {
-    const { projectPath, agents, agentDefinitions, onOpenAgent, onOpenTrigger, onAddTrigger, onReady } = props;
+    const { projectPath, agents, agentDefinitions, onOpenAgent, onOpenTrigger, onAddTrigger, onConfigureEntry, onDeleteEntry, onReady } = props;
     const input = useAgentTopology(projectPath, agents, agentDefinitions);
 
     useEffect(() => {
@@ -58,5 +60,14 @@ export default function AgentTopology(props: AgentTopologyProps) {
         );
     }
 
-    return <AgentTopologyDiagram input={input} onAgentSelect={onOpenAgent} onTriggerSelect={onOpenTrigger} onAddTrigger={onAddTrigger} />;
+    return (
+        <AgentTopologyDiagram
+            input={input}
+            onAgentSelect={onOpenAgent}
+            onTriggerSelect={onOpenTrigger}
+            onAddTrigger={onAddTrigger}
+            onConfigureEntry={onConfigureEntry}
+            onDeleteEntry={onDeleteEntry}
+        />
+    );
 }

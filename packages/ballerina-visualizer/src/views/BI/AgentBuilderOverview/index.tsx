@@ -28,7 +28,7 @@ import {
     isSamePath,
 } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { AgentSelection, TriggerSelection } from "@wso2/component-diagram";
+import { AgentSelection, EntrySelection, TriggerSelection } from "@wso2/component-diagram";
 import { Button, Codicon, Icon, Menu, MenuItem, Popover, ProgressRing, ThemeColors } from "@wso2/ui-toolkit";
 import { PageHeader } from "../components/PageHeader";
 import { TopNavigationBar } from "../../../components/TopNavigationBar";
@@ -36,7 +36,8 @@ import { usePlatformExtContext } from "../../../providers/platform-ext-ctx-provi
 import { getIntegrationTypes, validateComponentName, useProjectContentRefresh } from "../PackageOverview/utils";
 import { useTracingStatus } from "../../../hooks/useProductMode";
 import { EmptyState } from "./EmptyState";
-import { openAgent, openTrigger } from "../AgentTopology/topologyNavigation";
+import { openAgent, openServiceConfig, openTrigger } from "../AgentTopology/topologyNavigation";
+import { entryRange } from "../AgentTopology/topologyLocation";
 import { openAddAgentTrigger } from "../AIChatAgent/utils";
 
 const LazyAgentTopology = React.lazy(() => import("../AgentTopology"));
@@ -323,6 +324,27 @@ export function AgentBuilderOverview({ projectPath }: AgentBuilderOverviewProps)
         openTrigger(rpcClient, trigger);
     }, [rpcClient]);
 
+    const handleConfigureEntry = useCallback((entry: EntrySelection) => {
+        openServiceConfig(rpcClient, entry);
+    }, [rpcClient]);
+
+    const handleDeleteEntry = useCallback(async (entry: EntrySelection) => {
+        const handlers = entry.handlerCount === 1 ? "its handler" : `its ${entry.handlerCount} handlers`;
+        const confirmed = await rpcClient.getCommonRpcClient().showInformationModal({
+            message: `Are you sure you want to delete the ${entry.label} service?`,
+            detail: `The service and ${handlers} will be removed. The agents it runs are kept and become untriggered.`,
+            items: ["Delete Service"],
+        });
+        if (confirmed !== "Delete Service") {
+            return;
+        }
+        const range = entryRange(entry);
+        await rpcClient.getBIDiagramRpcClient().deleteByComponentInfo({
+            filePath: entry.filePath,
+            component: { name: entry.label, filePath: entry.filePath, ...range },
+        });
+    }, [rpcClient]);
+
     // The trigger generator calls a plain ai:Agent with `.` and a typed agent with `->`, keyed on the agent's org.
     const handleAddTriggerFromCanvas = useCallback(async (agent: AgentSelection) => {
         const isPlainAgent = !agent.moduleName || agent.moduleName === "ai";
@@ -501,6 +523,8 @@ export function AgentBuilderOverview({ projectPath }: AgentBuilderOverviewProps)
                                                 onOpenAgent={handleOpenAgentFromCanvas}
                                                 onOpenTrigger={handleOpenTrigger}
                                                 onAddTrigger={handleAddTriggerFromCanvas}
+                                                onConfigureEntry={handleConfigureEntry}
+                                                onDeleteEntry={handleDeleteEntry}
                                                 onReady={handleCanvasReady}
                                             />
                                         </React.Suspense>

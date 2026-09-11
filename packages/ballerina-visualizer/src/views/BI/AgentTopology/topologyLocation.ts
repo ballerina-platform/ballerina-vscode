@@ -17,21 +17,26 @@
  */
 
 import type { ProjectStructureArtifactResponse } from "@wso2/ballerina-core";
-import type { TriggerSelection } from "@wso2/component-diagram";
+import type { EntrySelection, TriggerSelection } from "@wso2/component-diagram";
+
+function rangeOf(source: TriggerSelection | EntrySelection) {
+    const end = source.endPosition ?? source.position;
+    return {
+        startLine: source.position.line,
+        startColumn: source.position.offset,
+        endLine: end.line,
+        endColumn: end.offset,
+    };
+}
 
 // The handler's whole range when the trigger carries its end, as the focus rail's usage tiles send; a bare start
 // point inside an ai:Service resolves to the service instead of the resource.
 export function triggerLocation(trigger: TriggerSelection) {
-    const end = trigger.endPosition ?? trigger.position;
-    return {
-        documentUri: trigger.filePath,
-        position: {
-            startLine: trigger.position.line,
-            startColumn: trigger.position.offset,
-            endLine: end.line,
-            endColumn: end.offset,
-        },
-    };
+    return { documentUri: trigger.filePath, position: rangeOf(trigger) };
+}
+
+export function entryRange(entry: EntrySelection) {
+    return rangeOf(entry);
 }
 
 // The artifact resolver matches on the declaration's exact start, so the whole range is sent.
