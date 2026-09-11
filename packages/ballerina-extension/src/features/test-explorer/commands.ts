@@ -250,11 +250,15 @@ export function activateEditBiTest(ballerinaExtInstance: BallerinaExtension) {
             const edit = new WorkspaceEdit();
             addTextEdits(edit, response.textEdits);
 
-            await addDataProviderDeletion(edit, ballerinaExtInstance, fileUri, functionName, dataProviderName);
-
             const success = await workspace.applyEdit(edit);
 
             if (success) {
+                // Recomputed against the now-updated document, so an import used only by the
+                // deleted test function and its provider is correctly seen as unused.
+                const providerEdit = new WorkspaceEdit();
+                await addDataProviderDeletion(providerEdit, ballerinaExtInstance, fileUri, functionName, dataProviderName);
+                await workspace.applyEdit(providerEdit);
+
                 window.showInformationMessage(`Test function '${functionName}' deleted successfully.`);
                 // File watcher automatically triggers test rediscovery
             } else {

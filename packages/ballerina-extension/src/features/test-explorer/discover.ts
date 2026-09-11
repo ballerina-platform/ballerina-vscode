@@ -180,6 +180,11 @@ function createTests(response: TestsDiscoveryResponse, testController: TestContr
 
 export async function handleFileChange(ballerinaExtInstance: BallerinaExtension,
     uri: Uri, testController: TestController) {
+    // Captured before any await so a later-started run can't lose the race for the higher sequence.
+    const fileKey = uri.fsPath;
+    const sequence = (fileChangeSequence.get(fileKey) ?? 0) + 1;
+    fileChangeSequence.set(fileKey, sequence);
+
     // Determine which project this file belongs to
     const projectInfo = StateMachine.context().projectInfo;
     let targetProjectPath: string | undefined;
@@ -209,9 +214,6 @@ export async function handleFileChange(ballerinaExtInstance: BallerinaExtension,
     const request: TestsDiscoveryRequest = {
         projectPath: uri.fsPath
     };
-    const fileKey = uri.fsPath;
-    const sequence = (fileChangeSequence.get(fileKey) ?? 0) + 1;
-    fileChangeSequence.set(fileKey, sequence);
 
     const response: TestsDiscoveryResponse = await ballerinaExtInstance.langClient?.getFileTestFunctions(request);
     if (!response || !response.result) {
@@ -224,6 +226,12 @@ export async function handleFileChange(ballerinaExtInstance: BallerinaExtension,
     }
 
     await handleFileDelete(uri, testController);
+
+    // Re-check: a newer run may have finished entirely while we were awaiting the delete above.
+    if (fileChangeSequence.get(fileKey) !== sequence) {
+        return;
+    }
+
     createTests(response, testController, isWorkspace ? targetProjectPath : undefined);
     setGroupsContext();
 }
