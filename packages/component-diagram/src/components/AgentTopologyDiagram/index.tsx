@@ -91,12 +91,11 @@ const Root = styled.div`
     height: 100%;
 `;
 
-// Triggers sit at the left, so the top-left corner is the one place a card cannot be.
 const TopLeft = styled.div`
     position: absolute;
     top: 12px;
     left: 12px;
-    z-index: 1000;
+    z-index: 3;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
@@ -107,12 +106,9 @@ const TopRight = styled.div`
     position: absolute;
     top: 12px;
     right: 12px;
-    z-index: 1000;
+    z-index: 3;
 `;
 
-// While an orientation change settles, nodes and the canvas glide to their new places and the loop boxes and svg
-// layers (links, then chips) are hidden until the ports are re-measured. Layers paint in order: loop boxes, links
-// (lifted to z-index 1 so they run over the cards), nodes, chips above everything and letting clicks through.
 const Glide = styled.div<{ settling: boolean }>`
     height: 100%;
     & .node {
