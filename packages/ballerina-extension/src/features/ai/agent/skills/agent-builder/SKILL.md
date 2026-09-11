@@ -183,6 +183,30 @@ Give `sessionId` **no default**. A default makes every call that leaves it out s
 bucket, so unrelated requests from different callers see each other's history. Required, the model
 supplies a fresh id per conversation, which is the behaviour the doc line describes.
 
+### Toolkits
+
+A toolkit bundles many tools behind one entry in the `tools` array. List it there directly, mixed
+with plain function tools — no wrapping, no spreading:
+
+```ballerina
+tools = [<toolkitVar>, <toolName>]
+```
+
+**MCP** — connect to an MCP server that is already running elsewhere by constructing the library's
+own toolkit class with its URL; do not implement a toolkit or an MCP server yourself:
+
+```ballerina
+import ballerina/ai;
+import ballerina/mcp;
+
+final ai:McpToolKit <toolkit> = check new ("<serverUrl>", info = {name: "<name>", version: "<version>"});
+```
+
+**OpenAPI has no toolkit type.** Despite sounding parallel to MCP, an OpenAPI spec does not produce
+a toolkit class in this codebase or in `ballerina/ai`. Generate an HTTP client from the spec, then
+wrap each operation you need as an ordinary connector-backed `@ai:AgentTool` function — see "Tools
+backed by a connection" above. Do not invent an `ai:OpenApiToolKit` or similar type.
+
 ## No expression-bodied functions
 
 Write agent tools and helper functions with a block body and an explicit `return`. An
