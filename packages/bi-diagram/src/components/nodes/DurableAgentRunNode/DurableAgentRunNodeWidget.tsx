@@ -710,7 +710,7 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
         if (item.kind === "peer") {
             // Delegating runs another durable agent, so it is marked as the agentic workflow it is
             // rather than as a plain tool function.
-            return <Icon name="bi-ai-agent" sx={{ fontSize: "24px" }} />;
+            return <NodeIcon type="AGENT_RUN" size={24} />;
         }
         // The three declared capability kinds are the same things the node palette lists, so they are
         // drawn through NodeIcon: one source for both the glyph and its colour, which is what keeps a
