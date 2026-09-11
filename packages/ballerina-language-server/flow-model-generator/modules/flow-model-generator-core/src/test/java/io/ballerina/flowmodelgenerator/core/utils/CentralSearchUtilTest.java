@@ -18,6 +18,7 @@
 
 package io.ballerina.flowmodelgenerator.core.utils;
 
+import com.google.gson.Gson;
 import io.ballerina.centralconnector.CentralAPI;
 import io.ballerina.centralconnector.response.ConnectorResponse;
 import io.ballerina.centralconnector.response.ConnectorsResponse;
@@ -31,6 +32,12 @@ import io.ballerina.modelgenerator.commons.SearchResult;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -240,6 +247,61 @@ public class CentralSearchUtilTest {
 
         Assert.assertEquals(results.size(), 1);
         Assert.assertEquals(results.getFirst().packageInfo().moduleName(), "edifact.d03a.supplychain.mORDERS");
+    }
+
+    @Test(description = "A function search lists the declarations in the default module and in the submodules.")
+    public void testSearchListsRootAndSubmoduleDeclarations() {
+        // Searching a function name has to surface every module that declares it, the package default module and
+        // its submodules alike, each attributed to its own module. The captured package declares fromEdiString
+        // twice for exactly this reason: the rows are separable only by moduleName, never by the package name.
+        RecordingCentralApi central = new RecordingCentralApi(loadFixture("search-symbols-submodule.json"));
+
+        List<SearchResult> results = new CentralSearchUtil(central)
+                .searchFunctions("submodulecheck", 10, 0, Set.of("yaseematest"));
+
+        Assert.assertEquals(results.size(), 4);
+        Assert.assertEquals(moduleOf(results, "getSchema"), "submodulecheck.mORDERS");
+        Assert.assertEquals(moduleOf(results, "getEDINames"), "submodulecheck");
+        Assert.assertEquals(
+                results.stream().filter(result -> result.name().equals("fromEdiString"))
+                        .map(result -> result.packageInfo().moduleName()).sorted().toList(),
+                List.of("submodulecheck", "submodulecheck.mORDERS"));
+        // The package name is the same for every row, so attribution cannot be recovered from it.
+        results.forEach(result -> Assert.assertEquals(result.packageInfo().packageName(), "submodulecheck"));
+    }
+
+    private static String moduleOf(List<SearchResult> results, String symbolName) {
+        return results.stream()
+                .filter(result -> result.name().equals(symbolName))
+                .map(result -> result.packageInfo().moduleName())
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("no result named " + symbolName));
+    }
+
+    /**
+     * Deserializes a response captured verbatim from a live registry, through the same bare {@link Gson} that
+     * {@code RestClient} uses.
+     * <p>
+     * The hand-built symbols elsewhere in this class assert what {@link CentralSearchUtil} does with a response;
+     * they cannot catch the field of a record silently failing to bind, because they never go through Gson. The
+     * fixture is real bytes, so a rename on either side shows up as a null module name rather than as a passing
+     * test. See {@code src/test/resources/central/README.md} for its provenance.
+     *
+     * @param name the fixture file name under {@code src/test/resources/central}
+     * @return the deserialized response
+     */
+    private static SymbolResponse loadFixture(String name) {
+        String resource = "central/" + name;
+        try (InputStream stream = CentralSearchUtilTest.class.getClassLoader().getResourceAsStream(resource)) {
+            if (stream == null) {
+                throw new AssertionError("missing fixture: " + resource);
+            }
+            try (Reader reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
+                return new Gson().fromJson(reader, SymbolResponse.class);
+            }
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     private static SymbolResponse.Symbol function(String org, String pkg, String version, String symbolName,
