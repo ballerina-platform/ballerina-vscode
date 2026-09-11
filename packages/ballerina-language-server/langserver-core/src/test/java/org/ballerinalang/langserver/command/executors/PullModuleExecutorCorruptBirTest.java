@@ -154,6 +154,32 @@ public class PullModuleExecutorCorruptBirTest {
         Assert.assertTrue(PullModuleExecutor.detectCorruptBirCache(new RuntimeException(), null).isEmpty());
     }
 
+    @Test(description = "A null throwable renders to an empty stack-trace string")
+    public void testStackTraceToStringNull() {
+        Assert.assertEquals(PullModuleExecutor.stackTraceToString(null), "");
+    }
+
+    @Test(description = "A throwable renders to a stack trace carrying its type, message and cause")
+    public void testStackTraceToStringRendersTrace() {
+        Throwable throwable = new RuntimeException("outer failure", new IllegalStateException("inner cause"));
+
+        String trace = PullModuleExecutor.stackTraceToString(throwable);
+
+        Assert.assertTrue(trace.contains("java.lang.RuntimeException: outer failure"), trace);
+        Assert.assertTrue(trace.contains("at " + PullModuleExecutorCorruptBirTest.class.getName()), trace);
+        Assert.assertTrue(trace.contains("Caused by: java.lang.IllegalStateException: inner cause"), trace);
+    }
+
+    @Test(description = "An oversized stack trace is truncated to the bounded length")
+    public void testStackTraceToStringTruncates() {
+        // The message alone exceeds the 8000-char cap, so the rendered trace must be truncated.
+        Throwable throwable = new RuntimeException("x".repeat(20_000));
+
+        String trace = PullModuleExecutor.stackTraceToString(throwable);
+
+        Assert.assertEquals(trace.length(), 8000, "trace should be capped at MAX_STACK_TRACE_CHARS");
+    }
+
     private static Module mockModule(ModuleName moduleName) {
         Module module = Mockito.mock(Module.class);
         Mockito.when(module.moduleName()).thenReturn(moduleName);

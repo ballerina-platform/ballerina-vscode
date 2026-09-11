@@ -388,7 +388,7 @@ public class PullModuleExecutor implements LSCommandExecutor {
      * @param throwable the failure to render (may be {@code null})
      * @return the stack trace as a string, empty if {@code throwable} is {@code null}
      */
-    private static String stackTraceToString(Throwable throwable) {
+    static String stackTraceToString(Throwable throwable) {
         if (throwable == null) {
             return "";
         }

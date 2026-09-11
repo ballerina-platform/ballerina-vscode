@@ -95,22 +95,28 @@ async function listSubDirs(dir: string): Promise<string[]> {
     }
 }
 
+/** Yields the absolute path of every `repositories/&ast;/cache-<distVersion>` dir under reposDir. */
+async function* eachCacheDir(reposDir: string, distVersion?: string): AsyncGenerator<string> {
+    for (const repo of await listSubDirs(reposDir)) {
+        const repoDir = path.join(reposDir, repo);
+        for (const cacheDir of await listSubDirs(repoDir)) {
+            if (cacheDirMatches(cacheDir, distVersion)) {
+                yield path.join(repoDir, cacheDir);
+            }
+        }
+    }
+}
+
 export async function resolvePackageCacheDirs(
     reposDir: string,
     pkg: CorruptPackage,
     distVersion?: string
 ): Promise<string[]> {
     const targets: string[] = [];
-    for (const repo of await listSubDirs(reposDir)) {
-        const repoDir = path.join(reposDir, repo);
-        for (const cacheDir of await listSubDirs(repoDir)) {
-            if (!cacheDirMatches(cacheDir, distVersion)) {
-                continue;
-            }
-            const target = path.join(repoDir, cacheDir, pkg.org, pkg.packageName, pkg.version);
-            if (isWithin(reposDir, target)) {
-                targets.push(target);
-            }
+    for await (const cacheDir of eachCacheDir(reposDir, distVersion)) {
+        const target = path.join(cacheDir, pkg.org, pkg.packageName, pkg.version);
+        if (isWithin(reposDir, target)) {
+            targets.push(target);
         }
     }
     return targets;
@@ -148,16 +154,9 @@ export async function clearPackageBirCache(pkg: CorruptPackage, options: ClearOp
 export async function clearAllBirCaches(options: ClearOptions = {}): Promise<string[]> {
     const reposDir = reposDirFor(options);
     const removed: string[] = [];
-    for (const repo of await listSubDirs(reposDir)) {
-        const repoDir = path.join(reposDir, repo);
-        for (const cacheDir of await listSubDirs(repoDir)) {
-            if (!cacheDirMatches(cacheDir, options.distVersion)) {
-                continue;
-            }
-            const target = path.join(repoDir, cacheDir);
-            if (await removeIfExists(target, reposDir)) {
-                removed.push(target);
-            }
+    for await (const cacheDir of eachCacheDir(reposDir, options.distVersion)) {
+        if (await removeIfExists(cacheDir, reposDir)) {
+            removed.push(cacheDir);
         }
     }
     return removed;
