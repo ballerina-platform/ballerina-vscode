@@ -20,7 +20,10 @@ import com.google.gson.JsonSyntaxException;
 import io.ballerina.projects.CompilationOptions;
 import io.ballerina.projects.DependencyManifest;
 import io.ballerina.projects.JvmTarget;
+import io.ballerina.projects.Module;
+import io.ballerina.projects.Package;
 import io.ballerina.projects.Project;
+import io.ballerina.projects.ResolvedPackageDependency;
 import io.ballerina.projects.Settings;
 import io.ballerina.projects.internal.bala.DependencyGraphJson;
 import io.ballerina.projects.internal.model.Dependency;
@@ -63,12 +66,16 @@ import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.wso2.ballerinalang.util.RepoUtils;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Deque;
 import java.util.HashSet;
 import java.util.List;
@@ -78,6 +85,8 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static io.ballerina.projects.util.ProjectUtils.getAccessTokenOfCLI;
@@ -103,6 +112,9 @@ public class PullModuleExecutor implements LSCommandExecutor {
     // published in stage 4 below is also consumed by ResolveCompilationErrorsSubscriber, which
     // starts another pull for the same project, creating an endless pull loop on failures.
     private static final Set<String> PULL_IN_PROGRESS_PROJECTS = ConcurrentHashMap.newKeySet();
+    // Cap the trace we ship to the client: it only feeds a prefilled GitHub issue, whose URL has a
+    // practical length limit, and the client truncates further when building that URL.
+    private static final int MAX_STACK_TRACE_CHARS = 8000;
 
     /**
      * {@inheritDoc}
@@ -288,7 +300,17 @@ public class PullModuleExecutor implements LSCommandExecutor {
                         clientLogger.logError(LSContextOperation.WS_EXEC_CMD,
                                 "Pull modules failed for project: " + project.sourceRoot().toString(),
                                 t, null, (Position) null);
-                        if (t.getCause() instanceof UserErrorException) {
+                        Optional<CorruptBirCacheParams> corruptBir = detectCorruptBirCache(t, project);
+                        if (corruptBir.isPresent()) {
+                            CorruptBirCacheParams params = corruptBir.get();
+                            params.setProjectUri(project.sourceRoot().toUri().toString());
+                            params.setDistVersion(RepoUtils.getBallerinaShortVersion());
+                            params.setReposPath(RepoUtils.createAndGetHomeReposPath()
+                                    .resolve(ProjectConstants.REPOSITORIES_DIR).toString());
+                            // Ship the stack trace so the client can prefill a "Send Report" GitHub issue.
+                            params.setStackTrace(stackTraceToString(t));
+                            languageClient.corruptBirCache(params);
+                        } else if (t.getCause() instanceof UserErrorException) {
                             String errorMessage = t.getCause().getMessage();
                             CommandUtil.notifyClient(languageClient, MessageType.Error, errorMessage);
                         } else {
@@ -322,6 +344,96 @@ public class PullModuleExecutor implements LSCommandExecutor {
                     languageClient.notifyProgress(new ProgressParams(Either.forLeft(taskId),
                             Either.forLeft(endNotification)));
                 });
+    }
+
+    // The compiler's BIR reader throws with this signature when a cached BIR is corrupt/incompatible,
+    // e.g. "failed to load the module 'ballerina/ai:1.14.1' from its BIR due to: invalid magic number [...]".
+    private static final Pattern CORRUPT_BIR_MODULE_PATTERN = Pattern.compile(
+            "failed to load the module\\s+'([^'/:]+)/([^'/:]+):([^'/:\\s]+)'", Pattern.CASE_INSENSITIVE);
+
+    /**
+     * Detects a corrupt/incompatible cached-BIR failure anywhere in the throwable's cause chain and,
+     * when found, returns the coordinates of the affected package (best-effort; coordinates may be
+     * {@code null} if they cannot be parsed from the message).
+     *
+     * @param throwable the completion throwable to inspect
+     * @param project   the project whose resolution maps the failing module to its package
+     * @return the corrupt-BIR parameters, or empty if this is not a corrupt-BIR failure
+     */
+    static Optional<CorruptBirCacheParams> detectCorruptBirCache(Throwable throwable, Project project) {
+        for (Throwable cause = throwable; cause != null && cause != cause.getCause(); cause = cause.getCause()) {
+            String message = cause.getMessage();
+            if (message == null || !message.contains("invalid magic number") || !message.contains("BIR")) {
+                continue;
+            }
+            Matcher matcher = CORRUPT_BIR_MODULE_PATTERN.matcher(message);
+            if (!matcher.find()) {
+                return Optional.of(new CorruptBirCacheParams(null, null, null));
+            }
+            String org = matcher.group(1);
+            String moduleName = matcher.group(2);
+            String version = matcher.group(3);
+            String packageName = resolvePackageName(project, org, moduleName, version).orElse(moduleName);
+            CorruptBirCacheParams params = new CorruptBirCacheParams(org, packageName, version);
+            params.setModuleName(moduleName);
+            return Optional.of(params);
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Renders a throwable (and its cause chain) as a stack-trace string for the corrupt-BIR report,
+     * truncated to a bounded length.
+     *
+     * @param throwable the failure to render (may be {@code null})
+     * @return the stack trace as a string, empty if {@code throwable} is {@code null}
+     */
+    static String stackTraceToString(Throwable throwable) {
+        if (throwable == null) {
+            return "";
+        }
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        try (PrintStream ps = new PrintStream(baos, true, StandardCharsets.UTF_8)) {
+            throwable.printStackTrace(ps);
+        }
+        String trace = baos.toString(StandardCharsets.UTF_8);
+        return trace.length() > MAX_STACK_TRACE_CHARS ? trace.substring(0, MAX_STACK_TRACE_CHARS) : trace;
+    }
+
+    /**
+     * Resolves the package (cache directory) name for a failing module by matching it against the
+     * project's resolved dependency graph. For a default module the package name equals the module
+     * name; for a submodule (e.g. {@code ai.observe}) it is the owning package (e.g. {@code ai}).
+     *
+     * @return the package name, or empty if it cannot be resolved
+     */
+    private static Optional<String> resolvePackageName(Project project, String org, String moduleName,
+                                                       String version) {
+        try {
+            BallerinaCompilerApi compilerApi = BallerinaCompilerApi.getInstance();
+            List<Project> memberProjects = compilerApi.isWorkspaceProject(project)
+                    ? compilerApi.getWorkspaceProjectsInOrder(project)
+                    : List.of(project);
+            for (Project memberProject : memberProjects) {
+                Collection<ResolvedPackageDependency> nodes =
+                        memberProject.currentPackage().getResolution().dependencyGraph().getNodes();
+                for (ResolvedPackageDependency node : nodes) {
+                    Package pkg = node.packageInstance();
+                    if (!pkg.packageOrg().value().equals(org)
+                            || !pkg.packageVersion().value().toString().equals(version)) {
+                        continue;
+                    }
+                    for (Module module : pkg.modules()) {
+                        if (module.moduleName().toString().equals(moduleName)) {
+                            return Optional.of(pkg.packageName().value());
+                        }
+                    }
+                }
+            }
+        } catch (Throwable e) {
+            // Best-effort resolution; fall back to the module name.
+        }
+        return Optional.empty();
     }
 
     /**

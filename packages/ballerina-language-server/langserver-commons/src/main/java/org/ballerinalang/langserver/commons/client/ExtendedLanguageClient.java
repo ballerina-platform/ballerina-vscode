@@ -44,4 +44,7 @@ public interface ExtendedLanguageClient extends LanguageClient {
 
     @JsonNotification("projectService/pushMigratedProject")
     void pushMigratedProject(Object notification);
+
+    @JsonNotification("projectService/corruptBirCache")
+    void corruptBirCache(Object notification);
 }
