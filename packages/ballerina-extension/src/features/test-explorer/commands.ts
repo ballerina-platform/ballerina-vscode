@@ -19,12 +19,12 @@
 
 import { commands, TestItem, window, workspace, WorkspaceEdit, Uri, Range } from "vscode";
 import { openView, StateMachine, history } from "../../stateMachine";
-import { BI_COMMANDS, EVENT_TYPE, MACHINE_VIEW, Annotation, ValueProperty, GetTestFunctionResponse, TestFunction, TestsDiscoveryResponse, ComponentInfo, isSamePath } from "@wso2/ballerina-core";
+import { BI_COMMANDS, EVENT_TYPE, MACHINE_VIEW, Annotation, ValueProperty, GetTestFunctionResponse, TestFunction, TestsDiscoveryResponse, ComponentInfo, isSamePath, TextEdit } from "@wso2/ballerina-core";
 import { isTestFunctionItem } from "./discover";
 import path from "path";
 import { promises as fs } from 'fs';
 import { needsProjectDiscovery, requiresPackageSelection, selectPackageOrPrompt } from "../../utils/command-utils";
-import { getTestFunctionNames } from "../../utils/test-discovery";
+import { getTestFunctionGroups } from "../../utils/test-discovery";
 import { VisualizerWebview } from "../../views/visualizer/webview";
 import { getCurrentProjectRoot, tryGetCurrentBallerinaFile } from "../../utils/project-utils";
 import { findBallerinaPackageRoot } from "../../utils";
@@ -248,22 +248,7 @@ export function activateEditBiTest(ballerinaExtInstance: BallerinaExtension) {
 
             // Apply the text edits returned by language server
             const edit = new WorkspaceEdit();
-
-            for (const [filePath, edits] of Object.entries(response.textEdits)) {
-                const uri = Uri.file(filePath);
-                for (const textEdit of edits) {
-                    edit.replace(
-                        uri,
-                        new Range(
-                            textEdit.range.start.line,
-                            textEdit.range.start.character,
-                            textEdit.range.end.line,
-                            textEdit.range.end.character
-                        ),
-                        textEdit.newText
-                    );
-                }
-            }
+            addTextEdits(edit, response.textEdits);
 
             await addDataProviderDeletion(edit, ballerinaExtInstance, fileUri, functionName, dataProviderName);
 
@@ -280,6 +265,24 @@ export function activateEditBiTest(ballerinaExtInstance: BallerinaExtension) {
             console.error('Delete test function error:', error);
         }
     });
+}
+
+function addTextEdits(edit: WorkspaceEdit, textEdits: Record<string, TextEdit[]>) {
+    for (const [filePath, edits] of Object.entries(textEdits)) {
+        const uri = Uri.file(filePath);
+        for (const textEdit of edits) {
+            edit.replace(
+                uri,
+                new Range(
+                    textEdit.range.start.line,
+                    textEdit.range.start.character,
+                    textEdit.range.end.line,
+                    textEdit.range.end.character
+                ),
+                textEdit.newText
+            );
+        }
+    }
 }
 
 /**
@@ -328,21 +331,21 @@ function getDataProviderName(testFunction?: TestFunction): string | undefined {
         ?.find((f: ValueProperty) => f.originalName === 'dataProvider')?.value as string | undefined;
 }
 
-/** True if another test function in the file still references this data provider. */
+/** True if another test function anywhere in the project still references this data provider. */
 async function isDataProviderUsedElsewhere(ballerinaExtInstance: BallerinaExtension, fileUri: string,
     excludeFunctionName: string, providerName: string): Promise<boolean> {
-    const discovery: TestsDiscoveryResponse = await ballerinaExtInstance.langClient?.getFileTestFunctions({
-        projectPath: fileUri
+    const projectRoot = await findBallerinaPackageRoot(fileUri) ?? fileUri;
+    const discovery: TestsDiscoveryResponse = await ballerinaExtInstance.langClient?.getProjectTestFunctions({
+        projectPath: projectRoot
     });
-    const otherNames = getTestFunctionNames(discovery).filter((n) => n !== excludeFunctionName);
+    const otherFunctions = getTestFunctionGroups(discovery)
+        .flatMap(([, fns]) => fns)
+        .filter((fn) => fn.functionName !== excludeFunctionName);
 
-    for (const testName of otherNames) {
-        const fn = await ballerinaExtInstance.langClient?.getTestFunction({ functionName: testName, filePath: fileUri });
-        if (fn && isValidTestFunctionResponse(fn) && getDataProviderName(fn.function) === providerName) {
-            return true;
-        }
-    }
-    return false;
+    const responses = await Promise.all(otherFunctions.map((fn) =>
+        ballerinaExtInstance.langClient?.getTestFunction({ functionName: fn.functionName, filePath: fn.lineRange.fileName })
+    ));
+    return responses.some((res) => res && isValidTestFunctionResponse(res) && getDataProviderName(res.function) === providerName);
 }
 
 // Matches only names the tool itself generates (e.g. loadEvalsetData, loadEvalsetData1), not a user's own
@@ -369,10 +372,7 @@ async function addDataProviderDeletion(edit: WorkspaceEdit, ballerinaExtInstance
                 endLine: range.endLine.line, endColumn: range.endLine.offset
             }
         });
-        for (const [file, edits] of Object.entries(res?.textEdits ?? {})) {
-            edits.forEach((e) => edit.replace(Uri.file(file), new Range(e.range.start.line,
-                e.range.start.character, e.range.end.line, e.range.end.character), e.newText));
-        }
+        addTextEdits(edit, res?.textEdits ?? {});
     } catch (error) {
         console.warn('Failed to delete the evaluation data provider:', error);
     }

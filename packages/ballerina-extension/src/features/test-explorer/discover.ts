@@ -250,6 +250,8 @@ export function cancelPendingFileChange(uri: Uri) {
         clearTimeout(existing);
         fileChangeTimers.delete(key);
     }
+    // Also invalidates any handleFileChange already past its await, so it can't re-add the deleted file.
+    fileChangeSequence.delete(key);
 }
 
 export async function handleFileDelete(uri: Uri, testController: TestController) {
