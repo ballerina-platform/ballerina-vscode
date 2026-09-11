@@ -528,7 +528,7 @@ export function getNodeTitle(node: FlowNode) {
 export function getResultVariableName(node: FlowNode): string | undefined {
     const source = node.codedata?.sourceCode?.trim();
     const lhs = source?.match(/^([^=]*)=[^=]/)?.[1]?.trim();
-    if (!lhs) {
+    if (!lhs || lhs.includes("(")) {
         return node.properties?.variable?.value as string | undefined;
     }
     return lhs.split(/\s+/).pop();

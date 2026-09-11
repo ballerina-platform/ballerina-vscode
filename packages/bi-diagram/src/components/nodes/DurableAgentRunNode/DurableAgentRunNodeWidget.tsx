@@ -53,7 +53,7 @@ import { ApprovalBadge } from "../AgentWidget/ApprovalBadge";
 import ConnectorIcon from "../../ConnectorIcon";
 import { useDiagramContext } from "../../DiagramContext";
 import { DiagnosticsPopUp } from "../../DiagnosticsPopUp";
-import { nodeHasError } from "../../../utils/node";
+import { getResultVariableName, nodeHasError } from "../../../utils/node";
 import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
 import { NodeMetadata } from "@wso2/ballerina-core";
 import { MarkdownWithTooltip } from "../AgentMarkdownTooltip";
@@ -933,7 +933,7 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
                                 <NodeStyles.Header onClick={handleOnClick}>
                                     <NodeStyles.Title>durable agent : run</NodeStyles.Title>
                                     <NodeStyles.Description>
-                                        {model.node.properties?.variable?.value as ReactNode}
+                                        {getResultVariableName(model.node) as ReactNode}
                                     </NodeStyles.Description>
                                 </NodeStyles.Header>
                                 <NodeStyles.ActionButtonGroup>
