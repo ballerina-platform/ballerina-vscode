@@ -180,17 +180,19 @@ public class ExpressionEditorContext {
             }
         }
 
+        String escapedImportStatement = CommonUtils.escapeImportStatement(importStatement);
+
         // Check if the import statement already exists
         boolean importExists = documentContext.imports().stream().anyMatch(importDeclarationNode -> {
             String importText = importDeclarationNode.toSourceCode().trim();
-            return importText.startsWith("import " + importStatement) && importText.endsWith(";");
+            return importText.startsWith("import " + escapedImportStatement) && importText.endsWith(";");
         });
 
         // Generate the import statement if not exists
         if (!importExists) {
             String stmt = new SourceBuilder.TokenBuilder(null)
                     .keyword(SyntaxKind.IMPORT_KEYWORD)
-                    .name(importStatement)
+                    .name(escapedImportStatement)
                     .endOfStatement()
                     .build(SourceBuilder.SourceKind.IMPORT);
             TextEdit textEdit = TextEdit.from(TextRange.from(0, 0), stmt + System.lineSeparator());

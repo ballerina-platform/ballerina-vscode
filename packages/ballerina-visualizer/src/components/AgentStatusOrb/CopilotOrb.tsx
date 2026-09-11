@@ -139,8 +139,8 @@ export function CopilotOrb({ state, colors, size, iconSize = 26, theme }: Copilo
             <IconOverlay>
                 <Icon
                     name="bi-ai-chat"
-                    sx={{ width: iconSize, height: iconSize }}
-                    iconSx={{ fontSize: `${iconSize}px`, color: "var(--vscode-button-foreground)", cursor: "inherit" }}
+                    sx={{ width: iconSize, height: iconSize, display: "flex", alignItems: "center", justifyContent: "center" }}
+                    iconSx={{ fontSize: `${iconSize}px`, lineHeight: 1, color: "var(--vscode-button-foreground)", cursor: "inherit" }}
                 />
             </IconOverlay>
         </Holder>
