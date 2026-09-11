@@ -67,7 +67,7 @@ public class TypedAgentBuilder extends ClassInitBuilder {
     }
 
     // Central search results carry no class name, so resolve it from the package before the init form is built.
-    private TemplateContext resolveAgentClass(TemplateContext context) {
+    TemplateContext resolveAgentClass(TemplateContext context) {
         if (context == null || !needsAgentClass(context.codedata())) {
             return context;
         }
@@ -85,17 +85,17 @@ public class TypedAgentBuilder extends ClassInitBuilder {
         }
     }
 
-    private static boolean needsAgentClass(Codedata codedata) {
+    static boolean needsAgentClass(Codedata codedata) {
         return codedata != null && (codedata.object() == null || codedata.object().isEmpty());
     }
 
-    private static TemplateContext withAgentClass(TemplateContext context, String className) {
+    static TemplateContext withAgentClass(TemplateContext context, String className) {
         Codedata resolved = new Codedata.Builder<>(null).from(context.codedata()).object(className).build();
         return new TemplateContext(context.workspaceManager(), context.filePath(), context.position(), resolved,
                 context.lsClientLogger());
     }
 
-    private static Optional<String> findAgentClass(Package agentPackage) {
+    static Optional<String> findAgentClass(Package agentPackage) {
         return AiUtils.findAgentClasses(agentPackage).stream().findFirst().flatMap(ClassSymbol::getName);
     }
 
