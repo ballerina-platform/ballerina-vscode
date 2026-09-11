@@ -334,7 +334,7 @@
     "metadata": {
       "label": "Await Data",
       "description": "Wait for workflow data to be received",
-      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.8.3.png"
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.9.0.png"
     },
     "codedata": {
       "node": "WAIT_DATA",
@@ -343,7 +343,7 @@
       "packageName": "workflow",
       "object": "Context",
       "symbol": "await",
-      "version": "0.8.3",
+      "version": "0.9.0",
       "lineRange": {
         "fileName": "functions.bal",
         "startLine": {
@@ -400,7 +400,7 @@
             "typeMembers": [
               {
                 "type": "Duration",
-                "packageInfo": "ballerina:workflow:0.8.3",
+                "packageInfo": "ballerina:workflow:0.9.0",
                 "packageName": "workflow",
                 "kind": "RECORD_TYPE",
                 "selected": false
@@ -546,7 +546,7 @@
                   "diagnostics": [
                     {
                       "severity": "ERROR",
-                      "message": "Tuple member at position 0 must be nilable (e.g., string?) when minCount (1) is less than the number of futures (2). Not all futures are guaranteed to complete"
+                      "message": "Tuple member at position 0 must be nilable (e.g., 'string?') when minCount (1) is less than the number of futures (2). Not all futures are guaranteed to complete"
                     }
                   ]
                 }
@@ -606,7 +606,7 @@
                   "diagnostics": [
                     {
                       "severity": "ERROR",
-                      "message": "Tuple member at position 1 must be nilable (e.g., boolean?) when minCount (1) is less than the number of futures (2). Not all futures are guaranteed to complete"
+                      "message": "Tuple member at position 1 must be nilable (e.g., 'boolean?') when minCount (1) is less than the number of futures (2). Not all futures are guaranteed to complete"
                     }
                   ]
                 }

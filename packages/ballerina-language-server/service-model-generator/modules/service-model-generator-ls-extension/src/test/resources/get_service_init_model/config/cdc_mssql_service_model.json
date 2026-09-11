@@ -12,9 +12,9 @@
       "orgName": "ballerinax",
       "packageName": "mssql",
       "moduleName": "mssql",
-      "version": "1.19.0",
+      "version": "1.19.1",
       "type": "mssql",
-      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_mssql_1.19.0.png",
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_mssql_1.19.1.png",
       "properties": {
         "listener": {
           "metadata": {
@@ -31,6 +31,7 @@
                 "label": "Create new",
                 "description": "Create a new Microsoft SQL Server CDC listener"
               },
+              "codedata": {},
               "properties": {
                 "listenerConfig": {
                   "metadata": {
@@ -124,6 +125,7 @@
                         "argType": "LISTENER_PARAM_INCLUDED_FIELD",
                         "path": "database.username"
                       },
+                      "value": "",
                       "types": [
                         {
                           "fieldType": "TEXT",
@@ -150,6 +152,7 @@
                         "argType": "LISTENER_PARAM_INCLUDED_FIELD",
                         "path": "database.password"
                       },
+                      "value": "",
                       "types": [
                         {
                           "fieldType": "TEXT",
@@ -177,13 +180,12 @@
                         "path": "database.databaseNames"
                       },
                       "placeholder": "",
+                      "value": "",
                       "types": [
                         {
                           "fieldType": "TEXT_SET",
                           "ballerinaType": "string",
-                          "selected": false,
-                          "minItems": 1,
-                          "defaultItems": 1
+                          "selected": false
                         }
                       ],
                       "enabled": true,
@@ -200,13 +202,12 @@
                         "argType": "LISTENER_PARAM_INCLUDED_FIELD",
                         "path": "database.includedSchemas"
                       },
+                      "value": "",
                       "types": [
                         {
                           "fieldType": "TEXT_SET",
                           "ballerinaType": "string",
-                          "selected": false,
-                          "minItems": 0,
-                          "defaultItems": 0
+                          "selected": false
                         }
                       ],
                       "enabled": true,
@@ -289,6 +290,7 @@
                         "argType": "LISTENER_PARAM_INCLUDED_FIELD",
                         "path": "database.databaseInstance"
                       },
+                      "value": "",
                       "types": [
                         {
                           "fieldType": "TEXT",
@@ -584,6 +586,7 @@
                 "label": "Use existing (none available)",
                 "description": "No compatible listener of this type is present in the project."
               },
+              "codedata": {},
               "properties": {
                 "existingListener": {
                   "metadata": {
@@ -593,8 +596,6 @@
                   "codedata": {
                     "type": "KEY_EXISTING_LISTENER"
                   },
-                  "value": [],
-                  "items": [],
                   "types": [
                     {
                       "fieldType": "MULTI_SELECT_LISTENER",
@@ -649,8 +650,16 @@
               "fieldType": "TEXT",
               "ballerinaType": "string",
               "selected": true,
-              "pattern": "^$|^\"\"$|^string `(|([^.\\[\\]]+|\\[[^\\]]+\\])\\.([^.\\[\\]]+|\\[[^\\]]+\\])\\.([^.\\[\\]]+|\\[[^\\]]+\\]))`$|^\"([^.\\[\\]]+|\\[[^\\]]+\\])\\.([^.\\[\\]]+|\\[[^\\]]+\\])\\.([^.\\[\\]]+|\\[[^\\]]+\\])\"$",
-              "patternErrorMessage": "Table must be in the format: <database>.<schema>.<table>. Use square brackets for names with dots (e.g., db.[schema.name].table)"
+              "validations": [
+                {
+                  "rule": "vscode.validate.regex",
+                  "args": {
+                    "pattern": "^string `([^.\\[\\]]+|\\[[^\\]]+\\])\\.([^.\\[\\]]+|\\[[^\\]]+\\])\\.([^.\\[\\]]+|\\[[^\\]]+\\])`$|^\"([^.\\[\\]]+|\\[[^\\]]+\\])\\.([^.\\[\\]]+|\\[[^\\]]+\\])\\.([^.\\[\\]]+|\\[[^\\]]+\\])\"$"
+                  },
+                  "message": "Table must be in the format: <database>.<schema>.<table>. Use square brackets for names with dots (e.g., db.[schema.name].table)",
+                  "severity": "ERROR"
+                }
+              ]
             },
             {
               "fieldType": "EXPRESSION",
@@ -660,7 +669,7 @@
           ],
           "enabled": true,
           "editable": true,
-          "optional": true,
+          "optional": false,
           "advanced": false
         }
       }

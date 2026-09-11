@@ -296,6 +296,15 @@ public class Function {
         this.documentation = description;
     }
 
+    /**
+     * Whether a documentation field was ever set — checked against the raw field rather than
+     * {@link #getDocumentation()}, since that getter auto-vivifies an empty {@link Value} on first
+     * access and would otherwise make every function report "has documentation".
+     */
+    public boolean hasDocumentation() {
+        return Objects.nonNull(this.documentation);
+    }
+
     public Value getAccessor() {
         return accessor;
     }

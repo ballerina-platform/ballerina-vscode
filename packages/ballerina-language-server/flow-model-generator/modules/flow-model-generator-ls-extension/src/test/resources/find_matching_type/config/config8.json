@@ -1132,7 +1132,7 @@
                                         "selected": false
                                       },
                                       {
-                                        "name": "notAfter",
+                                        "name": "notBefore",
                                         "typeName": "[int, decimal]",
                                         "optional": false,
                                         "typeInfo": {

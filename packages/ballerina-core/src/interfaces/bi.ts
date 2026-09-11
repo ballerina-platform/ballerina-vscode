@@ -475,9 +475,10 @@ export interface ProjectStructureResponse {
 }
 
 /**
- * `kind` is the semantic integration kind (event/file/http/graphql/ai) from the trigger metadata.
+ * `triggerKind` is the canonical semantic integration kind from trigger metadata. `kind` is retained
+ * for compatibility with older language-server responses.
  * `iconColor` is an optional tint for a monochrome brand glyph (e.g. "#f60"); `iconLight`/`iconDark`
- * are theme-specific images (data: URI / path) paired with each other, used when `icon` alone isn't
+ * are theme-specific raw SVG documents paired with each other, used when `icon` alone isn't
  * theme-aware.
  */
 export interface ProjectStructureArtifactResponse {
@@ -485,6 +486,7 @@ export interface ProjectStructureArtifactResponse {
     name: string;
     path: string;
     type: string;
+    triggerKind?: string;
     kind?: string;
     icon?: string;
     iconColor?: string;

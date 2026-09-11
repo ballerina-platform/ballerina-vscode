@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { test } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import { confirmSaveChangesAndGoBack, createArtifactAndGetWebview, deleteArtifactFromTree, domClick, getWebview, BI_INTEGRATOR_LABEL, initTest, page } from '../utils/helpers';
 import { Form } from '@wso2/playwright-vscode-tester';
 import { ProjectExplorer } from '../utils/pages';
@@ -30,6 +30,7 @@ export default function createTests() {
         test('Create Salesforce Integration', async ({ }, testInfo) => {
             const testAttempt = testInfo.retry + 1;
             console.log('Creating a new service in test attempt: ', testAttempt);
+            const eventChannel = '/data/ChangeEvents';
 
             const artifactWebView = await createArtifactAndGetWebview('Salesforce Integration', 'trigger-salesforce');
 
@@ -52,6 +53,14 @@ export default function createTests() {
                     }
                 }
             });
+
+            const eventChannelInput = artifactWebView.locator('input[name="basePath"]')
+                .or(artifactWebView.getByRole('textbox', { name: /Event ?Channel/i }))
+                .first();
+            await eventChannelInput.waitFor();
+            await eventChannelInput.fill(eventChannel);
+            await eventChannelInput.press('Tab');
+            await expect(eventChannelInput).toHaveValue(eventChannel);
             // Dismiss the expression helper panel opened by filling the fields above —
             // it can cover the submit button.
             await page.page.keyboard.press('Escape');

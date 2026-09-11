@@ -58,7 +58,7 @@ import FollowupSuggestions from "../FollowupSuggestions";
 import { Attachment, AttachmentStatus, SkillEnableStage, SkillEntry, TaskApprovalRequest } from "@wso2/ballerina-core";
 import type { ClarifyEvent, ConfigurationCollectionEvent, ConnectorGenerationNotification } from "@wso2/ballerina-core";
 
-import { AIChatView, Header, HeaderButtons, ChatMessage, TurnGroup, AuthProviderChip, UsageBadge, UsageRefreshButton, ApprovalOverlay, OverlayMessage, OverlayCloseButton } from "../../styles";
+import { AIChatView, Header, HeaderButtons, ChatMessage, TurnGroup, AuthProviderChip, UsageBadge, UsageRefreshButton, ApprovalOverlay, OverlayMessage, OverlayCloseButton, JumpToBottomButton } from "../../styles";
 import { SessionHistoryDropdown } from "../SessionHistory";
 import ReferenceDropdown from "../ReferenceDropdown";
 import { VSCodeButton } from "@vscode/webview-ui-toolkit/react";
@@ -112,6 +112,87 @@ const DRIFT_CHECK_ERROR = "Failed to check drift between the code and the docume
 
 const USAGE_EXCEEDED_THRESHOLD_PERCENT = 3;
 const DISCORD_INVITE_URL = "https://discord.com/invite/wso2";
+
+// Distance (px) from the bottom still considered "pinned" — absorbs late layout growth during streaming.
+const BOTTOM_THRESHOLD_PX = 80;
+
+interface ScrollMetrics {
+    scrollHeight: number;
+    scrollTop: number;
+    clientHeight: number;
+}
+
+function isPinnedToBottom(el: ScrollMetrics, threshold: number): boolean {
+    return el.scrollHeight - el.scrollTop - el.clientHeight <= threshold;
+}
+
+// Tracks whether a scroll was caused by our own programmatic scrollIntoView (ignore) or the
+// user (don't). markUserIntent always wins over begin, even mid-guard-window.
+interface AutoScrollGuard {
+    isAutoScrolling(): boolean;
+    markUserIntent(): void;
+    begin(onFallbackSettle: () => void, fallbackMs: number): void;
+    settle(): void;
+    dispose(): void;
+}
+
+function createAutoScrollGuard(): AutoScrollGuard {
+    let autoScrolling = false;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+    function clearPendingTimeout(): void {
+        if (timeoutId !== undefined) {
+            clearTimeout(timeoutId);
+            timeoutId = undefined;
+        }
+    }
+
+    return {
+        isAutoScrolling: () => autoScrolling,
+        markUserIntent: () => {
+            autoScrolling = false;
+        },
+        begin: (onFallbackSettle, fallbackMs) => {
+            clearPendingTimeout();
+            autoScrolling = true;
+            timeoutId = setTimeout(() => {
+                timeoutId = undefined;
+                autoScrolling = false;
+                onFallbackSettle();
+            }, fallbackMs);
+        },
+        settle: () => {
+            clearPendingTimeout();
+            autoScrolling = false;
+        },
+        dispose: () => {
+            clearPendingTimeout();
+        },
+    };
+}
+
+// Callback ref (not a mount-once effect) so it reattaches whenever the node changes, including a
+// remount after unmount.
+function useResizeObserverRef<T extends Element>(
+    onResize: (rect: DOMRectReadOnly) => void
+): (node: T | null) => void {
+    const observerRef = useRef<ResizeObserver>();
+
+    return useCallback((node: T | null) => {
+        observerRef.current?.disconnect();
+        observerRef.current = undefined;
+        if (!node) {
+            return;
+        }
+        const observer = new ResizeObserver((entries) => {
+            for (const entry of entries) {
+                onResize(entry.contentRect);
+            }
+        });
+        observer.observe(node);
+        observerRef.current = observer;
+    }, [onResize]);
+}
 
 //TODO: Add better error handling from backend. stream error type and non 200 status codes
 
@@ -477,6 +558,70 @@ const AIChat: React.FC = () => {
     }
 
     const messagesEndRef = React.useRef<HTMLDivElement>(null);
+    const mainRef = useRef<HTMLElement>(null);
+    const isPinnedToBottomRef = useRef(true);
+    // Last observed scrollTop — distinguishes a scrollbar-thumb drag from our own scroll.
+    const lastScrollTopRef = useRef(0);
+    // Guards against our own programmatic scrollIntoView being misread as a manual user scroll.
+    const autoScrollGuardRef = useRef<AutoScrollGuard>();
+    if (!autoScrollGuardRef.current) {
+        autoScrollGuardRef.current = createAutoScrollGuard();
+    }
+    const [showJumpToBottom, setShowJumpToBottom] = useState(false);
+    // Height of the footer stack, so the "jump to bottom" button can float just above it.
+    const [footerHeight, setFooterHeight] = useState(0);
+    const handleFooterResize = useCallback((rect: DOMRectReadOnly) => setFooterHeight(rect.height), []);
+    const setFooterRef = useResizeObserverRef<HTMLDivElement>(handleFooterResize);
+
+    const checkPinnedState = useCallback(() => {
+        const el = mainRef.current;
+        if (!el) {
+            return;
+        }
+        const atBottom = isPinnedToBottom(el, BOTTOM_THRESHOLD_PX);
+        if (isPinnedToBottomRef.current !== atBottom) {
+            isPinnedToBottomRef.current = atBottom;
+            setShowJumpToBottom(!atBottom);
+        }
+    }, []);
+
+    // A real user interaction always wins, even mid-guard-window — fixes auto-scroll fighting a
+    // user who scrolls up while chunks keep arriving.
+    const handleUserScrollIntent = useCallback(() => {
+        autoScrollGuardRef.current!.markUserIntent();
+    }, []);
+
+    // Real completion signal for our own scroll: fires on "scrollend".
+    const handleProgrammaticScrollSettled = useCallback(() => {
+        autoScrollGuardRef.current!.settle();
+        checkPinnedState();
+    }, [checkPinnedState]);
+
+    // Callback ref, not a mount-once effect: <main> unmounts entirely while Settings/MCP/Skills
+    // is pushed, so a one-shot effect would go stale on every panel round-trip after the first.
+    const setMainRef = useCallback((node: HTMLElement | null) => {
+        const prev = mainRef.current;
+        if (prev) {
+            prev.removeEventListener("wheel", handleUserScrollIntent);
+            prev.removeEventListener("touchmove", handleUserScrollIntent);
+            prev.removeEventListener("keydown", handleUserScrollIntent);
+            prev.removeEventListener("scrollend", handleProgrammaticScrollSettled);
+            autoScrollGuardRef.current!.dispose();
+        }
+        mainRef.current = node;
+        if (node) {
+            node.addEventListener("wheel", handleUserScrollIntent, { passive: true });
+            node.addEventListener("touchmove", handleUserScrollIntent, { passive: true });
+            node.addEventListener("keydown", handleUserScrollIntent);
+            node.addEventListener("scrollend", handleProgrammaticScrollSettled);
+            // A fresh <main> (e.g. returning from Settings) always starts scrolled to top —
+            // resync instead of leaving isPinnedToBottomRef stale.
+            if (isPinnedToBottomRef.current) {
+                node.scrollTop = node.scrollHeight;
+            }
+            checkPinnedState();
+        }
+    }, [handleUserScrollIntent, handleProgrammaticScrollSettled, checkPinnedState]);
 
     /* REFACTORED CODE START [2] */
     // custom hooks: commands + attachments
@@ -1741,25 +1886,63 @@ const AIChat: React.FC = () => {
         generateNaturalProgrammingTemplate(isReqFileExists);
     }, [isReqFileExists]);
 
+    const runProgrammaticScroll = useCallback((behavior: ScrollBehavior) => {
+        messagesEndRef.current?.scrollIntoView({ behavior, block: "end" });
+        // Fallback only matters if the scroll was a no-op; "scrollend" is the real completion signal.
+        autoScrollGuardRef.current!.begin(handleProgrammaticScrollSettled, behavior === "smooth" ? 500 : 100);
+    }, [handleProgrammaticScrollSettled]);
+
     useEffect(() => {
-        const scrollToEnd = (behavior: ScrollBehavior) => {
-            messagesEndRef.current?.scrollIntoView({ behavior, block: "end" });
-        };
-        scrollToEnd("smooth");
-        // Once the turn settles the layout keeps growing (review/restore bar,
-        // markdown + code highlighting), so smooth-scroll lands on a stale
-        // bottom — snap to the true end after that late growth.
+        // User has scrolled up to read earlier content — don't fight them.
+        if (!isPinnedToBottomRef.current) {
+            return;
+        }
+        runProgrammaticScroll("smooth");
+        // The layout keeps growing after a turn settles (review bar, markdown/code highlighting),
+        // so the smooth-scroll above can land short — snap to the true end after that growth.
         if (!isLoading && !isCodeLoading) {
-            const t = setTimeout(() => scrollToEnd("auto"), 120);
+            const t = setTimeout(() => {
+                if (isPinnedToBottomRef.current) {
+                    runProgrammaticScroll("auto");
+                }
+            }, 120);
             return () => clearTimeout(t);
         }
-    }, [messages, isLoading, isCodeLoading, followupSuggestions]);
+    }, [messages, isLoading, isCodeLoading, followupSuggestions, runProgrammaticScroll]);
+
+    const handleScroll = useCallback(() => {
+        const el = mainRef.current;
+        const scrollTop = el?.scrollTop ?? lastScrollTopRef.current;
+        if (autoScrollGuardRef.current!.isAutoScrolling()) {
+            // Our own scroll only moves toward the bottom, so a drop mid-flight is the user.
+            if (scrollTop < lastScrollTopRef.current) {
+                handleUserScrollIntent();
+            } else {
+                lastScrollTopRef.current = scrollTop;
+                return;
+            }
+        }
+        lastScrollTopRef.current = scrollTop;
+        checkPinnedState();
+    }, [checkPinnedState, handleUserScrollIntent]);
+
+    const repinToBottom = useCallback(() => {
+        isPinnedToBottomRef.current = true;
+        setShowJumpToBottom(false);
+    }, []);
+
+    const handleJumpToBottom = useCallback(() => {
+        repinToBottom();
+        runProgrammaticScroll("smooth");
+    }, [repinToBottom, runProgrammaticScroll]);
 
     async function handleSendQuery(content: {
         input: Input[];
         attachments: Attachment[];
         metadata?: Record<string, any>;
     }) {
+        repinToBottom();
+
         // Clear previous generation refs
         currentDiagnosticsRef.current = [];
         functionsRef.current = [];
@@ -2197,6 +2380,7 @@ const AIChat: React.FC = () => {
 
     async function handleClearChat(): Promise<void> {
         setMessages([]);
+        repinToBottom();
         setApprovalRequest(null);
         setContextUsage(null);
         setFollowupSuggestions([]);
@@ -2236,6 +2420,7 @@ const AIChat: React.FC = () => {
         ]);
 
         setMessages(msgs.map(m => ({ role: m.role === "user" ? "User" : "Copilot", content: m.content, type: "text", checkpointId: m.checkpointId, messageId: m.messageId, generationStatus: m.generationStatus })));
+        repinToBottom();
 
         // Rebuild the checkpoint availability set for the switched-to thread.
         // Without this, every checkpointId from the old thread would be absent from the set
@@ -2258,6 +2443,7 @@ const AIChat: React.FC = () => {
             rpcClient.getAiPanelRpcClient().getCheckpoints(),
         ]);
         setMessages(msgs.map(m => ({ role: m.role === "user" ? "User" : "Copilot", content: m.content, type: "text", checkpointId: m.checkpointId, messageId: m.messageId, generationStatus: m.generationStatus })));
+        repinToBottom();
         setAvailableCheckpointIds(new Set(checkpoints.map(cp => cp.id)));
         setRestoringCheckpointId(null);
         setApprovalRequest(null);
@@ -2541,7 +2727,7 @@ const AIChat: React.FC = () => {
                             </Button>
                         </HeaderButtons>
                     </Header>
-                    <main style={{ flex: 1, overflowY: "auto" }}>
+                    <main ref={setMainRef} style={{ flex: 1, overflowY: "auto" }} onScroll={handleScroll}>
                         {migrationSession && (
                             <MigrationContextCard
                                 session={migrationSession}
@@ -2891,6 +3077,18 @@ const AIChat: React.FC = () => {
                         })()}
                         <div ref={messagesEndRef} />
                     </main>
+                    {showJumpToBottom && (
+                        <JumpToBottomButton
+                            type="button"
+                            aria-label="Jump to latest messages"
+                            title="Jump to latest messages"
+                            style={{ bottom: footerHeight + 12 }}
+                            onClick={handleJumpToBottom}
+                        >
+                            <Codicon name="arrow-down" iconSx={{ fontSize: "14px" }} />
+                        </JumpToBottomButton>
+                    )}
+                    <div ref={setFooterRef}>
                     {isUsageExceeded && (
                         <UsageLimitNoticeContainer>
                             <span className="codicon codicon-warning" role="img" aria-hidden="true" />
@@ -3015,6 +3213,7 @@ const AIChat: React.FC = () => {
                         </>
                         );
                     })()}
+                    </div>
                 </AIChatView>
             )}
             {activePanel === "settings" && (

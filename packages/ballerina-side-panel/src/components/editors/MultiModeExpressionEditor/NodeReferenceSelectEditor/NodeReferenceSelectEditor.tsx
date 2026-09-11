@@ -53,6 +53,8 @@ const EmptyPromptText = styled.div`
 
 export type NodeReferenceFilter = { module?: string; object?: string };
 
+const NEW_CONNECTION_SENTINEL = "NEW_CONNECTION";
+
 interface NodeReferenceSelectEditorProps {
     value: string;
     field: FormField;
@@ -86,7 +88,7 @@ function ensureValueInItems(
     value: string,
     searchNodesKind?: string,
 ): NodeReferenceSelectItem[] {
-    if (!value || items.some(item => item.value === value)) {
+    if (!value || value === NEW_CONNECTION_SENTINEL || items.some(item => item.value === value)) {
         return items;
     }
     return [
@@ -188,7 +190,7 @@ export const NodeReferenceSelectEditor: React.FC<NodeReferenceSelectEditorProps>
     }, []);
 
     useEffect(() => {
-        if (!value || selectItems.some(item => item.value === value)) return;
+        if (!value || value === NEW_CONNECTION_SENTINEL || selectItems.some(item => item.value === value)) return;
         setSelectItems(prev => ensureValueInItems(prev, value, searchNodesKind));
         fetchItems(true);
     }, [value]);

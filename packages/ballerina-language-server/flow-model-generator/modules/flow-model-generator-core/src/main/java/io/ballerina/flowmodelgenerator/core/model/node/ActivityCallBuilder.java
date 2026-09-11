@@ -127,10 +127,32 @@ public class ActivityCallBuilder extends CallBuilder {
     public static final String AUTO_RETRY_VALUE = "AutoRetry";
     public static final String MANUAL_RETRY_VALUE = "ManualRetry";
     public static final String RETRY_USER_ROLES_KEY = "retryUserRoles";
+    // The rest of the ReviewTaskDefinition record. A review is declared exactly as a human task is,
+    // so the form offers the same fields — each optional, each falling back to what the
+    // reviewed activity implies when left empty.
+    public static final String RETRY_TITLE_KEY = "retryTitle";
+    public static final String RETRY_DESCRIPTION_KEY = "retryDescription";
+    public static final String RETRY_TIMEOUT_KEY = "retryTimeout";
     public static final String MAX_RETRIES_KEY = "maxRetries";
     public static final String RETRY_DELAY_KEY = "retryDelay";
     public static final String RETRY_BACKOFF_KEY = "retryBackoff";
     public static final String MAX_RETRY_DELAY_KEY = "maxRetryDelay";
+    // The review fields' wording. Each field is rendered twice — once as the dropdown's visible
+    // sub-property and once as the root hidden property that stores its value — so the label and the
+    // doc live here rather than inline at both call sites, where they had already drifted apart.
+    private static final String RETRY_USER_ROLES_LABEL = "Reviewer Roles";
+    private static final String RETRY_USER_ROLES_DOC =
+            "Role(s) permitted to decide the human review, e.g. \"manager\" or [\"finance\", "
+                    + "\"manager\"]. Leave empty to allow any role.";
+    private static final String RETRY_TITLE_LABEL = "Title";
+    private static final String RETRY_TITLE_DOC = "Short summary shown in the reviewer's inbox. Defaults to a "
+            + "phrase naming the activity being reviewed.";
+    private static final String RETRY_DESCRIPTION_LABEL = "Description";
+    private static final String RETRY_DESCRIPTION_DOC = "Context shown with the decision. Defaults to a "
+            + "description of the failure and the outcomes available.";
+    private static final String RETRY_TIMEOUT_LABEL = "Timeout";
+    private static final String RETRY_TIMEOUT_DOC =
+            "How long to wait for a decision, e.g. {hours: 4}. Empty waits indefinitely.";
     // The AutoRetry record's own documentation: each field states the default that applies when it is
     // left empty, since the generated record omits an empty field rather than writing a value for it.
     private static final String MAX_RETRIES_DOC = "Maximum retry attempts (default: 3)";
@@ -658,17 +680,78 @@ public class ActivityCallBuilder extends CallBuilder {
      * {@link io.ballerina.flowmodelgenerator.core.model.node.builtin.RestActivityStrategy}. The dropdown and
      * the fields of the selected branch render in the form itself; only the Check Error flag is advanced.
      */
+    /**
+     * What a {@code ReviewTaskDefinition} declares, as the form holds it. Every field but the roles is
+     * optional in the record and empty here when the source left it out — the runtime then
+     * derives it from the activity being reviewed, which is why the form must not invent a
+     * value for it.
+     *
+     * @param userRoles   role(s) permitted to decide the review
+     * @param title       inbox summary, or empty to derive it
+     * @param description context shown with the decision, or empty to derive it
+     * @param timeout     how long to wait for a decision, or empty to wait indefinitely
+     */
+    public record ReviewFormValues(String userRoles, ReviewText title, ReviewText description, String timeout) {
+
+        /** A review with nothing declared — the form's starting state. */
+        public static ReviewFormValues empty() {
+            return new ReviewFormValues("", ReviewText.empty(), ReviewText.empty(), "");
+        }
+
+        /** Only the roles were read, as the pre-record form could express. */
+        public static ReviewFormValues ofRoles(String userRoles) {
+            return new ReviewFormValues(userRoles == null ? "" : userRoles,
+                    ReviewText.empty(), ReviewText.empty(), "");
+        }
+    }
+
+    /**
+     * A review's title or description, and which mode the form holds it in.
+     *
+     * <p>The mode has to be carried rather than inferred, because decoding a string literal throws
+     * away the only thing that distinguishes the two: {@code title: "reviewTitle"} reaches the form
+     * as {@code reviewTitle}, and so does {@code title: reviewTitle} naming a variable. Guessing
+     * from the text — as a "does it start with a quote" test does — rewrites the second into the
+     * first on the next save. This mirrors the roles field, whose {@code roleSource} reads the mode
+     * before deciding whether to quote.
+     *
+     * @param value      the text in text mode, or the expression source in expression mode
+     * @param expression {@code true} when the value is source to be written through untouched
+     */
+    public record ReviewText(String value, boolean expression) {
+
+        /** Nothing declared: text mode, so a value typed into it is quoted as a literal. */
+        public static ReviewText empty() {
+            return new ReviewText("", false);
+        }
+
+        /** A string literal read from source, decoded to the text it denotes. */
+        public static ReviewText text(String value) {
+            return new ReviewText(value == null ? "" : value, false);
+        }
+
+        /** Anything that is not a string literal: held, and written back, as source. */
+        public static ReviewText expression(String source) {
+            return new ReviewText(source == null ? "" : source, true);
+        }
+
+        public boolean isBlank() {
+            return value.isBlank();
+        }
+    }
+
     public static void addRetryPolicyFormProperties(NodeBuilder nodeBuilder, String retryPolicyValue,
                                                     String maxRetries, String retryDelay,
                                                     String retryBackoff, String maxRetryDelay) {
         addRetryPolicyFormProperties(nodeBuilder, retryPolicyValue, maxRetries, retryDelay,
-                retryBackoff, maxRetryDelay, "");
+                retryBackoff, maxRetryDelay, ReviewFormValues.empty());
     }
 
     public static void addRetryPolicyFormProperties(NodeBuilder nodeBuilder, String retryPolicyValue,
                                                     String maxRetries, String retryDelay,
                                                     String retryBackoff, String maxRetryDelay,
-                                                    String retryUserRoles) {
+                                                    ReviewFormValues review) {
+        String retryUserRoles = review.userRoles();
         String selectedValue = retryPolicyValue == null || retryPolicyValue.isBlank()
                 ? NO_RETRY_VALUE : retryPolicyValue;
         List<Option> options = new ArrayList<>(List.of(
@@ -706,10 +789,20 @@ public class ActivityCallBuilder extends CallBuilder {
         // of them has to be filled in, and every one left empty falls back to the AutoRetry record's
         // own default.
         dynamicFields.put(AUTO_RETRY_VALUE, autoRetryFields);
+        // Human Review renders the ReviewTaskDefinition record — the same shape a human task is
+        // declared with. Only the roles are required; the rest default to wording derived
+        // from the activity being reviewed, which is why each says so in its description.
         Map<String, Property> manualRetryFields = new LinkedHashMap<>();
-        manualRetryFields.put(RETRY_USER_ROLES_KEY, buildReviewerRolesSubProperty("Reviewer Roles",
-                "Role(s) permitted to decide the human review, e.g. \"manager\" or "
-                        + "[\"finance\", \"manager\"]. Leave empty to allow any role."));
+        manualRetryFields.put(RETRY_USER_ROLES_KEY,
+                buildReviewerRolesSubProperty(RETRY_USER_ROLES_LABEL, RETRY_USER_ROLES_DOC));
+        // Title and description offer a plain-text box as well as the expression editor, so a
+        // wording typed as text is quoted on save while a reference to one is written as it stands.
+        manualRetryFields.put(RETRY_TITLE_KEY,
+                buildReviewTextSubProperty(RETRY_TITLE_LABEL, RETRY_TITLE_DOC));
+        manualRetryFields.put(RETRY_DESCRIPTION_KEY,
+                buildReviewTextSubProperty(RETRY_DESCRIPTION_LABEL, RETRY_DESCRIPTION_DOC));
+        manualRetryFields.put(RETRY_TIMEOUT_KEY,
+                buildRetrySubProperty(RETRY_TIMEOUT_LABEL, RETRY_TIMEOUT_DOC, "workflow:Duration", true));
         dynamicFields.put(MANUAL_RETRY_VALUE, manualRetryFields);
         if (opaquePolicy) {
             dynamicFields.put(selectedValue, Map.of());
@@ -739,8 +832,13 @@ public class ActivityCallBuilder extends CallBuilder {
         addHiddenRetrySubFieldProperty(nodeBuilder, RETRY_DELAY_KEY,
                 "Retry Delay", RETRY_DELAY_DOC, "decimal", retryDelay);
         addHiddenRetrySubFieldProperty(nodeBuilder, RETRY_USER_ROLES_KEY,
-                "Reviewer Roles", "Role(s) permitted to decide the retry review", "string|string[]",
-                retryUserRoles);
+                RETRY_USER_ROLES_LABEL, RETRY_USER_ROLES_DOC, "string|string[]", retryUserRoles);
+        addHiddenReviewTextProperty(nodeBuilder, RETRY_TITLE_KEY,
+                RETRY_TITLE_LABEL, RETRY_TITLE_DOC, review.title());
+        addHiddenReviewTextProperty(nodeBuilder, RETRY_DESCRIPTION_KEY,
+                RETRY_DESCRIPTION_LABEL, RETRY_DESCRIPTION_DOC, review.description());
+        addHiddenRetrySubFieldProperty(nodeBuilder, RETRY_TIMEOUT_KEY,
+                RETRY_TIMEOUT_LABEL, RETRY_TIMEOUT_DOC, "workflow:Duration", review.timeout());
         addHiddenRetrySubFieldProperty(nodeBuilder, RETRY_BACKOFF_KEY,
                 "Retry Backoff", RETRY_BACKOFF_DOC, "decimal", retryBackoff);
         addHiddenRetrySubFieldProperty(nodeBuilder, MAX_RETRY_DELAY_KEY,
@@ -768,6 +866,25 @@ public class ActivityCallBuilder extends CallBuilder {
                 .build();
     }
 
+    /**
+     * A review title/description sub-property: plain text by default, switchable to an expression.
+     * Same shape as {@link #buildRetrySubProperty}, except the field carries both modes so
+     * {@link #addQuotedRecordField} can tell a wording from a reference to one.
+     */
+    private static Property buildReviewTextSubProperty(String label, String description) {
+        return new Property.Builder<Void>(null)
+                .metadata()
+                    .label(label)
+                    .description(description)
+                    .stepOut()
+                .type().fieldType(Property.ValueType.TEXT).ballerinaType("string").selected(true).stepOut()
+                .type().fieldType(Property.ValueType.EXPRESSION).ballerinaType("string").selected(false).stepOut()
+                .value("")
+                .editable(true)
+                .optional(true)
+                .build();
+    }
+
     private static Property buildRetrySubProperty(String label, String description, String ballerinaType,
                                                   boolean optional) {
         return new Property.Builder<Void>(null)
@@ -791,6 +908,29 @@ public class ActivityCallBuilder extends CallBuilder {
                 .type().fieldType(Property.ValueType.EXPRESSION)
                     .ballerinaType(ballerinaType).selected(true).stepOut()
                 .value(value != null ? value : "")
+                .editable(true).optional(true).hidden(true)
+                .stepOut()
+                .addProperty(key);
+    }
+
+    /**
+     * The hidden store for a review's title or description. Unlike the other retry sub-fields these
+     * offer both modes, and which one is selected is the record's memory of how the value was
+     * written: {@link #addQuotedRecordField} reads it back to decide whether to quote. Selecting
+     * TEXT for an empty value matches the form's starting state, so an untouched field saves as it
+     * was rather than as a bare word.
+     */
+    private static void addHiddenReviewTextProperty(NodeBuilder nodeBuilder, String key,
+                                                    String label, String description,
+                                                    ReviewText text) {
+        boolean expression = text.expression() && !text.isBlank();
+        nodeBuilder.properties().custom()
+                .metadata().label(label).description(description).stepOut()
+                .type().fieldType(Property.ValueType.TEXT).ballerinaType("string")
+                    .selected(!expression).stepOut()
+                .type().fieldType(Property.ValueType.EXPRESSION).ballerinaType("string")
+                    .selected(expression).stepOut()
+                .value(text.value())
                 .editable(true).optional(true).hidden(true)
                 .stepOut()
                 .addProperty(key);
@@ -884,7 +1024,9 @@ public class ActivityCallBuilder extends CallBuilder {
         Map<String, Property> properties = flowNode.properties();
         Set<String> excludedKeys = Set.of(Property.VARIABLE_KEY, Property.TYPE_KEY,
                 Property.CHECK_ERROR_KEY, ADVANCED_PARAM_KEY, RETRY_POLICY_PARAM,
-                MAX_RETRIES_KEY, RETRY_DELAY_KEY, RETRY_BACKOFF_KEY, MAX_RETRY_DELAY_KEY, RETRY_USER_ROLES_KEY);
+                MAX_RETRIES_KEY, RETRY_DELAY_KEY, RETRY_BACKOFF_KEY, MAX_RETRY_DELAY_KEY, RETRY_USER_ROLES_KEY,
+                // The rest of the ReviewTaskDefinition record: form storage, never activity arguments.
+                RETRY_TITLE_KEY, RETRY_DESCRIPTION_KEY, RETRY_TIMEOUT_KEY);
         populateActivityCallArg(sourceBuilder, properties, excludedKeys);
         populateRetryPolicyArg(sourceBuilder, properties);
         populateAdvancedArgs(sourceBuilder, properties);
@@ -1116,14 +1258,67 @@ public class ActivityCallBuilder extends CallBuilder {
         }
         return switch (value) {
             // NO_RETRY is handled (and skipped) by populateRetryPolicyArg before reaching here.
-            case MANUAL_RETRY_VALUE -> {
-                String rolesValue = WorkflowUtil.roleSource(properties.get(RETRY_USER_ROLES_KEY));
-                // ManualRetry is the reviewer role(s); an empty list means any role may decide.
-                yield rolesValue.isBlank() ? "[]" : rolesValue;
-            }
+            case MANUAL_RETRY_VALUE -> humanReviewRecordLiteral(properties);
             // A policy expression the form could not represent: written back as it was read.
             default -> value;
         };
+    }
+
+    /**
+     * The {@code ReviewTaskDefinition} record a review declares. Only what the form actually holds is
+     * written: an omitted field is not the same as an empty one — the runtime derives the
+     * review's name and wording from the activity, and emitting {@code title: ""} would
+     * replace that derivation with nothing.
+     *
+     * @param properties the form's retry-policy properties
+     * @return the record literal source
+     */
+    public static String humanReviewRecordLiteral(Map<String, Property> properties) {
+        List<String> fields = new ArrayList<>();
+        // The roles field offers both a text and an expression mode, so roleSource — not the raw
+        // value — is what reads either one back as source.
+        String roles = WorkflowUtil.roleSource(properties.get(RETRY_USER_ROLES_KEY));
+        // userRoles is required by the record, so the literal always carries it. An empty
+        // form field yields an empty list, which the compiler rejects with a message naming
+        // the field — better than silently emitting a policy that decides nothing.
+        fields.add("userRoles: " + (roles.isBlank() ? "[]" : roles));
+        addQuotedRecordField(fields, properties, RETRY_TITLE_KEY, "title");
+        addQuotedRecordField(fields, properties, RETRY_DESCRIPTION_KEY, "description");
+        String timeout = trimmedValue(properties, RETRY_TIMEOUT_KEY);
+        if (!timeout.isBlank()) {
+            fields.add("timeout: " + timeout);
+        }
+        return "{" + String.join(", ", fields) + "}";
+    }
+
+    /**
+     * Adds {@code name: <value>} when the form holds one, quoting the value as a string literal
+     * only in text mode. In expression mode the value IS the expression — a bare {@code reviewTitle}
+     * names a variable, and quoting it would rewrite that reference into a literal of the same
+     * spelling — so it is written through untouched, exactly as {@link WorkflowUtil#roleSource}
+     * treats the roles field.
+     */
+    private static void addQuotedRecordField(List<String> fields, Map<String, Property> properties,
+                                             String key, String name) {
+        Property property = properties.get(key);
+        String value = trimmedValue(properties, key);
+        if (value.isBlank()) {
+            return;
+        }
+        if (WorkflowUtil.isExpressionModeSelected(property)) {
+            fields.add(name + ": " + value);
+            return;
+        }
+        // A value that arrived without expression mode selected is the text a literal denotes. It
+        // may already be source when it came from a form that offers no mode at all — a string
+        // template, or a literal the user typed complete with quotes.
+        boolean quoted = value.startsWith("\"") || value.startsWith("string `");
+        fields.add(name + ": " + (quoted ? value : WorkflowUtil.stringLiteral(value)));
+    }
+
+    private static String trimmedValue(Map<String, Property> properties, String key) {
+        Property property = properties.get(key);
+        return property == null || property.value() == null ? "" : property.value().toString().trim();
     }
 
     private static String autoRetryRecordLiteral(Map<String, Property> autoRetryFields) {
@@ -1220,6 +1415,6 @@ public class ActivityCallBuilder extends CallBuilder {
             return functionSymbol;
         }
 
-        return sourceBuilder.importPrefix(org, module) + ":" + functionSymbol;
+        return sourceBuilder.referenceQualifier(org, module) + functionSymbol;
     }
 }

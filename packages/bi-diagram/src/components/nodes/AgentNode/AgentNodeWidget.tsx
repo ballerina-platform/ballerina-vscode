@@ -27,6 +27,9 @@ import {
     DRAFT_NODE_BORDER_WIDTH,
     LABEL_HEIGHT,
     LABEL_WIDTH,
+    NODE_BORDER_COLOR,
+    NODE_BORDER_ERROR_COLOR,
+    NODE_BORDER_SELECTED_COLOR,
     NODE_BORDER_WIDTH,
     NODE_GAP_X,
     NODE_HEIGHT,
@@ -44,9 +47,9 @@ import { nodeHasError } from "../../../utils/node";
 import { css } from "@emotion/react";
 import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
 import { NodeMetadata, isDefaultModelProviderExpr } from "@wso2/ballerina-core";
-import ReactMarkdown from "react-markdown";
 
 import { flowDashAnimation, sanitizeAgentData, sanitizeId } from "../agentNodeUtils";
+import { MarkdownWithTooltip } from "../AgentMarkdownTooltip";
 import { getAgentNodeContainerHeight } from "../AgentWidget/agentNodeLayout";
 import { useAgentNodeController } from "../AgentWidget/useAgentNodeController";
 import { ApprovalBadge } from "../AgentWidget/ApprovalBadge";
@@ -81,12 +84,12 @@ export namespace NodeStyles {
         border-style: ${(props: NodeStyleProp) => (props.disabled ? "dashed" : "solid")};
         border-color: ${(props: NodeStyleProp) =>
             props.hasError
-                ? ThemeColors.ERROR
+                ? NODE_BORDER_ERROR_COLOR
                 : props.isSelected && !props.disabled
-                    ? ThemeColors.SECONDARY
+                    ? NODE_BORDER_SELECTED_COLOR
                     : props.hovered && !props.disabled && !props.readOnly
-                        ? ThemeColors.SECONDARY
-                        : ThemeColors.OUTLINE_VARIANT};
+                        ? NODE_BORDER_SELECTED_COLOR
+                        : NODE_BORDER_COLOR};
         border-radius: 10px;
         background-color: ${(props: NodeStyleProp) =>
             props?.isActiveBreakpoint ? ThemeColors.DEBUGGER_BREAKPOINT_BACKGROUND : ThemeColors.SURFACE_DIM};
@@ -223,11 +226,23 @@ export namespace NodeStyles {
         height: 100%;
         max-height: calc(100% - 5px);
         padding: 0 4px 4px;
+        -webkit-mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
+        mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
     `;
 
     export const InstructionsPlaceholder = styled(Instructions)`
         opacity: 0.5;
         font-style: italic;
+    `;
+
+    // Full role/instructions/description text shown in the hover tooltip, wrapped and
+    // scrollable since it is not subject to the node box's fixed height.
+    export const TooltipMarkdown = styled(MarkdownContent)`
+        max-width: 280px;
+        max-height: 320px;
+        overflow-y: auto;
+        white-space: normal;
+        line-height: 1.5;
     `;
 
     export const DescriptionBlock = styled.div<{ readOnly: boolean }>`
@@ -401,6 +416,11 @@ interface AgentNodeWidgetProps {
     onClick?: (node: FlowNode) => void;
     variant?: "agent" | "typedAgent";
 }
+
+const TOOL_LABEL_X = 110;
+const TOOL_ROW_RIGHT_X = 300;
+const TOOL_MENU_SIZE = 24;
+const TOOL_MENU_GAP = 6;
 
 type AgentNodePresentation = {
     isTypeDefinition: boolean;
@@ -895,32 +915,26 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                 <NodeStyles.DescriptionBlock readOnly={readOnly} onClick={onNodeClick}>
                                     {hasPrompt ? (
                                         <>
-                                            <NodeStyles.Role>
-                                                <ReactMarkdown
-                                                    disallowedElements={['script', 'iframe', 'object', 'embed', 'link', 'style']}
-                                                    unwrapDisallowed={true}
-                                                >
-                                                    {sanitizedAgent?.role}
-                                                </ReactMarkdown>
-                                            </NodeStyles.Role>
-                                            <NodeStyles.Instructions>
-                                                <ReactMarkdown
-                                                    disallowedElements={['script', 'iframe', 'object', 'embed', 'link', 'style']}
-                                                    unwrapDisallowed={true}
-                                                >
-                                                    {sanitizedAgent?.instructions}
-                                                </ReactMarkdown>
-                                            </NodeStyles.Instructions>
+                                            <MarkdownWithTooltip
+                                                text={sanitizedAgent?.role}
+                                                Styled={NodeStyles.Role}
+                                                TooltipStyled={NodeStyles.TooltipMarkdown}
+                                                containerSx={{ display: "block", width: "100%" }}
+                                            />
+                                            <MarkdownWithTooltip
+                                                text={sanitizedAgent?.instructions}
+                                                Styled={NodeStyles.Instructions}
+                                                TooltipStyled={NodeStyles.TooltipMarkdown}
+                                                containerSx={{ display: "block", width: "100%", height: "100%" }}
+                                            />
                                         </>
                                     ) : (
-                                        <NodeStyles.AgentDescription>
-                                            <ReactMarkdown
-                                                disallowedElements={['script', 'iframe', 'object', 'embed', 'link', 'style']}
-                                                unwrapDisallowed={true}
-                                            >
-                                                {description}
-                                            </ReactMarkdown>
-                                        </NodeStyles.AgentDescription>
+                                        <MarkdownWithTooltip
+                                            text={description}
+                                            Styled={NodeStyles.AgentDescription}
+                                            TooltipStyled={NodeStyles.TooltipMarkdown}
+                                            containerSx={{ display: "block", width: "100%", height: "100%" }}
+                                        />
                                     )}
                                 </NodeStyles.DescriptionBlock>
                             </>
@@ -928,14 +942,12 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                     ) : (
                         sanitizedAgent?.role ? (
                             <NodeStyles.Row readOnly={readOnly} onClick={handleOnClick}>
-                                <NodeStyles.Role>
-                                    <ReactMarkdown
-                                        disallowedElements={['script', 'iframe', 'object', 'embed', 'link', 'style']}
-                                        unwrapDisallowed={true}
-                                    >
-                                        {sanitizedAgent?.role}
-                                    </ReactMarkdown>
-                                </NodeStyles.Role>
+                                <MarkdownWithTooltip
+                                    text={sanitizedAgent.role}
+                                    Styled={NodeStyles.Role}
+                                    TooltipStyled={NodeStyles.TooltipMarkdown}
+                                    containerSx={{ display: "block", width: "100%" }}
+                                />
                             </NodeStyles.Row>
                         ) : (
                             <NodeStyles.Row readOnly={readOnly} onClick={handleOnClick}>
@@ -947,14 +959,12 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                     {!isTypeDefinition && (
                         sanitizedAgent?.instructions ? (
                             <NodeStyles.InstructionsRow readOnly={readOnly} onClick={handleOnClick}>
-                                <NodeStyles.Instructions>
-                                    <ReactMarkdown
-                                        disallowedElements={['script', 'iframe', 'object', 'embed', 'link', 'style']}
-                                        unwrapDisallowed={true}
-                                    >
-                                        {sanitizedAgent?.instructions}
-                                    </ReactMarkdown>
-                                </NodeStyles.Instructions>
+                                <MarkdownWithTooltip
+                                    text={sanitizedAgent.instructions}
+                                    Styled={NodeStyles.Instructions}
+                                    TooltipStyled={NodeStyles.TooltipMarkdown}
+                                    containerSx={{ display: "block", width: "100%", height: "100%" }}
+                                />
                             </NodeStyles.InstructionsRow>
                         ) : (
                             <NodeStyles.InstructionsRow readOnly={readOnly} onClick={handleOnClick}>
@@ -1046,8 +1056,8 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                             &:hover foreignObject .connector-icon path {
                                 fill: ${ThemeColors.SECONDARY};
                             }
-                            &:hover text {
-                                fill: ${ThemeColors.SECONDARY};
+                            &:hover .tool-label {
+                                color: ${ThemeColors.SECONDARY};
                             }
                             &:hover .tool-tooltip {
                                 opacity: 1;
@@ -1097,68 +1107,71 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                 </div>
                             </foreignObject>
 
-                            <text
-                                x="110"
-                                y="28"
-                                textAnchor="start"
-                                fill={ThemeColors.ON_SURFACE}
-                                fontSize="14px"
-                                fontFamily="GilmerRegular"
-                                dominantBaseline="middle"
-                            >
-                                {tool.name.length > 20 ? `${tool.name.slice(0, 20)}...` : tool.name}
-                                <title>{tool.name}</title>
-                            </text>
-
                             {!readOnly && !toolsReadOnly && (
-                                <>
-                                    <foreignObject
-                                        x="60"
-                                        y="0"
-                                        width="220"
-                                        height="48"
-                                        css={css`
+                                <foreignObject
+                                    x="60"
+                                    y="0"
+                                    width="220"
+                                    height="48"
+                                    css={css`
                                         pointer-events: all;
-                                        &:hover + .tool-menu-button {
-                                            opacity: 1;
-                                            visibility: visible;
-                                        }
                                     `}
-                                    >
-                                        <div style={{ width: "100%", height: "100%" }} />
-                                    </foreignObject>
-                                    <foreignObject
-                                        x={tool.name.length > 20 ? 240 : 110 + tool.name.length * 7}
-                                        y="14"
-                                        width="24"
-                                        height="24"
-                                        className="tool-menu-button"
+                                >
+                                    <div style={{ width: "100%", height: "100%" }} />
+                                </foreignObject>
+                            )}
+
+                            <foreignObject
+                                x={TOOL_LABEL_X}
+                                y="4"
+                                width={TOOL_ROW_RIGHT_X - TOOL_LABEL_X}
+                                height="48"
+                            >
+                                <div
+                                    css={css`
+                                        display: flex;
+                                        align-items: center;
+                                        gap: ${TOOL_MENU_GAP}px;
+                                        height: 100%;
+                                        font-family: "GilmerRegular";
+                                        font-size: 14px;
+                                    `}
+                                >
+                                    <span
+                                        className="tool-label"
+                                        title={tool.name}
                                         css={css`
-                                        opacity: 0;
-                                        visibility: hidden;
-                                        transition: opacity 0.2s ease-in-out;
-                                        pointer-events: all;
-                                        &:hover {
-                                            opacity: 1;
-                                            visibility: visible;
-                                        }
-                                    `}
+                                            min-width: 0;
+                                            overflow: hidden;
+                                            text-overflow: ellipsis;
+                                            white-space: nowrap;
+                                            color: ${ThemeColors.ON_SURFACE};
+                                        `}
                                     >
+                                        {tool.name}
+                                    </span>
+                                    {!readOnly && !toolsReadOnly && (
                                         <NodeStyles.MenuButton
                                             appearance="icon"
+                                            className="tool-menu-button"
                                             onClick={(e) => handleToolMenuClick(e, tool)}
                                             css={css`
-                                            padding: 2px;
-                                            height: 24px;
-                                            width: 24px;
-                                            min-width: 24px;
-                                        `}
+                                                flex-shrink: 0;
+                                                padding: 2px;
+                                                height: ${TOOL_MENU_SIZE}px;
+                                                width: ${TOOL_MENU_SIZE}px;
+                                                min-width: ${TOOL_MENU_SIZE}px;
+                                                opacity: 0;
+                                                visibility: hidden;
+                                                transition: opacity 0.2s ease-in-out;
+                                                pointer-events: all;
+                                            `}
                                         >
                                             <MoreVertIcon />
                                         </NodeStyles.MenuButton>
-                                    </foreignObject>
-                                </>
-                            )}
+                                    )}
+                                </div>
+                            </foreignObject>
 
                             {/* Rendered after the hover-detection overlay above (it spans the same corner
                                 with pointer-events: all) so the badge paints on top and still gets hover. */}

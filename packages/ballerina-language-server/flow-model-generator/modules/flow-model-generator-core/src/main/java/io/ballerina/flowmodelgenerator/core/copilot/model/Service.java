@@ -58,8 +58,12 @@ public class Service {
      * reader may want to make differently: {@code ballerina/mcp} lists all four of its service types under
      * both {@code StreamableHttpListener} and {@code Listener}, so rendering only the first would make the
      * other transport invisible. Absent for a single-listener document, which is every other one.
+     *
+     * <p>An {@link AlternativeListener} rather than a bare name: a superseded listener is still offered
+     * here, and the reason it is deprecated has to travel with it. {@code mcp}'s {@code Listener} is the
+     * corpus case.
      */
-    private List<String> alternativeListeners;
+    private List<AlternativeListener> alternativeListeners;
     // The spec: the org/module a cross-module service type belongs to (ballerinax/cdc). Null for a
     // home-module type. The renderer derives the prefix and the provenance note from it.
     private String serviceTypeModule;
@@ -175,11 +179,11 @@ public class Service {
         this.name = name;
     }
 
-    public List<String> getAlternativeListeners() {
+    public List<AlternativeListener> getAlternativeListeners() {
         return alternativeListeners;
     }
 
-    public void setAlternativeListeners(List<String> alternativeListeners) {
+    public void setAlternativeListeners(List<AlternativeListener> alternativeListeners) {
         this.alternativeListeners = alternativeListeners;
     }
 

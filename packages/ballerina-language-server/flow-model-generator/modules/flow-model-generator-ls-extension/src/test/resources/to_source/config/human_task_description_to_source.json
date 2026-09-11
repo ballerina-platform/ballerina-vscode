@@ -150,7 +150,7 @@
             "character": 0
           }
         },
-        "newText": "\nanydata result = check context->awaitHumanTask(\"approveExpense\", [\"FINANCE_APPROVER\"], payload = {\"amount\": 1200}, title = \"Approve expense\", description = \"Review the claim before approving\");"
+        "newText": "\nanydata result = check context->awaitHumanTask(\"approveExpense\", userRoles = [\"FINANCE_APPROVER\"], payload = {\"amount\": 1200}, title = \"Approve expense\", description = \"Review the claim before approving\");"
       }
     ]
   }

@@ -1044,7 +1044,7 @@ public class TypesManager {
 
     /** Wraps an import signature, with or without an {@code as} clause, as a statement on its own lines. */
     private static String getImportStmt(String importSignature) {
-        return String.format("%nimport %s;%n", importSignature);
+        return String.format("%nimport %s;%n", CommonUtils.escapeImportStatement(importSignature));
     }
 
     private static Map<String, String> getImports(String importsStatements) {

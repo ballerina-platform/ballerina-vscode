@@ -617,7 +617,7 @@ export class ApprovalViewManager {
         }
         console.log('[ApprovalViewManager] Closing ReviewMode — a new generation is starting');
         history.pop();
-        updateView(false);
+        updateView(false, undefined, { userInitiated: true });
         this.notifyReviewModeClosed();
     }
 

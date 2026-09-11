@@ -19,7 +19,7 @@
       "label": "",
       "description": ""
     },
-    "kind": "OBJECT_METHOD",
+    "kind": "REMOTE",
     "accessor": {
       "metadata": {
         "label": "Accessor",

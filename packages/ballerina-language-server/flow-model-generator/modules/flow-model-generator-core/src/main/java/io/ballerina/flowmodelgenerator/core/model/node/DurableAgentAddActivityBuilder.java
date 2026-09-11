@@ -277,7 +277,7 @@ public class DurableAgentAddActivityBuilder extends CallBuilder {
         // Feature parity with workflow Call Activity: agent-declared activities can be
         // auto-retried by the engine or gated by a human review on failure.
         ActivityCallBuilder.addRetryPolicyFormProperties(this, ActivityCallBuilder.NO_RETRY_VALUE,
-                "", "", "", "", "");
+                "", "", "", "");
     }
 
     @Override

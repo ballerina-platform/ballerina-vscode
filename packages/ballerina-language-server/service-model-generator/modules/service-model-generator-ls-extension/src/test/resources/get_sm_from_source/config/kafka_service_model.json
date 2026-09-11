@@ -13,13 +13,14 @@
     "id": "0",
     "name": "Kafka Event Integration",
     "type": "kafka",
+    "triggerKind": "event",
     "displayName": "Kafka Event Integration",
     "moduleName": "kafka",
     "orgName": "ballerinax",
-    "version": "4.5.0",
+    "version": "4.6.6",
     "packageName": "kafka",
     "listenerProtocol": "kafka",
-    "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_kafka_4.5.0.png",
+    "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_kafka_4.6.6.png",
     "properties": {
       "listener": {
         "metadata": {
@@ -299,7 +300,7 @@
           "orgName": "ballerinax",
           "packageName": "kafka",
           "moduleName": "kafka",
-          "version": "4.5.0"
+          "version": "4.6.6"
         },
         "properties": {},
         "group": "onConsumerRecord",
@@ -335,7 +336,7 @@
         "parameters": [
           {
             "metadata": {
-              "label": "Kafka Error",
+              "label": "Error",
               "description": "The error that occurred during message processing."
             },
             "kind": "REQUIRED",
@@ -359,7 +360,7 @@
             },
             "name": {
               "metadata": {
-                "label": "Kafka Error",
+                "label": "Error",
                 "description": "The error that occurred during message processing."
               },
               "placeholder": "kafkaError",
@@ -411,7 +412,7 @@
           "orgName": "ballerinax",
           "packageName": "kafka",
           "moduleName": "kafka",
-          "version": "4.5.0"
+          "version": "4.6.6"
         },
         "properties": {},
         "group": "onError",

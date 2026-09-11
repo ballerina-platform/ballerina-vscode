@@ -462,9 +462,7 @@ export function TriggerHandlerForm(props: TriggerHandlerFormProps) {
 
     // ----- variant selection -----
 
-    // Add mode: a real choice needs more than one addable variant. Edit mode: an enriched source
-    // handler shows its (fixed) variant for context whenever it carries one.
-    const hasVariants = isNew ? addableVariants.length > 1 : !!functionModel?.variantLabel;
+    const hasVariants = isNew ? !!functionModel?.variantLabel : addableVariants.length > 0;
     const selectedVariantLabel = functionModel?.variantLabel ?? functionModel?.name?.metadata?.label ?? "";
 
     const handleVariantChange = (label: string) => {

@@ -18,9 +18,6 @@
 
 package io.ballerina.servicemodelgenerator.extension.core;
 
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
-import com.google.gson.stream.JsonReader;
 import io.ballerina.centralconnector.RemoteCentral;
 import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.syntax.tree.ClassDefinitionNode;
@@ -39,6 +36,7 @@ import io.ballerina.modelgenerator.commons.ModulePrefixContext;
 import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.modelgenerator.commons.ServiceDatabaseManager;
 import io.ballerina.modelgenerator.commons.ServiceDeclaration;
+import io.ballerina.modelgenerator.commons.trigger.models.TriggerKind;
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerUISchemaModel;
 import io.ballerina.projects.Document;
 import io.ballerina.projects.Module;
@@ -48,14 +46,18 @@ import io.ballerina.projects.Package;
 import io.ballerina.projects.Project;
 import io.ballerina.servicemodelgenerator.extension.builder.FunctionBuilderRouter;
 import io.ballerina.servicemodelgenerator.extension.builder.ServiceBuilderRouter;
+import io.ballerina.servicemodelgenerator.extension.connector.ConnectorUpgradeAdvisor;
+import io.ballerina.servicemodelgenerator.extension.connector.ConnectorVersionResolver;
 import io.ballerina.servicemodelgenerator.extension.connector.PlatformDependencyEditUtil;
 import io.ballerina.servicemodelgenerator.extension.connector.TriggerModelReader;
+import io.ballerina.servicemodelgenerator.extension.connector.TriggerPropertiesRegistry;
 import io.ballerina.servicemodelgenerator.extension.model.Codedata;
 import io.ballerina.servicemodelgenerator.extension.model.Function;
 import io.ballerina.servicemodelgenerator.extension.model.Listener;
 import io.ballerina.servicemodelgenerator.extension.model.Option;
 import io.ballerina.servicemodelgenerator.extension.model.Service;
 import io.ballerina.servicemodelgenerator.extension.model.ServiceClass;
+import io.ballerina.servicemodelgenerator.extension.model.ServiceInitModel;
 import io.ballerina.servicemodelgenerator.extension.model.TriggerBasicInfo;
 import io.ballerina.servicemodelgenerator.extension.model.TriggerProperty;
 import io.ballerina.servicemodelgenerator.extension.model.Value;
@@ -63,6 +65,7 @@ import io.ballerina.servicemodelgenerator.extension.model.request.AddFieldReques
 import io.ballerina.servicemodelgenerator.extension.model.request.ClassFieldModifierRequest;
 import io.ballerina.servicemodelgenerator.extension.model.request.ClassModelFromSourceRequest;
 import io.ballerina.servicemodelgenerator.extension.model.request.CommonModelFromSourceRequest;
+import io.ballerina.servicemodelgenerator.extension.model.request.ConnectorUpgradeAdviceRequest;
 import io.ballerina.servicemodelgenerator.extension.model.request.CreateClassDependencyRequest;
 import io.ballerina.servicemodelgenerator.extension.model.request.FunctionModelRequest;
 import io.ballerina.servicemodelgenerator.extension.model.request.FunctionModifierRequest;
@@ -83,11 +86,13 @@ import io.ballerina.servicemodelgenerator.extension.model.request.TypesRequest;
 import io.ballerina.servicemodelgenerator.extension.model.request.ValidatePropertyRequest;
 import io.ballerina.servicemodelgenerator.extension.model.response.AddOrGetDefaultListenerResponse;
 import io.ballerina.servicemodelgenerator.extension.model.response.CommonSourceResponse;
+import io.ballerina.servicemodelgenerator.extension.model.response.ConnectorUpgradeAdviceResponse;
 import io.ballerina.servicemodelgenerator.extension.model.response.FunctionFromSourceResponse;
 import io.ballerina.servicemodelgenerator.extension.model.response.FunctionModelResponse;
 import io.ballerina.servicemodelgenerator.extension.model.response.ListenerDiscoveryResponse;
 import io.ballerina.servicemodelgenerator.extension.model.response.ListenerFromSourceResponse;
 import io.ballerina.servicemodelgenerator.extension.model.response.ListenerModelResponse;
+import io.ballerina.servicemodelgenerator.extension.model.response.ModelResolutionIssue;
 import io.ballerina.servicemodelgenerator.extension.model.response.ServiceClassModelResponse;
 import io.ballerina.servicemodelgenerator.extension.model.response.ServiceFromSourceResponse;
 import io.ballerina.servicemodelgenerator.extension.model.response.ServiceInitModelResponse;
@@ -122,11 +127,6 @@ import org.eclipse.lsp4j.jsonrpc.services.JsonRequest;
 import org.eclipse.lsp4j.jsonrpc.services.JsonSegment;
 import org.eclipse.lsp4j.services.LanguageServer;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.lang.reflect.Type;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -165,27 +165,12 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
     // debounce where rebuilding both catalogs per call is pure waste.
     private static final ValidationEngine LIVE_VALIDATION_ENGINE = ValidationEngine.withAllRules();
 
-    private static final Type propertyMapType = new TypeToken<Map<String, TriggerProperty>>() {
-    }.getType();
     private final Map<String, TriggerProperty> triggerProperties;
     private LSClientLogger lsClientLogger;
     private WorkspaceManager workspaceManager;
 
     public ServiceModelGeneratorService() {
-        InputStream newPropertiesStream = getClass().getClassLoader()
-                .getResourceAsStream("trigger_properties.json");
-        Map<String, TriggerProperty> newTriggerProperties = Map.of();
-        if (newPropertiesStream != null) {
-            try (JsonReader reader = new JsonReader(new InputStreamReader(newPropertiesStream,
-                    StandardCharsets.UTF_8))) {
-                newTriggerProperties = new Gson().fromJson(reader, propertyMapType);
-                reader.close();
-                newPropertiesStream.close();
-            } catch (IOException e) {
-                // Ignore
-            }
-        }
-        this.triggerProperties = newTriggerProperties;
+        this.triggerProperties = TriggerPropertiesRegistry.getInstance().byId();
     }
 
     /**
@@ -323,7 +308,11 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                                     request.codedata().getVersion(), project);
                             return new ListenerModelResponse(listenerModel);
                         })
-                        .orElseGet(ListenerModelResponse::new);
+                        .orElseGet(() -> ConnectorUpgradeAdvisor.checkResolvedVersion(
+                                        request.codedata().getOrgName(), request.codedata().getModuleName(),
+                                        request.codedata().getVersion())
+                                .<ListenerModelResponse>map(ListenerModelResponse::new)
+                                .orElseGet(ListenerModelResponse::new));
             } catch (Throwable e) {
                 return new ListenerModelResponse(e);
             }
@@ -527,6 +516,34 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                     ? TriggerSearchUtil.searchLocalRepository(localKeys)
                     : List.of();
             return new TriggerListResponse(centralTriggers, localRepositoryTriggers);
+        });
+    }
+
+    /**
+     * The connectors this project uses as a {@code service ... on <module>:Listener} whose resolved
+     * version predates schema-driven trigger support (its {@code metadata/trigger-metadata.json}/
+     * {@code trigger-ui-metadata.json} were only ever bundled with the language server, not shipped in
+     * the connector's own {@code .bala}). Empty when nothing is affected.
+     *
+     * @param request Connector upgrade advice request
+     * @return {@link ConnectorUpgradeAdviceResponse} of the affected connectors, if any
+     */
+    @JsonRequest
+    public CompletableFuture<ConnectorUpgradeAdviceResponse> getConnectorUpgradeAdvice(
+            ConnectorUpgradeAdviceRequest request) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                Path filePath = Path.of(request.filePath());
+                Project project = workspaceManager.loadProject(filePath);
+                Optional<SemanticModel> semanticModel = workspaceManager.semanticModel(filePath);
+                if (semanticModel.isEmpty()) {
+                    return new ConnectorUpgradeAdviceResponse(List.of());
+                }
+                return new ConnectorUpgradeAdviceResponse(
+                        ConnectorUpgradeAdvisor.analyze(project, semanticModel.get()));
+            } catch (Throwable e) {
+                return new ConnectorUpgradeAdviceResponse(e);
+            }
         });
     }
 
@@ -1211,10 +1228,22 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                 if (document.isEmpty() || semanticModel.isEmpty()) {
                     throw new IllegalStateException("Failed to load the document or semantic model");
                 }
+                String existingVersion = request.isLocalRepository() ? null
+                        : ConnectorVersionResolver.resolve(project, request.orgName(), request.moduleName(),
+                                request.version());
+
                 Utils.resolveModule(request.orgName(), request.pkgName(), request.moduleName(),
                         request.version(), request.isLocalRepository(), lsClientLogger);
-                return new ServiceInitModelResponse(ServiceBuilderRouter.getServiceInitModel(request,
-                        project, semanticModel.get(), document.get()));
+                ServiceInitModel serviceInitModel = ServiceBuilderRouter.getServiceInitModel(request,
+                        project, semanticModel.get(), document.get());
+                if (serviceInitModel == null && existingVersion != null) {
+                    Optional<ModelResolutionIssue> issue = ConnectorUpgradeAdvisor.checkResolvedVersion(
+                            request.orgName(), request.moduleName(), existingVersion);
+                    if (issue.isPresent()) {
+                        return new ServiceInitModelResponse(issue.get());
+                    }
+                }
+                return new ServiceInitModelResponse(serviceInitModel);
             } catch (Throwable e) {
                 return new ServiceInitModelResponse(e);
             }
@@ -1317,7 +1346,7 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
     /**
      * Resolves a trigger's basic info, preferring a schema-driven {@code TriggerUISchemaModel} -- bundled in
      * this jar, or (on a miss) synthesized from the connector's own shipped
-     * {@code resources/trigger-metadata.json} plus semantic-API introspection of its {@code .bala} --
+     * {@code metadata/trigger-metadata.json} plus semantic-API introspection of its {@code .bala} --
      * over the legacy sqlite index derived from {@code service_artifacts.json}. This lets a
      * schema-driven trigger appear in the picker with no {@code service_artifacts.json} entry or index
      * rebuild; a trigger with neither source (e.g. HTTP, AI, TCP, GraphQL) falls through to the
@@ -1349,7 +1378,8 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
         // so a deterministic hash of moduleName is a safe, stable substitute.
         int id = model.moduleName().hashCode();
         return new TriggerBasicInfo(id, label, model.orgName(), model.packageName(), model.moduleName(),
-                model.version(), model.kind(), label, "", protocol, icon);
+                model.version(), model.kind(), label, "", protocol, icon,
+                TriggerKind.effectiveOrNull(model.triggerKind(), model.kind()));
     }
 
     /** The legacy sqlite-index lookup (seeded from {@code service_artifacts.json}), reached only when
@@ -1369,7 +1399,7 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
         TriggerBasicInfo triggerBasicInfo = new TriggerBasicInfo(pkg.packageId(),
                 label, pkg.org(), pkg.name(), pkg.name(),
                 pkg.version(), serviceTemplate.kind(), label, "",
-                protocol, icon);
+                protocol, icon, null);
 
         return Optional.of(triggerBasicInfo);
     }
@@ -1385,7 +1415,8 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
      * <p>Package-visible for unit testing without a full LS bootstrap.
      */
     Optional<TriggerBasicInfo> getTriggerBasicInfoByName(TriggerProperty triggerProperty) {
-        if (triggerProperty.version() != null && triggerProperty.kind() != null) {
+        if (triggerProperty.version() != null
+                && (triggerProperty.triggerKind() != null || triggerProperty.kind() != null)) {
             return Optional.of(toTriggerBasicInfo(triggerProperty));
         }
 
@@ -1397,7 +1428,7 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                 .map(original -> new TriggerBasicInfo(original.id(), triggerProperty.triggerName(), original.orgName(),
                         original.packageName(), original.moduleName(), original.version(), original.type(),
                         original.displayName(), original.documentation(), original.listenerProtocol(),
-                        original.icon()));
+                        original.icon(), original.triggerKind()));
     }
 
     /** Builds {@link TriggerBasicInfo} straight from a self-describing {@link TriggerProperty} entry. */
@@ -1409,6 +1440,6 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                 triggerProperty.version());
         return new TriggerBasicInfo(id, label, triggerProperty.orgName(), triggerProperty.packageName(),
                 triggerProperty.name(), triggerProperty.version(), triggerProperty.kind(), label, "",
-                protocol, icon);
+                protocol, icon, TriggerKind.effectiveOrNull(triggerProperty.triggerKind(), triggerProperty.kind()));
     }
 }

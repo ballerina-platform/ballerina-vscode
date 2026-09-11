@@ -46,7 +46,7 @@
         "metadata": {
           "label": "Configure Agent",
           "description": "Configure the agent's role, instructions, model and reasoning limit",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.8.3.png",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.9.0.png",
           "data": {
             "agentName": "travelAgent",
             "agentBox": true,
@@ -175,7 +175,7 @@
           "packageName": "workflow",
           "object": "DurableAgent",
           "symbol": "buildAndRunAgent",
-          "version": "0.8.3",
+          "version": "0.9.0",
           "lineRange": {
             "fileName": "durable_agent_box.bal",
             "startLine": {
@@ -385,7 +385,7 @@
         "metadata": {
           "label": "Send Agent Data Event",
           "description": "Send a data event to a running durable agent and read its answer for that turn",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.8.3.png",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.9.0.png",
           "data": {
             "agentName": "travelAgent",
             "waits": false,
@@ -399,7 +399,7 @@
           "packageName": "workflow",
           "object": "DurableAgent",
           "symbol": "sendData",
-          "version": "0.8.3",
+          "version": "0.9.0",
           "lineRange": {
             "fileName": "durable_agent_box.bal",
             "startLine": {
@@ -541,7 +541,7 @@
         "metadata": {
           "label": "Get Data Event Result",
           "description": "Read the agent's answer for a sent data event by its correlation token",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.8.3.png",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.9.0.png",
           "data": {
             "agentName": "travelAgent",
             "waits": true,
@@ -555,7 +555,7 @@
           "packageName": "workflow",
           "object": "DurableAgent",
           "symbol": "waitForDataResult",
-          "version": "0.8.3",
+          "version": "0.9.0",
           "lineRange": {
             "fileName": "durable_agent_box.bal",
             "startLine": {
@@ -759,16 +759,16 @@
                 "fieldType": "SINGLE_SELECT",
                 "options": [
                   {
-                    "label": "2.0",
-                    "value": "\"2.0\""
+                    "label": "HTTP_1_0",
+                    "value": "\"1.0\""
                   },
                   {
-                    "label": "1.1",
+                    "label": "HTTP_1_1",
                     "value": "\"1.1\""
                   },
                   {
-                    "label": "1.0",
-                    "value": "\"1.0\""
+                    "label": "HTTP_2_0",
+                    "value": "\"2.0\""
                   }
                 ],
                 "selected": false
@@ -1697,16 +1697,16 @@
                 "fieldType": "SINGLE_SELECT",
                 "options": [
                   {
-                    "label": "2.0",
-                    "value": "\"2.0\""
+                    "label": "HTTP_1_0",
+                    "value": "\"1.0\""
                   },
                   {
-                    "label": "1.1",
+                    "label": "HTTP_1_1",
                     "value": "\"1.1\""
                   },
                   {
-                    "label": "1.0",
-                    "value": "\"1.0\""
+                    "label": "HTTP_2_0",
+                    "value": "\"2.0\""
                   }
                 ],
                 "selected": false

@@ -152,6 +152,16 @@ export function resolveSingleIntegrationOverride(
         : undefined;
 }
 
+const DISRUPTIVE_TRANSITION_EVENTS = new Set(["VIEW_UPDATE", "UPDATE_PROJECT_STRUCTURE"]);
+
+// The agent's live edits replay VIEW_UPDATE on every write; navigation the user asked for is never withheld.
+export function shouldSuppressDisruptiveTransition(
+    event: { type: string; userInitiated?: boolean },
+    generationActive: boolean
+): boolean {
+    return generationActive && DISRUPTIVE_TRANSITION_EVENTS.has(event.type) && !event.userInitiated;
+}
+
 export async function getView(documentUri: string, position: NodePosition, projectPath: string): Promise<HistoryEntry> {
     const haveTreeData = !!StateMachine.context().projectStructure;
     const classMemberArtifactType = await getClassMemberArtifactType(documentUri, position, projectPath);
@@ -403,6 +413,11 @@ function getViewByArtifacts(documentUri: string, position: NodePosition, project
     if (currentProjectArtifacts) {
         // Iterate through each category in the directory map
         const project = currentProjectArtifacts.projects.find(project => isSamePath(project.projectPath, projectPath));
+        if (!project) {
+            // The project structure can be mid-rebuild (e.g. a live Copilot generation editing
+            // files) when this runs; fall back to the overview rather than dereference undefined.
+            return { location: { view: MACHINE_VIEW.PackageOverview, documentUri: documentUri } };
+        }
         for (const [key, directory] of Object.entries(project.directoryMap)) {
             // Check each artifact in the category
             for (const dir of directory) {

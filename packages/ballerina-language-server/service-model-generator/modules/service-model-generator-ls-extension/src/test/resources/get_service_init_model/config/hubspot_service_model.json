@@ -6,14 +6,15 @@
   "moduleName": "trigger.hubspot",
   "response": {
     "serviceInitModel": {
+      "id": "trigger.hubspot",
       "displayName": "HubSpot Event Integration",
       "description": "Create a service to handle webhook events from HubSpot",
       "orgName": "ballerinax",
       "packageName": "trigger.hubspot",
       "moduleName": "trigger.hubspot",
-      "version": "0.12.0",
+      "version": "0.12.1",
       "type": "hubspot",
-      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_trigger.hubspot_0.12.0.png",
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_trigger.hubspot_0.12.1.png",
       "properties": {
         "listener": {
           "metadata": {
@@ -30,6 +31,7 @@
                 "label": "Create New Listener",
                 "description": "Define a new HubSpot webhook listener in the project."
               },
+              "codedata": {},
               "properties": {
                 "listenerConfig": {
                   "metadata": {
@@ -186,6 +188,7 @@
                 "label": "Use existing (none available)",
                 "description": "No compatible listener of this type is present in the project."
               },
+              "codedata": {},
               "properties": {
                 "existingListener": {
                   "metadata": {

@@ -119,27 +119,6 @@ test("port skips a non-numeric value because the field may hold a listener expre
     assert.deepEqual(evaluateClientRules(field("Listen On", [rule("common.validate.port")]), "httpListener"), []);
 });
 
-test("an unparseable regex pattern is skipped rather than failing the user", () => {
-    const target = field("Topic", [rule("common.validate.regex", { args: { pattern: "[unclosed" } })]);
-    assert.deepEqual(evaluateClientRules(target, "anything"), []);
-});
-
-test("regex validates each item of a TEXT_SET rather than the comma-joined array", () => {
-    // The MSSQL `databases` field ships this: each entry must be a non-empty quoted/backtick string.
-    const target = field("Databases", [
-        rule("common.validate.regex", {
-            args: { pattern: "^string `.+`$|^\".+\"$" },
-            message: "Database name cannot be empty",
-        }),
-    ], { type: "TEXT_SET" });
-    // All items valid → passes. Joining these with a comma would not match the per-item pattern,
-    // so a passing result here proves the array is checked element-by-element.
-    assert.deepEqual(evaluateClientRules(target, ['"db1"', '"db2"']), []);
-    // One bad item → fails with the model's message.
-    assert.deepEqual(messages(evaluateClientRules(target, ['"db1"', '""'])), ["Database name cannot be empty"]);
-    assert.deepEqual(messages(evaluateClientRules(target, ['"db1"', "notquoted"])), ["Database name cannot be empty"]);
-});
-
 test("min/max length validate each item of a multi-value field", () => {
     const min = field("Tags", [rule("common.validate.min.length", { args: { min: 2 } })], { type: "TEXT_SET" });
     assert.deepEqual(evaluateClientRules(min, ["ab", "cde"]), []);
@@ -213,10 +192,33 @@ test("buildValidate exposes only ERROR rules so warnings cannot block submit", (
 
 test("buildValidate keeps repeated rule ids distinct", () => {
     const target = field("Topic", [
-        rule("common.validate.regex", { args: { pattern: "^[a-z]+$" } }),
-        rule("common.validate.regex", { args: { pattern: "^.{3,}$" } }),
+        rule("vscode.validate.regex", { args: { pattern: "^[a-z]+$" } }),
+        rule("vscode.validate.regex", { args: { pattern: "^.{3,}$" } }),
     ]);
     assert.equal(Object.keys(buildValidate(target)).length, 2);
+});
+
+// ---- vscode.validate.regex ----------------------------------------------------------------------
+
+test("an unparseable regex pattern is skipped rather than failing the user", () => {
+    const target = field("Topic", [rule("vscode.validate.regex", { args: { pattern: "[unclosed" } })]);
+    assert.deepEqual(evaluateClientRules(target, "anything"), []);
+});
+
+test("regex validates each item of a TEXT_SET rather than the comma-joined array", () => {
+    // The MSSQL `databases` field ships this: each entry must be a non-empty quoted/backtick string.
+    const target = field("Databases", [
+        rule("vscode.validate.regex", {
+            args: { pattern: "^string `.+`$|^\".+\"$" },
+            message: "Database name cannot be empty",
+        }),
+    ], { type: "TEXT_SET" });
+    // All items valid → passes. Joining these with a comma would not match the per-item pattern,
+    // so a passing result here proves the array is checked element-by-element.
+    assert.deepEqual(evaluateClientRules(target, ['"db1"', '"db2"']), []);
+    // One bad item → fails with the model's message.
+    assert.deepEqual(messages(evaluateClientRules(target, ['"db1"', '""'])), ["Database name cannot be empty"]);
+    assert.deepEqual(messages(evaluateClientRules(target, ['"db1"', "notquoted"])), ["Database name cannot be empty"]);
 });
 
 // ---- vscode.validate.unique.in.form -----------------------------------------------------------

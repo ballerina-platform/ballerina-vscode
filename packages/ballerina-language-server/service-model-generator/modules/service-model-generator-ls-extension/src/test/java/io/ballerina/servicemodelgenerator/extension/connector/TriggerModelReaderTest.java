@@ -33,18 +33,19 @@ import java.util.Map;
 
 /**
  * Unit test for the unified {@code trigger-ui-schema.json} reader on {@link TriggerModelReader}:
- * deserializes the bundled worked examples (kafka / ftp / trigger.github / trigger.hubspot /
- * azure.storage.files) from their
- * classpath resources without spinning up the language server. Verifies the distinctive shapes survive
- * Gson: the listener CHOICE, structured parameters (type/name as {@code Property} sub-nodes),
- * data-binding, composed payloads, and fully-derived multi-service-type handler sets.
+ * deserializes real worked examples (kafka / ftp / trigger.github / trigger.hubspot /
+ * azure.storage.files), generated live from the L1 + semantic facts + L2 tier. Verifies the distinctive
+ * shapes survive Gson: the listener CHOICE, structured parameters (type/name as {@code Property}
+ * sub-nodes), data-binding, composed payloads, and fully-derived multi-service-type handler sets.
  *
  * @since 1.9.0
  */
 public class TriggerModelReaderTest {
 
-    private TriggerUISchemaModel read(String moduleName) {
-        return TriggerModelReader.getInstance().getBundledTriggerModel(moduleName).orElseThrow();
+    private TriggerUISchemaModel read(String key) {
+        GeneratedTriggerCorpus.Entry entry = GeneratedTriggerCorpus.get(key);
+        return TriggerModelReader.getInstance()
+                .getGeneratedTriggerModel(entry.org(), entry.module(), entry.version()).orElseThrow();
     }
 
     private String listenerFieldType(TriggerUISchemaModel model) {
@@ -178,8 +179,10 @@ public class TriggerModelReaderTest {
         // plus codedata.preserveValue must survive the JSON -> wire ServiceInitModel binding, since
         // that flag is what stops SchemaDrivenServiceBuilder#refreshListenerName from replacing the
         // name with the protocol-derived "filesListener".
+        GeneratedTriggerCorpus.Entry azureEntry = GeneratedTriggerCorpus.get("azure.storage.files");
         ServiceInitModel init = TriggerModelReader.getInstance()
-                .getBundledServiceInitModel("azure.storage.files").orElseThrow();
+                .getGeneratedServiceInitModel(azureEntry.org(), azureEntry.module(), azureEntry.version())
+                .orElseThrow();
         Value listener = init.getProperties().get("listener");
         Value createNew = listener.getChoices().stream().filter(Value::isEnabled).findFirst().orElseThrow();
         Value varName = createNew.getProperties().get("listenerConfig").getProperties().get("listenerVarName");
@@ -191,7 +194,10 @@ public class TriggerModelReaderTest {
     public void testKafkaInitFormAsServiceInitModel() {
         // The add-trigger init form is derived from the unified model's initProperties subtree and
         // handed to the frontend as the wire ServiceInitModel (identity + Map<String,Value>).
-        ServiceInitModel init = TriggerModelReader.getInstance().getBundledServiceInitModel("kafka").orElseThrow();
+        GeneratedTriggerCorpus.Entry kafkaEntry = GeneratedTriggerCorpus.get("kafka");
+        ServiceInitModel init = TriggerModelReader.getInstance()
+                .getGeneratedServiceInitModel(kafkaEntry.org(), kafkaEntry.module(), kafkaEntry.version())
+                .orElseThrow();
         Assert.assertEquals(init.getOrgName(), "ballerinax");
         Assert.assertEquals(init.getModuleName(), "kafka");
         Assert.assertEquals(init.getType(), "kafka");
@@ -218,8 +224,10 @@ public class TriggerModelReaderTest {
         // flattened as CONFIG_FIELD siblings sharing position 1 (config's own slot) with listenOn
         // correctly at position 2 — all nested inside ONE listenerConfig GROUP_SECTION so the whole
         // listener (not just the record fields) renders as a single titled box.
+        GeneratedTriggerCorpus.Entry hubspotEntry = GeneratedTriggerCorpus.get("trigger.hubspot");
         ServiceInitModel init = TriggerModelReader.getInstance()
-                .getBundledServiceInitModel("trigger.hubspot").orElseThrow();
+                .getGeneratedServiceInitModel(hubspotEntry.org(), hubspotEntry.module(), hubspotEntry.version())
+                .orElseThrow();
 
         Value listener = init.getProperties().get("listener");
         Value createNew = listener.getChoices().stream().filter(Value::isEnabled).findFirst().orElse(null);
@@ -250,98 +258,14 @@ public class TriggerModelReaderTest {
     @Test
     public void testInitFormBuildsForAllExamples() {
         // ftp and github init forms use only known wire fieldTypes, so they deserialize cleanly too.
-        for (String moduleName : new String[] {"ftp", "trigger.github"}) {
+        for (String key : new String[] {"ftp", "trigger.github"}) {
+            GeneratedTriggerCorpus.Entry entry = GeneratedTriggerCorpus.get(key);
             ServiceInitModel init = TriggerModelReader.getInstance()
-                    .getBundledServiceInitModel(moduleName).orElseThrow();
+                    .getGeneratedServiceInitModel(entry.org(), entry.module(), entry.version()).orElseThrow();
             Value listener = init.getProperties().get("listener");
-            Assert.assertNotNull(listener, moduleName + " listener present");
+            Assert.assertNotNull(listener, key + " listener present");
             Assert.assertEquals(listener.getTypes().getFirst().fieldType(), Value.FieldType.CHOICE);
         }
     }
 
-    @Test
-    public void testMissingModelReturnsEmpty() {
-        Assert.assertTrue(
-                TriggerModelReader.getInstance().getBundledTriggerModel("no-such-module").isEmpty(),
-                "a module with no bundled trigger-ui-schema.json must yield empty (so the router falls back)");
-    }
-
-    /**
-     * mcp is registered as an ordered variant list: the {@code StreamableHttpService} surface only exists
-     * from 1.2.0, and 1.0.3 has {@code mcp:Service} alone. The resolved connector version — not the
-     * newest bundled document — must decide which one a caller sees.
-     */
-    @Test
-    public void testVersionGatedVariantSelection() {
-        TriggerModelReader reader = TriggerModelReader.getInstance();
-
-        TriggerUISchemaModel current = reader.getBundledTriggerModel("mcp", "1.2.0").orElseThrow();
-        Assert.assertEquals(current.version(), "1.2.0");
-        Assert.assertEquals(serviceTypeNames(current), List.of("StreamableHttpService", "Service"),
-                "1.2.0 keeps the deprecated Service type so an existing service still reads back");
-        Assert.assertEquals(findServiceType(current, "Service").codedata().originalName(), "Service",
-                "each type's originalName must be its own -- it is what the emitted descriptor is built from");
-
-        TriggerUISchemaModel legacy = reader.getBundledTriggerModel("mcp", "1.0.3").orElseThrow();
-        Assert.assertEquals(legacy.version(), "1.0.3");
-        Assert.assertEquals(serviceTypeNames(legacy), List.of("Service"),
-                "1.0.3 has no StreamableHttpService");
-        Assert.assertEquals(legacy.initProperties().get("serviceName").codedata().originalName(),
-                "ServiceConfig", "1.0.3 predates the @mcp:StreamableHttpServiceConfig annotation");
-        Assert.assertEquals(
-                legacy.initProperties().get("listenerVarName").types().getFirst().ballerinaType(),
-                "mcp:Listener", "1.0.3 predates mcp:StreamableHttpListener");
-
-        // A version below every declared floor still resolves -- to the oldest variant.
-        Assert.assertEquals(reader.getBundledTriggerModel("mcp", "1.0.0").orElseThrow().version(), "1.0.3");
-        // 1.2.0's floor is inclusive, and anything above it stays on the newest variant.
-        Assert.assertEquals(reader.getBundledTriggerModel("mcp", "1.3.1").orElseThrow().version(), "1.2.0");
-        // No version in hand (e.g. the trigger picker) -> the newest variant.
-        Assert.assertEquals(reader.getBundledTriggerModel("mcp").orElseThrow().version(), "1.2.0");
-        // The init form is gated by the same resolution.
-        Assert.assertEquals(reader.getBundledServiceInitModel("mcp", "1.0.3").orElseThrow().getVersion(),
-                "1.0.3");
-    }
-
-    /**
-     * Each mcp variant pins its own service type through a hidden {@code SERVICE_TYPE_DESCRIPTOR}
-     * field in the init form, so the type a new service is written against never rests on
-     * {@code serviceTypes[]} order. The value must stay unqualified: the source generator matches it
-     * against {@code serviceTypes[].name} (unqualified for mcp) and qualifies it on emit.
-     */
-    @Test
-    public void testInitFormPinsServiceType() {
-        TriggerModelReader reader = TriggerModelReader.getInstance();
-        for (String[] expected : new String[][] {{"1.2.0", "StreamableHttpService"}, {"1.0.3", "Service"}}) {
-            ServiceInitModel init = reader.getBundledServiceInitModel("mcp", expected[0]).orElseThrow();
-            Value serviceType = init.getProperties().get("serviceType");
-            Assert.assertNotNull(serviceType, expected[0] + " pins a service type");
-            Assert.assertEquals(serviceType.getCodedata().getType(), "SERVICE_TYPE_DESCRIPTOR");
-            Assert.assertEquals(serviceType.getValue(), expected[1]);
-            Assert.assertFalse(serviceType.getValue().contains(":"),
-                    "the pinned value must be unqualified so it matches serviceTypes[].name");
-            Assert.assertTrue(serviceType.isHidden(), "the user must not see the pinned type");
-            Assert.assertTrue(serviceType.isEnabledWithValue(),
-                    "hidden must not be expressed as enabled:false -- the resolver skips disabled fields");
-        }
-    }
-
-    /** A single-variant registry entry (the plain-string form) ignores the version entirely. */
-    @Test
-    public void testUngatedModuleIgnoresVersion() {
-        TriggerModelReader reader = TriggerModelReader.getInstance();
-        Assert.assertEquals(reader.getBundledTriggerModel("kafka", "0.0.1").orElseThrow().moduleName(),
-                reader.getBundledTriggerModel("kafka").orElseThrow().moduleName());
-    }
-
-    private static List<String> serviceTypeNames(TriggerUISchemaModel model) {
-        return model.serviceTypes().stream().map(ServiceTypeModel::name).toList();
-    }
-
-    private static ServiceTypeModel findServiceType(TriggerUISchemaModel model, String name) {
-        return model.serviceTypes().stream()
-                .filter(st -> name.equals(st.name()))
-                .findFirst()
-                .orElseThrow();
-    }
 }

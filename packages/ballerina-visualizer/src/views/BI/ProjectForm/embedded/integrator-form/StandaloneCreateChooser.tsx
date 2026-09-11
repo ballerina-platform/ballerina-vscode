@@ -68,7 +68,7 @@ export function StandaloneCreateChooser({ biWsClient, ballerinaUnavailable, onBa
             onBack={onBack}
         >
             <ProjectTypeSelector
-                label="Choose your starting point"
+                label="What do you want to build?"
                 value={isLibrary}
                 onChange={setIsLibrary}
                 note="Update your Ballerina distribution to 2201.13.0 or above to organize integrations and libraries into a project."

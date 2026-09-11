@@ -152,7 +152,7 @@ public class Constants {
 
         // Workflow context utility functions
         public static final String CURRENT_TIME_METHOD_NAME = "currentTime";
-        public static final String CURRENT_TIME_LABEL = "Current Time";
+        public static final String CURRENT_TIME_LABEL = "Get Current Time";
         public static final String CURRENT_TIME_DESCRIPTION =
                 "Deterministic current time, safe to use inside workflow logic";
         public static final String IS_REPLAYING_METHOD_NAME = "isReplaying";

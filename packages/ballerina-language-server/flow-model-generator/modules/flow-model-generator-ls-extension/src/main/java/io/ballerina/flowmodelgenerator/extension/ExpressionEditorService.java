@@ -317,7 +317,19 @@ public class ExpressionEditorService implements ExtendedLanguageServerService {
         Optional<TextEdit> importTextEdit = expressionEditorContext.getImport(importStatement);
         importTextEdit.ifPresent(textEdit ->
                 PackageUtil.pullModuleAndNotify(lsClientLogger, ModuleInfo.from(moduleId)));
-        response.setPrefix(aliased ? prefix : naturalPrefix);
+        // The prefix seeds an editable expression-editor value, which is a raw (unescaped) domain: reserved-keyword
+        // prefixes are escaped only when the value is emitted to source on save. An explicit alias wins; otherwise
+        // derive the module's natural prefix, kept raw.
+        int aliasIndex = importStatement.indexOf(" as ");
+        String referencePrefix;
+        if (aliasIndex != -1) {
+            referencePrefix = importStatement.substring(aliasIndex + " as ".length()).trim();
+        } else {
+            String[] moduleParts = importStatement.split("/");
+            String prefixModule = CommonUtils.unescapeModuleName(moduleParts[moduleParts.length - 1].split(":")[0]);
+            referencePrefix = CommonUtils.getDefaultModulePrefix(prefixModule);
+        }
+        response.setPrefix(referencePrefix);
         response.setModuleId(moduleId);
     }
 
@@ -349,12 +361,13 @@ public class ExpressionEditorService implements ExtendedLanguageServerService {
             // The owning organization is passed so an org-less import in the file -- which can only name a
             // module of its own package -- is not taken as a match for a foreign module of the same name.
             String currentOrg = document.map(doc -> doc.module().descriptor().org().value()).orElse(null);
-            return willWriteImport
+            String sourcePrefix = willWriteImport
                     ? ImportPrefixReader.resolve(rootNode, codedata.org(), codedata.module(), null, currentOrg)
                     : ImportPrefixReader.boundPrefix(rootNode, codedata.org(), codedata.module(), currentOrg);
+            return CommonUtils.unescapeModuleName(sourcePrefix);
         } catch (RuntimeException e) {
-            // Without a file to read, the module's natural prefix is the only available answer.
-            return codedata.getModulePrefix();
+            // Without a file to read, the module's natural prefix is the only available answer (raw for the editor).
+            return CommonUtils.unescapeModuleName(codedata.getModulePrefix());
         }
     }
 }

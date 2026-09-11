@@ -1553,6 +1553,15 @@ public class CodeAnalyzer extends NodeVisitor {
     private void collectDeclaredCapabilities(ExpressionNode listExpr, String capabilityType, String refField,
                                              Map<String, String> fieldToPropertyKey,
                                              List<AgentCapabilityData> out) {
+        // `events` and `humanTasks` are declared either as a mapping keyed by capability name —
+        // `events: {chat: {request: string}}`, what the module now documents — or as the list of
+        // records that carry their own `name` field, which it still accepts. Both are read: a
+        // capability the designer cannot see is one it silently drops on the next save.
+        if (listExpr.kind() == SyntaxKind.MAPPING_CONSTRUCTOR) {
+            collectKeyedCapabilities((MappingConstructorExpressionNode) listExpr, capabilityType, refField,
+                    fieldToPropertyKey, out);
+            return;
+        }
         if (listExpr.kind() != SyntaxKind.LIST_CONSTRUCTOR) {
             return;
         }
@@ -1590,7 +1599,7 @@ public class CodeAnalyzer extends NodeVisitor {
                         putIfNotBlank(values, ActivityCallBuilder.MAX_RETRY_DELAY_KEY,
                                 retryForm.maxRetryDelay());
                         putIfNotBlank(values, ActivityCallBuilder.RETRY_USER_ROLES_KEY,
-                                retryForm.retryUserRoles());
+                                retryForm.review().userRoles());
                         continue;
                     }
                     if ("activity".equals(capabilityType) && "bindings".equals(fieldName)
@@ -1632,6 +1641,59 @@ public class CodeAnalyzer extends NodeVisitor {
             }
             if (name != null && !name.isBlank()) {
                 out.add(new AgentCapabilityData(name, capabilityType, item.lineRange(), values));
+            }
+        }
+    }
+
+    // Reads the mapping form of a capability declaration, where each field is one capability and
+    // its key is the name — `{chat: {request: string, response: string}}`. The key takes the place
+    // of the list form's `name` field, so the config records have no `name` of their own. The
+    // whole `key: {...}` field is the entry's range, which is what an edit-save rewrites.
+    private void collectKeyedCapabilities(MappingConstructorExpressionNode mapping, String capabilityType,
+                                          String refField, Map<String, String> fieldToPropertyKey,
+                                          List<AgentCapabilityData> out) {
+        for (MappingFieldNode entry : mapping.fields()) {
+            if (!(entry instanceof SpecificFieldNode specificEntry) || specificEntry.valueExpr().isEmpty()) {
+                continue;
+            }
+            String name = stripQuotes(specificEntry.fieldName().toSourceCode().trim());
+            if (name.isBlank()) {
+                continue;
+            }
+            Map<String, String> values = new LinkedHashMap<>();
+            values.put(fieldToPropertyKey.getOrDefault("name", "name"), name);
+            if (specificEntry.valueExpr().get() instanceof MappingConstructorExpressionNode config) {
+                collectCapabilityFields(config, capabilityType, refField, fieldToPropertyKey, values);
+            }
+            out.add(new AgentCapabilityData(name, capabilityType, entry.lineRange(), values));
+        }
+    }
+
+    // Hydrates the form values a capability's config record carries, by the same rules the list
+    // form's entries follow. Fields the form has no key for are skipped, as are `name` and the
+    // reference field: the keyed form states the name once, as the key.
+    private void collectCapabilityFields(MappingConstructorExpressionNode config, String capabilityType,
+                                         String refField, Map<String, String> fieldToPropertyKey,
+                                         Map<String, String> values) {
+        for (MappingFieldNode field : config.fields()) {
+            if (!(field instanceof SpecificFieldNode specificField) || specificField.valueExpr().isEmpty()) {
+                continue;
+            }
+            String fieldName = specificField.fieldName().toSourceCode().trim();
+            if ("name".equals(fieldName) || fieldName.equals(refField)) {
+                continue;
+            }
+            String propertyKey = fieldToPropertyKey.get(fieldName);
+            if (propertyKey == null) {
+                continue;
+            }
+            String rawValue = specificField.valueExpr().get().toSourceCode().trim();
+            if ("cardinality".equals(fieldName)) {
+                values.put(propertyKey, WorkflowUtil.stripModulePrefix(rawValue));
+            } else if (TEXT_MODE_CAPABILITY_FIELDS.contains(fieldName)) {
+                values.put(propertyKey, stripQuotes(rawValue));
+            } else {
+                values.put(propertyKey, rawValue);
             }
         }
     }
@@ -1950,10 +2012,11 @@ public class CodeAnalyzer extends NodeVisitor {
      * Reads individual positional and named arguments and maps each to the corresponding form property
      * defined by {@link io.ballerina.flowmodelgenerator.core.model.node.HumanTaskBuilder}.
      *
-     * <p>Argument layout: {@code awaitHumanTask(taskName, userRoles[, payload = ..., title = ...,
-     * description = ..., timeout = ...])}
-     *
-     * @param callNode the {@code ctx->awaitHumanTask(...)} call node
+     * <p>Two argument layouts are read. Before 0.9.0 it was
+     * {@code awaitHumanTask(taskName, userRoles[, payload = ..., title = ..., description = ...,
+     * timeout = ...])}. 0.9.0 moves the definition into a record, giving
+     * {@code awaitHumanTask(taskName, taskInput[, userRoles = ..., ...])} where the task input is
+     * the second required argument and the rest are included-record fields, stated by name.
      */
     private void populateHumanTaskProperties(RemoteMethodCallActionNode callNode) {
         Map<String, Property> currentProps = nodeBuilder.properties().build();
@@ -1970,6 +2033,11 @@ public class CodeAnalyzer extends NodeVisitor {
                 || currentProps.containsKey(HumanTaskBuilder.USER_ROLES_KEY);
         if (resolved) {
             populateResolvedHumanTaskProperties();
+            // The options may also arrive as one positional record literal — the form the
+            // module documents for options a resolved signature does not declare yet
+            // (unknown members ride HumanTaskOptions' open rest). Fold its declared fields
+            // back into the matching form properties so the round trip holds.
+            overlayHumanTaskOptionsLiteral(callNode);
         } else {
             populateFallbackHumanTaskProperties(callNode, currentProps);
         }
@@ -2010,25 +2078,9 @@ public class CodeAnalyzer extends NodeVisitor {
         }
     }
 
-    /**
-     * Reads an {@code awaitHumanTask} call's arguments into the fallback form's values, by parameter
-     * name. Each parameter may be written positionally, in the signature's order —
-     * {@code awaitHumanTask(taskName, userRoles, payload, title, description, timeout)} — or as a
-     * named argument; {@link #argumentExpression} settles both the same way for every one of them.
-     * A parameter the call leaves out maps to {@code null}, which the form shows as an empty field.
-     *
-     * @param args the call's arguments
-     * @return parameter name to source text, in the signature's order
-     */
-    static Map<String, String> fallbackHumanTaskArgumentValues(SeparatedNodeList<FunctionArgumentNode> args) {
-        Map<String, String> values = new LinkedHashMap<>();
-        values.put(HumanTaskBuilder.TASK_NAME_KEY, agentArgumentSource(args, 0, HumanTaskBuilder.TASK_NAME_KEY));
-        values.put(HumanTaskBuilder.USER_ROLES_KEY, agentArgumentSource(args, 1, HumanTaskBuilder.USER_ROLES_KEY));
-        values.put(HumanTaskBuilder.PAYLOAD_KEY, agentArgumentSource(args, 2, HumanTaskBuilder.PAYLOAD_KEY));
-        values.put(HumanTaskBuilder.TITLE_KEY, agentArgumentSource(args, 3, HumanTaskBuilder.TITLE_KEY));
-        values.put(HumanTaskBuilder.DESCRIPTION_KEY, agentArgumentSource(args, 4, HumanTaskBuilder.DESCRIPTION_KEY));
-        values.put(HumanTaskBuilder.TIMEOUT_KEY, agentArgumentSource(args, 5, HumanTaskBuilder.TIMEOUT_KEY));
-        return values;
+    // The form's own rule for which argument the options come from — see HumanTaskBuilder.
+    private void overlayHumanTaskOptionsLiteral(RemoteMethodCallActionNode callNode) {
+        HumanTaskBuilder.overlayOptionsLiteral(nodeBuilder.properties().build(), callNode.arguments());
     }
 
     /**
@@ -2039,13 +2091,12 @@ public class CodeAnalyzer extends NodeVisitor {
      */
     private void populateFallbackHumanTaskProperties(RemoteMethodCallActionNode callNode,
                                                      Map<String, Property> currentProps) {
-        SeparatedNodeList<FunctionArgumentNode> args = callNode.arguments();
         currentProps.clear();
 
         // Build the human task parameter form via the single shared definition in HumanTaskBuilder,
         // injecting the values parsed from source (empty required values map to no preset value).
-        Map<String, String> paramValues = fallbackHumanTaskArgumentValues(args);
-        HumanTaskBuilder.addFallbackHumanTaskParameters(nodeBuilder, paramValues);
+        HumanTaskBuilder.addFallbackHumanTaskParameters(nodeBuilder,
+                fallbackHumanTaskArgumentValues(callNode.arguments()));
 
         // Inferred databinding/result type and result variable (from typedBindingPatternNode)
         if (typedBindingPatternNode != null) {
@@ -2064,6 +2115,82 @@ public class CodeAnalyzer extends NodeVisitor {
                     .value(varText).type().fieldType(Property.ValueType.IDENTIFIER).selected(true).stepOut()
                     .editable(true).stepOut().addProperty(Property.VARIABLE_KEY);
         }
+    }
+
+    /**
+     * Reads the form values of an {@code awaitHumanTask} call from its arguments alone, for the path
+     * taken when the workflow module does not resolve. Each value is keyed by the form's property
+     * name; a parameter the call leaves out maps to {@code null}, which the fallback form renders as
+     * an empty field.
+     *
+     * <p>The arguments after the task name have two layouts across module releases, and both are
+     * read:
+     * <ul>
+     *   <li>before 0.9.0: {@code awaitHumanTask(taskName, userRoles, payload = ..., title = ...)} —
+     *       the roles are positional argument 1 and the input positional argument 2;</li>
+     *   <li>0.9.0: {@code awaitHumanTask(taskName, taskInput, userRoles = ..., title = ...)} — the
+     *       input is positional argument 1 and the roles a definition field.</li>
+     * </ul>
+     * A stated name settles which: {@code userRoles} named makes positional argument 1 the task
+     * input, whatever its shape — a variable holding the input as much as a record literal. With
+     * neither stated, that argument tells them apart by shape: the input is a {@code map<json>} and
+     * so a record literal, where roles are a string or a list of strings. Whichever name the call
+     * used for the input, the value lands in the one task input field; the form writes the module's
+     * current name for it.
+     *
+     * @param args the call's arguments
+     * @return the form values keyed by property name
+     */
+    static Map<String, String> fallbackHumanTaskArgumentValues(SeparatedNodeList<FunctionArgumentNode> args) {
+        // Collect all named args first for use as fallback for required params
+        Map<String, String> namedArgs = new LinkedHashMap<>();
+        for (FunctionArgumentNode arg : args) {
+            if (arg instanceof NamedArgumentNode namedArg) {
+                String name = namedArg.argumentName().name().text();
+                String value = namedArg.expression().toSourceCode().strip();
+                namedArgs.put(name, value);
+            }
+        }
+
+        // taskName: positional arg 0, or named arg form awaitHumanTask(taskName = "...", ...)
+        String taskNameValue = "";
+        if (args.size() > 0 && args.get(0) instanceof PositionalArgumentNode posArg0) {
+            taskNameValue = posArg0.expression().toSourceCode().strip();
+        } else if (namedArgs.containsKey(HumanTaskBuilder.TASK_NAME_KEY)) {
+            taskNameValue = namedArgs.get(HumanTaskBuilder.TASK_NAME_KEY);
+        }
+        String taskInputValue = namedArgs.containsKey(HumanTaskBuilder.TASK_INPUT_KEY)
+                ? namedArgs.get(HumanTaskBuilder.TASK_INPUT_KEY) : namedArgs.get(HumanTaskBuilder.PAYLOAD_KEY);
+        String userRolesValue = namedArgs.getOrDefault(HumanTaskBuilder.USER_ROLES_KEY, "");
+        String firstArg = args.size() > 1 && args.get(1) instanceof PositionalArgumentNode posArg1
+                ? posArg1.expression().toSourceCode().strip() : null;
+        if (firstArg != null) {
+            if (!userRolesValue.isEmpty() || firstArg.startsWith("{")) {
+                // 0.9.0's task input: named roles settle the layout on their own, so this argument is
+                // the input whatever its shape — a variable holding it is not a role list. Without
+                // them, a record literal in the roles' position is the input.
+                taskInputValue = firstArg;
+            } else {
+                userRolesValue = firstArg;
+            }
+        }
+        // The older layout also takes the input positionally, after the roles.
+        if (taskInputValue == null && args.size() > 2 && args.get(2) instanceof PositionalArgumentNode posArg2) {
+            taskInputValue = posArg2.expression().toSourceCode().strip();
+        }
+        String titleValue = namedArgs.get(HumanTaskBuilder.TITLE_KEY);
+        String descValue = namedArgs.get(HumanTaskBuilder.DESCRIPTION_KEY);
+        String timeoutValue = namedArgs.get(HumanTaskBuilder.TIMEOUT_KEY);
+
+        // Empty required values map to no preset value.
+        Map<String, String> paramValues = new LinkedHashMap<>();
+        paramValues.put(HumanTaskBuilder.TASK_NAME_KEY, taskNameValue.isEmpty() ? null : taskNameValue);
+        paramValues.put(HumanTaskBuilder.USER_ROLES_KEY, userRolesValue.isEmpty() ? null : userRolesValue);
+        paramValues.put(HumanTaskBuilder.TASK_INPUT_KEY, taskInputValue);
+        paramValues.put(HumanTaskBuilder.TITLE_KEY, titleValue);
+        paramValues.put(HumanTaskBuilder.DESCRIPTION_KEY, descValue);
+        paramValues.put(HumanTaskBuilder.TIMEOUT_KEY, timeoutValue);
+        return paramValues;
     }
 
     /**
@@ -2253,29 +2380,41 @@ public class CodeAnalyzer extends NodeVisitor {
         RetryPolicyForm form = normalizeRetryPolicy(rawValue);
         ActivityCallBuilder.addRetryPolicyFormProperties(nodeBuilder, form.dropdownValue(),
                 form.maxRetries(), form.retryDelay(), form.retryBackoff(), form.maxRetryDelay(),
-                form.retryUserRoles());
+                form.review());
     }
 
     // The retry-policy form's decomposition of a raw retryPolicy source value: the dropdown
     // selection plus its sub-field values.
-    private record RetryPolicyForm(String dropdownValue, String maxRetries, String retryDelay,
-                                   String retryBackoff, String maxRetryDelay, String retryUserRoles) {
+    record RetryPolicyForm(String dropdownValue, String maxRetries, String retryDelay,
+                           String retryBackoff, String maxRetryDelay,
+                           ActivityCallBuilder.ReviewFormValues review) {
     }
 
-    private static RetryPolicyForm normalizeRetryPolicy(String rawValue) {
+    static RetryPolicyForm normalizeRetryPolicy(String rawValue) {
         String dropdownValue = ActivityCallBuilder.NO_RETRY_VALUE;
         String maxRetries = "", retryDelay = "", retryBackoff = "", maxRetryDelay = "";
-        String retryUserRoles = "";
+        ActivityCallBuilder.ReviewFormValues review = ActivityCallBuilder.ReviewFormValues.empty();
 
         if (rawValue != null && !rawValue.isBlank()) {
             String trimmed = rawValue.trim();
             if (trimmed.startsWith("{")) {
-                dropdownValue = ActivityCallBuilder.AUTO_RETRY_VALUE;
-                Map<String, String> fields = parseSimpleRecord(rawValue);
-                maxRetries = fields.getOrDefault(ActivityCallBuilder.MAX_RETRIES_KEY, "");
-                retryDelay = fields.getOrDefault(ActivityCallBuilder.RETRY_DELAY_KEY, "");
-                retryBackoff = fields.getOrDefault(ActivityCallBuilder.RETRY_BACKOFF_KEY, "");
-                maxRetryDelay = fields.getOrDefault(ActivityCallBuilder.MAX_RETRY_DELAY_KEY, "");
+                // Both policies are records; `userRoles` is what only a review has — the same
+                // rule the compiler plugin and the runtime apply.
+                Map<String, String> fields = WorkflowUtil.parseRecordLiteral(rawValue);
+                if (fields.containsKey(USER_ROLES_FIELD)) {
+                    dropdownValue = ActivityCallBuilder.MANUAL_RETRY_VALUE;
+                    review = new ActivityCallBuilder.ReviewFormValues(
+                            fields.getOrDefault(USER_ROLES_FIELD, ""),
+                            reviewText(fields.get("title")),
+                            reviewText(fields.get("description")),
+                            fields.getOrDefault("timeout", ""));
+                } else {
+                    dropdownValue = ActivityCallBuilder.AUTO_RETRY_VALUE;
+                    maxRetries = fields.getOrDefault(ActivityCallBuilder.MAX_RETRIES_KEY, "");
+                    retryDelay = fields.getOrDefault(ActivityCallBuilder.RETRY_DELAY_KEY, "");
+                    retryBackoff = fields.getOrDefault(ActivityCallBuilder.RETRY_BACKOFF_KEY, "");
+                    maxRetryDelay = fields.getOrDefault(ActivityCallBuilder.MAX_RETRY_DELAY_KEY, "");
+                }
             } else if (trimmed.equals("()")
                     || isRetryPolicySentinel(trimmed, "NoRetry", "NoAutomaticRetry")) {
                 dropdownValue = ActivityCallBuilder.NO_RETRY_VALUE;
@@ -2284,25 +2423,56 @@ public class CodeAnalyzer extends NodeVisitor {
                 // The sentinel forms of Human Review with no roles attached: any role may decide.
                 dropdownValue = ActivityCallBuilder.MANUAL_RETRY_VALUE;
             } else if (isRoleLiteral(trimmed)) {
-                // Human Review scoped to reviewer role(s): a string or a list of strings.
+                // Releases before the review record declared `HumanReview` as `string|string[]`,
+                // so a review scoped to reviewer role(s) reads as a bare string or list of
+                // strings. Still read, so a program written against them opens in the form; the
+                // form itself writes the record.
                 dropdownValue = ActivityCallBuilder.MANUAL_RETRY_VALUE;
-                retryUserRoles = trimmed;
+                review = ActivityCallBuilder.ReviewFormValues.ofRoles(trimmed);
             } else {
                 // Any other expression — a const, variable or call producing the policy — is not a
                 // shape the form can edit. Carry it as the dropdown value so it round-trips
-                // verbatim instead of being read as reviewer roles and re-emitted as a string.
+                // verbatim instead of being reinterpreted and re-emitted as something else.
                 dropdownValue = trimmed;
             }
         }
         return new RetryPolicyForm(dropdownValue, maxRetries, retryDelay, retryBackoff,
-                maxRetryDelay, retryUserRoles);
+                maxRetryDelay, review);
     }
 
     // Whether the retryPolicy source is a literal reviewer role (a string) or role list, the two
-    // shapes the Human Review form field edits.
+    // shapes a `string|string[]` HumanReview takes.
     private static boolean isRoleLiteral(String expression) {
         return (expression.startsWith("\"") && expression.endsWith("\""))
                 || (expression.startsWith("[") && expression.endsWith("]"));
+    }
+
+    /** The field that tells a record-shaped review from an AutoRetry. */
+    private static final String USER_ROLES_FIELD = "userRoles";
+
+    /**
+     * A review's title or description as the form holds it, and in which mode.
+     *
+     * <p>A string literal is shown as the text it denotes: the quotes and the escapes belong to the
+     * source, not to the value. {@link WorkflowUtil#stringLiteralText} is the one inverse of the
+     * encoder the form writes with ({@link WorkflowUtil#stringLiteral}), so a title carrying a quote
+     * or a line break survives a read and a save unchanged instead of gaining a backslash on each
+     * edit.
+     *
+     * <p>Decoding is also what settles the mode, since that method returns anything which is not a
+     * string literal unchanged: a value it altered was a literal — text mode — and one it left alone
+     * is the form's own source. Recording that here is the only chance to; once the quotes are off,
+     * {@code reviewTitle} could equally be a literal's text or a variable of that name.
+     */
+    private static ActivityCallBuilder.ReviewText reviewText(String literal) {
+        if (literal == null || literal.isBlank()) {
+            return ActivityCallBuilder.ReviewText.empty();
+        }
+        String source = literal.trim();
+        String text = WorkflowUtil.stringLiteralText(source);
+        return text.equals(source)
+                ? ActivityCallBuilder.ReviewText.expression(source)
+                : ActivityCallBuilder.ReviewText.text(text);
     }
 
     // Whether the expression IS one of the named policy sentinels, bare or module-qualified.
@@ -2317,83 +2487,6 @@ public class CodeAnalyzer extends NodeVisitor {
             }
         }
         return false;
-    }
-
-    /**
-     * Parses a simple Ballerina record literal {@code {key: value, ...}} into a string map.
-     * The split is nesting- and string-aware, so values containing commas or colons — a nested
-     * record, a call {@code f(1, 2)}, a string {@code "a,b"} — parse whole rather than being
-     * cut at the first delimiter.
-     */
-    private static Map<String, String> parseSimpleRecord(String recordLiteral) {
-        Map<String, String> result = new LinkedHashMap<>();
-        String inner = recordLiteral.trim();
-        if (inner.startsWith("{") && inner.endsWith("}")) {
-            inner = inner.substring(1, inner.length() - 1).trim();
-        }
-        for (String part : splitTopLevel(inner)) {
-            int colon = topLevelColonIndex(part);
-            if (colon > 0) {
-                result.put(part.substring(0, colon).trim(), part.substring(colon + 1).trim());
-            }
-        }
-        return result;
-    }
-
-    // Splits on commas that sit outside every bracket pair and string/template literal.
-    private static List<String> splitTopLevel(String source) {
-        List<String> parts = new ArrayList<>();
-        int start = 0;
-        for (int comma = topLevelIndexOf(source, ',', 0); comma >= 0; comma = topLevelIndexOf(source, ',', start)) {
-            parts.add(source.substring(start, comma));
-            start = comma + 1;
-        }
-        if (start < source.length()) {
-            parts.add(source.substring(start));
-        }
-        return parts;
-    }
-
-    private static int topLevelColonIndex(String part) {
-        return topLevelIndexOf(part, ':', 0);
-    }
-
-    // The first occurrence of the terminator at nesting depth zero — outside every bracket pair,
-    // string literal (escapes honoured) and template — from the given offset, or -1. The one
-    // scanner behind both the comma split and the key/value split.
-    private static int topLevelIndexOf(String source, char terminator, int from) {
-        int depth = 0;
-        boolean inString = false;
-        boolean inTemplate = false;
-        for (int i = from; i < source.length(); i++) {
-            char c = source.charAt(i);
-            if (inString) {
-                if (c == '\\') {
-                    i++;
-                } else if (c == '"') {
-                    inString = false;
-                }
-                continue;
-            }
-            if (inTemplate) {
-                if (c == '`') {
-                    inTemplate = false;
-                }
-                continue;
-            }
-            if (c == '"') {
-                inString = true;
-            } else if (c == '`') {
-                inTemplate = true;
-            } else if (c == '{' || c == '[' || c == '(') {
-                depth++;
-            } else if (c == '}' || c == ']' || c == ')') {
-                depth--;
-            } else if (c == terminator && depth == 0) {
-                return i;
-            }
-        }
-        return -1;
     }
 
     /** Rebuilds REST-specific form properties from source values, preserving template shapes. */
@@ -2437,9 +2530,9 @@ public class CodeAnalyzer extends NodeVisitor {
                 .stepOut().addProperty(RestActivityStrategy.METHOD_KEY);
 
         // path — TEXT/EXPRESSION; detect existing string-literal to set mode correctly
-        addDualTypePathProperty(src, RestActivityStrategy.PATH_KEY,
+        addDualTypeProperty(src, RestActivityStrategy.PATH_KEY,
                 "Path", "Resource path appended to the connection's base URL (e.g., \"/users/1\")",
-                "/users/1", false);
+                "/users/1", "string", DualTypeUse.OPTIONAL);
 
         // Hidden top-level message property — value store for method-driven dynamic sub-field.
         String message = src.getOrDefault(RestActivityStrategy.MESSAGE_KEY, "");
@@ -2473,10 +2566,10 @@ public class CodeAnalyzer extends NodeVisitor {
                 .stepOut().addProperty(SoapActivityStrategy.BODY_KEY);
 
         // action — dual TEXT/EXPRESSION (like path: detect string literals)
-        addDualTypePathProperty(src, SoapActivityStrategy.ACTION_KEY,
+        addDualTypeProperty(src, SoapActivityStrategy.ACTION_KEY,
                 "Action",
                 "SOAPAction header. Required for SOAP 1.1 endpoints; optional for SOAP 1.2.",
-                "http://tempuri.org/Add", true);
+                "http://tempuri.org/Add", "string", DualTypeUse.OPTIONAL_ADVANCED);
 
         // headers — advanced EXPRESSION
         String headers = src.getOrDefault(SoapActivityStrategy.HEADERS_KEY, "");
@@ -2488,21 +2581,26 @@ public class CodeAnalyzer extends NodeVisitor {
                 .stepOut().addProperty(SoapActivityStrategy.HEADERS_KEY);
 
         // path — TEXT/EXPRESSION, advanced
-        addDualTypePathProperty(src, SoapActivityStrategy.PATH_KEY,
+        addDualTypeProperty(src, SoapActivityStrategy.PATH_KEY,
                 "Path", "Optional resource path appended to the connection's base URL",
-                "", true);
+                "", "string", DualTypeUse.OPTIONAL_ADVANCED);
     }
 
     /** Rebuilds Email-specific form properties from source values, preserving template shapes. */
     private void populateEmailProperties(Map<String, String> src, Map<String, String> opts) {
-        addRequiredExpressionProperty(src, EmailActivityStrategy.TO_KEY,
-                "To", "Recipient email address (or list of addresses)", "string|string[]");
-        addRequiredExpressionProperty(src, EmailActivityStrategy.SUBJECT_KEY,
-                "Subject", "Email subject line", "string");
-        addRequiredExpressionProperty(src, EmailActivityStrategy.FROM_KEY,
-                "From", "Sender address", "string");
-        addRequiredExpressionProperty(src, EmailActivityStrategy.BODY_KEY,
-                "Body", "Plain-text body of the email", "string");
+        // to/subject/'from/body are TEXT/EXPRESSION dual-typed: a string literal (or an absent
+        // argument) reopens the form in text mode, anything else in expression mode. The order must
+        // match EmailActivityStrategy.setFormProperties — properties are kept in insertion order, so
+        // it is the order the form renders in.
+        addDualTypeProperty(src, EmailActivityStrategy.TO_KEY,
+                "To", "Recipient email address (or list of addresses)", "", "string|string[]",
+                DualTypeUse.REQUIRED);
+        addDualTypeProperty(src, EmailActivityStrategy.SUBJECT_KEY,
+                "Subject", "Email subject line", "", "string", DualTypeUse.REQUIRED);
+        addDualTypeProperty(src, EmailActivityStrategy.FROM_KEY,
+                "From", "Sender address", "", "string", DualTypeUse.REQUIRED);
+        addDualTypeProperty(src, EmailActivityStrategy.BODY_KEY,
+                "Body", "Plain-text body of the email", "", "string", DualTypeUse.REQUIRED);
 
         // EmailOptions fields — all optional, advanced
         addOptionalAdvancedExpression(opts, "cc",
@@ -2539,42 +2637,55 @@ public class CodeAnalyzer extends NodeVisitor {
                 .stepOut().addProperty(propKey);
     }
 
-    /**
-     * Adds a dual TEXT/EXPRESSION path-style property. The TEXT type is selected when the source
-     * value is a Ballerina double-quoted string literal; EXPRESSION otherwise.
-     *
-     * @param advanced {@code true} to mark the property as advanced (for SOAP path/action)
-     */
-    private void addDualTypePathProperty(Map<String, String> src, String key,
-                                          String label, String description,
-                                          String placeholder, boolean advanced) {
-        String value = src.getOrDefault(key, "");
-        boolean isStringLit = value.length() >= 2 && value.startsWith("\"") && value.endsWith("\"");
-        String displayValue = isStringLit ? value.substring(1, value.length() - 1) : value;
-
-        nodeBuilder.properties().custom()
-                .metadata().label(label).description(description).stepOut()
-                .type().fieldType(Property.ValueType.TEXT).ballerinaType("string")
-                    .selected(isStringLit).stepOut()
-                .type().fieldType(Property.ValueType.EXPRESSION).ballerinaType("string")
-                    .selected(!isStringLit).stepOut()
-                .value(displayValue).placeholder(placeholder)
-                .editable(true).optional(true).advanced(advanced)
-                .stepOut().addProperty(key);
+    /** How a dual TEXT/EXPRESSION property is exposed on the form. */
+    private enum DualTypeUse {
+        /** A REQUIRED parameter: always shown, never optional. */
+        REQUIRED,
+        /** An optional parameter, shown alongside the rest of the form. */
+        OPTIONAL,
+        /** An optional parameter kept behind the form's "advanced" disclosure. */
+        OPTIONAL_ADVANCED
     }
 
-    /** Adds a REQUIRED EXPRESSION property for simple string/string[] fields. */
-    private void addRequiredExpressionProperty(Map<String, String> src,
-                                                String key, String label,
-                                                String description, String ballerinaType) {
+    /**
+     * Adds a dual TEXT/EXPRESSION property. The TEXT type is selected when the source value is a
+     * Ballerina double-quoted string literal (the quotes are stripped for display), or when the
+     * argument is absent altogether; EXPRESSION otherwise. Mirrors the node template built by the
+     * builtin activity strategies, so a saved node reopens in the mode it was entered in and an
+     * untouched field opens in the same mode a fresh node would.
+     *
+     * @param expressionType the ballerinaType advertised by the EXPRESSION type (the TEXT type is
+     *                       always {@code string})
+     * @param use            how the form exposes the property
+     */
+    private void addDualTypeProperty(Map<String, String> src, String key, String label,
+                                     String description, String placeholder, String expressionType,
+                                     DualTypeUse use) {
         String value = src.getOrDefault(key, "");
-        nodeBuilder.properties().custom()
+        // The write side re-quotes on exactly this predicate (BuiltinActivityStrategy.addQuotedArg
+        // via isTextSelected), so sharing it is what keeps a read-save cycle a no-op.
+        boolean isStringLit = BuiltinActivityStrategy.isBallerinaStringExpression(value);
+        String displayValue = isStringLit ? value.substring(1, value.length() - 1) : value;
+        // An absent argument carries no evidence of the entry mode, so fall back to the strategies'
+        // template default (TEXT) rather than reopening the field in the expression editor.
+        boolean textSelected = isStringLit || value.isEmpty();
+
+        Property.Builder<FormBuilder<NodeBuilder>> builder = nodeBuilder.properties().custom()
                 .metadata().label(label).description(description).stepOut()
-                .type().fieldType(Property.ValueType.EXPRESSION)
-                    .ballerinaType(ballerinaType).selected(true).stepOut()
-                .codedata().kind(ParameterData.Kind.REQUIRED.name()).stepOut()
-                .value(value).editable(true)
-                .stepOut().addProperty(key);
+                .type().fieldType(Property.ValueType.TEXT).ballerinaType("string")
+                    .selected(textSelected).stepOut()
+                .type().fieldType(Property.ValueType.EXPRESSION).ballerinaType(expressionType)
+                    .selected(!textSelected).stepOut()
+                .value(displayValue).placeholder(placeholder)
+                .editable(true)
+                .optional(use != DualTypeUse.REQUIRED)
+                .advanced(use == DualTypeUse.OPTIONAL_ADVANCED);
+        if (use == DualTypeUse.REQUIRED) {
+            // codedata() caches the child builder on the parent and kind() sets the field, so the
+            // property is fully configured without stepping back out.
+            builder.codedata().kind(ParameterData.Kind.REQUIRED.name());
+        }
+        builder.stepOut().addProperty(key);
     }
 
     /**

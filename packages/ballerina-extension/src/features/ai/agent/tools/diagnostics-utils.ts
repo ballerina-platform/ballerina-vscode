@@ -1,17 +1,12 @@
-import { DiagnosticEntry, Diagnostics } from '@wso2/ballerina-core';
+import { Diagnostics } from '@wso2/ballerina-core';
 import { checkProjectDiagnostics, isModuleNotFoundDiagsExist as resolveModuleNotFoundDiagnostics, PACKAGE_COMPILATION_FAILED_PREFIX } from '../../../../rpc-managers/ai-panel/repair-utils';
 import { StateMachine } from '../../../../stateMachine';
-import * as path from 'path';
 import { Uri } from 'vscode';
+import { EnrichedDiagnostic, transformDiagnostics } from './diagnostic-hints';
+
+export type { EnrichedDiagnostic } from './diagnostic-hints';
 
 export const DIAGNOSTICS_TOOL_NAME = "getCompilationErrors";
-
-/**
- * Diagnostic entry enriched with resolving hints
- */
-export interface EnrichedDiagnostic extends DiagnosticEntry {
-    hint?: string;
-}
 
 /**
  * Result of diagnostic checking
@@ -21,57 +16,6 @@ export interface DiagnosticsCheckResult {
     message: string;
 }
 
-/**
- * Map of Ballerina diagnostic codes to resolving hints
- *
- * Each entry maps a diagnostic code (e.g., "BCE2000") to a helpful hint on how to resolve it.
- * These hints are shown alongside the diagnostic message to help developers fix issues quickly.
- *
- * TODO: Populate this map with actual Ballerina diagnostic codes and their corresponding hints.
- * Example structure:
- * {
- *   "BCE2000": "Add missing import statement for the module",
- *   "BCE2001": "Check variable type compatibility",
- *   "BCE2002": "Ensure function return type matches declaration",
- * }
- */
-const DIAGNOSTIC_HINTS: Record<string, string> = {
-    // Diagnostic code mappings to be populated
-    "BCE2000": "This usually indicates a missing import statement. Please ensure that all necessary modules are imported in each file where they are used.",
-};
-
-/**
- * Converts language server Diagnostics to EnrichedDiagnostic entries with hints
- * Filters for error-level diagnostics (severity === 1) only
- */
-function transformDiagnosticsToEnriched(diagnostics: Diagnostics[]): EnrichedDiagnostic[] {
-    const enrichedDiags: EnrichedDiagnostic[] = [];
-
-    for (const diagParam of diagnostics) {
-        for (const diag of diagParam.diagnostics) {
-            // Only include error-level diagnostics
-            if (diag.severity === 1) {
-                const fileName = path.basename(diagParam.uri);
-                const msgPrefix = `[${fileName}:${diag.range.start.line},${diag.range.start.character}:${diag.range.end.line},${diag.range.end.character}] `;
-
-                const diagnosticEntry: EnrichedDiagnostic = {
-                    code: diag.code.toString(),
-                    message: msgPrefix + diag.message
-                };
-
-                // Add hint if available for this diagnostic code
-                const hint = DIAGNOSTIC_HINTS[diag.code.toString()];
-                if (hint) {
-                    diagnosticEntry.hint = hint;
-                }
-
-                enrichedDiags.push(diagnosticEntry);
-            }
-        }
-    }
-
-    return enrichedDiags;
-}
 
 /**
  * Checks the Ballerina package for compilation errors using the language server
@@ -110,7 +54,7 @@ export async function checkCompilationErrors(
             // `ballerinax/.config` — omitting "client". As a workaround, we detect this and
             // instruct the agent to use the correct quoted form `import ballerinax/'client.config;`
             // instead of attempting to resolve the dependency automatically.
-            const enrichedDiagnosticsTry = transformDiagnosticsToEnriched(diagnostics);
+            const enrichedDiagnosticsTry = transformDiagnostics(diagnostics);
             const hasInvalidClientModuleImport = enrichedDiagnosticsTry.some(
                 d => d.code === "BCE2003" && d.message.includes("ballerinax/.config")
             );
@@ -142,7 +86,7 @@ export async function checkCompilationErrors(
         }
 
         // Transform and enrich diagnostics with hints
-        const enrichedDiagnostics = transformDiagnosticsToEnriched(diagnostics);
+        const enrichedDiagnostics = transformDiagnostics(diagnostics);
 
         const errorCount = enrichedDiagnostics.length;
         console.log(`[DiagnosticsUtils] Found ${errorCount} compilation error(s).`);

@@ -28,7 +28,7 @@ import Badge from "./ChatBadge";
 import ballerina from "../../../languages/ballerina.js";
 import { SYSTEM_BADGE_SECRET, SYSTEM_ERROR_SECRET } from "./AIChatInput/constants";
 import ErrorBox from "./ErrorBox";
-import { ColorThemeKind } from "@wso2/ballerina-core";
+import { ColorThemeKind, isLightTheme } from "@wso2/ballerina-core";
 
 // Register custom languages with highlight.js
 hljs.registerLanguage("yaml", yaml);
@@ -150,11 +150,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ markdownContent }) 
         /**
          * The theme class VS Code puts on `document.body`, as "light" or "dark".
          */
-        const resolveThemeFromBodyClass = (): string =>
-            document.body.classList.contains("vscode-light") ||
-            document.body.classList.contains("vscode-high-contrast-light")
-                ? "light"
-                : "dark";
+        const resolveThemeFromBodyClass = (): string => (isLightTheme() ? "light" : "dark");
 
         /**
          * The current theme, as "light" or "dark".

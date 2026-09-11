@@ -78,6 +78,7 @@ import io.ballerina.tools.text.TextRange;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -792,7 +793,270 @@ public class WorkflowUtil {
                 || trimmed.startsWith("string `") || trimmed.startsWith("[")) {
             return trimmed;
         }
-        return "\"" + trimmed.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
+        return stringLiteral(trimmed);
+    }
+
+    /**
+     * The Ballerina string literal for a plain text value: quoted, with every character the
+     * literal syntax would otherwise interpret escaped — the backslash and quote, and the line
+     * break, tab and carriage return, which a bare {@code "..."} literal cannot carry.
+     *
+     * @param text the value as the form holds it
+     * @return the literal source, quotes included
+     */
+    public static String stringLiteral(String text) {
+        StringBuilder out = new StringBuilder(text.length() + 2).append('"');
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            switch (c) {
+                case '\\' -> out.append("\\\\");
+                case '"' -> out.append("\\\"");
+                case '\n' -> out.append("\\n");
+                case '\t' -> out.append("\\t");
+                case '\r' -> out.append("\\r");
+                default -> out.append(c);
+            }
+        }
+        return out.append('"').toString();
+    }
+
+    /**
+     * A correlation name — a data event, an agent channel — as a string literal. The name has to be
+     * a literal even when the form submits the bare word, so a value that is not already one is
+     * encoded with {@link #stringLiteral}: one encoder, so a name carrying a line break cannot
+     * produce a literal that ends before its closing quote.
+     *
+     * @param value the raw form value
+     * @return the name as a Ballerina string literal
+     */
+    public static String eventNameLiteral(String value) {
+        String trimmed = value == null ? "" : value.trim();
+        // Already a string literal: needs a distinct pair of quotes (a lone quote does not qualify).
+        return trimmed.length() >= 2 && trimmed.startsWith("\"") && trimmed.endsWith("\"")
+                ? trimmed : stringLiteral(trimmed);
+    }
+
+    /**
+     * The plain text a string literal carries — the inverse of {@link #stringLiteral}. The quotes
+     * are dropped and every escape the literal syntax defines is decoded, so a title written
+     * {@code "He said \"hi\""} reaches the form as {@code He said "hi"} and encoding it again
+     * reproduces the source it came from. Stripping the quotes alone would leave the escapes in the
+     * value, and the re-encode would escape those, so the text gained a backslash on every save.
+     *
+     * <p>Anything that is not one string literal — a variable reference, a template, a concatenation
+     * that merely begins and ends with a quote — is returned as written: the form holds those as
+     * source. An escape the syntax does not define is left as written for the same reason.
+     *
+     * @param literal the source of a string-literal expression
+     * @return the text it denotes, or the expression unchanged when it is not a string literal
+     */
+    public static String stringLiteralText(String literal) {
+        if (literal == null) {
+            return "";
+        }
+        String trimmed = literal.trim();
+        if (trimmed.length() < 2 || !trimmed.startsWith("\"") || !trimmed.endsWith("\"")) {
+            return trimmed;
+        }
+        String body = trimmed.substring(1, trimmed.length() - 1);
+        StringBuilder text = new StringBuilder(body.length());
+        for (int i = 0; i < body.length(); i++) {
+            char current = body.charAt(i);
+            if (current == '"') {
+                // The quotes are not this expression's own: it is not a single string literal.
+                return trimmed;
+            }
+            if (current != '\\' || i + 1 == body.length()) {
+                text.append(current);
+                continue;
+            }
+            int consumed = appendEscaped(body, i, text);
+            if (consumed == 0) {
+                text.append(current);
+            } else {
+                i += consumed;
+            }
+        }
+        return text.toString();
+    }
+
+    /**
+     * Decodes the escape at {@code start} (the backslash) into {@code text}.
+     *
+     * @return the number of characters consumed after the backslash, or 0 when the escape is not one
+     *         the literal syntax defines and must stay as written
+     */
+    private static int appendEscaped(String body, int start, StringBuilder text) {
+        char escaped = body.charAt(start + 1);
+        switch (escaped) {
+            case '\\', '"' -> text.append(escaped);
+            case 'n' -> text.append('\n');
+            case 't' -> text.append('\t');
+            case 'r' -> text.append('\r');
+            case 'u' -> {
+                // A numeric escape. Decoded because the re-encode cannot reproduce the escape, only
+                // the character it names — left as written, its backslash is escaped on save.
+                int close = start + 2 < body.length() && body.charAt(start + 2) == '{'
+                        ? body.indexOf('}', start + 3) : -1;
+                if (close < 0) {
+                    return 0;
+                }
+                try {
+                    int codePoint = Integer.parseInt(body.substring(start + 3, close), 16);
+                    // A lone surrogate is no character to hold in the form, and the literal syntax
+                    // does not name one either: leave it as written.
+                    if (!Character.isValidCodePoint(codePoint)
+                            || Character.getType(codePoint) == Character.SURROGATE) {
+                        return 0;
+                    }
+                    text.appendCodePoint(codePoint);
+                } catch (NumberFormatException e) {
+                    return 0;
+                }
+                return close - start;
+            }
+            default -> {
+                return 0;
+            }
+        }
+        return 1;
+    }
+
+    /**
+     * Splits a record literal {@code {key: value, ...}} into its top-level fields, each value kept
+     * as source. Only commas and colons at the literal's own level separate anything: a comma
+     * inside a nested list or record ({@code userRoles: ["finance", "manager"]},
+     * {@code timeout: {hours: 4, minutes: 30}}), a string literal ({@code title: "Approve, please"})
+     * or a template ({@code string `...`}) belongs to the value it sits in, and an escaped quote
+     * does not end the string it is in.
+     *
+     * <p>Keys are returned unquoted. Anything that is not {@code key: value} at the top level is
+     * skipped rather than guessed at. Line comments are dropped first: a comma or colon in a
+     * {@code // note} is prose, not syntax, and a comment written above a field must not become
+     * part of its key.
+     *
+     * @param recordLiteral the record literal source, braces optional
+     * @return the fields in source order
+     */
+    public static Map<String, String> parseRecordLiteral(String recordLiteral) {
+        Map<String, String> result = new LinkedHashMap<>();
+        String inner = stripLineComments(recordLiteral).trim();
+        if (inner.startsWith("{") && inner.endsWith("}")) {
+            inner = inner.substring(1, inner.length() - 1);
+        }
+        for (String part : splitTopLevel(inner)) {
+            int colon = topLevelIndexOf(part, ':');
+            if (colon <= 0) {
+                continue;
+            }
+            String key = part.substring(0, colon).trim();
+            if (key.length() >= 2 && key.startsWith("\"") && key.endsWith("\"")) {
+                key = key.substring(1, key.length() - 1);
+            }
+            if (!key.isEmpty()) {
+                result.put(key, part.substring(colon + 1).trim());
+            }
+        }
+        return result;
+    }
+
+    // The text without its `//` line comments. A `//` inside a string literal or a template is
+    // content and stays; the line break that ends a comment stays too, so the fields on either
+    // side of it keep their separation.
+    static String stripLineComments(String text) {
+        StringBuilder out = new StringBuilder(text.length());
+        char quote = 0;
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (quote != 0) {
+                if (c == '\\' && quote == '"' && i + 1 < text.length()) {
+                    out.append(c).append(text.charAt(++i));
+                    continue;
+                }
+                if (c == quote) {
+                    quote = 0;
+                }
+                out.append(c);
+                continue;
+            }
+            if (c == '"' || c == '`') {
+                quote = c;
+            } else if (c == '/' && i + 1 < text.length() && text.charAt(i + 1) == '/') {
+                int lineEnd = text.indexOf('\n', i);
+                if (lineEnd < 0) {
+                    break;
+                }
+                i = lineEnd - 1;
+                continue;
+            }
+            out.append(c);
+        }
+        return out.toString();
+    }
+
+    // The comma-separated pieces of a literal's interior, splitting only where a comma is not
+    // inside brackets, braces, parentheses, a string or a template.
+    private static List<String> splitTopLevel(String text) {
+        List<String> parts = new ArrayList<>();
+        int start = 0;
+        for (int comma : topLevelPositions(text, ',', false)) {
+            parts.add(text.substring(start, comma));
+            start = comma + 1;
+        }
+        if (start < text.length() || !parts.isEmpty()) {
+            parts.add(text.substring(start));
+        }
+        return parts;
+    }
+
+    // The first occurrence of the character outside any nesting, string or template, or -1.
+    private static int topLevelIndexOf(String text, char target) {
+        List<Integer> positions = topLevelPositions(text, target, true);
+        return positions.isEmpty() ? -1 : positions.get(0);
+    }
+
+    /**
+     * The positions of {@code target} at the text's own level — outside every bracket pair, string
+     * literal (an escaped quote does not end one) and template.
+     *
+     * <p>The one scanner behind both readers of a record literal: the field split takes every
+     * top-level comma and the key/value cut the first top-level colon, so the two cannot disagree
+     * about what counts as nested. A character that opens or closes nesting is never reported as the
+     * target — it is the nesting.
+     *
+     * @param text      the literal's interior
+     * @param target    the character to find
+     * @param firstOnly stop at the first occurrence
+     */
+    private static List<Integer> topLevelPositions(String text, char target, boolean firstOnly) {
+        List<Integer> positions = new ArrayList<>();
+        int depth = 0;
+        char quote = 0;
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (quote != 0) {
+                if (c == '\\' && quote == '"') {
+                    i++;
+                } else if (c == quote) {
+                    quote = 0;
+                }
+                continue;
+            }
+            switch (c) {
+                case '"', '`' -> quote = c;
+                case '[', '{', '(' -> depth++;
+                case ']', '}', ')' -> depth--;
+                default -> {
+                    if (c == target && depth == 0) {
+                        positions.add(i);
+                        if (firstOnly) {
+                            return positions;
+                        }
+                    }
+                }
+            }
+        }
+        return positions;
     }
 
     // Characters that cannot occur in a bare role name but do occur in references and calls.
@@ -905,8 +1169,17 @@ public class WorkflowUtil {
         return quoteIfBareRole(source);
     }
 
-    private static boolean isExpressionModeSelected(Property property) {
-        return property.types() != null && property.types().stream()
+    /**
+     * Whether the property's selected mode is EXPRESSION — meaning its value is source to be
+     * written through untouched, not text to be quoted. The review title and description ask this
+     * for the same reason the roles field does: once a string literal is decoded, its text is
+     * indistinguishable from an expression naming a variable.
+     *
+     * @param property the property, or {@code null}
+     * @return {@code true} when an EXPRESSION type is present and selected
+     */
+    public static boolean isExpressionModeSelected(Property property) {
+        return property != null && property.types() != null && property.types().stream()
                 .anyMatch(type -> type.fieldType() == Property.ValueType.EXPRESSION && type.selected());
     }
 

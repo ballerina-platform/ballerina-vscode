@@ -92,7 +92,7 @@
                   }
                 ],
                 "enabled": false,
-                "editable": false,
+                "editable": true,
                 "optional": false,
                 "advanced": false
               },
@@ -171,7 +171,7 @@
                   }
                 ],
                 "enabled": false,
-                "editable": false,
+                "editable": true,
                 "optional": false,
                 "advanced": false
               },
@@ -460,7 +460,7 @@
                   }
                 ],
                 "enabled": false,
-                "editable": false,
+                "editable": true,
                 "optional": false,
                 "advanced": false
               },
@@ -486,7 +486,7 @@
             "type": "LISTENER_INIT_PARAM",
             "originalName": "keyDeserializerType"
           },
-          "placeholder": "\"DES_AVRO\"",
+          "placeholder": "\"DES_BYTE_ARRAY\"",
           "value": "",
           "types": [
             {
@@ -494,12 +494,12 @@
               "ballerinaType": "kafka:DeserializerType",
               "options": [
                 {
-                  "label": "DES_AVRO",
-                  "value": "\"DES_AVRO\""
-                },
-                {
                   "label": "DES_BYTE_ARRAY",
                   "value": "\"DES_BYTE_ARRAY\""
+                },
+                {
+                  "label": "DES_AVRO",
+                  "value": "\"DES_AVRO\""
                 }
               ],
               "selected": true
@@ -524,7 +524,7 @@
             "type": "LISTENER_INIT_PARAM",
             "originalName": "valueDeserializerType"
           },
-          "placeholder": "\"DES_AVRO\"",
+          "placeholder": "\"DES_BYTE_ARRAY\"",
           "value": "",
           "types": [
             {
@@ -532,12 +532,12 @@
               "ballerinaType": "kafka:DeserializerType",
               "options": [
                 {
-                  "label": "DES_AVRO",
-                  "value": "\"DES_AVRO\""
-                },
-                {
                   "label": "DES_BYTE_ARRAY",
                   "value": "\"DES_BYTE_ARRAY\""
+                },
+                {
+                  "label": "DES_AVRO",
+                  "value": "\"DES_AVRO\""
                 }
               ],
               "selected": true
@@ -582,7 +582,7 @@
                   }
                 ],
                 "enabled": false,
-                "editable": false,
+                "editable": true,
                 "optional": false,
                 "advanced": false
               },

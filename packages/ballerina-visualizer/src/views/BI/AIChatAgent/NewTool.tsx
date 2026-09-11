@@ -18,7 +18,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import styled from "@emotion/styled";
-import { EVENT_TYPE, FlowNode, Property } from "@wso2/ballerina-core";
+import { FlowNode, Property } from "@wso2/ballerina-core";
 import { Button } from "@wso2/ui-toolkit";
 import { NodePosition } from "@wso2/syntax-tree";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
@@ -92,34 +92,9 @@ export function NewTool(props: NewToolProps): JSX.Element {
                 segments: [updatedAgentNode.codedata.lineRange.fileName],
             });
             await rpcClient.getBIDiagramRpcClient().getSourceCode({ filePath: agentFile, flowNode: updatedAgentNode });
+            await rpcClient.getAIAgentRpcClient().fixMissingImports();
 
-            // Fetch the newly created function to get its source position
-            const agentsFileName = "agents.bal";
-            const { filePath: agentsFilePath } = await rpcClient.getVisualizerRpcClient().joinProjectPath({
-                segments: [agentsFileName],
-            });
-            const functionNodeResponse = await rpcClient.getBIDiagramRpcClient().getFunctionNode({
-                functionName,
-                fileName: agentsFileName,
-                projectPath: projectPath.current,
-            });
-            const linePosition = functionNodeResponse?.functionDefinition?.codedata?.lineRange?.startLine;
-
-            // Close the panel and navigate to the function's flow diagram
-            onSave?.();
-            if (!linePosition) {
-                // openView falls back to the overview without a position
-                console.error("Could not resolve the position of the created tool", { functionName });
-                return;
-            }
-            const position: NodePosition = {
-                startLine: linePosition.line,
-                startColumn: linePosition.offset,
-            };
-            rpcClient.getVisualizerRpcClient().openView({
-                type: EVENT_TYPE.OPEN_VIEW,
-                location: { documentUri: agentsFilePath, position },
-            });
+            onSave?.(await resolveAgentNodePosition(updatedAgentNode, rpcClient));
         } catch (error) {
             console.error("Error handling custom agent tool creation", { error });
         }

@@ -860,16 +860,16 @@
                 "fieldType": "SINGLE_SELECT",
                 "options": [
                   {
-                    "label": "2.0",
-                    "value": "\"2.0\""
+                    "label": "HTTP_1_0",
+                    "value": "\"1.0\""
                   },
                   {
-                    "label": "1.1",
+                    "label": "HTTP_1_1",
                     "value": "\"1.1\""
                   },
                   {
-                    "label": "1.0",
-                    "value": "\"1.0\""
+                    "label": "HTTP_2_0",
+                    "value": "\"2.0\""
                   }
                 ],
                 "selected": false

@@ -869,12 +869,12 @@
                 "fieldType": "SINGLE_SELECT",
                 "options": [
                   {
-                    "label": "SER_AVRO",
-                    "value": "\"SER_AVRO\""
-                  },
-                  {
                     "label": "SER_BYTE_ARRAY",
                     "value": "\"SER_BYTE_ARRAY\""
+                  },
+                  {
+                    "label": "SER_AVRO",
+                    "value": "\"SER_AVRO\""
                   }
                 ],
                 "selected": false
@@ -906,12 +906,12 @@
                 "fieldType": "SINGLE_SELECT",
                 "options": [
                   {
-                    "label": "SER_AVRO",
-                    "value": "\"SER_AVRO\""
-                  },
-                  {
                     "label": "SER_BYTE_ARRAY",
                     "value": "\"SER_BYTE_ARRAY\""
+                  },
+                  {
+                    "label": "SER_AVRO",
+                    "value": "\"SER_AVRO\""
                   }
                 ],
                 "selected": false

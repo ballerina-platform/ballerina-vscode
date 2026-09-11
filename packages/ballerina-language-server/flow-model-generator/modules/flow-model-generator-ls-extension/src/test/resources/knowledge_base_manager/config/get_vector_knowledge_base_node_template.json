@@ -117,12 +117,26 @@
           },
           "types": [
             {
+              "fieldType": "SINGLE_SELECT",
+              "options": [
+                {
+                  "label": "AUTO",
+                  "value": "\"AUTO\""
+                },
+                {
+                  "label": "DISABLE",
+                  "value": "\"DISABLE\""
+                }
+              ],
+              "selected": false
+            },
+            {
               "fieldType": "EXPRESSION",
               "ballerinaType": "ai:Chunker|\"AUTO\"|\"DISABLE\"",
               "selected": false
             }
           ],
-          "placeholder": "object {}",
+          "placeholder": "\"AUTO\"",
           "optional": true,
           "editable": true,
           "advanced": false,

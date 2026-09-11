@@ -697,13 +697,16 @@ function WorkflowManagement({ enabled, handleWorkflowManagement }: WorkflowManag
         <div>
             <Title variant="h3">Workflow</Title>
             <p>
-                {"Manage long-running workflows in this integration, including human tasks, activities, and execution state."}
+                {"Expose the workflow management REST API from this integration — to list, inspect and act on "
+                    + "workflow instances, human tasks and reviews. Enabling it imports "
+                    + "ballerina/workflow.management.rest in main.bal; the API's port, TLS and CORS settings "
+                    + "are configured in the configuration editor."}
             </p>
             <div style={{ paddingLeft: 10 }}>
                 <CheckBox
                     checked={enabled}
                     onChange={handleWorkflowManagement}
-                    label="Enable Workflow Management"
+                    label="Enable Workflow Management REST API"
                 />
             </div>
         </div>
@@ -1091,22 +1094,12 @@ export function PackageOverview(props: PackageOverviewProps) {
         });
     };
 
-    const refreshWorkflowManagementState = () => {
-        rpcClient.getWorkflowManagementRpcClient().isWorkflowManagementEnabled({ projectPath })
-            .then((res) => setWorkflowMgmtEnabled(res.enabled));
-    };
-
     const handleICP = (icpEnabled: boolean) => {
         // Update the checkbox state optimistically so it doesn't flicker while the RPC is in flight.
         setEnableICP(icpEnabled);
         if (icpEnabled) {
             rpcClient.getICPRpcClient().addICP({ projectPath: '' })
-                .then(() => {
-                    setEnableICP(true);
-                    // Enabling ICP may auto-enable Workflow Management (when the integration has
-                    // workflow functions), so re-sync that checkbox from the language server.
-                    refreshWorkflowManagementState();
-                })
+                .then(() => setEnableICP(true))
                 .catch(() => setEnableICP(false));
         } else {
             rpcClient.getICPRpcClient().disableICP({ projectPath: '' })

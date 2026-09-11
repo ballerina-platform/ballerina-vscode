@@ -97,14 +97,15 @@
         "advanced": false,
         "hidden": false,
         "codedata": {
-          "kind": "REQUIRED",
+          "kind": "INCLUDED_FIELD",
           "originalName": "userRoles"
-        }
+        },
+        "defaultValue": "\"\""
       },
-      "payload": {
+      "taskInput": {
         "metadata": {
-          "label": "Payload",
-          "description": "Read-only JSON object shown alongside the form"
+          "label": "Task Input",
+          "description": "Read-only JSON object shown alongside the form. Required — a task with nothing to show says so with {}, and the runtime checks this against the task's taskInputType"
         },
         "types": [
           {
@@ -132,15 +133,14 @@
           }
         ],
         "placeholder": "{}",
-        "optional": true,
+        "optional": false,
         "editable": true,
         "advanced": false,
         "hidden": false,
         "codedata": {
-          "kind": "DEFAULTABLE",
-          "originalName": "payload"
-        },
-        "defaultValue": "{}"
+          "kind": "REQUIRED",
+          "originalName": "taskInput"
+        }
       },
       "title": {
         "metadata": {
@@ -165,7 +165,7 @@
         "advanced": false,
         "hidden": false,
         "codedata": {
-          "kind": "DEFAULTABLE",
+          "kind": "INCLUDED_FIELD",
           "originalName": "title"
         },
         "defaultValue": "()"
@@ -193,7 +193,7 @@
         "advanced": false,
         "hidden": false,
         "codedata": {
-          "kind": "DEFAULTABLE",
+          "kind": "INCLUDED_FIELD",
           "originalName": "description"
         },
         "defaultValue": "()"
@@ -210,7 +210,7 @@
             "typeMembers": [
               {
                 "type": "Duration",
-                "packageInfo": "ballerina:workflow:0.8.3",
+                "packageInfo": "ballerina:workflow:0.9.0",
                 "packageName": "workflow",
                 "kind": "RECORD_TYPE",
                 "selected": false
@@ -230,7 +230,7 @@
         "advanced": false,
         "hidden": false,
         "codedata": {
-          "kind": "DEFAULTABLE",
+          "kind": "INCLUDED_FIELD",
           "originalName": "timeout"
         },
         "defaultValue": "()"
@@ -256,6 +256,80 @@
         "codedata": {
           "kind": "PARAM_FOR_TYPE_INFER",
           "originalName": "databindingType"
+        },
+        "defaultValue": "anydata"
+      },
+      "stepId": {
+        "metadata": {
+          "label": "Step Id",
+          "description": "Identity of this step within the workflow, as for `callActivity`: name it\nto follow this task across edits, or omit it for a generated\n`<taskName>#<ordinal>`"
+        },
+        "types": [
+          {
+            "fieldType": "TEXT",
+            "ballerinaType": "string",
+            "selected": false
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string?",
+            "selected": false
+          }
+        ],
+        "placeholder": "()",
+        "optional": true,
+        "editable": false,
+        "advanced": false,
+        "hidden": true,
+        "codedata": {
+          "kind": "DEFAULTABLE",
+          "originalName": "stepId"
+        },
+        "defaultValue": "()"
+      },
+      "taskInputType": {
+        "metadata": {
+          "label": "Task Input Type",
+          "description": "Shape of the input shown to the decider"
+        },
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "typedesc<map<json>>",
+            "selected": false
+          }
+        ],
+        "placeholder": "",
+        "optional": true,
+        "editable": false,
+        "advanced": false,
+        "hidden": true,
+        "codedata": {
+          "kind": "INCLUDED_FIELD",
+          "originalName": "taskInputType"
+        },
+        "defaultValue": "JsonObject"
+      },
+      "resultType": {
+        "metadata": {
+          "label": "Result Type",
+          "description": "Shape of the answer. A workflow states this as `awaitHumanTask`'s `T`\ninstead; an agent declares it here"
+        },
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "typedesc<anydata>",
+            "selected": false
+          }
+        ],
+        "placeholder": "",
+        "optional": true,
+        "editable": false,
+        "advanced": false,
+        "hidden": true,
+        "codedata": {
+          "kind": "INCLUDED_FIELD",
+          "originalName": "resultType"
         },
         "defaultValue": "anydata"
       },
