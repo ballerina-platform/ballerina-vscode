@@ -50,11 +50,15 @@ function mcpToolKitSimpleClassName(tool: ToolData): string | undefined {
     return tool.type === "MCP Server" ? tool.className?.split(":").pop() : undefined;
 }
 
+function simpleClassName(name: string): string {
+    return name.split(":").pop() ?? name;
+}
+
 // MCP tools trace by toolkit class name, not tool.name (which is the toolkit variable name, never seen in a trace).
 export function isToolTraceActive(tool: ToolData, activeToolNames: string[], activeToolKitNames: string[]): boolean {
     const mcpClassName = mcpToolKitSimpleClassName(tool);
     if (mcpClassName) {
-        return activeToolKitNames.some(name => name?.includes(mcpClassName));
+        return activeToolKitNames.some(name => name !== undefined && simpleClassName(name) === mcpClassName);
     }
     return activeToolNames.includes(tool.name);
 }
@@ -68,8 +72,6 @@ export function toolEntryMatchesTools(entry: { toolName?: string; toolKitName?: 
     if (!toolKitName) {
         return false;
     }
-    return tools.some(t => {
-        const mcpClassName = mcpToolKitSimpleClassName(t);
-        return Boolean(mcpClassName) && toolKitName.includes(mcpClassName);
-    });
+    const traceClassName = simpleClassName(toolKitName);
+    return tools.some(t => mcpToolKitSimpleClassName(t) === traceClassName);
 }
