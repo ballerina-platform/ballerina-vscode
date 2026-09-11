@@ -157,13 +157,9 @@ export const getPlatformStsToken = async (): Promise<string | undefined> => {
             return undefined;
         }
         if (api.isLoggedIn()) {
-            try {
-                const region = api.getAuthState()?.region;
-                if (region) {
-                    setBackendRegion(region.toLowerCase());
-                }
-            } catch {
-                /* keep default region */
+            const region = api.getAuthState()?.region;
+            if (region && !setBackendRegion(region.toLowerCase())) {
+                throw new Error(`No backend URL configured for region '${region}'. Rebuild the extension to pick up regional backend URLs from .env.`);
             }
         }
         return await api.getStsToken();

@@ -493,7 +493,12 @@ const completeSsoSignIn = async (): Promise<void> => {
         throw new Error('Failed to get STS token from platform extension');
     }
     const secrets = await exchangeStsToCopilotToken(stsToken);
-    await storeAuthCredentials({ loginMethod: LoginMethod.BI_INTEL, secrets });
+    const api = await getPlatformExtensionAPI();
+    const region = api?.getAuthState()?.region?.trim().toLowerCase();
+    await storeAuthCredentials({
+        loginMethod: LoginMethod.BI_INTEL,
+        secrets: { ...secrets, ...(region && { region }) }
+    });
     aiStateService.send(AIMachineEventType.COMPLETE_AUTH);
 };
 
