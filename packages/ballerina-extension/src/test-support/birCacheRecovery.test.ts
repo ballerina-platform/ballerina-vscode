@@ -39,11 +39,18 @@ import * as os from "os";
 import * as path from "path";
 import * as fs from "fs/promises";
 import { loadFixtures } from "@wso2/test-config/fixtures";
+
+// The full @wso2/ballerina-core barrel drags in ESM LS-connection code jest can't transform, so mock
+// the one constant bir-cache-recovery imports (matches how other test-support suites mock this package).
+jest.mock("@wso2/ballerina-core", () => ({
+    PRODUCT_INTEGRATOR_ISSUES_URL: "https://github.com/wso2/product-integrator/issues",
+}));
 import {
     CorruptPackage,
     isValidPackage,
     resolvePackageCacheDirs,
     clearPackageBirCache,
+    buildCorruptBirIssueUrl,
 } from "../utils/bir-cache-recovery";
 
 describe("isValidPackage", () => {
@@ -160,5 +167,42 @@ describe("clearPackageBirCache — symlink containment", () => {
             await fs.rm(home, { recursive: true, force: true });
             await fs.rm(outside, { recursive: true, force: true });
         }
+    });
+});
+
+describe("buildCorruptBirIssueUrl", () => {
+    const decodeBody = (url: string): string => {
+        const body = new URL(url).searchParams.get("body");
+        return body ?? "";
+    };
+
+    it("targets the prefilled new-issue form with the coordinate in title and body", () => {
+        const url = buildCorruptBirIssueUrl(
+            { distVersion: "2201.13.0", stackTrace: "at foo.bar(Foo.java:1)" },
+            "ballerina/ai.observe:1.14.1"
+        );
+        expect(url.startsWith("https://github.com/wso2/product-integrator/issues/new?")).toBe(true);
+
+        const parsed = new URL(url);
+        expect(parsed.searchParams.get("title")).toBe("Corrupt BIR cache: ballerina/ai.observe:1.14.1");
+
+        const body = decodeBody(url);
+        expect(body).toContain("ballerina/ai.observe:1.14.1");
+        expect(body).toContain("2201.13.0");
+        expect(body).toContain("at foo.bar(Foo.java:1)");
+    });
+
+    it("stays usable without a coordinate or stack trace", () => {
+        const body = decodeBody(buildCorruptBirIssueUrl({}, undefined));
+        expect(body).toContain("(unknown)");
+        expect(body).toContain("Not available");
+    });
+
+    it("truncates an over-long stack trace", () => {
+        const url = buildCorruptBirIssueUrl({ stackTrace: "x".repeat(10000) }, "org/pkg:1.0.0");
+        const body = decodeBody(url);
+        expect(body).toContain("… (truncated)");
+        // The 10k-char trace must not survive in full.
+        expect(body).not.toContain("x".repeat(6000));
     });
 });

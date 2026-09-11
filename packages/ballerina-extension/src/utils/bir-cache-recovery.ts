@@ -25,6 +25,8 @@ import * as os from "os";
 import * as path from "path";
 import * as fs from "fs/promises";
 import { commands, window } from "vscode";
+import { PRODUCT_INTEGRATOR_ISSUES_URL } from "@wso2/ballerina-core";
+import { openExternalUrl } from "./runCommand";
 
 export interface CorruptPackage {
     org: string;
@@ -38,6 +40,8 @@ export interface CorruptBirCachePayload extends Partial<CorruptPackage> {
     distVersion?: string;
     projectUri?: string;
     reposPath?: string;
+    // Full failure stack trace, prefilled into the "Send Report" GitHub issue for diagnosis.
+    stackTrace?: string;
 }
 
 interface ClearOptions {
@@ -161,6 +165,35 @@ export async function clearAllBirCaches(options: ClearOptions = {}): Promise<str
 
 let promptShown = false; // don't stack a prompt per repeated notification
 
+// Keep the prefilled body comfortably under the practical GitHub issue URL length limit (~8k chars
+// once percent-encoded). The stack trace is the only unbounded field, so it is the one we cap.
+const MAX_STACKTRACE_CHARS = 4000;
+
+/**
+ * Builds a prefilled GitHub "new issue" URL for the corrupt-BIR condition, seeding the title and body
+ * with the module coordinate, distribution version, OS, and (truncated) stack trace so a report is
+ * one click away. Exported for unit testing.
+ */
+export function buildCorruptBirIssueUrl(
+    payload: CorruptBirCachePayload | null | undefined,
+    coordinate?: string
+): string {
+    const title = coordinate ? `Corrupt BIR cache: ${coordinate}` : "Corrupt BIR cache";
+    let stackTrace = typeof payload?.stackTrace === "string" ? payload.stackTrace.trim() : "";
+    if (stackTrace.length > MAX_STACKTRACE_CHARS) {
+        stackTrace = `${stackTrace.slice(0, MAX_STACKTRACE_CHARS)}\n… (truncated)`;
+    }
+    const body =
+        `**Module:** ${coordinate ?? "(unknown)"}\n` +
+        `**Distribution:** ${payload?.distVersion ?? "(unknown)"}\n` +
+        `**OS:** ${os.platform()} ${os.release()}\n\n` +
+        `**Description**\nA corrupted BIR cache was detected. _Add any extra context here._\n\n` +
+        `**Stack trace**\n` +
+        (stackTrace ? "```\n" + stackTrace + "\n```" : "_Not available._");
+    const query = `title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}`;
+    return `${PRODUCT_INTEGRATOR_ISSUES_URL}/new?${query}`;
+}
+
 /**
  * Surfaces the corrupt-BIR condition and, on confirmation, clears the affected package's compiled
  * cache under the active distribution's cache directory (or all packages in that cache when the
@@ -183,23 +216,28 @@ export async function promptClearCorruptBirCache(payload: CorruptBirCachePayload
         // the package coordinate. The clear itself always targets the package cache dir.
         const displayName = isSafeSegment(payload?.moduleName) ? payload.moduleName : target?.packageName;
         const coordinate = target ? `${target.org}/${displayName}:${target.version}` : undefined;
-        const action = "Clear cache & reload";
+        const clearAction = "Clear cache & reload";
+        const reportAction = "Report an Issue";
         const message = coordinate
-            ? `The cache for module '${coordinate}' is corrupted.`
-            : `A module cache is corrupted.`;
-        const detail = coordinate
-            ? `Until it's cleared, the project may load without its components.\n\n` +
-              `Clearing removes this module's compiled cache and reloads the window to recover. ` +
-              `If the module's cache can't be located, all module caches for this distribution are cleared.`
-            : `Until it's cleared, the project may load without its components.\n\n` +
+            ? `The cache for module '${coordinate}' is corrupted.\n` +
+              `The project will stay unresponsive until this is resolved.\n` +
+              `Clearing removes the module's cache (or all module caches for this distribution if it ` +
+              `can't be located) and reloads the window to recover.`
+            : `A module cache is corrupted.\n` +
+              `The project will stay unresponsive until this is resolved.\n` +
               `Clearing removes the module cache and reloads the window to recover.`;
 
-        // A modal blocks interaction so the user can't keep working against the broken (empty)
-        // project; a dismissible notification could be ignored. Modals add their own Cancel button.
-        const choice = await window.showErrorMessage(message, { modal: true, detail }, action);
-        if (choice !== action) {
+        // VS Code dismisses a notification whenever an action button is clicked; there is no way to
+        // keep it open. So "Report an Issue" just opens the prefilled issue and lets it close.
+        const choice = await window.showErrorMessage(message, clearAction, reportAction);
+        if (choice === reportAction) {
+            openExternalUrl(buildCorruptBirIssueUrl(payload, coordinate));
             return;
         }
+        if (choice !== clearAction) {
+            return; // Dismissed
+        }
+        // proceed to clear + reload
 
         try {
             const removed = target
@@ -215,14 +253,11 @@ export async function promptClearCorruptBirCache(payload: CorruptBirCachePayload
         } catch (err) {
             // A file lock (e.g. the JVM holding cache handles on Windows) or permission error can
             // leave the cache partially cleared. Surface it instead of reloading into a broken state.
-            // Recovery failed, so the project is still broken — make this modal too so it isn't missed.
             const reason = err instanceof Error ? err.message : String(err);
-            window.showErrorMessage("Failed to clear the corrupted module cache.", {
-                modal: true,
-                detail:
-                    `${reason}\n\nClose any running Ballerina processes and try again, ` +
-                    `or delete the cache manually.`,
-            });
+            window.showErrorMessage(
+                `Failed to clear the corrupted module cache: ${reason}. ` +
+                    `Close any running Ballerina processes and try again, or delete the cache manually.`
+            );
             return;
         }
 

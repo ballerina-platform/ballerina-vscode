@@ -66,7 +66,10 @@ import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.wso2.ballerinalang.util.RepoUtils;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -109,6 +112,9 @@ public class PullModuleExecutor implements LSCommandExecutor {
     // published in stage 4 below is also consumed by ResolveCompilationErrorsSubscriber, which
     // starts another pull for the same project, creating an endless pull loop on failures.
     private static final Set<String> PULL_IN_PROGRESS_PROJECTS = ConcurrentHashMap.newKeySet();
+    // Cap the trace we ship to the client: it only feeds a prefilled GitHub issue, whose URL has a
+    // practical length limit, and the client truncates further when building that URL.
+    private static final int MAX_STACK_TRACE_CHARS = 8000;
 
     /**
      * {@inheritDoc}
@@ -301,6 +307,8 @@ public class PullModuleExecutor implements LSCommandExecutor {
                             params.setDistVersion(RepoUtils.getBallerinaShortVersion());
                             params.setReposPath(RepoUtils.createAndGetHomeReposPath()
                                     .resolve(ProjectConstants.REPOSITORIES_DIR).toString());
+                            // Ship the stack trace so the client can prefill a "Send Report" GitHub issue.
+                            params.setStackTrace(stackTraceToString(t));
                             languageClient.corruptBirCache(params);
                         } else if (t.getCause() instanceof UserErrorException) {
                             String errorMessage = t.getCause().getMessage();
@@ -371,6 +379,25 @@ public class PullModuleExecutor implements LSCommandExecutor {
             return Optional.of(params);
         }
         return Optional.empty();
+    }
+
+    /**
+     * Renders a throwable (and its cause chain) as a stack-trace string for the corrupt-BIR report,
+     * truncated to a bounded length.
+     *
+     * @param throwable the failure to render (may be {@code null})
+     * @return the stack trace as a string, empty if {@code throwable} is {@code null}
+     */
+    private static String stackTraceToString(Throwable throwable) {
+        if (throwable == null) {
+            return "";
+        }
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        try (PrintStream ps = new PrintStream(baos, true, StandardCharsets.UTF_8)) {
+            throwable.printStackTrace(ps);
+        }
+        String trace = baos.toString(StandardCharsets.UTF_8);
+        return trace.length() > MAX_STACK_TRACE_CHARS ? trace.substring(0, MAX_STACK_TRACE_CHARS) : trace;
     }
 
     /**
