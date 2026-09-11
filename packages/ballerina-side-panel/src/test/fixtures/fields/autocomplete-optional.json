@@ -1,5 +1,5 @@
 {
-    "description": "#2270: optional AUTOCOMPLETE (Approval Function ref) still selects AutoCompleteEditor",
+    "description": "optional AUTOCOMPLETE (Approval Function ref) still selects AutoCompleteEditor",
     "expectedEditor": "AutoCompleteEditor",
     "fieldInputType": { "fieldType": "AUTOCOMPLETE" },
     "field": {

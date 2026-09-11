@@ -93,6 +93,8 @@ export async function pinSnapshot(cwd: string, sha: string): Promise<void> {
 }
 
 export async function getDiffStat(cwd: string, from: string, to: string): Promise<string> {
+    assertSha(from);
+    if (to !== "HEAD") { assertSha(to); }
     try {
         // When comparing to "HEAD", diff against working tree instead so uncommitted changes are included
         const toArg = to === "HEAD" ? "" : ` ${to}`;
@@ -103,6 +105,8 @@ export async function getDiffStat(cwd: string, from: string, to: string): Promis
 }
 
 export async function getDiffFull(cwd: string, from: string, to: string): Promise<string> {
+    assertSha(from);
+    if (to !== "HEAD") { assertSha(to); }
     try {
         const toArg = to === "HEAD" ? "" : ` ${to}`;
         return await run(`git diff ${from}${toArg} ${DIFF_EXCLUDES}`, cwd);

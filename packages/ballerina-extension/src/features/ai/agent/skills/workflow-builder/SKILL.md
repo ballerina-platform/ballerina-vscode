@@ -213,6 +213,16 @@ If `minCount` is less than the number of futures passed in, some tuple members m
 A non-nilable member type paired with a `minCount` smaller than the future count is rejected by
 the compiler plugin.
 
+`ctx->await` also takes a named `timeout` (the same `Duration` record used elsewhere): pass it to
+give up waiting instead of blocking forever. A timeout behaves like an unmet `minCount` — treat it
+the same way, with nilable member types for whichever futures may not have resolved yet.
+
+```ballerina
+[ValidationResult?, ValidationResult?, ValidationResult?] results =
+        check ctx->await([events.validatorA, events.validatorB, events.validatorC], minCount = 2,
+                timeout = {hours: 48});
+```
+
 ## Starting and observing a workflow
 
 ```ballerina
@@ -234,14 +244,97 @@ public function main() returns error? {
 ### Sending data into a running workflow
 
 `workflow:sendData` delivers a value into a running workflow's events record so a `wait` on that
-field can resolve. **This module has more than one released signature for `sendData` across
-versions, with the position of the payload and the field-name argument differing between them** —
-do not guess the argument order from memory. Check the actual resolved signature for the
-project's `ballerina/workflow` version (hover or go-to-definition) before writing the call, and
-match it exactly.
+field can resolve:
 
-The same caution applies to `ctx->awaitHumanTask` and the shape of `HumanTaskDefinition` — verify
-the resolved signature before hand-writing a call rather than assuming a particular argument order.
+```ballerina
+check workflow:sendData(<name>Workflow, workflowId, "<fieldName>", <data>);
+```
+
+The module's own current documentation gives this order — `(workflow, workflowId, dataName,
+data)`, `dataName` before `data`, and `dataName` matching the events record field name exactly.
+**Older `ballerina/workflow` versions swapped `data` and `dataName`** — a real fixture from an
+older version shows the opposite order. Confirm the resolved signature (hover or go-to-definition)
+before writing the call rather than trusting either order from memory.
+
+## Human tasks
+
+`ctx->awaitHumanTask` pauses the workflow — durably, for hours or days if needed — until a person
+completes it or it times out. This is a different mechanism from a `HumanReview` retry policy on
+`callActivity` above: that one escalates an activity's *failure* to a human; this one is an
+explicit pause point the workflow function reaches on its own, whether or not anything failed.
+
+```ballerina
+<Result> decision = check ctx->awaitHumanTask("<taskName>", userRoles = "<role>",
+        taskInput = {<field>: <value>}, title = "<title>", description = "<description>");
+```
+
+- `taskName` is positional; everything else is named.
+- `userRoles` (`string|string[]`) says who may complete the task.
+- `taskInput` (`map<json>`) is the data shown to the reviewer. **Some `ballerina/workflow`
+  versions before 0.9.0 named this field `payload` instead** — the same kind of version drift
+  `sendData` has above. Check the resolved version before writing either name.
+- `title` and `description` are both optional `string`s shown to the reviewer.
+- `timeout` (optional `Duration`, the same record `callActivity`'s retry policy uses) gives up
+  instead of waiting forever; omit it to wait indefinitely.
+
+`awaitHumanTask` returns `<Result>|HumanTaskError`. Check for a timeout specifically — it usually
+needs its own handling — and treat every other error (rejection, task failure) as a business
+failure to propagate or handle generically:
+
+```ballerina
+<Result>|error decision = ctx->awaitHumanTask(...);
+if decision is workflow:HumanTaskTimeoutError {
+    // nobody acted before decision.detail().timedOutAfter — handle as a timeout, not a failure
+} else if decision is error {
+    // rejection, task failure, or any other business-level outcome
+    return decision;
+} else {
+    // decision is <Result> — the reviewer's actual answer
+}
+```
+
+A pending task is completed by a separate call, `workflow:completeHumanTask(taskWorkflowId,
+result)` — but the integrator's own user portal usually completes tasks this way already, so
+generate that call only when the user explicitly asks for a custom completion path outside the
+portal, not by default.
+
+### Alternative: approval over a data channel
+
+`awaitHumanTask` is not the only way to model a human decision. When the decision will come from a
+system the user already has — an existing approval UI, a webhook, a Slack action — rather than
+needing this module's own task inbox, roles, and generated form, use the plain events-record
+mechanism from "Waiting on data events" and "Sending data into a running workflow" instead:
+
+```ballerina
+type OrderEvents record {|
+    future<ApprovalDecision> approval;
+|};
+
+@workflow:Workflow
+function <name>Workflow(workflow:Context ctx, OrderInput input, OrderEvents events) returns OrderResult|error {
+    check ctx->callActivity(validateOrder, {orderId: input.orderId});
+    ApprovalDecision decision = check wait events.approval;
+    if !decision.approved {
+        return {orderId: input.orderId, status: "REJECTED"};
+    }
+    string fulfillmentId = check ctx->callActivity(fulfillOrder, {orderId: input.orderId});
+    return {orderId: input.orderId, status: "COMPLETED", fulfillmentId};
+}
+```
+
+The external system resolves it with an ordinary `workflow:sendData` call — for example, from an
+HTTP resource the user's own approval UI calls:
+
+```ballerina
+resource function post orders/[string workflowId]/approve(ApprovalDecision decision) returns json|error {
+    check workflow:sendData(<name>Workflow, workflowId, "approval", decision);
+    return {status: "accepted"};
+}
+```
+
+Reach for this instead of `awaitHumanTask` when the user describes an approval source outside this
+module's own task mechanism — there is no inbox, no roles, and no generated form; the workflow
+simply resumes when the data arrives.
 
 ## Child workflows
 

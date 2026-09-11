@@ -19,11 +19,12 @@
 
 import { commands, TestItem, window, workspace, WorkspaceEdit, Uri, Range } from "vscode";
 import { openView, StateMachine, history } from "../../stateMachine";
-import { BI_COMMANDS, EVENT_TYPE, MACHINE_VIEW, Annotation, ValueProperty, GetTestFunctionResponse, ComponentInfo, isSamePath } from "@wso2/ballerina-core";
+import { BI_COMMANDS, EVENT_TYPE, MACHINE_VIEW, Annotation, ValueProperty, GetTestFunctionResponse, TestFunction, TestsDiscoveryResponse, ComponentInfo, isSamePath, TextEdit } from "@wso2/ballerina-core";
 import { isTestFunctionItem } from "./discover";
 import path from "path";
 import { promises as fs } from 'fs';
 import { needsProjectDiscovery, requiresPackageSelection, selectPackageOrPrompt } from "../../utils/command-utils";
+import { getTestFunctionGroups } from "../../utils/test-discovery";
 import { VisualizerWebview } from "../../views/visualizer/webview";
 import { getCurrentProjectRoot, tryGetCurrentBallerinaFile } from "../../utils/project-utils";
 import { findBallerinaPackageRoot } from "../../utils";
@@ -190,6 +191,7 @@ export function activateEditBiTest(ballerinaExtInstance: BallerinaExtension) {
 
         // Determine test type for confirmation message
         let testType = "test function";
+        let dataProviderName: string | undefined;
         try {
             const response = await ballerinaExtInstance.langClient?.getTestFunction({
                 functionName: entry.label,
@@ -197,9 +199,9 @@ export function activateEditBiTest(ballerinaExtInstance: BallerinaExtension) {
             });
 
             if (response && isValidTestFunctionResponse(response) && response.function) {
-                const isEvaluation = hasEvaluationGroup(response.function);
-                if (isEvaluation) {
+                if (hasEvaluationGroup(response.function)) {
                     testType = "AI evaluation test";
+                    dataProviderName = getDataProviderName(response.function);
                 }
             }
         } catch (error) {
@@ -246,26 +248,17 @@ export function activateEditBiTest(ballerinaExtInstance: BallerinaExtension) {
 
             // Apply the text edits returned by language server
             const edit = new WorkspaceEdit();
-
-            for (const [filePath, edits] of Object.entries(response.textEdits)) {
-                const uri = Uri.file(filePath);
-                for (const textEdit of edits) {
-                    edit.replace(
-                        uri,
-                        new Range(
-                            textEdit.range.start.line,
-                            textEdit.range.start.character,
-                            textEdit.range.end.line,
-                            textEdit.range.end.character
-                        ),
-                        textEdit.newText
-                    );
-                }
-            }
+            addTextEdits(edit, response.textEdits);
 
             const success = await workspace.applyEdit(edit);
 
             if (success) {
+                // Recomputed against the now-updated document, so an import used only by the
+                // deleted test function and its provider is correctly seen as unused.
+                const providerEdit = new WorkspaceEdit();
+                await addDataProviderDeletion(providerEdit, ballerinaExtInstance, fileUri, functionName, dataProviderName);
+                await workspace.applyEdit(providerEdit);
+
                 window.showInformationMessage(`Test function '${functionName}' deleted successfully.`);
                 // File watcher automatically triggers test rediscovery
             } else {
@@ -276,6 +269,24 @@ export function activateEditBiTest(ballerinaExtInstance: BallerinaExtension) {
             console.error('Delete test function error:', error);
         }
     });
+}
+
+function addTextEdits(edit: WorkspaceEdit, textEdits: Record<string, TextEdit[]>) {
+    for (const [filePath, edits] of Object.entries(textEdits)) {
+        const uri = Uri.file(filePath);
+        for (const textEdit of edits) {
+            edit.replace(
+                uri,
+                new Range(
+                    textEdit.range.start.line,
+                    textEdit.range.start.character,
+                    textEdit.range.end.line,
+                    textEdit.range.end.character
+                ),
+                textEdit.newText
+            );
+        }
+    }
 }
 
 /**
@@ -315,6 +326,60 @@ function hasEvaluationGroup(testFunction: any): boolean {
         return group.replace(/^"|"$/g, '') === EVALUATION_GROUP;
     });
     return hasEvaluation;
+}
+
+/** Reads the data provider name off a test function's @test:Config annotation. */
+function getDataProviderName(testFunction?: TestFunction): string | undefined {
+    return testFunction?.annotations
+        ?.find((a: Annotation) => a.name === 'Config')?.fields
+        ?.find((f: ValueProperty) => f.originalName === 'dataProvider')?.value as string | undefined;
+}
+
+/** True if another test function anywhere in the project still references this data provider. */
+async function isDataProviderUsedElsewhere(ballerinaExtInstance: BallerinaExtension, fileUri: string,
+    excludeFunctionName: string, providerName: string): Promise<boolean> {
+    const projectRoot = await findBallerinaPackageRoot(fileUri) ?? fileUri;
+    const discovery: TestsDiscoveryResponse = await ballerinaExtInstance.langClient?.getProjectTestFunctions({
+        projectPath: projectRoot
+    });
+    const otherFunctions = getTestFunctionGroups(discovery)
+        .flatMap(([, fns]) => fns)
+        .filter((fn) => fn.functionName !== excludeFunctionName);
+
+    const responses = await Promise.all(otherFunctions.map((fn) =>
+        ballerinaExtInstance.langClient?.getTestFunction({ functionName: fn.functionName, filePath: fn.lineRange.fileName })
+    ));
+    return responses.some((res) => res && isValidTestFunctionResponse(res) && getDataProviderName(res.function) === providerName);
+}
+
+// Matches only names the tool itself generates (e.g. loadEvalsetData, loadEvalsetData1), not a user's own
+// similarly-prefixed function such as loadEvalsetDataFromDb.
+const GENERATED_PROVIDER_NAME_PATTERN = /^(loadEvalsetData|loadQueriesData)\d*$/;
+
+/** Adds the removal of the data provider generated alongside an evaluation. */
+async function addDataProviderDeletion(edit: WorkspaceEdit, ballerinaExtInstance: BallerinaExtension,
+    fileUri: string, excludeFunctionName: string, name?: string) {
+    // Custom providers may be shared by other tests; only generated ones are safe to delete.
+    if (!name || !GENERATED_PROVIDER_NAME_PATTERN.test(name)) { return; }
+    try {
+        if (await isDataProviderUsedElsewhere(ballerinaExtInstance, fileUri, excludeFunctionName, name)) { return; }
+
+        const fn = await ballerinaExtInstance.langClient?.getTestFunction({ functionName: name, filePath: fileUri });
+        const range = fn && isValidTestFunctionResponse(fn) ? fn.function?.codedata?.lineRange : undefined;
+        if (!range) { return; }
+
+        const res = await ballerinaExtInstance.langClient?.deleteByComponentInfo({
+            filePath: fileUri,
+            component: {
+                name, filePath: fileUri,
+                startLine: range.startLine.line, startColumn: range.startLine.offset,
+                endLine: range.endLine.line, endColumn: range.endLine.offset
+            }
+        });
+        addTextEdits(edit, res?.textEdits ?? {});
+    } catch (error) {
+        console.warn('Failed to delete the evaluation data provider:', error);
+    }
 }
 
 async function ensureFileExists(filePath: string) {

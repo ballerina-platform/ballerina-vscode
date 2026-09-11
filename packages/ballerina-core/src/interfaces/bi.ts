@@ -170,7 +170,8 @@ export type AgentMemoryInfo = {
 
 export type MemoryData = {
     type: string;
-    size: string
+    size: string;
+    store?: ToolData;
 };
 
 export type Imports = {
