@@ -320,6 +320,57 @@ public class CentralSearchUtil {
     }
 
     /**
+     * Searches functions declared by a single package, across all of its modules.
+     *
+     * <p>Central has no package filter. Its {@code q} is matched against package and module names as well as symbol
+     * names, and additional terms narrow the match, so naming the package alongside the query is the only way to
+     * scope a symbol search to it ({@code q=fromEdiString edifact.d03a.supplychain} matches six symbols where
+     * {@code q=fromEdiString} matches seventy). Naming it only biases the ranking rather than restricting it, so the
+     * package is matched exactly here to drop the near misses that come back anyway - a same-named package from
+     * another organization, or a {@code d04a} sibling of a {@code d03a} package.</p>
+     *
+     * @param query       the search query string (empty to list all of the package's functions)
+     * @param limit       the maximum number of the package's functions to return
+     * @param org         the organization that published the package
+     * @param packageName the package name to scope the search to
+     * @return the package's matching functions, or null if the request failed
+     */
+    public List<SearchResult> searchFunctionsInPackage(String query, int limit, String org, String packageName) {
+        limit = Math.max(limit, 0);
+        if (org == null || org.isEmpty() || packageName == null || packageName.isEmpty()) {
+            return new ArrayList<>();
+        }
+        try {
+            Map<String, String> queryMap = new HashMap<>();
+            queryMap.put("q", query == null || query.isEmpty() ? packageName : query + " " + packageName);
+            queryMap.put("org", org);
+            queryMap.put("symbolType", FUNCTION_SYMBOL_TYPE);
+            queryMap.put("limit", String.valueOf(limit));
+            queryMap.put("offset", "0");
+            SymbolResponse symbolResponse = centralClient.searchSymbols(queryMap);
+
+            if (symbolResponse == null || symbolResponse.symbols() == null) {
+                return new ArrayList<>();
+            }
+
+            List<SearchResult> results = new ArrayList<>();
+            for (SymbolResponse.Symbol symbol : symbolResponse.symbols()) {
+                if (symbol == null || !FUNCTION_SYMBOL_TYPE.equals(symbol.symbolType())) {
+                    continue;
+                }
+                if (!packageName.equals(symbol.name()) || !org.equals(symbol.organization())) {
+                    continue;
+                }
+                results.add(toSearchResult(symbol, false));
+            }
+            return results;
+        } catch (RuntimeException e) {
+            // Failed to fetch the package's functions; the caller keeps whatever general results it already has.
+            return null;
+        }
+    }
+
+    /**
      * Searches symbols within the current organization from Ballerina Central, filtered by symbol type.
      *
      * @param currentOrg       the current organization name

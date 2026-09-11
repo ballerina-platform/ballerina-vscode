@@ -35,9 +35,11 @@ import io.ballerina.tools.text.LineRange;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 /**
@@ -75,6 +77,13 @@ class FunctionSearchCommand extends SearchCommand {
     private static final String EXTENDED_LIBRARY_ORG = "ballerinax";
     // Organizations whose functions can be loaded page-by-page as an independent library section.
     private static final Set<String> PAGINATED_SECTION_ORGS = Set.of(STANDARD_LIBRARY_ORG, EXTENDED_LIBRARY_ORG);
+    // A searched page is a window onto a result set that a reindexed Central makes far larger: a function-name query
+    // now matches one row per declaring module rather than one per package, so a package with thirty modules can fill
+    // a page on its own and push another package's rows past the end of it. These bound the top-up that keeps an
+    // imported package's functions reachable.
+    private static final int IMPORTED_PACKAGE_FUNCTION_LIMIT = 50;
+    private static final int MAX_TOPPED_UP_PACKAGES = 5;
+    private final Map<PackageCoordinate, Set<ModuleCoordinate>> importedModulesByPackage;
     private final Set<ModuleCoordinate> importedModules;
     private final Document functionsDoc;
     // When set (to "ballerina" or "ballerinax"), the request loads the next page of that single library section
@@ -84,7 +93,10 @@ class FunctionSearchCommand extends SearchCommand {
     public FunctionSearchCommand(Project project, LineRange position, Map<String, String> queryMap,
                                  Document functionsDoc) {
         super(project, position, queryMap);
-        this.importedModules = ImportedModules.collect(project);
+        this.importedModulesByPackage = ImportedModules.collectByPackage(project);
+        Set<ModuleCoordinate> collectedModules = new TreeSet<>();
+        this.importedModulesByPackage.values().forEach(collectedModules::addAll);
+        this.importedModules = collectedModules;
         this.functionsDoc = functionsDoc;
         String requestedSectionOrg = queryMap != null ? queryMap.getOrDefault("orgName", "") : "";
         this.sectionOrg = PAGINATED_SECTION_ORGS.contains(requestedSectionOrg) ? requestedSectionOrg : "";
@@ -156,9 +168,98 @@ class FunctionSearchCommand extends SearchCommand {
         List<SearchResult> functionSearchList = centralSearch.searchFunctions(query, limit, offset, allowedOrgs);
         if (functionSearchList == null) {
             functionSearchList = dbManager.searchFunctions(query, limit, offset);
+        } else {
+            functionSearchList = withImportedPackageFunctions(centralSearch, functionSearchList);
         }
         buildLibraryNodes(functionSearchList, true);
         return rootBuilder.build().items();
+    }
+
+    /**
+     * Adds the matching functions of imported packages that the general Central page leaves out.
+     *
+     * <p>The default view fetches the imported modules' functions in their own right, so they are always present.
+     * A search did not: it took whichever rows the one general page happened to hold, leaving a function from a
+     * module the project already imports to compete with every unrelated package that matched the same name - and
+     * lose, if the page filled up first. A module the user has imported is the strongest relevance signal
+     * available, and it costs nothing to honour, so it is no longer left to the ranking.</p>
+     *
+     * <p>A short page means Central had nothing more to give, so nothing is hidden and no extra request is made -
+     * which is the common case while typing. When the page is full, packages that already have rows on it are
+     * topped up first: their presence proves they hold matching functions, whereas a package with no rows at all
+     * may simply have none, and asking about it is the guess that spends the budget last.</p>
+     *
+     * @param centralSearch  the Central client to query with
+     * @param centralResults the general page, kept in its original order
+     * @return the page with the missing imported functions ahead of it, or the page unchanged
+     */
+    private List<SearchResult> withImportedPackageFunctions(CentralSearchUtil centralSearch,
+                                                            List<SearchResult> centralResults) {
+        if (offset > 0 || importedModulesByPackage.isEmpty() || centralResults.size() < limit) {
+            return centralResults;
+        }
+
+        Set<ModuleCoordinate> pagedModules = new HashSet<>();
+        Set<PackageCoordinate> pagedPackages = new HashSet<>();
+        for (SearchResult result : centralResults) {
+            SearchResult.Package packageInfo = result.packageInfo();
+            pagedModules.add(packageInfo.coordinate());
+            pagedPackages.add(new PackageCoordinate(packageInfo.org(), packageInfo.packageName()));
+        }
+
+        List<SearchResult> importedResults = new ArrayList<>();
+        int queried = 0;
+        for (PackageCoordinate candidate : topUpOrder(importedModulesByPackage, pagedModules, pagedPackages)) {
+            if (queried == MAX_TOPPED_UP_PACKAGES) {
+                break;
+            }
+            queried++;
+            List<SearchResult> packageResults = centralSearch.searchFunctionsInPackage(
+                    query, IMPORTED_PACKAGE_FUNCTION_LIMIT, candidate.org(), candidate.packageName());
+            if (packageResults == null) {
+                continue;
+            }
+            packageResults.stream()
+                    .filter(result -> !pagedModules.contains(result.packageInfo().coordinate()))
+                    .forEach(importedResults::add);
+        }
+
+        if (importedResults.isEmpty()) {
+            return centralResults;
+        }
+        List<SearchResult> merged = new ArrayList<>(importedResults);
+        merged.addAll(centralResults);
+        return merged;
+    }
+
+    /**
+     * The imported packages worth asking Central about, most-likely-to-pay-off first: those with rows already on the
+     * page but not for every module the project imports, then those with no rows at all. A package whose every
+     * imported module is already listed is not returned at all.
+     *
+     * @param importedModulesByPackage the imported modules, grouped by their package
+     * @param pagedModules             the modules the general page covers
+     * @param pagedPackages            the packages the general page covers
+     * @return the packages to query, in the order to query them
+     */
+    static List<PackageCoordinate> topUpOrder(Map<PackageCoordinate, Set<ModuleCoordinate>> importedModulesByPackage,
+                                              Set<ModuleCoordinate> pagedModules,
+                                              Set<PackageCoordinate> pagedPackages) {
+        Set<PackageCoordinate> partiallyPaged = new LinkedHashSet<>();
+        Set<PackageCoordinate> unpaged = new LinkedHashSet<>();
+        importedModulesByPackage.forEach((importedPackage, modules) -> {
+            if (pagedModules.containsAll(modules)) {
+                return;
+            }
+            if (pagedPackages.contains(importedPackage)) {
+                partiallyPaged.add(importedPackage);
+            } else {
+                unpaged.add(importedPackage);
+            }
+        });
+        List<PackageCoordinate> order = new ArrayList<>(partiallyPaged);
+        order.addAll(unpaged);
+        return order;
     }
 
     @Override

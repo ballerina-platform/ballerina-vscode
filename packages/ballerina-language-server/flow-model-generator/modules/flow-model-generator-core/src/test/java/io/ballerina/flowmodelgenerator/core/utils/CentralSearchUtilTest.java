@@ -249,6 +249,88 @@ public class CentralSearchUtilTest {
         Assert.assertEquals(results.getFirst().packageInfo().moduleName(), "edifact.d03a.supplychain.mORDERS");
     }
 
+    @Test(description = "Scoping a search to a package names it alongside the query, since Central has no filter.")
+    public void testSearchFunctionsInPackageNamesThePackageInTheQuery() {
+        RecordingCentralApi central = new RecordingCentralApi(symbolResponse(
+                symbol("ballerinax", "edifact.d03a.supplychain", "edifact.d03a.supplychain.mORDERS", "1.0.1",
+                        "fromEdiString", "Convert an ORDERS EDI string.", "function")));
+
+        List<SearchResult> results = new CentralSearchUtil(central)
+                .searchFunctionsInPackage("fromEdiString", 50, "ballerinax", "edifact.d03a.supplychain");
+
+        Assert.assertEquals(central.lastQueryMap.get("q"), "fromEdiString edifact.d03a.supplychain");
+        Assert.assertEquals(central.lastQueryMap.get("org"), "ballerinax");
+        Assert.assertEquals(central.lastQueryMap.get("symbolType"), "function");
+        Assert.assertEquals(central.lastQueryMap.get("limit"), "50");
+        Assert.assertEquals(results.size(), 1);
+        Assert.assertEquals(results.getFirst().packageInfo().moduleName(), "edifact.d03a.supplychain.mORDERS");
+    }
+
+    @Test(description = "An empty query scopes to the package alone.")
+    public void testSearchFunctionsInPackageWithoutQueryUsesPackageName() {
+        RecordingCentralApi central = new RecordingCentralApi(symbolResponse(
+                function("ballerinax", "edifact.d03a.supplychain", "1.0.1", "fromEdiString", "Convert.")));
+
+        new CentralSearchUtil(central).searchFunctionsInPackage("", 50, "ballerinax", "edifact.d03a.supplychain");
+
+        Assert.assertEquals(central.lastQueryMap.get("q"), "edifact.d03a.supplychain");
+    }
+
+    @Test(description = "Naming a package only biases the ranking, so near misses are dropped by exact match.")
+    public void testSearchFunctionsInPackageDropsNearMisses() {
+        RecordingCentralApi central = new RecordingCentralApi(symbolResponse(
+                function("ballerinax", "edifact.d03a.supplychain", "1.0.1", "fromEdiString", "Wanted."),
+                // A sibling package of another release whose name shares every term of the query.
+                function("ballerinax", "edifact.d04a.supplychain", "1.0.1", "fromEdiString", "Different package."),
+                // The same package name published by somebody else.
+                function("someoneelse", "edifact.d03a.supplychain", "1.0.1", "fromEdiString", "Different org.")));
+
+        List<SearchResult> results = new CentralSearchUtil(central)
+                .searchFunctionsInPackage("fromEdiString", 50, "ballerinax", "edifact.d03a.supplychain");
+
+        Assert.assertEquals(results.size(), 1);
+        Assert.assertEquals(results.getFirst().packageInfo().org(), "ballerinax");
+        Assert.assertEquals(results.getFirst().packageInfo().packageName(), "edifact.d03a.supplychain");
+    }
+
+    @Test(description = "Every module of the package is returned, not just its default module.")
+    public void testSearchFunctionsInPackageReturnsAllModules() {
+        RecordingCentralApi central = new RecordingCentralApi(symbolResponse(
+                symbol("ballerinax", "edifact.d03a.supplychain", "edifact.d03a.supplychain", "1.0.1",
+                        "fromEdiString", "Root.", "function"),
+                symbol("ballerinax", "edifact.d03a.supplychain", "edifact.d03a.supplychain.mORDERS", "1.0.1",
+                        "fromEdiString", "Submodule.", "function"),
+                symbol("ballerinax", "edifact.d03a.supplychain", "edifact.d03a.supplychain.mINVOIC", "1.0.1",
+                        "fromEdiString", "Another submodule.", "function")));
+
+        List<SearchResult> results = new CentralSearchUtil(central)
+                .searchFunctionsInPackage("fromEdiString", 50, "ballerinax", "edifact.d03a.supplychain");
+
+        Assert.assertEquals(results.stream().map(result -> result.packageInfo().moduleName()).sorted().toList(),
+                List.of("edifact.d03a.supplychain", "edifact.d03a.supplychain.mINVOIC",
+                        "edifact.d03a.supplychain.mORDERS"));
+    }
+
+    @Test(description = "A failure while scoping to a package yields null, leaving the general results in place.")
+    public void testSearchFunctionsInPackageFailureReturnsNull() {
+        RecordingCentralApi central = new RecordingCentralApi(null);
+        central.failOnSearch = true;
+
+        Assert.assertNull(new CentralSearchUtil(central)
+                .searchFunctionsInPackage("fromEdiString", 50, "ballerinax", "edifact.d03a.supplychain"));
+    }
+
+    @Test(description = "A missing organization or package short circuits without contacting Central.")
+    public void testSearchFunctionsInPackageWithoutCoordinatesReturnsEmpty() {
+        RecordingCentralApi central = new RecordingCentralApi(symbolResponse(
+                function("ballerinax", "edifact.d03a.supplychain", "1.0.1", "fromEdiString", "Convert.")));
+        CentralSearchUtil centralSearch = new CentralSearchUtil(central);
+
+        Assert.assertTrue(centralSearch.searchFunctionsInPackage("fromEdiString", 50, "", "edifact").isEmpty());
+        Assert.assertTrue(centralSearch.searchFunctionsInPackage("fromEdiString", 50, "ballerinax", "").isEmpty());
+        Assert.assertEquals(central.callCount, 0);
+    }
+
     @Test(description = "A function search lists the declarations in the default module and in the submodules.")
     public void testSearchListsRootAndSubmoduleDeclarations() {
         // Searching a function name has to surface every module that declares it, the package default module and
