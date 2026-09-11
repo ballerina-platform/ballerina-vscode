@@ -55,7 +55,9 @@ import { Branch, FlowNode } from "../utils/types";
 export class SizingVisitor implements BaseVisitor {
     private skipChildrenVisit = false;
 
-    constructor() {
+    // True when durable-agent-run boxes are being sized for a run() call site rather than the
+    // agent's own declaration — see endVisitDurableAgentRun.
+    constructor(private isDurableAgentReference: boolean = false) {
         // console.log(">>> sizing visitor started");
     }
 
@@ -363,13 +365,9 @@ export class SizingVisitor implements BaseVisitor {
 
     endVisitAgentCall(node: FlowNode, parent?: FlowNode): void {
         if (!this.validateNode(node)) return;
-        const nodeWidth = NODE_WIDTH;
-        const halfNodeWidth = nodeWidth / 2;
-        const containerLeftWidth = halfNodeWidth;
-        const containerRightWidth = halfNodeWidth + NODE_GAP_X + NODE_HEIGHT + LABEL_HEIGHT + LABEL_WIDTH;
-
+        const halfNodeWidth = NODE_WIDTH / 2;
         const containerHeight = getAgentNodeContainerHeight(node, NodeTypes.AGENT_CALL_NODE);
-        this.setNodeSize(node, containerLeftWidth, containerRightWidth, containerHeight);
+        this.setNodeSize(node, halfNodeWidth, halfNodeWidth, containerHeight);
     }
 
     endVisitAgentRun(node: FlowNode, parent?: FlowNode): void {
@@ -418,6 +416,13 @@ export class SizingVisitor implements BaseVisitor {
                 height += LABEL_HEIGHT;
             }
             this.setNodeSize(node, halfNodeWidth, halfNodeWidth, height);
+            return;
+        }
+
+        // Reference mode (a run() call site) collapses to the same simple reference row
+        // AgentCallNode uses — no side circle columns are painted, so no side space is reserved.
+        if (this.isDurableAgentReference) {
+            this.setNodeSize(node, halfNodeWidth, halfNodeWidth, getAgentNodeContainerHeight(node, NodeTypes.AGENT_CALL_NODE));
             return;
         }
 
