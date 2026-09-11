@@ -366,6 +366,11 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
             setPackageAgents(found);
             onPendingAgentChange(agent);
             onViewChange("package");
+        } catch (error) {
+            console.error("Error expanding agent package:", error);
+            rpcClient.getCommonRpcClient().showErrorMessage({
+                message: "Failed to load the agent package. Please try again.",
+            });
         } finally {
             setIsExpanding(false);
         }
