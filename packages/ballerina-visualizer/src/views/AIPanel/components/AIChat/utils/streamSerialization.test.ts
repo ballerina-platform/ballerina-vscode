@@ -364,24 +364,24 @@ describe("upsertToolResult", () => {
         expect(final[0].items[0]).toEqual({ kind: "tool_result", toolCallId: "c1", toolName: "Subagent", toolOutput: { status: "completed" }, failed: undefined });
     });
 
-    const call = { kind: "tool_call", toolCallId: "c1", toolName: "Subagent", toolInput: { description: "Kafka lookup" } } as const;
+    const call: StreamItem = { kind: "tool_call", toolCallId: "c1", toolName: "Subagent", toolInput: { description: "Kafka lookup" } };
 
     it("replaces the open tool_call with the result (the ordinary case)", () => {
-        const entries = [{ description: "", items: [{ kind: "text", text: "hi" } as any, call as any] }];
+        const entries: StreamEntry[] = [{ description: "", items: [{ kind: "text", text: "hi" }, call] }];
         const out = upsertToolResult(entries, { toolCallId: "c1", toolName: "Subagent", toolOutput: { status: "running" } });
         expect(out[0].items).toHaveLength(2);
         expect(out[0].items[1]).toEqual({ kind: "tool_result", toolCallId: "c1", toolName: "Subagent", toolOutput: { status: "running" }, failed: undefined });
     });
 
     it("updates an existing result of the same call id instead of appending a duplicate", () => {
-        const entries = [{ description: "", items: [{ kind: "tool_result", toolCallId: "c1", toolName: "Subagent", toolOutput: { status: "running" } } as any] }];
+        const entries: StreamEntry[] = [{ description: "", items: [{ kind: "tool_result", toolCallId: "c1", toolName: "Subagent", toolOutput: { status: "running" } }] }];
         const out = upsertToolResult(entries, { toolCallId: "c1", toolName: "Subagent", toolOutput: { status: "completed", libraries: ["ballerinax/kafka"] } });
         expect(out[0].items).toHaveLength(1);
-        expect((out[0].items[0] as any).toolOutput.status).toBe("completed");
+        expect(out[0].items[0]).toMatchObject({ toolOutput: { status: "completed" } });
     });
 
     it("appends when nothing matches, and never matches results by an undefined id", () => {
-        const entries = [{ description: "", items: [{ kind: "tool_result", toolCallId: undefined, toolName: "x", toolOutput: 1 } as any] }];
+        const entries: StreamEntry[] = [{ description: "", items: [{ kind: "tool_result", toolCallId: undefined, toolName: "x", toolOutput: 1 }] }];
         const out = upsertToolResult(entries, { toolCallId: undefined, toolName: "y", toolOutput: 2 });
         expect(out[0].items).toHaveLength(2);
         const none = upsertToolResult([{ description: "", items: [] }], { toolCallId: "zz", toolName: "y", toolOutput: 2 });
@@ -389,9 +389,9 @@ describe("upsertToolResult", () => {
     });
 
     it("prefers the open call over an earlier result when both carry the id", () => {
-        const entries = [{ description: "", items: [{ kind: "tool_result", toolCallId: "c1", toolName: "Subagent", toolOutput: { status: "running" } } as any, call as any] }];
+        const entries: StreamEntry[] = [{ description: "", items: [{ kind: "tool_result", toolCallId: "c1", toolName: "Subagent", toolOutput: { status: "running" } }, call] }];
         const out = upsertToolResult(entries, { toolCallId: "c1", toolName: "Subagent", toolOutput: { status: "completed" } });
-        expect(out[0].items.map((i: any) => i.kind)).toEqual(["tool_result", "tool_result"]);
-        expect((out[0].items[1] as any).toolOutput.status).toBe("completed");
+        expect(out[0].items.map(i => i.kind)).toEqual(["tool_result", "tool_result"]);
+        expect(out[0].items[1]).toMatchObject({ toolOutput: { status: "completed" } });
     });
 });

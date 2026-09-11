@@ -32,10 +32,29 @@ const LibraryListSchema = z.object({
     libraries: z.array(z.string()),
 });
 
+/**
+ * Normalizes the model's selection before it reaches `selectRequiredFunctions`. `LibraryListSchema`
+ * accepts any string, so: drop names the catalog does not know (an invented name would silently resolve
+ * to nothing), append every mandatory healthcare library (required even when the catalog omits it), and
+ * deduplicate while keeping the model's order.
+ */
+function normalizeSelection(selected: string[], allLibraries: MinifiedLibrary[]): string[] {
+    const known = new Set(allLibraries.map(lib => lib.name));
+    const out: string[] = [];
+    const seen = new Set<string>();
+    for (const name of selected) {
+        if (known.has(name) && !seen.has(name)) { seen.add(name); out.push(name); }
+    }
+    for (const name of MANDATORY_HEALTHCARE_LIBRARIES) {
+        if (!seen.has(name)) { seen.add(name); out.push(name); }
+    }
+    return out;
+}
+
 export async function getSelectedLibraries(prompt: string, libraryType: GenerationType): Promise<{ libraries: string[], usage: ModelUsage }> {
     const allLibraries = await getAllLibraries(libraryType);
     if (allLibraries.length === 0) {
-        return { libraries: [], usage: { model: ANTHROPIC_SONNET, inputTokens: 0, outputTokens: 0 } };
+        return { libraries: normalizeSelection([], allLibraries), usage: { model: ANTHROPIC_SONNET, inputTokens: 0, outputTokens: 0 } };
     }
     const cacheOptions = await getProviderCacheControl();
     const messages: ModelMessage[] = [
@@ -65,7 +84,7 @@ export async function getSelectedLibraries(prompt: string, libraryType: Generati
     console.log(`Library selection took ${endTime - startTime}ms, Usage:`, callUsage);
 
     console.log("Selected libraries:", object.libraries);
-    return { libraries: object.libraries, usage: callUsage };
+    return { libraries: normalizeSelection(object.libraries, allLibraries), usage: callUsage };
 }
 
 function getSystemPrompt(libraryList: MinifiedLibrary[]): string {

@@ -25,8 +25,10 @@ import * as os from "os";
 import * as path from "path";
 import {
     GREP_MAX_LINES,
+    GREP_MAX_PATTERN_CHARS,
     READ_MAX_LINES,
     grepDocs,
+    isSafeGrepPattern,
     listDocs,
     readDocs,
     resolveDocsPath,
@@ -100,6 +102,23 @@ describe("grepDocs", () => {
         const empty = fs.mkdtempSync(path.join(os.tmpdir(), "docs-fs-empty-"));
         expect(grepDocs(empty, { pattern: "x" })).toBe("The docs cache is empty. Call library_docs first.");
         fs.rmSync(empty, { recursive: true, force: true });
+    });
+
+    it("rejects patterns whose matching can backtrack catastrophically", () => {
+        // Nested repetition and backreferences are the ReDoS shapes; a single quantifier is not.
+        expect(isSafeGrepPattern("(a+)+")).toBe(false);
+        expect(isSafeGrepPattern("(a*)*")).toBe(false);
+        expect(isSafeGrepPattern("((a+))+")).toBe(false);
+        expect(isSafeGrepPattern("(?:a+){2,}")).toBe(false);
+        expect(isSafeGrepPattern("a+ \\1")).toBe(false);
+        expect(isSafeGrepPattern("a".repeat(GREP_MAX_PATTERN_CHARS + 1))).toBe(false);
+
+        expect(isSafeGrepPattern("a+b+")).toBe(true);
+        expect(isSafeGrepPattern("(a|b)+")).toBe(true);
+        expect(isSafeGrepPattern("foo.*?bar")).toBe(true);
+        expect(isSafeGrepPattern("(?:https?|ftp)://[^\\s]+")).toBe(true);
+
+        expect(grepDocs(dir, { pattern: "(a+)+$" })).toMatch(/^Rejected pattern/);
     });
 });
 

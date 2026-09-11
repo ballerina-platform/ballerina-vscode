@@ -17,7 +17,7 @@
  */
 
 import { toSyntaxString } from "../features/ai/utils/libs/to-syntax-string";
-import { Library, Parameter } from "../features/ai/utils/libs/library-types";
+import { Client, Library, Parameter } from "../features/ai/utils/libs/library-types";
 
 // Class, client and resource methods used to render only their description line, so a `# + return -`
 // statement such as `time:Zone.utcFromCivil`'s "an error if `civil.timeAbbrev` is missing" never reached
@@ -27,14 +27,14 @@ function param(name: string, description: string, typeName = "string"): Paramete
     return { name, description, type: { name: typeName, links: [] } };
 }
 
-function libraryWithClientMethods(functions: object[]): Library {
+function libraryWithClientMethods(functions: Client["functions"]): Library {
     return {
         name: "demo",
         description: "",
         typeDefs: [],
         functions: [],
-        clients: [{ name: "Zone", description: "A zone.", functions: functions as never[] }],
-    } as never;
+        clients: [{ name: "Zone", description: "A zone.", functions }],
+    };
 }
 
 describe("toSyntaxString method documentation", () => {
@@ -49,6 +49,22 @@ describe("toSyntaxString method documentation", () => {
         expect(out).toContain("    # Publishes a message.\n    # + target - Topic ARN, target ARN or phone number\n    # + return - The response, or an error\n    remote function publish(");
         // A parameter with no description gets no `+` line.
         expect(out).not.toContain("# + silent");
+    });
+
+    it("prefixes every physical line of a multiline parameter and return description", () => {
+        const out = toSyntaxString([libraryWithClientMethods([{
+            type: "Remote Function",
+            name: "publish",
+            description: "Publishes a message.",
+            parameters: [param("target", "Topic ARN, target ARN\nor phone number")],
+            return: { type: { name: "PublishMessageResponse|Error", links: [] }, description: "The response,\nor an error" },
+        }])]);
+        expect(out).toContain([
+            "    # + target - Topic ARN, target ARN",
+            "    # or phone number",
+            "    # + return - The response,",
+            "    # or an error",
+        ].join("\n"));
     });
 
     it("renders the return doc for a plain class method", () => {

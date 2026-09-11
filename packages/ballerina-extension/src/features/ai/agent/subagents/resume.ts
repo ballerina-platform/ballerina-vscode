@@ -20,7 +20,7 @@
  */
 
 import type { ModelMessage } from "ai";
-import { KILL_TASK_TOOL_NAME, SubagentType, TASK_OUTPUT_TOOL_NAME } from "./types";
+import { isSubagentId, KILL_TASK_TOOL_NAME, SubagentType, TASK_OUTPUT_TOOL_NAME } from "./types";
 import { loadSubagentHistory, loadSubagentMetadata, SubagentNotFoundError } from "./store";
 import { getBackgroundSubagent } from "./background";
 
@@ -44,6 +44,13 @@ export function markForegroundRun(subagentId: string): () => void {
 }
 
 export function validateResume(threadDir: string, resumeId: string, requestedType: SubagentType): ResumeValidation {
+    if (!isSubagentId(resumeId)) {
+        return {
+            kind: "error",
+            error: "SUBAGENT_NOT_FOUND",
+            message: `Cannot resume: "${resumeId}" is not a valid subagent id. Use the id from a Subagent report's "Resume id" line (task-subagent-xxxxxxxx).`,
+        };
+    }
     if (foregroundRuns.has(resumeId)) {
         return {
             kind: "error",
@@ -59,8 +66,18 @@ export function validateResume(threadDir: string, resumeId: string, requestedTyp
             message: `Subagent ${resumeId} is still running. Wait for it with ${TASK_OUTPUT_TOOL_NAME} or stop it with ${KILL_TASK_TOOL_NAME} before resuming.`,
         };
     }
+    // A missing or corrupt metadata file is terminal: resuming would run the saved history under
+    // whatever `subagent_type` was requested (a Librarian's conversation picking up the researcher's
+    // web tools), and the resave would then rewrite the metadata with that wrong type for good.
     const metadata = loadSubagentMetadata(threadDir, resumeId);
-    if (metadata && metadata.subagentType !== requestedType) {
+    if (!metadata) {
+        return {
+            kind: "error",
+            error: "SUBAGENT_NOT_FOUND",
+            message: `Cannot resume: no saved metadata for subagent ${resumeId}, so its type cannot be verified. Start a fresh Subagent run instead.`,
+        };
+    }
+    if (metadata.subagentType !== requestedType) {
         return {
             kind: "error",
             error: "SUBAGENT_TYPE_MISMATCH",
@@ -68,7 +85,7 @@ export function validateResume(threadDir: string, resumeId: string, requestedTyp
         };
     }
     try {
-        return { kind: "ok", messages: loadSubagentHistory(threadDir, resumeId), description: metadata?.description ?? "" };
+        return { kind: "ok", messages: loadSubagentHistory(threadDir, resumeId), description: metadata.description };
     } catch (error) {
         if (error instanceof SubagentNotFoundError) {
             return { kind: "error", error: "SUBAGENT_NOT_FOUND", message: error.message };

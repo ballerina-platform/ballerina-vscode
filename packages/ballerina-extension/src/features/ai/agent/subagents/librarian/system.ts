@@ -28,7 +28,7 @@ export const LIBRARIAN_REPORT_FORMAT = `## Libraries
 - org/name — one line on why it was chosen (alternatives ruled out: …)
 
 ## API surface
-Per library, only what the brief needs, verbatim from the docs files in \`\`\`ballerina blocks: client init and the config record fields that matter, the specific remote/resource functions, request/response record types with their load-bearing fields, error types, listener and service signatures when the brief listens for events.
+Per library, only what the brief needs, verbatim from the docs files in \`\`\`ballerina blocks: client init and the config record fields that matter, the specific remote/resource functions, request/response record types with their load-bearing fields, error types, classes, objects, annotations, listener and service signatures when the brief listens for events.
 
 ## Usage notes
 Import lines exactly as the docs file shows them (including any \`import org/pkg.sub as alias;\` or "(import as …)" hint), required configurables, the parts of "Usage instructions" the caller must follow, and pitfalls visible in the docs.

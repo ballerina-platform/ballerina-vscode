@@ -21,7 +21,7 @@
 import { generateText, ModelMessage, stepCountIs } from "ai";
 import { buildSubagentMessages, collectResponseMessages } from "./messages";
 import { addCacheControlToMessages, AnthropicEffort, ANTHROPIC_HAIKU, ANTHROPIC_SONNET, getAnthropicClient, getProviderCacheControl } from "../../utils/ai-client";
-import { emitModelUsage } from "../../utils/events";
+import { accumulateModelUsage } from "../../utils/events";
 import { getSubagentDefinition } from "./definitions";
 import { describeSubagentStep, SubagentProgress } from "./progress";
 import { SubagentModel, SubagentResult, SubagentRunContext, SubagentType } from "./types";
@@ -89,6 +89,10 @@ export async function runSubagent(params: RunSubagentParams): Promise<SubagentRe
         // The final step (report text, no tool calls) is followed at once by the completion result, so
         // only steps that called tools are worth announcing.
         onStepFinish: onProgress ? (step) => {
+            // A run-end cleanup has already reported this task aborted on the same tool row; the SDK
+            // still runs onStepFinish for the step that was in flight. A heartbeat now would flip the
+            // terminal row back to "running" for good, because the task's real completion is discarded.
+            if (params.abortSignal?.aborted) { return; }
             stepCount++;
             const calls = step.toolCalls.map(c => ({ toolName: c.toolName, input: (c as { input?: unknown }).input }));
             if (calls.length > 0) { onProgress(describeSubagentStep(calls, stepCount)); }
@@ -101,7 +105,9 @@ export async function runSubagent(params: RunSubagentParams): Promise<SubagentRe
     });
 
     const usage = result.totalUsage ?? result.usage;
-    emitModelUsage(params.ctx.eventHandler, [{
+    // Accumulate only: a subagent's tokens are part of the run's cost, but its input count is its own
+    // context, not the main agent's — announcing it would reset the panel's context-usage meter.
+    accumulateModelUsage([{
         model: modelId,
         inputTokens: usage?.inputTokens ?? 0,
         outputTokens: usage?.outputTokens ?? 0,

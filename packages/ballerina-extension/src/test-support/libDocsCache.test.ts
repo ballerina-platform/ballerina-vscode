@@ -35,7 +35,7 @@ import {
     splitRenderedLibrary,
     TOC_NAME_LIMIT,
 } from "../features/ai/utils/libs/lib-docs-cache";
-import type { Library } from "../features/ai/utils/libs/library-types";
+import type { Library, RemoteFunction } from "../features/ai/utils/libs/library-types";
 
 const FIXTURE = path.join(__dirname, "..", "..", "test", "ai", "unit_tests", "libs", "resources", "sample-libraries.json");
 const libraries: Library[] = JSON.parse(fs.readFileSync(FIXTURE, "utf8"));
@@ -122,7 +122,7 @@ describe("libraryToc", () => {
     it("caps names per category and says how many more there are", () => {
         const many: Library = {
             name: "x/many", description: "", clients: [], typeDefs: [],
-            functions: Array.from({ length: TOC_NAME_LIMIT + 7 }, (_, i) => ({ name: `fn${i}`, type: "function", description: "", parameters: [], return: { type: { name: "()" } } } as any)),
+            functions: Array.from({ length: TOC_NAME_LIMIT + 7 }, (_, i): RemoteFunction => ({ name: `fn${i}`, type: "function", description: "", parameters: [], return: { type: { name: "()" } } })),
         };
         const toc = libraryToc(many);
         expect(toc).toContain(`- Functions (${TOC_NAME_LIMIT + 7}): fn0,`);

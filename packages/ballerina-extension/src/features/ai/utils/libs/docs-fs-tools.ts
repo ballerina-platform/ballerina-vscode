@@ -31,6 +31,57 @@ export const GREP_MAX_LINES = 100;
 export const GREP_MAX_LINE_CHARS = 500;
 export const GREP_MAX_CONTEXT = 5;
 export const READ_MAX_LINES = 500;
+export const GREP_MAX_PATTERN_CHARS = 200;
+
+/**
+ * Rejects a pattern whose matching can blow up on a single line (ReDoS). A repetition nested inside
+ * another repetition (`(a+)+`) is exponential; a backreference makes the engine backtrack too. Both are
+ * checked structurally rather than by timing, because the block would happen synchronously on the
+ * extension host before `GREP_MAX_LINES` caps the output. Sequential quantifiers (`a+b+`) are linear and
+ * stay allowed. This is the star-height check `safe-regex` performs, scoped to what a grep pattern needs
+ * so no parser dependency is pulled in.
+ */
+export function isSafeGrepPattern(pattern: string): boolean {
+    if (pattern.length > GREP_MAX_PATTERN_CHARS) { return false; }
+    if (/\\[1-9]/.test(pattern)) { return false; }
+    // One entry per open group; the value says whether any quantifier sits inside that group's body.
+    const groupHasQuantifier: boolean[] = [false];
+    let inClass = false;
+    for (let i = 0; i < pattern.length; i++) {
+        const c = pattern[i];
+        if (c === "\\") { i++; continue; }
+        if (inClass) { if (c === "]") { inClass = false; } continue; }
+        if (c === "[") { inClass = true; continue; }
+        if (c === "(") {
+            groupHasQuantifier.push(false);
+            // Skip the group modifier in `(?:`, `(?=`, `(?!`, `(?<=`, `(?<!`, `(?<name>` so its `?` is
+            // not mistaken for a quantifier.
+            if (pattern[i + 1] === "?") { i++; }
+            continue;
+        }
+        if (c === ")") {
+            const bodyHasQuantifier = groupHasQuantifier.pop() ?? false;
+            const quantified = /[*+?{]/.test(pattern[i + 1] ?? "");
+            if (bodyHasQuantifier && quantified) { return false; }
+            if (bodyHasQuantifier) { groupHasQuantifier[groupHasQuantifier.length - 1] = true; }
+            continue;
+        }
+        if (c === "*" || c === "+" || c === "?") {
+            // `*?`, `+?`, `??` are the lazy forms of one quantifier, not two.
+            const prev = pattern[i - 1];
+            if (c === "?" && (prev === "*" || prev === "+" || prev === "?")) { continue; }
+            groupHasQuantifier[groupHasQuantifier.length - 1] = true;
+            continue;
+        }
+        if (c === "{") {
+            const bound = /^\{\d+(?:,\d*)?\}/.exec(pattern.slice(i));
+            if (!bound) { continue; }
+            groupHasQuantifier[groupHasQuantifier.length - 1] = true;
+            i += bound[0].length - 1;
+        }
+    }
+    return true;
+}
 
 export interface DocsGrepInput {
     pattern: string;
@@ -77,6 +128,9 @@ function truncateLine(line: string): string {
 }
 
 export function grepDocs(dir: string, input: DocsGrepInput): string {
+    if (!isSafeGrepPattern(input.pattern)) {
+        return `Rejected pattern /${input.pattern}/: it can backtrack catastrophically (a repetition nested in another repetition, or a backreference). Simplify it — for example, replace (a+)+ with a+.`;
+    }
     let regex: RegExp;
     try {
         regex = new RegExp(input.pattern, input.case_sensitive ? "" : "i");

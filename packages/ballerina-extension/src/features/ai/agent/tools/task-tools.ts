@@ -31,7 +31,12 @@ export const TASK_OUTPUT_DEFAULT_BLOCK_MS = 120_000;
 export const TASK_OUTPUT_MAX_BLOCK_MS = 600_000;
 const POLL_INTERVAL_MS = 500;
 
-export function createTaskOutputTool(eventHandler: CopilotEventHandler) {
+/**
+ * `runKey` is the run that owns the tools. Background tasks are run-scoped (`cleanupRunningBackgroundSubagents`),
+ * so a task id from another run must read as not found — otherwise a stale id in a resumed thread could reach
+ * a task another turn started.
+ */
+export function createTaskOutputTool(eventHandler: CopilotEventHandler, runKey: string) {
     return tool({
         description: `Get the result of a background subagent by task id. block=true (default) waits until it completes — use this when you have no other work to do; you are woken as soon as the report is ready. block=false returns the current status immediately. Not for foreground runs (their report was returned inline).`,
         inputSchema: z.object({
@@ -41,7 +46,8 @@ export function createTaskOutputTool(eventHandler: CopilotEventHandler) {
         }),
         execute: async ({ task_id, block = true, timeout = TASK_OUTPUT_DEFAULT_BLOCK_MS }, options?: { toolCallId?: string; abortSignal?: AbortSignal }) => {
             const toolCallId = options?.toolCallId ?? `fallback-${Date.now()}`;
-            const task = getBackgroundSubagent(task_id);
+            const found = getBackgroundSubagent(task_id);
+            const task = found && found.runKey === runKey ? found : undefined;
             eventHandler({
                 type: "tool_call",
                 toolName: TASK_OUTPUT_TOOL_NAME,
@@ -92,7 +98,7 @@ export function createTaskOutputTool(eventHandler: CopilotEventHandler) {
     });
 }
 
-export function createKillTaskTool(eventHandler: CopilotEventHandler) {
+export function createKillTaskTool(eventHandler: CopilotEventHandler, runKey: string) {
     return tool({
         description: "Terminate a running background subagent by task id.",
         inputSchema: z.object({
@@ -100,7 +106,8 @@ export function createKillTaskTool(eventHandler: CopilotEventHandler) {
         }),
         execute: async ({ task_id }, options?: { toolCallId?: string }) => {
             const toolCallId = options?.toolCallId ?? `fallback-${Date.now()}`;
-            const task = getBackgroundSubagent(task_id);
+            const found = getBackgroundSubagent(task_id);
+            const task = found && found.runKey === runKey ? found : undefined;
             eventHandler({ type: "tool_call", toolName: KILL_TASK_TOOL_NAME, toolInput: { task_id, description: task?.description }, toolCallId });
             if (!task) {
                 eventHandler({ type: "tool_result", toolName: KILL_TASK_TOOL_NAME, toolOutput: { task_id, status: "not_found" }, toolCallId, failed: true });

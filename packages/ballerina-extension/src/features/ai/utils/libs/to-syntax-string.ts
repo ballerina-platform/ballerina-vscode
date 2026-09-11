@@ -643,6 +643,14 @@ function renderParam(param: Parameter, externalLinks: ExternalLinkInfo[]): strin
 }
 
 /**
+ * One `# + <label><text>` line per physical line of `description`. A description carrying `\n` would
+ * otherwise emit raw continuation text with no `#` marker, which is not Ballerina documentation.
+ */
+function documentedLines(label: string, description: string, indent: string): string[] {
+    return description.split("\n").map((line, i) => `${indent}# ${i === 0 ? `+ ${label}` : ""}${line}`);
+}
+
+/**
  * Renders a method's documentation block: the description, then `# + <param> - …` for every documented
  * parameter and `# + return - …` when the return value is documented. Returns "" when there is nothing
  * to say, otherwise the lines end with a newline so the signature can follow directly.
@@ -659,11 +667,11 @@ function renderFunctionDocs(func: { description?: string; parameters: Parameter[
     }
     for (const param of func.parameters) {
         if (param.description) {
-            lines.push(`${indent}# + ${param.name} - ${param.description}`);
+            lines.push(...documentedLines(`${param.name} - `, param.description, indent));
         }
     }
     if (func.return?.description) {
-        lines.push(`${indent}# + return - ${func.return.description}`);
+        lines.push(...documentedLines("return - ", func.return.description, indent));
     }
     return lines.length > 0 ? `${lines.join("\n")}\n` : "";
 }

@@ -109,8 +109,8 @@ export function createToolRegistry(opts: ToolRegistryOptions) {
             threadId || 'default'
         ),
         [SUBAGENT_TOOL_NAME]: createSubagentTool(subagentCtx),
-        [TASK_OUTPUT_TOOL_NAME]: createTaskOutputTool(eventHandler),
-        [KILL_TASK_TOOL_NAME]: createKillTaskTool(eventHandler),
+        [TASK_OUTPUT_TOOL_NAME]: createTaskOutputTool(eventHandler, subagentCtx.runKey),
+        [KILL_TASK_TOOL_NAME]: createKillTaskTool(eventHandler, subagentCtx.runKey),
         [CONNECTOR_GENERATOR_TOOL]: createConnectorGeneratorTool(
             eventHandler,
             tempProjectPath,

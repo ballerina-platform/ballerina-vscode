@@ -24,6 +24,7 @@
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
+import type { ModelMessage } from "ai";
 import {
     getSubagentDir,
     loadSubagentHistory,
@@ -51,10 +52,10 @@ describe("ids", () => {
 describe("store", () => {
     it("round-trips history as JSONL and metadata as JSON under threads/<id>/subagents/<taskId>", () => {
         const id = generateSubagentId();
-        const messages = [
+        const messages: ModelMessage[] = [
             { role: "user", content: "Find Kafka" },
             { role: "assistant", content: [{ type: "text", text: "## Libraries\n- ballerinax/kafka" }] },
-        ] as any[];
+        ];
         saveSubagentRun(threadDir, id, { subagentType: "Librarian", description: "Kafka lookup", messages });
 
         const dir = getSubagentDir(threadDir, id);
@@ -79,6 +80,15 @@ describe("store", () => {
     it("throws SubagentNotFoundError for an unknown id and returns null metadata", () => {
         expect(() => loadSubagentHistory(threadDir, "task-subagent-deadbeef")).toThrow(SubagentNotFoundError);
         expect(loadSubagentMetadata(threadDir, "task-subagent-deadbeef")).toBeNull();
+    });
+
+    it("rejects an id that is not the generated shape before touching the filesystem", () => {
+        // A `../` traversal must not be able to name another thread's subagents directory.
+        expect(() => getSubagentDir(threadDir, "../../other-thread/subagents/task-subagent-00000000")).toThrow(SubagentNotFoundError);
+        expect(() => loadSubagentHistory(threadDir, "../escape")).toThrow(SubagentNotFoundError);
+        expect(() => loadSubagentMetadata(threadDir, "../escape")).toThrow(SubagentNotFoundError);
+        expect(() => saveSubagentRun(threadDir, "../escape", { subagentType: "Librarian", description: "x", messages: [] })).toThrow(SubagentNotFoundError);
+        expect(fs.existsSync(path.join(threadDir, "..", "escape"))).toBe(false);
     });
 });
 
@@ -109,6 +119,34 @@ describe("validateResume", () => {
         const v = validateResume(threadDir, "task-subagent-00000000", "Librarian");
         expect(v.kind).toBe("error");
         if (v.kind === "error") { expect(v.error).toBe("SUBAGENT_NOT_FOUND"); }
+    });
+
+    it("rejects a traversal id before it reaches the filesystem", () => {
+        const v = validateResume(threadDir, "../../other-thread/subagents/task-subagent-00000000", "Librarian");
+        expect(v.kind).toBe("error");
+        if (v.kind === "error") {
+            expect(v.error).toBe("SUBAGENT_NOT_FOUND");
+            expect(v.message).toContain("not a valid subagent id");
+        }
+    });
+
+    it("rejects a resume whose metadata is missing, even though the history exists", () => {
+        const id = generateSubagentId();
+        saveSubagentRun(threadDir, id, { subagentType: "Librarian", description: "d", messages: [{ role: "user", content: "q" }] });
+        fs.rmSync(path.join(getSubagentDir(threadDir, id), "metadata.json"));
+        const v = validateResume(threadDir, id, "Librarian");
+        expect(v.kind).toBe("error");
+        if (v.kind === "error") {
+            expect(v.error).toBe("SUBAGENT_NOT_FOUND");
+            expect(v.message).toContain("cannot be verified");
+        }
+    });
+
+    it("rejects a resume whose metadata is corrupt", () => {
+        const id = generateSubagentId();
+        saveSubagentRun(threadDir, id, { subagentType: "Librarian", description: "d", messages: [{ role: "user", content: "q" }] });
+        fs.writeFileSync(path.join(getSubagentDir(threadDir, id), "metadata.json"), "{not json");
+        expect(validateResume(threadDir, id, "Librarian").kind).toBe("error");
     });
 
     it("rejects a resume while a foreground run of the same id is in flight, and allows it after release", () => {

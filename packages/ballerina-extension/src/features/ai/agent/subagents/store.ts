@@ -26,7 +26,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import type { ModelMessage } from "ai";
-import { SubagentMetadata, SubagentType } from "./types";
+import { isSubagentId, SubagentMetadata, SubagentType } from "./types";
 import { writeAtomic } from "../../utils/atomic-write";
 
 const SUBAGENTS_DIR = "subagents";
@@ -40,7 +40,15 @@ export class SubagentNotFoundError extends Error {
     }
 }
 
+/**
+ * The only place a subagent id becomes a path. Every read and write goes through here, so an id that
+ * is not the generated `task-subagent-<8 hex>` shape — a `../` traversal in particular — is rejected
+ * before it can escape the thread's `subagents/` directory.
+ */
 export function getSubagentDir(threadDir: string, subagentId: string): string {
+    if (!isSubagentId(subagentId)) {
+        throw new SubagentNotFoundError(subagentId);
+    }
     return path.join(threadDir, SUBAGENTS_DIR, subagentId);
 }
 

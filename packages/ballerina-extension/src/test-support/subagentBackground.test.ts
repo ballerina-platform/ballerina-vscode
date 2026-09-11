@@ -21,7 +21,11 @@
  * (a task that never reports, a reminder repeated every step, a task surviving the turn).
  */
 
+import { tool, type Tool, type ToolExecutionOptions } from "ai";
+import { z } from "zod";
+import type { ChatNotify } from "@wso2/ballerina-core";
 import type { BackgroundSubagent } from "../features/ai/agent/subagents/types";
+import { createKillTaskTool, createTaskOutputTool } from "../features/ai/agent/tools/task-tools";
 import {
     BACKGROUND_SUBAGENT_TTL_MS,
     MAX_BACKGROUND_SUBAGENTS,
@@ -110,24 +114,65 @@ describe("drainBackgroundTaskNotifications", () => {
 });
 
 describe("withBackgroundNotifications", () => {
+    // Real `Tool` fixtures built with the SDK's own `tool()` helper, so the wrapper is checked against
+    // the contract it extends rather than against an `any` that hides a shape mismatch.
+    const execOptions = (toolCallId: string): ToolExecutionOptions => ({ toolCallId, messages: [] });
+
     it("appends the reminder to string results and attaches it to object results", async () => {
         registerBackgroundSubagent(entry("s", { completed: true, success: true }));
-        const stringTool = withBackgroundNotifications({ description: "d", inputSchema: {} as any, execute: async () => "ok" } as any, "run-a");
-        const out = await stringTool.execute!({}, {} as any);
+        const stringTool = withBackgroundNotifications(tool({
+            description: "d",
+            inputSchema: z.object({}),
+            execute: async () => "ok",
+        }), "run-a");
+        const out = await stringTool.execute!({}, execOptions("s"));
+        // The SDK types an execute result as `AsyncIterable<OUTPUT> | PromiseLike<OUTPUT> | OUTPUT`;
+        // these fixtures never stream, so narrowing to the plain value is the assertion too.
+        if (typeof out !== "string") { throw new Error("unexpected streamed result"); }
         expect(out).toMatch(/^ok\n\n<system-reminder>/);
 
         registerBackgroundSubagent(entry("o", { completed: true, success: true }));
-        const objectTool = withBackgroundNotifications({ description: "d", inputSchema: {} as any, execute: async () => ({ status: "done" }) } as any, "run-a");
-        const obj = await objectTool.execute!({}, {} as any) as any;
+        const objectTool = withBackgroundNotifications(tool({
+            description: "d",
+            inputSchema: z.object({}),
+            execute: async (): Promise<{ status: string; system_reminder?: string }> => ({ status: "done" }),
+        }), "run-a");
+        const obj = await objectTool.execute!({}, execOptions("o"));
+        if (!("status" in obj)) { throw new Error("unexpected streamed result"); }
         expect(obj.status).toBe("done");
         expect(obj.system_reminder).toMatch(/^<system-reminder>/);
     });
 
     it("leaves results untouched when nothing completed, and skips tools without execute", async () => {
-        const t = withBackgroundNotifications({ description: "d", inputSchema: {} as any, execute: async () => "plain" } as any, "run-a");
-        expect(await t.execute!({}, {} as any)).toBe("plain");
-        const noExec = { description: "provider tool", inputSchema: {} as any } as any;
+        const t = withBackgroundNotifications(tool({
+            description: "d",
+            inputSchema: z.object({}),
+            execute: async () => "plain",
+        }), "run-a");
+        expect(await t.execute!({}, execOptions("plain"))).toBe("plain");
+        // `never` output makes `execute` optional in the SDK's Tool union — the provider-tool shape.
+        const noExec: Tool<Record<string, never>, never> = { description: "provider tool", inputSchema: z.object({}) };
         expect(withBackgroundNotifications(noExec, "run-a")).toBe(noExec);
+    });
+});
+
+describe("task tools are scoped to the owning run", () => {
+    const execOptions = (toolCallId: string): ToolExecutionOptions => ({ toolCallId, messages: [] });
+
+    it("reads a task from another run as not found and leaves it untouched", async () => {
+        registerBackgroundSubagent(entry("foreign", { runKey: "run-b", completed: true, success: true }));
+        const events: ChatNotify[] = [];
+
+        const out = await createTaskOutputTool(e => events.push(e), "run-a").execute!({ task_id: "foreign" }, execOptions("call-1"));
+        if (typeof out !== "string") { throw new Error("unexpected streamed result"); }
+        expect(out).toContain("Task not found: foreign");
+        expect(events.some(e => e.type === "tool_result" && e.toolOutput?.status === "not_found")).toBe(true);
+
+        const killed = await createKillTaskTool(e => events.push(e), "run-a").execute!({ task_id: "foreign" }, execOptions("call-2"));
+        if (typeof killed !== "string") { throw new Error("unexpected streamed result"); }
+        expect(killed).toBe("Task not found: foreign.");
+        expect(getBackgroundSubagent("foreign")).toBeDefined();
+        expect(getBackgroundSubagent("foreign")!.aborted).toBe(false);
     });
 });
 
