@@ -46,6 +46,7 @@ import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
 import { NodeMetadata } from "@wso2/ballerina-core";
 import { sanitizeAgentData } from "../agentNodeUtils";
 import { useAgentNodeController } from "../AgentWidget/useAgentNodeController";
+import { AgentReferenceRow } from "../AgentWidget/AgentReferenceRow";
 
 export namespace NodeStyles {
     export const Node = styled.div<{ readOnly: boolean }>`
@@ -241,110 +242,6 @@ export namespace NodeStyles {
             border-bottom-color: ${ThemeColors.OUTLINE_VARIANT};
         }
     `;
-}
-
-const Divider = styled.div`
-    width: 100%;
-    height: 1px;
-    background-color: ${ThemeColors.OUTLINE_VARIANT};
-`;
-
-const ReferenceRow = styled.div`
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    width: 100%;
-    z-index: 2;
-`;
-
-const ReferenceName = styled.span`
-    flex: 1;
-    min-width: 0;
-    padding-left: 4px;
-    color: ${ThemeColors.ON_SURFACE};
-    font-family: monospace;
-    font-size: 12px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-`;
-
-const OpenAgentButton = styled.div`
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    flex-shrink: 0;
-    padding: 6px 10px;
-    border: 1px solid ${ThemeColors.OUTLINE_VARIANT};
-    border-radius: 6px;
-    color: ${ThemeColors.ON_SURFACE};
-    font-family: "GilmerRegular";
-    font-size: 12px;
-    cursor: pointer;
-    z-index: 2;
-    transition: border-color 0.15s ease, background-color 0.15s ease;
-
-    &:hover {
-        border-color: ${ThemeColors.PRIMARY};
-        background-color: ${ThemeColors.SURFACE_BRIGHT};
-    }
-`;
-
-function ChipGlyph({ name, isCodicon, size = 14 }: { name: string; isCodicon?: boolean; size?: number }) {
-    return (
-        <Icon
-            name={name}
-            isCodicon={isCodicon}
-            sx={{ display: "flex", alignItems: "center", justifyContent: "center", width: size, height: size }}
-            // The glyph's own box (not just its container) needs to be a flex item too, so the
-            // font's own ascent/descent can't throw the icon off-center within it.
-            iconSx={{ display: "inline-flex", alignItems: "center", justifyContent: "center", height: size, fontSize: size, lineHeight: 1 }}
-        />
-    );
-}
-
-
-type AgentReferenceProps = {
-    agentVarName: string;
-    clickable: boolean;
-    onOpen: (event: React.SyntheticEvent) => void;
-    onButtonHoverChange: (hovered: boolean) => void;
-};
-
-// Read-only metadata (model/tools/memory) lives in the property panel now; this row only opens the agent.
-function AgentReference({ agentVarName, clickable, onOpen, onButtonHoverChange }: AgentReferenceProps) {
-    if (!agentVarName) {
-        return null;
-    }
-    const handleKeyDown = (event: React.KeyboardEvent) => {
-        if (event.key === "Enter" || event.key === " ") {
-            onOpen(event);
-        }
-    };
-    return (
-        <>
-            <Divider />
-            <ReferenceRow data-testid="agent-reference-row">
-                <ReferenceName>{agentVarName}</ReferenceName>
-                {clickable && (
-                    <OpenAgentButton
-                        data-testid="open-agent-button"
-                        role="button"
-                        tabIndex={0}
-                        title="Open Agent"
-                        onClick={onOpen}
-                        onKeyDown={handleKeyDown}
-                        onMouseEnter={() => onButtonHoverChange(true)}
-                        onMouseLeave={() => onButtonHoverChange(false)}
-                    >
-                        Open agent
-                        <ChipGlyph name="bi-arrow-outward" size={13} />
-                    </OpenAgentButton>
-                )}
-            </ReferenceRow>
-        </>
-    );
 }
 
 interface AgentCallNodeWidgetProps {
@@ -640,8 +537,8 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
                         )}
                     </NodeStyles.Row>
 
-                    <AgentReference
-                        agentVarName={agentVarName}
+                    <AgentReferenceRow
+                        label={agentVarName}
                         clickable={canViewAgent}
                         onOpen={handleOpenAgent}
                         onButtonHoverChange={setIsOpenAgentHovered}

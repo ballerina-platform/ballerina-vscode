@@ -176,7 +176,7 @@ export function Diagram(props: DiagramProps) {
 
         const initVisitor = new InitVisitor(flowModel, currentExpandedErrorHandler);
         traverseFlow(flowModel, initVisitor);
-        const sizingVisitor = new SizingVisitor();
+        const sizingVisitor = new SizingVisitor(agentNode?.durableAgentReference === true);
         traverseFlow(flowModel, sizingVisitor);
         const positionVisitor = new PositionVisitor();
         traverseFlow(flowModel, positionVisitor);

@@ -57,6 +57,7 @@ import { nodeHasError } from "../../../utils/node";
 import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
 import { NodeMetadata } from "@wso2/ballerina-core";
 import { MarkdownWithTooltip } from "../AgentMarkdownTooltip";
+import { AgentReferenceRow } from "../AgentWidget/AgentReferenceRow";
 
 export namespace NodeStyles {
     export const Node = styled.div<{ readOnly: boolean }>`
@@ -132,6 +133,25 @@ export namespace NodeStyles {
         svg {
             fill: ${NODE_TEXT_COLOR};
         }
+    `;
+
+    export const IconBox = styled.div`
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 4px;
+        margin-right: 4px;
+    `;
+
+    export const RunBadge = styled.div`
+        position: absolute;
+        bottom: -5px;
+        right: -5px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
     `;
 
     export const Title = styled(StyledText)`
@@ -456,6 +476,7 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
     const isAgentReference = agentNode?.durableAgentReference === true;
 
     const [isBoxHovered, setIsBoxHovered] = useState(false);
+    const [isOpenAgentHovered, setIsOpenAgentHovered] = useState(false);
     const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
     const [menuButtonElement, setMenuButtonElement] = useState<HTMLElement | null>(null);
     // While a capability form is open, addingCapability drives the pill indicator on the node.
@@ -505,14 +526,13 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
         }
         // In a caller's flow the box is the run statement, so clicking it opens that statement's
         // form — the way every other node behaves. Jumping to the agent's own diagram stays on the
-        // button in the corner, which is the only affordance that says it navigates.
+        // "Open agent" affordance, which is the only one that says it navigates.
         onNodeClick();
     };
 
-    const onGoToAgentClick = (event: React.MouseEvent<HTMLElement | SVGSVGElement>) => {
+    const handleOpenAgent = (event: React.SyntheticEvent) => {
         event.stopPropagation();
         agentNode?.onGoToAgent?.(model.node);
-        setMenuPos(null);
     };
 
     const onNodeClick = () => {
@@ -541,8 +561,10 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
         setMenuPos(null);
     };
 
+    // Only reachable from the owner-mode box below — reference mode returns its own
+    // simplified box before any of these handlers can be wired up.
     const onModelEditClick = () => {
-        if (readOnly || isAgentReference) {
+        if (readOnly) {
             return;
         }
         agentNode?.onModelSelect?.(model.node);
@@ -550,7 +572,7 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
     };
 
     const onConfigureAgentClick = (event: React.MouseEvent<HTMLElement | SVGSVGElement>) => {
-        if (readOnly || isAgentReference) {
+        if (readOnly) {
             return;
         }
         event.stopPropagation();
@@ -571,15 +593,11 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
         if (readOnly) {
             return;
         }
-        if (isAgentReference) {
-            agentNode?.onGoToAgent?.(model.node);
-            return;
-        }
         agentNode?.onEditCapability?.(model.node, { ...item.data, type: item.kind });
     };
 
     const onCapabilityDelete = (item: CapabilityItem) => (event: React.MouseEvent<SVGGElement>) => {
-        if (readOnly || isAgentReference) {
+        if (readOnly) {
             return;
         }
         event.stopPropagation();
@@ -589,7 +607,7 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
     // Fires the matching add callback and shows the pill; the diagram remounts the node
     // once the generated statement lands, clearing the pill.
     const onAffordanceClick = (kind: AddableCapability) => (event: React.MouseEvent<HTMLElement>) => {
-        if (readOnly || isAgentReference) {
+        if (readOnly) {
             return;
         }
         event.stopPropagation();
@@ -625,6 +643,14 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
         setMenuPos(getMenuPos(target as HTMLElement));
     };
 
+    const disabled = model.node.suggested;
+    const isDraft = model.node.metadata?.draft === true;
+    const nodeMetadata = model?.node?.metadata?.data as DurableAgentNodeMetadata | undefined;
+    // The big agent visualization is rendered only for the synthetic agent-box node
+    // (metadata.data.agentBox) or the draft placeholder; the in-chain buildAndRun
+    // statement renders as a compact node like the other register statements.
+    const isAgentBox = nodeMetadata?.agentBox === true;
+
     const menuItems: Item[] = [
         {
             id: "edit",
@@ -633,15 +659,12 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
         },
         { id: "goToSource", label: "Source", onClick: () => onGoToSource() },
         { id: "delete", label: "Delete", onClick: () => deleteNode() },
+        ...(isAgentBox && isAgentReference && agentNode?.onGoToAgent ? [{
+            id: "goToAgent",
+            label: "Open Agent",
+            onClick: () => { agentNode.onGoToAgent!(model.node); setMenuPos(null); },
+        }] : []),
     ];
-
-    const disabled = model.node.suggested;
-    const isDraft = model.node.metadata?.draft === true;
-    const nodeMetadata = model?.node?.metadata?.data as DurableAgentNodeMetadata | undefined;
-    // The big agent visualization is rendered only for the synthetic agent-box node
-    // (metadata.data.agentBox) or the draft placeholder; the in-chain buildAndRun
-    // statement renders as a compact node like the other register statements.
-    const isAgentBox = nodeMetadata?.agentBox === true;
     // Agent identifier (the enclosing function name) is the box title; fall back to the label.
     const nodeTitle = nodeMetadata?.agentName || model.node.metadata?.label || "Durable Agentic Workflow";
     const hasError = nodeHasError(model.node);
@@ -864,6 +887,83 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
         );
     }
 
+    // Reference mode: capability circles and role/instructions here only ever re-did the single
+    // "go to agent" navigation (same over-inflated pattern AgentCallNode had), so the box collapses
+    // to a title/description plus one reference row. The full capability detail lives in the
+    // property panel that Edit opens.
+    if (isAgentReference) {
+        return (
+            <NodeStyles.Node data-testid="durable-agent-run-node" readOnly={readOnly}>
+                <NodeStyles.Box
+                    disabled={disabled}
+                    hovered={isBoxHovered && !isOpenAgentHovered}
+                    hasError={hasError}
+                    readOnly={readOnly}
+                    isActiveBreakpoint={isActiveBreakpoint}
+                    isSelected={isSelected}
+                    onMouseEnter={() => setIsBoxHovered(true)}
+                    onMouseLeave={() => setIsBoxHovered(false)}
+                    onContextMenu={!readOnly ? handleOnContextMenu : undefined}
+                    title="Configure Run"
+                >
+                    {hasBreakpoint && (
+                        <div
+                            data-testid={isActiveBreakpoint ? "breakpoint-indicator-diagram-active" : "breakpoint-indicator-diagram"}
+                            style={{
+                                position: "absolute",
+                                left: -5,
+                                width: 15,
+                                height: 15,
+                                borderRadius: "50%",
+                                backgroundColor: "red",
+                                zIndex: 2,
+                            }}
+                        />
+                    )}
+                    <NodeStyles.TopPortWidget port={model.getPort("in")!} engine={engine} />
+                    <NodeStyles.Column style={{ height: "auto", paddingBottom: "12px" }}>
+                        <NodeStyles.Row readOnly={readOnly}>
+                            <NodeStyles.IconBox onClick={handleOnClick}>
+                                <NodeIcon type={model.node.codedata.node} size={24} />
+                                <NodeStyles.RunBadge>
+                                    <Icon name="bi-play" iconSx={{ fontSize: "20px" }} sx={{ color: "var(--vscode-charts-green)", display: "flex", justifyContent: "center", alignItems: "center" }} />
+                                </NodeStyles.RunBadge>
+                            </NodeStyles.IconBox>
+                            <NodeStyles.Row readOnly={readOnly}>
+                                <NodeStyles.Header onClick={handleOnClick}>
+                                    <NodeStyles.Title>durable agent : run</NodeStyles.Title>
+                                    <NodeStyles.Description>
+                                        {model.node.properties?.variable?.value as ReactNode}
+                                    </NodeStyles.Description>
+                                </NodeStyles.Header>
+                                <NodeStyles.ActionButtonGroup>
+                                    {hasError && <DiagnosticsPopUp node={model.node} engine={engine} />}
+                                    <NodeStyles.MenuButton
+                                        ref={setMenuButtonElement}
+                                        buttonSx={readOnly ? { cursor: "not-allowed" } : {}}
+                                        appearance="icon"
+                                        onClick={handleOnMenuClick}
+                                    >
+                                        <MoreVertIcon />
+                                    </NodeStyles.MenuButton>
+                                </NodeStyles.ActionButtonGroup>
+                            </NodeStyles.Row>
+                            {menuPortal}
+                        </NodeStyles.Row>
+
+                        <AgentReferenceRow
+                            label={nodeTitle}
+                            clickable={Boolean(agentNode?.onGoToAgent)}
+                            onOpen={handleOpenAgent}
+                            onButtonHoverChange={setIsOpenAgentHovered}
+                        />
+                    </NodeStyles.Column>
+                    <NodeStyles.BottomPortWidget port={model.getPort("out")!} engine={engine} />
+                </NodeStyles.Box>
+            </NodeStyles.Node>
+        );
+    }
+
     return (
         <NodeStyles.Node data-testid="durable-agent-run-node" readOnly={readOnly}>
             {leftItems.length > 0 && (
@@ -910,7 +1010,7 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
                                     <div className="connector-icon">{renderCapabilityIcon(item)}</div>
                                 </foreignObject>
 
-                                {!isAgentReference && <g
+                                <g
                                     transform="translate(236, 8)"
                                     onClick={onCapabilityDelete(item)}
                                     css={css`
@@ -924,7 +1024,7 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
                                     <title>Remove</title>
                                     <circle cx="0" cy="0" r="7" fill={NODE_BG_COLOR} stroke={NODE_BORDER_COLOR} strokeWidth={1} />
                                     <text x="0" y="2.8" textAnchor="middle" fontSize="9" fill={NODE_TEXT_COLOR}>✕</text>
-                                </g>}
+                                </g>
 
                                 <text
                                     x="190"
@@ -1014,28 +1114,14 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
                             </NodeStyles.Header>
                             <NodeStyles.ActionButtonGroup>
                                 {hasError && <DiagnosticsPopUp node={model.node} engine={engine} />}
-                                {isAgentReference ? (
-                                    <NodeStyles.MenuButton
-                                        appearance="icon"
-                                        onClick={onGoToAgentClick}
-                                        tooltip="Go to Agent"
-                                    >
-                                        <Icon
-                                            name="bi-arrow-outward"
-                                            sx={{ width: 16, height: 16 }}
-                                            iconSx={{ fontSize: 16 }}
-                                        />
-                                    </NodeStyles.MenuButton>
-                                ) : (
-                                    <NodeStyles.MenuButton
-                                        buttonSx={readOnly ? { cursor: "not-allowed" } : {}}
-                                        appearance="icon"
-                                        onClick={onConfigureAgentClick}
-                                        tooltip="Configure Agent Identifier"
-                                    >
-                                        <Icon name="bi-settings" sx={{ width: 16, height: 16 }} iconSx={{ fontSize: 16 }} />
-                                    </NodeStyles.MenuButton>
-                                )}
+                                <NodeStyles.MenuButton
+                                    buttonSx={readOnly ? { cursor: "not-allowed" } : {}}
+                                    appearance="icon"
+                                    onClick={onConfigureAgentClick}
+                                    tooltip="Configure Agent Identifier"
+                                >
+                                    <Icon name="bi-settings" sx={{ width: 16, height: 16 }} iconSx={{ fontSize: 16 }} />
+                                </NodeStyles.MenuButton>
                                 <NodeStyles.MenuButton
                                     ref={setMenuButtonElement}
                                     buttonSx={readOnly ? { cursor: "not-allowed" } : {}}

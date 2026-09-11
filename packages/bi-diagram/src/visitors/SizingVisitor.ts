@@ -20,6 +20,7 @@ import { BaseVisitor } from "@wso2/ballerina-core";
 
 import {
     AGENT_BOX_BOTTOM_AFFORDANCE_GAP,
+    AGENT_CALL_REFERENCE_HEIGHT,
     AGENT_NODE_TOOL_GAP,
     AGENT_NODE_TOOL_SECTION_GAP,
     EMPTY_NODE_CONTAINER_WIDTH,
@@ -55,7 +56,9 @@ import { Branch, FlowNode } from "../utils/types";
 export class SizingVisitor implements BaseVisitor {
     private skipChildrenVisit = false;
 
-    constructor() {
+    // True when durable-agent-run boxes are being sized for a run() call site rather than the
+    // agent's own declaration — see endVisitDurableAgentRun.
+    constructor(private isDurableAgentReference: boolean = false) {
         // console.log(">>> sizing visitor started");
     }
 
@@ -414,6 +417,13 @@ export class SizingVisitor implements BaseVisitor {
                 height += LABEL_HEIGHT;
             }
             this.setNodeSize(node, halfNodeWidth, halfNodeWidth, height);
+            return;
+        }
+
+        // Reference mode (a run() call site) collapses to the same simple reference row
+        // AgentCallNode uses — no side circle columns are painted, so no side space is reserved.
+        if (this.isDurableAgentReference) {
+            this.setNodeSize(node, halfNodeWidth, halfNodeWidth, NODE_HEIGHT + AGENT_CALL_REFERENCE_HEIGHT);
             return;
         }
 
