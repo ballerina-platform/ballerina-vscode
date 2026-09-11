@@ -38,6 +38,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -75,6 +76,14 @@ class FunctionSearchCommand extends SearchCommand {
     private static final String EXTENDED_LIBRARY_ORG = "ballerinax";
     // Organizations whose functions can be loaded page-by-page as an independent library section.
     private static final Set<String> PAGINATED_SECTION_ORGS = Set.of(STANDARD_LIBRARY_ORG, EXTENDED_LIBRARY_ORG);
+    // A searched page is a window onto a result set that a reindexed Central makes far larger: a function-name query
+    // now matches one row per declaring module rather than one per package, so a single package can fill a page on
+    // its own and push another package's rows past the end of it. These bound the top-up that keeps an imported
+    // module's functions reachable. A module holds a handful of matching functions - seven for a d03a EDI submodule
+    // queried by function name, thirteen for its whole surface - so the per-module budget is headroom rather than a
+    // figure fitted to one package's size.
+    private static final int IMPORTED_MODULE_FUNCTION_LIMIT = 50;
+    private static final int MAX_TOPPED_UP_MODULES = 5;
     private final Set<ModuleCoordinate> importedModules;
     private final Document functionsDoc;
     // When set (to "ballerina" or "ballerinax"), the request loads the next page of that single library section
@@ -156,9 +165,134 @@ class FunctionSearchCommand extends SearchCommand {
         List<SearchResult> functionSearchList = centralSearch.searchFunctions(query, limit, offset, allowedOrgs);
         if (functionSearchList == null) {
             functionSearchList = dbManager.searchFunctions(query, limit, offset);
+        } else {
+            functionSearchList = withImportedModuleFunctions(centralSearch, functionSearchList);
         }
         buildLibraryNodes(functionSearchList, true);
         return rootBuilder.build().items();
+    }
+
+    /**
+     * Adds the matching functions of imported modules that the general Central page leaves out.
+     *
+     * <p>The default view fetches the imported modules' functions in their own right, so they are always present.
+     * A search did not: it took whichever rows the one general page happened to hold, leaving a function from a
+     * module the project already imports to compete with every unrelated package that matched the same name - and
+     * lose, if the page filled up first. A module the user has imported is the strongest relevance signal
+     * available, so it is no longer left to the ranking.</p>
+     *
+     * <p>Nothing about what the page is missing is inferred from the page. Neither of the two signals it appears to
+     * offer holds up. Its length does not say whether Central had more to give: the fetch loop behind it gives up
+     * after a fixed number of iterations and then discards every row from an organization the page does not carry,
+     * so a short page is the normal outcome of a broad query - eight rows survived of the hundred and eighty
+     * scanned out of Central's thirteen hundred matches, in the case this was measured against. And a module having
+     * a row on the page does not say its matching functions are all there; one arbitrary row would otherwise
+     * suppress every other function the module declares. So every imported module is asked about, and the answers
+     * are deduplicated against the page by function rather than by module.</p>
+     *
+     * <p>Modules with no rows on the page are asked about first, being the likeliest to be missing something, and
+     * the budget bounds how many requests one keystroke can cost.</p>
+     *
+     * <p>The decision is {@link #mergeImportedModuleFunctions} and is kept free of this command's state so it can be
+     * exercised without a compiled project or a reachable Central; this method only supplies that state.</p>
+     *
+     * @param centralSearch  the Central client to query with
+     * @param centralResults the general page, kept in its original order
+     * @return the page with the missing imported functions ahead of it, or the page unchanged
+     */
+    private List<SearchResult> withImportedModuleFunctions(CentralSearchUtil centralSearch,
+                                                           List<SearchResult> centralResults) {
+        return mergeImportedModuleFunctions(centralResults, importedModules, offset,
+                module -> centralSearch.searchFunctionsInModule(query, IMPORTED_MODULE_FUNCTION_LIMIT, module));
+    }
+
+    /**
+     * Merges the imported modules' matching functions into the general page, as described by
+     * {@link #withImportedModuleFunctions}.
+     *
+     * @param centralResults  the general page, kept in its original order
+     * @param importedModules the modules the project imports, in the order to consider them
+     * @param offset          the page being requested; only the first page is topped up
+     * @param moduleLookup    asks Central for one module's matching functions, or null if that failed
+     * @return the page with the missing imported functions ahead of it, or the page unchanged
+     */
+    static List<SearchResult> mergeImportedModuleFunctions(
+            List<SearchResult> centralResults,
+            Set<ModuleCoordinate> importedModules,
+            int offset,
+            Function<ModuleCoordinate, List<SearchResult>> moduleLookup) {
+        if (offset > 0 || importedModules.isEmpty()) {
+            return centralResults;
+        }
+
+        Set<ModuleCoordinate> pagedModules = new HashSet<>();
+        Set<FunctionCoordinate> pagedFunctions = new HashSet<>();
+        for (SearchResult result : centralResults) {
+            ModuleCoordinate coordinate = result.packageInfo().coordinate();
+            pagedModules.add(coordinate);
+            pagedFunctions.add(new FunctionCoordinate(coordinate, result.name()));
+        }
+
+        List<SearchResult> importedResults = new ArrayList<>();
+        int queried = 0;
+        for (ModuleCoordinate candidate : topUpOrder(importedModules, pagedModules)) {
+            if (queried == MAX_TOPPED_UP_MODULES) {
+                break;
+            }
+            queried++;
+            List<SearchResult> moduleResults = moduleLookup.apply(candidate);
+            if (moduleResults == null) {
+                continue;
+            }
+            moduleResults.stream()
+                    .filter(result -> !pagedFunctions.contains(
+                            new FunctionCoordinate(result.packageInfo().coordinate(), result.name())))
+                    .forEach(importedResults::add);
+        }
+
+        if (importedResults.isEmpty()) {
+            return centralResults;
+        }
+        List<SearchResult> merged = new ArrayList<>(importedResults);
+        merged.addAll(centralResults);
+        return merged;
+    }
+
+    /**
+     * The imported modules in the order to spend the request budget on them: those with no rows on the page first,
+     * then those with some. A module absent from the page is the likelier to be missing a function; one that is
+     * present may already be listed in full, and asking about it is the guess that pays off least often.
+     *
+     * <p>Neither group is skipped. A module's absence does not prove it has nothing to offer, and its presence does
+     * not prove it has everything - only the request settles either.</p>
+     *
+     * @param importedModules the modules the project imports, iterated in their own stable order
+     * @param pagedModules    the modules the general page covers
+     * @return the modules to query, in the order to query them
+     */
+    static List<ModuleCoordinate> topUpOrder(Set<ModuleCoordinate> importedModules,
+                                             Set<ModuleCoordinate> pagedModules) {
+        List<ModuleCoordinate> unpaged = new ArrayList<>();
+        List<ModuleCoordinate> paged = new ArrayList<>();
+        for (ModuleCoordinate importedModule : importedModules) {
+            if (pagedModules.contains(importedModule)) {
+                paged.add(importedModule);
+            } else {
+                unpaged.add(importedModule);
+            }
+        }
+        unpaged.addAll(paged);
+        return unpaged;
+    }
+
+    /**
+     * One declared function, identified the way the page lists it. Deduplication is by function rather than by
+     * module so that a module already holding a row on the page still contributes the functions it does not.
+     *
+     * @param module the module that declares the function
+     * @param name   the function name
+     */
+    private record FunctionCoordinate(ModuleCoordinate module, String name) {
     }
 
     @Override

@@ -55,7 +55,12 @@ import static io.ballerina.projects.util.ProjectUtils.initializeProxy;
  */
 class RestClient {
 
-    private static final String BASE_URL = "https://api.central.ballerina.io/2.0/registry/";
+    // The registry the LS queries directly, kept in step with the one the package resolution below pulls from.
+    // RepoUtils resolves it from the BALLERINA_STAGE_CENTRAL / BALLERINA_DEV_CENTRAL environment variables, so a
+    // session pointed at staging or dev searches the same registry it installs packages from. Hardcoding prod here
+    // let the two diverge: a package resolvable from dev was still searched for on prod, where it does not exist.
+    // The returned URL carries no trailing slash, which is what the "%s/%s" formatting below expects.
+    private static final String BASE_URL = RepoUtils.getRemoteRepoURL();
     private static final String SEARCH_SYMBOLS = "search-symbols";
     private static final String SEARCH_PACKAGES = "search-packages";
     private static final String CONNECTOR = "connector";

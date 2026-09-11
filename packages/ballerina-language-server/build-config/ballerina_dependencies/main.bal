@@ -62,3 +62,4 @@ import ballerinax/googleapis.chat as _;
 import ballerinax/trigger.twilio as _;
 import ballerinax/whatsapp.business as _;
 import ballerinax/aws.sqs as _;
+import ballerinax/edifact.d03a.supplychain as _;

@@ -60,6 +60,7 @@ import io.ballerina.compiler.api.symbols.resourcepath.ResourcePath;
 import io.ballerina.compiler.api.values.ConstantValue;
 import io.ballerina.projects.Document;
 import io.ballerina.projects.Module;
+import io.ballerina.projects.ModuleId;
 import io.ballerina.projects.ModuleName;
 import io.ballerina.projects.Package;
 import io.ballerina.projects.PackageDescriptor;
@@ -167,12 +168,31 @@ public class FunctionDataBuilder {
         if (resolvedPackage == null) {
             return this;
         }
-        if (semanticModel == null) {
-            semanticModel(PackageUtil.getCompilation(resolvedPackage).getSemanticModel(
-                    resolvedPackage.getDefaultModule().moduleId()));
-        }
         this.resolvedPackage = resolvedPackage;
         return this;
+    }
+
+    /**
+     * Derives the semantic model from an explicitly resolved package, keeping any model the caller already supplied.
+     * <p>
+     * Deferred to build time rather than done in {@code resolvedPackage(Package)}: the module to compile against
+     * comes from {@code moduleInfo}, which callers are free to set after the package, so deriving it in the setter
+     * would silently pin the default module for those callers.
+     * <p>
+     * The target is the module {@code moduleInfo} names, falling back to the package default when the name is
+     * absent or matches nothing. Compiling against the default module instead would make every submodule symbol
+     * resolve against the package root, where it is either not found or silently shadowed by a same-named root
+     * function (e.g. every {@code m<MSG>} submodule of an EDI library re-exports {@code fromEdiString}).
+     */
+    private void deriveSemanticModelFromPackage() {
+        if (semanticModel != null || resolvedPackage == null) {
+            return;
+        }
+        String targetModuleName = moduleInfo == null ? null : moduleInfo.moduleName();
+        ModuleId targetModuleId = PackageUtil.findModule(resolvedPackage, targetModuleName)
+                .map(Module::moduleId)
+                .orElseGet(() -> resolvedPackage.getDefaultModule().moduleId());
+        semanticModel(PackageUtil.getCompilation(resolvedPackage).getSemanticModel(targetModuleId));
     }
 
     public FunctionDataBuilder name(String name) {
@@ -309,9 +329,9 @@ public class FunctionDataBuilder {
             }
         }
 
-        // Resolve packages in the current workspace before looking in the local cache or Central. A workspace
-        // package can also exist in the cache, but that copy may be stale and resolvedPackage() initially selects
-        // its default module. In particular, this would make a function in a sibling package's submodule invisible.
+        // Resolve packages in the current workspace before looking in the local cache or Central: a workspace
+        // package can also exist in the cache, but that copy is a snapshot of the last publish, so an edit that
+        // is only in the workspace — a newly added submodule function, say — would be invisible.
         if (project != null) {
             Optional<PackageUtil.WorkspacePackageResolution> workspaceResolution =
                     PackageUtil.getSemanticModelFromWorkspace(project,
@@ -366,6 +386,9 @@ public class FunctionDataBuilder {
 
         // Ensure moduleInfo is updated with resolvedPackage version before any usage
         updateModuleInfo();
+
+        // Compile the resolved package now that both the package and the target module name are known
+        deriveSemanticModelFromPackage();
 
         // Check if this is a local symbol
         isCurrentModule = userModuleInfo != null && (!moduleInfo.isComplete() || userModuleInfo.equals(moduleInfo));
@@ -736,6 +759,7 @@ public class FunctionDataBuilder {
 
         // Ensure moduleInfo is updated with resolved package version before any usage
         updateModuleInfo();
+        deriveSemanticModelFromPackage();
         checkLocalModule();
 
         // Derive if the semantic model is not provided

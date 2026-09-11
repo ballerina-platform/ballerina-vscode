@@ -21,6 +21,7 @@ package io.ballerina.flowmodelgenerator.core.utils;
 import io.ballerina.centralconnector.CentralAPI;
 import io.ballerina.centralconnector.response.ConnectorsResponse;
 import io.ballerina.centralconnector.response.SymbolResponse;
+import io.ballerina.modelgenerator.commons.ModuleCoordinate;
 import io.ballerina.modelgenerator.commons.SearchResult;
 import org.ballerinalang.diagramutil.connector.models.connector.Connector;
 
@@ -30,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 /**
  * Centralizes all Ballerina Central API search operations. This class encapsulates the logic for searching connectors
@@ -320,6 +322,41 @@ public class CentralSearchUtil {
     }
 
     /**
+     * Searches the functions a single module declares.
+     *
+     * <p>Central has no module parameter, but its {@code q} is matched against module names as well as symbol names
+     * and additional terms narrow the match, so naming the module alongside the query scopes the search to it:
+     * {@code q=fromEdiString edifact.d03a.finance.mINVOIC} matches seven symbols, all of that module's, where
+     * {@code q=fromEdiString edifact.d03a.finance} matches two hundred and ten across the package's thirty modules.
+     * Naming it only biases the ranking rather than restricting it, so the module is matched exactly here to drop
+     * the near misses that come back anyway - a package root alongside its submodules, or a {@code d04a} sibling of
+     * a {@code d03a} module.</p>
+     *
+     * <p>The request itself is {@link #searchFunctionsByOrg}: same query keys, same guards, same symbol-type check,
+     * same null-on-failure contract. Only the scoping of {@code q} and the exact-module filter are new.</p>
+     *
+     * @param query  the search query string (empty to list all of the module's functions)
+     * @param limit  the maximum number of the module's functions to return
+     * @param module the module to scope the search to
+     * @return the module's matching functions, or null if the request failed
+     */
+    public List<SearchResult> searchFunctionsInModule(String query, int limit, ModuleCoordinate module) {
+        if (module == null || module.moduleName().isEmpty()) {
+            return new ArrayList<>();
+        }
+        String scopedQuery = query == null || query.isEmpty()
+                ? module.moduleName() : query + " " + module.moduleName();
+        List<SearchResult> results = searchFunctionsByOrg(scopedQuery, limit, 0, module.org());
+        if (results == null) {
+            // The request failed; the caller keeps whatever general results it already has.
+            return null;
+        }
+        return results.stream()
+                .filter(result -> module.equals(result.packageInfo().coordinate()))
+                .collect(Collectors.toCollection(ArrayList::new));
+    }
+
+    /**
      * Searches symbols within the current organization from Ballerina Central, filtered by symbol type.
      *
      * @param currentOrg       the current organization name
@@ -404,10 +441,28 @@ public class CentralSearchUtil {
         SearchResult.Package packageInfo = new SearchResult.Package(
                 symbol.organization(),
                 symbol.name(),
-                symbol.name(),
+                moduleNameOf(symbol),
                 symbol.version()
         );
         return SearchResult.from(packageInfo, symbol.symbolName(), symbol.description(), fromCurrentOrg);
+    }
+
+    /**
+     * The module a symbol is declared in, falling back to the package name.
+     * <p>
+     * The module name is what the codedata carries to the node template, and compiling a submodule function against
+     * the package default module resolves the wrong symbol -- either not found, or silently shadowed by a same-named
+     * root function. A reindexed Central reports the declaring module in its own field, one row per module, so that
+     * is what is used. The fallback covers a registry that has not been reindexed yet, where the field is absent and
+     * only default-module symbols are indexed: there the package name <i>is</i> the module name, so the fallback is
+     * the correct answer rather than merely a safe one.
+     *
+     * @param symbol the symbol returned by Central
+     * @return the module name to attribute the symbol to
+     */
+    private static String moduleNameOf(SymbolResponse.Symbol symbol) {
+        String moduleName = symbol.moduleName();
+        return moduleName == null || moduleName.isEmpty() ? symbol.name() : moduleName;
     }
 
     private static boolean isBlacklisted(String connectorName, Set<String> patterns) {

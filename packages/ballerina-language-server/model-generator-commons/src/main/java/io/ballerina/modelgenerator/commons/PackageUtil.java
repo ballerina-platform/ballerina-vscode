@@ -326,12 +326,8 @@ public class PackageUtil {
             return Optional.empty();
         }
         Package pkg = modulePackage.get();
-        for (Module module : pkg.modules()) {
-            if (module.moduleName().toString().equals(moduleInfo.moduleName())) {
-                return Optional.of(getCompilation(pkg).getSemanticModel(module.moduleId()));
-            }
-        }
-        return Optional.empty();
+        return findModule(pkg, moduleInfo.moduleName())
+                .map(module -> getCompilation(pkg).getSemanticModel(module.moduleId()));
     }
 
     public static Optional<SemanticModel> getSemanticModel(String org, String name) {
@@ -581,6 +577,31 @@ public class PackageUtil {
     }
 
     /**
+     * Finds the module of a package that a request's module name addresses.
+     * <p>
+     * The name arrives in two shapes and both have to resolve: the qualified {@code <package>.<part>} form carried
+     * by Central and index codedata, and the bare {@code <part>} form some requests use (a local connection's
+     * {@code "mod"}, for instance). Matching only one shape sends the other to the package's default module, which
+     * is how a submodule function ends up shadowed by a same-named root function.
+     *
+     * @param pkg        the package to search
+     * @param moduleName the qualified or bare module name; the package name itself addresses the default module
+     * @return the matching module, or empty when the name addresses no module of this package
+     */
+    public static Optional<Module> findModule(Package pkg, String moduleName) {
+        if (moduleName == null || moduleName.isEmpty()) {
+            return Optional.empty();
+        }
+        for (Module module : pkg.modules()) {
+            if (module.moduleName().toString().equals(moduleName)) {
+                return Optional.of(module);
+            }
+        }
+        String packageName = pkg.descriptor().name().value();
+        return Optional.ofNullable(pkg.module(ModuleName.from(PackageName.from(packageName), moduleName)));
+    }
+
+    /**
      * Retrieves the semantic model of the default module of a package if the package details match the provided
      * organization, package name, and version.
      *
@@ -606,20 +627,11 @@ public class PackageUtil {
                 ModuleId moduleId = currentPackage.getDefaultModule().moduleId();
                 if (Objects.nonNull(modulePartName) && !modulePartName.isEmpty()
                         && !packageName.equals(modulePartName)) {
-                    ModuleName subModuleName = ModuleName.from(PackageName.from(packageName), modulePartName);
-                    Module module = currentPackage.module(subModuleName);
-                    if (module == null) {
-                        for (Module mod : currentPackage.modules()) {
-                            if (mod.moduleName().toString().equals(modulePartName)) {
-                                module = mod;
-                                break;
-                            }
-                        }
-                        if (module == null) {
-                            return Optional.empty();
-                        }
+                    Optional<Module> module = findModule(currentPackage, modulePartName);
+                    if (module.isEmpty()) {
+                        return Optional.empty();
                     }
-                    moduleId = module.moduleId();
+                    moduleId = module.get().moduleId();
                 }
                 return Optional.of(PackageUtil.getCompilation(currentPackage).getSemanticModel(moduleId));
             }
@@ -679,13 +691,9 @@ public class PackageUtil {
                 return Optional.of(new WorkspacePackageResolution(
                         getCompilation(childProject).getSemanticModel(moduleId), currentPackage));
             }
-            for (Module mod : currentPackage.modules()) {
-                if (mod.moduleName().toString().equals(moduleName)) {
-                    return Optional.of(new WorkspacePackageResolution(
+            return findModule(currentPackage, moduleName)
+                    .map(mod -> new WorkspacePackageResolution(
                             getCompilation(childProject).getSemanticModel(mod.moduleId()), currentPackage));
-                }
-            }
-            return Optional.empty();
         }
         return Optional.empty();
     }
