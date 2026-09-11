@@ -46,6 +46,11 @@ export function sanitizeAgentData(data: AgentData): AgentData {
     };
 }
 
+export const releaseBoxHover = (setHovered: (hovered: boolean) => void) => ({
+    onMouseEnter: () => setHovered(false),
+    onMouseLeave: () => setHovered(true),
+});
+
 function mcpToolKitSimpleClassName(tool: ToolData): string | undefined {
     return tool.type === "MCP Server" ? tool.className?.split(":").pop() : undefined;
 }

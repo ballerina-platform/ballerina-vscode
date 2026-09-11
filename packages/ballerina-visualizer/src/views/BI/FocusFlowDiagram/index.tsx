@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { cloneDeep, debounce } from "lodash";
+import { debounce } from "lodash";
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Category as PanelCategory } from "@wso2/ballerina-side-panel";
@@ -109,7 +109,6 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
     const suppressAgentTypeReloadRef = useRef(false);
     const suppressAgentReloadRef = useRef(false);
     const [agentFormKey, setAgentFormKey] = useState(0);
-    const [agentTypeFormMode, setAgentTypeFormMode] = useState<"ALL" | "MODEL">("ALL");
 
     const [model, setModel] = useState<Flow>();
     const [suggestedModel, setSuggestedModel] = useState<Flow>();
@@ -321,31 +320,19 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
 
     const getAgentTypeModel = (posOverride?: NodePosition) => getAgentFocusModel("TYPED_AGENT", posOverride);
 
-    const openAgentTypeForm = (mode: "ALL" | "MODEL") => {
+    const handleEditAgentTypeForm = () => {
         if (!agentDeclRef.current) {
             return;
         }
-        setAgentTypeFormMode(mode);
         setAgentPanel("FORM");
     };
 
-    const handleEditAgentTypeForm = () => openAgentTypeForm("ALL");
-
-    const handleEditAgentTypeModel = () => openAgentTypeForm("MODEL");
-
-    const buildAgentTypeFieldOverrides = (node: FlowNode, mode: "ALL" | "MODEL") => {
+    const buildAgentTypeFieldOverrides = (node: FlowNode) => {
         const modelParam = (node.metadata?.data as NodeMetadata)?.agentInfo?.modelProvider?.propertyKey;
         const overrides: Record<string, { hidden?: boolean; label?: string; documentation?: string }> = {
             type: { hidden: true },
         };
-        if (mode === "MODEL") {
-            Object.keys(node.properties || {}).forEach((key) => {
-                overrides[key] = { hidden: key !== modelParam };
-            });
-            if (modelParam) {
-                overrides[modelParam] = { hidden: false };
-            }
-        } else if (modelParam) {
+        if (modelParam) {
             overrides[modelParam] = { hidden: true };
         }
         overrides.variable = { ...overrides.variable, label: "Agent Name", documentation: "Name of the agent" };
@@ -775,7 +762,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
     const handleCloseConnectionPanel = () => {
         setShowConnectionPanel(false);
         selectedNodeRef.current = undefined;
-        if (isAgent) {
+        if (isAgent || isAgentType) {
             setAgentPanel("NONE");
         } else {
             getFlowModel();
@@ -865,7 +852,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
     const agentEditor = useAgentEditorController({
         projectPath,
         filePath,
-        onModelSelect: isAgentType ? handleEditAgentTypeModel : handleEditAgentModel,
+        onModelSelect: handleEditAgentModel,
         onRefresh: (position) => { void (isAgentType ? getAgentTypeModel(position) : getAgentModel(position)); },
         onLoadingChange: setShowProgressIndicator,
         onAgentCreated: () => { (isAgentType ? suppressAgentTypeReloadRef : suppressAgentReloadRef).current = true; },
@@ -944,21 +931,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
 
     const diagramProps = isAgentType || isAgent ? agentFocusDiagramProps : memoizedDiagramProps;
 
-    const agentTypeFormNode = (() => {
-        if (!agentDeclRef.current || agentTypeFormMode !== "MODEL") {
-            return agentDeclRef.current;
-        }
-        const node = cloneDeep(agentDeclRef.current);
-        if (node.metadata?.description) {
-            delete node.metadata.description;
-        }
-        return node;
-    })();
-
     const agentTypePromptInjection = (() => {
-        if (agentTypeFormMode !== "ALL") {
-            return undefined;
-        }
         const agent = (agentDeclRef.current?.metadata?.data as NodeMetadata | undefined)?.agentInfo?.systemPrompt;
         if (!agent || (!agent.role && !agent.instructions)) {
             return undefined;
@@ -971,9 +944,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
             return "Configure Model Provider Connection";
         }
         if (agentPanel === "FORM") {
-            return isAgentType
-                ? agentTypeFormMode === "MODEL" ? "Configure Model Provider" : "Configure Agent"
-                : "Edit Agent";
+            return isAgentType ? "Configure Agent" : "Edit Agent";
         }
         return agentEditor.view !== "NONE" ? getAgentEditorPanelTitle(agentEditor) : undefined;
     })();
@@ -1034,9 +1005,9 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
             );
         }
         if (agentPanel === "FORM" && agentDeclRef.current) {
-            const node = isAgentType ? agentTypeFormNode : agentDeclRef.current;
+            const node = agentDeclRef.current;
             const fieldOverrides = isAgentType
-                ? buildAgentTypeFieldOverrides(agentDeclRef.current, agentTypeFormMode)
+                ? buildAgentTypeFieldOverrides(agentDeclRef.current)
                 : { model: { hidden: true }, type: { hidden: true }, variable: { label: "Agent Name", documentation: "Name of the agent" } };
             return (
                 <FlowNodeForm

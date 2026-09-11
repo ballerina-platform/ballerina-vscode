@@ -54,7 +54,7 @@ import { css } from "@emotion/react";
 import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
 import { NodeMetadata, isDefaultModelProviderExpr } from "@wso2/ballerina-core";
 
-import { flowDashAnimation, isToolTraceActive, sanitizeAgentData, sanitizeId, toolEntryMatchesTools } from "../agentNodeUtils";
+import { flowDashAnimation, isToolTraceActive, releaseBoxHover, sanitizeAgentData, sanitizeId, toolEntryMatchesTools } from "../agentNodeUtils";
 import { MarkdownWithTooltip } from "../AgentMarkdownTooltip";
 import { getAgentNodeContainerHeight } from "../AgentWidget/agentNodeLayout";
 import { useAgentNodeController } from "../AgentWidget/useAgentNodeController";
@@ -711,6 +711,7 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
                             clickable={canViewAgent}
                             onClick={canViewAgent ? handleViewAgentClick : undefined}
                             title="View Agent"
+                            {...(canViewAgent ? releaseBoxHover(setIsBoxHovered) : {})}
                         >
                             <AgentName data-agent-name>{agentVarName}</AgentName>
                             {canViewAgent && (

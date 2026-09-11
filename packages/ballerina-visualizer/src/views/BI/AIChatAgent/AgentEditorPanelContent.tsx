@@ -20,6 +20,7 @@ import { FlowNode } from "@wso2/ballerina-core";
 import { AddMcpServer } from "./AddMcpServer";
 import { ADD_TOOL_TITLE, AddTool, addToolTitle } from "./AddTool";
 import { MemoryManagerConfig } from "./MemoryManagerConfig";
+import { MemoryStoreConfig } from "./MemoryStoreConfig";
 import { NewTool, NewToolSelectionMode } from "./NewTool";
 import { UseAgentTool } from "./UseAgentTool";
 import { UseAgentToolForm } from "./UseAgentToolForm";
@@ -28,6 +29,7 @@ import { AgentEditorController } from "./useAgentEditorController";
 export function getAgentEditorPanelTitle(controller: AgentEditorController): string {
     switch (controller.view) {
         case "MEMORY": return "Configure Memory";
+        case "MEMORY_STORE": return "Configure Memory Store";
         case "NEW_TOOL_CONNECTION": return addToolTitle("CONNECTION");
         case "NEW_TOOL_FUNCTION": return addToolTitle("FUNCTION");
         case "NEW_TOOL_CUSTOM": return addToolTitle("CUSTOM");
@@ -46,6 +48,9 @@ export function AgentEditorPanelContent({ controller }: { controller: AgentEdito
         case "MEMORY":
             return <MemoryManagerConfig agentNode={agent} memoryNode={controller.memoryNode as FlowNode}
                 memoryPropertyKey={controller.memoryPropertyKey} onSave={controller.close} />;
+        case "MEMORY_STORE":
+            return <MemoryStoreConfig agentNode={agent} storeNode={controller.memoryStoreNode as FlowNode}
+                onSave={controller.close} />;
         case "ADD_TOOL":
             return <AddTool agentNode={agent}
                 onCreateCustomTool={() => controller.openView("NEW_TOOL_CUSTOM")}
