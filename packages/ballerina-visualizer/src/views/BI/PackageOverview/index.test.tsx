@@ -57,8 +57,8 @@ jest.mock("@wso2/ballerina-core", () => ({
     },
     isSamePath: (a: string, b: string) => a === b,
     ProductMode: { INTEGRATOR: "integrator", AGENT_BUILDER: "agent-builder" },
-    assistantName: () => "WSO2 Integration Intelligence",
-    shortAssistantName: () => "Integration Intelligence",
+    assistantName: () => "WSO2 Integrator Copilot",
+    shortAssistantName: () => "Integrator Copilot",
     // Reached through `getIntegrationTypes`, which the view derives its deployment options
     // from. Irrelevant to which add-artifact button renders; undefined means "no scope",
     // which the caller already filters out.
