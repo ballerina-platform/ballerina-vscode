@@ -28,9 +28,14 @@ import {
     CDResourceFunction,
     CDService,
     FlowNode,
+    IconDescriptor,
     NodePosition,
 } from "@wso2/ballerina-core";
 import { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
+
+function iconUrl(icon?: string | IconDescriptor): string | undefined {
+    return typeof icon === "string" ? icon : icon?.url;
+}
 
 function toPosition(location: CDLocation): NodePosition {
     return {
@@ -192,7 +197,7 @@ function usagesForService(
                 functionName: resourcePath(resource.path),
                 type: service.type,
                 typeLabel: serviceTypeLabel(service.type),
-                icon: service.icon,
+                icon: iconUrl(service.icon),
                 documentUri: resource.location.filePath,
                 position: toPosition(resource.location),
                 trigger: scopedTrigger(rowLabel, resource.location),
@@ -212,7 +217,7 @@ function usagesForService(
                 functionName: fn.name,
                 type: service.type,
                 typeLabel: serviceTypeLabel(service.type),
-                icon: service.icon,
+                icon: iconUrl(service.icon),
                 documentUri: fn.location.filePath,
                 position: toPosition(fn.location),
                 trigger: scopedTrigger(fn.name, fn.location),
@@ -233,7 +238,7 @@ function usagesForService(
             serviceName: name,
             type: service.type,
             typeLabel: serviceTypeLabel(service.type),
-            icon: service.icon,
+            icon: iconUrl(service.icon),
             documentUri: service.location.filePath,
             position: toPosition(service.location),
             trigger: serviceTrigger,

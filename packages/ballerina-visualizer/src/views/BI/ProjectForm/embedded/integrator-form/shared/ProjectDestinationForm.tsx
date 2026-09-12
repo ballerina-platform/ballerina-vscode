@@ -47,7 +47,7 @@ import {
     emptyTakenNames,
     TakenNames,
 } from "../../../hooks/resolveAvailableDirectoryName";
-import { ProjectTypeSelector } from "../../../components";
+import { ProjectTypeSelector, ProjectTypeOption } from "../../../components";
 import { ProjectContext } from "../../../../CreateIntegrationWizard/types";
 
 /** A group of related fields, separated by generous whitespace rather than a
@@ -217,10 +217,16 @@ export interface ProjectDestinationFormProps {
     collectArtifact?: boolean;
     /** Show the Integration / Library starting-point selector. */
     showStartingPoint?: boolean;
+    /** Overrides the starting-point options' wording (Agent Builder words them differently). */
+    projectTypeOptions?: ProjectTypeOption[];
     /** Replaces the artifact fields and footer while the library starting point is chosen. */
     renderLibraryRoute?: (context: { projectContext: ProjectContext; canProceed: boolean }) => ReactNode;
     /** Noun used in the status strip's trailing clause. */
     artifactNoun?: string;
+    /** Label above the artifact name field. Defaults to "Integration name". */
+    integrationNameLabel?: string;
+    /** Placeholder of the artifact name field. Defaults to "Enter an integration name". */
+    integrationNamePlaceholder?: string;
     /** Primary button label at rest. */
     submitLabel: string;
     /** Primary button label while `onSubmit` is in flight. Defaults to `submitLabel`. */
@@ -258,8 +264,11 @@ export function ProjectDestinationForm({
     organizations,
     collectArtifact = true,
     showStartingPoint = false,
+    projectTypeOptions,
     renderLibraryRoute,
     artifactNoun,
+    integrationNameLabel = "Integration name",
+    integrationNamePlaceholder = "Enter an integration name",
     submitLabel,
     submittingLabel,
     submitErrorPrefix = "Failed to continue.",
@@ -724,6 +733,7 @@ export function ProjectDestinationForm({
                         label="What do you want to build?"
                         value={isLibrary}
                         onChange={setIsLibrary}
+                        options={projectTypeOptions}
                         note="This is just a starting point. You can add more integrations and libraries to this project later."
                     />
                 </Section>
@@ -740,8 +750,8 @@ export function ProjectDestinationForm({
                                     <TextField
                                         onTextChange={handleIntegrationNameChange}
                                         value={integrationName}
-                                        label="Integration name"
-                                        placeholder="Enter an integration name"
+                                        label={integrationNameLabel}
+                                        placeholder={integrationNamePlaceholder}
                                         required={true}
                                         errorMsg={integrationNameError || ""}
                                     />
