@@ -28,6 +28,8 @@ import {
     ENTRY_HEADER_HEIGHT,
     ENTRY_ROW_HEIGHT,
     FOCUS_FADE_MS,
+    NODE_BG_HOVER_COLOR,
+    NODE_BORDER_COLOR,
     NODE_BORDER_WIDTH,
 } from "../../../resources/constants";
 import { useTopologyContext } from "../../AgentTopologyDiagram/TopologyContext";
@@ -40,7 +42,7 @@ const Card = styled.div<{ receded: boolean }>`
     width: ${ENTRY_CARD_WIDTH}px;
     box-sizing: border-box;
     border-radius: 10px;
-    border: ${NODE_BORDER_WIDTH}px solid ${ThemeColors.OUTLINE_VARIANT};
+    border: ${NODE_BORDER_WIDTH}px solid ${NODE_BORDER_COLOR};
     background-color: ${ThemeColors.SURFACE_DIM};
     opacity: ${(props) => (props.receded ? 0.3 : 1)};
     transition: opacity ${FOCUS_FADE_MS}ms ease;
@@ -56,7 +58,7 @@ const Header = styled.div<{ hovered: boolean; clickable: boolean }>`
     gap: 10px;
     padding: 0 8px 0 12px;
     cursor: ${(props) => (props.clickable ? "pointer" : "default")};
-    background-color: ${(props) => (props.hovered ? ThemeColors.SURFACE_BRIGHT : "transparent")};
+    background-color: ${(props) => (props.hovered ? NODE_BG_HOVER_COLOR : "transparent")};
     transition: background-color 0.15s ease;
 `;
 
@@ -96,7 +98,7 @@ const RowBox = styled.div<{ hovered: boolean; dimmed: boolean }>`
     position: relative;
     border-top: 1px solid ${ThemeColors.OUTLINE_VARIANT};
     opacity: ${(props) => (props.dimmed ? 0.3 : 1)};
-    background-color: ${(props) => (props.hovered ? ThemeColors.SURFACE_BRIGHT : "transparent")};
+    background-color: ${(props) => (props.hovered ? NODE_BG_HOVER_COLOR : "transparent")};
     transition: opacity ${FOCUS_FADE_MS}ms ease, background-color 0.15s ease;
 `;
 

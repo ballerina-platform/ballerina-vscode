@@ -56,6 +56,8 @@ export const STRUCTURE_OPACITY = 0.45;
  * color, same opacity) so borders and links read as one consistent line style. Hover states keep
  * using ThemeColors.HIGHLIGHT directly - only the resting color is shared here. */
 export const NODE_BORDER_COLOR = `var(--vscode-contrastBorder, color-mix(in srgb, ${ThemeColors.ON_SURFACE} ${STRUCTURE_OPACITY * 100}%, transparent))`;
+export const NODE_BG_HOVER_COLOR = ThemeColors.PRIMARY_CONTAINER;
+export const NODE_HOVER_GLOW = `0 0 4px 1px ${ThemeColors.PRIMARY}`;
 
 // position
 export const NODE_GAP_Y = 100;

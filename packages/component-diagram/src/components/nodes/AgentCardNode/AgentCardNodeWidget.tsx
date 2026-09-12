@@ -18,12 +18,21 @@
 
 import React, { useState } from "react";
 import styled from "@emotion/styled";
+import { css } from "@emotion/react";
 import { DiagramEngine, PortWidget } from "@projectstorm/react-diagrams-core";
 import { Icon, ThemeColors, getAIModuleIcon } from "@wso2/ui-toolkit";
 import { NodeIcon } from "@wso2/bi-diagram";
 import { resolveBrandIconFromUrl } from "@wso2/ballerina-core";
 import { AgentCardNodeModel } from "./AgentCardNodeModel";
-import { AGENT_CARD_MIN_HEIGHT, AGENT_CARD_WIDTH, FOCUS_FADE_MS, NODE_BORDER_WIDTH } from "../../../resources/constants";
+import {
+    AGENT_CARD_MIN_HEIGHT,
+    AGENT_CARD_WIDTH,
+    FOCUS_FADE_MS,
+    NODE_BG_HOVER_COLOR,
+    NODE_BORDER_COLOR,
+    NODE_BORDER_WIDTH,
+    NODE_HOVER_GLOW,
+} from "../../../resources/constants";
 import { useTopologyContext } from "../../AgentTopologyDiagram/TopologyContext";
 import { CardPopover, PopoverRow } from "../../AgentTopologyDiagram/CardPopover";
 import { useClickWithDragTolerance } from "../../../hooks/useClickWithDragTolerance";
@@ -35,6 +44,11 @@ const GLYPH_SIZE = 14;
 const RAIL_WIDTH = 56;
 const MAX_CONNECTION_CHIPS = 3;
 const MAX_POPOVER_TOOLS = 8;
+
+const HIGH_CONTRAST_HOVER_OUTLINE = css`
+    outline: 1px dashed var(--vscode-contrastActiveBorder);
+    outline-offset: 2px;
+`;
 
 // The instance diagram hangs the model and memory off the node's right edge; the card gives them a rail.
 const Card = styled.div<{ hovered: boolean; orphan: boolean; receded: boolean; readonly?: boolean }>`
@@ -48,13 +62,15 @@ const Card = styled.div<{ hovered: boolean; orphan: boolean; receded: boolean; r
     border-radius: 10px;
     border-width: ${NODE_BORDER_WIDTH}px;
     border-style: ${(props) => (props.orphan ? "dashed" : "solid")};
-    border-color: ${(props) => (props.hovered ? ThemeColors.SECONDARY : props.orphan ? WARNING_COLOR : ThemeColors.OUTLINE_VARIANT)};
-    background-color: ${ThemeColors.SURFACE_DIM};
+    border-color: ${(props) => (props.hovered ? ThemeColors.HIGHLIGHT : props.orphan ? WARNING_COLOR : NODE_BORDER_COLOR)};
+    ${(props) => (props.hovered ? HIGH_CONTRAST_HOVER_OUTLINE : "")}
+    background-color: ${(props) => (props.hovered ? NODE_BG_HOVER_COLOR : ThemeColors.SURFACE_DIM)};
+    box-shadow: ${(props) => (props.hovered ? NODE_HOVER_GLOW : "none")};
     color: ${ThemeColors.ON_SURFACE};
     cursor: ${(props) => (props.readonly ? "default" : "pointer")};
     position: relative;
     opacity: ${(props) => (props.receded ? 0.3 : 1)};
-    transition: border-color 0.2s ease-out, opacity ${FOCUS_FADE_MS}ms ease;
+    transition: border-color 0.2s ease-out, background-color 0.2s ease-out, box-shadow 0.2s ease-out, opacity ${FOCUS_FADE_MS}ms ease;
 
     &:focus-visible {
         outline: 2px solid ${ThemeColors.HIGHLIGHT};

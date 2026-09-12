@@ -25,6 +25,7 @@ import {
     CDModel,
     CDResourceFunction,
     CDService,
+    toIconDescriptor,
 } from "@wso2/ballerina-core";
 import {
     HandlerLogic,
@@ -212,7 +213,8 @@ function resourcePath(path: string): string {
     if (!path || path === ".") {
         return "/";
     }
-    return path.startsWith("/") ? path : `/${path}`;
+    const unescaped = path.replace(/\\/g, "");
+    return unescaped.startsWith("/") ? unescaped : `/${unescaped}`;
 }
 
 function serviceLabel(service: CDService): string {
@@ -234,7 +236,7 @@ function entryLabelsFor(service: CDService): EntryLabels {
         title: serviceLabel(service),
         subtitle: modulePrefix === AI_MODULE ? "Agent Chat" : service.type || `${modulePrefix}:Service`,
         glyphType: modulePrefix,
-        icon: service.icon || undefined,
+        icon: toIconDescriptor(service.icon)?.url,
     };
 }
 
