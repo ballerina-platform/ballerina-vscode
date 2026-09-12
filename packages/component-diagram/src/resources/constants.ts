@@ -48,11 +48,11 @@ export const NODE_PADDING = 8;
 // the same base foreground color at the same strength (see NodeLinkWidget.tsx's stroke-opacity
 // and NODE_BORDER_COLOR below) instead of two different tokens that happen to look similar in
 // only some themes - see the ON_SURFACE/OUTLINE_VARIANT contrast mismatch this replaced.
-export const STRUCTURE_OPACITY = 0.7;
+export const STRUCTURE_OPACITY = 0.45;
 /** Resting border color for a node, matching a link's dimmed ON_SURFACE exactly (same source
  * color, same opacity) so borders and links read as one consistent line style. Hover states keep
  * using ThemeColors.HIGHLIGHT directly - only the resting color is shared here. */
-export const NODE_BORDER_COLOR = `color-mix(in srgb, ${ThemeColors.ON_SURFACE} ${STRUCTURE_OPACITY * 100}%, transparent)`;
+export const NODE_BORDER_COLOR = `var(--vscode-contrastBorder, color-mix(in srgb, ${ThemeColors.ON_SURFACE} ${STRUCTURE_OPACITY * 100}%, transparent))`;
 
 // position
 export const NODE_GAP_Y = 100;
