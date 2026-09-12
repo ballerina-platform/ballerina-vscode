@@ -343,6 +343,7 @@ export function WaitDataNodeWidget(props: WaitDataNodeWidgetProps) {
     const sourceBoxY = svgMidY - SOURCE_BOX_SIZE / 2;
     const lineX1 = sourceBoxX + SOURCE_BOX_SIZE;
     const arrowColor = isHovered && !readOnly ? NODE_BORDER_SELECTED_COLOR : NODE_TEXT_COLOR;
+    const sourceBoxColor = isHovered && !readOnly ? NODE_BORDER_SELECTED_COLOR : NODE_BORDER_COLOR;
 
     const selectNode = () => {
         onClick && onClick(model.node);
@@ -437,7 +438,7 @@ export function WaitDataNodeWidget(props: WaitDataNodeWidgetProps) {
                     height={SOURCE_BOX_SIZE}
                     rx={12}
                     fill={NODE_BG_COLOR}
-                    stroke={arrowColor}
+                    stroke={sourceBoxColor}
                     strokeWidth={SOURCE_BOX_STROKE_WIDTH}
                 />
                 <foreignObject x={sourceBoxX} y={sourceBoxY} width={SOURCE_BOX_SIZE} height={SOURCE_BOX_SIZE}>

@@ -28,11 +28,12 @@ import {
     DRAFT_NODE_BORDER_WIDTH,
     LABEL_HEIGHT,
     LABEL_WIDTH,
+    NODE_BG_HOVER_COLOR,
     NODE_BORDER_COLOR,
     NODE_BORDER_ERROR_COLOR,
     NODE_BORDER_SELECTED_COLOR,
-    NODE_BORDER_WIDTH,
     NODE_GAP_X,
+    NODE_HOVER_GLOW,
     NODE_HEIGHT,
     NODE_PADDING,
     NODE_WIDTH,
@@ -75,6 +76,18 @@ import { useAgentNodeController } from "../AgentWidget/useAgentNodeController";
 import { getAgentTraceState, matchesUsageEntrypoint } from "../AgentWidget/agentTraceAnimation";
 import { ApprovalBadge } from "../AgentWidget/ApprovalBadge";
 
+// No fallback: VS Code only ever sets contrastActiveBorder for HC themes, so this drops entirely elsewhere.
+const HIGH_CONTRAST_HOVER_OUTLINE = css`
+    outline: 1px dashed var(--vscode-contrastActiveBorder);
+    outline-offset: 2px;
+`;
+
+// Circles can't use outline (it boxes the bounding rect, not the round shape), so their HC hover ring is a sibling <circle> instead.
+const HIGH_CONTRAST_HOVER_RING_STROKE = css`
+    stroke: var(--vscode-contrastActiveBorder);
+    stroke-dasharray: 3 2;
+`;
+
 export namespace NodeStyles {
     export const Node = styled.div<{ readOnly: boolean }>`
         display: flex;
@@ -91,6 +104,7 @@ export namespace NodeStyles {
         isActiveBreakpoint: boolean;
         isSelected?: boolean;
     };
+    const AGENT_NODE_BORDER_WIDTH = 1.5;
     export const Box = styled.div<NodeStyleProp>`
         position: relative;
         display: flex;
@@ -101,7 +115,7 @@ export namespace NodeStyles {
         min-height: ${NODE_HEIGHT}px;
         padding: 0 ${NODE_PADDING}px;
         opacity: ${(props: NodeStyleProp) => (props.disabled ? 0.7 : 1)};
-        border: ${(props: NodeStyleProp) => (props.disabled ? DRAFT_NODE_BORDER_WIDTH : NODE_BORDER_WIDTH)}px;
+        border: ${(props: NodeStyleProp) => (props.disabled ? DRAFT_NODE_BORDER_WIDTH : AGENT_NODE_BORDER_WIDTH)}px;
         border-style: ${(props: NodeStyleProp) => (props.disabled ? "dashed" : "solid")};
         border-color: ${(props: NodeStyleProp) =>
             props.hasError
@@ -111,11 +125,20 @@ export namespace NodeStyles {
                     : props.hovered && !props.disabled && !props.readOnly
                         ? NODE_BORDER_SELECTED_COLOR
                         : NODE_BORDER_COLOR};
+        ${(props: NodeStyleProp) =>
+            !props.hasError && !props.disabled && (props.isSelected || (props.hovered && !props.readOnly))
+                ? HIGH_CONTRAST_HOVER_OUTLINE
+                : ""}
         border-radius: 10px;
         background-color: ${(props: NodeStyleProp) =>
-            props?.isActiveBreakpoint ? ThemeColors.DEBUGGER_BREAKPOINT_BACKGROUND : ThemeColors.SURFACE_DIM};
+            props?.isActiveBreakpoint
+                ? ThemeColors.DEBUGGER_BREAKPOINT_BACKGROUND
+                : props.hovered && !props.disabled && !props.readOnly
+                    ? NODE_BG_HOVER_COLOR
+                    : ThemeColors.SURFACE_DIM};
+        box-shadow: ${(props: NodeStyleProp) => (props.hovered && !props.disabled && !props.readOnly ? NODE_HOVER_GLOW : "none")};
         color: ${ThemeColors.ON_SURFACE};
-        transition: border-color 0.4s ease-out;
+        transition: border-color 0.4s ease-out, background-color 0.4s ease-out, box-shadow 0.4s ease-out;
     `;
 
     export const Header = styled.div<{}>`
@@ -339,7 +362,9 @@ export namespace NodeStyles {
             transition: border-color 0.4s ease-out;
         }
         & > vscode-button:hover::part(control) {
-            border-color: ${ThemeColors.SECONDARY};
+            background: transparent;
+            border-color: ${NODE_BORDER_SELECTED_COLOR};
+            ${HIGH_CONTRAST_HOVER_OUTLINE}
         }
     `;
 
@@ -350,7 +375,7 @@ export namespace NodeStyles {
         width: 100%;
         margin: 8px 0;
         padding: 8px 0;
-        border: 1px solid ${ThemeColors.ON_SURFACE};
+        border: 1px solid ${NODE_BORDER_COLOR};
         border-radius: 4px;
         background-color: transparent;
         color: ${ThemeColors.ON_SURFACE_VARIANT};
@@ -361,14 +386,15 @@ export namespace NodeStyles {
         &:hover {
             background-color: ${ThemeColors.SURFACE_BRIGHT};
             border-color: ${(props: { readOnly: boolean }) =>
-            props.readOnly ? ThemeColors.ON_SURFACE : NODE_BORDER_SELECTED_COLOR};
+            props.readOnly ? NODE_BORDER_COLOR : NODE_BORDER_SELECTED_COLOR};
+            ${(props: { readOnly: boolean }) => (props.readOnly ? "" : HIGH_CONTRAST_HOVER_OUTLINE)}
         }
     `;
 
     export const MemoryCard = styled.div<{ readOnly: boolean }>`
         width: 100%;
         padding: 8px 6px 8px 12px;
-        border: 1px solid ${ThemeColors.ON_SURFACE};
+        border: 1px solid ${NODE_BORDER_COLOR};
         border-radius: 4px;
         background-color: transparent;
         color: ${ThemeColors.ON_SURFACE};
@@ -376,7 +402,8 @@ export namespace NodeStyles {
         transition: border-color 0.4s ease-out;
         &:hover:not(:has(vscode-button:hover)) {
             border-color: ${(props: { readOnly: boolean }) =>
-            props.readOnly ? ThemeColors.ON_SURFACE : NODE_BORDER_SELECTED_COLOR};
+            props.readOnly ? NODE_BORDER_COLOR : NODE_BORDER_SELECTED_COLOR};
+            ${(props: { readOnly: boolean }) => (props.readOnly ? "" : HIGH_CONTRAST_HOVER_OUTLINE)}
         }
     `;
 
@@ -542,10 +569,11 @@ function EdgeAddButton(props: {
                 }
                 ${readOnly ? "" : css`
                     &:hover .edge-add-stroke {
-                        stroke: ${ThemeColors.SECONDARY};
+                        stroke: ${NODE_BORDER_SELECTED_COLOR};
                     }
                     &:hover text {
-                        fill: ${ThemeColors.SECONDARY};
+                        fill: ${NODE_BORDER_SELECTED_COLOR};
+                        ${HIGH_CONTRAST_HOVER_OUTLINE}
                     }
                 `}
             `}
@@ -1110,10 +1138,12 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                 ${animateUsages ? usageFadeIn(index * 70) : ""}
                             }
                             &:hover .usage-square {
-                                stroke: ${ThemeColors.SECONDARY};
+                                stroke: ${NODE_BORDER_SELECTED_COLOR};
+                                ${HIGH_CONTRAST_HOVER_OUTLINE}
                             }
                             &:hover text {
-                                fill: ${ThemeColors.SECONDARY};
+                                fill: ${NODE_BORDER_SELECTED_COLOR};
+                                ${HIGH_CONTRAST_HOVER_OUTLINE}
                             }
                             &:hover .usage-menu-button {
                                 opacity: 1;
@@ -1139,7 +1169,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                 height="44"
                                 rx="10"
                                 fill={ThemeColors.SURFACE_DIM}
-                                stroke={ThemeColors.OUTLINE_VARIANT}
+                                stroke={NODE_BORDER_COLOR}
                                 strokeWidth={1.5}
                                 css={css`
                                 transition: stroke 0.4s ease-out;
@@ -1608,27 +1638,50 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                 viewBox={`0 0 300 ${containerHeight}`}
                 style={{ marginLeft: "-10px", position: "relative", zIndex: 1 }}
             >
-                {showModelCircle && <g>
+                {showModelCircle && <g
+                    css={css`
+                        cursor: ${readOnly ? "default" : "pointer"};
+                        &:hover .model-provider-circle {
+                            stroke: ${readOnly ? ThemeColors.ON_SURFACE : NODE_BORDER_SELECTED_COLOR};
+                        }
+                        &:hover .model-provider-label {
+                            fill: ${readOnly ? ThemeColors.ON_SURFACE : NODE_BORDER_SELECTED_COLOR};
+                            ${readOnly ? "" : HIGH_CONTRAST_HOVER_OUTLINE}
+                        }
+                        ${readOnly ? "" : css`
+                            &:hover .model-provider-hc-ring {
+                                ${HIGH_CONTRAST_HOVER_RING_STROKE}
+                            }
+                        `}
+                    `}
+                >
                     <circle
+                        className="model-provider-circle"
                         cx="80"
                         cy="24"
                         r="22"
                         fill={ThemeColors.SURFACE_DIM}
-                        stroke={ThemeColors.ON_SURFACE}
+                        stroke={NODE_BORDER_COLOR}
                         strokeWidth={1.5}
                         strokeDasharray={disabled ? "5 5" : "none"}
                         opacity={disabled ? 0.7 : 1}
                         onClick={onModelEditClick}
                         css={css`
-                            cursor: ${readOnly ? "default" : "pointer"};
                             transition: stroke 0.4s ease-out;
-                            &:hover {
-                                stroke: ${readOnly ? ThemeColors.ON_SURFACE : NODE_BORDER_SELECTED_COLOR};
-                            }
                         `}
                     >
                         <title>{"Configure Model Provider"}</title>
                     </circle>
+                    <circle
+                        className="model-provider-hc-ring"
+                        cx="80"
+                        cy="24"
+                        r="24"
+                        fill="none"
+                        stroke="none"
+                        strokeWidth={1.5}
+                        style={{ pointerEvents: "none" }}
+                    />
                     <TraceAccentPulse isActive={isModelActive} aiColor={aiColor} syncPulseAnimation={syncPulseAnimation} />
                     <foreignObject
                         x="68"
@@ -1645,6 +1698,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
 
                     {modelProvider?.name && (
                         <text
+                            className="model-provider-label"
                             x="110"
                             y="28"
                             textAnchor="start"
@@ -1654,10 +1708,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                             dominantBaseline="middle"
                             onClick={onModelEditClick}
                             css={css`
-                                cursor: ${readOnly ? "default" : "pointer"};
-                                &:hover {
-                                    fill: ${readOnly ? ThemeColors.ON_SURFACE : ThemeColors.SECONDARY};
-                                }
+                                transition: fill 0.4s ease-out;
                             `}
                         >
                             {modelProviderLabel}
@@ -1697,11 +1748,15 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                             &:hover circle:first-of-type {
                                 stroke: ${NODE_BORDER_SELECTED_COLOR};
                             }
+                            &:hover .tool-hc-ring {
+                                ${HIGH_CONTRAST_HOVER_RING_STROKE}
+                            }
                             &:hover foreignObject .connector-icon path {
                                 fill: ${NODE_BORDER_SELECTED_COLOR};
                             }
                             &:hover .tool-label {
-                                color: ${ThemeColors.SECONDARY};
+                                color: ${NODE_BORDER_SELECTED_COLOR};
+                                ${HIGH_CONTRAST_HOVER_OUTLINE}
                             }
                             &:hover .tool-tooltip {
                                 opacity: 1;
@@ -1719,13 +1774,23 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                 cy="24"
                                 r="22"
                                 fill={ThemeColors.SURFACE_DIM}
-                                stroke={ThemeColors.ON_SURFACE}
+                                stroke={NODE_BORDER_COLOR}
                                 strokeWidth={1.5}
                                 strokeDasharray={disabled ? "5 5" : "none"}
                                 opacity={disabled ? 0.7 : 1}
                                 css={css`
                                     transition: stroke 0.4s ease-out;
                                 `}
+                            />
+                            <circle
+                                className="tool-hc-ring"
+                                cx="80"
+                                cy="24"
+                                r="24"
+                                fill="none"
+                                stroke="none"
+                                strokeWidth={1.5}
+                                style={{ pointerEvents: "none" }}
                             />
                             <TraceAccentPulse isActive={isToolActive} aiColor={aiColor} syncPulseAnimation={syncPulseAnimation} />
                             <foreignObject

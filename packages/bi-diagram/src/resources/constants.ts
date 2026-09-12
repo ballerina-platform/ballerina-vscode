@@ -59,14 +59,16 @@ export const NODE_DESCRIPTION_SINGLE_LINE_CHARS = 20;
 export const NODE_BORDER_WIDTH = 1.8;
 export const HIGHLIGHT_NODE_BORDER_WIDTH = 2.4;
 // export const HIGHLIGHT_NODE_BORDER_COLOR = "var(--vscode-focusBorder)";
-export const HIGHLIGHT_NODE_BORDER_COLOR = ThemeColors.ON_SURFACE;
+// Softened, matching NODE_BORDER_COLOR: only the width sets these nodes apart, not a harsher color.
+export const HIGHLIGHT_NODE_BORDER_COLOR = `var(--vscode-contrastBorder, color-mix(in srgb, ${ThemeColors.ON_SURFACE} 45%, transparent))`;
 
 // ─── Node Colors ─────────────────────────────────────────────────────────────
 export const NODE_BG_COLOR = ThemeColors.SURFACE_DIM;
 export const NODE_BG_HOVER_COLOR = ThemeColors.PRIMARY_CONTAINER;
 export const NODE_BG_BREAKPOINT_COLOR = ThemeColors.DEBUGGER_BREAKPOINT_BACKGROUND;
 export const NODE_TEXT_COLOR = ThemeColors.ON_SURFACE;
-export const NODE_BORDER_COLOR = ThemeColors.ON_SURFACE;
+// Softened: ON_SURFACE alone is a text color, too harsh for a container outline.
+export const NODE_BORDER_COLOR = `var(--vscode-contrastBorder, color-mix(in srgb, ${ThemeColors.ON_SURFACE} 45%, transparent))`;
 export const NODE_BORDER_SELECTED_COLOR = ThemeColors.PRIMARY;
 export const NODE_HOVER_GLOW = `0 0 4px 1px ${ThemeColors.PRIMARY}`;
 export const NODE_BORDER_ERROR_COLOR = ThemeColors.ERROR;
@@ -80,7 +82,7 @@ export const DRAFT_NODE_BORDER_COLOR = ThemeColors.SECONDARY;
 export const END_NODE_BG_COLOR = ThemeColors.ON_SURFACE;
 
 // ─── Empty Node (add-point circle) Colors ────────────────────────────────────
-export const EMPTY_NODE_ACTIVE_BORDER_COLOR = ThemeColors.ON_SURFACE;
+export const EMPTY_NODE_ACTIVE_BORDER_COLOR = NODE_BORDER_COLOR;
 export const EMPTY_NODE_ACTIVE_BG_COLOR = ThemeColors.PRIMARY_CONTAINER;
 
 // ─── Review Diff Colors (unified old/new diagram) ────────────────────────────
