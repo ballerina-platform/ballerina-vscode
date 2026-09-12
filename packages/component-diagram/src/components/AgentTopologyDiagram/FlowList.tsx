@@ -179,7 +179,7 @@ const SubLabel = styled.span`
 const ICON_BOX = { width: 16, height: 16, display: "flex", alignItems: "center", justifyContent: "center" };
 const codicon = (name: string, size = 14) => <Icon name={name} isCodicon={true} sx={{ ...ICON_BOX, fontSize: size }} iconSx={{ fontSize: size, lineHeight: 1 }} />;
 // The "View Agent" glyph the agent call node uses to jump to an instance.
-const openGlyph = <Icon name="bi-function-flow" sx={{ ...ICON_BOX, fontSize: 16 }} iconSx={{ fontSize: 16, lineHeight: 1, display: "flex" }} />;
+const openGlyph = <Icon name="bi-arrow-outward" sx={{ ...ICON_BOX, fontSize: 16 }} iconSx={{ fontSize: 16, lineHeight: 1, display: "flex" }} />;
 
 export interface FlowListProps {
     entries: TopologyEntryNode[];
