@@ -449,6 +449,9 @@ public class Type {
             if (existingType instanceof RecordType recordType) {
                 return new RecordType(recordType);
             }
+            if (existingType instanceof IntersectionType intersectionType) {
+                return new IntersectionType(intersectionType);
+            }
             return existingType;
         } else {
             Type type = new Type();

@@ -104,6 +104,9 @@ const IconContainer = styled.div`
         height: 24px;
         font-size: 24px;
     }
+    > div:first-child > i {
+        font-size: inherit;
+    }
 `;
 
 export type ButtonCardAppearance = "large" | "small";

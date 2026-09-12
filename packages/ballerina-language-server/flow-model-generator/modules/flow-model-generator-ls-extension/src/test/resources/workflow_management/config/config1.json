@@ -1,6 +1,6 @@
 {
   "projectPath": "proj1",
-  "description": "Project without the workflow management import",
+  "description": "Project without the workflow management REST import",
   "response": {
     "enabled": false
   }

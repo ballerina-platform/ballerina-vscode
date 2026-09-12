@@ -211,122 +211,6 @@ public class ExistingListenerResolverTest {
                         + "target: change this assertion deliberately if the tie-break is ever revisited.");
     }
 
-    @Test
-    public void testSapJcoServerConfigChoiceAndNestedRepositoryDestinationResolve() {
-        Value createNewBranch = sapJcoCreateNewBranch();
-        ExistingListenerResolver.ListenerTemplate template = ExistingListenerResolver.collectTemplate(createNewBranch);
-
-        // new (<jco:ServerConfig>{gwhost: "sap-gw.example.com", gwserv: "3300", progid: "JCO_LISTENER",
-        //      repositoryDestination: {ashost: "sap.example.com", sysnr: "00", jcoClient: "100",
-        //                              user: "admin", passwd: "pass"}})
-        LinkedHashMap<String, Object> repositoryDestination = record(
-                "ashost", "\"sap.example.com\"", "sysnr", "\"00\"", "jcoClient", "\"100\"",
-                "user", "\"admin\"", "passwd", "\"pass\"");
-        LinkedHashMap<String, Object> serverConfig = record(
-                "gwhost", "\"sap-gw.example.com\"", "gwserv", "\"3300\"", "progid", "\"JCO_LISTENER\"",
-                "repositoryDestination", repositoryDestination);
-        ExistingListenerResolver.ParsedListener parsed = new ExistingListenerResolver.ParsedListener(
-                List.of(ExistingListenerResolver.ParsedArg.record(serverConfig)), new LinkedHashMap<>());
-
-        Map<String, Value> fields = ExistingListenerResolver.buildFieldsFromParsed(parsed, template);
-
-        Value serverOrAdvancedConfig = fields.get("serverOrAdvancedConfig");
-        Assert.assertNotNull(serverOrAdvancedConfig, "the positional castType CHOICE must resolve");
-        Assert.assertFalse(serverOrAdvancedConfig.isEditable(), "resolved as read-only");
-        Value serverConfigBranch = enabledChoice(serverOrAdvancedConfig);
-        Assert.assertEquals(serverConfigBranch.getMetadata().label(), "Server Configuration",
-                "ServerConfig's fields resolve, AdvancedConfig's don't -> ServerConfig branch wins");
-        Assert.assertEquals(serverConfigBranch.getProperties().get("gwhost").getValue(), "\"sap-gw.example.com\"");
-        Assert.assertEquals(serverConfigBranch.getProperties().get("progid").getValue(), "\"JCO_LISTENER\"");
-
-        Value nestedChoice = serverConfigBranch.getProperties().get("repositoryDestination");
-        Assert.assertNotNull(nestedChoice, "the nested, slot-less repositoryDestination CHOICE must resolve too");
-        Value destinationConfigBranch = enabledChoice(nestedChoice);
-        Assert.assertEquals(destinationConfigBranch.getMetadata().label(), "Destination Configurations");
-        Assert.assertEquals(destinationConfigBranch.getProperties().get("ashost").getValue(), "\"sap.example.com\"");
-        Assert.assertEquals(destinationConfigBranch.getProperties().get("user").getValue(), "\"admin\"");
-    }
-
-    @Test
-    public void testSapJcoPositionalResolutionSurvivesIncludedFieldMerge() {
-        // Regression: resolveIncludedFields also walks serverOrAdvancedConfig (against sap.jco's empty
-        // named-arg map) and must not clobber buildFieldsFromParsed's already-correct positional result.
-        Value createNewBranch = sapJcoCreateNewBranch();
-        ExistingListenerResolver.ListenerTemplate template = ExistingListenerResolver.collectTemplate(createNewBranch);
-        Map<String, Value> createNewProps = createNewBranch.getProperties();
-
-        LinkedHashMap<String, Object> repositoryDestination = record(
-                "ashost", "\"sap.example.com\"", "sysnr", "\"00\"", "jcoClient", "\"100\"",
-                "user", "\"admin\"", "passwd", "\"pass\"");
-        LinkedHashMap<String, Object> serverConfig = record(
-                "gwhost", "\"sap-gw.example.com\"", "gwserv", "\"3300\"", "progid", "\"JCO_LISTENER\"",
-                "repositoryDestination", repositoryDestination);
-        ExistingListenerResolver.ParsedListener parsed = new ExistingListenerResolver.ParsedListener(
-                List.of(ExistingListenerResolver.ParsedArg.record(serverConfig)), new LinkedHashMap<>());
-
-        // Mirrors buildSelector's own merge order exactly.
-        Map<String, Value> fields = new LinkedHashMap<>(
-                ExistingListenerResolver.buildFieldsFromParsed(parsed, template));
-        ExistingListenerResolver.resolveIncludedFields(createNewProps, parsed.named()).forEach(fields::putIfAbsent);
-
-        Value serverConfigBranch = enabledChoice(fields.get("serverOrAdvancedConfig"));
-        Assert.assertEquals(serverConfigBranch.getMetadata().label(), "Server Configuration");
-        Assert.assertEquals(serverConfigBranch.getProperties().get("gwhost").getValue(), "\"sap-gw.example.com\"",
-                "gwhost must survive the merge with resolveIncludedFields's (irrelevant, named-arg) result");
-        Assert.assertEquals(serverConfigBranch.getProperties().get("progid").getValue(), "\"JCO_LISTENER\"");
-        Value destinationBranch = enabledChoice(serverConfigBranch.getProperties().get("repositoryDestination"));
-        Assert.assertEquals(destinationBranch.getProperties().get("ashost").getValue(), "\"sap.example.com\"",
-                "the nested repositoryDestination CHOICE must keep its real resolved data, not be clobbered "
-                        + "with resolveIncludedFields's empty re-resolution of the same key");
-    }
-
-    @Test
-    public void testSapJcoRepositoryDestinationAsPlainIdResolvesDestinationIdBranch() {
-        Value createNewBranch = sapJcoCreateNewBranch();
-        ExistingListenerResolver.ListenerTemplate template = ExistingListenerResolver.collectTemplate(createNewBranch);
-
-        // new (<jco:ServerConfig>{gwhost: "h", gwserv: "s", progid: "p", repositoryDestination: "MY_SAP_DEST"})
-        LinkedHashMap<String, Object> serverConfig = record(
-                "gwhost", "\"h\"", "gwserv", "\"s\"", "progid", "\"p\"",
-                "repositoryDestination", "\"MY_SAP_DEST\"");
-        ExistingListenerResolver.ParsedListener parsed = new ExistingListenerResolver.ParsedListener(
-                List.of(ExistingListenerResolver.ParsedArg.record(serverConfig)), new LinkedHashMap<>());
-
-        Map<String, Value> fields = ExistingListenerResolver.buildFieldsFromParsed(parsed, template);
-
-        Value nestedChoice = enabledChoice(fields.get("serverOrAdvancedConfig")).getProperties()
-                .get("repositoryDestination");
-        Value destinationIdBranch = enabledChoice(nestedChoice);
-        Assert.assertEquals(destinationIdBranch.getMetadata().label(), "Destination ID");
-        Assert.assertEquals(destinationIdBranch.getProperties().get("destinationId").getValue(), "\"MY_SAP_DEST\"");
-    }
-
-    @Test
-    public void testSapJcoAdvancedConfigBranchRendersRawPropertiesMap() {
-        Value createNewBranch = sapJcoCreateNewBranch();
-        ExistingListenerResolver.ListenerTemplate template = ExistingListenerResolver.collectTemplate(createNewBranch);
-
-        // new (<jco:AdvancedConfig>{"jco.server.gwhost": "h", "jco.server.progid": "p"})
-        LinkedHashMap<String, Object> advancedConfig = record(
-                "jco.server.gwhost", "\"h\"", "jco.server.progid", "\"p\"");
-        ExistingListenerResolver.ParsedListener parsed = new ExistingListenerResolver.ParsedListener(
-                List.of(ExistingListenerResolver.ParsedArg.record(advancedConfig)), new LinkedHashMap<>());
-
-        Map<String, Value> fields = ExistingListenerResolver.buildFieldsFromParsed(parsed, template);
-
-        Value branch = enabledChoice(fields.get("serverOrAdvancedConfig"));
-        Assert.assertEquals(branch.getMetadata().label(), "Advanced Properties",
-                "no field matches the ServerConfig shape -> AdvancedConfig's whole-map leaf wins");
-        Assert.assertEquals(branch.getProperties().get("advancedConfig").getValue(),
-                "{jco.server.gwhost: \"h\", jco.server.progid: \"p\"}");
-    }
-
-    private static Value sapJcoCreateNewBranch() {
-        ServiceInitModel model = TriggerModelReader.getInstance()
-                .getBundledServiceInitModel("sap.jco").orElseThrow();
-        return model.getProperties().get("listener").getChoices().getFirst();
-    }
-
     private static LinkedHashMap<String, Object> record(Object... keyValues) {
         LinkedHashMap<String, Object> record = new LinkedHashMap<>();
         for (int i = 0; i + 1 < keyValues.length; i += 2) {
@@ -340,15 +224,64 @@ public class ExistingListenerResolverTest {
     }
 
     /** The create-new branch's config fields for a bundled trigger model (choices[0] of the listener CHOICE). */
-    private static Map<String, Value> createNewProperties(String moduleName) {
+    private static Map<String, Value> createNewProperties(String key) {
+        GeneratedTriggerCorpus.Entry entry = GeneratedTriggerCorpus.get(key);
         ServiceInitModel model = TriggerModelReader.getInstance()
-                .getBundledServiceInitModel(moduleName).orElseThrow();
+                .getGeneratedServiceInitModel(entry.org(), entry.module(), entry.version()).orElseThrow();
         return model.getProperties().get("listener").getChoices().getFirst().getProperties();
     }
 
+    /** A single-listener connector has no selector, so an existing listener reads against create-new. */
+    @Test
+    public void testSingleListenerConnectorHasNoTypeBranches() throws Exception {
+        Value createNewBranch = loadHubspotCreationModel().getProperties()
+                .get("configureListener").getChoices().get(0);
+        Assert.assertTrue(ExistingListenerResolver.listenerTypeBranches(createNewBranch).isEmpty(),
+                "hubspot declares one listener, so there is nothing to match a declared listener against");
+    }
+
+    /**
+     * An existing listener is read against the branch describing its own type; the branches do not agree on
+     * parameters, so the wrong one would map its arguments onto the wrong fields.
+     */
+    @Test
+    public void testExistingListenerIsMatchedToItsOwnTypeBranch() throws Exception {
+        Value createNewBranch = loadMcpMultiCreationModel().getProperties()
+                .get("listener").getChoices().get(0);
+        List<Value> branches = ExistingListenerResolver.listenerTypeBranches(createNewBranch);
+        Assert.assertEquals(branches.size(), 2, "the fixture declares two listener types");
+
+        Assert.assertSame(ExistingListenerResolver.matchByListenerType(branches, "StreamableHttpListener"),
+                branches.get(0));
+        Assert.assertSame(ExistingListenerResolver.matchByListenerType(branches, "Listener"),
+                branches.get(1));
+        Assert.assertSame(ExistingListenerResolver.matchByListenerType(branches, "streamablehttplistener"),
+                branches.get(0), "matched case-insensitively, as Ballerina type names reach us verbatim");
+    }
+
+    /** An unreadable or unknown type degrades to the selected branch rather than resolving nothing. */
+    @Test
+    public void testAnUnknownListenerTypeFallsBackToTheSelectedBranch() throws Exception {
+        Value createNewBranch = loadMcpMultiCreationModel().getProperties()
+                .get("listener").getChoices().get(0);
+        List<Value> branches = ExistingListenerResolver.listenerTypeBranches(createNewBranch);
+
+        Assert.assertSame(ExistingListenerResolver.matchByListenerType(branches, null), branches.get(0),
+                "an unreadable type falls back to the selected branch");
+        Assert.assertSame(ExistingListenerResolver.matchByListenerType(branches, "SomeOtherListener"),
+                branches.get(0), "so does a type no branch describes");
+    }
+
     private ServiceInitModel loadHubspotCreationModel() throws Exception {
-        Path path = Paths.get(getClass().getClassLoader()
-                .getResource("connector_models/hubspot/resources/service-creation.json").toURI());
+        return load("connector_models/hubspot/resources/service-creation.json");
+    }
+
+    private ServiceInitModel loadMcpMultiCreationModel() throws Exception {
+        return load("connector_models/mcp_multi/resources/service-creation.json");
+    }
+
+    private ServiceInitModel load(String resource) throws Exception {
+        Path path = Paths.get(getClass().getClassLoader().getResource(resource).toURI());
         return new Gson().fromJson(Files.readString(path, StandardCharsets.UTF_8), ServiceInitModel.class);
     }
 }

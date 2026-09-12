@@ -13,13 +13,14 @@
     "id": "0",
     "name": "Local Files",
     "type": "file",
+    "triggerKind": "file",
     "displayName": "Local Files",
     "moduleName": "file",
     "orgName": "ballerina",
-    "version": "1.13.0",
+    "version": "1.13.1",
     "packageName": "file",
     "listenerProtocol": "file",
-    "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_file_1.13.0.png",
+    "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_file_1.13.1.png",
     "properties": {
       "listener": {
         "metadata": {
@@ -241,7 +242,7 @@
           "orgName": "ballerina",
           "packageName": "file",
           "moduleName": "file",
-          "version": "1.13.0"
+          "version": "1.13.1"
         },
         "properties": {},
         "group": "onCreate",
@@ -353,7 +354,7 @@
           "orgName": "ballerina",
           "packageName": "file",
           "moduleName": "file",
-          "version": "1.13.0"
+          "version": "1.13.1"
         },
         "properties": {},
         "group": "onModify",
@@ -463,7 +464,7 @@
           "orgName": "ballerina",
           "packageName": "file",
           "moduleName": "file",
-          "version": "1.13.0"
+          "version": "1.13.1"
         },
         "properties": {},
         "group": "onDelete",

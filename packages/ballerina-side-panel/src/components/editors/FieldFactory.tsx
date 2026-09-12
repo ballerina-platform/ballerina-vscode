@@ -155,6 +155,16 @@ export const FieldFactory = (props: FieldFactoryProps) => {
         if (!props.field.value) {
             return props.field.types[0];
         }
+        // With no mode chosen, a valued field falls to the last mode — the expression one. That is
+        // right for a reference, a call or a list, but not for a plain string read back from
+        // source: it opened as an expression and showed its own quotes. So when the field leads
+        // with a text mode and the value is a string literal that mode can edit, start there —
+        // text mode renders it unquoted. Every other shape still lands on the expression mode.
+        const primaryType = props.field.types[0];
+        if (primaryType?.fieldType === "TEXT" && typeof props.field.value === "string"
+            && getEditorConfiguration(InputMode.TEXT).getIsValueCompatible(props.field.value)) {
+            return primaryType;
+        }
         return props.field.types[props.field.types.length - 1];
     }
 

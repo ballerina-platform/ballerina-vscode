@@ -13,13 +13,14 @@
     "id": "0",
     "name": "MCP Service",
     "type": "mcp",
+    "triggerKind": "mcp",
     "displayName": "MCP Service",
     "moduleName": "mcp",
     "orgName": "ballerina",
-    "version": "1.2.0",
+    "version": "1.3.0",
     "packageName": "mcp",
     "listenerProtocol": "mcp",
-    "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_mcp_1.2.0.png",
+    "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_mcp_1.3.0.png",
     "properties": {
       "listener": {
         "metadata": {
@@ -375,7 +376,6 @@
                 "description": "The parameter's identifier"
               },
               "placeholder": "paramName",
-              "value": "",
               "types": [
                 {
                   "fieldType": "IDENTIFIER",
@@ -392,8 +392,6 @@
                 "label": "Default Value",
                 "description": "The default value, if this parameter is optional"
               },
-              "placeholder": "",
-              "value": "",
               "types": [
                 {
                   "fieldType": "EXPRESSION",
@@ -410,8 +408,6 @@
                 "label": "Description",
                 "description": "The description of the parameter"
               },
-              "placeholder": "",
-              "value": "",
               "types": [
                 {
                   "fieldType": "DOC_TEXT",
@@ -470,9 +466,27 @@
           "orgName": "ballerina",
           "packageName": "mcp",
           "moduleName": "mcp",
-          "version": "1.2.0"
+          "version": "1.3.0"
         },
-        "properties": {},
+        "properties": {
+          "annotTool": {
+            "metadata": {
+              "label": "Tool",
+              "description": "Tool"
+            },
+            "codedata": {
+              "type": "ANNOTATION_ATTACHMENT",
+              "originalName": "Tool",
+              "moduleName": "mcp"
+            },
+            "value": "{\n        description: string `\n            **Description**: Get current weather conditions for a location\n            **Parameters**:\n            - location (string, required): City name or coordinates (e.g., \"London\", \"40.7128,-74.0060\")\n            `\n    }",
+            "enabled": true,
+            "editable": false,
+            "optional": false,
+            "advanced": false,
+            "hidden": true
+          }
+        },
         "group": "newTool",
         "addLabel": "Add Tool",
         "repeatable": "TRUE",
@@ -509,7 +523,7 @@
             "description": "Description of what this MCP tool does"
           },
           "placeholder": "Describe what this tool does...",
-          "value": "",
+          "value": "Get weather forecast for upcoming days",
           "types": [
             {
               "fieldType": "DOC_TEXT",
@@ -763,7 +777,6 @@
                 "description": "The parameter's identifier"
               },
               "placeholder": "paramName",
-              "value": "",
               "types": [
                 {
                   "fieldType": "IDENTIFIER",
@@ -780,8 +793,6 @@
                 "label": "Default Value",
                 "description": "The default value, if this parameter is optional"
               },
-              "placeholder": "",
-              "value": "",
               "types": [
                 {
                   "fieldType": "EXPRESSION",
@@ -798,8 +809,6 @@
                 "label": "Description",
                 "description": "The description of the parameter"
               },
-              "placeholder": "",
-              "value": "",
               "types": [
                 {
                   "fieldType": "DOC_TEXT",
@@ -858,7 +867,7 @@
           "orgName": "ballerina",
           "packageName": "mcp",
           "moduleName": "mcp",
-          "version": "1.2.0"
+          "version": "1.3.0"
         },
         "properties": {},
         "group": "newTool",
@@ -992,7 +1001,6 @@
                 "description": "The parameter's identifier"
               },
               "placeholder": "paramName",
-              "value": "",
               "types": [
                 {
                   "fieldType": "IDENTIFIER",
@@ -1009,8 +1017,6 @@
                 "label": "Default Value",
                 "description": "The default value, if this parameter is optional"
               },
-              "placeholder": "",
-              "value": "",
               "types": [
                 {
                   "fieldType": "EXPRESSION",
@@ -1027,8 +1033,6 @@
                 "label": "Description",
                 "description": "The description of the parameter"
               },
-              "placeholder": "",
-              "value": "",
               "types": [
                 {
                   "fieldType": "DOC_TEXT",
@@ -1076,7 +1080,7 @@
           "orgName": "ballerina",
           "packageName": "mcp",
           "moduleName": "mcp",
-          "version": "1.2.0"
+          "version": "1.3.0"
         },
         "properties": {},
         "group": "newTool",

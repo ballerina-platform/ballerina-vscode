@@ -57,16 +57,66 @@ import {
 
 // ── Item renderer — order-preserving, used by both floating and named entries ─
 
+// Fixed notice for the server-side compaction card. The model-authored summary is kept
+// internal (#2371) — the compaction chat_component carries no summary and none is rendered.
+const COMPACTION_NOTICE_TEXT = "Context compacted — conversation continues below";
+
+/**
+ * Renders a text stream item, folding any embedded `<compaction>…</compaction>` tag (the
+ * compaction-disabled warning, or an old transcript's notice) into a notice row rather than
+ * leaking the literal tag as markdown.
+ */
+function renderTextItem(text: string, idx: number): React.ReactNode {
+    if (!text.includes("<compaction>")) {
+        return (
+            <ItemMarkdownWrapper key={idx}>
+                <MarkdownRenderer markdownContent={text} />
+            </ItemMarkdownWrapper>
+        );
+    }
+    const re = /<compaction>([\s\S]*?)<\/compaction>/g;
+    const parts: React.ReactNode[] = [];
+    let last = 0;
+    let k = 0;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(text)) !== null) {
+        const before = text.slice(last, m.index).trim();
+        if (before) {
+            parts.push(
+                <ItemMarkdownWrapper key={`${idx}-b${k}`}>
+                    <MarkdownRenderer markdownContent={before} />
+                </ItemMarkdownWrapper>
+            );
+        }
+        // The tag's inner text is always a developer-authored notice (the old compaction
+        // notice or the compaction-disabled warning), never the model summary — render it.
+        const notice = m[1].trim();
+        parts.push(
+            <ItemRow key={`${idx}-c${k}`}>
+                <span className="codicon codicon-fold" aria-hidden="true" />
+                <ItemLabel loading={false}>{notice}</ItemLabel>
+            </ItemRow>
+        );
+        last = m.index + m[0].length;
+        k++;
+    }
+    const after = text.slice(last).trim();
+    if (after) {
+        parts.push(
+            <ItemMarkdownWrapper key={`${idx}-a`}>
+                <MarkdownRenderer markdownContent={after} />
+            </ItemMarkdownWrapper>
+        );
+    }
+    return <React.Fragment key={idx}>{parts}</React.Fragment>;
+}
+
 function renderItem(item: StreamItem, idx: number, streamActive: boolean, rpcClient?: any): React.ReactNode {
     switch (item.kind) {
         case "text": {
             const trimmed = item.text.trim();
             if (!trimmed) return null;
-            return (
-                <ItemMarkdownWrapper key={idx}>
-                    <MarkdownRenderer markdownContent={trimmed} />
-                </ItemMarkdownWrapper>
-            );
+            return renderTextItem(trimmed, idx);
         }
         case "tool_call": {
             if (item.toolName === "hurlRunnerTool") {
@@ -144,6 +194,15 @@ function renderItem(item: StreamItem, idx: number, streamActive: boolean, rpcCli
                             )}
                         </SonarWrapper>
                         <ItemLabel loading={isSpinning}>{item.data.text}</ItemLabel>
+                    </ItemRow>
+                );
+            }
+            if (item.componentType === "compaction") {
+                // Notice only — the model-authored summary is kept internal (#2371).
+                return (
+                    <ItemRow key={idx}>
+                        <span className="codicon codicon-fold" aria-hidden="true" />
+                        <ItemLabel loading={false}>{COMPACTION_NOTICE_TEXT}</ItemLabel>
                     </ItemRow>
                 );
             }

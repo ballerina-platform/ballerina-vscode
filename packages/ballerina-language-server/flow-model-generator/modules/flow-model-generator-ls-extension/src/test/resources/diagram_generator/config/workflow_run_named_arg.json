@@ -1,0 +1,261 @@
+{
+  "start": {
+    "line": 64,
+    "offset": 0
+  },
+  "end": {
+    "line": 67,
+    "offset": 1
+  },
+  "source": "workflow_operations.bal",
+  "description": "workflow:run written with named arguments: processFunction becomes the WORKFLOW_RUN node's symbol and input its payload",
+  "diagram": {
+    "fileName": "workflow_operations.bal",
+    "nodes": [
+      {
+        "id": "97651",
+        "metadata": {
+          "label": "Start",
+          "data": {
+            "kind": "Function",
+            "label": "runByName",
+            "isServiceFunction": false,
+            "return": "error?"
+          }
+        },
+        "codedata": {
+          "node": "EVENT_START",
+          "lineRange": {
+            "fileName": "workflow_operations.bal",
+            "startLine": {
+              "line": 65,
+              "offset": 43
+            },
+            "endLine": {
+              "line": 68,
+              "offset": 1
+            }
+          },
+          "sourceCode": "// Named-argument form of workflow:run — the target function arrives as `processFunction = ...`.\npublic function runByName() returns error? {\n    string workflowId = check workflow:run(processFunction = orderWorkflow, input = {orderId: \"456\", customerName: \"Jane\"});\n    io:println(\"Workflow started with ID: \" + workflowId);\n}"
+        },
+        "returning": false,
+        "flags": 0
+      },
+      {
+        "id": "97464",
+        "metadata": {
+          "label": "Run Workflow",
+          "description": "Run a workflow instance",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.9.0.png"
+        },
+        "codedata": {
+          "node": "WORKFLOW_RUN",
+          "org": "ballerina",
+          "module": "workflow",
+          "packageName": ".",
+          "symbol": "orderWorkflow",
+          "version": "0.0.0",
+          "lineRange": {
+            "fileName": "workflow_operations.bal",
+            "startLine": {
+              "line": 66,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 66,
+              "offset": 124
+            }
+          },
+          "sourceCode": "string workflowId = check workflow:run(processFunction = orderWorkflow, input = {orderId: \"456\", customerName: \"Jane\"});"
+        },
+        "returning": false,
+        "properties": {
+          "input": {
+            "metadata": {
+              "label": "Input",
+              "description": "Input data for the workflow"
+            },
+            "types": [
+              {
+                "fieldType": "RECORD_MAP_EXPRESSION",
+                "ballerinaType": "OrderInput",
+                "typeMembers": [
+                  {
+                    "type": "OrderInput",
+                    "packageInfo": "$anon:.:0.0.0",
+                    "packageName": ".",
+                    "kind": "RECORD_TYPE",
+                    "selected": false
+                  }
+                ],
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "OrderInput",
+                "selected": false
+              }
+            ],
+            "value": "{orderId: \"456\", customerName: \"Jane\"}",
+            "placeholder": "",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false
+          },
+          "checkError": {
+            "metadata": {
+              "label": "Check Error",
+              "description": "Trigger error flow"
+            },
+            "types": [
+              {
+                "fieldType": "FLAG",
+                "selected": true
+              }
+            ],
+            "value": true,
+            "optional": false,
+            "editable": true,
+            "advanced": true,
+            "hidden": true
+          },
+          "variable": {
+            "metadata": {
+              "label": "Variable Name",
+              "description": "Name of the variable"
+            },
+            "types": [
+              {
+                "fieldType": "IDENTIFIER",
+                "selected": true
+              }
+            ],
+            "value": "workflowId",
+            "optional": false,
+            "editable": false,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "lineRange": {
+                "fileName": "workflow_operations.bal",
+                "startLine": {
+                  "line": 66,
+                  "offset": 11
+                },
+                "endLine": {
+                  "line": 66,
+                  "offset": 21
+                }
+              }
+            }
+          },
+          "type": {
+            "metadata": {
+              "label": "Variable Type",
+              "description": "Type of the variable"
+            },
+            "types": [
+              {
+                "fieldType": "TYPE",
+                "selected": true
+              }
+            ],
+            "value": "string",
+            "placeholder": "var",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {}
+          }
+        },
+        "flags": 1
+      },
+      {
+        "id": "98390",
+        "metadata": {
+          "label": "println",
+          "description": "Prints `any`, `error` or string templates value(s) to the standard output stream and terminates the line.\n```ballerina\nio:println(\"Start processing the CSV file from \", srcFileName);\n```\n",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.1.png"
+        },
+        "codedata": {
+          "node": "FUNCTION_CALL",
+          "org": "ballerina",
+          "module": "io",
+          "packageName": "io",
+          "symbol": "println",
+          "version": "1.8.1",
+          "lineRange": {
+            "fileName": "workflow_operations.bal",
+            "startLine": {
+              "line": 67,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 67,
+              "offset": 58
+            }
+          },
+          "sourceCode": "io:println(\"Workflow started with ID: \" + workflowId);"
+        },
+        "returning": false,
+        "properties": {
+          "values": {
+            "metadata": {
+              "label": "values",
+              "description": "The value(s) to be printed"
+            },
+            "types": [
+              {
+                "fieldType": "REPEATABLE_LIST",
+                "ballerinaType": "io:Printable",
+                "template": {
+                  "types": [
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "io:Printable",
+                      "selected": false
+                    }
+                  ],
+                  "optional": false,
+                  "editable": false,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "selected": true
+              }
+            ],
+            "value": [
+              {
+                "types": [
+                  {
+                    "fieldType": "EXPRESSION",
+                    "ballerinaType": "io:Printable",
+                    "selected": true
+                  }
+                ],
+                "value": "\"Workflow started with ID: \" + workflowId",
+                "optional": false,
+                "editable": false,
+                "advanced": false,
+                "hidden": false
+              }
+            ],
+            "placeholder": "()",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "REST_PARAMETER",
+              "originalName": "values"
+            }
+          }
+        },
+        "flags": 0
+      }
+    ],
+    "connections": []
+  }
+}

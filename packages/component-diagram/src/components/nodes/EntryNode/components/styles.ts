@@ -19,7 +19,7 @@
 import styled from "@emotion/styled";
 import { PortWidget } from "@projectstorm/react-diagrams-core";
 import { Button, ThemeColors } from "@wso2/ui-toolkit";
-import { NODE_BORDER_WIDTH, ENTRY_NODE_WIDTH, ENTRY_NODE_HEIGHT } from "../../../../resources/constants";
+import { NODE_BORDER_WIDTH, ENTRY_NODE_WIDTH, ENTRY_NODE_HEIGHT, NODE_BORDER_COLOR } from "../../../../resources/constants";
 
 type NodeStyleProp = {
     hovered: boolean;
@@ -114,7 +114,7 @@ export const Box = styled.div<NodeStyleProp>`
     width: 100%;
     position: relative;
     border: ${NODE_BORDER_WIDTH}px solid
-        ${(props: NodeStyleProp) => (props.hovered ? ThemeColors.HIGHLIGHT : ThemeColors.OUTLINE_VARIANT)};
+        ${(props: NodeStyleProp) => (props.hovered ? ThemeColors.HIGHLIGHT : NODE_BORDER_COLOR)};
     border-radius: 8px;
     background-color: ${ThemeColors.SURFACE_DIM};
     padding: 8px;
@@ -147,7 +147,7 @@ export const StyledServiceBox = styled(ServiceBox) <NodeStyleProp>`
     height: 40px;
     padding: 0 12px;
     border: ${NODE_BORDER_WIDTH}px solid
-        ${(props: NodeStyleProp) => (props.hovered ? ThemeColors.HIGHLIGHT : ThemeColors.OUTLINE_VARIANT)};
+        ${(props: NodeStyleProp) => (props.hovered ? ThemeColors.HIGHLIGHT : NODE_BORDER_COLOR)};
     border-radius: 8px;
     background-color: ${ThemeColors.SURFACE_DIM};
 `;
@@ -173,7 +173,7 @@ export const PlayButtonCircle = styled.div`
     position: absolute;
     left: -15px;
     top: 22px;
-    border: ${NODE_BORDER_WIDTH}px solid ${ThemeColors.OUTLINE_VARIANT};
+    border: ${NODE_BORDER_WIDTH}px solid ${NODE_BORDER_COLOR};
     border-radius: 50%;
     background-color: ${ThemeColors.SURFACE_DIM};
     color: ${ThemeColors.ON_SURFACE};
@@ -205,7 +205,7 @@ export const GroupContainer = styled.div<{ accent: string }>`
     gap: 6px;
     width: ${ENTRY_NODE_WIDTH}px;
     position: relative;
-    border: ${NODE_BORDER_WIDTH}px solid ${ThemeColors.OUTLINE_VARIANT};
+    border: ${NODE_BORDER_WIDTH}px solid ${NODE_BORDER_COLOR};
     border-radius: 8px;
     background-color: ${ThemeColors.SURFACE_DIM};
     padding: 6px;

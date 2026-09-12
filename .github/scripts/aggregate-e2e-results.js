@@ -20,6 +20,12 @@
 const fs = require('fs');
 const path = require('path');
 
+// Which runner produced the results being aggregated. The caller invokes this script once
+// per platform over that platform's own artifact folder, so the step-summary heading and
+// every history row say where the numbers came from. Empty when unset, which is how the
+// rows written before Windows was added read.
+const PLATFORM = process.env.E2E_OS || '';
+
 function findResultFiles(rootDir) {
   const found = [];
   const walk = (dir) => {
@@ -249,6 +255,7 @@ function toNdjson(allTests) {
         runAttempt,
         sourceTag,
         sourceSha,
+        os: PLATFORM,
         ...t,
       })
     )
@@ -277,7 +284,7 @@ function toMarkdown({
   groupCount,
 }) {
   const lines = [];
-  lines.push('## E2E flakiness report');
+  lines.push(PLATFORM ? `## E2E flakiness report (${PLATFORM})` : '## E2E flakiness report');
   lines.push('');
   lines.push(
     `Groups reported: ${groupCount} · Total: ${total} · Passed: ${passed} · Failed: ${failed} · Skipped: ${skipped} · Flaky (passed after retry): ${flaky}`

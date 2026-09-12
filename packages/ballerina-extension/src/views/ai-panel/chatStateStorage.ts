@@ -1384,6 +1384,16 @@ export class ChatStateStorage {
         return this.activeExecutions.get(projectRootPath)?.get(threadId);
     }
 
+    /**
+     * True while any thread in the workspace has an execution registered. Broader than
+     * runEventStore.hasActiveRun, which only sees runs buffered for panel reconnection — the
+     * type creator and the other command executors register here without ever beginning a run.
+     */
+    hasActiveExecutionFor(projectRootPath: string): boolean {
+        const threadMap = this.activeExecutions.get(projectRootPath);
+        return threadMap !== undefined && threadMap.size > 0;
+    }
+
     hasAnyActiveExecution(): boolean {
         for (const threadMap of this.activeExecutions.values()) {
             if (threadMap.size > 0) {

@@ -26,6 +26,8 @@ type HelperPaneListItemProps = {
     endAction?: React.ReactNode;
     onClickEndAction?: () => void;
     className?: string;
+    testId?: string;
+    endActionTestId?: string;
 }
 
 const ItemContainer = styled.div`
@@ -79,7 +81,9 @@ export const HelperPaneListItem: React.FC<HelperPaneListItemProps> = ({
     onClick,
     endAction,
     onClickEndAction,
-    className
+    className,
+    testId,
+    endActionTestId
 }) => {
     const [isMainHovered, setIsMainHovered] = useState(false);
     const [isEndActionHovered, setIsEndActionHovered] = useState(false);
@@ -92,6 +96,7 @@ export const HelperPaneListItem: React.FC<HelperPaneListItemProps> = ({
     return (
         <ItemContainer className={className}>
             <MainContent
+                data-testid={testId}
                 onMouseEnter={() => setIsMainHovered(true)}
                 onMouseLeave={() => setIsMainHovered(false)}
                 onMouseDown={(e) => {
@@ -106,6 +111,7 @@ export const HelperPaneListItem: React.FC<HelperPaneListItemProps> = ({
             </MainContent>
             {endAction && (
                 <EndActionContainer
+                    data-testid={endActionTestId}
                     onMouseEnter={() => setIsEndActionHovered(true)}
                     onMouseLeave={() => setIsEndActionHovered(false)}
                     onMouseDown={(e) => {

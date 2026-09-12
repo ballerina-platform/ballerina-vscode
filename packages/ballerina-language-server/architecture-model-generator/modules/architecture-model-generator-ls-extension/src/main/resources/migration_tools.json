@@ -11,7 +11,7 @@
         "label": "Keep Original Structure",
         "description": "Preserve the original source file structure (each .xml file in a separate .bal file).",
         "valueType": "boolean",
-        "defaultValue": false
+        "defaultValue": true
       },
       {
         "key": "forceVersion",
@@ -42,7 +42,7 @@
         "label": "Keep Original Structure",
         "description": "Preserve the original source file structure (each process in a separate .bal file).",
         "valueType": "boolean",
-        "defaultValue": false
+        "defaultValue": true
       },
       {
         "key": "multiRoot",

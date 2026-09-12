@@ -20,6 +20,7 @@ import React from "react";
 
 import { LocationSelector } from "@wso2/ui-toolkit";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
+import { getPrimaryInputType } from "@wso2/ballerina-core";
 
 import { FormField } from "../Form/types";
 import { buildRequiredRule } from "./utils";
@@ -39,7 +40,9 @@ export function FileSelect(props: DropdownEditorProps) {
 
     const handleFileSelect = async () => {
         try {
-            const selection = await rpcClient.getCommonRpcClient().selectFileOrDirPath({ isFile: true });
+            const extensions = getPrimaryInputType(field.types)?.extensions;
+            const filters = extensions?.length ? { [field.label]: extensions } : undefined;
+            const selection = await rpcClient.getCommonRpcClient().selectFileOrDirPath({ isFile: true, filters });
             // A dismissed dialog (and a host that rejected the selection) comes back
             // with an empty path — keep any earlier pick rather than clearing it.
             if (selection?.path) {

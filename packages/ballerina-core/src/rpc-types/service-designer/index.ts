@@ -17,7 +17,7 @@
  */
 
 import { UpdatedArtifactsResponse } from "../../interfaces/bi";
-import { ListenerModelRequest, ListenerModelResponse, ServiceModelRequest, ServiceModelResponse, ServiceModelFromCodeRequest, ServiceModelFromCodeResponse, HttpResourceModelRequest, HttpResourceModelResponse, FunctionSourceCodeRequest, ListenerSourceCodeRequest, ListenersRequest, ListenersResponse, ServiceSourceCodeRequest, ListenerModelFromCodeRequest, ListenerModelFromCodeResponse, TriggerModelsRequest, TriggerModelsResponse, FunctionModelRequest, FunctionModelResponse, ResourceReturnTypesRequest, FunctionFromSourceRequest, FunctionFromSourceResponse, ServiceModelInitResponse, ServiceInitSourceRequest, VisibleTypesResponse, ValidatePropertyRequest, ValidatePropertyResponse } from "../../interfaces/extended-lang-client";
+import { ListenerModelRequest, ListenerModelResponse, ServiceModelRequest, ServiceModelResponse, ServiceModelFromCodeRequest, ServiceModelFromCodeResponse, HttpResourceModelRequest, HttpResourceModelResponse, FunctionSourceCodeRequest, ListenerSourceCodeRequest, ListenersRequest, ListenersResponse, ServiceSourceCodeRequest, ListenerModelFromCodeRequest, ListenerModelFromCodeResponse, TriggerModelsRequest, TriggerModelsResponse, FunctionModelRequest, FunctionModelResponse, ResourceReturnTypesRequest, FunctionFromSourceRequest, FunctionFromSourceResponse, ServiceModelInitResponse, ServiceInitSourceRequest, VisibleTypesResponse, ValidatePropertyRequest, ValidatePropertyResponse, ConnectorUpgradeAdviceRequest, ConnectorUpgradeAdviceResponse, PullConnectorUpgradeRequest, PullConnectorUpgradeResult } from "../../interfaces/extended-lang-client";
 import { PayloadContext } from "../../interfaces/service";
 import {
     ExportOASRequest,
@@ -47,6 +47,8 @@ export interface ServiceDesignerAPI {
     addFunctionSourceCode: (params: FunctionSourceCodeRequest) => Promise<UpdatedArtifactsResponse>;
     updateResourceSourceCode: (params: FunctionSourceCodeRequest) => Promise<UpdatedArtifactsResponse>;
     getServiceInitModel: (params: ServiceModelRequest) => Promise<ServiceModelInitResponse>;
+    getConnectorUpgradeAdvice: (params: ConnectorUpgradeAdviceRequest) => Promise<ConnectorUpgradeAdviceResponse>;
+    pullConnectorUpgrade: (params: PullConnectorUpgradeRequest) => Promise<PullConnectorUpgradeResult>;
     createServiceAndListener: (params: ServiceInitSourceRequest) => Promise<UpdatedArtifactsResponse>;
     generateExamplePayloadJson: (params: PayloadContext) => Promise<object>;
     getOASSpec: (params: GetOASSpecRequest) => Promise<GetOASSpecResponse>;

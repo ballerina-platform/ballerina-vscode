@@ -1,0 +1,100 @@
+{
+  "description": "Query-based type search pagination page 2 of 2, draining the imported-module pool before the rest of the library so the two tiles cover every match exactly once",
+  "kind": "TYPE",
+  "source": "type_pagination/main.bal",
+  "queryMap": {
+    "q": "Civil",
+    "limit": "3",
+    "offset": "3"
+  },
+  "categories": [
+    {
+      "metadata": {
+        "label": "Current Integration",
+        "description": "Components defined within the current integration",
+        "keywords": [
+          "Project",
+          "Local",
+          "Function",
+          "Types",
+          "Data Mapper"
+        ]
+      },
+      "items": []
+    },
+    {
+      "metadata": {
+        "label": "Imported Types",
+        "description": "Types imported from other integrations",
+        "keywords": [
+          "Imported",
+          "Type",
+          "Library"
+        ]
+      },
+      "items": []
+    },
+    {
+      "metadata": {
+        "label": "Standard Library",
+        "description": "Components supported officially by Ballerina",
+        "keywords": [
+          "Ballerina",
+          "Library"
+        ]
+      },
+      "items": [
+        {
+          "metadata": {
+            "label": "postgresql",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "TimestamptzCivilRange",
+                "description": "Represents the `Timestamp (Civil) with Timezone Range` Datatype in PostgreSQL.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_postgresql_1.18.0.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerinax",
+                "module": "postgresql",
+                "packageName": "postgresql",
+                "symbol": "TimestamptzCivilRange",
+                "version": "1.18.0"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "xlsx",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "CellValue",
+                "description": "A cell value: string, int, float, decimal, boolean, Date, Civil, TimeOfDay, or nil.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_xlsx_1.0.1.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "xlsx",
+                "packageName": "xlsx",
+                "symbol": "CellValue",
+                "version": "1.0.1"
+              },
+              "enabled": true
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

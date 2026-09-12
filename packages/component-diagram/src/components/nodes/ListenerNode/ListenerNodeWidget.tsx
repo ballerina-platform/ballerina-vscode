@@ -25,6 +25,7 @@ import {
     LISTENER_NODE_WIDTH,
     AUTOMATION_LISTENER,
     LISTENER_NODE_HEIGHT,
+    NODE_BORDER_COLOR,
 } from "../../../resources/constants";
 import { Button, Item, MenuItem, Menu, Popover, ThemeColors } from "@wso2/ui-toolkit";
 import { ClockIcon, ListenIcon } from "../../../resources";
@@ -69,7 +70,7 @@ const Circle = styled.div<NodeStyleProp>`
     width: ${LISTENER_NODE_HEIGHT}px;
     height: ${LISTENER_NODE_HEIGHT}px;
     border: ${NODE_BORDER_WIDTH}px solid
-        ${(props: NodeStyleProp) => (props.hovered ? ThemeColors.HIGHLIGHT : ThemeColors.OUTLINE_VARIANT)};
+        ${(props: NodeStyleProp) => (props.hovered ? ThemeColors.HIGHLIGHT : NODE_BORDER_COLOR)};
     border-radius: 50%;
     background-color: ${ThemeColors.SURFACE_DIM};
     color: ${ThemeColors.ON_SURFACE};
@@ -82,7 +83,7 @@ const DashedCircle = styled.div<NodeStyleProp>`
     width: ${LISTENER_NODE_HEIGHT}px;
     height: ${LISTENER_NODE_HEIGHT}px;
     border: 2.5px dashed
-        ${(props: NodeStyleProp) => (props.hovered ? ThemeColors.HIGHLIGHT : ThemeColors.OUTLINE_VARIANT)};
+        ${(props: NodeStyleProp) => (props.hovered ? ThemeColors.HIGHLIGHT : NODE_BORDER_COLOR)};
     border-radius: 50%;
     background-color: ${ThemeColors.SURFACE_DIM};
     color: ${ThemeColors.ON_SURFACE};

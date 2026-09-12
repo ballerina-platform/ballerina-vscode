@@ -31,7 +31,282 @@
           "Library"
         ]
       },
-      "items": []
+      "items": [
+        {
+          "metadata": {
+            "label": "http",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "CookieConfig",
+                "description": "Client configuration for cookies.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "CookieConfig",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "ClientSocketConfig",
+                "description": "Provides settings related to client socket configuration.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "ClientSocketConfig",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "PoolConfiguration",
+                "description": "Configurations for managing HTTP client connection pool.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "PoolConfiguration",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "ClientAuthConfig",
+                "description": "Defines the authentication configurations for the HTTP client.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "ClientAuthConfig",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "CommonClientConfiguration",
+                "description": "Common client configurations for the next level clients.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "CommonClientConfiguration",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "OAuth2ClientCredentialsGrantConfig",
+                "description": "Represents OAuth2 client credentials grant configurations for OAuth2 authentication.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "OAuth2ClientCredentialsGrantConfig",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "LoadBalanceClientConfiguration",
+                "description": "The configurations related to the load balancing client endpoint. The following fields are inherited from the other\nconfiguration records in addition to the load balancing client specific configs.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "LoadBalanceClientConfiguration",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "ProxyConfig",
+                "description": "Proxy server configurations to be used with the HTTP client endpoint.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "ProxyConfig",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "CircuitBreakerConfigError",
+                "description": "Represents a client error that occurred due to circuit breaker configuration error.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "CircuitBreakerConfigError",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "KeepAlive",
+                "description": "Defines the possible values for the keep-alive configuration in service and client endpoints.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "KeepAlive",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "FailoverClientConfiguration",
+                "description": "Provides a set of HTTP related configurations and failover related configurations.\nThe following fields are inherited from the other configuration records in addition to the failover client-specific\nconfigs.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "FailoverClientConfiguration",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "ClientConfiguration",
+                "description": "Provides a set of configurations for controlling the behaviours when communicating with a remote HTTP endpoint.\nThe following fields are inherited from the other configuration records in addition to the `Client`-specific\nconfigs.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "ClientConfiguration",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "HttpCache",
+                "description": "Implements a cache for storing HTTP responses. This cache complies with the caching policy set when configuring\nHTTP caching in the HTTP client endpoint.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "http",
+                "packageName": "http",
+                "symbol": "HttpCache",
+                "version": "2.16.2"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "ai",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "ChatClientConfiguration",
+                "description": "Represents the configuration for a chat client.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.1.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "ai",
+                "packageName": "ai",
+                "symbol": "ChatClientConfiguration",
+                "version": "1.11.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "StreamableHttpClientTransportConfig",
+                "description": "Configuration options for the Streamable HTTP client transport.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.1.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "ai",
+                "packageName": "ai",
+                "symbol": "StreamableHttpClientTransportConfig",
+                "version": "1.11.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "AgentIdAuthConfig",
+                "description": "Represents the OAuth 2.0 client configuration required to interact\nwith an external Authorization Server and validate issued access tokens.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.1.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "ai",
+                "packageName": "ai",
+                "symbol": "AgentIdAuthConfig",
+                "version": "1.11.1"
+              },
+              "enabled": true
+            }
+          ]
+        }
+      ]
     },
     {
       "metadata": {
@@ -177,38 +452,6 @@
                 "version": "1.0.1"
               },
               "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "OAuth2PasswordGrantConfig",
-                "description": "Represents the data structure, which is used to configure the OAuth2 password grant type.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_client.config_1.0.1.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerinax",
-                "module": "client.config",
-                "packageName": "client.config",
-                "symbol": "OAuth2PasswordGrantConfig",
-                "version": "1.0.1"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "OAuth2JwtBearerGrantConfig",
-                "description": "Represents the data structure, which is used to configure the OAuth2 JWT bearer grant type.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_client.config_1.0.1.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerinax",
-                "module": "client.config",
-                "packageName": "client.config",
-                "symbol": "OAuth2JwtBearerGrantConfig",
-                "version": "1.0.1"
-              },
-              "enabled": true
             }
           ]
         },
@@ -232,347 +475,6 @@
                 "packageName": "microsoft.onedrive",
                 "symbol": "ConfigurationManagerClientEnabledFeatures",
                 "version": "3.0.2"
-              },
-              "enabled": true
-            }
-          ]
-        },
-        {
-          "metadata": {
-            "label": "commercetools.configuration",
-            "description": "",
-            "keywords": []
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "OAuth2ClientCredentialsGrantConfig",
-                "description": "OAuth2 Client Credentials Grant Configs",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_commercetools.configuration_1.4.1.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerinax",
-                "module": "commercetools.configuration",
-                "packageName": "commercetools.configuration",
-                "symbol": "OAuth2ClientCredentialsGrantConfig",
-                "version": "1.4.1"
-              },
-              "enabled": true
-            }
-          ]
-        },
-        {
-          "metadata": {
-            "label": "peoplehr",
-            "description": "",
-            "keywords": []
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "ConnectionConfig",
-                "description": "Client configuration details.",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_peoplehr_2.2.1.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerinax",
-                "module": "peoplehr",
-                "packageName": "peoplehr",
-                "symbol": "ConnectionConfig",
-                "version": "2.2.1"
-              },
-              "enabled": true
-            }
-          ]
-        },
-        {
-          "metadata": {
-            "label": "soap",
-            "description": "",
-            "keywords": []
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "ClientConfig",
-                "description": "SOAP client configurations.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_soap_2.3.1.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerina",
-                "module": "soap",
-                "packageName": "soap",
-                "symbol": "ClientConfig",
-                "version": "2.3.1"
-              },
-              "enabled": true
-            }
-          ]
-        },
-        {
-          "metadata": {
-            "label": "salesforce.bulk",
-            "description": "",
-            "keywords": []
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "ConnectionConfig",
-                "description": "Salesforce client configuration.",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_salesforce_8.6.3.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerinax",
-                "module": "salesforce.bulk",
-                "packageName": "salesforce",
-                "symbol": "ConnectionConfig",
-                "version": "8.6.3"
-              },
-              "enabled": true
-            }
-          ]
-        },
-        {
-          "metadata": {
-            "label": "salesforce.soap",
-            "description": "",
-            "keywords": []
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "ConnectionConfig",
-                "description": "Salesforce client configuration.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_salesforce_8.6.3.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerinax",
-                "module": "salesforce.soap",
-                "packageName": "salesforce",
-                "symbol": "ConnectionConfig",
-                "version": "8.6.3"
-              },
-              "enabled": true
-            }
-          ]
-        },
-        {
-          "metadata": {
-            "label": "azure.ad",
-            "description": "",
-            "keywords": []
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "ConnectionConfig",
-                "description": "Client configuration details.",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure.ad_2.5.0.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerinax",
-                "module": "azure.ad",
-                "packageName": "azure.ad",
-                "symbol": "ConnectionConfig",
-                "version": "2.5.0"
-              },
-              "enabled": true
-            }
-          ]
-        },
-        {
-          "metadata": {
-            "label": "googleapis.calendar",
-            "description": "",
-            "keywords": []
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "ConnectionConfig",
-                "description": "Client configuration details.",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_googleapis.calendar_3.2.1.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerinax",
-                "module": "googleapis.calendar",
-                "packageName": "googleapis.calendar",
-                "symbol": "ConnectionConfig",
-                "version": "3.2.1"
-              },
-              "enabled": true
-            }
-          ]
-        },
-        {
-          "metadata": {
-            "label": "googleapis.drive",
-            "description": "",
-            "keywords": []
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "ConnectionConfig",
-                "description": "Client configuration details.",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_googleapis.drive_3.4.1.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerinax",
-                "module": "googleapis.drive",
-                "packageName": "googleapis.drive",
-                "symbol": "ConnectionConfig",
-                "version": "3.4.1"
-              },
-              "enabled": true
-            }
-          ]
-        },
-        {
-          "metadata": {
-            "label": "googleapis.people",
-            "description": "",
-            "keywords": []
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "ConnectionConfig",
-                "description": "Client configuration details.",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_googleapis.people_2.4.0.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerinax",
-                "module": "googleapis.people",
-                "packageName": "googleapis.people",
-                "symbol": "ConnectionConfig",
-                "version": "2.4.0"
-              },
-              "enabled": true
-            }
-          ]
-        },
-        {
-          "metadata": {
-            "label": "microsoft.excel",
-            "description": "",
-            "keywords": []
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "ConnectionConfig",
-                "description": "Client configuration details.",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_microsoft.excel_2.4.0.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerinax",
-                "module": "microsoft.excel",
-                "packageName": "microsoft.excel",
-                "symbol": "ConnectionConfig",
-                "version": "2.4.0"
-              },
-              "enabled": true
-            }
-          ]
-        },
-        {
-          "metadata": {
-            "label": "microsoft.teams",
-            "description": "",
-            "keywords": []
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "ConnectionConfig",
-                "description": "Client configuration details.",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_microsoft.teams_2.4.0.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerinax",
-                "module": "microsoft.teams",
-                "packageName": "microsoft.teams",
-                "symbol": "ConnectionConfig",
-                "version": "2.4.0"
-              },
-              "enabled": true
-            }
-          ]
-        },
-        {
-          "metadata": {
-            "label": "microsoft.onenote",
-            "description": "",
-            "keywords": []
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "ConnectionConfig",
-                "description": "Client configuration details.",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_microsoft.onenote_2.4.0.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerinax",
-                "module": "microsoft.onenote",
-                "packageName": "microsoft.onenote",
-                "symbol": "ConnectionConfig",
-                "version": "2.4.0"
-              },
-              "enabled": true
-            }
-          ]
-        },
-        {
-          "metadata": {
-            "label": "graphql",
-            "description": "",
-            "keywords": []
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "Graphiql",
-                "description": "Represent GraphiQL client configurations\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_graphql_1.17.0.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerina",
-                "module": "graphql",
-                "packageName": "graphql",
-                "symbol": "Graphiql",
-                "version": "1.17.0"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "CookieConfig",
-                "description": "Client configuration for cookies.",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_graphql_1.17.0.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerina",
-                "module": "graphql",
-                "packageName": "graphql",
-                "symbol": "CookieConfig",
-                "version": "1.17.0"
               },
               "enabled": true
             }

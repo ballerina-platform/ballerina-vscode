@@ -26,7 +26,7 @@ import ArtifactForm from "../Forms/ArtifactForm";
 import { TitleBar } from "../../../components/TitleBar";
 import { TopNavigationBar } from "../../../components/TopNavigationBar";
 import { FormHeader } from "../../../components/FormHeader";
-import { convertConfig, getImportsForProperty } from "../../../utils/bi";
+import { convertConfig, getImportsForProperty, orderFormFields, DURABLE_AGENT_FORM_ORDER } from "../../../utils/bi";
 import { BodyText, LoadingContainer, TopBar } from "../../styles";
 import { LoadingRing } from "../../../components/Loader";
 
@@ -168,12 +168,12 @@ export function FunctionForm(props: FunctionFormProps) {
             }
         });
 
-        // Durable Agentic Workflow form. Create mode is name-only: the function template
-        // supplies the context/input parameters, and the model, instructions and
-        // capabilities are configured on the agent diagram afterwards. Edit mode
-        // additionally shows the input parameter (type + name) but still hides the Public
-        // checkbox, the return type fields, the workflow:AgenticWorkflowContext context
-        // parameter row and the Add Parameter action.
+        // Durable Agentic Workflow form. Create mode asks for the agent's identity — Name,
+        // Model, Role, Instructions and an optional Input Data Type — which is everything the
+        // declaration is generated from; its capabilities are added on the agent diagram
+        // afterwards. Edit mode additionally shows the input parameter (type + name) but still
+        // hides the Public checkbox, the return type fields, the workflow:AgenticWorkflowContext
+        // context parameter row and the Add Parameter action.
         if (isDurableAgent) {
             const isCreateMode = !functionName;
             const isContextParam = (param: Parameter) =>
@@ -202,6 +202,11 @@ export function FunctionForm(props: FunctionFormProps) {
                     }
                 }
             });
+            if (isCreateMode) {
+                // convertConfig sorts by property key, which reads as Name, Input Data Type,
+                // Instructions, Model, Role. Restore the order the fields are filled in.
+                fields = orderFormFields(fields, DURABLE_AGENT_FORM_ORDER);
+            }
         }
 
         setFunctionFields(fields);
@@ -366,26 +371,6 @@ export function FunctionForm(props: FunctionFormProps) {
         console.log("Existing Function Node: ", flowNode);
     }
 
-    // Whether the project already declares a model provider. For a durable agent this MUST be
-    // probed BEFORE the agent is generated: the agent's own source generation declares the
-    // shared WSO2 default provider when the project has none, so probing afterwards always
-    // finds one — the Config.toml write was then skipped and running the agent failed with
-    // "ballerina.ai.wso2ProviderConfig is not configured correctly".
-    const projectHasModelProvider = async (): Promise<boolean> => {
-        try {
-            const existingModelProviders = await rpcClient.getBIDiagramRpcClient().searchNodes({
-                filePath: projectPath,
-                query: { kind: "MODEL_PROVIDER" as NodeKind }
-            });
-            return (existingModelProviders?.output?.length ?? 0) > 0;
-        } catch (error) {
-            // Same failure mode as before the probe existed: skip the config write rather
-            // than prompting for sign-in on an unknown project state.
-            console.error("Failed to probe for model providers:", error);
-            return true;
-        }
-    };
-
     // Writes the WSO2 default provider's Config.toml entry (service URL + token) after an
     // agent creation that declared the provider. Failures are non-fatal: the agent is already
     // created and the provider can be configured from the agent's model circle.
@@ -502,9 +487,6 @@ export function FunctionForm(props: FunctionFormProps) {
         }
 
         console.log("Updated function node: ", functionNodeCopy);
-        // Probed before generation on purpose — the durable agent's source generation declares
-        // the default provider itself, so an after-the-fact probe always finds one.
-        const hadModelProviderBeforeSave = isDurableAgent ? await projectHasModelProvider() : true;
         const sourceCode = await rpcClient
             .getBIDiagramRpcClient()
             .getSourceCode({ filePath, flowNode: functionNodeCopy, isFunctionNodeUpdate: true });
@@ -515,7 +497,12 @@ export function FunctionForm(props: FunctionFormProps) {
         } else {
             const newArtifact = sourceCode.artifacts.find(res => res.isNew);
             if (newArtifact) {
-                if (isDurableAgent && !hadModelProviderBeforeSave) {
+                // The LS reports whether it declared the shared WSO2 default provider; that
+                // provider reads its URL and token from Config.toml, so those entries are written
+                // exactly when it was declared. Asking the project beforehand instead answered a
+                // different question — "any model provider at all" — and skipped the write for a
+                // package whose only provider was, say, an OpenAI one.
+                if (sourceCode.declaredDefaultModelProvider) {
                     await configureWso2ModelProvider();
                 }
                 if (isPopup) {

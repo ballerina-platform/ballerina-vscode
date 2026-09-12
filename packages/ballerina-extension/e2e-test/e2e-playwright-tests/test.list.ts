@@ -46,6 +46,7 @@ import runConcurrent from './rundebug/run-concurrent/run-concurrent.spec';
 import automationDebug from './rundebug/debug/automation-debug.spec';
 import expressionEditor from './expression-editor/expression-editor.spec';
 import expressionEditorAdvanced from './expression-editor/expression-editor-advanced.spec';
+import optionalFieldAccess from './expression-editor/optional-field-access.spec';
 
 import httpService from './api-integration/http-service.spec';
 import httpUpload from './api-integration/http-upload.spec';
@@ -72,6 +73,7 @@ import configuration from './configuration/configuration.spec';
 import typeTest from './type-editor/type.spec';
 import typeExplorerNavigationTest from './type-editor/type-explorer-navigation.spec';
 import serviceClassEditingTest from './type-editor/service-class-editing.spec';
+import serviceClassInitTest from './type-editor/service-class-init-config.spec';
 
 import importIntegration from './import-integration/import-integration.spec';
 
@@ -146,10 +148,13 @@ test.describe('Ballerina E2E Group 2', { tag: '@group2' }, async () => {
     test.describe(automationDebug);
 
     // <----AI Chat Service Test---->
-    test.describe(aiChatService);
+    // TODO: flaky - wso2/product-integrator#2389 (#bi-diagram-canvas never becomes visible after create)
+    test.describe.skip(aiChatService);
 
     // <----Integration as API Test---->
-    test.describe(graphqlService);
+    // TODO: flaky - wso2/product-integrator#2389 ('graphql-add-mutation-btn' not visible
+    // within 10s).
+    test.describe.skip(graphqlService);
 
     // <----Event Integration Test---->
     test.describe(rabbitmqIntegration);
@@ -187,6 +192,7 @@ test.describe('Ballerina E2E Group 3', { tag: '@group3' }, async () => {
     // <----Expression Editor Test---->
     test.describe(expressionEditor);
     test.describe(expressionEditorAdvanced);
+    test.describe(optionalFieldAccess);
 });
 
 test.describe('Ballerina E2E Group 4', { tag: '@group4' }, async () => {
@@ -198,6 +204,7 @@ test.describe('Ballerina E2E Group 4', { tag: '@group4' }, async () => {
     test.describe(typeTest);
     test.describe(typeExplorerNavigationTest);
     test.describe(serviceClassEditingTest);
+    test.describe(serviceClassInitTest);
 
     // <----Data Mapper Test---->
     test.describe.skip(inlineDataMapper); // Failing due to a issue

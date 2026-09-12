@@ -23,6 +23,7 @@ import io.ballerina.flowmodelgenerator.core.model.NodeBuilder;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
+import io.ballerina.flowmodelgenerator.core.utils.WorkflowUtil;
 import org.eclipse.lsp4j.TextEdit;
 
 import java.nio.file.Path;
@@ -63,7 +64,9 @@ public class ChildWorkflowSendDataBuilder extends NodeBuilder {
 
     @Override
     public void setConcreteConstData() {
-        metadata().label(LABEL).description(DESCRIPTION);
+        // The analysis names the target workflow as the subtitle; build() re-runs this, so
+        // the constants must not overwrite what it derived.
+        metadata().labelIfAbsent(LABEL).descriptionIfAbsent(DESCRIPTION);
         codedata()
                 .node(NodeKind.CHILD_WORKFLOW_SEND_DATA)
                 .org(WORKFLOW_ORG)
@@ -166,7 +169,7 @@ public class ChildWorkflowSendDataBuilder extends NodeBuilder {
                 .whiteSpace()
                 // The data name correlates with an event declared by the child workflow function,
                 // so it must always be a string literal even when the form submits the bare name.
-                .name(SendDataBuilder.toStringLiteral(dataName))
+                .name(WorkflowUtil.eventNameLiteral(dataName))
                 .keyword(SyntaxKind.COMMA_TOKEN)
                 .whiteSpace()
                 .name(data)

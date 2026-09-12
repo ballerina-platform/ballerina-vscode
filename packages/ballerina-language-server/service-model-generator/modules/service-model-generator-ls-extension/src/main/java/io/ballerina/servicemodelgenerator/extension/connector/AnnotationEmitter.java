@@ -18,8 +18,8 @@
 
 package io.ballerina.servicemodelgenerator.extension.connector;
 
+import io.ballerina.modelgenerator.commons.ModuleAliasResolver;
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerUISchemaModel;
-import io.ballerina.servicemodelgenerator.extension.util.ModuleAliasResolver;
 
 import java.util.ArrayList;
 import java.util.List;

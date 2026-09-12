@@ -1,0 +1,116 @@
+{
+  "source": "data_mapper/main.bal",
+  "position": {
+    "line": 14,
+    "offset": 0
+  },
+  "description": "A function present only in a Central submodule resolves; against the package default module it fails with 'Function symbol not found'.",
+  "codedata": {
+    "node": "FUNCTION_CALL",
+    "org": "ballerinax",
+    "module": "edifact.d03a.supplychain.mORDERS",
+    "packageName": "edifact.d03a.supplychain",
+    "symbol": "transformFromEdiString",
+    "version": "0.9.0"
+  },
+  "output": {
+    "id": "31",
+    "metadata": {
+      "label": "transformFromEdiString",
+      "description": "",
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_edifact.d03a.supplychain_0.9.0.png"
+    },
+    "codedata": {
+      "node": "FUNCTION_CALL",
+      "org": "ballerinax",
+      "module": "edifact.d03a.supplychain.mORDERS",
+      "packageName": "edifact.d03a.supplychain",
+      "symbol": "transformFromEdiString",
+      "version": "0.9.0",
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "ediText": {
+        "metadata": {
+          "label": "Edi Text"
+        },
+        "types": [
+          {
+            "fieldType": "TEXT",
+            "ballerinaType": "string",
+            "selected": false
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string",
+            "selected": false
+          }
+        ],
+        "placeholder": "\"\"",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED",
+          "originalName": "ediText"
+        }
+      },
+      "type": {
+        "metadata": {
+          "label": "Result Type",
+          "description": "Type of the variable"
+        },
+        "types": [
+          {
+            "fieldType": "TYPE",
+            "selected": true
+          }
+        ],
+        "value": "anydata",
+        "placeholder": "var",
+        "optional": false,
+        "editable": false,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {}
+      },
+      "variable": {
+        "metadata": {
+          "label": "Result",
+          "description": "Name of the result variable"
+        },
+        "types": [
+          {
+            "fieldType": "IDENTIFIER",
+            "selected": true
+          }
+        ],
+        "value": "anydataResult",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "checkError": {
+        "metadata": {
+          "label": "Check Error",
+          "description": "Trigger error flow"
+        },
+        "types": [
+          {
+            "fieldType": "FLAG",
+            "selected": true
+          }
+        ],
+        "value": true,
+        "optional": false,
+        "editable": true,
+        "advanced": true,
+        "hidden": true
+      }
+    },
+    "flags": 0
+  }
+}

@@ -52,7 +52,7 @@ public class VariableBuilder extends NodeBuilder {
         Optional<Property> type = sourceBuilder.getProperty(Property.TYPE_KEY);
         Optional<Property> variable = sourceBuilder.getProperty(Property.VARIABLE_KEY);
         if (type.isPresent() && variable.isPresent()) {
-            sourceBuilder.token().expressionWithType(type.get(), variable.get());
+            sourceBuilder.token().expressionWithType(sourceBuilder.requalifiedType(type.get()), variable.get());
         }
 
         Optional<Property> exprProperty = sourceBuilder.getProperty(Property.EXPRESSION_KEY);

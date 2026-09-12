@@ -479,6 +479,16 @@ public final class CommonUtil {
     }
 
     /**
+     * Reverses {@link #escapeReservedKeyword(String)} by stripping a leading escape quote if present.
+     *
+     * @param value the possibly-escaped identifier
+     * @return the raw identifier without the leading quote
+     */
+    public static String unescapeReservedKeyword(String value) {
+        return value.startsWith("'") ? value.substring(1) : value;
+    }
+
+    /**
      * Get the predicate to filter the variables.
      * These variables include
      * (1) any variable defined

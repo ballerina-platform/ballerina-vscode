@@ -106,6 +106,32 @@ public class PropertyValueAdapterTest {
     }
 
     @Test
+    public void testToValueCarriesMinItemsAndDefaultItemsForTextSet() {
+        TriggerUISchemaModel.PropertyType textSet = new TriggerUISchemaModel.PropertyType(
+                "TEXT_SET", true, "string", null, null, null, null, null, null, 1, 1);
+        TriggerUISchemaModel.Property property = new TriggerUISchemaModel.Property(null, true, true, false, false,
+                null, null, List.of(textSet), null, null, null, null, null);
+
+        Value value = PropertyValueAdapter.toValue(property);
+
+        Assert.assertEquals(value.getTypes().getFirst().minItems(), Integer.valueOf(1));
+        Assert.assertEquals(value.getTypes().getFirst().defaultItems(), Integer.valueOf(1));
+    }
+
+    @Test
+    public void testToValueLeavesMinItemsAndDefaultItemsNullWhenNotAuthored() {
+        TriggerUISchemaModel.PropertyType type =
+                new TriggerUISchemaModel.PropertyType("TEXT", true, "string", null, null, null, null, null);
+        TriggerUISchemaModel.Property property = new TriggerUISchemaModel.Property(null, true, true, false, false,
+                null, null, List.of(type), null, null, null, null, null);
+
+        Value value = PropertyValueAdapter.toValue(property);
+
+        Assert.assertNull(value.getTypes().getFirst().minItems());
+        Assert.assertNull(value.getTypes().getFirst().defaultItems());
+    }
+
+    @Test
     public void testToValueRecursesThroughNestedPropertiesAndChoices() {
         TriggerUISchemaModel.Property child = leaf("child-value", true, true, false, false);
         TriggerUISchemaModel.Property choice = leaf("choice-value", true, true, false, false);

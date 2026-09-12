@@ -38,6 +38,7 @@ import io.ballerina.flowmodelgenerator.core.model.Codedata;
 import io.ballerina.flowmodelgenerator.core.model.PropertyTypeMemberInfo;
 import io.ballerina.flowmodelgenerator.core.model.TypeData;
 import io.ballerina.flowmodelgenerator.core.type.AmbiguousTypeCastResolver;
+import io.ballerina.flowmodelgenerator.core.type.IntersectionNormalizer;
 import io.ballerina.flowmodelgenerator.core.type.RecordValueGenerator;
 import io.ballerina.flowmodelgenerator.core.type.TypeSymbolAnalyzerFromTypeModel;
 import io.ballerina.flowmodelgenerator.extension.request.DeleteTypeRequest;
@@ -719,9 +720,12 @@ public class TypesManagerService implements ExtendedLanguageServerService {
     }
 
     private void serializeRecordConfig(Type type, RecordConfigResponse response) {
+        // The single choke point for every record config response. The record editor has no intersection renderer,
+        // so a `readonly & T` node must reach it as T; normalizing here means no endpoint can leak one.
+        Type normalizedType = IntersectionNormalizer.normalize(type);
         SizeLimitedWriter writer = new SizeLimitedWriter(MAX_RECORD_CONFIG_JSON_CHARS);
         try {
-            new Gson().toJson(type, writer);
+            new Gson().toJson(normalizedType, writer);
             response.setRecordConfig(JsonParser.parseString(writer.getContent()));
         } catch (JsonIOException e) {
             response.setError(new RuntimeException(RECORD_CONFIG_ERROR_MESSAGE));

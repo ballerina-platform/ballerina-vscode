@@ -41,7 +41,6 @@ export function ConnectionConfig(props: ConnectionConfigProps): JSX.Element {
     const [recordTypeFields, setRecordTypeFields] = useState<RecordTypeField[]>([]);
     const [loading, setLoading] = useState<boolean>(false);
     const [savingForm, setSavingForm] = useState<boolean>(false);
-    const [, forceRender] = useState(0);
 
     const projectPath = useRef<string>("");
     const currentFilePath = useRef<string>("");
@@ -197,16 +196,6 @@ export function ConnectionConfig(props: ConnectionConfigProps): JSX.Element {
     const handleOnChange = useCallback((fieldKey: string, value: any) => {
         if (fieldKey !== "connection" || value === selectedConnectionValue) return;
 
-        const isKnownConnection = value && connectionNodesMap.current.has(value);
-
-        if (!isKnownConnection) {
-            if (connectionConfigFields.current.length > 0) {
-                connectionConfigFields.current.forEach(f => { f.hidden = true; });
-                connectionConfigFields.current = [];
-                forceRender(c => c + 1);
-            }
-            return;
-        }
         updateFieldsForConnection(value);
     }, [selectedConnectionValue]);
 
@@ -248,7 +237,13 @@ export function ConnectionConfig(props: ConnectionConfigProps): JSX.Element {
             {!loading && selectedConnectionFields?.length > 0 && (
                 <>
                     <ArtifactForm
-                        key={selectedConnectionValue}
+                        key={
+                            !selectedConnectionValue
+                                || connectionNodesMap.current.has(selectedConnectionValue)
+                                || selectedConnectionValue === DEFAULT_MODEL_PROVIDER_ITEM.value
+                                ? selectedConnectionValue
+                                : "__expression__"
+                        }
                         fileName={currentFilePath.current || projectPath.current}
                         targetLineRange={targetLineRangeRef.current}
                         fields={selectedConnectionFields}
@@ -259,6 +254,7 @@ export function ConnectionConfig(props: ConnectionConfigProps): JSX.Element {
                         helperPaneSide="left"
                         recordTypeFields={recordTypeFields}
                         injectedComponents={injectedComponents}
+                        opensPrefilled
                     />
                 </>
             )}

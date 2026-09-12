@@ -577,8 +577,8 @@ export function CallActivityNodeWidget(props: CallActivityNodeWidgetProps) {
                             onMouseLeave={() => setHoveredConnection(null)}
                             style={{ cursor: readOnly ? "default" : "pointer" }}
                         >
-                            {/* A dashed link without an arrowhead: an activity call is a local
-                                invocation that uses the connection, not a remote call. */}
+                            {/* Solid arrow, matching the http-call link used for the same
+                                connection kind in a regular function's ApiCallNodeWidget. */}
                             <line
                                 x1="0"
                                 y1="25"
@@ -587,9 +587,23 @@ export function CallActivityNodeWidget(props: CallActivityNodeWidgetProps) {
                                 style={{
                                     stroke: lineColor,
                                     strokeWidth: 1.5,
-                                    strokeDasharray: "5 5",
+                                    strokeDasharray: "none",
+                                    markerEnd: `url(#${model.node.id}-${connection.key}-arrow-head)`,
                                 }}
                             />
+                            <defs>
+                                <marker
+                                    markerWidth="4"
+                                    markerHeight="4"
+                                    refX="3"
+                                    refY="2"
+                                    viewBox="0 0 4 4"
+                                    orient="auto"
+                                    id={`${model.node.id}-${connection.key}-arrow-head`}
+                                >
+                                    <polygon points="0,4 0,0 4,2" fill={lineColor}></polygon>
+                                </marker>
+                            </defs>
                             <circle
                                 cx="80"
                                 cy={24 + offsetY}

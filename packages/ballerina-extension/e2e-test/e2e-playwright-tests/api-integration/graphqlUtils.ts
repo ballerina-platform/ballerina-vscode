@@ -37,6 +37,8 @@ export class GraphQLServiceUtils {
             fieldName: { value: name, label: 'Field Name' },
             fieldType: { value: fieldType, label: 'Field Type' }
         });
+
+        await this.webView.getByTestId(addBtnTestId).waitFor({ state: 'visible', timeout: 20000 });
     }
 
     async addFunction(outputType: string,argument: { name: string, type: string }) {

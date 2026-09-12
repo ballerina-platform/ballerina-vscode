@@ -130,16 +130,16 @@
               "fieldType": "SINGLE_SELECT",
               "options": [
                 {
-                  "label": "HYBRID",
-                  "value": "\"HYBRID\""
+                  "label": "DENSE",
+                  "value": "\"DENSE\""
                 },
                 {
                   "label": "SPARSE",
                   "value": "\"SPARSE\""
                 },
                 {
-                  "label": "DENSE",
-                  "value": "\"DENSE\""
+                  "label": "HYBRID",
+                  "value": "\"HYBRID\""
                 }
               ],
               "selected": false
@@ -150,10 +150,10 @@
               "selected": false
             }
           ],
-          "placeholder": "\"HYBRID\"",
+          "placeholder": "\"DENSE\"",
           "optional": true,
           "editable": true,
-          "advanced": true,
+          "advanced": false,
           "hidden": false,
           "codedata": {
             "kind": "DEFAULTABLE",
@@ -189,7 +189,7 @@
           "placeholder": "{}",
           "optional": true,
           "editable": true,
-          "advanced": true,
+          "advanced": false,
           "hidden": false,
           "codedata": {
             "kind": "DEFAULTABLE",
@@ -226,7 +226,7 @@
           "placeholder": "{}",
           "optional": true,
           "editable": true,
-          "advanced": true,
+          "advanced": false,
           "hidden": false,
           "codedata": {
             "kind": "DEFAULTABLE",

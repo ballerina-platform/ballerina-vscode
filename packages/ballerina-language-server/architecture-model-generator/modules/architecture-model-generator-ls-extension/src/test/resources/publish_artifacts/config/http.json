@@ -68,8 +68,13 @@
           "name": "HTTP Service - /products",
           "scope": "Global",
           "visibility": "module",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.6.png",
+          "icon": {
+            "url": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.17.1.png",
+            "kind": "http",
+            "source": "ballerina-central"
+          },
           "module": "http",
+          "triggerKind": "http",
           "children": {
             "get#[string productId]": {
               "id": "get#[string productId]",

@@ -1,6 +1,6 @@
 [package]
 org = "wso2"
-name = "agent_topology"
+name = "ai_agent_async_usage"
 version = "0.1.0"
 distribution = "2201.13.0"
 

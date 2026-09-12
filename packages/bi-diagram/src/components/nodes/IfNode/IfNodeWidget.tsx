@@ -34,7 +34,7 @@ import {
     NODE_TEXT_COLOR,
     NODE_WIDTH,
 } from "../../../resources/constants";
-import { Button, Item, Menu, MenuItem, ThemeColors } from "@wso2/ui-toolkit";
+import { Button, Item, Menu, MenuItem } from "@wso2/ui-toolkit";
 import { FlowNode } from "../../../utils/types";
 import { useDiagramContext } from "../../DiagramContext";
 import { MoreVertIcon } from "../../../resources";
@@ -328,10 +328,10 @@ export function IfNodeWidget(props: IfNodeWidgetProps) {
                                     : hasError
                                     ? NODE_BORDER_ERROR_COLOR
                                     : isSelected && !disabled
-                                        ? ThemeColors.SECONDARY
+                                        ? NODE_BORDER_SELECTED_COLOR
                                         : (isHovered || isNoteActive) && !disabled && !readOnly
-                                            ? ThemeColors.SECONDARY
-                                            : ThemeColors.OUTLINE_VARIANT
+                                            ? NODE_BORDER_SELECTED_COLOR
+                                            : NODE_BORDER_COLOR
                             }
                             strokeWidth={NODE_BORDER_WIDTH}
                             strokeDasharray={disabled ? "5 5" : getDiffStrokeDasharray(model.node)}

@@ -82,6 +82,33 @@ commit SHA. So:
 - Prefer fixing things in the consumer (the ballerina packages) over editing
   the submodule, unless the change really belongs in the shared library.
 
+### 7. `readonly` is the only intersection modifier the record editor supports.
+
+Ballerina intersections reach the record config editor as
+`{typeName: "intersection", members: [...]}`. The language server collapses
+`readonly & X` to `X` before responding — `IntersectionNormalizer`
+(`flow-model-generator-core/.../core/type/`), applied in `serializeRecordConfig`
+and in `TypeSymbolAnalyzerFromTypeModel.analyze`. The webview keeps the same
+collapse in `RecordConstructView/utils/intersection.ts` as an idempotent net for
+an older, distribution-provided LS.
+
+Both sides key off a single name (`READONLY_TYPE_NAMES` / `READONLY_TYPE_NAME`),
+not a set, because `readonly` is the only modifier that carries no shape of its
+own. Any other intersection — `Foo & Bar` — is deliberately left as an opaque
+leaf: there is no single member whose editor could stand in for it. If a second
+modifier ever needs the same treatment, widen both constants together.
+
+The merge that replaces the wrapper with its shape member has to agree on both
+sides too (`IntersectionNormalizer.merge` / `mergeWrapper`), or the same payload
+collapses differently depending on which side got to it first. The wrapper is
+the *field slot*, so its name, `typeInfo` and flags win; the member is the
+*shape*, so what it states about the value wins.
+
+Do not move this collapse into `misc/diagram-util`. `Type.fromSemanticSymbol` is
+shared with `expressionEditor/visibleVariableTypes`, `ballerinaSymbol/*` and
+`ballerinaConnector/*`, whose consumers render an intersection as `A & B` on
+purpose (`views/BI/HelperView/VariablePanel/utils.tsx`).
+
 ## Common task recipes
 
 ### "Build and verify the extension"

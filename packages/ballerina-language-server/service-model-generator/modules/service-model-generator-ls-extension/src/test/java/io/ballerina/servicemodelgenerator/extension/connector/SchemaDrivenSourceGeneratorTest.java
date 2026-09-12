@@ -28,6 +28,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -39,6 +40,12 @@ import java.util.Map;
 public class SchemaDrivenSourceGeneratorTest {
 
     private final Gson gson = new Gson();
+
+    private static ServiceInitModel generatedServiceInitModel(String key) {
+        GeneratedTriggerCorpus.Entry entry = GeneratedTriggerCorpus.get(key);
+        return TriggerModelReader.getInstance()
+                .getGeneratedServiceInitModel(entry.org(), entry.module(), entry.version()).orElseThrow();
+    }
 
     @Test
     public void testChoiceAndGroupSectionListener() throws Exception {
@@ -196,7 +203,7 @@ public class SchemaDrivenSourceGeneratorTest {
         // as ASB's entityConfig whose real value comes entirely from its children's own dotted paths.
         // A CHOICE branch tagged ENUM_VALUE (see ftp.json) means the parent's own selected value is a
         // real listener arg that must be emitted, not just a branch selector.
-        ServiceInitModel model = TriggerModelReader.getInstance().getBundledServiceInitModel("ftp").orElseThrow();
+        ServiceInitModel model = generatedServiceInitModel("ftp");
         String listener = SchemaDrivenSourceGenerator.buildListenerDeclaration(model);
         Assert.assertTrue(listener.contains("protocol = ftp:FTP"),
                 "the default-selected FTP branch must emit `protocol = ftp:FTP`, got:\n" + listener);
@@ -209,7 +216,7 @@ public class SchemaDrivenSourceGeneratorTest {
         // FTPS was missing from the schema-driven model entirely (the pre-migration hardcoded builder
         // supported it). Selecting it must emit `protocol = ftp:FTPS` plus the advanced
         // `secureSocket` field.
-        ServiceInitModel model = TriggerModelReader.getInstance().getBundledServiceInitModel("ftp").orElseThrow();
+        ServiceInitModel model = generatedServiceInitModel("ftp");
         Value protocol = listenerConfigProperties(model).get("protocol");
         selectChoiceByValue(protocol, "FTPS");
         Value ftps = selectedChoice(protocol);
@@ -231,7 +238,7 @@ public class SchemaDrivenSourceGeneratorTest {
         // Auth as alternatives; the schema-driven model previously hardcoded private-key auth as the
         // only option. Selecting Basic Authentication for SFTP must fold into
         // `auth.credentials.{username,password}`.
-        ServiceInitModel model = TriggerModelReader.getInstance().getBundledServiceInitModel("ftp").orElseThrow();
+        ServiceInitModel model = generatedServiceInitModel("ftp");
         Value protocol = listenerConfigProperties(model).get("protocol");
         selectChoiceByValue(protocol, "SFTP");
         Value sftp = selectedChoice(protocol);
@@ -252,7 +259,7 @@ public class SchemaDrivenSourceGeneratorTest {
         // record, not top-level fields). A dotted SERVICE_ANNOTATION path must nest into a mapping
         // constructor, not render as a literal `info.name: ...` key — which is not valid Ballerina
         // mapping-field syntax.
-        ServiceInitModel model = TriggerModelReader.getInstance().getBundledServiceInitModel("mcp").orElseThrow();
+        ServiceInitModel model = generatedServiceInitModel("mcp");
         String block = SchemaDrivenSourceGenerator.buildServiceBlockForTrigger(model, null);
         Assert.assertTrue(
                 block.contains("@mcp:StreamableHttpServiceConfig {info: {name: \"MCP Service\", "
@@ -265,7 +272,7 @@ public class SchemaDrivenSourceGeneratorTest {
         // Regression: on submit the front end signals a picked radio via the enabled branch's own value,
         // and does not always echo the parent CHOICE's `value` back. Clearing the parent value (leaving
         // only the enabled SFTP branch) must still emit `protocol = ftp:SFTP`.
-        ServiceInitModel model = TriggerModelReader.getInstance().getBundledServiceInitModel("ftp").orElseThrow();
+        ServiceInitModel model = generatedServiceInitModel("ftp");
         Value protocol = listenerConfigProperties(model).get("protocol");
         protocol.setValue("");
         for (Value branch : protocol.getChoices()) {
@@ -302,6 +309,32 @@ public class SchemaDrivenSourceGeneratorTest {
 
     private static Value selectedChoice(Value choiceField) {
         return choiceField.getChoices().stream().filter(Value::isEnabled).findFirst().orElseThrow();
+    }
+
+    /**
+     * Selecting a listener type emits that type, with no generator change: {@code collect} already descends
+     * the enabled branch and {@code listenerTypeOf} already reads {@code ballerinaType} off the name field.
+     */
+    @Test
+    public void testSelectedListenerTypeDecidesTheEmittedDeclaration() throws Exception {
+        ServiceInitModel creation = loadMcpMulti();
+        Assert.assertEquals(SchemaDrivenSourceGenerator.buildListenerDeclaration(creation),
+                "listener mcp:StreamableHttpListener mcpListener = new (8080);",
+                "the fixture ships the Streamable HTTP branch selected");
+
+        ServiceInitModel deprecated = loadMcpMulti();
+        List<Value> branches = deprecated.getProperties().get("listener").getChoices().getFirst()
+                .getProperties().get("listenerType").getChoices();
+        branches.get(0).setEnabled(false);
+        branches.get(1).setEnabled(true);
+        Assert.assertEquals(SchemaDrivenSourceGenerator.buildListenerDeclaration(deprecated),
+                "listener mcp:Listener mcpListener = new (8080);",
+                "selecting the other listener type must emit that type, with the same arguments");
+    }
+
+    private ServiceInitModel loadMcpMulti() throws Exception {
+        Path path = resource("connector_models/mcp_multi/resources/service-creation.json");
+        return gson.fromJson(Files.readString(path, StandardCharsets.UTF_8), ServiceInitModel.class);
     }
 
     private Path resource(String name) throws Exception {

@@ -6,14 +6,15 @@
   "moduleName": "mcp",
   "response": {
     "serviceInitModel": {
+      "id": "mcp",
       "displayName": "MCP Service",
       "description": "Create a service that exposes tools to MCP clients over the Streamable HTTP transport.",
       "orgName": "ballerina",
       "packageName": "mcp",
       "moduleName": "mcp",
-      "version": "1.2.0",
+      "version": "1.3.0",
       "type": "mcp",
-      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_mcp_1.2.0.png",
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_mcp_1.3.0.png",
       "properties": {
         "serviceName": {
           "metadata": {

@@ -24,7 +24,6 @@ import { DataMapperErrorBoundary } from "@wso2/ballerina-data-mapper";
 import { TopNavigationBar } from "../../components/TopNavigationBar";
 import { DataMapperView } from "./DataMapperView";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { BALLERINA_INTEGRATOR_ISSUES_URL } from "../../utils/bi";
 
 export interface DataMapperProps {
     filePath: string;

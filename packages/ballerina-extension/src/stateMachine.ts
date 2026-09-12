@@ -6,6 +6,7 @@ import {
     EVENT_TYPE,
     SyntaxTree,
     History,
+    HistoryEntry,
     MachineStateValue,
     IUndoRedoManager,
     VisualizerLocation,
@@ -38,7 +39,8 @@ import {
     getView,
     releaseCreateLanding,
     resolveCreateLandingOverride,
-    resolveSingleIntegrationOverride
+    resolveSingleIntegrationOverride,
+    shouldSuppressDisruptiveTransition
 } from './utils/state-machine-utils';
 import * as path from 'path';
 import { extension } from './BalExtensionContext';
@@ -50,6 +52,7 @@ import { activateDevantFeatures } from './features/devant/activator';
 import { buildProjectsStructure } from './utils/project-artifacts';
 import { runCommandWithOutput } from './utils/runCommand';
 import { buildOutputChannel } from './utils/logger';
+import { checkAndPromptConnectorUpgrades } from './features/project/connector-upgrade';
 import { closeOrphanWebviewTabs } from './views/closeOrphanWebviewTabs';
 import { getEnclosingProjectStatus } from './utils/bi';
 
@@ -67,6 +70,7 @@ interface MachineContext extends VisualizerLocation {
     isBISupported: boolean;
     errorCode: string | null;
     dependenciesResolved?: boolean;
+    connectorUpgradesCheckedPaths?: Set<string>;
     isInDevant: boolean;
     productMode: ProductMode;
     isViewUpdateTransition?: boolean;
@@ -93,6 +97,7 @@ const stateMachine = createMachine<MachineContext>(
             isBISupported: false,
             view: MACHINE_VIEW.PackageOverview,
             dependenciesResolved: false,
+            connectorUpgradesCheckedPaths: new Set(),
             isInDevant: isInDevant(),
             productMode: getProductMode()
         },
@@ -387,6 +392,10 @@ const stateMachine = createMachine<MachineContext>(
                                     cond: (context) => !context.dependenciesResolved
                                 },
                                 {
+                                    target: "checkConnectorUpgrades",
+                                    cond: (context) => !context.connectorUpgradesCheckedPaths?.has(context.projectPath)
+                                },
+                                {
                                     target: "webViewLoading"
                                 }
                             ]
@@ -396,9 +405,27 @@ const stateMachine = createMachine<MachineContext>(
                         invoke: {
                             src: 'resolveMissingDependencies',
                             onDone: {
-                                target: "webViewLoading",
+                                target: "checkConnectorUpgrades",
                                 actions: assign({
                                     dependenciesResolved: true
+                                })
+                            }
+                        }
+                    },
+                    checkConnectorUpgrades: {
+                        invoke: {
+                            src: 'checkConnectorUpgrades',
+                            onDone: {
+                                target: "webViewLoading",
+                                actions: assign({
+                                    connectorUpgradesCheckedPaths: (context) => {
+                                        if (!context.projectPath) {
+                                            return context.connectorUpgradesCheckedPaths;
+                                        }
+                                        const checkedPaths = new Set(context.connectorUpgradesCheckedPaths ?? []);
+                                        checkedPaths.add(context.projectPath);
+                                        return checkedPaths;
+                                    }
                                 })
                             }
                         }
@@ -429,6 +456,15 @@ const stateMachine = createMachine<MachineContext>(
                                     evalsetData: (context, event) => event.data.evalsetData,
                                     isViewUpdateTransition: false
                                 })
+                            },
+                            // Without this, a throw here (e.g. a project-structure lookup racing a
+                            // Copilot generation's edits) leaves the machine stuck in this state
+                            // forever — falling back to the still-current view beats a wedged panel.
+                            onError: {
+                                target: "viewReady",
+                                actions: (context, event) => {
+                                    console.error('Failed to resolve the view to show', event.data);
+                                }
                             }
                         }
                     },
@@ -491,6 +527,7 @@ const stateMachine = createMachine<MachineContext>(
                                         documentUri: (context, event) => event.viewLocation.documentUri,
                                         position: (context, event) => event.viewLocation.position,
                                         view: (context, event) => event.viewLocation.view,
+                                        projectPath: (context, event) => event.viewLocation?.projectPath || context?.projectPath,
                                         identifier: (context, event) => event.viewLocation.identifier,
                                         artifactType: (context, event) => event.viewLocation.artifactType,
                                         serviceType: (context, event) => event.viewLocation.serviceType,
@@ -674,6 +711,16 @@ const stateMachine = createMachine<MachineContext>(
                 resolve(true);
             });
         },
+        checkConnectorUpgrades: (context, event) => {
+            return new Promise((resolve) => {
+                if (context?.projectPath) {
+                    checkAndPromptConnectorUpgrades(context.projectPath).catch((error) => {
+                        console.error('>>> Error checking connector upgrades', error);
+                    });
+                }
+                resolve(true);
+            });
+        },
         findView(context, event): Promise<void> {
             return new Promise(async (resolve, reject) => {
                 const { orgName, packageName } = getOrgAndPackageName(context.projectInfo, context.projectPath);
@@ -700,8 +747,7 @@ const stateMachine = createMachine<MachineContext>(
                     }
                     const view = await getView(context.documentUri, context.position, context?.projectPath);
                     view.location.package = packageName || context.package;
-                    view.location.package = packageName || context.package;
-                    view.location.projectPath = view.location.projectPath ?? context.projectPath;
+                    view.location.projectPath = context.projectPath;
                     history.push(view);
                     return resolve();
                 } else {
@@ -730,68 +776,83 @@ const stateMachine = createMachine<MachineContext>(
                 }
             });
         },
-        showView(context, event): Promise<VisualizerLocation> {
-            return new Promise(async (resolve, reject) => {
-                StateMachinePopup.resetState();
-                const selectedEntry = getLastHistory();
-                if (!context.langClient) {
-                    if (!selectedEntry) {
-                        return resolve(
-                            context.workspacePath
-                                ? { view: MACHINE_VIEW.WorkspaceOverview }
-                                : { view: MACHINE_VIEW.PackageOverview, documentUri: context.documentUri }
-                        );
+        async showView(context, event): Promise<VisualizerLocation> {
+            StateMachinePopup.resetState();
+            const selectedEntry = getLastHistory();
+            if (!context.langClient) {
+                if (!selectedEntry) {
+                    return context.workspacePath
+                        ? { view: MACHINE_VIEW.WorkspaceOverview }
+                        : { view: MACHINE_VIEW.PackageOverview, documentUri: context.documentUri };
+                }
+                return { ...selectedEntry.location, view: selectedEntry.location.view ? selectedEntry.location.view : MACHINE_VIEW.PackageOverview };
+            }
+
+            if (selectedEntry?.location.view === MACHINE_VIEW.AgentDefinitionDesigner) {
+                return selectedEntry.location;
+            }
+
+            if (selectedEntry && (selectedEntry.location.view === MACHINE_VIEW.ERDiagram || selectedEntry.location.view === MACHINE_VIEW.ServiceDesigner || selectedEntry.location.view === MACHINE_VIEW.BIDiagram || selectedEntry.location.view === MACHINE_VIEW.ReviewMode)) {
+                // Get updated location and identifier if transition was from VIEW_UPDATE event
+                if (context.isViewUpdateTransition && selectedEntry.location.view !== MACHINE_VIEW.ReviewMode) {
+                    const updatedView = await getView(selectedEntry.location.documentUri, selectedEntry.location.position, context?.projectPath);
+                    return updatedView.location;
+                }
+                return selectedEntry.location;
+            }
+
+            const defaultLocation = {
+                documentUri: context.documentUri,
+                position: undefined
+            };
+            const {
+                location = defaultLocation,
+                uid
+            } = selectedEntry ?? {};
+
+            const { documentUri, position } = location;
+
+            // TODO: Refactor this to remove the full ST request
+            const node = documentUri && await StateMachine.langClient().getSyntaxTree({
+                documentIdentifier: {
+                    uri: Uri.file(documentUri).toString()
+                }
+            }) as SyntaxTree;
+
+            if (!selectedEntry?.location.view) {
+                return context.workspacePath
+                    ? { view: MACHINE_VIEW.WorkspaceOverview }
+                    : { view: MACHINE_VIEW.PackageOverview, documentUri: context.documentUri };
+            }
+
+            let selectedST;
+
+            if (node?.parseSuccess) {
+                const fullST = node.syntaxTree;
+                if (!uid && position) {
+                    const generatedUid = generateUid(position, fullST);
+                    selectedST = getNodeByUid(generatedUid, fullST);
+                    if (generatedUid && selectedST) {
+                        history.updateCurrentEntry({
+                            ...selectedEntry,
+                            location: {
+                                ...selectedEntry.location,
+                                position: selectedST.position,
+                                syntaxTree: selectedST
+                            },
+                            uid: generatedUid
+                        });
                     }
-                    return resolve({ ...selectedEntry.location, view: selectedEntry.location.view ? selectedEntry.location.view : MACHINE_VIEW.PackageOverview });
                 }
 
-                if (selectedEntry?.location.view === MACHINE_VIEW.AgentDefinitionDesigner) {
-                    return resolve(selectedEntry.location);
-                }
+                if (uid && position) {
+                    selectedST = getNodeByUid(uid, fullST);
 
-                if (selectedEntry && (selectedEntry.location.view === MACHINE_VIEW.ERDiagram || selectedEntry.location.view === MACHINE_VIEW.ServiceDesigner || selectedEntry.location.view === MACHINE_VIEW.BIDiagram || selectedEntry.location.view === MACHINE_VIEW.ReviewMode)) {
-                    // Get updated location and identifier if transition was from VIEW_UPDATE event
-                    if (context.isViewUpdateTransition && selectedEntry.location.view !== MACHINE_VIEW.ReviewMode) {
-                        const updatedView = await getView(selectedEntry.location.documentUri, selectedEntry.location.position, context?.projectPath);
-                        return resolve(updatedView.location);
-                    }
-                    return resolve(selectedEntry.location);
-                }
+                    if (!selectedST) {
+                        const nodeWithUpdatedUid = getNodeByName(uid, fullST);
+                        selectedST = nodeWithUpdatedUid[0];
 
-                const defaultLocation = {
-                    documentUri: context.documentUri,
-                    position: undefined
-                };
-                const {
-                    location = defaultLocation,
-                    uid
-                } = selectedEntry ?? {};
-
-                const { documentUri, position } = location;
-
-                // TODO: Refactor this to remove the full ST request
-                const node = documentUri && await StateMachine.langClient().getSyntaxTree({
-                    documentIdentifier: {
-                        uri: Uri.file(documentUri).toString()
-                    }
-                }) as SyntaxTree;
-
-                if (!selectedEntry?.location.view) {
-                    return resolve(
-                        context.workspacePath
-                            ? { view: MACHINE_VIEW.WorkspaceOverview }
-                            : { view: MACHINE_VIEW.PackageOverview, documentUri: context.documentUri }
-                    );
-                }
-
-                let selectedST;
-
-                if (node?.parseSuccess) {
-                    const fullST = node.syntaxTree;
-                    if (!uid && position) {
-                        const generatedUid = generateUid(position, fullST);
-                        selectedST = getNodeByUid(generatedUid, fullST);
-                        if (generatedUid && selectedST) {
+                        if (selectedST) {
                             history.updateCurrentEntry({
                                 ...selectedEntry,
                                 location: {
@@ -799,16 +860,10 @@ const stateMachine = createMachine<MachineContext>(
                                     position: selectedST.position,
                                     syntaxTree: selectedST
                                 },
-                                uid: generatedUid
+                                uid: nodeWithUpdatedUid[1]
                             });
-                        }
-                    }
-
-                    if (uid && position) {
-                        selectedST = getNodeByUid(uid, fullST);
-
-                        if (!selectedST) {
-                            const nodeWithUpdatedUid = getNodeByName(uid, fullST);
+                        } else {
+                            const nodeWithUpdatedUid = getNodeByIndex(uid, fullST);
                             selectedST = nodeWithUpdatedUid[0];
 
                             if (selectedST) {
@@ -816,45 +871,30 @@ const stateMachine = createMachine<MachineContext>(
                                     ...selectedEntry,
                                     location: {
                                         ...selectedEntry.location,
+                                        identifier: getComponentIdentifier(selectedST),
                                         position: selectedST.position,
                                         syntaxTree: selectedST
                                     },
                                     uid: nodeWithUpdatedUid[1]
                                 });
                             } else {
-                                const nodeWithUpdatedUid = getNodeByIndex(uid, fullST);
-                                selectedST = nodeWithUpdatedUid[0];
-
-                                if (selectedST) {
-                                    history.updateCurrentEntry({
-                                        ...selectedEntry,
-                                        location: {
-                                            ...selectedEntry.location,
-                                            identifier: getComponentIdentifier(selectedST),
-                                            position: selectedST.position,
-                                            syntaxTree: selectedST
-                                        },
-                                        uid: nodeWithUpdatedUid[1]
-                                    });
-                                } else {
-                                    // show identification failure message
-                                }
+                                // show identification failure message
                             }
-                        } else {
-                            history.updateCurrentEntry({
-                                ...selectedEntry,
-                                location: {
-                                    ...selectedEntry.location,
-                                    position: selectedST.position,
-                                    syntaxTree: selectedST
-                                }
-                            });
                         }
+                    } else {
+                        history.updateCurrentEntry({
+                            ...selectedEntry,
+                            location: {
+                                ...selectedEntry.location,
+                                position: selectedST.position,
+                                syntaxTree: selectedST
+                            }
+                        });
                     }
                 }
-                const lastView = getLastHistory().location;
-                return resolve(lastView);
-            });
+            }
+            const lastView = getLastHistory().location;
+            return lastView;
         }
     }
 });
@@ -1075,7 +1115,7 @@ export function openView(
     stateService.send({ type: type, viewLocation: location });
 }
 
-export function updateView(refreshTreeView?: boolean, updatedIdentifier?: string) {
+export function updateView(refreshTreeView?: boolean, updatedIdentifier?: string, options?: { userInitiated?: boolean }) {
     if (StateMachinePopup.isActive()) {
         return;
     }
@@ -1099,7 +1139,7 @@ export function updateView(refreshTreeView?: boolean, updatedIdentifier?: string
             targetedArtifactType = DIRECTORY_MAP.SERVICE;
         }
 
-        const projectPath = StateMachine.context().projectPath;
+        const projectPath = getEntryProjectPath(lastView);
         const project = StateMachine.context().projectStructure?.projects.find(project => isSamePath(project.projectPath, projectPath));
 
         // These changes will be revisited in the revamp
@@ -1130,7 +1170,7 @@ export function updateView(refreshTreeView?: boolean, updatedIdentifier?: string
     if (!newLocationFound && lastView?.location?.type) {
         let currentArtifact: ProjectStructureArtifactResponse;
 
-        const projectPath = StateMachine.context().projectPath;
+        const projectPath = getEntryProjectPath(lastView);
         const project = StateMachine.context().projectStructure?.projects.find(project => isSamePath(project.projectPath, projectPath));
 
         project?.directoryMap[DIRECTORY_MAP.TYPE]?.forEach((artifact) => {
@@ -1160,10 +1200,10 @@ export function updateView(refreshTreeView?: boolean, updatedIdentifier?: string
     }
 
 
-    // Skip the disruptive remount while a Copilot generation is active; notifyCurrentWebview()
-    // below still fires so the diagram's own content refresh keeps flowing.
-    if (!chatStateStorage.hasAnyActiveExecution()) {
-        stateService.send({ type: "VIEW_UPDATE", viewLocation: lastView ? newLocation : { view: "Overview" } });
+    // Only navigation the user asked for may remount mid-generation; the agent's edits replay this on every write.
+    const viewUpdate = { type: "VIEW_UPDATE", viewLocation: lastView ? newLocation : { view: "Overview" }, userInitiated: options?.userInitiated };
+    if (!shouldSuppressDisruptiveTransition(viewUpdate, chatStateStorage.hasAnyActiveExecution())) {
+        stateService.send(viewUpdate);
     }
     if (refreshTreeView) {
         buildProjectsStructure(StateMachine.context().projectInfo, StateMachine.langClient(), true);
@@ -1195,6 +1235,10 @@ export function updateDataMapperView(codedata?: CodeData, variableName?: string)
     notifyCurrentWebview();
 }
 
+
+function getEntryProjectPath(entry: HistoryEntry): string {
+    return entry.location.projectPath || StateMachine.context().projectPath;
+}
 
 function getLastHistory() {
     const historyStack = history?.get();

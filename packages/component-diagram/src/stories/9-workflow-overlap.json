@@ -1,0 +1,87 @@
+{
+    "automation": {
+        "name": "automation",
+        "location": {
+            "filePath": "/project/path/test_sample/automation.bal",
+            "startLine": {
+                "line": 2,
+                "offset": 0
+            },
+            "endLine": {
+                "line": 8,
+                "offset": 1
+            }
+        },
+        "connections": ["b45f2a3e-1a2b-4c3d-9e8f-7a6b5c4d3e2f"],
+        "type": "automation",
+        "uuid": "46687985-6a81-ae2d-c8db-f8fac6cc7fd2",
+        "enableFlowModel": true,
+        "sortText": "Z"
+    },
+    "connections": [
+        {
+            "symbol": "unrelatedClient",
+            "location": {
+                "filePath": "/project/path/test_sample/connections.bal",
+                "startLine": {
+                    "line": 2,
+                    "offset": 0
+                },
+                "endLine": {
+                    "line": 2,
+                    "offset": 40
+                }
+            },
+            "scope": "GLOBAL",
+            "uuid": "a1e2d3c4-5b6a-4f3e-8d9c-0b1a2c3d4e5f",
+            "enableFlowModel": true,
+            "sortText": "connections.bal1"
+        },
+        {
+            "symbol": "httpServiceClient",
+            "location": {
+                "filePath": "/project/path/test_sample/connections.bal",
+                "startLine": {
+                    "line": 4,
+                    "offset": 0
+                },
+                "endLine": {
+                    "line": 4,
+                    "offset": 46
+                }
+            },
+            "scope": "GLOBAL",
+            "uuid": "b45f2a3e-1a2b-4c3d-9e8f-7a6b5c4d3e2f",
+            "enableFlowModel": true,
+            "sortText": "connections.bal2"
+        }
+    ],
+    "listeners": [],
+    "services": [],
+    "workflows": [
+        {
+            "symbol": "workflow",
+            "location": {
+                "filePath": "/project/path/test_sample/workflows.bal",
+                "startLine": {
+                    "line": 2,
+                    "offset": 0
+                },
+                "endLine": {
+                    "line": 10,
+                    "offset": 1
+                }
+            },
+            "kind": "WORKFLOW",
+            "attachedServices": [],
+            "attachedFunctions": [],
+            "events": [],
+            "humanTasks": [],
+            "activities": [],
+            "connections": [],
+            "uuid": "c6d7e8f9-2b3a-4c5d-9e8f-1a2b3c4d5e6f",
+            "enableFlowModel": true,
+            "sortText": "workflows.bal1"
+        }
+    ]
+}

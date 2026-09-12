@@ -79,7 +79,7 @@
     "flags": 0
   },
   "output": {
-    "workflow_function/workflow.bal": [
+    "workflow_function/workflows.bal": [
       {
         "range": {
           "start": {

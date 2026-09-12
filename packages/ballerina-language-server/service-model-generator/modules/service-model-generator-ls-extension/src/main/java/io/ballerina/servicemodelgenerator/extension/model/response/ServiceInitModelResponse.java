@@ -37,6 +37,10 @@ public class ServiceInitModelResponse extends AbstractServiceModelResponse {
         super.setError(error);
     }
 
+    public ServiceInitModelResponse(ModelResolutionIssue issue) {
+        super.setIssue(issue);
+    }
+
     public ServiceInitModel getServiceInitModel() {
         return serviceInitModel;
     }

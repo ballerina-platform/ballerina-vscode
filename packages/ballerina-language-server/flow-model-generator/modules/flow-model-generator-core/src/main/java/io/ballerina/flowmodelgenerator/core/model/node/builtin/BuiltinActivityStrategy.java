@@ -155,6 +155,35 @@ public interface BuiltinActivityStrategy {
     }
 
     /**
+     * Adds a REQUIRED form property offering plain text (selected) or an expression, the shape every
+     * dual-typed builtin activity field uses. Collapses the otherwise-identical builder chain that
+     * each such field would repeat.
+     *
+     * <p>The read side of the same field is rebuilt by {@code CodeAnalyzer.addDualTypeProperty} when
+     * a saved node is reopened; the two must agree on the type list and its selection, or a field
+     * reopens in a different mode from the one it was entered in.</p>
+     *
+     * @param expressionType the {@code ballerinaType} advertised by the EXPRESSION type — the TEXT
+     *                       type is always {@code string}, since plain text is entered as one
+     */
+    static void addRequiredDualTypeProperty(NodeBuilder nodeBuilder, String key, String label,
+                                            String description, String expressionType) {
+        nodeBuilder.properties().custom()
+                .metadata()
+                    .label(label)
+                    .description(description)
+                    .stepOut()
+                .type().fieldType(Property.ValueType.TEXT).ballerinaType("string").selected(true).stepOut()
+                .type().fieldType(Property.ValueType.EXPRESSION).ballerinaType(expressionType)
+                    .selected(false).stepOut()
+                .codedata().kind(ParameterData.Kind.REQUIRED.name()).stepOut()
+                .value("")
+                .editable(true)
+                .stepOut()
+                .addProperty(key);
+    }
+
+    /**
      * Adds a named argument to {@code args}, quoting the value as a Ballerina string literal
      * when the property's currently-selected type is {@link Property.ValueType#TEXT}
      * (i.e., the user entered plain text, not an expression). Skips when the property is

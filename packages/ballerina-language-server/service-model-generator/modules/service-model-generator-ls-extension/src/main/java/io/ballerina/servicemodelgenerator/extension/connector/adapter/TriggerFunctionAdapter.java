@@ -24,6 +24,7 @@ import io.ballerina.servicemodelgenerator.extension.connector.PayloadComposer;
 import io.ballerina.servicemodelgenerator.extension.model.Codedata;
 import io.ballerina.servicemodelgenerator.extension.model.Function;
 import io.ballerina.servicemodelgenerator.extension.model.FunctionReturnType;
+import io.ballerina.servicemodelgenerator.extension.model.LayoutSection;
 import io.ballerina.servicemodelgenerator.extension.model.MetaData;
 import io.ballerina.servicemodelgenerator.extension.model.Parameter;
 import io.ballerina.servicemodelgenerator.extension.model.PropertyType;
@@ -118,6 +119,7 @@ public final class TriggerFunctionAdapter {
         function.setAddDescription(model.metadata() == null ? null : model.metadata().addDescription());
         function.setRepeatable(Repeatable.orDefault(model.repeatable()).effective(function.getGroup()));
         function.setNameEditable(model.nameEditable());
+        function.setLayout(toLayout(model.layout()));
         function.setProperties(toWireProperties(model, variant));
         function.setSchema(toParameterSchema(model.parameterSchema()));
         return function;
@@ -164,6 +166,20 @@ public final class TriggerFunctionAdapter {
             case KIND_COMPLEX_RESOURCE_FUNCTION -> KIND_RESOURCE;
             default -> kind;
         };
+    }
+
+    /** Copies the authored layout across to the wire model, unvalidated: the designer resolves the ids. */
+    private static List<LayoutSection> toLayout(List<TriggerUISchemaModel.LayoutSection> sections) {
+        if (sections == null || sections.isEmpty()) {
+            return null;
+        }
+        List<LayoutSection> layout = new ArrayList<>(sections.size());
+        for (TriggerUISchemaModel.LayoutSection section : sections) {
+            layout.add(new LayoutSection(section.id(), section.label(), section.description(),
+                    section.advanced(),
+                    section.fields() == null ? List.of() : List.copyOf(section.fields())));
+        }
+        return layout;
     }
 
     /** The parameter whose selection fans the handler out into per-format variants, if any. */

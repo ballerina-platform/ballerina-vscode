@@ -88,7 +88,7 @@
           "placeholder": "0",
           "optional": true,
           "editable": true,
-          "advanced": true,
+          "advanced": false,
           "hidden": false,
           "codedata": {
             "kind": "DEFAULTABLE",
@@ -116,7 +116,7 @@
           "placeholder": "0",
           "optional": true,
           "editable": true,
-          "advanced": true,
+          "advanced": false,
           "hidden": false,
           "codedata": {
             "kind": "DEFAULTABLE",
@@ -138,32 +138,32 @@
                   "value": "\"MARKDOWN_HEADER\""
                 },
                 {
-                  "label": "CHARACTER",
-                  "value": "\"CHARACTER\""
-                },
-                {
-                  "label": "WORD",
-                  "value": "\"WORD\""
-                },
-                {
-                  "label": "SENTENCE",
-                  "value": "\"SENTENCE\""
-                },
-                {
-                  "label": "LINE",
-                  "value": "\"LINE\""
-                },
-                {
-                  "label": "PARAGRAPH",
-                  "value": "\"PARAGRAPH\""
+                  "label": "CODE_BLOCK",
+                  "value": "\"CODE_BLOCK\""
                 },
                 {
                   "label": "HORIZONTAL_LINE",
                   "value": "\"HORIZONTAL_LINE\""
                 },
                 {
-                  "label": "CODE_BLOCK",
-                  "value": "\"CODE_BLOCK\""
+                  "label": "PARAGRAPH",
+                  "value": "\"PARAGRAPH\""
+                },
+                {
+                  "label": "LINE",
+                  "value": "\"LINE\""
+                },
+                {
+                  "label": "SENTENCE",
+                  "value": "\"SENTENCE\""
+                },
+                {
+                  "label": "WORD",
+                  "value": "\"WORD\""
+                },
+                {
+                  "label": "CHARACTER",
+                  "value": "\"CHARACTER\""
                 }
               ],
               "selected": false
@@ -174,10 +174,10 @@
               "selected": false
             }
           ],
-          "placeholder": "\"CHARACTER\"",
+          "placeholder": "\"MARKDOWN_HEADER\"",
           "optional": true,
           "editable": true,
-          "advanced": true,
+          "advanced": false,
           "hidden": false,
           "codedata": {
             "kind": "DEFAULTABLE",

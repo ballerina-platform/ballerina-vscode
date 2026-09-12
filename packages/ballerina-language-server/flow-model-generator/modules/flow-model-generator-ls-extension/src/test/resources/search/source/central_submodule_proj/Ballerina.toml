@@ -1,0 +1,4 @@
+[package]
+org = "testorg"
+name = "central_submodule_proj"
+version = "0.1.0"

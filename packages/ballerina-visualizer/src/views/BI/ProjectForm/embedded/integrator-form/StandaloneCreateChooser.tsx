@@ -77,7 +77,7 @@ export function StandaloneCreateChooser({
             onBack={onBack}
         >
             <ProjectTypeSelector
-                label="Choose your starting point"
+                label="What do you want to build?"
                 value={isLibrary}
                 onChange={setIsLibrary}
                 options={projectTypeOptions(terms)}

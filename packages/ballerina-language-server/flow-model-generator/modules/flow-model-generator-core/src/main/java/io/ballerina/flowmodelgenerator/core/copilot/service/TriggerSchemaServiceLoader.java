@@ -249,36 +249,13 @@ final class TriggerSchemaServiceLoader {
     }
 
     /**
-     * Resolves the trigger metadata document for a library, preferring the one the connector ships itself
-     * over the LS-bundled copy.
-     *
-     * <p>The connector's own document is versioned with the connector, so it can never describe a release
-     * the resolved package predates, and a connector published after this LS is served without an LS
-     * release. The bundled tier covers the libraries that do not ship a document yet — which is all of them
-     * today.
-     *
-     * <p>The two tiers are ordered here rather than inside {@link LibraryMetadataReader}, so that the reader
-     * answers exactly one question ("does this root hold a readable document?") and the precedence stays
-     * with the consumer that has an opinion about it. {@code TriggerModelReader} orders its own tiers the
-     * same way, over different documents.
-     *
-     * <p>Both tiers are keyed by name off one {@link ModuleInfo}: the shipped tier resolves the
-     * connector's {@code .bala}, the bundled tier the LS's classpath copy.
-     *
-     * <p><b>A bundled document is filed under the library's own package name</b>, with no indirection.
-     * There used to be a per-library override map, needed by exactly one entry: the CDC document for
-     * {@code ballerinax/mssql} was filed as {@code mssql.cdc}, after the module its listener lives in
-     * rather than after the package a caller asks for. The 2026-08-19 corpus refiled it — and its three
-     * new siblings, {@code mysql}, {@code postgresql} and {@code oracledb} — under the package name, so
-     * every document now resolves by the default and the map had nothing left to say. The documents are
-     * still validated against the actually resolved package before use, which is what makes filing a
-     * cross-module listener under the parent package safe.
+     * Resolves the trigger metadata document the connector ships itself, keyed by name off one
+     * {@link ModuleInfo} resolving the connector's {@code .bala}.
      */
     private static Optional<TriggerMetadataModel> resolveMetadata(String org, String packageName) {
         LibraryMetadataReader reader = LibraryMetadataReader.getInstance();
         ModuleInfo moduleInfo = new ModuleInfo(org, packageName, packageName, null);
-        return reader.getTriggerMetadataModel(moduleInfo)
-                .or(() -> reader.getPackagedTriggerMetadataModel(moduleInfo));
+        return reader.getTriggerMetadataModel(moduleInfo);
     }
 
 }

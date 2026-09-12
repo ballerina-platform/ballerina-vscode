@@ -61,6 +61,11 @@ the agent's `tools` array. The function MUST be `isolated`, every parameter MUST
 `anydata`, and the return type MUST be a subtype of `anydata`, `stream<anydata>` or
 `http:Response`. A non-isolated function is rejected as a tool.
 
+The one exception to the `anydata` rule is `ai:Context`: a tool may take a single `ai:Context ctx`
+parameter in the first position — the runtime injects it, and the compiler plugin strips it before
+checking anything else about the signature. Name it exactly `ctx`; that is the name the tool
+generator itself reserves. See Human approval and Subagents below for how it interacts with each.
+
 The doc comment is the tool description the model sees at runtime, so always write it — a `#`
 description line, a `# + <param> - ...` line per parameter, and `# + return - ...`.
 
@@ -125,6 +130,10 @@ leave the annotation bare on everything else.
 **the same parameter list as the tool**, and return `boolean` — the compiler rejects any other
 signature. Return `true` to pause.
 
+If the tool has a leading `ai:Context ctx` parameter, omit it from the predicate — the predicate is
+compared only against the tool's own `anydata` parameters, so a predicate that also declares `ctx`
+looks mismatched to the compiler, not more specific.
+
 ```ballerina
 @ai:AgentTool {
     requiresApproval: <predicateName>
@@ -154,18 +163,18 @@ list that tool in the parent's `tools` array:
 
 ```ballerina
 # <what delegating to this subagent accomplishes, one line>
-# + context - Context injected by the runtime; forwarded so the subagent shares the caller's context
+# + ctx - Context injected by the runtime; forwarded so the subagent shares the caller's context
 # + <param> - <the request or payload to send to the subagent>
 # + sessionId - Conversation handle. Generate a unique id to start a new conversation with the agent, and reuse the same id to continue it across turns.
 # + return - <what the subagent returns>
 @ai:AgentTool
-isolated function <subAgent>AgentTool(ai:Context context, string <param>, string sessionId) returns string|error {
-    string response = check <subAgent>Agent.run(<param>, sessionId, context);
+isolated function <subAgent>AgentTool(ai:Context ctx, string <param>, string sessionId) returns string|error {
+    string response = check <subAgent>Agent.run(<param>, sessionId, ctx);
     return response;
 }
 ```
 
-Keep both extra parameters: `ai:Context` carries the parent's context down to the subagent, and
+Keep both extra parameters: `ctx` carries the parent's context down to the subagent, and
 `sessionId` is what lets the subagent hold a multi-turn conversation. Reuse the `sessionId` doc
 line above verbatim — the model reads it to decide when to generate a fresh id and when to reuse
 one.
@@ -237,13 +246,14 @@ queries it:
 ```ballerina
 final ai:Wso2EmbeddingProvider <agent>EmbeddingProvider = check ai:getDefaultEmbeddingProvider();
 final ai:InMemoryVectorStore <agent>VectorStore = check new ai:InMemoryVectorStore();
-final ai:KnowledgeBase <agent>KnowledgeBase =
+final ai:VectorKnowledgeBase <agent>KnowledgeBase =
         new ai:VectorKnowledgeBase(<agent>VectorStore, <agent>EmbeddingProvider);
 ```
 
 `ingest` accepts `Document`, `Document[]` or `Chunk[]` — pass the loader's result straight through
 without unwrapping it. `retrieve(query, <limit>)` returns `ai:QueryMatch[]`, each carrying its text
-at `chunk.content`.
+at `chunk.content`. That field is typed `anydata` on the generic `ai:Chunk` — convert it
+(`chunk.content.toString()`) or narrow to `ai:TextChunk` before treating it as a `string`.
 
 The retrieval tool returns those excerpts as text and stops there. Do not have it answer the
 question itself — the agent's own instructions decide how the excerpts are used.
@@ -290,6 +300,13 @@ client calls.
 
 Do not change the `chat` resource signature — the trigger node is matched on it. Add no resource
 other than `decision` below.
+
+`request.sessionId` is a caller-supplied conversation handle, not an authorization token — it only
+selects which memory bucket `run` continues. Do not add auth parameters to the `chat` resource to
+compensate; the fixed shape above has no room for them. If the user's agent will be reachable by
+untrusted or multiple distinct callers, say that keeping one caller's history private is a
+deployment concern outside this resource (a trusted gateway, or access restricted to callers who
+already own their session id) rather than something this trigger enforces itself.
 
 ### Resuming an approval
 
@@ -357,6 +374,11 @@ past the poll deadline, rebalances the group and reprocesses the events. Keep th
 error handling, drop the session id (events are not conversations), and end the reply method with a
 `// TODO:` comment above a `log:printInfo` of the result so the unfinished step shows in the diagram.
 
+Dropping the session id is only safe when the agent is constructed with `memory = ()`. Omitting
+`sessionId` from `run` does not disable memory — it defaults to a fixed id, so every event this
+listener processes would otherwise append to and read from the same shared history. If the agent
+does have memory, generate a per-event id instead of dropping it.
+
 ### HTTP endpoints are the exception
 
 An HTTP caller is waiting for the answer, so an HTTP resource **does not** offload and has no reply
@@ -380,3 +402,11 @@ the Agent Call node disappears from the diagram and the user is left with a bare
 `run` is dependently typed, so `<ResponseType>` may be a record and the agent will derive a JSON
 schema and bind the answer to it. The type MUST be a subtype of `json`; a violation is a runtime
 error, not a compile error.
+
+Omitting `sessionId` from `run` does not give each caller an independent conversation — it
+defaults to the same fixed id, so every caller who omits it shares one memory bucket. For an
+endpoint with multiple distinct callers, either derive a per-caller `sessionId` from the request
+and pass it explicitly, or construct the agent with `memory = ()` so there is no shared history to
+leak in the first place.
+
+Note: `ballerinax/ai` and `ballerinax/ai.agent` are deprecated — everything above is `ballerina/ai`.

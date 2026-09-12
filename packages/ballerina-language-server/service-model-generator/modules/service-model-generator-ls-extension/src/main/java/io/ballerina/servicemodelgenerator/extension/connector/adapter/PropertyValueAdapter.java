@@ -154,6 +154,12 @@ public final class PropertyValueAdapter {
                 .fieldType(wireFieldType(type.fieldType()))
                 .selected(type.selected())
                 .ballerinaType(type.ballerinaType());
+        if (type.minItems() != null) {
+            builder.minItems(type.minItems());
+        }
+        if (type.defaultItems() != null) {
+            builder.defaultItems(type.defaultItems());
+        }
         if (type.options() != null) {
             List<Option> options = new ArrayList<>();
             for (TriggerUISchemaModel.Option option : type.options()) {

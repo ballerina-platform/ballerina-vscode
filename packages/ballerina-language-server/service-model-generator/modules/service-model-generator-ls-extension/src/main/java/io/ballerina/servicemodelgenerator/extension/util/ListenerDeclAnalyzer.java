@@ -451,7 +451,8 @@ public class ListenerDeclAnalyzer {
         if (isSubTypeOfRawTemplate(paramData.typeSymbol(), semanticModel)) {
             valueBuilder.types(List.of(PropertyType.types(Value.FieldType.RAW_TEMPLATE)));
         } else {
-            PropertyType.typeWithExpression(valueBuilder, paramData.typeSymbol(), moduleInfo, value, semanticModel);
+            PropertyType.typeWithExpression(valueBuilder, paramData.typeSymbol(), moduleInfo, value, semanticModel,
+                    paramData.defaultValue());
         }
     }
 

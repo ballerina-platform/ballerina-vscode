@@ -1,0 +1,129 @@
+{
+  "source": "workflow_function/agent.bal",
+  "description": "A gated async peer entry: 'wait/callbackChannel plus PeerDecl approval gating are all emitted",
+  "diagram": {
+    "id": "1",
+    "metadata": {
+      "label": "askClaimDesk",
+      "description": "Another durable agent this agent can delegate to, advertised to the model as a tool"
+    },
+    "codedata": {
+      "node": "DURABLE_AGENT_PEER",
+      "org": "ballerina",
+      "module": "workflow",
+      "object": "DurableAgent",
+      "symbol": "agent",
+      "parentSymbol": "claimAgent",
+      "lineRange": {
+        "fileName": "agent.bal",
+        "startLine": {
+          "line": 21,
+          "offset": 0
+        },
+        "endLine": {
+          "line": 21,
+          "offset": 0
+        }
+      },
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "agent": {
+        "metadata": {
+          "label": "Peer Agent"
+        },
+        "valueType": "SINGLE_SELECT",
+        "value": "claimAgent",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "name": {
+        "metadata": {
+          "label": "Tool Name"
+        },
+        "valueType": "TEXT",
+        "value": "askClaimDesk",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "description": {
+        "metadata": {
+          "label": "Description"
+        },
+        "valueType": "TEXT",
+        "value": "Asks the claim desk",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "wait": {
+        "metadata": {
+          "label": "Wait for the Answer"
+        },
+        "valueType": "FLAG",
+        "value": "false",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "callbackChannel": {
+        "metadata": {
+          "label": "Callback Channel"
+        },
+        "valueType": "TEXT",
+        "value": "claimResults",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "requiresApproval": {
+        "metadata": {
+          "label": "Requires Approval"
+        },
+        "valueType": "FLAG",
+        "value": "true",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false
+      },
+      "userRoles": {
+        "metadata": {
+          "label": "Reviewer Roles"
+        },
+        "valueType": "EXPRESSION",
+        "value": "finance",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false
+      }
+    },
+    "flags": 0
+  },
+  "output": {
+    "workflow_function/agent.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 21,
+            "character": 0
+          },
+          "end": {
+            "line": 21,
+            "character": 0
+          }
+        },
+        "newText": "\n, peers: [{agent: claimAgent, name: \"askClaimDesk\", description: \"Asks the claim desk\", 'wait: false, callbackChannel: \"claimResults\", requiresApproval: true, userRoles: \"finance\"}]"
+      }
+    ]
+  }
+}

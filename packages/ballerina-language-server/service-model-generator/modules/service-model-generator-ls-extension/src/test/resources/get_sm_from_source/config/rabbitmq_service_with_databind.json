@@ -13,13 +13,14 @@
     "id": "0",
     "name": "RabbitMQ Event Integration",
     "type": "rabbitmq",
+    "triggerKind": "event",
     "displayName": "RabbitMQ Event Integration",
     "moduleName": "rabbitmq",
     "orgName": "ballerinax",
-    "version": "3.6.0",
+    "version": "3.6.1",
     "packageName": "rabbitmq",
     "listenerProtocol": "rabbitmq",
-    "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_rabbitmq_3.6.0.png",
+    "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_rabbitmq_3.6.1.png",
     "properties": {
       "listener": {
         "metadata": {
@@ -106,7 +107,7 @@
             "typeMembers": [
               {
                 "type": "RabbitMQServiceConfig",
-                "packageInfo": "ballerinax:rabbitmq:3.6.0",
+                "packageInfo": "ballerinax:rabbitmq:3.6.1",
                 "packageName": "rabbitmq",
                 "kind": "RECORD_TYPE",
                 "selected": true
@@ -321,7 +322,7 @@
             "label": "Return Type",
             "description": "The return type of the function."
           },
-          "placeholder": "rabbitmq:Error?|error?",
+          "placeholder": "error?",
           "value": "error?",
           "types": [
             {
@@ -353,7 +354,7 @@
           "orgName": "ballerinax",
           "packageName": "rabbitmq",
           "moduleName": "rabbitmq",
-          "version": "3.6.0"
+          "version": "3.6.1"
         },
         "properties": {},
         "group": "consume",
@@ -515,7 +516,7 @@
           "orgName": "ballerinax",
           "packageName": "rabbitmq",
           "moduleName": "rabbitmq",
-          "version": "3.6.0"
+          "version": "3.6.1"
         },
         "properties": {},
         "group": "onError",

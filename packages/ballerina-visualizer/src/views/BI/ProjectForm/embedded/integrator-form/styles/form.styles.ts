@@ -353,7 +353,6 @@ export const SubSectionLabel = styled.div`
     font-size: 11px;
     font-weight: 600;
     letter-spacing: 0.4px;
-    text-transform: uppercase;
     color: var(--vscode-descriptionForeground);
     margin-bottom: 12px;
 `;

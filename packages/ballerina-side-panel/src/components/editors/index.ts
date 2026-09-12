@@ -38,3 +38,4 @@ export { HelperPaneMenuItem } from "./MultiModeExpressionEditor/ChipExpressionEd
 export { getEditorConfiguration } from "./ExpressionField";
 export { ExpandedEditor } from "./ExpandedEditor";
 export { getInputModeFromTypes } from "./MultiModeExpressionEditor/ChipExpressionEditor/utils";
+export { NodeReferenceSelectEditor } from "./MultiModeExpressionEditor/NodeReferenceSelectEditor/NodeReferenceSelectEditor";

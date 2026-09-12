@@ -18,7 +18,7 @@
  * THIS FILE INCLUDES AUTO GENERATED CODE
  */
 import { UpdatedArtifactsResponse } from "../../interfaces/bi";
-import { ListenerModelRequest, ListenerModelResponse, ServiceModelRequest, ServiceModelResponse, ServiceModelFromCodeRequest, ServiceModelFromCodeResponse, HttpResourceModelRequest, HttpResourceModelResponse, FunctionSourceCodeRequest, ListenerSourceCodeRequest, ListenersRequest, ListenersResponse, ServiceSourceCodeRequest, ListenerModelFromCodeRequest, ListenerModelFromCodeResponse, TriggerModelsRequest, TriggerModelsResponse, FunctionModelRequest, FunctionModelResponse, ResourceReturnTypesRequest, FunctionFromSourceRequest, FunctionFromSourceResponse, ServiceModelInitResponse, ServiceInitSourceRequest, VisibleTypesResponse, ValidatePropertyRequest, ValidatePropertyResponse } from "../../interfaces/extended-lang-client";
+import { ListenerModelRequest, ListenerModelResponse, ServiceModelRequest, ServiceModelResponse, ServiceModelFromCodeRequest, ServiceModelFromCodeResponse, HttpResourceModelRequest, HttpResourceModelResponse, FunctionSourceCodeRequest, ListenerSourceCodeRequest, ListenersRequest, ListenersResponse, ServiceSourceCodeRequest, ListenerModelFromCodeRequest, ListenerModelFromCodeResponse, TriggerModelsRequest, TriggerModelsResponse, FunctionModelRequest, FunctionModelResponse, ResourceReturnTypesRequest, FunctionFromSourceRequest, FunctionFromSourceResponse, ServiceModelInitResponse, ServiceInitSourceRequest, VisibleTypesResponse, ValidatePropertyRequest, ValidatePropertyResponse, ConnectorUpgradeAdviceRequest, ConnectorUpgradeAdviceResponse, PullConnectorUpgradeRequest, PullConnectorUpgradeResult } from "../../interfaces/extended-lang-client";
 import { PayloadContext } from "../../interfaces/service";
 import {
     ExportOASRequest,
@@ -49,6 +49,8 @@ export const addResourceSourceCode: RequestType<FunctionSourceCodeRequest, Updat
 export const addFunctionSourceCode: RequestType<FunctionSourceCodeRequest, UpdatedArtifactsResponse> = { method: `${_preFix}/addFunctionSourceCode` };
 export const updateResourceSourceCode: RequestType<FunctionSourceCodeRequest, UpdatedArtifactsResponse> = { method: `${_preFix}/updateResourceSourceCode` };
 export const getServiceInitModel: RequestType<ServiceModelRequest, ServiceModelInitResponse> = { method: `${_preFix}/getServiceInitModel` };
+export const getConnectorUpgradeAdvice: RequestType<ConnectorUpgradeAdviceRequest, ConnectorUpgradeAdviceResponse> = { method: `${_preFix}/getConnectorUpgradeAdvice` };
+export const pullConnectorUpgrade: RequestType<PullConnectorUpgradeRequest, PullConnectorUpgradeResult> = { method: `${_preFix}/pullConnectorUpgrade` };
 export const createServiceAndListener: RequestType<ServiceInitSourceRequest, UpdatedArtifactsResponse> = { method: `${_preFix}/createServiceAndListener` };
 export const generateExamplePayloadJson: RequestType<PayloadContext, object> = { method: `${_preFix}/generateExamplePayloadJson` };
 export const getOASSpec: RequestType<GetOASSpecRequest, GetOASSpecResponse> = { method: `${_preFix}/getOASSpec` };

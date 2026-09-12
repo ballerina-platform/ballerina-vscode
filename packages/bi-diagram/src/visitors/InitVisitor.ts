@@ -51,6 +51,12 @@ export class InitVisitor implements BaseVisitor {
         return true;
     }
 
+    // Comments render as note chips on another node, not as widgets of their own, so a branch
+    // whose children are all comments has nothing to link to and must be treated as empty too.
+    private isEmptyBranchOrOnlyComments(branch: Branch): boolean {
+        return !branch.children || branch.children.length === 0 || branch.children.every((child) => child.codedata.node === "COMMENT");
+    }
+
     beginVisitNode(node: FlowNode, parent?: FlowNode): void {
         if (!this.validateNode(node)) return;
         node.viewState = this.getDefaultViewState();
@@ -109,8 +115,8 @@ export class InitVisitor implements BaseVisitor {
                 }
             }
 
-            // if branch is empty add empty node
-            if (!branch.children || branch.children.length === 0) {
+            // if branch is empty (or only holds comments) add empty node
+            if (this.isEmptyBranchOrOnlyComments(branch)) {
                 // empty branch
                 // add empty node as `add new node` button
                 const emptyNode: FlowNode = {
@@ -180,8 +186,8 @@ export class InitVisitor implements BaseVisitor {
                 }
             }
 
-            // if branch is empty add empty node
-            if (!branch.children || branch.children.length === 0) {
+            // if branch is empty (or only holds comments) add empty node
+            if (this.isEmptyBranchOrOnlyComments(branch)) {
                 // empty branch
                 // add empty node as `add new node` button
                 const emptyNode: FlowNode = {
@@ -282,8 +288,8 @@ export class InitVisitor implements BaseVisitor {
             }
         }
 
-        // add empty node if the branch is empty
-        if (!branch.children || branch.children.length === 0) {
+        // add empty node if the branch is empty (or only holds comments)
+        if (this.isEmptyBranchOrOnlyComments(branch)) {
             // empty branch
             // add empty node as `add new node` button
             const emptyNode: FlowNode = {
@@ -347,8 +353,8 @@ export class InitVisitor implements BaseVisitor {
             }
         }
 
-        // add empty node if the body branch is empty
-        if (!bodyBranch.children || bodyBranch.children.length === 0) {
+        // add empty node if the body branch is empty (or only holds comments)
+        if (this.isEmptyBranchOrOnlyComments(bodyBranch)) {
             // add empty node as `add new node` button
             const emptyNode: FlowNode = {
                 id: getCustomNodeId(node.id, bodyBranch.label),

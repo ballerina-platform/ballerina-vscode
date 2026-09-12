@@ -35,6 +35,26 @@
           "servicePath": "/api",
           "resourcePath": "data"
         }
+      },
+      {
+        "changeType": "DELETION",
+        "nodeKind": "MODULE_VARIABLE",
+        "uri": "ai:///main.bal",
+        "lineRange": {
+          "fileName": "main.bal",
+          "startLine": {
+            "line": 2,
+            "offset": 0
+          },
+          "endLine": {
+            "line": 2,
+            "offset": 68
+          }
+        },
+        "metadata": {
+          "name": "apiClient",
+          "oldSource": "final http:Client apiClient = check new (\"https://api.example.com\");"
+        }
       }
     ]
   }

@@ -21,7 +21,7 @@
     "metadata": {
       "label": "queryRow",
       "description": "Executes a SQL query that is expected to return a single row or value as the result.\nIf the query returns no results, `sql:NoRowsError` is returned.\n",
-      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_mysql_1.18.0.png"
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_mysql_1.19.1.png"
     },
     "codedata": {
       "node": "REMOTE_ACTION_CALL",

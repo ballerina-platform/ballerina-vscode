@@ -1,0 +1,117 @@
+{
+  "description": "Query-based type search pagination page 1 of 2, draining the imported-module pool before the rest of the library so the two tiles cover every match exactly once",
+  "kind": "TYPE",
+  "source": "type_pagination/main.bal",
+  "queryMap": {
+    "q": "Civil",
+    "limit": "3",
+    "offset": "0"
+  },
+  "categories": [
+    {
+      "metadata": {
+        "label": "Current Integration",
+        "description": "Components defined within the current integration",
+        "keywords": [
+          "Project",
+          "Local",
+          "Function",
+          "Types",
+          "Data Mapper"
+        ]
+      },
+      "items": []
+    },
+    {
+      "metadata": {
+        "label": "Imported Types",
+        "description": "Types imported from other integrations",
+        "keywords": [
+          "Imported",
+          "Type",
+          "Library"
+        ]
+      },
+      "items": [
+        {
+          "metadata": {
+            "label": "time",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "Civil",
+                "description": "Time within some region relative to a\ntime scale stipulated by civilian authorities.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.8.0.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "time",
+                "packageName": "time",
+                "symbol": "Civil",
+                "version": "2.8.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "Duration",
+                "description": "Represents the time duration used to adjust a civil date-time value by a specified amount.\nThe duration can be added to or subtracted from the civil time.\nFields in the record can be negative, in which case the duration is subtracted.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.8.0.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "time",
+                "packageName": "time",
+                "symbol": "Duration",
+                "version": "2.8.0"
+              },
+              "enabled": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "label": "Standard Library",
+        "description": "Components supported officially by Ballerina",
+        "keywords": [
+          "Ballerina",
+          "Library"
+        ]
+      },
+      "items": [
+        {
+          "metadata": {
+            "label": "postgresql",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "TimestampCivilRange",
+                "description": "Represents the `Timestamp (Civil) Range` datatype in PostgreSQL.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_postgresql_1.18.0.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerinax",
+                "module": "postgresql",
+                "packageName": "postgresql",
+                "symbol": "TimestampCivilRange",
+                "version": "1.18.0"
+              },
+              "enabled": true
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

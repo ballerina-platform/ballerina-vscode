@@ -35,8 +35,10 @@ import org.testng.annotations.Test;
  */
 public class TriggerServiceAdapterTest {
 
-    private TriggerUISchemaModel model(String moduleName) {
-        return TriggerModelReader.getInstance().getBundledTriggerModel(moduleName).orElseThrow();
+    private TriggerUISchemaModel model(String key) {
+        GeneratedTriggerCorpus.Entry entry = GeneratedTriggerCorpus.get(key);
+        return TriggerModelReader.getInstance()
+                .getGeneratedTriggerModel(entry.org(), entry.module(), entry.version()).orElseThrow();
     }
 
     @Test

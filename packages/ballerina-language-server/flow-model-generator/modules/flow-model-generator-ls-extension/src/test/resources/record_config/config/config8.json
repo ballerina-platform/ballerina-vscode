@@ -1,0 +1,51 @@
+{
+  "filePath": "proj",
+  "description": "sibling fields sharing an intersection type keep distinct labels (issue #2295)",
+  "codedata": {
+    "org": "org",
+    "module": "source",
+    "packageName": "source",
+    "version": "0.3.0"
+  },
+  "typeConstraint": "Meta",
+  "output": {
+    "fields": [
+      {
+        "name": "createdAt",
+        "typeName": "[int, decimal]",
+        "optional": true,
+        "typeInfo": {
+          "name": "Timestamp",
+          "orgName": "org",
+          "moduleName": "source",
+          "version": "0.3.0"
+        },
+        "defaultable": false,
+        "documentation": "",
+        "isRestType": false,
+        "selected": false
+      },
+      {
+        "name": "modifiedAt",
+        "typeName": "[int, decimal]",
+        "optional": true,
+        "typeInfo": {
+          "name": "Timestamp",
+          "orgName": "org",
+          "moduleName": "source",
+          "version": "0.3.0"
+        },
+        "defaultable": false,
+        "documentation": "",
+        "isRestType": false,
+        "selected": false
+      }
+    ],
+    "hasRestType": false,
+    "typeName": "record",
+    "optional": false,
+    "defaultable": false,
+    "isRestType": false,
+    "selected": false
+  }
+}

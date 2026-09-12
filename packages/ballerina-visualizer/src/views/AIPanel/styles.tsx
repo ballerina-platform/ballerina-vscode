@@ -163,6 +163,35 @@ export const OverlayCloseButton = styled.button`
     }
 `;
 
+// Floating control shown over the chat message list when the user has scrolled away
+// from the bottom during streaming — lets them jump back without fighting auto-scroll.
+export const JumpToBottomButton = styled.button`
+    position: absolute;
+    left: 50%;
+    bottom: 12px;
+    transform: translateX(-50%);
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 1px solid var(--vscode-panel-border);
+    background: var(--vscode-editor-background);
+    color: var(--vscode-foreground);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+    cursor: pointer;
+    opacity: 0.9;
+    &:hover {
+        opacity: 1;
+        background: var(--vscode-toolbar-hoverBackground);
+    }
+    &:focus-visible {
+        outline: 1px solid var(--vscode-focusBorder);
+    }
+`;
+
 // ── AI Panel action buttons ───────────────────────────────────────────────────
 // Shared compact action-button system used across the AI panel surfaces
 // (SettingsPanel, McpManagerPanel, etc). All variants share the same

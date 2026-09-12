@@ -45,6 +45,12 @@ public class DatabaseManager {
     private static final Logger LOGGER = Logger.getLogger(DatabaseManager.class.getName());
     private final String dbPath;
 
+    /**
+     * Whether the Parameter table carries the `advanced` column. An index built before the column was introduced
+     * lacks it, in which case the flag falls back to `optional` -- the behaviour that index was generated under.
+     */
+    private volatile Boolean parameterAdvancedColumn;
+
     private static class Holder {
 
         private static final DatabaseManager INSTANCE = new DatabaseManager();
@@ -384,6 +390,7 @@ public class DatabaseManager {
                         rs.getString("description"),
                         rs.getString("label"),
                         rs.getBoolean("optional"),
+                        rs.getBoolean("optional"),
                         false,
                         rs.getString("import_statements"),
                         new ArrayList<>(),
@@ -398,13 +405,37 @@ public class DatabaseManager {
         }
     }
 
+    private boolean hasParameterAdvancedColumn() {
+        Boolean cached = parameterAdvancedColumn;
+        if (cached != null) {
+            return cached;
+        }
+        boolean present = false;
+        try (Connection conn = DriverManager.getConnection(dbPath);
+             PreparedStatement stmt = conn.prepareStatement("PRAGMA table_info(Parameter);")) {
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                if ("advanced".equalsIgnoreCase(rs.getString("name"))) {
+                    present = true;
+                    break;
+                }
+            }
+        } catch (SQLException e) {
+            LOGGER.severe("Error inspecting the Parameter table: " + e.getMessage());
+        }
+        parameterAdvancedColumn = present;
+        return present;
+    }
+
     public LinkedHashMap<String, ParameterData> getFunctionParametersAsMap(int functionId) {
+        boolean hasAdvanced = hasParameterAdvancedColumn();
         String sql = "SELECT " +
                 "p.parameter_id, " +
                 "p.name, " +
                 "p.type, " +
                 "p.kind, " +
                 "p.optional, " +
+                (hasAdvanced ? "p.advanced, " : "") +
                 "p.placeholder, " +
                 "p.default_value, " +
                 "p.description, " +
@@ -436,6 +467,7 @@ public class DatabaseManager {
                 String description = rs.getString("description");
                 String label = rs.getString("label");
                 boolean optional = rs.getBoolean("optional");
+                boolean advanced = hasAdvanced ? rs.getBoolean("advanced") : optional;
                 String importStatements = rs.getString("import_statements");
 
                 // Member type data
@@ -457,6 +489,7 @@ public class DatabaseManager {
                     builder.description = description;
                     builder.label = label;
                     builder.optional = optional;
+                    builder.advanced = advanced;
                     builder.importStatements = importStatements;
                     builders.put(paramName, builder);
                 }
@@ -494,6 +527,7 @@ public class DatabaseManager {
         String description;
         String label;
         boolean optional;
+        boolean advanced;
         String importStatements;
         List<ParameterMemberTypeData> typeMembers = new ArrayList<>();
 
@@ -508,6 +542,7 @@ public class DatabaseManager {
                     description,
                     label,
                     optional,
+                    advanced,
                     false,
                     importStatements,
                     typeMembers,

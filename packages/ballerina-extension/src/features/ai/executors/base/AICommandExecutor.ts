@@ -77,7 +77,7 @@ export interface AICommandConfig<TParams = any> {
          */
         existingTempPath?: string;
         /**
-         * Skip sendAgentDidOpenForFreshProjects (the ai:// baseline seed). Set by callers
+         * Skip seedAiBaselines (the ai:// baseline seed). Set by callers
          * that reuse the same existingTempPath across multiple executions of the same
          * directory (migration's per-stage runs), where the LS already has it open from
          * an earlier execution and re-seeding would overwrite the baseline with
@@ -418,7 +418,13 @@ export abstract class AICommandExecutor<TParams = any> {
         );
     }
 
-    /** Implicitly accepts whichever generation is still in the revertible 'done' window. */
+    /**
+     * Implicitly accepts whichever generation is still in the revertible 'done' window.
+     * Per-thread on purpose: executors on this path (typecreator, data mapper) work in
+     * their own temp copies and do NOT reseed the shared ai:// diff baseline, so another
+     * thread's open review stays valid. The agent entry point (generateAgent) finalizes
+     * ALL threads instead, because its baseline reseed invalidates every open review.
+     */
     protected finalizePreviousGeneration(): void {
         if (!this.config.chatStorage) {
             return;

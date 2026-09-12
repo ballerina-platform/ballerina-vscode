@@ -81,6 +81,31 @@ public record Metadata(String label, String description, List<String> keywords, 
             return this;
         }
 
+        /**
+         * Sets the label only when none has been set yet.
+         *
+         * <p>{@link io.ballerina.flowmodelgenerator.core.model.NodeBuilder#build()} re-invokes
+         * {@code setConstData()} after the analysis has run, so a builder that assigns its constant
+         * metadata unconditionally overwrites whatever the analysis derived from the source. Nodes
+         * whose title or subtitle is source-dependent assign it through these instead.
+         *
+         * @param label the constant label
+         * @return this builder
+         */
+        public Builder<T> labelIfAbsent(String label) {
+            return this.label == null ? label(label) : this;
+        }
+
+        /**
+         * Sets the description only when none has been set yet. See {@link #labelIfAbsent}.
+         *
+         * @param description the constant description
+         * @return this builder
+         */
+        public Builder<T> descriptionIfAbsent(String description) {
+            return this.description == null ? description(description) : this;
+        }
+
         public Builder<T> description(String format, Object... args) {
             Object[] preprocessedArgs = new Object[args.length];
             for (int i = 0; i < args.length; i++) {
