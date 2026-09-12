@@ -48,6 +48,15 @@ public class ServiceGeneratorTests {
                 "SAP JCo RFC Service");
     }
 
+    @Test(description = "Resolve file trigger entry points by their semantic module name")
+    public void testFileTriggerServiceDisplayNames() {
+        Assert.assertEquals(Artifact.resolveServiceName("ftp", "ftp:Service"), "FTP Integration");
+        Assert.assertEquals(Artifact.resolveServiceName("smb", "smb:Service"), "SMB Integration");
+        // Keyed by the module name the semantic model reports, not the `files` import prefix.
+        Assert.assertEquals(Artifact.resolveServiceName("azure.storage.files", "files:Service"),
+                "Azure Files Integration");
+    }
+
     @Test(description = "model generation for single module projects", enabled = false)
     public void testSingleModuleModelGeneration() throws IOException {
         Path projectPath = RES_DIR.resolve(BALLERINA).resolve(

@@ -233,9 +233,18 @@ export function AddComponentFields({
         return () => debouncedSetComponentNameError.cancel();
     }, [formData.integrationName, effectiveTakenNames, isLibrary]);
 
+    // Skipped until the package name is manually edited: while untouched it mirrors the
+    // component name field (see `handleComponentName`), which enforces its own, stricter
+    // minimum length — so a valid component name always yields a valid derived package
+    // name. Validating it live regardless would flag "too short" on every keystroke while
+    // the name is still being typed, and auto-expand Advanced Configurations to show it.
     useEffect(() => {
+        if (!packageNameTouched) {
+            setPackageNameError(null);
+            return;
+        }
         setPackageNameError(validatePackageName(formData.packageName, formData.integrationName));
-    }, [formData.packageName, formData.integrationName]);
+    }, [formData.packageName, formData.integrationName, packageNameTouched]);
 
     // Computed inline — a useState/useEffect pair would leave `hasError` reading a
     // stale org error for one render while the resolved default is being applied.

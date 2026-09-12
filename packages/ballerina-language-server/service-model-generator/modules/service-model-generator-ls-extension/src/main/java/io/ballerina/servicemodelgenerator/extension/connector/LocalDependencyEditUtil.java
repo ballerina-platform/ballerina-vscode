@@ -27,9 +27,7 @@ import io.ballerina.toml.syntax.tree.DocumentNode;
 import io.ballerina.toml.syntax.tree.KeyValueNode;
 import io.ballerina.toml.syntax.tree.SyntaxKind;
 import io.ballerina.toml.syntax.tree.TableArrayNode;
-import io.ballerina.toml.syntax.tree.TableNode;
 import io.ballerina.tools.text.LineRange;
-import org.ballerinalang.langserver.commons.toml.common.TomlSyntaxTreeUtil;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.TextEdit;
@@ -112,10 +110,10 @@ public final class LocalDependencyEditUtil {
             KeyValueNode versionField = null;
             for (KeyValueNode field : tableArrayNode.fields()) {
                 switch (field.identifier().toSourceCode().trim()) {
-                    case "org" -> declaredOrg = unquote(field.value().toSourceCode());
-                    case "name" -> declaredName = unquote(field.value().toSourceCode());
+                    case "org" -> declaredOrg = TomlDependencyUtil.unquote(field.value().toSourceCode());
+                    case "name" -> declaredName = TomlDependencyUtil.unquote(field.value().toSourceCode());
                     case "version" -> versionField = field;
-                    case "repository" -> declaredRepository = unquote(field.value().toSourceCode());
+                    case "repository" -> declaredRepository = TomlDependencyUtil.unquote(field.value().toSourceCode());
                     default -> { }
                 }
             }
@@ -131,32 +129,11 @@ public final class LocalDependencyEditUtil {
         return Optional.empty();
     }
 
-    private static String unquote(String raw) {
-        String trimmed = raw.trim();
-        if (trimmed.length() >= 2 && trimmed.startsWith("\"") && trimmed.endsWith("\"")) {
-            return trimmed.substring(1, trimmed.length() - 1);
-        }
-        return trimmed;
-    }
-
     /** A {@link TextEdit} inserting a {@code [[dependency]]} block right after the {@code [package]} table. */
     private static TextEdit createLocalDependencyEdit(BallerinaToml toml, String org, String name, String version) {
-        Position dependencyStart = new Position(getDependencyStartLine(toml), 0);
+        Position dependencyStart = new Position(TomlDependencyUtil.getDependencyStartLine(toml), 0);
         String dependency = String.format("[[dependency]]%norg = \"%s\"%nname = \"%s\"%nversion = "
                 + "\"%s\"%nrepository = \"local\"%n%n", org, name, version);
         return new TextEdit(new Range(dependencyStart, dependencyStart), dependency);
-    }
-
-    private static int getDependencyStartLine(BallerinaToml toml) {
-        DocumentNode tomlSyntaxTree = toml.tomlDocument().syntaxTree().rootNode();
-        int lastDocumentLine = tomlSyntaxTree.lineRange().endLine().line();
-        int candidateLine = tomlSyntaxTree.members().stream()
-                .filter(member -> member.kind().equals(SyntaxKind.TABLE)
-                        && TomlSyntaxTreeUtil.toQualifiedName(((TableNode) member).identifier().value())
-                                .equals("package"))
-                .findFirst()
-                .map(member -> member.lineRange().endLine().line() + 2)
-                .orElse(lastDocumentLine);
-        return Math.min(candidateLine, lastDocumentLine);
     }
 }

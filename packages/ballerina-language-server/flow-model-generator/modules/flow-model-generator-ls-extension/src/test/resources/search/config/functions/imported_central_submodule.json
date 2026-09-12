@@ -1,0 +1,518 @@
+{
+  "description": "An imported submodule lists its own functions, not the package root's. The listed version is the index's rather than the resolved 0.9.0, because the imported-module lookup does not filter on version",
+  "kind": "FUNCTION",
+  "source": "central_submodule_proj/main.bal",
+  "position": {
+    "startLine": {
+      "line": 0,
+      "offset": 0
+    },
+    "endLine": {
+      "line": 0,
+      "offset": 0
+    }
+  },
+  "queryMap": {
+    "q": ""
+  },
+  "categories": [
+    {
+      "metadata": {
+        "label": "Agent Tools",
+        "description": "Functions used as agent tools",
+        "keywords": [
+          "Project",
+          "Local",
+          "Function"
+        ]
+      },
+      "items": []
+    },
+    {
+      "metadata": {
+        "label": "Current Integration",
+        "description": "Components defined within the current integration",
+        "keywords": [
+          "Project",
+          "Local",
+          "Function",
+          "Types",
+          "Data Mapper"
+        ]
+      },
+      "items": []
+    },
+    {
+      "metadata": {
+        "label": "Imported Functions",
+        "description": "Functions imported from other integrations",
+        "keywords": [
+          "Imported",
+          "Function",
+          "Library"
+        ]
+      },
+      "items": [
+        {
+          "metadata": {
+            "label": "edifact.d03a.supplychain.mORDERS",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "fromEdiString",
+                "description": "Convert EDI string to Ballerina EDI_ORDERS_ORDERS record.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_edifact.d03a.supplychain_1.0.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "edifact.d03a.supplychain.mORDERS",
+                "packageName": "edifact.d03a.supplychain",
+                "symbol": "fromEdiString",
+                "version": "1.0.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "fromEdiStringWithSchema",
+                "description": "Convert EDI string to Ballerina EDI_ORDERS_ORDERS record with schema.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_edifact.d03a.supplychain_1.0.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "edifact.d03a.supplychain.mORDERS",
+                "packageName": "edifact.d03a.supplychain",
+                "symbol": "fromEdiStringWithSchema",
+                "version": "1.0.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "getSchema",
+                "description": "Get the EDI schema.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_edifact.d03a.supplychain_1.0.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "edifact.d03a.supplychain.mORDERS",
+                "packageName": "edifact.d03a.supplychain",
+                "symbol": "getSchema",
+                "version": "1.0.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "headersFromEdiString",
+                "description": "Parse only the envelope header segments from the given EDI string.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_edifact.d03a.supplychain_1.0.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "edifact.d03a.supplychain.mORDERS",
+                "packageName": "edifact.d03a.supplychain",
+                "symbol": "headersFromEdiString",
+                "version": "1.0.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "interchangeFromEdiString",
+                "description": "Parse the full envelope hierarchy from the given EDI string.\nA malformed transaction body becomes an error in that transaction's body field.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_edifact.d03a.supplychain_1.0.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "edifact.d03a.supplychain.mORDERS",
+                "packageName": "edifact.d03a.supplychain",
+                "symbol": "interchangeFromEdiString",
+                "version": "1.0.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "interchangeToEdiString",
+                "description": "Serialise a EDI_ORDERS_ORDERSInterchange into EDI text; the inverse of interchangeFromEdiString.\nA transaction whose body is an error is refused — filter or replace it before calling.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_edifact.d03a.supplychain_1.0.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "edifact.d03a.supplychain.mORDERS",
+                "packageName": "edifact.d03a.supplychain",
+                "symbol": "interchangeToEdiString",
+                "version": "1.0.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "toEdiString",
+                "description": "Convert Ballerina EDI_ORDERS_ORDERS record to EDI string.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_edifact.d03a.supplychain_1.0.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "edifact.d03a.supplychain.mORDERS",
+                "packageName": "edifact.d03a.supplychain",
+                "symbol": "toEdiString",
+                "version": "1.0.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "toEdiStringWithSchema",
+                "description": "Convert Ballerina EDI_ORDERS_ORDERS record to EDI string with schema.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_edifact.d03a.supplychain_1.0.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "edifact.d03a.supplychain.mORDERS",
+                "packageName": "edifact.d03a.supplychain",
+                "symbol": "toEdiStringWithSchema",
+                "version": "1.0.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "transformFromEdiString",
+                "description": "Convert EDI string to Ballerina EDI_ORDERS_ORDERS record.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_edifact.d03a.supplychain_1.0.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "edifact.d03a.supplychain.mORDERS",
+                "packageName": "edifact.d03a.supplychain",
+                "symbol": "transformFromEdiString",
+                "version": "1.0.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "transformHeadersFromEdiString",
+                "description": "Convert EDI string to the envelope headers of EDI_ORDERS_ORDERS.\nNarrow the result with ensureType.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_edifact.d03a.supplychain_1.0.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "edifact.d03a.supplychain.mORDERS",
+                "packageName": "edifact.d03a.supplychain",
+                "symbol": "transformHeadersFromEdiString",
+                "version": "1.0.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "transformInterchangeFromEdiString",
+                "description": "Convert EDI string to a EDI_ORDERS_ORDERSInterchange record.\nNarrow the result with ensureType.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_edifact.d03a.supplychain_1.0.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "edifact.d03a.supplychain.mORDERS",
+                "packageName": "edifact.d03a.supplychain",
+                "symbol": "transformInterchangeFromEdiString",
+                "version": "1.0.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "transformInterchangeToEdiString",
+                "description": "Convert a EDI_ORDERS_ORDERSInterchange record to EDI string.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_edifact.d03a.supplychain_1.0.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "edifact.d03a.supplychain.mORDERS",
+                "packageName": "edifact.d03a.supplychain",
+                "symbol": "transformInterchangeToEdiString",
+                "version": "1.0.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "transformToEdiString",
+                "description": "Convert Ballerina EDI_ORDERS_ORDERS record to EDI string.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_edifact.d03a.supplychain_1.0.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "edifact.d03a.supplychain.mORDERS",
+                "packageName": "edifact.d03a.supplychain",
+                "symbol": "transformToEdiString",
+                "version": "1.0.1"
+              },
+              "enabled": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "label": "Standard Library",
+        "description": "Components supported officially by Ballerina",
+        "keywords": [
+          "Ballerina",
+          "Library"
+        ]
+      },
+      "items": [
+        {
+          "metadata": {
+            "label": "io",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "fileReadJson",
+                "description": "Reads file content as a JSON.\n```ballerina\njson|io:Error content = io:fileReadJson(\"./resources/myfile.json\");\n```",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "io",
+                "packageName": "io",
+                "symbol": "fileReadJson",
+                "version": "1.8.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "fileReadString",
+                "description": "Reads the entire file content as a `string`.\nThe resulting string output does not contain the terminal carriage (e.g., `\\r` or `\\n`).\n```ballerina\nstring|io:Error content = io:fileReadString(\"./resources/myfile.txt\");\n```",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "io",
+                "packageName": "io",
+                "symbol": "fileReadString",
+                "version": "1.8.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "fileWriteJson",
+                "description": "Write a JSON to a file.\n```ballerina\njson content = {\"name\": \"Anne\", \"age\": 30};\nio:Error? result = io:fileWriteJson(\"./resources/myfile.json\", content);\n```",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "io",
+                "packageName": "io",
+                "symbol": "fileWriteJson",
+                "version": "1.8.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "fileWriteString",
+                "description": "Write a string content to a file.\n```ballerina\nstring content = \"Hello Universe..!!\";\nio:Error? result = io:fileWriteString(\"./resources/myfile.txt\", content);\n```",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "io",
+                "packageName": "io",
+                "symbol": "fileWriteString",
+                "version": "1.8.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "print",
+                "description": "Prints `any`, `error`, or string templates (such as `The respective int value is ${val}`) value(s) to the `STDOUT`.\n```ballerina\nio:print(\"Start processing the CSV file from \", srcFileName);\n```\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "io",
+                "packageName": "io",
+                "symbol": "print",
+                "version": "1.8.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "println",
+                "description": "Prints `any`, `error` or string templates(such as `The respective int value is ${val}`) value(s) to the STDOUT\nfollowed by a new line.\n```ballerina\nio:println(\"Start processing the CSV file from \", srcFileName);\n```\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "io",
+                "packageName": "io",
+                "symbol": "println",
+                "version": "1.8.0"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "log",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "printDebug",
+                "description": "Prints debug logs.\n```ballerina\nlog:printDebug(\"debug message\", id = 845315)\n```\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_log_2.17.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "log",
+                "packageName": "log",
+                "symbol": "printDebug",
+                "version": "2.17.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "printError",
+                "description": "Prints error logs.\n```ballerina\nerror e = error(\"error occurred\");\nlog:printError(\"error log with cause\", 'error = e, id = 845315);\n```\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_log_2.17.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "log",
+                "packageName": "log",
+                "symbol": "printError",
+                "version": "2.17.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "printInfo",
+                "description": "Prints info logs.\n```ballerina\nlog:printInfo(\"info message\", id = 845315)\n```\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_log_2.17.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "log",
+                "packageName": "log",
+                "symbol": "printInfo",
+                "version": "2.17.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "printWarn",
+                "description": "Prints warn logs.\n```ballerina\nlog:printWarn(\"warn message\", id = 845315)\n```\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_log_2.17.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "log",
+                "packageName": "log",
+                "symbol": "printWarn",
+                "version": "2.17.0"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "time",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "utcFromString",
+                "description": "Converts from RFC 3339 timestamp (e.g., `2007-12-03T10:15:30.00Z`) to Utc.\n```ballerina\ntime:Utc|time:Error utc = time:utcFromString(\"2007-12-03T10:15:30.00Z\");\n```",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.8.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "time",
+                "packageName": "time",
+                "symbol": "utcFromString",
+                "version": "2.8.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "utcNow",
+                "description": "Returns the UTC representing the current time (current instant of the system clock in seconds from the epoch of `1970-01-01T00:00:00`).\n```ballerina\ntime:Utc utc = time:utcNow();\n```",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.8.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "time",
+                "packageName": "time",
+                "symbol": "utcNow",
+                "version": "2.8.0"
+              },
+              "enabled": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "label": "Extended Library",
+        "description": "Components from the ballerinax organization",
+        "keywords": [
+          "Ballerinax",
+          "Library"
+        ]
+      },
+      "items": []
+    }
+  ]
+}

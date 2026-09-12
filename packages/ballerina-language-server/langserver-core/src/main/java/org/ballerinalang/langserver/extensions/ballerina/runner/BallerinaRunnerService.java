@@ -47,6 +47,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
 /**
  * Implementation of Ballerina runner extension for Language Server.
@@ -92,9 +93,25 @@ public class BallerinaRunnerService implements ExtendedLanguageServerService {
                 String msg = "Operation 'ballerinaRunner/diagnostics' failed!";
                 this.clientLogger.logError(RunnerContext.RUNNER_DIAGNOSTICS, msg, e, request.getProjectRootIdentifier(),
                         (Position) null);
+                // Tell the client why (e.g. a package-compilation failure) instead of an
+                // indistinguishable empty response.
+                ProjectDiagnosticsResponse errorResponse = new ProjectDiagnosticsResponse();
+                errorResponse.setErrorMsg(rootCauseMessage(e));
+                return errorResponse;
             }
-            return new ProjectDiagnosticsResponse();
         });
+    }
+
+    // Unwraps only async plumbing (CompletionException); the first real exception's
+    // message already carries the full context (e.g. which module failed to load).
+    private static String rootCauseMessage(Throwable throwable) {
+        Throwable cause = throwable;
+        while (cause instanceof CompletionException
+                && cause.getCause() != null && cause.getCause() != cause) {
+            cause = cause.getCause();
+        }
+        String message = cause.getMessage();
+        return message == null || message.isBlank() ? cause.getClass().getName() : message;
     }
 
     /**

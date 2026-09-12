@@ -29,6 +29,15 @@ export interface DiagramCanvasProps {
     onMouseLeave?: () => void;
 }
 
+/**
+ * react-diagrams renders the link-layer SVG and the node-layer div as absolutely positioned
+ * siblings of this container (both `position: absolute`, covering the same area), SVG first in
+ * DOM order. Deliberately left without an explicit z-index on either: same-stacking-context
+ * siblings then paint in DOM order, so the node layer (added second) wins and stays drawn above
+ * the link layer - e.g. while dragging a node, a link passing near/under it doesn't flash on top
+ * of the node it's crossing. An earlier revision gave the SVG a higher z-index,
+ * putting links above nodes instead; that was intentionally removed, not dropped by accident.
+ */
 const Container = styled.div<{ color: string; background: string }>`
     height: 100%;
     background-size: 50px 50px;
@@ -43,10 +52,6 @@ const Container = styled.div<{ color: string; background: string }>`
     background-image: radial-gradient(var(--vscode-editor-inactiveSelectionBackground) 10%, transparent 0px);
     background-size: 16px 16px;
     font-family: "GilmerRegular";
-
-    & svg:first-child {
-        z-index: 1;
-    }
 `;
 
 const Expand = css`

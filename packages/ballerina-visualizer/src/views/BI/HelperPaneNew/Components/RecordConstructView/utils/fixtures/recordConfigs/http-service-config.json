@@ -1,0 +1,2677 @@
+{
+  "description": "http:HttpServiceConfig - a deep real payload whose only intersections are `readonly & time:Utc` (a tuple), nine levels down under auth > jwt > signatureConfig > certFile",
+  "recordConfig": {
+    "fields": [
+      {
+        "name": "host",
+        "typeName": "string",
+        "optional": false,
+        "defaultable": true,
+        "documentation": "Domain name of the service",
+        "isRestType": false,
+        "value": "\"te\"",
+        "selected": true
+      },
+      {
+        "fields": [
+          {
+            "members": [
+              {
+                "typeName": "AUTO",
+                "optional": false,
+                "defaultable": false,
+                "isRestType": false,
+                "selected": false
+              },
+              {
+                "typeName": "ALWAYS",
+                "optional": false,
+                "defaultable": false,
+                "isRestType": false,
+                "selected": false
+              },
+              {
+                "typeName": "NEVER",
+                "optional": false,
+                "defaultable": false,
+                "isRestType": false,
+                "selected": false
+              }
+            ],
+            "name": "enable",
+            "typeName": "union",
+            "optional": false,
+            "typeInfo": {
+              "name": "Compression",
+              "orgName": "ballerina",
+              "moduleName": "http",
+              "version": "2.14.0"
+            },
+            "defaultable": true,
+            "documentation": "The status of compression",
+            "isRestType": false,
+            "selected": false
+          },
+          {
+            "memberType": {
+              "typeName": "string",
+              "optional": false,
+              "defaultable": false,
+              "isRestType": false,
+              "selected": false
+            },
+            "name": "contentTypes",
+            "typeName": "array",
+            "optional": false,
+            "defaultable": true,
+            "documentation": "Content types which are allowed for compression",
+            "isRestType": false,
+            "selected": false
+          }
+        ],
+        "hasRestType": false,
+        "name": "compression",
+        "typeName": "record",
+        "optional": false,
+        "typeInfo": {
+          "name": "CompressionConfig",
+          "orgName": "ballerina",
+          "moduleName": "http",
+          "version": "2.14.0"
+        },
+        "defaultable": true,
+        "documentation": "The status of compression",
+        "isRestType": false,
+        "selected": false
+      },
+      {
+        "members": [
+          {
+            "typeName": "AUTO",
+            "optional": false,
+            "defaultable": false,
+            "isRestType": false,
+            "selected": false
+          },
+          {
+            "typeName": "ALWAYS",
+            "optional": false,
+            "defaultable": false,
+            "isRestType": false,
+            "selected": true
+          },
+          {
+            "typeName": "NEVER",
+            "optional": false,
+            "defaultable": false,
+            "isRestType": false,
+            "selected": false
+          }
+        ],
+        "name": "chunking",
+        "typeName": "union",
+        "optional": false,
+        "typeInfo": {
+          "name": "Chunking",
+          "orgName": "ballerina",
+          "moduleName": "http",
+          "version": "2.14.0"
+        },
+        "defaultable": true,
+        "documentation": "Configures the chunking behaviour for the service",
+        "isRestType": false,
+        "value": "\"ALWAYS\"\n",
+        "selected": true
+      },
+      {
+        "fields": [
+          {
+            "memberType": {
+              "typeName": "string",
+              "optional": false,
+              "defaultable": false,
+              "isRestType": false,
+              "selected": false
+            },
+            "name": "allowHeaders",
+            "typeName": "array",
+            "optional": false,
+            "defaultable": true,
+            "documentation": "",
+            "isRestType": false,
+            "selected": false
+          },
+          {
+            "memberType": {
+              "typeName": "string",
+              "optional": false,
+              "defaultable": false,
+              "isRestType": false,
+              "selected": false
+            },
+            "name": "allowMethods",
+            "typeName": "array",
+            "optional": false,
+            "defaultable": true,
+            "documentation": "",
+            "isRestType": false,
+            "selected": false
+          },
+          {
+            "memberType": {
+              "typeName": "string",
+              "optional": false,
+              "defaultable": false,
+              "isRestType": false,
+              "selected": false
+            },
+            "name": "allowOrigins",
+            "typeName": "array",
+            "optional": false,
+            "defaultable": true,
+            "documentation": "",
+            "isRestType": false,
+            "selected": false
+          },
+          {
+            "memberType": {
+              "typeName": "string",
+              "optional": false,
+              "defaultable": false,
+              "isRestType": false,
+              "selected": false
+            },
+            "name": "exposeHeaders",
+            "typeName": "array",
+            "optional": false,
+            "defaultable": true,
+            "documentation": "",
+            "isRestType": false,
+            "selected": false
+          },
+          {
+            "name": "allowCredentials",
+            "typeName": "boolean",
+            "optional": false,
+            "defaultable": true,
+            "documentation": "",
+            "isRestType": false,
+            "selected": false
+          },
+          {
+            "name": "maxAge",
+            "typeName": "decimal",
+            "optional": false,
+            "defaultable": true,
+            "documentation": "",
+            "isRestType": false,
+            "selected": false
+          }
+        ],
+        "hasRestType": false,
+        "name": "cors",
+        "typeName": "record",
+        "optional": false,
+        "typeInfo": {
+          "name": "CorsConfig",
+          "orgName": "ballerina",
+          "moduleName": "http",
+          "version": "2.14.0"
+        },
+        "defaultable": true,
+        "documentation": "The cross origin resource sharing configurations for the service",
+        "isRestType": false,
+        "selected": false
+      },
+      {
+        "memberType": {
+          "members": [
+            {
+              "fields": [
+                {
+                  "fields": [],
+                  "hasRestType": false,
+                  "name": "fileUserStoreConfig",
+                  "typeName": "record",
+                  "optional": false,
+                  "typeInfo": {
+                    "name": "FileUserStoreConfig",
+                    "orgName": "ballerina",
+                    "moduleName": "http",
+                    "version": "2.14.0"
+                  },
+                  "defaultable": false,
+                  "documentation": "",
+                  "isRestType": false,
+                  "selected": false
+                },
+                {
+                  "members": [
+                    {
+                      "typeName": "string",
+                      "optional": false,
+                      "defaultable": false,
+                      "isRestType": false,
+                      "selected": false
+                    },
+                    {
+                      "memberType": {
+                        "typeName": "string",
+                        "optional": false,
+                        "defaultable": false,
+                        "isRestType": false,
+                        "selected": false
+                      },
+                      "typeName": "array",
+                      "optional": false,
+                      "defaultable": false,
+                      "isRestType": false,
+                      "selected": false
+                    }
+                  ],
+                  "name": "scopes",
+                  "typeName": "union",
+                  "optional": true,
+                  "defaultable": false,
+                  "documentation": "",
+                  "isRestType": false,
+                  "selected": false
+                }
+              ],
+              "hasRestType": false,
+              "name": "FileUserStoreConfigWithScopes",
+              "typeName": "record",
+              "optional": false,
+              "typeInfo": {
+                "name": "FileUserStoreConfigWithScopes",
+                "orgName": "ballerina",
+                "moduleName": "http",
+                "version": "2.14.0"
+              },
+              "defaultable": false,
+              "isRestType": false,
+              "selected": false
+            },
+            {
+              "fields": [
+                {
+                  "fields": [
+                    {
+                      "name": "domainName",
+                      "typeName": "string",
+                      "optional": false,
+                      "defaultable": false,
+                      "documentation": "Unique name to identify the user store",
+                      "isRestType": false,
+                      "selected": false
+                    },
+                    {
+                      "name": "connectionUrl",
+                      "typeName": "string",
+                      "optional": false,
+                      "defaultable": false,
+                      "documentation": "Connection URL of the LDAP server",
+                      "isRestType": false,
+                      "selected": false
+                    },
+                    {
+                      "name": "connectionName",
+                      "typeName": "string",
+                      "optional": false,
+                      "defaultable": false,
+                      "documentation": "The username used to connect to the LDAP server",
+                      "isRestType": false,
+                      "selected": false
+                    },
+                    {
+                      "name": "connectionPassword",
+                      "typeName": "string",
+                      "optional": false,
+                      "defaultable": false,
+                      "documentation": "The password used to connect to the LDAP server",
+                      "isRestType": false,
+                      "selected": false
+                    },
+                    {
+                      "name": "userSearchBase",
+                      "typeName": "string",
+                      "optional": false,
+                      "defaultable": false,
+                      "documentation": "DN of the context or object under which the user entries are stored in the LDAP server",
+                      "isRestType": false,
+                      "selected": false
+                    },
+                    {
+                      "name": "userEntryObjectClass",
+                      "typeName": "string",
+                      "optional": false,
+                      "defaultable": false,
+                      "documentation": "Object class used to construct user entries",
+                      "isRestType": false,
+                      "selected": false
+                    },
+                    {
+                      "name": "userNameAttribute",
+                      "typeName": "string",
+                      "optional": false,
+                      "defaultable": false,
+                      "documentation": "The attribute used for uniquely identifying a user entry",
+                      "isRestType": false,
+                      "selected": false
+                    },
+                    {
+                      "name": "userNameSearchFilter",
+                      "typeName": "string",
+                      "optional": false,
+                      "defaultable": false,
+                      "documentation": "Filtering criteria used to search for a particular user entry",
+                      "isRestType": false,
+                      "selected": false
+                    },
+                    {
+                      "name": "userNameListFilter",
+                      "typeName": "string",
+                      "optional": false,
+                      "defaultable": false,
+                      "documentation": "Filtering criteria for searching user entries in the LDAP server",
+                      "isRestType": false,
+                      "selected": false
+                    },
+                    {
+                      "memberType": {
+                        "typeName": "string",
+                        "optional": false,
+                        "defaultable": false,
+                        "isRestType": false,
+                        "selected": false
+                      },
+                      "name": "groupSearchBase",
+                      "typeName": "array",
+                      "optional": false,
+                      "defaultable": false,
+                      "documentation": "DN of the context or object under which the group entries are stored in the LDAP server",
+                      "isRestType": false,
+                      "selected": false
+                    },
+                    {
+                      "name": "groupEntryObjectClass",
+                      "typeName": "string",
+                      "optional": false,
+                      "defaultable": false,
+                      "documentation": "Object class used to construct group entries",
+                      "isRestType": false,
+                      "selected": false
+                    },
+                    {
+                      "name": "groupNameAttribute",
+                      "typeName": "string",
+                      "optional": false,
+                      "defaultable": false,
+                      "documentation": "The attribute used for uniquely identifying a group entry",
+                      "isRestType": false,
+                      "selected": false
+                    },
+                    {
+                      "name": "groupNameSearchFilter",
+                      "typeName": "string",
+                      "optional": false,
+                      "defaultable": false,
+                      "documentation": "Filtering criteria used to search for a particular group entry",
+                      "isRestType": false,
+                      "selected": false
+                    },
+                    {
+                      "name": "groupNameListFilter",
+                      "typeName": "string",
+                      "optional": false,
+                      "defaultable": false,
+                      "documentation": "Filtering criteria for searching group entries in the LDAP server",
+                      "isRestType": false,
+                      "selected": false
+                    },
+                    {
+                      "name": "membershipAttribute",
+                      "typeName": "string",
+                      "optional": false,
+                      "defaultable": false,
+                      "documentation": "Define the attribute, which contains the distinguished names (DN) of user objects that are there in a group",
+                      "isRestType": false,
+                      "selected": false
+                    },
+                    {
+                      "name": "userRolesCacheEnabled",
+                      "typeName": "boolean",
+                      "optional": false,
+                      "defaultable": true,
+                      "documentation": "To indicate whether to cache the role list of a user",
+                      "isRestType": false,
+                      "selected": false
+                    },
+                    {
+                      "name": "connectionPoolingEnabled",
+                      "typeName": "boolean",
+                      "optional": false,
+                      "defaultable": true,
+                      "documentation": "Define whether LDAP connection pooling is enabled",
+                      "isRestType": false,
+                      "selected": false
+                    },
+                    {
+                      "name": "connectionTimeout",
+                      "typeName": "decimal",
+                      "optional": false,
+                      "defaultable": true,
+                      "documentation": "Connection timeout (in seconds) when making the initial LDAP connection",
+                      "isRestType": false,
+                      "selected": false
+                    },
+                    {
+                      "name": "readTimeout",
+                      "typeName": "decimal",
+                      "optional": false,
+                      "defaultable": true,
+                      "documentation": "Reading timeout (in seconds) for LDAP operations",
+                      "isRestType": false,
+                      "selected": false
+                    },
+                    {
+                      "fields": [
+                        {
+                          "members": [
+                            {
+                              "fields": [
+                                {
+                                  "name": "path",
+                                  "typeName": "string",
+                                  "optional": false,
+                                  "defaultable": false,
+                                  "documentation": "",
+                                  "isRestType": false,
+                                  "selected": false
+                                },
+                                {
+                                  "name": "password",
+                                  "typeName": "string",
+                                  "optional": false,
+                                  "defaultable": false,
+                                  "documentation": "",
+                                  "isRestType": false,
+                                  "selected": false
+                                }
+                              ],
+                              "hasRestType": false,
+                              "name": "TrustStore",
+                              "typeName": "record",
+                              "optional": false,
+                              "typeInfo": {
+                                "name": "TrustStore",
+                                "orgName": "ballerina",
+                                "moduleName": "crypto",
+                                "version": "2.9.0"
+                              },
+                              "defaultable": false,
+                              "isRestType": false,
+                              "selected": false
+                            },
+                            {
+                              "typeName": "string",
+                              "optional": false,
+                              "defaultable": false,
+                              "isRestType": false,
+                              "selected": false
+                            }
+                          ],
+                          "name": "cert",
+                          "typeName": "union",
+                          "optional": false,
+                          "defaultable": false,
+                          "documentation": "",
+                          "isRestType": false,
+                          "selected": false
+                        }
+                      ],
+                      "hasRestType": false,
+                      "name": "secureSocket",
+                      "typeName": "record",
+                      "optional": true,
+                      "typeInfo": {
+                        "name": "SecureSocket",
+                        "orgName": "ballerina",
+                        "moduleName": "auth",
+                        "version": "2.14.0"
+                      },
+                      "defaultable": false,
+                      "documentation": "The SSL configurations for the LDAP client socket. This needs to be configured in order to communicate through LDAPs",
+                      "isRestType": false,
+                      "selected": false
+                    }
+                  ],
+                  "hasRestType": false,
+                  "name": "ldapUserStoreConfig",
+                  "typeName": "record",
+                  "optional": false,
+                  "typeInfo": {
+                    "name": "LdapUserStoreConfig",
+                    "orgName": "ballerina",
+                    "moduleName": "http",
+                    "version": "2.14.0"
+                  },
+                  "defaultable": false,
+                  "documentation": "",
+                  "isRestType": false,
+                  "selected": false
+                },
+                {
+                  "members": [
+                    {
+                      "typeName": "string",
+                      "optional": false,
+                      "defaultable": false,
+                      "isRestType": false,
+                      "selected": false
+                    },
+                    {
+                      "memberType": {
+                        "typeName": "string",
+                        "optional": false,
+                        "defaultable": false,
+                        "isRestType": false,
+                        "selected": false
+                      },
+                      "typeName": "array",
+                      "optional": false,
+                      "defaultable": false,
+                      "isRestType": false,
+                      "selected": false
+                    }
+                  ],
+                  "name": "scopes",
+                  "typeName": "union",
+                  "optional": true,
+                  "defaultable": false,
+                  "documentation": "",
+                  "isRestType": false,
+                  "selected": false
+                }
+              ],
+              "hasRestType": false,
+              "name": "LdapUserStoreConfigWithScopes",
+              "typeName": "record",
+              "optional": false,
+              "typeInfo": {
+                "name": "LdapUserStoreConfigWithScopes",
+                "orgName": "ballerina",
+                "moduleName": "http",
+                "version": "2.14.0"
+              },
+              "defaultable": false,
+              "isRestType": false,
+              "selected": false
+            },
+            {
+              "fields": [
+                {
+                  "fields": [
+                    {
+                      "name": "scopeKey",
+                      "typeName": "string",
+                      "optional": false,
+                      "defaultable": true,
+                      "documentation": "",
+                      "isRestType": false,
+                      "selected": false
+                    },
+                    {
+                      "name": "issuer",
+                      "typeName": "string",
+                      "optional": true,
+                      "defaultable": false,
+                      "documentation": "Expected issuer, which is mapped to the `iss`",
+                      "isRestType": false,
+                      "selected": false
+                    },
+                    {
+                      "name": "username",
+                      "typeName": "string",
+                      "optional": true,
+                      "defaultable": false,
+                      "documentation": "Expected username, which is mapped to the `sub`",
+                      "isRestType": false,
+                      "selected": false
+                    },
+                    {
+                      "members": [
+                        {
+                          "typeName": "string",
+                          "optional": false,
+                          "defaultable": false,
+                          "isRestType": false,
+                          "selected": false
+                        },
+                        {
+                          "memberType": {
+                            "typeName": "string",
+                            "optional": false,
+                            "defaultable": false,
+                            "isRestType": false,
+                            "selected": false
+                          },
+                          "typeName": "array",
+                          "optional": false,
+                          "defaultable": false,
+                          "isRestType": false,
+                          "selected": false
+                        }
+                      ],
+                      "name": "audience",
+                      "typeName": "union",
+                      "optional": true,
+                      "defaultable": false,
+                      "documentation": "Expected audience, which is mapped to the `aud`",
+                      "isRestType": false,
+                      "selected": false
+                    },
+                    {
+                      "name": "jwtId",
+                      "typeName": "string",
+                      "optional": true,
+                      "defaultable": false,
+                      "documentation": "Expected JWT ID, which is mapped to the `jti`",
+                      "isRestType": false,
+                      "selected": false
+                    },
+                    {
+                      "name": "keyId",
+                      "typeName": "string",
+                      "optional": true,
+                      "defaultable": false,
+                      "documentation": "Expected JWT key ID, which is mapped the `kid`",
+                      "isRestType": false,
+                      "selected": false
+                    },
+                    {
+                      "paramType": {
+                        "typeName": "json",
+                        "optional": false,
+                        "defaultable": false,
+                        "isRestType": false,
+                        "selected": false
+                      },
+                      "name": "customClaims",
+                      "typeName": "map",
+                      "optional": true,
+                      "defaultable": false,
+                      "documentation": "Expected map of custom claims",
+                      "isRestType": false,
+                      "selected": false
+                    },
+                    {
+                      "name": "clockSkew",
+                      "typeName": "decimal",
+                      "optional": false,
+                      "defaultable": true,
+                      "documentation": "Clock skew (in seconds) that can be used to avoid token validation failures due to clock synchronization problems",
+                      "isRestType": false,
+                      "selected": false
+                    },
+                    {
+                      "fields": [
+                        {
+                          "fields": [
+                            {
+                              "name": "url",
+                              "typeName": "string",
+                              "optional": false,
+                              "defaultable": false,
+                              "documentation": "",
+                              "isRestType": false,
+                              "selected": false
+                            },
+                            {
+                              "fields": [
+                                {
+                                  "name": "capacity",
+                                  "typeName": "int",
+                                  "optional": false,
+                                  "defaultable": true,
+                                  "documentation": "",
+                                  "isRestType": false,
+                                  "selected": false
+                                },
+                                {
+                                  "name": "evictionFactor",
+                                  "typeName": "float",
+                                  "optional": false,
+                                  "defaultable": true,
+                                  "documentation": "",
+                                  "isRestType": false,
+                                  "selected": false
+                                },
+                                {
+                                  "members": [
+                                    {
+                                      "typeName": "LRU",
+                                      "optional": false,
+                                      "defaultable": false,
+                                      "isRestType": false,
+                                      "selected": false
+                                    }
+                                  ],
+                                  "name": "evictionPolicy",
+                                  "typeName": "enum",
+                                  "optional": false,
+                                  "typeInfo": {
+                                    "name": "EvictionPolicy",
+                                    "orgName": "ballerina",
+                                    "moduleName": "cache",
+                                    "version": "3.10.0"
+                                  },
+                                  "defaultable": true,
+                                  "documentation": "",
+                                  "isRestType": false,
+                                  "selected": false
+                                },
+                                {
+                                  "name": "defaultMaxAge",
+                                  "typeName": "decimal",
+                                  "optional": false,
+                                  "defaultable": true,
+                                  "documentation": "",
+                                  "isRestType": false,
+                                  "selected": false
+                                },
+                                {
+                                  "name": "cleanupInterval",
+                                  "typeName": "decimal",
+                                  "optional": true,
+                                  "defaultable": false,
+                                  "documentation": "",
+                                  "isRestType": false,
+                                  "selected": false
+                                }
+                              ],
+                              "hasRestType": false,
+                              "name": "cacheConfig",
+                              "typeName": "record",
+                              "optional": true,
+                              "typeInfo": {
+                                "name": "CacheConfig",
+                                "orgName": "ballerina",
+                                "moduleName": "cache",
+                                "version": "3.10.0"
+                              },
+                              "defaultable": false,
+                              "documentation": "Configurations related to the cache, which are used to store parsed JWT information",
+                              "isRestType": false,
+                              "selected": false
+                            },
+                            {
+                              "fields": [
+                                {
+                                  "members": [
+                                    {
+                                      "typeName": "HTTP_2",
+                                      "optional": false,
+                                      "defaultable": false,
+                                      "isRestType": false,
+                                      "selected": false
+                                    },
+                                    {
+                                      "typeName": "HTTP_1_1",
+                                      "optional": false,
+                                      "defaultable": false,
+                                      "isRestType": false,
+                                      "selected": false
+                                    }
+                                  ],
+                                  "name": "httpVersion",
+                                  "typeName": "enum",
+                                  "optional": false,
+                                  "typeInfo": {
+                                    "name": "HttpVersion",
+                                    "orgName": "ballerina",
+                                    "moduleName": "jwt",
+                                    "version": "2.15.0"
+                                  },
+                                  "defaultable": true,
+                                  "documentation": "",
+                                  "isRestType": false,
+                                  "selected": false
+                                },
+                                {
+                                  "fields": [
+                                    {
+                                      "name": "disable",
+                                      "typeName": "boolean",
+                                      "optional": false,
+                                      "defaultable": true,
+                                      "documentation": "",
+                                      "isRestType": false,
+                                      "selected": false
+                                    },
+                                    {
+                                      "members": [
+                                        {
+                                          "fields": [
+                                            {
+                                              "name": "path",
+                                              "typeName": "string",
+                                              "optional": false,
+                                              "defaultable": false,
+                                              "documentation": "",
+                                              "isRestType": false,
+                                              "selected": false
+                                            },
+                                            {
+                                              "name": "password",
+                                              "typeName": "string",
+                                              "optional": false,
+                                              "defaultable": false,
+                                              "documentation": "",
+                                              "isRestType": false,
+                                              "selected": false
+                                            }
+                                          ],
+                                          "hasRestType": false,
+                                          "name": "TrustStore",
+                                          "typeName": "record",
+                                          "optional": false,
+                                          "typeInfo": {
+                                            "name": "TrustStore",
+                                            "orgName": "ballerina",
+                                            "moduleName": "crypto",
+                                            "version": "2.9.0"
+                                          },
+                                          "defaultable": false,
+                                          "isRestType": false,
+                                          "selected": false
+                                        },
+                                        {
+                                          "typeName": "string",
+                                          "optional": false,
+                                          "defaultable": false,
+                                          "isRestType": false,
+                                          "selected": false
+                                        }
+                                      ],
+                                      "name": "cert",
+                                      "typeName": "union",
+                                      "optional": true,
+                                      "defaultable": false,
+                                      "documentation": "",
+                                      "isRestType": false,
+                                      "selected": false
+                                    },
+                                    {
+                                      "members": [
+                                        {
+                                          "fields": [
+                                            {
+                                              "name": "path",
+                                              "typeName": "string",
+                                              "optional": false,
+                                              "defaultable": false,
+                                              "documentation": "",
+                                              "isRestType": false,
+                                              "selected": false
+                                            },
+                                            {
+                                              "name": "password",
+                                              "typeName": "string",
+                                              "optional": false,
+                                              "defaultable": false,
+                                              "documentation": "",
+                                              "isRestType": false,
+                                              "selected": false
+                                            }
+                                          ],
+                                          "hasRestType": false,
+                                          "name": "KeyStore",
+                                          "typeName": "record",
+                                          "optional": false,
+                                          "typeInfo": {
+                                            "name": "KeyStore",
+                                            "orgName": "ballerina",
+                                            "moduleName": "crypto",
+                                            "version": "2.9.0"
+                                          },
+                                          "defaultable": false,
+                                          "isRestType": false,
+                                          "selected": false
+                                        },
+                                        {
+                                          "fields": [
+                                            {
+                                              "name": "certFile",
+                                              "typeName": "string",
+                                              "optional": false,
+                                              "defaultable": false,
+                                              "documentation": "",
+                                              "isRestType": false,
+                                              "selected": false
+                                            },
+                                            {
+                                              "name": "keyFile",
+                                              "typeName": "string",
+                                              "optional": false,
+                                              "defaultable": false,
+                                              "documentation": "",
+                                              "isRestType": false,
+                                              "selected": false
+                                            },
+                                            {
+                                              "name": "keyPassword",
+                                              "typeName": "string",
+                                              "optional": true,
+                                              "defaultable": false,
+                                              "documentation": "",
+                                              "isRestType": false,
+                                              "selected": false
+                                            }
+                                          ],
+                                          "hasRestType": false,
+                                          "name": "CertKey",
+                                          "typeName": "record",
+                                          "optional": false,
+                                          "typeInfo": {
+                                            "name": "CertKey",
+                                            "orgName": "ballerina",
+                                            "moduleName": "jwt",
+                                            "version": "2.15.0"
+                                          },
+                                          "defaultable": false,
+                                          "isRestType": false,
+                                          "selected": false
+                                        }
+                                      ],
+                                      "name": "key",
+                                      "typeName": "union",
+                                      "optional": true,
+                                      "defaultable": false,
+                                      "documentation": "",
+                                      "isRestType": false,
+                                      "selected": false
+                                    }
+                                  ],
+                                  "hasRestType": false,
+                                  "name": "secureSocket",
+                                  "typeName": "record",
+                                  "optional": true,
+                                  "typeInfo": {
+                                    "name": "SecureSocket",
+                                    "orgName": "ballerina",
+                                    "moduleName": "jwt",
+                                    "version": "2.15.0"
+                                  },
+                                  "defaultable": false,
+                                  "documentation": "The SSL configurations for the LDAP client socket. This needs to be configured in order to communicate through LDAPs",
+                                  "isRestType": false,
+                                  "selected": false
+                                }
+                              ],
+                              "hasRestType": false,
+                              "name": "clientConfig",
+                              "typeName": "record",
+                              "optional": false,
+                              "typeInfo": {
+                                "name": "ClientConfiguration",
+                                "orgName": "ballerina",
+                                "moduleName": "jwt",
+                                "version": "2.15.0"
+                              },
+                              "defaultable": true,
+                              "documentation": "",
+                              "isRestType": false,
+                              "selected": false
+                            }
+                          ],
+                          "hasRestType": false,
+                          "name": "jwksConfig",
+                          "typeName": "record",
+                          "optional": true,
+                          "defaultable": false,
+                          "documentation": "",
+                          "isRestType": false,
+                          "selected": false
+                        },
+                        {
+                          "members": [
+                            {
+                              "typeName": "string",
+                              "optional": false,
+                              "defaultable": false,
+                              "isRestType": false,
+                              "selected": false
+                            },
+                            {
+                              "fields": [
+                                {
+                                  "members": [
+                                    {
+                                      "typeName": "RSA",
+                                      "optional": false,
+                                      "defaultable": false,
+                                      "isRestType": false,
+                                      "selected": false
+                                    },
+                                    {
+                                      "typeName": "ML-KEM-768",
+                                      "optional": false,
+                                      "defaultable": false,
+                                      "isRestType": false,
+                                      "selected": false
+                                    },
+                                    {
+                                      "typeName": "ML-DSA-65",
+                                      "optional": false,
+                                      "defaultable": false,
+                                      "isRestType": false,
+                                      "selected": false
+                                    }
+                                  ],
+                                  "name": "algorithm",
+                                  "typeName": "union",
+                                  "optional": false,
+                                  "typeInfo": {
+                                    "name": "KeyAlgorithm",
+                                    "orgName": "ballerina",
+                                    "moduleName": "crypto",
+                                    "version": "2.9.0"
+                                  },
+                                  "defaultable": false,
+                                  "documentation": "",
+                                  "isRestType": false,
+                                  "selected": false
+                                },
+                                {
+                                  "fields": [
+                                    {
+                                      "name": "version0",
+                                      "typeName": "int",
+                                      "optional": false,
+                                      "defaultable": false,
+                                      "documentation": "",
+                                      "isRestType": false,
+                                      "selected": false
+                                    },
+                                    {
+                                      "name": "serial",
+                                      "typeName": "int",
+                                      "optional": false,
+                                      "defaultable": false,
+                                      "documentation": "",
+                                      "isRestType": false,
+                                      "selected": false
+                                    },
+                                    {
+                                      "name": "issuer",
+                                      "typeName": "string",
+                                      "optional": false,
+                                      "defaultable": false,
+                                      "documentation": "Expected issuer, which is mapped to the `iss`",
+                                      "isRestType": false,
+                                      "selected": false
+                                    },
+                                    {
+                                      "name": "subject",
+                                      "typeName": "string",
+                                      "optional": false,
+                                      "defaultable": false,
+                                      "documentation": "",
+                                      "isRestType": false,
+                                      "selected": false
+                                    },
+                                    {
+                                      "members": [
+                                        {
+                                          "typeName": "readonly",
+                                          "optional": false,
+                                          "defaultable": false,
+                                          "isRestType": false,
+                                          "selected": false
+                                        },
+                                        {
+                                          "typeName": "[int, decimal]",
+                                          "optional": false,
+                                          "defaultable": false,
+                                          "isRestType": false,
+                                          "selected": false
+                                        }
+                                      ],
+                                      "name": "notAfter",
+                                      "typeName": "intersection",
+                                      "optional": false,
+                                      "typeInfo": {
+                                        "name": "Utc",
+                                        "orgName": "ballerina",
+                                        "moduleName": "time",
+                                        "version": "2.7.0"
+                                      },
+                                      "defaultable": false,
+                                      "documentation": "",
+                                      "isRestType": false,
+                                      "selected": false
+                                    },
+                                    {
+                                      "members": [
+                                        {
+                                          "typeName": "readonly",
+                                          "optional": false,
+                                          "defaultable": false,
+                                          "isRestType": false,
+                                          "selected": false
+                                        },
+                                        {
+                                          "typeName": "[int, decimal]",
+                                          "optional": false,
+                                          "defaultable": false,
+                                          "isRestType": false,
+                                          "selected": false
+                                        }
+                                      ],
+                                      "name": "notAfter",
+                                      "typeName": "intersection",
+                                      "optional": false,
+                                      "typeInfo": {
+                                        "name": "Utc",
+                                        "orgName": "ballerina",
+                                        "moduleName": "time",
+                                        "version": "2.7.0"
+                                      },
+                                      "defaultable": false,
+                                      "documentation": "",
+                                      "isRestType": false,
+                                      "selected": false
+                                    },
+                                    {
+                                      "memberType": {
+                                        "typeName": "byte",
+                                        "optional": false,
+                                        "defaultable": false,
+                                        "isRestType": false,
+                                        "selected": false
+                                      },
+                                      "name": "signature",
+                                      "typeName": "array",
+                                      "optional": false,
+                                      "defaultable": false,
+                                      "documentation": "",
+                                      "isRestType": false,
+                                      "selected": false
+                                    },
+                                    {
+                                      "name": "signingAlgorithm",
+                                      "typeName": "string",
+                                      "optional": false,
+                                      "defaultable": false,
+                                      "documentation": "",
+                                      "isRestType": false,
+                                      "selected": false
+                                    }
+                                  ],
+                                  "hasRestType": false,
+                                  "name": "certificate",
+                                  "typeName": "record",
+                                  "optional": true,
+                                  "typeInfo": {
+                                    "name": "Certificate",
+                                    "orgName": "ballerina",
+                                    "moduleName": "crypto",
+                                    "version": "2.9.0"
+                                  },
+                                  "defaultable": false,
+                                  "documentation": "",
+                                  "isRestType": false,
+                                  "selected": false
+                                }
+                              ],
+                              "hasRestType": false,
+                              "name": "PublicKey",
+                              "typeName": "record",
+                              "optional": false,
+                              "typeInfo": {
+                                "name": "PublicKey",
+                                "orgName": "ballerina",
+                                "moduleName": "crypto",
+                                "version": "2.9.0"
+                              },
+                              "defaultable": false,
+                              "isRestType": false,
+                              "selected": false
+                            }
+                          ],
+                          "name": "certFile",
+                          "typeName": "union",
+                          "optional": true,
+                          "defaultable": false,
+                          "documentation": "",
+                          "isRestType": false,
+                          "selected": false
+                        },
+                        {
+                          "fields": [
+                            {
+                              "fields": [
+                                {
+                                  "name": "path",
+                                  "typeName": "string",
+                                  "optional": false,
+                                  "defaultable": false,
+                                  "documentation": "",
+                                  "isRestType": false,
+                                  "selected": false
+                                },
+                                {
+                                  "name": "password",
+                                  "typeName": "string",
+                                  "optional": false,
+                                  "defaultable": false,
+                                  "documentation": "",
+                                  "isRestType": false,
+                                  "selected": false
+                                }
+                              ],
+                              "hasRestType": false,
+                              "name": "trustStore",
+                              "typeName": "record",
+                              "optional": false,
+                              "typeInfo": {
+                                "name": "TrustStore",
+                                "orgName": "ballerina",
+                                "moduleName": "crypto",
+                                "version": "2.9.0"
+                              },
+                              "defaultable": false,
+                              "documentation": "",
+                              "isRestType": false,
+                              "selected": false
+                            },
+                            {
+                              "name": "certAlias",
+                              "typeName": "string",
+                              "optional": false,
+                              "defaultable": false,
+                              "documentation": "",
+                              "isRestType": false,
+                              "selected": false
+                            }
+                          ],
+                          "hasRestType": false,
+                          "name": "trustStoreConfig",
+                          "typeName": "record",
+                          "optional": true,
+                          "defaultable": false,
+                          "documentation": "",
+                          "isRestType": false,
+                          "selected": false
+                        },
+                        {
+                          "name": "secret",
+                          "typeName": "string",
+                          "optional": true,
+                          "defaultable": false,
+                          "documentation": "",
+                          "isRestType": false,
+                          "selected": false
+                        }
+                      ],
+                      "hasRestType": false,
+                      "name": "signatureConfig",
+                      "typeName": "record",
+                      "optional": true,
+                      "typeInfo": {
+                        "name": "ValidatorSignatureConfig",
+                        "orgName": "ballerina",
+                        "moduleName": "jwt",
+                        "version": "2.15.0"
+                      },
+                      "defaultable": false,
+                      "documentation": "JWT signature configurations",
+                      "isRestType": false,
+                      "selected": false
+                    },
+                    {
+                      "fields": [
+                        {
+                          "name": "capacity",
+                          "typeName": "int",
+                          "optional": false,
+                          "defaultable": true,
+                          "documentation": "",
+                          "isRestType": false,
+                          "selected": false
+                        },
+                        {
+                          "name": "evictionFactor",
+                          "typeName": "float",
+                          "optional": false,
+                          "defaultable": true,
+                          "documentation": "",
+                          "isRestType": false,
+                          "selected": false
+                        },
+                        {
+                          "members": [
+                            {
+                              "typeName": "LRU",
+                              "optional": false,
+                              "defaultable": false,
+                              "isRestType": false,
+                              "selected": false
+                            }
+                          ],
+                          "name": "evictionPolicy",
+                          "typeName": "enum",
+                          "optional": false,
+                          "typeInfo": {
+                            "name": "EvictionPolicy",
+                            "orgName": "ballerina",
+                            "moduleName": "cache",
+                            "version": "3.10.0"
+                          },
+                          "defaultable": true,
+                          "documentation": "",
+                          "isRestType": false,
+                          "selected": false
+                        },
+                        {
+                          "name": "defaultMaxAge",
+                          "typeName": "decimal",
+                          "optional": false,
+                          "defaultable": true,
+                          "documentation": "",
+                          "isRestType": false,
+                          "selected": false
+                        },
+                        {
+                          "name": "cleanupInterval",
+                          "typeName": "decimal",
+                          "optional": true,
+                          "defaultable": false,
+                          "documentation": "",
+                          "isRestType": false,
+                          "selected": false
+                        }
+                      ],
+                      "hasRestType": false,
+                      "name": "cacheConfig",
+                      "typeName": "record",
+                      "optional": true,
+                      "typeInfo": {
+                        "name": "CacheConfig",
+                        "orgName": "ballerina",
+                        "moduleName": "cache",
+                        "version": "3.10.0"
+                      },
+                      "defaultable": false,
+                      "documentation": "Configurations related to the cache, which are used to store parsed JWT information",
+                      "isRestType": false,
+                      "selected": false
+                    }
+                  ],
+                  "hasRestType": true,
+                  "restType": {
+                    "typeName": "anydata",
+                    "optional": false,
+                    "defaultable": false,
+                    "isRestType": false,
+                    "selected": false
+                  },
+                  "name": "jwtValidatorConfig",
+                  "typeName": "record",
+                  "optional": false,
+                  "typeInfo": {
+                    "name": "JwtValidatorConfig",
+                    "orgName": "ballerina",
+                    "moduleName": "http",
+                    "version": "2.14.0"
+                  },
+                  "defaultable": false,
+                  "documentation": "",
+                  "isRestType": false,
+                  "selected": false
+                },
+                {
+                  "members": [
+                    {
+                      "typeName": "string",
+                      "optional": false,
+                      "defaultable": false,
+                      "isRestType": false,
+                      "selected": false
+                    },
+                    {
+                      "memberType": {
+                        "typeName": "string",
+                        "optional": false,
+                        "defaultable": false,
+                        "isRestType": false,
+                        "selected": false
+                      },
+                      "typeName": "array",
+                      "optional": false,
+                      "defaultable": false,
+                      "isRestType": false,
+                      "selected": false
+                    }
+                  ],
+                  "name": "scopes",
+                  "typeName": "union",
+                  "optional": true,
+                  "defaultable": false,
+                  "documentation": "",
+                  "isRestType": false,
+                  "selected": false
+                }
+              ],
+              "hasRestType": false,
+              "name": "JwtValidatorConfigWithScopes",
+              "typeName": "record",
+              "optional": false,
+              "typeInfo": {
+                "name": "JwtValidatorConfigWithScopes",
+                "orgName": "ballerina",
+                "moduleName": "http",
+                "version": "2.14.0"
+              },
+              "defaultable": false,
+              "isRestType": false,
+              "selected": false
+            },
+            {
+              "fields": [
+                {
+                  "fields": [
+                    {
+                      "name": "scopeKey",
+                      "typeName": "string",
+                      "optional": false,
+                      "defaultable": true,
+                      "documentation": "",
+                      "isRestType": false,
+                      "selected": false
+                    },
+                    {
+                      "name": "url",
+                      "typeName": "string",
+                      "optional": false,
+                      "defaultable": false,
+                      "documentation": "URL of the introspection endpoint",
+                      "isRestType": false,
+                      "selected": false
+                    },
+                    {
+                      "name": "tokenTypeHint",
+                      "typeName": "string",
+                      "optional": true,
+                      "defaultable": false,
+                      "documentation": "A hint about the type of the token submitted for introspection",
+                      "isRestType": false,
+                      "selected": false
+                    },
+                    {
+                      "paramType": {
+                        "typeName": "string",
+                        "optional": false,
+                        "defaultable": false,
+                        "isRestType": false,
+                        "selected": false
+                      },
+                      "name": "optionalParams",
+                      "typeName": "map",
+                      "optional": true,
+                      "defaultable": false,
+                      "documentation": "Map of the optional parameters used for the introspection endpoint",
+                      "isRestType": false,
+                      "selected": false
+                    },
+                    {
+                      "fields": [
+                        {
+                          "name": "capacity",
+                          "typeName": "int",
+                          "optional": false,
+                          "defaultable": true,
+                          "documentation": "",
+                          "isRestType": false,
+                          "selected": false
+                        },
+                        {
+                          "name": "evictionFactor",
+                          "typeName": "float",
+                          "optional": false,
+                          "defaultable": true,
+                          "documentation": "",
+                          "isRestType": false,
+                          "selected": false
+                        },
+                        {
+                          "members": [
+                            {
+                              "typeName": "LRU",
+                              "optional": false,
+                              "defaultable": false,
+                              "isRestType": false,
+                              "selected": false
+                            }
+                          ],
+                          "name": "evictionPolicy",
+                          "typeName": "enum",
+                          "optional": false,
+                          "typeInfo": {
+                            "name": "EvictionPolicy",
+                            "orgName": "ballerina",
+                            "moduleName": "cache",
+                            "version": "3.10.0"
+                          },
+                          "defaultable": true,
+                          "documentation": "",
+                          "isRestType": false,
+                          "selected": false
+                        },
+                        {
+                          "name": "defaultMaxAge",
+                          "typeName": "decimal",
+                          "optional": false,
+                          "defaultable": true,
+                          "documentation": "",
+                          "isRestType": false,
+                          "selected": false
+                        },
+                        {
+                          "name": "cleanupInterval",
+                          "typeName": "decimal",
+                          "optional": true,
+                          "defaultable": false,
+                          "documentation": "",
+                          "isRestType": false,
+                          "selected": false
+                        }
+                      ],
+                      "hasRestType": false,
+                      "name": "cacheConfig",
+                      "typeName": "record",
+                      "optional": true,
+                      "typeInfo": {
+                        "name": "CacheConfig",
+                        "orgName": "ballerina",
+                        "moduleName": "cache",
+                        "version": "3.10.0"
+                      },
+                      "defaultable": false,
+                      "documentation": "Configurations for the cache used to store the OAuth2 access token and other related information",
+                      "isRestType": false,
+                      "selected": false
+                    },
+                    {
+                      "name": "defaultTokenExpTime",
+                      "typeName": "decimal",
+                      "optional": false,
+                      "defaultable": true,
+                      "documentation": "Expiration time (in seconds) of the tokens if the introspection response does not contain an `exp` field",
+                      "isRestType": false,
+                      "selected": false
+                    },
+                    {
+                      "fields": [
+                        {
+                          "members": [
+                            {
+                              "typeName": "HTTP_2",
+                              "optional": false,
+                              "defaultable": false,
+                              "isRestType": false,
+                              "selected": false
+                            },
+                            {
+                              "typeName": "HTTP_1_1",
+                              "optional": false,
+                              "defaultable": false,
+                              "isRestType": false,
+                              "selected": false
+                            }
+                          ],
+                          "name": "httpVersion",
+                          "typeName": "enum",
+                          "optional": false,
+                          "typeInfo": {
+                            "name": "HttpVersion",
+                            "orgName": "ballerina",
+                            "moduleName": "oauth2",
+                            "version": "2.14.0"
+                          },
+                          "defaultable": true,
+                          "documentation": "",
+                          "isRestType": false,
+                          "selected": false
+                        },
+                        {
+                          "paramType": {
+                            "typeName": "string",
+                            "optional": false,
+                            "defaultable": false,
+                            "isRestType": false,
+                            "selected": false
+                          },
+                          "name": "customHeaders",
+                          "typeName": "map",
+                          "optional": true,
+                          "defaultable": false,
+                          "documentation": "",
+                          "isRestType": false,
+                          "selected": false
+                        },
+                        {
+                          "name": "customPayload",
+                          "typeName": "string",
+                          "optional": true,
+                          "defaultable": false,
+                          "documentation": "",
+                          "isRestType": false,
+                          "selected": false
+                        },
+                        {
+                          "members": [
+                            {
+                              "fields": [
+                                {
+                                  "name": "tokenUrl",
+                                  "typeName": "string",
+                                  "optional": false,
+                                  "defaultable": false,
+                                  "documentation": "",
+                                  "isRestType": false,
+                                  "selected": false
+                                },
+                                {
+                                  "name": "clientId",
+                                  "typeName": "string",
+                                  "optional": false,
+                                  "defaultable": false,
+                                  "documentation": "",
+                                  "isRestType": false,
+                                  "selected": false
+                                },
+                                {
+                                  "name": "clientSecret",
+                                  "typeName": "string",
+                                  "optional": false,
+                                  "defaultable": false,
+                                  "documentation": "",
+                                  "isRestType": false,
+                                  "selected": false
+                                },
+                                {
+                                  "members": [
+                                    {
+                                      "typeName": "string",
+                                      "optional": false,
+                                      "defaultable": false,
+                                      "isRestType": false,
+                                      "selected": false
+                                    },
+                                    {
+                                      "memberType": {
+                                        "typeName": "string",
+                                        "optional": false,
+                                        "defaultable": false,
+                                        "isRestType": false,
+                                        "selected": false
+                                      },
+                                      "typeName": "array",
+                                      "optional": false,
+                                      "defaultable": false,
+                                      "isRestType": false,
+                                      "selected": false
+                                    }
+                                  ],
+                                  "name": "scopes",
+                                  "typeName": "union",
+                                  "optional": true,
+                                  "defaultable": false,
+                                  "documentation": "",
+                                  "isRestType": false,
+                                  "selected": false
+                                },
+                                {
+                                  "name": "defaultTokenExpTime",
+                                  "typeName": "decimal",
+                                  "optional": false,
+                                  "defaultable": true,
+                                  "documentation": "Expiration time (in seconds) of the tokens if the introspection response does not contain an `exp` field",
+                                  "isRestType": false,
+                                  "selected": false
+                                },
+                                {
+                                  "name": "clockSkew",
+                                  "typeName": "decimal",
+                                  "optional": false,
+                                  "defaultable": true,
+                                  "documentation": "Clock skew (in seconds) that can be used to avoid token validation failures due to clock synchronization problems",
+                                  "isRestType": false,
+                                  "selected": false
+                                },
+                                {
+                                  "paramType": {
+                                    "typeName": "string",
+                                    "optional": false,
+                                    "defaultable": false,
+                                    "isRestType": false,
+                                    "selected": false
+                                  },
+                                  "name": "optionalParams",
+                                  "typeName": "map",
+                                  "optional": true,
+                                  "defaultable": false,
+                                  "documentation": "Map of the optional parameters used for the introspection endpoint",
+                                  "isRestType": false,
+                                  "selected": false
+                                },
+                                {
+                                  "members": [
+                                    {
+                                      "typeName": "POST_BODY_BEARER",
+                                      "optional": false,
+                                      "defaultable": false,
+                                      "isRestType": false,
+                                      "selected": false
+                                    },
+                                    {
+                                      "typeName": "AUTH_HEADER_BEARER",
+                                      "optional": false,
+                                      "defaultable": false,
+                                      "isRestType": false,
+                                      "selected": false
+                                    }
+                                  ],
+                                  "name": "credentialBearer",
+                                  "typeName": "enum",
+                                  "optional": false,
+                                  "typeInfo": {
+                                    "name": "CredentialBearer",
+                                    "orgName": "ballerina",
+                                    "moduleName": "oauth2",
+                                    "version": "2.14.0"
+                                  },
+                                  "defaultable": true,
+                                  "documentation": "",
+                                  "isRestType": false,
+                                  "selected": false
+                                },
+                                {
+                                  "name": "clientConfig",
+                                  "optional": false,
+                                  "typeInfo": {
+                                    "name": "ClientConfiguration",
+                                    "orgName": "ballerina",
+                                    "moduleName": "oauth2",
+                                    "version": "2.14.0"
+                                  },
+                                  "defaultable": true,
+                                  "documentation": "HTTP client configurations, which call the introspection endpoint",
+                                  "isRestType": false,
+                                  "selected": false
+                                }
+                              ],
+                              "hasRestType": false,
+                              "name": "ClientCredentialsGrantConfig",
+                              "typeName": "record",
+                              "optional": false,
+                              "typeInfo": {
+                                "name": "ClientCredentialsGrantConfig",
+                                "orgName": "ballerina",
+                                "moduleName": "oauth2",
+                                "version": "2.14.0"
+                              },
+                              "defaultable": false,
+                              "isRestType": false,
+                              "selected": false
+                            },
+                            {
+                              "fields": [
+                                {
+                                  "name": "tokenUrl",
+                                  "typeName": "string",
+                                  "optional": false,
+                                  "defaultable": false,
+                                  "documentation": "",
+                                  "isRestType": false,
+                                  "selected": false
+                                },
+                                {
+                                  "name": "username",
+                                  "typeName": "string",
+                                  "optional": false,
+                                  "defaultable": false,
+                                  "documentation": "Expected username, which is mapped to the `sub`",
+                                  "isRestType": false,
+                                  "selected": false
+                                },
+                                {
+                                  "name": "password",
+                                  "typeName": "string",
+                                  "optional": false,
+                                  "defaultable": false,
+                                  "documentation": "",
+                                  "isRestType": false,
+                                  "selected": false
+                                },
+                                {
+                                  "name": "clientId",
+                                  "typeName": "string",
+                                  "optional": true,
+                                  "defaultable": false,
+                                  "documentation": "",
+                                  "isRestType": false,
+                                  "selected": false
+                                },
+                                {
+                                  "name": "clientSecret",
+                                  "typeName": "string",
+                                  "optional": true,
+                                  "defaultable": false,
+                                  "documentation": "",
+                                  "isRestType": false,
+                                  "selected": false
+                                },
+                                {
+                                  "members": [
+                                    {
+                                      "typeName": "string",
+                                      "optional": false,
+                                      "defaultable": false,
+                                      "isRestType": false,
+                                      "selected": false
+                                    },
+                                    {
+                                      "memberType": {
+                                        "typeName": "string",
+                                        "optional": false,
+                                        "defaultable": false,
+                                        "isRestType": false,
+                                        "selected": false
+                                      },
+                                      "typeName": "array",
+                                      "optional": false,
+                                      "defaultable": false,
+                                      "isRestType": false,
+                                      "selected": false
+                                    }
+                                  ],
+                                  "name": "scopes",
+                                  "typeName": "union",
+                                  "optional": true,
+                                  "defaultable": false,
+                                  "documentation": "",
+                                  "isRestType": false,
+                                  "selected": false
+                                },
+                                {
+                                  "members": [
+                                    {
+                                      "fields": [
+                                        {
+                                          "name": "refreshUrl",
+                                          "typeName": "string",
+                                          "optional": false,
+                                          "defaultable": false,
+                                          "documentation": "",
+                                          "isRestType": false,
+                                          "selected": false
+                                        },
+                                        {
+                                          "members": [
+                                            {
+                                              "typeName": "string",
+                                              "optional": false,
+                                              "defaultable": false,
+                                              "isRestType": false,
+                                              "selected": false
+                                            },
+                                            {
+                                              "memberType": {
+                                                "typeName": "string",
+                                                "optional": false,
+                                                "defaultable": false,
+                                                "isRestType": false,
+                                                "selected": false
+                                              },
+                                              "typeName": "array",
+                                              "optional": false,
+                                              "defaultable": false,
+                                              "isRestType": false,
+                                              "selected": false
+                                            }
+                                          ],
+                                          "name": "scopes",
+                                          "typeName": "union",
+                                          "optional": true,
+                                          "defaultable": false,
+                                          "documentation": "",
+                                          "isRestType": false,
+                                          "selected": false
+                                        },
+                                        {
+                                          "paramType": {
+                                            "typeName": "string",
+                                            "optional": false,
+                                            "defaultable": false,
+                                            "isRestType": false,
+                                            "selected": false
+                                          },
+                                          "name": "optionalParams",
+                                          "typeName": "map",
+                                          "optional": true,
+                                          "defaultable": false,
+                                          "documentation": "Map of the optional parameters used for the introspection endpoint",
+                                          "isRestType": false,
+                                          "selected": false
+                                        },
+                                        {
+                                          "members": [
+                                            {
+                                              "typeName": "POST_BODY_BEARER",
+                                              "optional": false,
+                                              "defaultable": false,
+                                              "isRestType": false,
+                                              "selected": false
+                                            },
+                                            {
+                                              "typeName": "AUTH_HEADER_BEARER",
+                                              "optional": false,
+                                              "defaultable": false,
+                                              "isRestType": false,
+                                              "selected": false
+                                            }
+                                          ],
+                                          "name": "credentialBearer",
+                                          "typeName": "enum",
+                                          "optional": false,
+                                          "typeInfo": {
+                                            "name": "CredentialBearer",
+                                            "orgName": "ballerina",
+                                            "moduleName": "oauth2",
+                                            "version": "2.14.0"
+                                          },
+                                          "defaultable": true,
+                                          "documentation": "",
+                                          "isRestType": false,
+                                          "selected": false
+                                        },
+                                        {
+                                          "name": "clientConfig",
+                                          "optional": false,
+                                          "typeInfo": {
+                                            "name": "ClientConfiguration",
+                                            "orgName": "ballerina",
+                                            "moduleName": "oauth2",
+                                            "version": "2.14.0"
+                                          },
+                                          "defaultable": true,
+                                          "documentation": "HTTP client configurations, which call the introspection endpoint",
+                                          "isRestType": false,
+                                          "selected": false
+                                        }
+                                      ],
+                                      "hasRestType": false,
+                                      "name": "RefreshConfig",
+                                      "typeName": "record",
+                                      "optional": false,
+                                      "typeInfo": {
+                                        "name": "RefreshConfig",
+                                        "orgName": "ballerina",
+                                        "moduleName": "oauth2",
+                                        "version": "2.14.0"
+                                      },
+                                      "defaultable": false,
+                                      "isRestType": false,
+                                      "selected": false
+                                    },
+                                    {
+                                      "typeName": "INFER_REFRESH_CONFIG",
+                                      "optional": false,
+                                      "defaultable": false,
+                                      "isRestType": false,
+                                      "selected": false
+                                    }
+                                  ],
+                                  "name": "refreshConfig",
+                                  "typeName": "union",
+                                  "optional": true,
+                                  "defaultable": false,
+                                  "documentation": "",
+                                  "isRestType": false,
+                                  "selected": false
+                                },
+                                {
+                                  "name": "defaultTokenExpTime",
+                                  "typeName": "decimal",
+                                  "optional": false,
+                                  "defaultable": true,
+                                  "documentation": "Expiration time (in seconds) of the tokens if the introspection response does not contain an `exp` field",
+                                  "isRestType": false,
+                                  "selected": false
+                                },
+                                {
+                                  "name": "clockSkew",
+                                  "typeName": "decimal",
+                                  "optional": false,
+                                  "defaultable": true,
+                                  "documentation": "Clock skew (in seconds) that can be used to avoid token validation failures due to clock synchronization problems",
+                                  "isRestType": false,
+                                  "selected": false
+                                },
+                                {
+                                  "paramType": {
+                                    "typeName": "string",
+                                    "optional": false,
+                                    "defaultable": false,
+                                    "isRestType": false,
+                                    "selected": false
+                                  },
+                                  "name": "optionalParams",
+                                  "typeName": "map",
+                                  "optional": true,
+                                  "defaultable": false,
+                                  "documentation": "Map of the optional parameters used for the introspection endpoint",
+                                  "isRestType": false,
+                                  "selected": false
+                                },
+                                {
+                                  "members": [
+                                    {
+                                      "typeName": "POST_BODY_BEARER",
+                                      "optional": false,
+                                      "defaultable": false,
+                                      "isRestType": false,
+                                      "selected": false
+                                    },
+                                    {
+                                      "typeName": "AUTH_HEADER_BEARER",
+                                      "optional": false,
+                                      "defaultable": false,
+                                      "isRestType": false,
+                                      "selected": false
+                                    }
+                                  ],
+                                  "name": "credentialBearer",
+                                  "typeName": "enum",
+                                  "optional": false,
+                                  "typeInfo": {
+                                    "name": "CredentialBearer",
+                                    "orgName": "ballerina",
+                                    "moduleName": "oauth2",
+                                    "version": "2.14.0"
+                                  },
+                                  "defaultable": true,
+                                  "documentation": "",
+                                  "isRestType": false,
+                                  "selected": false
+                                },
+                                {
+                                  "name": "clientConfig",
+                                  "optional": false,
+                                  "typeInfo": {
+                                    "name": "ClientConfiguration",
+                                    "orgName": "ballerina",
+                                    "moduleName": "oauth2",
+                                    "version": "2.14.0"
+                                  },
+                                  "defaultable": true,
+                                  "documentation": "HTTP client configurations, which call the introspection endpoint",
+                                  "isRestType": false,
+                                  "selected": false
+                                }
+                              ],
+                              "hasRestType": false,
+                              "name": "PasswordGrantConfig",
+                              "typeName": "record",
+                              "optional": false,
+                              "typeInfo": {
+                                "name": "PasswordGrantConfig",
+                                "orgName": "ballerina",
+                                "moduleName": "oauth2",
+                                "version": "2.14.0"
+                              },
+                              "defaultable": false,
+                              "isRestType": false,
+                              "selected": false
+                            },
+                            {
+                              "fields": [
+                                {
+                                  "name": "refreshUrl",
+                                  "typeName": "string",
+                                  "optional": false,
+                                  "defaultable": false,
+                                  "documentation": "",
+                                  "isRestType": false,
+                                  "selected": false
+                                },
+                                {
+                                  "name": "refreshToken",
+                                  "typeName": "string",
+                                  "optional": false,
+                                  "defaultable": false,
+                                  "documentation": "",
+                                  "isRestType": false,
+                                  "selected": false
+                                },
+                                {
+                                  "name": "clientId",
+                                  "typeName": "string",
+                                  "optional": false,
+                                  "defaultable": false,
+                                  "documentation": "",
+                                  "isRestType": false,
+                                  "selected": false
+                                },
+                                {
+                                  "name": "clientSecret",
+                                  "typeName": "string",
+                                  "optional": false,
+                                  "defaultable": false,
+                                  "documentation": "",
+                                  "isRestType": false,
+                                  "selected": false
+                                },
+                                {
+                                  "members": [
+                                    {
+                                      "typeName": "string",
+                                      "optional": false,
+                                      "defaultable": false,
+                                      "isRestType": false,
+                                      "selected": false
+                                    },
+                                    {
+                                      "memberType": {
+                                        "typeName": "string",
+                                        "optional": false,
+                                        "defaultable": false,
+                                        "isRestType": false,
+                                        "selected": false
+                                      },
+                                      "typeName": "array",
+                                      "optional": false,
+                                      "defaultable": false,
+                                      "isRestType": false,
+                                      "selected": false
+                                    }
+                                  ],
+                                  "name": "scopes",
+                                  "typeName": "union",
+                                  "optional": true,
+                                  "defaultable": false,
+                                  "documentation": "",
+                                  "isRestType": false,
+                                  "selected": false
+                                },
+                                {
+                                  "name": "defaultTokenExpTime",
+                                  "typeName": "decimal",
+                                  "optional": false,
+                                  "defaultable": true,
+                                  "documentation": "Expiration time (in seconds) of the tokens if the introspection response does not contain an `exp` field",
+                                  "isRestType": false,
+                                  "selected": false
+                                },
+                                {
+                                  "name": "clockSkew",
+                                  "typeName": "decimal",
+                                  "optional": false,
+                                  "defaultable": true,
+                                  "documentation": "Clock skew (in seconds) that can be used to avoid token validation failures due to clock synchronization problems",
+                                  "isRestType": false,
+                                  "selected": false
+                                },
+                                {
+                                  "paramType": {
+                                    "typeName": "string",
+                                    "optional": false,
+                                    "defaultable": false,
+                                    "isRestType": false,
+                                    "selected": false
+                                  },
+                                  "name": "optionalParams",
+                                  "typeName": "map",
+                                  "optional": true,
+                                  "defaultable": false,
+                                  "documentation": "Map of the optional parameters used for the introspection endpoint",
+                                  "isRestType": false,
+                                  "selected": false
+                                },
+                                {
+                                  "members": [
+                                    {
+                                      "typeName": "POST_BODY_BEARER",
+                                      "optional": false,
+                                      "defaultable": false,
+                                      "isRestType": false,
+                                      "selected": false
+                                    },
+                                    {
+                                      "typeName": "AUTH_HEADER_BEARER",
+                                      "optional": false,
+                                      "defaultable": false,
+                                      "isRestType": false,
+                                      "selected": false
+                                    }
+                                  ],
+                                  "name": "credentialBearer",
+                                  "typeName": "enum",
+                                  "optional": false,
+                                  "typeInfo": {
+                                    "name": "CredentialBearer",
+                                    "orgName": "ballerina",
+                                    "moduleName": "oauth2",
+                                    "version": "2.14.0"
+                                  },
+                                  "defaultable": true,
+                                  "documentation": "",
+                                  "isRestType": false,
+                                  "selected": false
+                                },
+                                {
+                                  "name": "clientConfig",
+                                  "optional": false,
+                                  "typeInfo": {
+                                    "name": "ClientConfiguration",
+                                    "orgName": "ballerina",
+                                    "moduleName": "oauth2",
+                                    "version": "2.14.0"
+                                  },
+                                  "defaultable": true,
+                                  "documentation": "HTTP client configurations, which call the introspection endpoint",
+                                  "isRestType": false,
+                                  "selected": false
+                                }
+                              ],
+                              "hasRestType": false,
+                              "name": "RefreshTokenGrantConfig",
+                              "typeName": "record",
+                              "optional": false,
+                              "typeInfo": {
+                                "name": "RefreshTokenGrantConfig",
+                                "orgName": "ballerina",
+                                "moduleName": "oauth2",
+                                "version": "2.14.0"
+                              },
+                              "defaultable": false,
+                              "isRestType": false,
+                              "selected": false
+                            }
+                          ],
+                          "name": "auth",
+                          "typeName": "union",
+                          "optional": true,
+                          "typeInfo": {
+                            "name": "ClientAuth",
+                            "orgName": "ballerina",
+                            "moduleName": "oauth2",
+                            "version": "2.14.0"
+                          },
+                          "defaultable": false,
+                          "documentation": "Service auth configurations",
+                          "isRestType": false,
+                          "selected": false
+                        },
+                        {
+                          "fields": [
+                            {
+                              "name": "disable",
+                              "typeName": "boolean",
+                              "optional": false,
+                              "defaultable": true,
+                              "documentation": "",
+                              "isRestType": false,
+                              "selected": false
+                            },
+                            {
+                              "members": [
+                                {
+                                  "fields": [
+                                    {
+                                      "name": "path",
+                                      "typeName": "string",
+                                      "optional": false,
+                                      "defaultable": false,
+                                      "documentation": "",
+                                      "isRestType": false,
+                                      "selected": false
+                                    },
+                                    {
+                                      "name": "password",
+                                      "typeName": "string",
+                                      "optional": false,
+                                      "defaultable": false,
+                                      "documentation": "",
+                                      "isRestType": false,
+                                      "selected": false
+                                    }
+                                  ],
+                                  "hasRestType": false,
+                                  "name": "TrustStore",
+                                  "typeName": "record",
+                                  "optional": false,
+                                  "typeInfo": {
+                                    "name": "TrustStore",
+                                    "orgName": "ballerina",
+                                    "moduleName": "crypto",
+                                    "version": "2.9.0"
+                                  },
+                                  "defaultable": false,
+                                  "isRestType": false,
+                                  "selected": false
+                                },
+                                {
+                                  "typeName": "string",
+                                  "optional": false,
+                                  "defaultable": false,
+                                  "isRestType": false,
+                                  "selected": false
+                                }
+                              ],
+                              "name": "cert",
+                              "typeName": "union",
+                              "optional": true,
+                              "defaultable": false,
+                              "documentation": "",
+                              "isRestType": false,
+                              "selected": false
+                            },
+                            {
+                              "members": [
+                                {
+                                  "fields": [
+                                    {
+                                      "name": "path",
+                                      "typeName": "string",
+                                      "optional": false,
+                                      "defaultable": false,
+                                      "documentation": "",
+                                      "isRestType": false,
+                                      "selected": false
+                                    },
+                                    {
+                                      "name": "password",
+                                      "typeName": "string",
+                                      "optional": false,
+                                      "defaultable": false,
+                                      "documentation": "",
+                                      "isRestType": false,
+                                      "selected": false
+                                    }
+                                  ],
+                                  "hasRestType": false,
+                                  "name": "KeyStore",
+                                  "typeName": "record",
+                                  "optional": false,
+                                  "typeInfo": {
+                                    "name": "KeyStore",
+                                    "orgName": "ballerina",
+                                    "moduleName": "crypto",
+                                    "version": "2.9.0"
+                                  },
+                                  "defaultable": false,
+                                  "isRestType": false,
+                                  "selected": false
+                                },
+                                {
+                                  "fields": [
+                                    {
+                                      "name": "certFile",
+                                      "typeName": "string",
+                                      "optional": false,
+                                      "defaultable": false,
+                                      "documentation": "",
+                                      "isRestType": false,
+                                      "selected": false
+                                    },
+                                    {
+                                      "name": "keyFile",
+                                      "typeName": "string",
+                                      "optional": false,
+                                      "defaultable": false,
+                                      "documentation": "",
+                                      "isRestType": false,
+                                      "selected": false
+                                    },
+                                    {
+                                      "name": "keyPassword",
+                                      "typeName": "string",
+                                      "optional": true,
+                                      "defaultable": false,
+                                      "documentation": "",
+                                      "isRestType": false,
+                                      "selected": false
+                                    }
+                                  ],
+                                  "hasRestType": false,
+                                  "name": "CertKey",
+                                  "typeName": "record",
+                                  "optional": false,
+                                  "typeInfo": {
+                                    "name": "CertKey",
+                                    "orgName": "ballerina",
+                                    "moduleName": "oauth2",
+                                    "version": "2.14.0"
+                                  },
+                                  "defaultable": false,
+                                  "isRestType": false,
+                                  "selected": false
+                                }
+                              ],
+                              "name": "key",
+                              "typeName": "union",
+                              "optional": true,
+                              "defaultable": false,
+                              "documentation": "",
+                              "isRestType": false,
+                              "selected": false
+                            }
+                          ],
+                          "hasRestType": false,
+                          "name": "secureSocket",
+                          "typeName": "record",
+                          "optional": true,
+                          "typeInfo": {
+                            "name": "SecureSocket",
+                            "orgName": "ballerina",
+                            "moduleName": "oauth2",
+                            "version": "2.14.0"
+                          },
+                          "defaultable": false,
+                          "documentation": "The SSL configurations for the LDAP client socket. This needs to be configured in order to communicate through LDAPs",
+                          "isRestType": false,
+                          "selected": false
+                        }
+                      ],
+                      "hasRestType": false,
+                      "name": "clientConfig",
+                      "typeName": "record",
+                      "optional": false,
+                      "typeInfo": {
+                        "name": "ClientConfiguration",
+                        "orgName": "ballerina",
+                        "moduleName": "oauth2",
+                        "version": "2.14.0"
+                      },
+                      "defaultable": true,
+                      "documentation": "HTTP client configurations, which call the introspection endpoint",
+                      "isRestType": false,
+                      "selected": false
+                    }
+                  ],
+                  "hasRestType": true,
+                  "restType": {
+                    "typeName": "anydata",
+                    "optional": false,
+                    "defaultable": false,
+                    "isRestType": false,
+                    "selected": false
+                  },
+                  "name": "oauth2IntrospectionConfig",
+                  "typeName": "record",
+                  "optional": false,
+                  "typeInfo": {
+                    "name": "OAuth2IntrospectionConfig",
+                    "orgName": "ballerina",
+                    "moduleName": "http",
+                    "version": "2.14.0"
+                  },
+                  "defaultable": false,
+                  "documentation": "",
+                  "isRestType": false,
+                  "selected": false
+                },
+                {
+                  "members": [
+                    {
+                      "typeName": "string",
+                      "optional": false,
+                      "defaultable": false,
+                      "isRestType": false,
+                      "selected": false
+                    },
+                    {
+                      "memberType": {
+                        "typeName": "string",
+                        "optional": false,
+                        "defaultable": false,
+                        "isRestType": false,
+                        "selected": false
+                      },
+                      "typeName": "array",
+                      "optional": false,
+                      "defaultable": false,
+                      "isRestType": false,
+                      "selected": false
+                    }
+                  ],
+                  "name": "scopes",
+                  "typeName": "union",
+                  "optional": true,
+                  "defaultable": false,
+                  "documentation": "",
+                  "isRestType": false,
+                  "selected": false
+                }
+              ],
+              "hasRestType": false,
+              "name": "OAuth2IntrospectionConfigWithScopes",
+              "typeName": "record",
+              "optional": false,
+              "typeInfo": {
+                "name": "OAuth2IntrospectionConfigWithScopes",
+                "orgName": "ballerina",
+                "moduleName": "http",
+                "version": "2.14.0"
+              },
+              "defaultable": false,
+              "isRestType": false,
+              "selected": false
+            }
+          ],
+          "name": "ListenerAuthConfig",
+          "typeName": "union",
+          "optional": false,
+          "typeInfo": {
+            "name": "ListenerAuthConfig",
+            "orgName": "ballerina",
+            "moduleName": "http",
+            "version": "2.14.0"
+          },
+          "defaultable": false,
+          "isRestType": false,
+          "selected": false
+        },
+        "name": "auth",
+        "typeName": "array",
+        "optional": true,
+        "defaultable": false,
+        "documentation": "Service auth configurations",
+        "isRestType": false,
+        "selected": false
+      },
+      {
+        "name": "mediaTypeSubtypePrefix",
+        "typeName": "string",
+        "optional": true,
+        "defaultable": false,
+        "documentation": "Service specific media-type subtype prefix",
+        "isRestType": false,
+        "selected": false
+      },
+      {
+        "name": "treatNilableAsOptional",
+        "typeName": "boolean",
+        "optional": false,
+        "defaultable": true,
+        "documentation": "Treat Nilable parameters as optional",
+        "isRestType": false,
+        "selected": false
+      },
+      {
+        "memberType": {
+          "typeName": "byte",
+          "optional": false,
+          "defaultable": false,
+          "isRestType": false,
+          "selected": false
+        },
+        "name": "openApiDefinition",
+        "typeName": "array",
+        "optional": false,
+        "defaultable": true,
+        "documentation": "The generated OpenAPI definition for the HTTP service. This is auto-generated at compile-time if OpenAPI doc auto generation is enabled",
+        "isRestType": false,
+        "selected": false
+      },
+      {
+        "name": "validation",
+        "typeName": "boolean",
+        "optional": false,
+        "defaultable": true,
+        "documentation": "Enables the inbound payload validation functionality which provided by the constraint package. Enabled by default",
+        "isRestType": false,
+        "selected": false
+      },
+      {
+        "name": "serviceType",
+        "typeName": "typedesc<ballerina/http:2.14.0:ServiceContract>",
+        "optional": true,
+        "defaultable": false,
+        "documentation": "The service object type which defines the service contract. This is auto-generated at compile-time",
+        "isRestType": false,
+        "selected": false
+      },
+      {
+        "name": "basePath",
+        "typeName": "string",
+        "optional": true,
+        "defaultable": false,
+        "documentation": "Base path to be used with the service implementation. This is only allowed on service contract types",
+        "isRestType": false,
+        "selected": false
+      },
+      {
+        "name": "laxDataBinding",
+        "typeName": "boolean",
+        "optional": false,
+        "defaultable": true,
+        "documentation": "Enables or disables relaxed data binding on the service side. Disabled by default. \nWhen enabled, the JSON data will be projected to the Ballerina record type and during the projection,\nnil values will be considered as optional fields and absent fields will be considered for nilable types",
+        "isRestType": false,
+        "selected": false
+      }
+    ],
+    "hasRestType": false,
+    "name": "HttpServiceConfig",
+    "typeName": "record",
+    "optional": false,
+    "defaultable": false,
+    "documentation": "Contains the configurations for an HTTP service.\n",
+    "isRestType": false,
+    "selected": true
+  }
+}

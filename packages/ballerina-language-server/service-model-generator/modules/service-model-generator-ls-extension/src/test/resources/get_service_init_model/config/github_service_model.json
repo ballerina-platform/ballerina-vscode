@@ -6,15 +6,15 @@
   "moduleName": "trigger.github",
   "response": {
     "serviceInitModel": {
-      "id": "13",
+      "id": "trigger.github",
       "displayName": "GitHub Event Integration",
       "description": "Create a service to handle webhook events from GitHub",
       "orgName": "ballerinax",
       "packageName": "trigger.github",
       "moduleName": "trigger.github",
-      "version": "0.10.0",
+      "version": "0.12.0",
       "type": "github",
-      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_trigger.github_0.10.0.png",
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_trigger.github_0.12.0.png",
       "properties": {
         "listener": {
           "metadata": {
@@ -31,6 +31,7 @@
                 "label": "Create New Listener",
                 "description": "Define a new GitHub webhook listener in the project."
               },
+              "codedata": {},
               "properties": {
                 "listenerConfig": {
                   "metadata": {
@@ -147,6 +148,7 @@
                 "label": "Use existing (none available)",
                 "description": "No compatible listener of this type is present in the project."
               },
+              "codedata": {},
               "properties": {
                 "existingListener": {
                   "metadata": {

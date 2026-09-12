@@ -13,13 +13,14 @@
     "id": "0",
     "name": "Solace (JMS) Event Integration",
     "type": "solace.jms",
+    "triggerKind": "event",
     "displayName": "Solace (JMS) Event Integration",
     "moduleName": "solace.jms",
     "orgName": "ballerinax",
-    "version": "1.0.0",
+    "version": "1.0.2",
     "packageName": "solace.jms",
     "listenerProtocol": "jms",
-    "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_solace.jms_1.0.0.png",
+    "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_solace.jms_1.0.2.png",
     "properties": {
       "listener": {
         "metadata": {
@@ -170,7 +171,8 @@
                 "template": "{{type}}",
                 "defaultType": "jms:Message",
                 "bindable": true,
-                "field": "payload"
+                "field": "payload",
+                "typeIdentifier": "SolaceJMSMessage"
               },
               "placeholder": "jms:Message",
               "value": "jms:Message",
@@ -299,7 +301,7 @@
           "orgName": "ballerinax",
           "packageName": "solace.jms",
           "moduleName": "solace.jms",
-          "version": "1.0.0"
+          "version": "1.0.2"
         },
         "properties": {},
         "group": "onMessage",
@@ -411,7 +413,7 @@
           "orgName": "ballerinax",
           "packageName": "solace.jms",
           "moduleName": "solace.jms",
-          "version": "1.0.0"
+          "version": "1.0.2"
         },
         "properties": {},
         "group": "onError",

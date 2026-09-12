@@ -52,6 +52,7 @@ CREATE TABLE Parameter (
     placeholder TEXT,
     default_value TEXT,
     optional INTEGER CHECK(optional IN (0, 1)),
+    advanced INTEGER CHECK(advanced IN (0, 1)),
     import_statements TEXT,
     function_id INTEGER,
     FOREIGN KEY (function_id) REFERENCES Function(function_id) ON DELETE CASCADE

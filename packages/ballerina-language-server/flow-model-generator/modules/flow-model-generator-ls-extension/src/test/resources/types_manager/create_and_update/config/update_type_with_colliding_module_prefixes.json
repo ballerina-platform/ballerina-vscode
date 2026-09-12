@@ -1,0 +1,70 @@
+{
+  "filePath": "test_pack_github_alias/types.bal",
+  "description": "The reported updateType request: two fields of one type naming ballerinax/github and ballerinax/trigger.github, which derive the same natural prefix.",
+  "type": {
+    "name": "MyType",
+    "editable": true,
+    "metadata": {
+      "label": "",
+      "description": ""
+    },
+    "codedata": {
+      "node": "RECORD"
+    },
+    "properties": {},
+    "members": [
+      {
+        "name": "name1",
+        "type": "github:ReactionRollup",
+        "kind": "FIELD",
+        "refs": [],
+        "docs": "",
+        "imports": {
+          "github": "ballerinax/github:5.1.0"
+        }
+      },
+      {
+        "name": "name2",
+        "type": "github:ListenerConfig",
+        "kind": "FIELD",
+        "refs": [],
+        "docs": "",
+        "imports": {
+          "github": "ballerinax/trigger.github:0.11.0"
+        }
+      }
+    ],
+    "includes": [],
+    "allowAdditionalFields": false
+  },
+  "output": {
+    "test_pack_github_alias/types.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "\nimport ballerinax/github;\n\n\nimport ballerinax/trigger.github as triggerGithub;\n"
+      },
+      {
+        "range": {
+          "start": {
+            "line": 2,
+            "character": 3
+          },
+          "end": {
+            "line": 2,
+            "character": 3
+          }
+        },
+        "newText": "\ntype MyType record {|\n\tgithub:ReactionRollup name1;\n\ttriggerGithub:ListenerConfig name2;\n|};"
+      }
+    ]
+  }
+}

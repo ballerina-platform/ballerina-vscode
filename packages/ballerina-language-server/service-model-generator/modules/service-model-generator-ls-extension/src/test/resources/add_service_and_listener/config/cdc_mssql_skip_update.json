@@ -2,23 +2,644 @@
   "filePath": "sample4/main.bal",
   "description": "Test adding a MSSQL CDC service with update disabled: listener gets skippedOperations=[\"u\"] and onUpdate is omitted",
   "serviceInitModel": {
-    "id": "17",
-    "displayName": "Microsoft SQL Server CDC Integration",
+    "id": "mssql",
+    "displayName": "Microsoft SQL Server CDC",
     "description": "Create a service to capture data changes from a Microsoft SQL Server database using CDC",
     "orgName": "ballerinax",
     "packageName": "mssql",
     "moduleName": "mssql",
-    "version": "1.17.0",
-    "type": "event",
+    "version": "1.19.1",
+    "type": "mssql",
+    "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_mssql_1.19.1.png",
     "properties": {
+      "listener": {
+        "metadata": {
+          "label": "Configure Microsoft SQL Server CDC Listener",
+          "description": "Select an existing Microsoft SQL Server CDC listener or create a new one"
+        },
+        "codedata": {
+          "type": "LISTENER_CONFIG"
+        },
+        "value": "0",
+        "choices": [
+          {
+            "metadata": {
+              "label": "Create new",
+              "description": "Create a new Microsoft SQL Server CDC listener"
+            },
+            "codedata": {},
+            "properties": {
+              "listenerConfig": {
+                "metadata": {
+                  "label": "Listener Configurations",
+                  "description": "Configure the Microsoft SQL Server CDC listener"
+                },
+                "properties": {
+                  "listenerVarName": {
+                    "metadata": {
+                      "label": "Listener Name",
+                      "description": "Provide a name for the listener being created"
+                    },
+                    "codedata": {
+                      "type": "LISTENER_VAR_NAME"
+                    },
+                    "value": "mssqlCdcListener",
+                    "types": [
+                      {
+                        "fieldType": "IDENTIFIER",
+                        "ballerinaType": "mssql:CdcListener",
+                        "selected": true
+                      }
+                    ],
+                    "enabled": true,
+                    "editable": true,
+                    "optional": false,
+                    "advanced": false
+                  },
+                  "hostname": {
+                    "metadata": {
+                      "label": "Host",
+                      "description": "The hostname of the Microsoft SQL Server"
+                    },
+                    "codedata": {
+                      "argType": "LISTENER_PARAM_INCLUDED_DEFAULTABLE_FIELD",
+                      "path": "database.hostname"
+                    },
+                    "placeholder": "localhost",
+                    "value": "\"localhost\"",
+                    "types": [
+                      {
+                        "fieldType": "TEXT",
+                        "ballerinaType": "string",
+                        "selected": true
+                      },
+                      {
+                        "fieldType": "EXPRESSION",
+                        "ballerinaType": "string",
+                        "selected": false
+                      }
+                    ],
+                    "enabled": true,
+                    "editable": true,
+                    "optional": true,
+                    "advanced": false
+                  },
+                  "port": {
+                    "metadata": {
+                      "label": "Port",
+                      "description": "The port number of the Microsoft SQL Server"
+                    },
+                    "codedata": {
+                      "argType": "LISTENER_PARAM_INCLUDED_DEFAULTABLE_FIELD",
+                      "path": "database.port"
+                    },
+                    "placeholder": "1433",
+                    "value": "1433",
+                    "types": [
+                      {
+                        "fieldType": "NUMBER",
+                        "ballerinaType": "int",
+                        "selected": true
+                      },
+                      {
+                        "fieldType": "EXPRESSION",
+                        "ballerinaType": "int",
+                        "selected": false
+                      }
+                    ],
+                    "enabled": true,
+                    "editable": true,
+                    "optional": true,
+                    "advanced": false
+                  },
+                  "username": {
+                    "metadata": {
+                      "label": "Username",
+                      "description": "The username for the Microsoft SQL Server connection"
+                    },
+                    "codedata": {
+                      "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                      "path": "database.username"
+                    },
+                    "value": "\"sa\"",
+                    "types": [
+                      {
+                        "fieldType": "TEXT",
+                        "ballerinaType": "string",
+                        "selected": true
+                      },
+                      {
+                        "fieldType": "EXPRESSION",
+                        "ballerinaType": "string",
+                        "selected": false
+                      }
+                    ],
+                    "enabled": true,
+                    "editable": true,
+                    "optional": false,
+                    "advanced": false
+                  },
+                  "password": {
+                    "metadata": {
+                      "label": "Password",
+                      "description": "The password for the Microsoft SQL Server connection"
+                    },
+                    "codedata": {
+                      "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                      "path": "database.password"
+                    },
+                    "value": "\"Test@1234\"",
+                    "types": [
+                      {
+                        "fieldType": "TEXT",
+                        "ballerinaType": "string",
+                        "selected": true
+                      },
+                      {
+                        "fieldType": "EXPRESSION",
+                        "ballerinaType": "string",
+                        "selected": false
+                      }
+                    ],
+                    "enabled": true,
+                    "editable": true,
+                    "optional": false,
+                    "advanced": false
+                  },
+                  "databases": {
+                    "metadata": {
+                      "label": "Databases",
+                      "description": "List of databases to capture changes from"
+                    },
+                    "codedata": {
+                      "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                      "path": "database.databaseNames"
+                    },
+                    "placeholder": "",
+                    "types": [
+                      {
+                        "fieldType": "TEXT_SET",
+                        "ballerinaType": "string",
+                        "selected": false
+                      }
+                    ],
+                    "enabled": true,
+                    "editable": true,
+                    "optional": false,
+                    "advanced": false,
+                    "values": [
+                      "\"testdb\""
+                    ]
+                  },
+                  "schemas": {
+                    "metadata": {
+                      "label": "Schemas",
+                      "description": "A list of regular expressions that match names of schemas to capture changes from"
+                    },
+                    "codedata": {
+                      "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                      "path": "database.includedSchemas"
+                    },
+                    "value": "",
+                    "types": [
+                      {
+                        "fieldType": "TEXT_SET",
+                        "ballerinaType": "string",
+                        "selected": false
+                      }
+                    ],
+                    "enabled": true,
+                    "editable": true,
+                    "optional": true,
+                    "advanced": false
+                  },
+                  "enableCreate": {
+                    "metadata": {
+                      "label": "Insert events",
+                      "description": "When enabled, the CDC listener will capture INSERT events"
+                    },
+                    "codedata": {
+                      "argType": "CDC_OPERATION_ENABLE",
+                      "originalName": "c",
+                      "path": "options.skippedOperations"
+                    },
+                    "value": "true",
+                    "types": [
+                      {
+                        "fieldType": "FLAG",
+                        "selected": true
+                      }
+                    ],
+                    "enabled": true,
+                    "editable": true,
+                    "optional": false,
+                    "advanced": false
+                  },
+                  "enableUpdate": {
+                    "metadata": {
+                      "label": "Update events",
+                      "description": "When enabled, the CDC listener will capture UPDATE events"
+                    },
+                    "codedata": {
+                      "argType": "CDC_OPERATION_ENABLE",
+                      "originalName": "u",
+                      "path": "options.skippedOperations"
+                    },
+                    "value": "false",
+                    "types": [
+                      {
+                        "fieldType": "FLAG",
+                        "selected": true
+                      }
+                    ],
+                    "enabled": true,
+                    "editable": true,
+                    "optional": false,
+                    "advanced": false
+                  },
+                  "enableDelete": {
+                    "metadata": {
+                      "label": "Delete events",
+                      "description": "When enabled, the CDC listener will capture DELETE events"
+                    },
+                    "codedata": {
+                      "argType": "CDC_OPERATION_ENABLE",
+                      "originalName": "d",
+                      "path": "options.skippedOperations"
+                    },
+                    "value": "true",
+                    "types": [
+                      {
+                        "fieldType": "FLAG",
+                        "selected": true
+                      }
+                    ],
+                    "enabled": true,
+                    "editable": true,
+                    "optional": false,
+                    "advanced": false
+                  },
+                  "databaseInstance": {
+                    "metadata": {
+                      "label": "Database Instance",
+                      "description": "Microsoft SQL Server instance name"
+                    },
+                    "codedata": {
+                      "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                      "path": "database.databaseInstance"
+                    },
+                    "value": "",
+                    "types": [
+                      {
+                        "fieldType": "TEXT",
+                        "ballerinaType": "string",
+                        "selected": true
+                      },
+                      {
+                        "fieldType": "EXPRESSION",
+                        "ballerinaType": "string",
+                        "selected": false
+                      }
+                    ],
+                    "enabled": true,
+                    "editable": true,
+                    "optional": true,
+                    "advanced": true
+                  },
+                  "secureSocket": {
+                    "metadata": {
+                      "label": "Secure Socket",
+                      "description": "Configure SSL/TLS configuration for secure connection"
+                    },
+                    "codedata": {
+                      "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                      "path": "database.secure"
+                    },
+                    "value": "",
+                    "types": [
+                      {
+                        "fieldType": "RECORD_MAP_EXPRESSION",
+                        "ballerinaType": "cdc:SecureDatabaseConnection",
+                        "typeMembers": [
+                          {
+                            "type": "SecureDatabaseConnection",
+                            "packageInfo": "ballerinax:cdc:1.3.0",
+                            "packageName": "cdc",
+                            "kind": "RECORD_TYPE",
+                            "selected": false
+                          }
+                        ],
+                        "selected": true
+                      },
+                      {
+                        "fieldType": "EXPRESSION",
+                        "ballerinaType": "cdc:SecureDatabaseConnection",
+                        "selected": false
+                      }
+                    ],
+                    "enabled": true,
+                    "editable": true,
+                    "optional": true,
+                    "advanced": true
+                  },
+                  "options": {
+                    "metadata": {
+                      "label": "Options",
+                      "description": "Additional options for the CDC engine"
+                    },
+                    "codedata": {
+                      "argType": "LISTENER_PARAM_INCLUDED_DEFAULTABLE_FIELD",
+                      "path": "options"
+                    },
+                    "value": "",
+                    "types": [
+                      {
+                        "fieldType": "RECORD_MAP_EXPRESSION",
+                        "ballerinaType": "cdc:Options",
+                        "typeMembers": [
+                          {
+                            "type": "Options",
+                            "packageInfo": "ballerinax:cdc:1.3.0",
+                            "packageName": "cdc",
+                            "kind": "RECORD_TYPE",
+                            "selected": true
+                          }
+                        ],
+                        "selected": true
+                      },
+                      {
+                        "fieldType": "EXPRESSION",
+                        "ballerinaType": "cdc:Options",
+                        "selected": false
+                      }
+                    ],
+                    "enabled": true,
+                    "editable": true,
+                    "optional": true,
+                    "advanced": true
+                  },
+                  "livenessInterval": {
+                    "metadata": {
+                      "label": "Liveness Interval",
+                      "description": "Interval in seconds for the CDC engine liveness check"
+                    },
+                    "codedata": {
+                      "argType": "LISTENER_PARAM_INCLUDED_DEFAULTABLE_FIELD",
+                      "path": "livenessInterval"
+                    },
+                    "placeholder": "60.0",
+                    "value": "",
+                    "types": [
+                      {
+                        "fieldType": "NUMBER",
+                        "ballerinaType": "decimal",
+                        "selected": true
+                      },
+                      {
+                        "fieldType": "EXPRESSION",
+                        "ballerinaType": "decimal",
+                        "selected": false
+                      }
+                    ],
+                    "enabled": true,
+                    "editable": true,
+                    "optional": true,
+                    "advanced": true
+                  },
+                  "internalSchemaStorage": {
+                    "metadata": {
+                      "label": "Internal Schema Storage",
+                      "description": "Storage configuration for the internal schema history"
+                    },
+                    "codedata": {
+                      "argType": "LISTENER_PARAM_INCLUDED_DEFAULTABLE_FIELD",
+                      "path": "internalSchemaStorage"
+                    },
+                    "value": "",
+                    "types": [
+                      {
+                        "fieldType": "RECORD_MAP_EXPRESSION",
+                        "ballerinaType": "cdc:InternalSchemaStorage",
+                        "typeMembers": [
+                          {
+                            "type": "FileInternalSchemaStorage",
+                            "packageInfo": "ballerinax:cdc:1.3.0",
+                            "packageName": "cdc",
+                            "kind": "RECORD_TYPE",
+                            "selected": true
+                          },
+                          {
+                            "type": "KafkaInternalSchemaStorage",
+                            "packageInfo": "ballerinax:cdc:1.3.0",
+                            "packageName": "cdc",
+                            "kind": "RECORD_TYPE",
+                            "selected": false
+                          },
+                          {
+                            "type": "MemoryInternalSchemaStorage",
+                            "packageInfo": "ballerinax:cdc:1.3.0",
+                            "packageName": "cdc",
+                            "kind": "RECORD_TYPE",
+                            "selected": false
+                          },
+                          {
+                            "type": "JdbcInternalSchemaStorage",
+                            "packageInfo": "ballerinax:cdc:1.3.0",
+                            "packageName": "cdc",
+                            "kind": "RECORD_TYPE",
+                            "selected": false
+                          },
+                          {
+                            "type": "RedisInternalSchemaStorage",
+                            "packageInfo": "ballerinax:cdc:1.3.0",
+                            "packageName": "cdc",
+                            "kind": "RECORD_TYPE",
+                            "selected": false
+                          },
+                          {
+                            "type": "AmazonS3InternalSchemaStorage",
+                            "packageInfo": "ballerinax:cdc:1.3.0",
+                            "packageName": "cdc",
+                            "kind": "RECORD_TYPE",
+                            "selected": false
+                          },
+                          {
+                            "type": "AzureBlobInternalSchemaStorage",
+                            "packageInfo": "ballerinax:cdc:1.3.0",
+                            "packageName": "cdc",
+                            "kind": "RECORD_TYPE",
+                            "selected": false
+                          },
+                          {
+                            "type": "RocketMQInternalSchemaStorage",
+                            "packageInfo": "ballerinax:cdc:1.3.0",
+                            "packageName": "cdc",
+                            "kind": "RECORD_TYPE",
+                            "selected": false
+                          }
+                        ],
+                        "selected": true
+                      },
+                      {
+                        "fieldType": "EXPRESSION",
+                        "ballerinaType": "cdc:InternalSchemaStorage",
+                        "selected": false
+                      }
+                    ],
+                    "enabled": true,
+                    "editable": true,
+                    "optional": true,
+                    "advanced": true
+                  },
+                  "offsetStorage": {
+                    "metadata": {
+                      "label": "Offset Storage",
+                      "description": "Storage configuration for CDC offsets"
+                    },
+                    "codedata": {
+                      "argType": "LISTENER_PARAM_INCLUDED_DEFAULTABLE_FIELD",
+                      "path": "offsetStorage"
+                    },
+                    "value": "",
+                    "types": [
+                      {
+                        "fieldType": "RECORD_MAP_EXPRESSION",
+                        "ballerinaType": "cdc:OffsetStorage",
+                        "typeMembers": [
+                          {
+                            "type": "FileOffsetStorage",
+                            "packageInfo": "ballerinax:cdc:1.3.0",
+                            "packageName": "cdc",
+                            "kind": "RECORD_TYPE",
+                            "selected": true
+                          },
+                          {
+                            "type": "KafkaOffsetStorage",
+                            "packageInfo": "ballerinax:cdc:1.3.0",
+                            "packageName": "cdc",
+                            "kind": "RECORD_TYPE",
+                            "selected": false
+                          },
+                          {
+                            "type": "MemoryOffsetStorage",
+                            "packageInfo": "ballerinax:cdc:1.3.0",
+                            "packageName": "cdc",
+                            "kind": "RECORD_TYPE",
+                            "selected": false
+                          },
+                          {
+                            "type": "JdbcOffsetStorage",
+                            "packageInfo": "ballerinax:cdc:1.3.0",
+                            "packageName": "cdc",
+                            "kind": "RECORD_TYPE",
+                            "selected": false
+                          },
+                          {
+                            "type": "RedisOffsetStorage",
+                            "packageInfo": "ballerinax:cdc:1.3.0",
+                            "packageName": "cdc",
+                            "kind": "RECORD_TYPE",
+                            "selected": false
+                          }
+                        ],
+                        "selected": true
+                      },
+                      {
+                        "fieldType": "EXPRESSION",
+                        "ballerinaType": "cdc:OffsetStorage",
+                        "selected": false
+                      }
+                    ],
+                    "enabled": true,
+                    "editable": true,
+                    "optional": true,
+                    "advanced": true
+                  }
+                },
+                "types": [
+                  {
+                    "fieldType": "GROUP_SECTION",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false
+              }
+            },
+            "types": [
+              {
+                "fieldType": "FORM",
+                "selected": true
+              }
+            ],
+            "enabled": true,
+            "editable": true,
+            "optional": false,
+            "advanced": false
+          },
+          {
+            "metadata": {
+              "label": "Use existing (none available)",
+              "description": "No compatible listener of this type is present in the project."
+            },
+            "codedata": {},
+            "properties": {
+              "existingListener": {
+                "metadata": {
+                  "label": "Listener(s)",
+                  "description": "Select one or more existing listeners to attach to."
+                },
+                "codedata": {
+                  "type": "KEY_EXISTING_LISTENER"
+                },
+                "types": [
+                  {
+                    "fieldType": "MULTI_SELECT_LISTENER",
+                    "ballerinaType": "mssql:CdcListener",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false
+              }
+            },
+            "types": [
+              {
+                "fieldType": "FORM",
+                "selected": true
+              }
+            ],
+            "enabled": false,
+            "editable": false,
+            "optional": false,
+            "advanced": false
+          }
+        ],
+        "types": [
+          {
+            "fieldType": "CHOICE",
+            "selected": true
+          }
+        ],
+        "enabled": true,
+        "editable": true,
+        "optional": false,
+        "advanced": false
+      },
       "table": {
         "metadata": {
           "label": "Table",
           "description": "The fully-qualified table name to capture events from. Format: `<database>.<schema>.<table>`"
         },
         "codedata": {
-          "argType": "annotationParam",
-          "originalName": "tables"
+          "type": "SERVICE_ANNOTATION",
+          "originalName": "ServiceConfig",
+          "moduleName": "cdc",
+          "path": "tables"
         },
         "placeholder": "",
         "value": "",
@@ -26,231 +647,26 @@
           {
             "fieldType": "TEXT",
             "ballerinaType": "string",
-            "selected": true
-          }
-        ],
-        "enabled": true,
-        "editable": true,
-        "optional": true,
-        "advanced": false
-      },
-      "listenerVarName": {
-        "metadata": {
-          "label": "Listener Name",
-          "description": "Provide a name for the listener being created"
-        },
-        "codedata": {
-          "argType": "LISTENER_VAR_NAME"
-        },
-        "placeholder": "mssqlCdcListener",
-        "value": "mssqlCdcListener",
-        "types": [
-          {
-            "fieldType": "IDENTIFIER",
-            "ballerinaType": "CdcListener",
-            "selected": false
-          }
-        ],
-        "enabled": true,
-        "editable": true,
-        "optional": false,
-        "advanced": false
-      },
-      "host": {
-        "metadata": {
-          "label": "Host",
-          "description": "The hostname of the Microsoft SQL Server"
-        },
-        "codedata": {
-          "argType": "databaseConfig",
-          "originalName": "hostname"
-        },
-        "placeholder": "localhost",
-        "value": "\"localhost\"",
-        "types": [
-          {
-            "fieldType": "TEXT",
-            "ballerinaType": "string",
-            "selected": true
-          }
-        ],
-        "enabled": true,
-        "editable": true,
-        "optional": true,
-        "advanced": false
-      },
-      "port": {
-        "metadata": {
-          "label": "Port",
-          "description": "The port number of the Microsoft SQL Server"
-        },
-        "codedata": {
-          "argType": "databaseConfig",
-          "originalName": "port"
-        },
-        "placeholder": "1433",
-        "value": "1433",
-        "types": [
-          {
-            "fieldType": "NUMBER",
-            "ballerinaType": "int",
-            "selected": true
-          }
-        ],
-        "enabled": true,
-        "editable": true,
-        "optional": true,
-        "advanced": false
-      },
-      "username": {
-        "metadata": {
-          "label": "Username",
-          "description": "The username for the Microsoft SQL Server connection"
-        },
-        "codedata": {
-          "argType": "databaseConfig",
-          "originalName": "username"
-        },
-        "placeholder": "",
-        "value": "\"sa\"",
-        "types": [
-          {
-            "fieldType": "TEXT",
-            "ballerinaType": "string",
-            "selected": true
-          }
-        ],
-        "enabled": true,
-        "editable": true,
-        "optional": false,
-        "advanced": false
-      },
-      "password": {
-        "metadata": {
-          "label": "Password",
-          "description": "The password for the Microsoft SQL Server connection"
-        },
-        "codedata": {
-          "argType": "databaseConfig",
-          "originalName": "password"
-        },
-        "placeholder": "",
-        "value": "\"Test@1234\"",
-        "types": [
-          {
-            "fieldType": "TEXT",
-            "ballerinaType": "string",
-            "selected": true
-          }
-        ],
-        "enabled": true,
-        "editable": true,
-        "optional": false,
-        "advanced": false
-      },
-      "databases": {
-        "metadata": {
-          "label": "Databases",
-          "description": "List of databases to capture changes from"
-        },
-        "codedata": {
-          "argType": "databaseConfig",
-          "originalName": "databaseNames"
-        },
-        "placeholder": "",
-        "values": [
-          "\"testdb\""
-        ],
-        "types": [
-          {
-            "fieldType": "TEXT_SET",
-            "ballerinaType": "string",
-            "selected": false,
-            "minItems": 1,
-            "defaultItems": 1
-          }
-        ],
-        "enabled": true,
-        "editable": true,
-        "optional": false,
-        "advanced": false
-      },
-      "enableCreate": {
-        "metadata": {
-          "label": "Insert events",
-          "description": "When enabled, the CDC listener will capture INSERT events"
-        },
-        "codedata": {
-          "argType": "CDC_OPERATION_ENABLE",
-          "originalName": "c"
-        },
-        "value": "true",
-        "types": [
-          {
-            "fieldType": "FLAG",
-            "selected": true
-          }
-        ],
-        "enabled": true,
-        "editable": true,
-        "optional": false,
-        "advanced": false
-      },
-      "enableUpdate": {
-        "metadata": {
-          "label": "Update events",
-          "description": "When enabled, the CDC listener will capture UPDATE events"
-        },
-        "codedata": {
-          "argType": "CDC_OPERATION_ENABLE",
-          "originalName": "u"
-        },
-        "value": "false",
-        "types": [
-          {
-            "fieldType": "FLAG",
-            "selected": false
-          }
-        ],
-        "enabled": true,
-        "editable": true,
-        "optional": false,
-        "advanced": false
-      },
-      "enableDelete": {
-        "metadata": {
-          "label": "Delete events",
-          "description": "When enabled, the CDC listener will capture DELETE events"
-        },
-        "codedata": {
-          "argType": "CDC_OPERATION_ENABLE",
-          "originalName": "d"
-        },
-        "value": "true",
-        "types": [
-          {
-            "fieldType": "FLAG",
-            "selected": true
-          }
-        ],
-        "enabled": true,
-        "editable": true,
-        "optional": false,
-        "advanced": false
-      },
-      "database": {
-        "codedata": {
-          "argType": "LISTENER_PARAM_INCLUDED_FIELD"
-        },
-        "value": "{hostname : \"localhost\", port : 1433, username : \"sa\", password : \"Test@1234\", databaseNames : [\"testdb\"]}",
-        "types": [
+            "selected": true,
+            "validations": [
+              {
+                "rule": "vscode.validate.regex",
+                "args": {
+                  "pattern": "^string `([^.\\[\\]]+|\\[[^\\]]+\\])\\.([^.\\[\\]]+|\\[[^\\]]+\\])\\.([^.\\[\\]]+|\\[[^\\]]+\\])`$|^\"([^.\\[\\]]+|\\[[^\\]]+\\])\\.([^.\\[\\]]+|\\[[^\\]]+\\])\\.([^.\\[\\]]+|\\[[^\\]]+\\])\"$"
+                },
+                "message": "Table must be in the format: <database>.<schema>.<table>. Use square brackets for names with dots (e.g., db.[schema.name].table)",
+                "severity": "ERROR"
+              }
+            ]
+          },
           {
             "fieldType": "EXPRESSION",
-            "selected": true
+            "ballerinaType": "string",
+            "selected": false
           }
         ],
         "enabled": true,
-        "editable": false,
+        "editable": true,
         "optional": false,
         "advanced": false
       }
@@ -282,7 +698,7 @@
             "character": 0
           }
         },
-        "newText": "\nlistener mssql:CdcListener mssqlCdcListener = new (database = {hostname : \"localhost\", port : 1433, username : \"sa\", password : \"Test@1234\", databaseNames : [\"testdb\"]}, options = {skippedOperations: [\"u\"]});\nservice cdc:Service on mssqlCdcListener {\n\n}\n"
+        "newText": "\nlistener mssql:CdcListener mssqlCdcListener = new (database = {hostname: \"localhost\", port: 1433, username: \"sa\", password: \"Test@1234\", databaseNames: [\"testdb\"]}, options = {skippedOperations: [\"u\"]});\nservice cdc:Service on mssqlCdcListener {\n\n}\n"
       }
     ]
   }

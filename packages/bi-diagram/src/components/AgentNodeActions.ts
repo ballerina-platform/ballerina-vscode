@@ -29,6 +29,7 @@ export interface AgentNodeActions {
     onDeleteTool?: (tool: ToolData, node: FlowNode) => void;
     goToTool?: (tool: ToolData, node: FlowNode) => void;
     onSelectMemoryManager?: (node: FlowNode) => void;
+    onSelectMemoryStore?: (node: FlowNode) => void;
     onDeleteMemoryManager?: (node: FlowNode) => void;
     onChatWithAgent?: (node: FlowNode) => void;
     onAddTrigger?: (node: FlowNode) => void;

@@ -27,6 +27,7 @@ import io.ballerina.servicemodelgenerator.extension.builder.service.agent.AgentT
 import io.ballerina.servicemodelgenerator.extension.builder.service.agent.HttpAgentTriggerChannel;
 import io.ballerina.servicemodelgenerator.extension.connector.SchemaDrivenSourceGenerator;
 import io.ballerina.servicemodelgenerator.extension.connector.TriggerModelReader;
+import io.ballerina.servicemodelgenerator.extension.connector.TriggerPropertiesRegistry;
 import io.ballerina.servicemodelgenerator.extension.model.Function;
 import io.ballerina.servicemodelgenerator.extension.model.FunctionReturnType;
 import io.ballerina.servicemodelgenerator.extension.model.HttpResponse;
@@ -62,20 +63,29 @@ public class AgentTriggerGenerationTest {
     private static final String HANDLER_PROPERTY = "agentEventHandler";
     private final Gson gson = new Gson();
 
+    /** The org publishing {@code moduleName} in the trigger picker, so tests can name a module alone. */
+    private static String orgNameOf(String moduleName) {
+        return TriggerPropertiesRegistry.getInstance().byId().values().stream()
+                .filter(property -> moduleName.equals(property.name()) || moduleName.equals(property.packageName()))
+                .map(property -> property.orgName())
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("No trigger property for " + moduleName));
+    }
+
     private ServiceInitModel initForm(String moduleName) {
-        ServiceInitModel cached = TriggerModelReader.getInstance().getBundledServiceInitModel(moduleName)
+        ServiceInitModel cached = TriggerModelReader.getInstance()
+                .getSchemaDrivenServiceInitModel(orgNameOf(moduleName), moduleName)
                 .orElseThrow();
         return gson.fromJson(gson.toJsonTree(cached), ServiceInitModel.class);
     }
 
     private TriggerUISchemaModel triggerModel(String moduleName) {
-        return TriggerModelReader.getInstance().getBundledTriggerModel(moduleName).orElseThrow();
+        return TriggerModelReader.getInstance().getSchemaDrivenTriggerModel(orgNameOf(moduleName), moduleName)
+                .orElseThrow();
     }
 
     private AgentTriggerChannel channel(String moduleName) {
-        String orgName = TriggerModelReader.getInstance().getBundledTriggerModel(moduleName)
-                .map(TriggerUISchemaModel::orgName).orElse(null);
-        return channel(orgName, moduleName);
+        return channel(orgNameOf(moduleName), moduleName);
     }
 
     private AgentTriggerChannel channel(String orgName, String moduleName) {
@@ -1248,7 +1258,7 @@ public class AgentTriggerGenerationTest {
 
     private static TriggerBasicInfo stamped(String orgName, String moduleName, String type) {
         return AgentTriggerChannels.withAgentKind(new TriggerBasicInfo(0, moduleName, orgName, moduleName,
-                moduleName, "1.0.0", type, moduleName, "", moduleName, ""));
+                moduleName, "1.0.0", type, moduleName, "", moduleName, "", type));
     }
 
     @Test

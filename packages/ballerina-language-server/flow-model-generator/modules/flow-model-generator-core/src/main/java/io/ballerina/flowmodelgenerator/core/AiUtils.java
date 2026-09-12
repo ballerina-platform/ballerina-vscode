@@ -38,6 +38,7 @@ import io.ballerina.compiler.api.symbols.ParameterSymbol;
 import io.ballerina.compiler.api.symbols.Qualifier;
 import io.ballerina.compiler.api.symbols.StreamTypeSymbol;
 import io.ballerina.compiler.api.symbols.Symbol;
+import io.ballerina.compiler.api.symbols.SymbolKind;
 import io.ballerina.compiler.api.symbols.TypeDescKind;
 import io.ballerina.compiler.api.symbols.TypeReferenceTypeSymbol;
 import io.ballerina.compiler.api.symbols.TypeSymbol;
@@ -48,6 +49,7 @@ import io.ballerina.compiler.syntax.tree.AnnotationNode;
 import io.ballerina.compiler.syntax.tree.AssignmentStatementNode;
 import io.ballerina.compiler.syntax.tree.CheckExpressionNode;
 import io.ballerina.compiler.syntax.tree.ExpressionNode;
+import io.ballerina.compiler.syntax.tree.FieldAccessExpressionNode;
 import io.ballerina.compiler.syntax.tree.FunctionArgumentNode;
 import io.ballerina.compiler.syntax.tree.FunctionBodyBlockNode;
 import io.ballerina.compiler.syntax.tree.FunctionDefinitionNode;
@@ -84,16 +86,9 @@ import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.projects.DependenciesToml;
 import io.ballerina.projects.Document;
 import io.ballerina.projects.Package;
-import io.ballerina.projects.PackageDescriptor;
-import io.ballerina.projects.PackageName;
-import io.ballerina.projects.PackageOrg;
+import io.ballerina.projects.PackageCompilation;
 import io.ballerina.projects.Project;
 import io.ballerina.projects.TomlDocument;
-import io.ballerina.projects.environment.PackageMetadataResponse;
-import io.ballerina.projects.environment.PackageResolver;
-import io.ballerina.projects.environment.ResolutionOptions;
-import io.ballerina.projects.environment.ResolutionRequest;
-import io.ballerina.projects.environment.ResolutionResponse;
 import io.ballerina.tools.diagnostics.Location;
 import org.ballerinalang.langserver.common.utils.CommonUtil;
 import org.ballerinalang.langserver.commons.BallerinaCompilerApi;
@@ -105,7 +100,6 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -633,21 +627,10 @@ public class AiUtils {
     }
 
     public static Optional<String> resolvePackageVersion(String org, String packageName) {
-        try {
-            PackageResolver resolver = PackageUtil.getSampleProject()
-                    .projectEnvironmentContext().getService(PackageResolver.class);
-            ResolutionRequest resolutionRequest = ResolutionRequest.from(
-                    PackageDescriptor.from(PackageOrg.from(org), PackageName.from(packageName)));
-            Collection<PackageMetadataResponse> metadataResponses = resolver.resolvePackageMetadata(
-                    Collections.singletonList(resolutionRequest),
-                    ResolutionOptions.builder().setOffline(true).build());
-            return metadataResponses.stream().findFirst()
-                    .filter(meta -> meta.resolutionStatus() != ResolutionResponse.ResolutionStatus.UNRESOLVED)
-                    .map(PackageMetadataResponse::resolvedDescriptor)
-                    .map(descriptor -> descriptor.version().value().toString());
-        } catch (RuntimeException e) {
-            return Optional.empty();
-        }
+        // Delegate to PackageUtil.cachedVersion, which performs the same offline metadata resolution
+        // on the current thread's sample project. Doing it here directly would be a second consumer
+        // of the sample-project resolver to keep thread-safe; keeping a single owner avoids that.
+        return Optional.ofNullable(PackageUtil.cachedVersion(org, packageName));
     }
 
     private static synchronized void ensureDependentModulesResolved() {
@@ -694,7 +677,7 @@ public class AiUtils {
         Collection<List<Module>> candidateModules = (version == null)
                 ? dependentModules.values()
                 : dependentModules.entrySet().stream()
-                .filter(entry -> compareSemver(version, entry.getKey()) >= 0)
+                .filter(entry -> compareMajorMinor(version, entry.getKey()) >= 0)
                 .map(Map.Entry::getValue)
                 .toList();
 
@@ -729,6 +712,20 @@ public class AiUtils {
         int length = Math.max(parts1.length, parts2.length);
 
         for (int i = 0; i < length; i++) {
+            int num1 = i < parts1.length ? Integer.parseInt(parts1[i]) : 0;
+            int num2 = i < parts2.length ? Integer.parseInt(parts2[i]) : 0;
+            if (num1 != num2) {
+                return Integer.compare(num1, num2);
+            }
+        }
+        return 0;
+    }
+
+    // Compares only major.minor (ignores patch) — patch bumps within the same minor are backward-compatible.
+    static int compareMajorMinor(String version1, String version2) {
+        String[] parts1 = version1.split("\\.");
+        String[] parts2 = version2.split("\\.");
+        for (int i = 0; i < 2; i++) {
             int num1 = i < parts1.length ? Integer.parseInt(parts1[i]) : 0;
             int num2 = i < parts2.length ? Integer.parseInt(parts2[i]) : 0;
             if (num1 != num2) {
@@ -1807,26 +1804,43 @@ public class AiUtils {
         }
     }
 
-    public static boolean isMcpToolKitSymbol(Symbol symbol) {
-        TypeSymbol typeSymbol;
-        if (symbol instanceof VariableSymbol variableSymbol) {
-            typeSymbol = variableSymbol.typeDescriptor();
-        } else if (symbol instanceof ClassFieldSymbol classFieldSymbol) {
-            typeSymbol = classFieldSymbol.typeDescriptor();
-        } else {
-            return false;
-        }
-        return isMcpToolKitType(typeSymbol);
-    }
-
     public static boolean isMcpToolKitType(TypeSymbol typeSymbol) {
         if (typeSymbol.nameEquals("McpToolKit") && typeSymbol.getModule()
                 .map(module -> CommonUtils.isAiModule(module.id().orgName(), module.id().packageName()))
                 .orElse(false)) {
             return true;
         }
-        return CommonUtils.getRawType(typeSymbol) instanceof ClassSymbol classSymbol
-                && CommonUtils.isAiMcpBaseToolKit(classSymbol);
+        return asMcpToolKitClass(typeSymbol).isPresent();
+    }
+
+    // Module-qualified so it matches the toolkit name the trace records at dev-time (ExecuteToolSpan.addToolKitName).
+    public static Optional<String> mcpToolKitClassName(Symbol symbol) {
+        TypeSymbol typeSymbol;
+        if (symbol instanceof VariableSymbol variableSymbol) {
+            typeSymbol = variableSymbol.typeDescriptor();
+        } else if (symbol instanceof ClassFieldSymbol classFieldSymbol) {
+            typeSymbol = classFieldSymbol.typeDescriptor();
+        } else {
+            return Optional.empty();
+        }
+        return mcpToolKitClassName(typeSymbol);
+    }
+
+    public static Optional<String> mcpToolKitClassName(TypeSymbol typeSymbol) {
+        return asMcpToolKitClass(typeSymbol).map(classSymbol -> {
+            String className = classSymbol.getName().orElse("");
+            String moduleName = classSymbol.getModule().map(module -> module.id().moduleName()).orElse("");
+            return moduleName.isEmpty() ? className : moduleName + ":" + className;
+        });
+    }
+
+    // Resolves the raw type once so callers don't each recompute it to check and then extract the class.
+    private static Optional<ClassSymbol> asMcpToolKitClass(TypeSymbol typeSymbol) {
+        if (CommonUtils.getRawType(typeSymbol) instanceof ClassSymbol classSymbol
+                && CommonUtils.isAiMcpBaseToolKit(classSymbol)) {
+            return Optional.of(classSymbol);
+        }
+        return Optional.empty();
     }
 
     private static Optional<AgentInfo> readAgentMetadata(ClassSymbol classSymbol) {
@@ -2121,6 +2135,10 @@ public class AiUtils {
     }
 
     private static boolean isAiInterfaceType(TypeSymbol typeSymbol, String interfaceName) {
+        if (typeSymbol instanceof UnionTypeSymbol union) {
+            return union.memberTypeDescriptors().stream()
+                    .anyMatch(member -> isAiInterfaceType(member, interfaceName));
+        }
         if (typeSymbol instanceof TypeReferenceTypeSymbol typeRef
                 && typeRef.definition().nameEquals(interfaceName)) {
             return typeRef.getModule()
@@ -2158,6 +2176,72 @@ public class AiUtils {
             }
         }
         return null;
+    }
+
+    public static List<ClassSymbol> findAgentClasses(Package agentPackage) {
+        PackageCompilation compilation = PackageUtil.getCompilation(agentPackage);
+        List<ClassSymbol> agentClasses = new ArrayList<>();
+        for (io.ballerina.projects.Module module : agentPackage.modules()) {
+            SemanticModel semanticModel = compilation.getSemanticModel(module.moduleId());
+            for (Symbol symbol : semanticModel.moduleSymbols()) {
+                if (symbol.kind() == SymbolKind.CLASS && CommonUtils.isAiAgentType(symbol)) {
+                    agentClasses.add((ClassSymbol) symbol);
+                }
+            }
+        }
+        return agentClasses;
+    }
+
+    public record ModelData(String name, String path, String type) {
+    }
+
+    public static ModelData getModelIconUrl(SemanticModel semanticModel, ExpressionNode expression) {
+        if (expression.kind() == SyntaxKind.SIMPLE_NAME_REFERENCE) {
+            return resolveComponent(semanticModel, expression, Ai.MODEL_PROVIDER_TYPE_NAME);
+        }
+        if (expression.kind() == SyntaxKind.FIELD_ACCESS) {
+            return getModelIconUrl(semanticModel, ((FieldAccessExpressionNode) expression).fieldName());
+        }
+        return new ModelData(expression.toSourceCode().strip(), null, null);
+    }
+
+    public static ModelData getMemoryStoreData(SemanticModel semanticModel,
+                                               SeparatedNodeList<FunctionArgumentNode> arguments) {
+        for (FunctionArgumentNode argument : arguments) {
+            ExpressionNode expression = switch (argument.kind()) {
+                case POSITIONAL_ARG -> ((PositionalArgumentNode) argument).expression();
+                case NAMED_ARG -> ((NamedArgumentNode) argument).expression();
+                default -> null;
+            };
+            if (expression != null && semanticModel.symbol(expression)
+                    .filter(CommonUtils::isAiMemoryStore).isPresent()) {
+                return resolveComponent(semanticModel, expression, null);
+            }
+        }
+        return null;
+    }
+
+    private static ModelData resolveComponent(SemanticModel semanticModel, ExpressionNode expression,
+                                              String genericTypeName) {
+        Symbol symbol = semanticModel.symbol(expression).orElse(null);
+        TypeSymbol typeDescriptor;
+        if (symbol instanceof VariableSymbol variable) {
+            typeDescriptor = variable.typeDescriptor();
+        } else if (symbol instanceof ClassFieldSymbol field) {
+            typeDescriptor = field.typeDescriptor();
+        } else {
+            return null;
+        }
+        Optional<ModuleID> optId = typeDescriptor.getModule().map(ModuleSymbol::id);
+        if (optId.isEmpty()) {
+            return null;
+        }
+        ModuleID id = optId.get();
+        String type = typeDescriptor.getName().orElse("");
+        String iconType = genericTypeName == null || type.isEmpty() || type.equals(genericTypeName)
+                ? id.packageName() : type;
+        return new ModelData(symbol.getName().orElse(""),
+                CommonUtils.generateIcon(id.orgName(), id.packageName(), id.version()), iconType);
     }
 
 }

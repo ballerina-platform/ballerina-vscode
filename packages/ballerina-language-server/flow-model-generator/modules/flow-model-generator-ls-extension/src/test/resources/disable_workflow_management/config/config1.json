@@ -1,0 +1,21 @@
+{
+  "projectPath": "proj1",
+  "description": "Project with the REST import (as _): the import is removed",
+  "output": {
+    "proj1/main.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 1,
+            "character": 0
+          },
+          "end": {
+            "line": 1,
+            "character": 47
+          }
+        },
+        "newText": ""
+      }
+    ]
+  }
+}

@@ -22,9 +22,13 @@ import {
     addListenerSourceCode,
     addResourceSourceCode,
     addServiceSourceCode,
+    ConnectorUpgradeAdviceRequest,
     createServiceAndListener,
     exportOASFile,
     ExportOASRequest,
+    getConnectorUpgradeAdvice,
+    PullConnectorUpgradeRequest,
+    pullConnectorUpgrade,
     FunctionFromSourceRequest,
     FunctionModelRequest,
     FunctionSourceCodeRequest,
@@ -86,6 +90,8 @@ export function registerServiceDesignerRpcHandlers(messenger: Messenger) {
     messenger.onRequest(addFunctionSourceCode, (args: FunctionSourceCodeRequest) => rpcManger.addFunctionSourceCode(args));
     messenger.onRequest(updateResourceSourceCode, (args: FunctionSourceCodeRequest) => rpcManger.updateResourceSourceCode(args));
     messenger.onRequest(getServiceInitModel, (args: ServiceModelRequest) => rpcManger.getServiceInitModel(args));
+    messenger.onRequest(getConnectorUpgradeAdvice, (args: ConnectorUpgradeAdviceRequest) => rpcManger.getConnectorUpgradeAdvice(args));
+    messenger.onRequest(pullConnectorUpgrade, (args: PullConnectorUpgradeRequest) => rpcManger.pullConnectorUpgrade(args));
     messenger.onRequest(createServiceAndListener, (args: ServiceInitSourceRequest) => rpcManger.createServiceAndListener(args));
     messenger.onRequest(generateExamplePayloadJson, (args: PayloadContext) => rpcManger.generateExamplePayloadJson(args));
     messenger.onRequest(getOASSpec, (args: GetOASSpecRequest) => rpcManger.getOASSpec(args));

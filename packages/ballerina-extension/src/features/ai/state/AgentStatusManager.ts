@@ -49,6 +49,11 @@ class AgentStatusManager {
     private resetTimer: NodeJS.Timeout | undefined;
     /** Panel on screen right now, as opposed to `status.aiPanelOpen`, which is merely alive. */
     private aiPanelVisible = false;
+    /** An in-view surface (the overview composer) is already reporting the status inline. */
+    private inlineStatusVisible = false;
+    // retainContextWhenHidden keeps the composer mounted (and its inline flag set) while the
+    // visualizer tab is buried, so the flag only counts while the panel is actually on screen.
+    private visualizerVisible = false;
 
     init(context: vscode.ExtensionContext): void {
         if (this.statusBarItem) {
@@ -132,11 +137,29 @@ class AgentStatusManager {
         this.broadcast();
     }
 
+    /** The overview composer sets this while mounted so the status bar doesn't double-report. */
+    setInlineStatusVisible(visible: boolean): void {
+        if (this.inlineStatusVisible === visible) {
+            return;
+        }
+        this.inlineStatusVisible = visible;
+        this.render();
+    }
+
+    setVisualizerVisible(visible: boolean): void {
+        if (this.visualizerVisible === visible) {
+            return;
+        }
+        this.visualizerVisible = visible;
+        this.render();
+    }
+
     setAiPanelVisible(visible: boolean): void {
         if (this.aiPanelVisible === visible) {
             return;
         }
         this.aiPanelVisible = visible;
+        vscode.commands.executeCommand('setContext', 'ballerina.aiPanelVisible', visible);
         // Either direction means the panel has been on screen: becoming visible
         // shows the outcome, and going hidden means it was visible until now.
         const acknowledged = this.acknowledgeTerminalState();
@@ -188,9 +211,10 @@ class AgentStatusManager {
             return;
         }
         // Only worth a slot in the status bar when there is live status to report
-        // and no panel on screen already reporting it. A panel that is open but
-        // hidden behind another tab still needs the status bar.
-        if (this.status.state === 'idle' || this.aiPanelVisible) {
+        // and nothing on screen already reporting it — a visible panel, or the
+        // overview composer's inline status. A panel open but hidden behind another
+        // tab still needs the status bar.
+        if (this.status.state === 'idle' || this.aiPanelVisible || (this.inlineStatusVisible && this.visualizerVisible)) {
             this.statusBarItem.hide();
             return;
         }

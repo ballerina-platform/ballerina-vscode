@@ -30,6 +30,13 @@ export const TOKEN_REFRESH_ONLY_SUPPORTED_FOR_BI_INTEL = "Token refresh is only 
 export const AUTH_CREDENTIALS_SECRET_KEY = 'CopilotAuthCredentials';
 export const NO_AUTH_CREDENTIALS_FOUND = "No authentication credentials found.";
 
+export const isNotLoggedInError = (error: unknown): boolean => {
+    const message = (error as Error)?.message;
+    return message === TOKEN_NOT_AVAILABLE_ERROR_MESSAGE
+        || message === TOKEN_REFRESH_ONLY_SUPPORTED_FOR_BI_INTEL
+        || message === NO_AUTH_CREDENTIALS_FOUND;
+};
+
 /**
  * Get the WSO2 Platform extension API, activating it if needed.
  * Returns undefined if the extension is not installed.

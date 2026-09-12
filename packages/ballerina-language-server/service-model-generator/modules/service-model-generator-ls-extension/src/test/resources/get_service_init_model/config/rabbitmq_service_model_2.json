@@ -6,14 +6,15 @@
   "moduleName": "rabbitmq",
   "response": {
     "serviceInitModel": {
+      "id": "rabbitmq",
       "displayName": "RabbitMQ Event Integration",
       "description": "Create a service to handle messages from a RabbitMQ queue",
       "orgName": "ballerinax",
       "packageName": "rabbitmq",
       "moduleName": "rabbitmq",
-      "version": "3.6.0",
+      "version": "3.6.1",
       "type": "rabbitmq",
-      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_rabbitmq_3.6.0.png",
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_rabbitmq_3.6.1.png",
       "properties": {
         "listener": {
           "metadata": {
@@ -30,6 +31,7 @@
                 "label": "Create new",
                 "description": "Create a new RabbitMQ listener"
               },
+              "codedata": {},
               "properties": {
                 "listenerConfig": {
                   "metadata": {
@@ -154,6 +156,7 @@
                 "label": "Use existing",
                 "description": "Select an existing RabbitMQ listener"
               },
+              "codedata": {},
               "properties": {
                 "listenerConfig": {
                   "metadata": {

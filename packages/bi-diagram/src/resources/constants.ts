@@ -54,6 +54,8 @@ export const NODE_HEIGHT = 50;
 export const LABEL_HEIGHT = 20;
 export const LABEL_WIDTH = 180;
 
+export const NODE_DESCRIPTION_SINGLE_LINE_CHARS = 20;
+
 export const NODE_BORDER_WIDTH = 1.8;
 export const HIGHLIGHT_NODE_BORDER_WIDTH = 2.4;
 // export const HIGHLIGHT_NODE_BORDER_COLOR = "var(--vscode-focusBorder)";
@@ -163,9 +165,9 @@ export const LAST_NODE = "lastNode";
 // agent node
 export const AGENT_NODE_TOOL_GAP = 5;
 export const AGENT_NODE_TOOL_SECTION_GAP = 120;
-export const AGENT_CALL_TOOL_SECTION_GAP = 80;
 export const AGENT_NODE_USAGE_GAP = 10;
-export const AGENT_CALL_AGENT_ROW_HEIGHT = 38;
+export const AGENT_CALL_REFERENCE_HEIGHT = 58;
+export const AGENT_BOX_BOTTOM_AFFORDANCE_GAP = 20;
 
 // prompt node
 export const PROMPT_NODE_WIDTH = 350;

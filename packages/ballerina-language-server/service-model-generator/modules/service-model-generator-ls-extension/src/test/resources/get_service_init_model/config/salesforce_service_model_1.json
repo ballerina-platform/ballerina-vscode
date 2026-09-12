@@ -6,14 +6,15 @@
   "moduleName": "salesforce",
   "response": {
     "serviceInitModel": {
+      "id": "salesforce",
       "displayName": "Salesforce Events",
       "description": "Listen for Salesforce Change Data Capture and Platform Events over the Streaming API (CometD)",
       "orgName": "ballerinax",
       "packageName": "salesforce",
       "moduleName": "salesforce",
-      "version": "8.7.0",
+      "version": "8.7.2",
       "type": "salesforce",
-      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_salesforce_8.7.0.png",
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_salesforce_8.7.2.png",
       "properties": {
         "listener": {
           "metadata": {
@@ -30,13 +31,13 @@
                 "label": "Create New Listener",
                 "description": "Define a new Salesforce listener in the project."
               },
+              "codedata": {},
               "properties": {
                 "listenerConfig": {
                   "metadata": {
                     "label": "Listener Configurations",
                     "description": "Configure the Salesforce Streaming API (CometD) listener."
                   },
-                  "value": "",
                   "properties": {
                     "listenerVarName": {
                       "metadata": {
@@ -317,6 +318,7 @@
                 "label": "Use existing (none available)",
                 "description": "No compatible listener of this type is present in the project."
               },
+              "codedata": {},
               "properties": {
                 "existingListener": {
                   "metadata": {
@@ -403,18 +405,23 @@
         "basePath": {
           "metadata": {
             "label": "EventChannel",
-            "description": "The Salesforce channel path to subscribe to."
+            "description": "The Salesforce channel path to subscribe to. Use a CDC channel (e.g. /data/ChangeEvents) for a CDC service or a platform event channel (e.g. /event/MyEvent__e) for a Platform Events service."
           },
           "codedata": {
             "type": "SERVICE_BASE_PATH"
           },
           "placeholder": "/data/ChangeEvents",
-          "value": "/data/ChangeEvents",
+          "value": "",
           "types": [
             {
               "fieldType": "SERVICE_PATH",
               "ballerinaType": "string",
               "selected": true
+            }
+          ],
+          "validations": [
+            {
+              "rule": "common.validate.required"
             }
           ],
           "enabled": true,

@@ -643,7 +643,7 @@ public class Utils {
                 .append(Constants.OPEN_CURLY_BRACE)
                 .append(Constants.LINE_SEPARATOR)
                 .append(Constants.TAB_SEPARATOR)
-                .append("return ai:loadConversationThreads(\"" + evalSetFilePath + "\");")
+                .append("return ai:loadConversationThreads(\"" + evalSetFilePath.replace('\\', '/') + "\");")
                 .append(Constants.LINE_SEPARATOR)
                 .append(Constants.CLOSE_CURLY_BRACE);
         return builder.toString();

@@ -417,7 +417,7 @@ public class ConfigEditorV2Service implements ExtendedLanguageServerService {
             String orgName = importParts[0];
             String moduleName = importParts[1].split(":")[0];
             if (!importExists(rootNode, orgName, moduleName)) {
-                imports.add(String.format(IMPORT_STMT_TEMPLATE, orgName, moduleName));
+                imports.add(String.format(IMPORT_STMT_TEMPLATE, orgName, CommonUtils.escapeModuleName(moduleName)));
             }
         });
 

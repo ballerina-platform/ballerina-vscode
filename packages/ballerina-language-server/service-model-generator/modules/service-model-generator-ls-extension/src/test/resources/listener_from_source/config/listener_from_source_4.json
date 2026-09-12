@@ -17,10 +17,10 @@
       "description": "Gets invoked during module initialization to initialize the listener.\n",
       "moduleName": "http",
       "orgName": "ballerina",
-      "version": "2.16.6",
+      "version": "2.17.1",
       "packageName": "http",
       "listenerProtocol": "http",
-      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.6.png",
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.17.1.png",
       "properties": {
         "variableNameKey": {
           "metadata": {
@@ -115,7 +115,7 @@
               "typeMembers": [
                 {
                   "type": "ServerSocketConfig",
-                  "packageInfo": "ballerina:http:2.16.6",
+                  "packageInfo": "ballerina:http:2.17.1",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": true
@@ -208,7 +208,7 @@
               "typeMembers": [
                 {
                   "type": "ListenerHttp1Settings",
-                  "packageInfo": "ballerina:http:2.16.6",
+                  "packageInfo": "ballerina:http:2.17.1",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -245,7 +245,7 @@
               "typeMembers": [
                 {
                   "type": "ListenerSecureSocket",
-                  "packageInfo": "ballerina:http:2.16.6",
+                  "packageInfo": "ballerina:http:2.17.1",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -281,16 +281,16 @@
               "ballerinaType": "http:HttpVersion",
               "options": [
                 {
-                  "label": "2.0",
-                  "value": "\"2.0\""
+                  "label": "HTTP_1_0",
+                  "value": "\"1.0\""
                 },
                 {
-                  "label": "1.1",
+                  "label": "HTTP_1_1",
                   "value": "\"1.1\""
                 },
                 {
-                  "label": "1.0",
-                  "value": "\"1.0\""
+                  "label": "HTTP_2_0",
+                  "value": "\"2.0\""
                 }
               ],
               "selected": true
@@ -352,7 +352,7 @@
               "typeMembers": [
                 {
                   "type": "RequestLimitConfigs",
-                  "packageInfo": "ballerina:http:2.16.6",
+                  "packageInfo": "ballerina:http:2.17.1",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false

@@ -84,7 +84,7 @@ const handleComponentPushToDevant = async () => {
 
         if (services) {
             services.find((svc) => {
-                const scope = findScope(svc?.kind, svc?.moduleName);
+                const scope = findScope(svc?.triggerKind ?? svc?.kind, svc?.moduleName);
                 if (scope) {
                     scopeSet.add(scope);
                 }

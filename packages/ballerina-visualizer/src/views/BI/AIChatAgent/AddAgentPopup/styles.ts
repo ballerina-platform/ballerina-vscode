@@ -185,3 +185,13 @@ export const AgentsGrid = styled.div`
     gap: 12px;
     margin-top: 8px;
 `;
+
+export const AgentsLoadingCard = styled.div`
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 64px;
+    padding: 12px;
+    border-radius: 4px;
+    border: 1px dashed ${ThemeColors.OUTLINE_VARIANT};
+`;

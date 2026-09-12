@@ -104,7 +104,9 @@ public class TriggerSearchUtilTest {
         Assert.assertEquals(mqtt.orgName(), "ballerinax");
         Assert.assertEquals(mqtt.packageName(), "mqtt");
         Assert.assertEquals(mqtt.type(), "event", "results render under Event Integration");
-        Assert.assertEquals(mqtt.icon(), "mqtt-icon");
+        Assert.assertEquals(mqtt.triggerKind(), "event", "search responses expose the canonical category");
+        Assert.assertEquals(mqtt.icon(), "mqtt-icon",
+                "the trigger list always uses the plain Central icon URL, never bundled SVG");
         Assert.assertEquals(mqtt.listenerProtocol(), "mqtt");
     }
 

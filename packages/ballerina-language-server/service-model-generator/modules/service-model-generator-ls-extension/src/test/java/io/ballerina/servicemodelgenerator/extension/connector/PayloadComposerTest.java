@@ -36,8 +36,10 @@ public class PayloadComposerTest {
 
     private final Gson gson = new Gson();
 
-    private TriggerUISchemaModel model(String moduleName) {
-        return TriggerModelReader.getInstance().getBundledTriggerModel(moduleName).orElseThrow();
+    private TriggerUISchemaModel model(String key) {
+        GeneratedTriggerCorpus.Entry entry = GeneratedTriggerCorpus.get(key);
+        return TriggerModelReader.getInstance()
+                .getGeneratedTriggerModel(entry.org(), entry.module(), entry.version()).orElseThrow();
     }
 
     private TriggerUISchemaModel.FunctionModel schemaFunction(TriggerUISchemaModel model, String name) {

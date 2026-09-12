@@ -20,7 +20,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import styled from "@emotion/styled";
 import { css, keyframes } from "@emotion/react";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { AgentRunStatus, AgentRunState, ProductMode } from "@wso2/ballerina-core";
+import { AgentRunStatus, AgentRunState, ProductMode, SHARED_COMMANDS } from "@wso2/ballerina-core";
 import { Icon } from "@wso2/ui-toolkit";
 import { ShaderOrb } from "./ShaderOrb";
 import { useAssistantName, useProductMode, useShortAssistantName } from "../../hooks/useProductMode";
@@ -35,6 +35,7 @@ import {
     ACCENT_FRAME,
     AGENT_BUILDER_ORB_COLORS,
     SpinArc as AgentSpinArc,
+    FALLBACK_ORB_THEME,
     ORB_ENERGY,
     ORB_SIZE,
     Sphere,
@@ -44,6 +45,9 @@ import {
     subscribeAgentRunStatus,
     subscribeOrbSuppressed,
     subscribeMiniChatOpen,
+    syncOrbThemeFromSetting,
+    useAmbientCopilotPresence,
+    useOrbTheme,
 } from "./shared";
 import { createMiniChatPrompt, MiniChatPrompt } from "./promptHandoff";
 
@@ -62,6 +66,8 @@ import { createMiniChatPrompt, MiniChatPrompt } from "./promptHandoff";
 
 const DRAG_THRESHOLD = 5;
 const SNAP_ANIMATION_MS = 250;
+const WIDGET_GAP = 10;
+const INVITE_FADE_MS = 160;
 
 const ANCHOR_CSS: Record<Anchor, React.CSSProperties> = {
     "top-left": { top: EDGE_MARGIN, left: EDGE_MARGIN },
@@ -135,7 +141,7 @@ const Wrapper = styled.div`
     z-index: 1800;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: ${WIDGET_GAP}px;
     pointer-events: none;
 `;
 
@@ -158,8 +164,25 @@ const LabelPill = styled.div`
     cursor: pointer;
 `;
 
-const InviteBox = styled.div`
-    pointer-events: auto;
+interface InviteVisibility {
+    visible: boolean;
+}
+
+/**
+ * Carries the box's hit area across the gap the wrapper leaves untouchable, so a pointer
+ * travelling from the orb to the input never counts as having left the widget. The negative
+ * margin hands the padding back to the layout, leaving the box where it was. Only while the
+ * box is showing: hidden, it must neither catch a hover nor swallow a click meant for the
+ * diagram beneath.
+ */
+const InviteHitBridge = styled.div<InviteVisibility>`
+    display: flex;
+    padding: ${WIDGET_GAP}px;
+    margin: -${WIDGET_GAP}px;
+    pointer-events: ${(props: InviteVisibility) => (props.visible ? "auto" : "none")};
+`;
+
+const InviteBox = styled.div<InviteVisibility>`
     display: flex;
     align-items: center;
     gap: 4px;
@@ -168,7 +191,32 @@ const InviteBox = styled.div`
     border-radius: 14px;
     padding: 5px 6px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-    animation: ${fadeIn} 0.25s ease-out;
+    opacity: ${(props: InviteVisibility) => (props.visible ? 1 : 0)};
+    transform: translateX(${(props: InviteVisibility) => (props.visible ? "0" : "6px")});
+    visibility: ${(props: InviteVisibility) => (props.visible ? "visible" : "hidden")};
+    /* visibility waits for the fade-out so the box leaves the tab order only once it is gone. */
+    transition:
+        opacity ${INVITE_FADE_MS}ms ease,
+        transform ${INVITE_FADE_MS}ms ease,
+        visibility 0s linear ${(props: InviteVisibility) => (props.visible ? 0 : INVITE_FADE_MS)}ms;
+    @media (prefers-reduced-motion: reduce) {
+        transition: none;
+    }
+`;
+
+const InviteClear = styled.button`
+    display: flex;
+    align-items: center;
+    background: transparent;
+    border: none;
+    color: var(--vscode-descriptionForeground);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    &:hover {
+        color: var(--vscode-foreground);
+        background: var(--vscode-toolbar-hoverBackground);
+    }
 `;
 
 const InviteInput = styled.input`
@@ -186,21 +234,6 @@ const InviteInput = styled.input`
     }
     &::placeholder {
         color: var(--vscode-input-placeholderForeground);
-    }
-`;
-
-const InviteDismiss = styled.button`
-    background: transparent;
-    border: none;
-    color: var(--vscode-descriptionForeground);
-    cursor: pointer;
-    font-size: 13px;
-    line-height: 1;
-    padding: 4px 5px;
-    border-radius: 4px;
-    &:hover {
-        color: var(--vscode-foreground);
-        background: var(--vscode-toolbar-hoverBackground);
     }
 `;
 
@@ -300,6 +333,7 @@ const SpinArc = styled.div`
         display: none;
     }
 `;
+
 export function AgentStatusOrb() {
     const productMode = useProductMode();
     const assistantName = useAssistantName();
@@ -309,6 +343,8 @@ export function AgentStatusOrb() {
     const [status, setStatus] = useState<AgentRunStatus | null>(null);
     const statusRef = useRef<AgentRunStatus | null>(null);
     const [hovered, setHovered] = useState(false);
+    /** Tab-to-orb has no hover, so this is what lets the keyboard reach the invite. */
+    const [orbFocused, setOrbFocused] = useState(false);
     const [anchor, setAnchor] = useState<Anchor>(loadAnchor);
     /** Orb top-left in px while dragging/snapping; null when docked at an anchor. */
     const [dragPos, setDragPos] = useState<{ x: number; y: number } | null>(null);
@@ -316,7 +352,7 @@ export function AgentStatusOrb() {
     const dragStateRef = useRef<{ startX: number; startY: number; wasDrag: boolean } | null>(null);
     const snapTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
     const [inviteText, setInviteText] = useState("");
-    const [inviteDismissed, setInviteDismissed] = useState(false);
+    const [inviteFocused, setInviteFocused] = useState(false);
     /** The current view opts out of the floating orb. */
     const [orbSuppressed, setOrbSuppressed] = useState(false);
     /** Mini chat overlay toggled by clicking the orb. */
@@ -333,6 +369,7 @@ export function AgentStatusOrb() {
         if (!rpcClient) {
             return;
         }
+        syncOrbThemeFromSetting(rpcClient);
         return subscribeAgentRunStatus(rpcClient, setStatus);
     }, [rpcClient]);
 
@@ -368,12 +405,45 @@ export function AgentStatusOrb() {
         if (orbHidden) {
             setMiniOpen(false);
             miniPromptRef.current = undefined;
+            setHovered(false);
+            setOrbFocused(false);
         }
     }, [orbHidden]);
 
     // Resolve orb colors before any early return so the hook order stays stable
     // across renders (status is null while the orb is hidden).
     const themeColors = useOrbColors(status?.state ?? "idle");
+    const requestedTheme = useOrbTheme();
+
+    useAmbientCopilotPresence(!orbHidden);
+
+    const dragging = dragPos !== null && !snapping;
+    // Active states keep the pill visible the whole time. Idle keeps the invitation input
+    // in the tree and only ever fades it, so the transition always has a start value and a
+    // focused input is never pulled out from under the keyboard. Hover or keyboard focus on
+    // the orb brings it in; focus in the input or an unsent draft holds it while the pointer
+    // wanders. The mini chat replaces it, and it stays hidden mid-drag and mid-snap: `anchor`
+    // isn't committed until the snap timer fires, so showing it earlier would open the mini
+    // chat at the stale anchor.
+    const inviteHosted = !orbHidden && status?.state === "idle";
+    const inviteVisible =
+        inviteHosted &&
+        !dragging &&
+        !snapping &&
+        !miniOpen &&
+        (hovered || orbFocused || inviteFocused || inviteText.length > 0);
+
+    // A draft left behind when the orb hides, a run starts or the mini chat takes over would
+    // hold the box open the moment it came back with the pointer nowhere near it. In the first
+    // two cases the input also unmounts without ever blurring.
+    useEffect(() => {
+        if (!inviteHosted || miniOpen) {
+            setInviteText("");
+        }
+        if (!inviteHosted) {
+            setInviteFocused(false);
+        }
+    }, [inviteHosted, miniOpen]);
 
     if (orbHidden) {
         return null;
@@ -381,34 +451,28 @@ export function AgentStatusOrb() {
 
     const state = status.state;
     const colors = agentBuilder ? AGENT_BUILDER_ORB_COLORS[state] : themeColors;
-    const cssSphere = agentBuilder || webglFailed;
+    // Agent Builder always renders the CSS sphere; Integrator follows the user's orb-theme
+    // setting, falling back to the CSS sphere when WebGL can't render the animated one.
+    const resolvedTheme = requestedTheme === "animated" && webglFailed ? FALLBACK_ORB_THEME : requestedTheme;
+    const cssSphere = agentBuilder || resolvedTheme === "simple";
     const sphereHighlight = !agentBuilder
         ? undefined
         : state === "idle"
             ? ACCENT_CORE
             : `color-mix(in srgb, ${colors[0]} 70%, transparent)`;
     const label = state === "idle" ? `Chat with ${assistantName}` : activeStateLabel(status, productMode);
-    const dragging = dragPos !== null && !snapping;
-    // Active states keep the pill visible the whole time. Idle shows the
-    // invitation input; dismissing only collapses it into the orb — hovering
-    // the orb expands it again, so it is never more than one hover away.
-    // While the mini chat is open it replaces both.
-    // Also gate on `snapping`: during the snap-to-anchor animation `dragging` is
-    // intentionally false (so the CSS transition runs), but `anchor` isn't committed
-    // until the snap timer fires — showing the invite/label meanwhile would open the
-    // mini chat at the stale anchor. Keep them hidden until the orb settles.
-    const showInvite = state === "idle" && !dragging && !snapping && !miniOpen && (!inviteDismissed || hovered);
-    const showLabel = !dragging && !snapping && !showInvite && state !== "idle" && !miniOpen;
+    const showLabel = !dragging && !snapping && state !== "idle" && !miniOpen;
 
     // Typing into the invite starts the conversation in the mini chat — every
     // orb interaction stays in the ambient surface; the full panel is reached
     // via the mini's maximize button.
-    const submitInvite = () => {
+    const submitInvite = (input: HTMLInputElement) => {
         const text = inviteText.trim();
         if (text) {
             miniPromptRef.current = createMiniChatPrompt(text, { autoSubmit: true });
         }
         setInviteText("");
+        input.blur();
         setMiniChatKey((key) => key + 1);
         setMiniOpen(true);
     };
@@ -465,14 +529,23 @@ export function AgentStatusOrb() {
         }, SNAP_ANIMATION_MS);
     };
 
-    const handleClick = () => {
+    const handleClick = (event: React.MouseEvent) => {
         // Suppress the click that follows a drag; dragStateRef is already
         // cleared on pointerup, so only a stale wasDrag matters here.
-        // Clicking toggles the mini chat overlay; the full panel is one more
-        // click away (the mini's maximize button).
-        if (dragPos === null) {
-            setMiniOpen((open) => !open);
+        // Single click toggles the mini chat; double click opens the full panel,
+        // so let the second click of a double fall through to onDoubleClick.
+        if (dragPos !== null || event.detail >= 2) {
+            return;
         }
+        setMiniOpen((open) => !open);
+    };
+
+    const handleDoubleClick = () => {
+        if (dragPos !== null || !rpcClient) {
+            return;
+        }
+        setMiniOpen(false);
+        rpcClient.getCommonRpcClient().executeCommand({ commands: [SHARED_COMMANDS.OPEN_AI_PANEL] });
     };
 
     // Keep the label pill on-screen and horizontally centered orbs balanced:
@@ -514,34 +587,53 @@ export function AgentStatusOrb() {
                 onMouseEnter={() => setHovered(true)}
                 onMouseLeave={() => setHovered(false)}
             >
-                {showInvite && (
-                    <InviteBox>
-                        <InviteInput
-                            value={inviteText}
-                            onChange={(event) => setInviteText(event.target.value)}
-                            onKeyDown={(event) => {
-                                if (event.key === "Enter") {
-                                    submitInvite();
-                                }
-                            }}
-                            placeholder="How can I help?"
-                            aria-label={`Message ${assistantName}`}
-                        />
-                        <InviteDismiss title="Hide" aria-label="Hide the copilot prompt" onClick={() => setInviteDismissed(true)}>
-                            ✕
-                        </InviteDismiss>
-                    </InviteBox>
+                {inviteHosted && (
+                    <InviteHitBridge visible={inviteVisible}>
+                        <InviteBox visible={inviteVisible}>
+                            <InviteInput
+                                value={inviteText}
+                                onChange={(event) => setInviteText(event.target.value)}
+                                onKeyDown={(event) => {
+                                    if (event.key === "Enter") {
+                                        submitInvite(event.currentTarget);
+                                    } else if (event.key === "Escape") {
+                                        setInviteText("");
+                                        event.currentTarget.blur();
+                                    }
+                                }}
+                                onFocus={() => setInviteFocused(true)}
+                                onBlur={() => setInviteFocused(false)}
+                                placeholder="How can I help?"
+                                aria-label={`Message ${assistantName}`}
+                            />
+                            {inviteText.length > 0 && (
+                                <InviteClear
+                                    type="button"
+                                    title="Clear"
+                                    aria-label="Clear the message"
+                                    // Keep focus in the input so clearing never ends the typing.
+                                    onMouseDown={(event) => event.preventDefault()}
+                                    onClick={() => setInviteText("")}
+                                >
+                                    <span className="codicon codicon-close" />
+                                </InviteClear>
+                            )}
+                        </InviteBox>
+                    </InviteHitBridge>
                 )}
                 {showLabel && label && <LabelPill onClick={() => setMiniOpen(true)}>{label}</LabelPill>}
                 <OrbButton
                     state={state}
                     agentBuilder={agentBuilder}
                     onClick={handleClick}
+                    onDoubleClick={handleDoubleClick}
                     onPointerDown={handlePointerDown}
                     onPointerMove={handlePointerMove}
                     onPointerUp={handlePointerUp}
+                    onFocus={() => setOrbFocused(true)}
+                    onBlur={() => setOrbFocused(false)}
                     title={label ? `${assistantName} — ${label}` : assistantName}
-                    aria-label={label ? `${assistantName}: ${label}. Open the ${shortName} mini chat.` : `Open the ${assistantName} mini chat`}
+                    aria-label={label ? `${assistantName}: ${label}. Click to open the mini chat, double-click for the chat panel.` : `Click to open the ${assistantName} mini chat, double-click for the chat panel`}
                 >
                     {(state === "running" || state === "awaiting-input") && <Halo colors={colors} />}
                     <Aura colors={colors} state={state} />

@@ -161,21 +161,27 @@ export default function createTests() {
                 console.log('✓ Created migration output directory');
             }
 
-            // Fill both fields using Form class
+            // Fill the destination fields using Form class. This step now asks for the
+            // PROJECT the migrated integration lands in (name + location) plus the
+            // integration's own name — the same fields as new-project creation.
             const form = new Form(page.page, BI_INTEGRATOR_LABEL, webview);
             await form.fill({
                 values: {
-                    'Integration Name*': {
+                    'Project name*': {
                         type: 'input',
-                        value: `TibcoMigration${testAttempt}`
+                        value: `TibcoMigrationProject${testAttempt}`
                     },
-                    'Select Path': {
+                    'Location': {
                         type: 'file',
                         value: migrationOutputPath
+                    },
+                    'Integration name*': {
+                        type: 'input',
+                        value: `TibcoMigration${testAttempt}`
                     }
                 }
             });
-            console.log('✓ Integration name and project location set');
+            console.log('✓ Project name, location and integration name set');
 
             await page.page.waitForTimeout(1000); // Wait a moment until Create and Open Project button is enabled
 
