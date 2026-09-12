@@ -27,13 +27,27 @@
 import {
     GetFunctionResponse,
     GetFunctionsRequest,
+    MinifiedAnnotation,
+    MinifiedClassTypeDef,
     MinifiedClient,
     MinifiedHandler,
     MinifiedRemoteFunction,
     MinifiedResourceFunction,
     MinifiedService,
+    toSelectedClassNames,
 } from "./function-types";
-import { Client, FixedService, Library, RemoteFunction, ResourceFunction, Service } from "./library-types";
+import {
+    Annotation,
+    Client,
+    ClassTypeDefinition,
+    FixedService,
+    Library,
+    RemoteFunction,
+    ResourceFunction,
+    Service,
+    TypeDefinition,
+} from "./library-types";
+import { isClassTypeDef } from "./class-typedefs";
 
 /** The `type` a client's constructor carries; it is re-attached by `selectClients`, never selected. */
 const TYPE_CONSTRUCTOR = "Constructor";
@@ -52,7 +66,21 @@ export function getClientFunctionCount(clients: MinifiedClient[]): number {
 }
 
 /**
+ * The members a request entry offers the model, across clients and classes.
+ *
+ * Drives the large-library split. Counting clients alone was right while they were the only members sent;
+ * a library whose API lives in classes would otherwise be batched in bulk and risk truncation.
+ */
+export function getSelectableMemberCount(lib: GetFunctionsRequest): number {
+    const classMembers = (lib.classes ?? []).reduce((count, cls) => count + cls.functions.length, 0);
+    return getClientFunctionCount(lib.clients) + classMembers;
+}
+
+/**
  * Whether a request entry gives the selection model no choice to make.
+ *
+ * Classes are deliberately not counted: a class-only library passes through with all of them kept, rather
+ * than being sent to a model that could drop it outright with no restore guard to undo that.
  *
  * Three things must all be absent, and the third is the one that reads oddly. A library with no client
  * functions and no module-level functions has nothing *functional* to select — every trigger package is
@@ -297,7 +325,79 @@ export function toSelectionRequest(lib: Library, includeFunctionDescriptions: bo
         clients: toRequestClients(lib.clients),
         functions: toRequestFunctions(lib.functions, includeFunctionDescriptions),
         services: toServiceRequestEntries(lib.services),
+        classes: toRequestClasses(lib.typeDefs),
+        annotations: toRequestAnnotations(lib.annotations),
     };
+}
+
+/**
+ * The library's classes as the request states them; absent when it declares none.
+ *
+ * Read out of `typeDefs`, which holds class declarations and object types alike. A class with no members is
+ * skipped — it carries no evidence to match on, and the marker types of that shape (`kafka:Service`) are
+ * not things a reader calls.
+ */
+export function toRequestClasses(typeDefs: TypeDefinition[] | undefined): MinifiedClassTypeDef[] | undefined {
+    if (!typeDefs) {
+        return undefined;
+    }
+    const classes: MinifiedClassTypeDef[] = [];
+    for (const typeDef of typeDefs) {
+        if (!isClassTypeDef(typeDef)) {
+            continue;
+        }
+        const members = toRequestClientFunctions(
+            ((typeDef as ClassTypeDefinition).functions ?? []) as (RemoteFunction | ResourceFunction)[]
+        );
+        if (members.length === 0) {
+            continue;
+        }
+        const entry: MinifiedClassTypeDef = { name: typeDef.name, functions: members };
+        const doc = toRequestDoc(typeDef.description, MAX_SERVICE_DOC_CHARS);
+        if (doc) {
+            entry.description = doc;
+        }
+        classes.push(entry);
+    }
+    return classes.length > 0 ? classes : undefined;
+}
+
+/**
+ * The library's annotations as the request states them; absent when it declares none.
+ *
+ * Evidence only — `toMaximizedLibrariesFromLibJson` keeps them all either way, so there is no response
+ * counterpart. Capped at the service bound: an annotation states its purpose once per library.
+ */
+export function toRequestAnnotations(annotations: Annotation[] | undefined): MinifiedAnnotation[] | undefined {
+    if (!annotations || annotations.length === 0) {
+        return undefined;
+    }
+    return annotations.map((ann) => {
+        const entry: MinifiedAnnotation = { name: ann.name, attachmentPoint: ann.attachmentPoint };
+        const doc = toRequestDoc(ann.description, MAX_SERVICE_DOC_CHARS);
+        if (doc) {
+            entry.description = doc;
+        }
+        return entry;
+    });
+}
+
+/**
+ * The class type definitions the model named, re-resolved against the library's own and returned intact.
+ *
+ * Exists to pull in a class no selected function references — a query answered entirely by `Sheet` members
+ * otherwise has no path to it. An unresolvable name is skipped, never fatal.
+ */
+export function selectClassTypeDefs(
+    typeDefs: TypeDefinition[] | undefined,
+    funcResponse: GetFunctionResponse
+): TypeDefinition[] {
+    const selected = toSelectedClassNames(funcResponse.classes);
+    if (!typeDefs || selected.length === 0) {
+        return [];
+    }
+    const wanted = new Set(selected);
+    return typeDefs.filter((typeDef) => wanted.has(typeDef.name) && isClassTypeDef(typeDef));
 }
 
 /** Each client as the request states it: its name, its doc, and its functions minified. */
@@ -319,20 +419,18 @@ function toRequestClientFunctions(
 ): (MinifiedRemoteFunction | MinifiedResourceFunction)[] {
     const output: (MinifiedRemoteFunction | MinifiedResourceFunction)[] = [];
 
-    for (const item of functions) {
+    // Guarded at every hop: this is also handed a class's `functions`, which is `any[]` off the wire, and
+    // a throw here costs the caller every library rather than one member.
+    for (const item of functions ?? []) {
+        if (!item) {
+            continue;
+        }
+        const parameters = (item.parameters ?? []).map((param) => param?.name).filter(Boolean) as string[];
+        const returnType = item.return?.type?.name;
         if ("accessor" in item) {
-            output.push({
-                accessor: item.accessor,
-                paths: item.paths,
-                parameters: item.parameters.map((param) => param.name),
-                returnType: item.return.type.name,
-            });
-        } else if (item.type !== TYPE_CONSTRUCTOR) {
-            output.push({
-                name: item.name,
-                parameters: item.parameters.map((param) => param.name),
-                returnType: item.return.type.name,
-            });
+            output.push({ accessor: item.accessor, paths: item.paths ?? [], parameters, returnType });
+        } else if (item.type !== TYPE_CONSTRUCTOR && item.name) {
+            output.push({ name: item.name, parameters, returnType });
         }
     }
 

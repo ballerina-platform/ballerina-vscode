@@ -19,6 +19,7 @@
 package io.ballerina.servicemodelgenerator.extension.connector.adapter;
 
 import io.ballerina.modelgenerator.commons.CommonUtils;
+import io.ballerina.modelgenerator.commons.trigger.models.TriggerKind;
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerUISchemaModel;
 import io.ballerina.servicemodelgenerator.extension.model.Codedata;
 import io.ballerina.servicemodelgenerator.extension.model.Function;
@@ -73,6 +74,7 @@ public final class TriggerServiceAdapter {
                 .setId("0")
                 .setName(displayName)
                 .setType(moduleName)
+                .setTriggerKind(effectiveTriggerKind(model))
                 .setDisplayName(displayName)
                 .setModuleName(moduleName)
                 .setOrgName(orgName)
@@ -95,6 +97,10 @@ public final class TriggerServiceAdapter {
         addWireFunctions(service.getSchemaFunctions(), type.schemaFunctions(),
                 orgName, packageName, moduleName, model.version());
         return service;
+    }
+
+    private static String effectiveTriggerKind(TriggerUISchemaModel model) {
+        return TriggerKind.effectiveOrNull(model.triggerKind(), model.kind());
     }
 
     /** Falls back to {@code SINGLE_SELECT_LISTENER} when {@code listenerKind} is absent or unrecognized. */

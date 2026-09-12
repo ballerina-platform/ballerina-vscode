@@ -1,0 +1,305 @@
+{
+    "description": "ballerinax/mysql Client init: host, user, password, database, port, options, connectionPool",
+    "expectedFieldOrder": [
+        "host",
+        "user",
+        "password",
+        "database",
+        "port",
+        "options",
+        "connectionPool",
+        "type",
+        "variable",
+        "scope",
+        "checkError"
+    ],
+    "properties": {
+        "host": {
+            "metadata": {
+                "label": "Host",
+                "description": "MySQL server hostname"
+            },
+            "types": [
+                {
+                    "fieldType": "TEXT",
+                    "ballerinaType": "string",
+                    "selected": false
+                },
+                {
+                    "fieldType": "EXPRESSION",
+                    "ballerinaType": "string",
+                    "selected": false
+                }
+            ],
+            "placeholder": "\"\"",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+                "kind": "DEFAULTABLE",
+                "originalName": "host"
+            },
+            "defaultValue": "\"localhost\""
+        },
+        "user": {
+            "metadata": {
+                "label": "User",
+                "description": "Database username"
+            },
+            "types": [
+                {
+                    "fieldType": "TEXT",
+                    "ballerinaType": "string",
+                    "selected": false
+                },
+                {
+                    "fieldType": "EXPRESSION",
+                    "ballerinaType": "string?",
+                    "selected": false
+                }
+            ],
+            "placeholder": "()",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+                "kind": "DEFAULTABLE",
+                "originalName": "user"
+            },
+            "defaultValue": "\"root\""
+        },
+        "password": {
+            "metadata": {
+                "label": "Password",
+                "description": "Database password (optional)"
+            },
+            "types": [
+                {
+                    "fieldType": "TEXT",
+                    "ballerinaType": "string",
+                    "selected": false
+                },
+                {
+                    "fieldType": "EXPRESSION",
+                    "ballerinaType": "string?",
+                    "selected": false
+                }
+            ],
+            "placeholder": "()",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+                "kind": "DEFAULTABLE",
+                "originalName": "password"
+            },
+            "defaultValue": "()"
+        },
+        "database": {
+            "metadata": {
+                "label": "Database",
+                "description": "Database name to connect to (optional)"
+            },
+            "types": [
+                {
+                    "fieldType": "TEXT",
+                    "ballerinaType": "string",
+                    "selected": false
+                },
+                {
+                    "fieldType": "EXPRESSION",
+                    "ballerinaType": "string?",
+                    "selected": false
+                }
+            ],
+            "placeholder": "()",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+                "kind": "DEFAULTABLE",
+                "originalName": "database"
+            },
+            "defaultValue": "()"
+        },
+        "port": {
+            "metadata": {
+                "label": "Port",
+                "description": "MySQL server port"
+            },
+            "types": [
+                {
+                    "fieldType": "NUMBER",
+                    "ballerinaType": "int",
+                    "selected": false
+                },
+                {
+                    "fieldType": "EXPRESSION",
+                    "ballerinaType": "int",
+                    "selected": false
+                }
+            ],
+            "placeholder": "0",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+                "kind": "DEFAULTABLE",
+                "originalName": "port"
+            },
+            "defaultValue": "3306"
+        },
+        "options": {
+            "metadata": {
+                "label": "Options",
+                "description": "Advanced connection options (optional)"
+            },
+            "types": [
+                {
+                    "fieldType": "RECORD_MAP_EXPRESSION",
+                    "ballerinaType": "mysql:Options",
+                    "typeMembers": [
+                        {
+                            "type": "Options",
+                            "packageInfo": "ballerinax:mysql:1.19.1",
+                            "packageName": "mysql",
+                            "kind": "RECORD_TYPE",
+                            "selected": false
+                        }
+                    ],
+                    "selected": false
+                },
+                {
+                    "fieldType": "EXPRESSION",
+                    "ballerinaType": "mysql:Options?",
+                    "selected": false
+                }
+            ],
+            "placeholder": "()",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+                "kind": "DEFAULTABLE",
+                "originalName": "options"
+            },
+            "defaultValue": "()"
+        },
+        "connectionPool": {
+            "metadata": {
+                "label": "Connection Pool",
+                "description": "Connection pool for connection reuse. If not provided, the global connection pool (shared by all clients) will be used"
+            },
+            "types": [
+                {
+                    "fieldType": "RECORD_MAP_EXPRESSION",
+                    "ballerinaType": "sql:ConnectionPool",
+                    "typeMembers": [
+                        {
+                            "type": "ConnectionPool",
+                            "packageInfo": "ballerina:sql:1.19.0",
+                            "packageName": "sql",
+                            "kind": "RECORD_TYPE",
+                            "selected": false
+                        }
+                    ],
+                    "selected": false
+                },
+                {
+                    "fieldType": "EXPRESSION",
+                    "ballerinaType": "sql:ConnectionPool?",
+                    "selected": false
+                }
+            ],
+            "placeholder": "()",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+                "kind": "DEFAULTABLE",
+                "originalName": "connectionPool"
+            },
+            "defaultValue": "()"
+        },
+        "type": {
+            "metadata": {
+                "label": "Result Type",
+                "description": "Type of the variable"
+            },
+            "types": [
+                {
+                    "fieldType": "TYPE",
+                    "selected": true
+                }
+            ],
+            "value": "mysql:Client",
+            "placeholder": "var",
+            "optional": false,
+            "editable": false,
+            "advanced": false,
+            "hidden": true,
+            "codedata": {},
+            "imports": {
+                "mysql": "ballerinax/mysql"
+            }
+        },
+        "variable": {
+            "metadata": {
+                "label": "Connection Name",
+                "description": "Name of the connection"
+            },
+            "types": [
+                {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                }
+            ],
+            "value": "mysqlClient",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false
+        },
+        "scope": {
+            "metadata": {
+                "label": "Connection Scope",
+                "description": "Scope of the connection, Global or Local"
+            },
+            "types": [
+                {
+                    "fieldType": "ENUM",
+                    "selected": true
+                }
+            ],
+            "value": "Global",
+            "optional": false,
+            "editable": true,
+            "advanced": true,
+            "hidden": true
+        },
+        "checkError": {
+            "metadata": {
+                "label": "Check Error",
+                "description": "Terminate on error"
+            },
+            "types": [
+                {
+                    "fieldType": "FLAG",
+                    "selected": true
+                }
+            ],
+            "value": true,
+            "optional": false,
+            "editable": false,
+            "advanced": true,
+            "hidden": true
+        }
+    }
+}

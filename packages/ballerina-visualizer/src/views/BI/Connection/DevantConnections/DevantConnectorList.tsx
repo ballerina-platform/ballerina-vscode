@@ -34,7 +34,26 @@ import {
     SectionHeader,
     SectionTitle,
 } from "../AddConnectionPopup/styles";
-import { DevantConnectionFlow, getKnownAvailableNode, ProgressWrap } from "./utils";
+import {
+    ConnectionFilterType,
+    DevantConnectionFlow,
+    filterConnectionMarketplaceItems,
+    getKnownAvailableNode,
+    INTERNAL_SERVICES,
+    ProgressWrap,
+} from "./utils";
+
+// Number of connections rendered in the list.
+const CONNECTIONS_PAGE_SIZE = 24;
+
+// Knowledge base services have to be filtered out client-side to keep the visible count stable we over-fetch a fixed multiple of
+// the page size and trim back to CONNECTIONS_PAGE_SIZE.
+//
+// Note: If more than (LIMIT - CONNECTIONS_PAGE_SIZE) of the first fetched items get filtered out, 
+// the list renders FEWER than CONNECTIONS_PAGE_SIZE and there is no "load more" to recover the rest.
+// Also every (debounced) search request also fetches this many items.
+const MARKETPLACE_OVERFETCH_MULTIPLIER = 4;
+const MARKETPLACE_OVERFETCH_LIMIT = CONNECTIONS_PAGE_SIZE * MARKETPLACE_OVERFETCH_MULTIPLIER;
 
 interface DevantConnectorListProps {
     onItemSelect: (
@@ -51,9 +70,7 @@ export function DevantConnectorList(props: DevantConnectorListProps) {
     const { onItemSelect, fileName, target, searchText } = props;
     const { platformExtState, platformRpcClient } = usePlatformExtContext();
     const { rpcClient } = useRpcContext();
-    const [filterType, setFilterType] = useState<"all" | "internal-services" | "third-party-services" | "databases">(
-        "all",
-    );
+    const [filterType, setFilterType] = useState<ConnectionFilterType>("all");
 
     const [debouncedSearchText, setDebouncedSearchText] = useState(searchText || "");
 
@@ -131,7 +148,7 @@ export function DevantConnectorList(props: DevantConnectorListProps) {
     };
 
     const getMarketPlaceParams: GetMarketplaceItemsParams = {
-        limit: 24,
+        limit: MARKETPLACE_OVERFETCH_LIMIT,
         offset: 0,
         networkVisibilityFilter: "all",
         networkVisibilityprojectId: platformExtState?.selectedContext?.project?.id,
@@ -140,7 +157,7 @@ export function DevantConnectorList(props: DevantConnectorListProps) {
         searchContent: false,
     };
 
-    if (filterType === "internal-services") {
+    if (filterType === INTERNAL_SERVICES) {
         getMarketPlaceParams.isThirdParty = false;
     }
     if (filterType === "third-party-services") {
@@ -159,12 +176,12 @@ export function DevantConnectorList(props: DevantConnectorListProps) {
             filterType !== "databases" && platformExtState.isLoggedIn && !!platformExtState?.selectedContext?.project,
         select: (data) => ({
             ...data,
-            data: data.data.filter((item) => {
-                if (filterType === "internal-services") {
-                    return item.component?.componentId !== platformExtState?.selectedComponent?.metadata?.id;
-                }
-                return true;
-            }),
+            data: filterConnectionMarketplaceItems(
+                data.data,
+                filterType,
+                platformExtState?.selectedComponent?.metadata?.id,
+                CONNECTIONS_PAGE_SIZE,
+            ),
         }),
     });
 
@@ -199,7 +216,7 @@ export function DevantConnectorList(props: DevantConnectorListProps) {
     }
 
     let emptyText = "No resources in WSO2 Cloud";
-    if (filterType === "internal-services") {
+    if (filterType === INTERNAL_SERVICES) {
         emptyText = "No services running";
     } else if (filterType === "third-party-services") {
         emptyText = "No third party services configured";
@@ -222,8 +239,8 @@ export function DevantConnectorList(props: DevantConnectorListProps) {
                         </FilterButton>
                         <FilterButton
                             title="Services running in WSO2 Cloud"
-                            active={filterType === "internal-services"}
-                            onClick={() => setFilterType("internal-services")}
+                            active={filterType === INTERNAL_SERVICES}
+                            onClick={() => setFilterType(INTERNAL_SERVICES)}
                         >
                             Internal Services
                         </FilterButton>

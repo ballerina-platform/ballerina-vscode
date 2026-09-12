@@ -79,6 +79,7 @@ public class Function {
     @JsonAdapter(RepeatableSerializer.class)
     private Repeatable repeatable;
     private Boolean nameEditable;
+    private List<LayoutSection> layout;
 
     public Function(MetaData metadata, List<String> qualifiers, String kind, Value accessor, Value name,
                     Value documentation, List<Parameter> parameters, Map<String, Parameter> schema,
@@ -295,6 +296,15 @@ public class Function {
         this.documentation = description;
     }
 
+    /**
+     * Whether a documentation field was ever set — checked against the raw field rather than
+     * {@link #getDocumentation()}, since that getter auto-vivifies an empty {@link Value} on first
+     * access and would otherwise make every function report "has documentation".
+     */
+    public boolean hasDocumentation() {
+        return Objects.nonNull(this.documentation);
+    }
+
     public Value getAccessor() {
         return accessor;
     }
@@ -442,6 +452,14 @@ public class Function {
 
     public void setNameEditable(Boolean nameEditable) {
         this.nameEditable = nameEditable;
+    }
+
+    public List<LayoutSection> getLayout() {
+        return layout;
+    }
+
+    public void setLayout(List<LayoutSection> layout) {
+        this.layout = layout;
     }
 
     public boolean isCanAddParameters() {

@@ -42,8 +42,10 @@ import java.util.List;
  */
 public class TriggerSourceMergerTest {
 
-    private TriggerUISchemaModel model(String moduleName) {
-        return TriggerModelReader.getInstance().getBundledTriggerModel(moduleName).orElseThrow();
+    private TriggerUISchemaModel model(String key) {
+        GeneratedTriggerCorpus.Entry entry = GeneratedTriggerCorpus.get(key);
+        return TriggerModelReader.getInstance()
+                .getGeneratedTriggerModel(entry.org(), entry.module(), entry.version()).orElseThrow();
     }
 
     @Test
@@ -111,7 +113,7 @@ public class TriggerSourceMergerTest {
         // ftp's onFileChange is LEGACY: a service with no handlers yet (or any handlers other than
         // onFileChange) must never offer it as something new to add.
         Service service = TriggerServiceAdapter.toServiceTemplate(
-                TriggerModelReader.getInstance().getBundledTriggerModel("ftp").orElseThrow(),
+                model("ftp"),
                 "Service", "ballerina", "ftp", "ftp");
         TriggerSourceMerger.mergeSource(service, List.of());
 
@@ -122,7 +124,7 @@ public class TriggerSourceMergerTest {
     @Test
     public void testLegacyHandlerStaysHiddenWhenAnotherHandlerIsPresent() throws Exception {
         Service service = TriggerServiceAdapter.toServiceTemplate(
-                TriggerModelReader.getInstance().getBundledTriggerModel("ftp").orElseThrow(),
+                model("ftp"),
                 "Service", "ballerina", "ftp", "ftp");
         TriggerSourceMerger.mergeSource(service, List.of(sourceFunction("onFileCsv", "REMOTE")));
 
@@ -137,7 +139,7 @@ public class TriggerSourceMergerTest {
         // ways of handling file events (matches the ftp compiler plugin's MULTIPLE_CONTENT_METHODS
         // rule, generalised to the whole catalog as requested).
         Service service = TriggerServiceAdapter.toServiceTemplate(
-                TriggerModelReader.getInstance().getBundledTriggerModel("ftp").orElseThrow(),
+                model("ftp"),
                 "Service", "ballerina", "ftp", "ftp");
         TriggerSourceMerger.mergeSource(service, List.of(sourceFunction("onFileChange", "REMOTE")));
 
@@ -174,7 +176,7 @@ public class TriggerSourceMergerTest {
         // `ftp:WatchEvent` (no readonly). Both must reconcile to the same matched, renamed parameter —
         // not fall through to a stray, unmatched "extra" parameter.
         Service service = TriggerServiceAdapter.toServiceTemplate(
-                TriggerModelReader.getInstance().getBundledTriggerModel("ftp").orElseThrow(),
+                model("ftp"),
                 "Service", "ballerina", "ftp", "ftp");
         Parameter plainWatchEvent = new Parameter.Builder()
                 .kind("REQUIRED")

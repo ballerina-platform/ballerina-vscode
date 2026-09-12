@@ -30,11 +30,14 @@ import { Client, GetTypeResponse, GetTypesRequest, GetTypesResponse, getTypesRes
 import { TypeDefinition, AbstractFunction, Type, RecordTypeDefinition, UnionTypeDefinition } from "./library-types";
 import {
     getClientFunctionCount,
+    getSelectableMemberCount,
     hasNothingToSelect,
     selectServices,
+    selectClassTypeDefs,
     toSelectionRequest,
     withRestoredServiceLibraries,
 } from "./library-selection";
+import { collectClassMemberTypeRefs, isClassTypeDef } from "./class-typedefs";
 import { getAnthropicClient, ANTHROPIC_HAIKU } from "../ai-client";
 import { GenerationType } from "./libraries";
 // import { getRequiredTypesFromLibJson } from "../healthcare/healthcare";
@@ -71,10 +74,12 @@ const TYPE_CONSTRUCTOR = 'Constructor';
  * **What overflows is the response, not the request.** A selection reply echoes every kept function — its
  * name, its parameter names and its return type — so it scales with how much the query matches, not with
  * how large the library is. At the previous 8192 a broad query against a large connector ("wire up GitHub
- * issues, PRs, releases and webhooks") could exceed it, and the failure is the worst shape available: the
+ * issues, PRs, releases and webhooks") could exceed it, and the failure was the worst shape available: the
  * JSON is truncated mid-token, `generateObject` rejects it against the schema, the throw unwinds to
- * `LibraryGetTool`'s catch, and the agent is handed `[]` — indistinguishable from a library that matched
- * nothing. It then has no API documentation and a system prompt forbidding it to invent any.
+ * `LibraryGetTool`'s catch, and the agent was handed `[]` — indistinguishable from a library that matched
+ * nothing, with no API documentation and a system prompt forbidding it to invent any. The tool reports a
+ * fetch failure to the model, but a reported failure is still a failure — the cap is what keeps it from
+ * failing at all.
  *
  * Raised rather than removed, and to 16384 rather than to the model's own ceiling, because these are
  * NON-streaming `generateObject` calls: a cap high enough to permit a multi-minute generation trades a
@@ -82,13 +87,13 @@ const TYPE_CONSTRUCTOR = 'Constructor';
  */
 const SELECTION_MAX_OUTPUT_TOKENS = 16384;
 
-export async function selectRequiredFunctions(prompt: string, selectedLibNames: string[], generationType: GenerationType): Promise<{ libraries: Library[], usage: ModelUsage[] }> {
+export async function selectRequiredFunctions(prompt: string, selectedLibNames: string[], generationType: GenerationType, abortSignal?: AbortSignal): Promise<{ libraries: Library[], usage: ModelUsage[] }> {
     const selectedLibs: Library[] = await getMaximizedSelectedLibs(selectedLibNames);
-    const { functionsResponse, usage: functionsUsage } = await getRequiredFunctions(selectedLibNames, prompt, selectedLibs, generationType);
+    const { functionsResponse, usage: functionsUsage } = await getRequiredFunctions(selectedLibNames, prompt, selectedLibs, generationType, abortSignal);
     let typeLibraries: Library[] = [];
     const allUsages: ModelUsage[] = [...functionsUsage];
     if (generationType === GenerationType.HEALTHCARE_GENERATION) {
-        const { types: resp, usage } = await getRequiredTypesFromLibJson(selectedLibNames, prompt, selectedLibs);
+        const { types: resp, usage } = await getRequiredTypesFromLibJson(selectedLibNames, prompt, selectedLibs, abortSignal);
         typeLibraries = toTypesToLibraries(resp, selectedLibs);
         allUsages.push(usage);
     }
@@ -161,7 +166,8 @@ async function getRequiredFunctions(
     libraries: string[],
     prompt: string,
     librariesJson: Library[],
-    generationType: GenerationType
+    generationType: GenerationType,
+    abortSignal?: AbortSignal
 ): Promise<{ functionsResponse: GetFunctionResponse[], usage: ModelUsage[] }> {
     if (librariesJson.length === 0) {
         return { functionsResponse: [], usage: [] };
@@ -183,9 +189,14 @@ async function getRequiredFunctions(
     // restating it; `withRestoredServiceLibraries` removes it for the libraries that do get asked about.
     const passthroughLibs = libraryList.filter(hasNothingToSelect);
     const selectableLibs = libraryList.filter((lib) => !passthroughLibs.includes(lib));
-    const passthroughResp: GetFunctionResponse[] = passthroughLibs.map((lib) => ({ name: lib.name }));
+    // A passthrough library names its own classes: nothing chose to drop them, and a library whose whole
+    // API is classes has no clients or functions for the closure to walk from.
+    const passthroughResp: GetFunctionResponse[] = passthroughLibs.map((lib) => ({
+        name: lib.name,
+        ...(lib.classes && lib.classes.length > 0 ? { classes: lib.classes.map((cls) => cls.name) } : {}),
+    }));
 
-    const largeLibs = selectableLibs.filter((lib) => getClientFunctionCount(lib.clients) >= 100);
+    const largeLibs = selectableLibs.filter((lib) => getSelectableMemberCount(lib) >= 100);
     const smallLibs = selectableLibs.filter((lib) => !largeLibs.includes(lib));
 
     console.log(
@@ -199,12 +210,12 @@ async function getRequiredFunctions(
 
     // Create promises for large libraries (each processed individually)
     const largeLiberiesPromises = largeLibs.map((funcItem) =>
-        getSuggestedFunctions(prompt, [funcItem])
+        getSuggestedFunctions(prompt, [funcItem], abortSignal)
     );
 
     // Create promise for small libraries (processed in bulk)
     const smallLibrariesPromise =
-        smallLibs.length !== 0 ? getSuggestedFunctions(prompt, smallLibs) : Promise.resolve({ libraries: [] as GetFunctionResponse[], usage: { model: ANTHROPIC_HAIKU, inputTokens: 0, outputTokens: 0 } });
+        smallLibs.length !== 0 ? getSuggestedFunctions(prompt, smallLibs, abortSignal) : Promise.resolve({ libraries: [] as GetFunctionResponse[], usage: { model: ANTHROPIC_HAIKU, inputTokens: 0, outputTokens: 0 } });
 
     console.log(
         `[Parallel Execution Start] Starting ${largeLiberiesPromises.length} large library requests + 1 small libraries bulk request`
@@ -249,7 +260,8 @@ async function getRequiredFunctions(
 
 async function getSuggestedFunctions(
     prompt: string,
-    libraryList: GetFunctionsRequest[]
+    libraryList: GetFunctionsRequest[],
+    abortSignal?: AbortSignal
 ): Promise<{ libraries: GetFunctionResponse[], usage: ModelUsage }> {
     const startTime = Date.now();
     const libraryNames = libraryList.map((lib) => lib.name).join(", ");
@@ -267,8 +279,10 @@ CRITICAL RULES:
 2. Your ONLY task is selection - include or exclude items, NEVER modify field values.
 3. Copy all field values EXACTLY as provided - preserve every character including backslashes and special characters.
 4. For resource functions: "accessor" and "paths" are SEPARATE fields - NEVER combine them.
-5. A library is relevant if ANY of its clients, functions, or services match the query. A service matches when its "doc" (what the service is for), its "listenerDoc" (how it is triggered), its name, or ANY ONE of its handlers under "methods", is what the query needs. List each matching service under the library's "services" field, copying its "listener" and "name" verbatim; omit the services that do not match. If a library matches ONLY via its services, still include the library in the output with empty/omitted clients and functions.
-6. "doc", "listenerDoc" and a handler's "doc" are evidence to reason over, never fields to copy: the response carries only "listener" and "name" for a service.`;
+5. A library is relevant if ANY of its clients, functions, services, classes, or annotations match the query. When a library matches via only one of these, still include it, leaving the other fields empty or omitted.
+6. A service matches on its "doc", its "listenerDoc", its name, or ANY ONE of its handlers under "methods". List each match under "services", copying "listener" and "name" verbatim. "doc", "listenerDoc" and a handler's "doc" are evidence to reason over, never fields to copy.
+7. A class - "classes" also carries the library's object types - matches on its name, its "description", or ANY ONE of its methods under "functions". List each match under "classes" as its NAME ONLY, copied verbatim: never as an object, and never narrowed to selected methods.
+8. "annotations" are evidence only and have NO response field. Never emit them.`;
 
     const getLibUserPrompt = `You will be provided with a list of libraries, clients, and their functions, and a user query.
 
@@ -283,16 +297,17 @@ ${JSON.stringify(libraryList)}
 To process the user query and filter the libraries, clients, services and functions, follow these steps:
 
 1. Analyze the user query to understand the specific requirements or needs.
-2. Review the provided libraries, clients, services and functions in Library_Context_JSON.
-3. Select only the libraries, clients, services and functions that directly match the query's needs.
-4. Exclude any irrelevant libraries, clients, services or functions.
-5. If no relevant functions and services are found, return an empty array for libraries.
+2. Review the provided libraries, clients, services, functions, classes and annotations in Library_Context_JSON.
+3. Select only the libraries, clients, services, functions and classes that directly match the query's needs.
+4. Exclude any irrelevant libraries, clients, services, functions or classes.
+5. If no relevant functions, services and classes are found, return an empty array for libraries.
 6. Organize the remaining relevant information.
 
 CRITICAL - Field Preservation:
 - For resource functions: "accessor" contains ONLY the HTTP method (e.g., "post", "get") - do NOT put path info in it.
 - The "paths" field is separate - do NOT merge with accessor.
 - Copy all values exactly - preserve backslashes, dots, and special characters.
+- "classes" is an array of NAME STRINGS, not objects. Do not list a class's methods in the response.
 
 Return the filtered subset with IDENTICAL field values.
 
@@ -310,7 +325,7 @@ Now, based on the provided libraries and the user query, please filter and retur
             temperature: 0,
             messages: messages,
             schema: getFunctionsResponseSchema,
-            abortSignal: new AbortController().signal,
+            abortSignal,
         });
 
         const libList = object as GetFunctionsResponse;
@@ -324,7 +339,7 @@ Now, based on the provided libraries and the user query, please filter and retur
 
         const callUsage: ModelUsage = { model: ANTHROPIC_HAIKU, inputTokens: usage.inputTokens || 0, outputTokens: usage.outputTokens || 0 };
         console.log(
-            `[AI Request Complete] Libraries: [${libraryNames}], Duration: ${duration}s, Selected Functions: ${libList.libraries.reduce(
+            `[AI Request Complete] Libraries: [${libraryNames}], Duration: ${duration}s, Selected Functions: ${filteredLibList.reduce(
                 (total, lib) =>
                     total +
                     (lib.clients?.reduce((clientTotal, client) => clientTotal + client.functions.length, 0) || 0) +
@@ -352,10 +367,8 @@ export function libraryContains(library: string, libraries: string[]): boolean {
 }
 
 export async function getMaximizedSelectedLibs(libNames: string[]): Promise<Library[]> {
-    const result = (await langClient.getCopilotFilteredLibraries({
-        libNames: libNames
-    })) as { libraries: Library[] };
-    const normalizedLibraries: Library[] = result.libraries.map(lib => {
+    const libraries = await fetchFilteredLibraries(libNames);
+    const normalizedLibraries: Library[] = libraries.map(lib => {
             return {
                 name: lib.name,
                 description: lib.description,
@@ -370,6 +383,49 @@ export async function getMaximizedSelectedLibs(libNames: string[]): Promise<Libr
         });
 
     return normalizedLibraries;
+}
+
+/**
+ * Fetches the full catalogs of the given libraries in one request, degrading to one request per library
+ * when the batch is rejected.
+ *
+ * The language server already contains failures per library, so a rejected batch means the request as a
+ * whole failed. Retrying each library on its own lets every library that can still be served reach the
+ * caller instead of one bad entry costing the whole batch, e.g. `[salesforce, aws.sns]` losing both.
+ * Retries run one at a time: each compiles a package, so fanning them out would only contend for the
+ * language server. When no library can be served the original error propagates, so a dead language server
+ * still surfaces as a failure rather than an empty catalog.
+ */
+async function fetchFilteredLibraries(libNames: string[]): Promise<Library[]> {
+    const fetchLibraries = async (names: string[]): Promise<Library[]> => {
+        const result = (await langClient.getCopilotFilteredLibraries({
+            libNames: names
+        })) as { libraries: Library[] };
+        return result.libraries ?? [];
+    };
+
+    try {
+        return await fetchLibraries(libNames);
+    } catch (error) {
+        if (libNames.length <= 1) {
+            throw error;
+        }
+        console.warn(`Batch fetch of libraries [${libNames}] failed: ${error}. Retrying each library individually.`);
+        const libraries: Library[] = [];
+        let anyFetched = false;
+        for (const libName of libNames) {
+            try {
+                libraries.push(...await fetchLibraries([libName]));
+                anyFetched = true;
+            } catch (libError) {
+                console.warn(`Library ${libName} could not be fetched: ${libError}. Skipping.`);
+            }
+        }
+        if (!anyFetched) {
+            throw error;
+        }
+        return libraries;
+    }
 }
 
 export async function toMaximizedLibrariesFromLibJson(
@@ -389,6 +445,9 @@ export async function toMaximizedLibrariesFromLibJson(
         const filteredClients = selectClients(originalLib.clients, funcResponse);
         const filteredFunctions = selectFunctions(originalLib.functions, funcResponse);
         const filteredServices = selectServices(originalLib.services, funcResponse);
+        // Seeded into the closure rather than filtered, so a class no selected function references still
+        // reaches the catalog.
+        const selectedClasses = selectClassTypeDefs(originalLib.typeDefs, funcResponse);
 
         const maximizedLib: Library = {
             name: funcResponse.name,
@@ -399,7 +458,7 @@ export async function toMaximizedLibrariesFromLibJson(
             // The SELECTED services, not the library's whole set: the closure is what pulls a service's
             // parameter, return, annotation and binding types into `typeDefs`, so walking dropped services
             // would keep paying the larger half of their cost after dropping the services themselves.
-            typeDefs: getOwnTypeDefsForLib(filteredClients, filteredFunctions, originalLib.typeDefs, filteredServices ? filteredServices : undefined, originalLib.annotations),
+            typeDefs: getOwnTypeDefsForLib(filteredClients, filteredFunctions, originalLib.typeDefs, filteredServices ? filteredServices : undefined, originalLib.annotations, selectedClasses),
             services: filteredServices,
             annotations: originalLib.annotations ? originalLib.annotations : null,
             instructions: originalLib.instructions ? originalLib.instructions : null,
@@ -422,7 +481,10 @@ function mergeLibrariesWithoutDuplicates(maximizedLibraries: Library[], typeLibr
     for (const typeLib of typeLibraries) {
         const finalLib = findLibraryByName(typeLib.name, finalLibraries);
         if (finalLib) {
-            finalLib.typeDefs.push(...typeLib.typeDefs);
+            // A type selected by both the function closure and the healthcare type selection must not
+            // be declared twice in the rendered catalog.
+            const existingNames = new Set(finalLib.typeDefs.map((def) => def.name));
+            finalLib.typeDefs.push(...typeLib.typeDefs.filter((def) => !existingNames.has(def.name)));
         } else {
             finalLibraries.push(typeLib);
         }
@@ -543,7 +605,8 @@ function getOwnTypeDefsForLib(
     functions: RemoteFunction[] | undefined,
     allTypeDefs: TypeDefinition[],
     services?: Service[],
-    annotations?: Annotation[]
+    annotations?: Annotation[],
+    selectedClasses?: TypeDefinition[]
 ): TypeDefinition[] {
     const allFunctions: AbstractFunction[] = [];
 
@@ -557,7 +620,7 @@ function getOwnTypeDefsForLib(
         allFunctions.push(...functions);
     }
 
-    return getOwnRecordRefs(allFunctions, allTypeDefs, services, annotations);
+    return getOwnRecordRefs(allFunctions, allTypeDefs, services, annotations, selectedClasses);
 }
 
 /**
@@ -659,8 +722,13 @@ function collectServiceTypeRefs(service: Service): Type[] {
     return refs;
 }
 
-function getOwnRecordRefs(functions: AbstractFunction[], allTypeDefs: TypeDefinition[], services?: Service[], annotations?: Annotation[]): TypeDefinition[] {
+function getOwnRecordRefs(functions: AbstractFunction[], allTypeDefs: TypeDefinition[], services?: Service[], annotations?: Annotation[], selectedClasses?: TypeDefinition[]): TypeDefinition[] {
     const ownRecords = new Map<string, TypeDefinition>();
+
+    // Seed with the classes the model named; the class arm below then reaches what their methods name.
+    for (const typeDef of selectedClasses ?? []) {
+        ownRecords.set(typeDef.name, typeDef);
+    }
 
     // Process all functions to find type references
     for (const func of functions) {
@@ -714,6 +782,13 @@ function getOwnRecordRefs(functions: AbstractFunction[], allTypeDefs: TypeDefini
             const unionDef = typeDef as UnionTypeDefinition;
             for (const member of unionDef.members) {
                 const foundTypes = addInternalRecord(member.type, ownRecords, allTypeDefs);
+                typesToProcess.push(...foundTypes);
+            }
+        } else if (isClassTypeDef(typeDef)) {
+            // A class's methods name types the reader needs. Without this arm a class was a leaf, and a
+            // type reachable only through one of its methods reached the prompt undefined.
+            for (const ref of collectClassMemberTypeRefs(typeDef)) {
+                const foundTypes = addInternalRecord(ref, ownRecords, allTypeDefs);
                 typesToProcess.push(...foundTypes);
             }
         }
@@ -890,6 +965,11 @@ function getExternalTypeDefRefs(
             for (const member of unionDef.members) {
                 addExternalRecord(member.type, externalRecords);
             }
+        } else if (isClassTypeDef(typeDef)) {
+            // External counterpart of the internal arm, walking the same refs so the two cannot diverge.
+            for (const ref of collectClassMemberTypeRefs(typeDef)) {
+                addExternalRecord(ref, externalRecords);
+            }
         }
     }
 }
@@ -952,9 +1032,22 @@ async function getExternalRecords(
 
         let library = cachedLibraries.find((lib) => lib.name === libName);
         if (!library) {
-            const result = (await langClient.getCopilotFilteredLibraries({
-                libNames: [libName]
-            })) as { libraries: Library[] };
+            // A failed fetch of ONE external dependency must not cost the caller the libraries it
+            // already has. Without this catch, a rejected request unwound uncaught to LibraryGetTool's
+            // catch-all, which answers the WHOLE tool call with `[]` — `ballerinax/aws.sns` was lost
+            // because its `ConnectionConfig.auth` field links to `ballerinax/aws.auth`, whose fetch the
+            // language server answered with a JSON-RPC error. Skipping degrades to the same shape as a
+            // gracefully-empty response below: the referencing field still renders, with its Special
+            // Agent Note naming the owning module, so only this record's definition is missing.
+            let result: { libraries: Library[] };
+            try {
+                result = (await langClient.getCopilotFilteredLibraries({
+                    libNames: [libName]
+                })) as { libraries: Library[] };
+            } catch (error) {
+                console.warn(`Library ${libName} could not be fetched: ${error}. Skipping.`);
+                continue;
+            }
             if (result.libraries && result.libraries.length > 0) {
                 library = result.libraries[0];
             } else {
@@ -999,7 +1092,8 @@ async function getExternalRecords(
 export async function getRequiredTypesFromLibJson(
     libraries: string[],
     prompt: string,
-    librariesJson: Library[]
+    librariesJson: Library[],
+    abortSignal?: AbortSignal
 ): Promise<{ types: GetTypeResponse[], usage: ModelUsage }> {
     const emptyUsage: ModelUsage = { model: ANTHROPIC_HAIKU, inputTokens: 0, outputTokens: 0 };
     if (librariesJson.length === 0) {
@@ -1066,7 +1160,7 @@ Think step-by-step to choose the required types in order to solve the given ques
             temperature: 0,
             messages: messages,
             schema: getTypesResponseSchema,
-            abortSignal: new AbortController().signal,
+            abortSignal,
         });
 
         const callUsage: ModelUsage = { model: ANTHROPIC_HAIKU, inputTokens: usage.inputTokens || 0, outputTokens: usage.outputTokens || 0 };

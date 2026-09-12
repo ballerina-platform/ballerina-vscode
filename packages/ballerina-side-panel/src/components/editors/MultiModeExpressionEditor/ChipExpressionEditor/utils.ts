@@ -604,3 +604,6 @@ export const processFunctionWithArguments = async (
 
 export const normalizeEditorValue = (v: unknown) =>
     typeof v === 'string' ? v.trim() : v;
+
+export const coerceChipEditorValue = (value: unknown): string | null | undefined =>
+    typeof value === 'string' || value == null ? (value as string | null | undefined) : String(value);

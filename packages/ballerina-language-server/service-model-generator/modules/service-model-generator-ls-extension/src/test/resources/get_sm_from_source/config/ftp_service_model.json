@@ -13,13 +13,14 @@
     "id": "0",
     "name": "FTP Integration",
     "type": "ftp",
+    "triggerKind": "file",
     "displayName": "FTP Integration",
     "moduleName": "ftp",
     "orgName": "ballerina",
-    "version": "2.20.0",
+    "version": "2.20.3",
     "packageName": "ftp",
     "listenerProtocol": "ftp",
-    "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ftp_2.20.0.png",
+    "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ftp_2.20.3.png",
     "properties": {
       "listener": {
         "metadata": {
@@ -378,7 +379,7 @@
           "orgName": "ballerina",
           "packageName": "ftp",
           "moduleName": "ftp",
-          "version": "2.20.0"
+          "version": "2.20.3"
         },
         "properties": {
           "afterFileProcessing": {
@@ -902,7 +903,7 @@
           "orgName": "ballerina",
           "packageName": "ftp",
           "moduleName": "ftp",
-          "version": "2.20.0"
+          "version": "2.20.3"
         },
         "properties": {
           "afterFileProcessing": {
@@ -1417,7 +1418,7 @@
           "orgName": "ballerina",
           "packageName": "ftp",
           "moduleName": "ftp",
-          "version": "2.20.0"
+          "version": "2.20.3"
         },
         "properties": {
           "afterFileProcessing": {
@@ -1742,7 +1743,18 @@
         "addLabel": "Add On Create Handler (CSV)",
         "addDescription": "Invoked when a file is created in the monitored directory.",
         "repeatable": "ONE_EACH_PER_GROUP",
-        "nameEditable": false
+        "nameEditable": false,
+        "layout": [
+          {
+            "fields": [
+              "$variant",
+              "$description",
+              "content",
+              "stream",
+              "*rest"
+            ]
+          }
+        ]
       },
       {
         "metadata": {
@@ -1952,7 +1964,7 @@
           "orgName": "ballerina",
           "packageName": "ftp",
           "moduleName": "ftp",
-          "version": "2.20.0"
+          "version": "2.20.3"
         },
         "properties": {
           "afterFileProcessing": {
@@ -2464,7 +2476,7 @@
           "orgName": "ballerina",
           "packageName": "ftp",
           "moduleName": "ftp",
-          "version": "2.20.0"
+          "version": "2.20.3"
         },
         "properties": {
           "afterFileProcessing": {
@@ -2789,7 +2801,18 @@
         "addLabel": "Add On Create Handler (Raw Bytes)",
         "addDescription": "Invoked when a file is created in the monitored directory.",
         "repeatable": "ONE_EACH_PER_GROUP",
-        "nameEditable": false
+        "nameEditable": false,
+        "layout": [
+          {
+            "fields": [
+              "$variant",
+              "$description",
+              "content",
+              "stream",
+              "*rest"
+            ]
+          }
+        ]
       },
       {
         "metadata": {
@@ -2944,7 +2967,7 @@
           "orgName": "ballerina",
           "packageName": "ftp",
           "moduleName": "ftp",
-          "version": "2.20.0"
+          "version": "2.20.3"
         },
         "properties": {},
         "group": "onFileDelete",
@@ -3105,7 +3128,7 @@
           "orgName": "ballerina",
           "packageName": "ftp",
           "moduleName": "ftp",
-          "version": "2.20.0"
+          "version": "2.20.3"
         },
         "properties": {},
         "group": "onError",

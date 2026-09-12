@@ -25,7 +25,7 @@ import { Dropdown, Typography } from "@wso2/ui-toolkit";
 import { TypeProps } from "../../index";
 import { useStmtEditorHelperPanelStyles } from "../../styles";
 import { ParameterBranch } from "../../index";
-import { getSelectedUnionMember, isRequiredParam } from "../../utils";
+import { getOptionalityLabel, getSelectedUnionMember, isRequiredParam } from "../../utils";
 
 export default function UnionType(props: TypeProps) {
     const { param, depth, onChange } = props;
@@ -86,13 +86,13 @@ export default function UnionType(props: TypeProps) {
                     >
                         {param.name}
                     </Typography>
-                    {(param.optional || param.defaultable) && (
+                    {param.optional && (
                         <Typography
                             className={stmtEditorHelperClasses.suggestionDataType}
                             variant="body3"
                             data-testid="arg-type"
                         >
-                            {"(Optional)"}
+                            {getOptionalityLabel(param).trim()}
                         </Typography>
                     )}
                     <div className={stmtEditorHelperClasses.listDropdownWrapper} data-testid="arg-dropdown">

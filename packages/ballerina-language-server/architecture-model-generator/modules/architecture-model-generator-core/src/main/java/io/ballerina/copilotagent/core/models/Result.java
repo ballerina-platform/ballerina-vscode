@@ -25,8 +25,14 @@ import java.util.List;
  *
  * @param loadDesignDiagrams indicates whether design diagrams should be loaded
  * @param semanticDiffs   list of semantic differences identified
+ * @param compilationError message of a package-compilation failure hit while comparing design
+ *                         models, when the syntax-level diffs themselves are still valid
  *
  * @since 1.5.0
  */
-public record Result(boolean loadDesignDiagrams, List<SemanticDiff> semanticDiffs) {
+public record Result(boolean loadDesignDiagrams, List<SemanticDiff> semanticDiffs, String compilationError) {
+
+    public Result(boolean loadDesignDiagrams, List<SemanticDiff> semanticDiffs) {
+        this(loadDesignDiagrams, semanticDiffs, null);
+    }
 }

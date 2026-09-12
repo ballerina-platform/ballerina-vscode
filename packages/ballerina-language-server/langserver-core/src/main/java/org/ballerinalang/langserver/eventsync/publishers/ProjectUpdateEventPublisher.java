@@ -18,6 +18,7 @@
 package org.ballerinalang.langserver.eventsync.publishers;
 
 import org.ballerinalang.annotation.JavaSPIService;
+import org.ballerinalang.langserver.common.utils.CommonUtil;
 import org.ballerinalang.langserver.commons.DocumentServiceContext;
 import org.ballerinalang.langserver.commons.LanguageServerContext;
 import org.ballerinalang.langserver.commons.client.ExtendedLanguageClient;
@@ -46,6 +47,16 @@ public class ProjectUpdateEventPublisher extends AbstractEventPublisher {
     @Override
     public void publish(ExtendedLanguageClient client, LanguageServerContext serverContext,
                         DocumentServiceContext context) {
+        // The ai:// scheme is the AI copilot's frozen pre-edit baseline — a virtual clone the
+        // user never edits directly. No project-update reaction applies to it: its diagnostics
+        // have no consumer, and the pull-modules / compilation-error prompts would target a
+        // project the user cannot act on. Each subscriber forces a package compilation, so
+        // letting the baseline-seeding didOpen/didChange bursts through costs O(events) full
+        // compiles. Skip the whole fan-out here so every subscriber, present and future, is
+        // covered by a single check.
+        if (CommonUtil.AI_SCHEME.equals(context.workspace().uriScheme())) {
+            return;
+        }
         subscribers.parallelStream()
                 .forEach(subscriber -> subscriber.onEvent(client, context, serverContext));
     }

@@ -34,15 +34,9 @@ public class Codedata {
     private String packageName;
     private String moduleName;
     private String version;
-    // Source-generation hints carried by connector-shipped models (phase2 schema).
     private Integer position;
     private String path;
     private String valueQualifier;
-    // Payload-composition and annotation hints carried by the unified TriggerUISchemaModel (phase6 schema).
-    // Payload: `template` wraps the element type ({{type}}), `defaultType`/`boundType` are the
-    // element candidates, `bindable` marks a user-definable schema, `modifier`/`targetParam` mark a
-    // PAYLOAD_MODIFIER flag. Annotations: `field` names the mapping field, `optional` gates its
-    // emission; a leaf's rendered kind (e.g. string quoting) derives from the node's types[].
     private String template;
     private String defaultType;
     private String boundType;
@@ -50,19 +44,13 @@ public class Codedata {
     private String modifier;
     private String targetParam;
     private String field;
-    // Base identifier used when generating a wrapper type name for an included-record payload
-    // binding (e.g. "KafkaAnydataConsumer" -> generated "KafkaAnydataConsumer1" in types.bal).
     private String typeIdentifier;
     private Boolean optional;
-    // The literal an ENUM_LITERAL choice branch emits (qualified by `valueQualifier`).
     private String value;
-    // Payload: whether the bound parameter's identifier may be renamed in the edit UI (unset
-    // defaults to editable). False for connectors that bind to a fixed, structural identifier.
     private Boolean nameEditable;
-    // LISTENER_VAR_NAME: the node's shipped value is a connector-curated default the creation flow
-    // must keep as the base name (still made project-unique) instead of deriving a protocol-based one.
     private Boolean preserveValue;
     private String castType;
+    private DriverDependency driverDependency;
 
     public Codedata() {
     }
@@ -280,6 +268,14 @@ public class Codedata {
 
     public void setCastType(String castType) {
         this.castType = castType;
+    }
+
+    public DriverDependency getDriverDependency() {
+        return driverDependency;
+    }
+
+    public void setDriverDependency(DriverDependency driverDependency) {
+        this.driverDependency = driverDependency;
     }
 
     public static class Builder {

@@ -133,6 +133,28 @@ export class TranscriptWriter {
     }
 
     /**
+     * Close the current stage transcript as failed, recording the error.
+     *
+     * Deliberately omits the `_Completed:` marker that `isStageCompleted` looks for, so a
+     * resumed run re-attempts this stage instead of skipping it. Whatever partial work the
+     * stage did produce stays in the file and is injected as the resume preamble.
+     */
+    failStage(errorMessage: string): void {
+        if (!this.currentFilePath) { return; }
+        try {
+            fs.appendFileSync(
+                this.currentFilePath,
+                `\n\n---\n\n_Failed: ${new Date().toISOString()}_\n\n`
+                + `> ❌ ${truncate(errorMessage, 500)}\n`,
+                "utf8",
+            );
+        } catch (err) {
+            console.error("[TranscriptWriter] Failed to record stage failure:", err);
+        }
+        this.currentFilePath = undefined;
+    }
+
+    /**
      * Generate a structured summary of the enhancement run so far.
      * This is written to `summary.md` and used as context when resuming.
      */

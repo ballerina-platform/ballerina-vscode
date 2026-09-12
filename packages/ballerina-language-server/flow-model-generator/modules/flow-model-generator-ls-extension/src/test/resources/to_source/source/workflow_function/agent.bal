@@ -28,3 +28,7 @@ isolated function searchClaimDocs(string query) returns string|error {
 }
 
 final ai:McpToolKit claimMcp = check new ("http://localhost:9092/mcp");
+
+# The shared WSO2 default provider, as the LS declares it. Declared after the
+# hand-configured claimModel above so the default-model pick has to skip that one.
+final ai:Wso2ModelProvider defaultClaimModel = check ai:getDefaultModelProvider();

@@ -19,7 +19,7 @@
     "metadata": {
       "label": "post",
       "description": "Create a new resource or submit data to a resource for processing.\n",
-      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.6.png"
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.17.1.png"
     },
     "codedata": {
       "node": "REMOTE_ACTION_CALL",
@@ -179,7 +179,7 @@
         "placeholder": "()",
         "optional": true,
         "editable": true,
-        "advanced": true,
+        "advanced": false,
         "hidden": false,
         "codedata": {
           "kind": "DEFAULTABLE",
@@ -207,7 +207,7 @@
         "placeholder": "()",
         "optional": true,
         "editable": true,
-        "advanced": true,
+        "advanced": false,
         "hidden": false,
         "codedata": {
           "kind": "DEFAULTABLE",

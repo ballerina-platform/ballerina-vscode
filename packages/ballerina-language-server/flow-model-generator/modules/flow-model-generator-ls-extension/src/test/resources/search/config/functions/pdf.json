@@ -120,65 +120,19 @@
               "enabled": true
             }
           ]
-        },
-        {
-          "metadata": {
-            "label": "pdfbox",
-            "description": "",
-            "keywords": []
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "toTextFromBytes",
-                "description": "Extracts text content from a PDF document provided as a byte array.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/xlibb_pdfbox_1.0.1.png"
-              },
-              "codedata": {
-                "node": "FUNCTION_CALL",
-                "org": "xlibb",
-                "module": "pdfbox",
-                "packageName": "pdfbox",
-                "symbol": "toTextFromBytes",
-                "version": "1.0.1"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "toTextFromURL",
-                "description": "Extracts text content from a PDF document accessible via a given URL.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/xlibb_pdfbox_1.0.1.png"
-              },
-              "codedata": {
-                "node": "FUNCTION_CALL",
-                "org": "xlibb",
-                "module": "pdfbox",
-                "packageName": "pdfbox",
-                "symbol": "toTextFromURL",
-                "version": "1.0.1"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "toTextFromFile",
-                "description": "Extracts text content from a PDF document located at the specified file path.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/xlibb_pdfbox_1.0.1.png"
-              },
-              "codedata": {
-                "node": "FUNCTION_CALL",
-                "org": "xlibb",
-                "module": "pdfbox",
-                "packageName": "pdfbox",
-                "symbol": "toTextFromFile",
-                "version": "1.0.1"
-              },
-              "enabled": true
-            }
-          ]
         }
       ]
+    },
+    {
+      "metadata": {
+        "label": "Extended Library",
+        "description": "Components from the ballerinax organization",
+        "keywords": [
+          "Ballerinax",
+          "Library"
+        ]
+      },
+      "items": []
     }
   ]
 }

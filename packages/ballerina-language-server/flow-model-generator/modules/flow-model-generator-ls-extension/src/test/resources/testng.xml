@@ -26,6 +26,7 @@ under the License.
             <class name="io.ballerina.flowmodelgenerator.extension.SourceGeneratorTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.AvailableNodesTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.NodeTemplateTest"/>
+            <class name="io.ballerina.flowmodelgenerator.extension.FunctionDataBuilderModuleResolutionTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.SuggestedComponentTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.DeleteNodeTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.DeleteComponentTest"/>
@@ -79,8 +80,10 @@ under the License.
             <class name="io.ballerina.flowmodelgenerator.extension.AddICPTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.WorkflowManagementEnablerTests"/>
             <class name="io.ballerina.flowmodelgenerator.extension.AddWorkflowManagementTest"/>
-            <class name="io.ballerina.flowmodelgenerator.extension.WorkflowManagementDefaultEnableTests"/>
+            <class name="io.ballerina.flowmodelgenerator.extension.DisableWorkflowManagementTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.SearchTest"/>
+            <class name="io.ballerina.flowmodelgenerator.extension.SearchDatabaseManagerTypeSearchTest"/>
+            <class name="io.ballerina.flowmodelgenerator.extension.SearchDatabaseManagerFunctionSearchTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.ConnectorIndexKeywordTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.SearchNodesTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.InitializerTest"/>
@@ -91,6 +94,7 @@ under the License.
             <class name="io.ballerina.flowmodelgenerator.extension.workflowmanager.AnalyzeActivityActionTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.workflowmanager.GenActivityTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.workflowmanager.WorkflowNodeTemplateTest"/>
+            <class name="io.ballerina.flowmodelgenerator.extension.BuiltinEmailFieldModeTest"/>
             <!--types manager-->
             <class name="io.ballerina.flowmodelgenerator.extension.typesmanager.CreateAndUpdateTypeTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.typesmanager.CreateGraphqlClassTypeTest"/>
@@ -117,6 +121,7 @@ under the License.
             <class name="io.ballerina.flowmodelgenerator.extension.agentsmanager.FlowNodeGeneratorTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.agentsmanager.AvailableNodesTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.agentsmanager.SearchTest"/>
+            <class name="io.ballerina.flowmodelgenerator.extension.agentsmanager.AgentSearchCommandTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.agentsmanager.GetToolTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.agentsmanager.GetAllMemoryManagersTest"/>
 

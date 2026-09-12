@@ -200,4 +200,26 @@ describe("NodeList (rpc-driven)", () => {
         await waitFor(() => expect(container.textContent).toContain("Function"));
         expect((container.textContent ?? "").includes("Natural Function")).toBe(expectVisible);
     });
+
+    // Regression: when every candidate node in a category is filtered out (here, the
+    // category's only item is NP_FUNCTION and NP is unsupported), the grid container itself
+    // must not render — an empty grid would still reserve layout spacing.
+    // (searchText forces the category expanded, as in the NP_FUNCTION test above.)
+    it("INVARIANT: a category whose every node is filtered out renders no empty grid", async () => {
+        const categories = [
+            { title: "Functions", items: [node("NP_FUNCTION", "Natural Function")] },
+        ];
+        const rpc = { getCommonRpcClient: () => ({ isNPSupported: async () => false }) };
+        const { container } = renderWithRpc(
+            <NodeList {...props(categories)} searchText="Function" />,
+            rpc
+        );
+
+        await waitFor(() => expect(container.textContent).toContain("Functions"));
+        expect(container.textContent).not.toContain("Natural Function");
+        const grids = Array.from(container.querySelectorAll("div")).filter(
+            (el) => getComputedStyle(el).display === "grid"
+        );
+        expect(grids).toHaveLength(0);
+    });
 });

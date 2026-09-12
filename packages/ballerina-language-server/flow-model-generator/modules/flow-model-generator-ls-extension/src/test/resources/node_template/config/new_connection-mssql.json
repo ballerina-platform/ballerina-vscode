@@ -18,7 +18,7 @@
     "metadata": {
       "label": "MS SQL",
       "description": "MSSQL (Microsoft SQL) client that enables interaction with MSSQL servers and supports standard SQL operations.",
-      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_mssql_1.19.0.png"
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_mssql_1.19.1.png"
     },
     "codedata": {
       "node": "NEW_CONNECTION",
@@ -27,7 +27,7 @@
       "packageName": "mssql",
       "object": "Client",
       "symbol": "init",
-      "version": "1.19.0",
+      "version": "1.19.1",
       "isNew": true
     },
     "returning": false,
@@ -52,7 +52,7 @@
         "placeholder": "\"\"",
         "optional": true,
         "editable": true,
-        "advanced": true,
+        "advanced": false,
         "hidden": false,
         "codedata": {
           "kind": "DEFAULTABLE",
@@ -80,7 +80,7 @@
         "placeholder": "()",
         "optional": true,
         "editable": true,
-        "advanced": true,
+        "advanced": false,
         "hidden": false,
         "codedata": {
           "kind": "DEFAULTABLE",
@@ -108,7 +108,7 @@
         "placeholder": "()",
         "optional": true,
         "editable": true,
-        "advanced": true,
+        "advanced": false,
         "hidden": false,
         "codedata": {
           "kind": "DEFAULTABLE",
@@ -136,7 +136,7 @@
         "placeholder": "()",
         "optional": true,
         "editable": true,
-        "advanced": true,
+        "advanced": false,
         "hidden": false,
         "codedata": {
           "kind": "DEFAULTABLE",
@@ -164,7 +164,7 @@
         "placeholder": "0",
         "optional": true,
         "editable": true,
-        "advanced": true,
+        "advanced": false,
         "hidden": false,
         "codedata": {
           "kind": "DEFAULTABLE",
@@ -192,7 +192,7 @@
         "placeholder": "\"\"",
         "optional": true,
         "editable": true,
-        "advanced": true,
+        "advanced": false,
         "hidden": false,
         "codedata": {
           "kind": "DEFAULTABLE",
@@ -212,7 +212,7 @@
             "typeMembers": [
               {
                 "type": "Options",
-                "packageInfo": "ballerinax:mssql:1.19.0",
+                "packageInfo": "ballerinax:mssql:1.19.1",
                 "packageName": "mssql",
                 "kind": "RECORD_TYPE",
                 "selected": false
@@ -229,7 +229,7 @@
         "placeholder": "()",
         "optional": true,
         "editable": true,
-        "advanced": true,
+        "advanced": false,
         "hidden": false,
         "codedata": {
           "kind": "DEFAULTABLE",
@@ -266,7 +266,7 @@
         "placeholder": "()",
         "optional": true,
         "editable": true,
-        "advanced": true,
+        "advanced": false,
         "hidden": false,
         "codedata": {
           "kind": "DEFAULTABLE",

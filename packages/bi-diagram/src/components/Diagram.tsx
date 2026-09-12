@@ -141,7 +141,9 @@ export function Diagram(props: DiagramProps) {
 
     const [showErrorFlow, setShowErrorFlow] = useState(false);
     const [nodeComments, setNodeComments] = useState<Map<string, FlowNode[]>>(new Map());
-    const [diagramEngine] = useState<DiagramEngine>(generateEngine());
+    // Lazy initializer: generateEngine() registers ~20 factories, and the non-lazy form
+    // would rebuild (and discard) an engine on every render of this component.
+    const [diagramEngine] = useState<DiagramEngine>(() => generateEngine());
     const [diagramModel, setDiagramModel] = useState<DiagramModel | null>(null);
     const [showComponentPanel, setShowComponentPanel] = useState(false);
     const [expandedErrorHandler, setExpandedErrorHandler] = useState<string | undefined>(undefined);
@@ -153,7 +155,7 @@ export function Diagram(props: DiagramProps) {
             setNodeComments(comments);
             drawDiagram(nodes, links);
         }
-    }, [model, showErrorFlow, expandedErrorHandler]);
+    }, [model, showErrorFlow, expandedErrorHandler, agentNode?.durableAgentReference]);
 
     useEffect(() => {
         console.log(">>> Init diagram model", model);
@@ -177,7 +179,7 @@ export function Diagram(props: DiagramProps) {
 
         const initVisitor = new InitVisitor(flowModel, currentExpandedErrorHandler);
         traverseFlow(flowModel, initVisitor);
-        const sizingVisitor = new SizingVisitor(agentUsageOptions);
+        const sizingVisitor = new SizingVisitor(agentUsageOptions, agentNode?.durableAgentReference === true);
         traverseFlow(flowModel, sizingVisitor);
         const positionVisitor = new PositionVisitor();
         traverseFlow(flowModel, positionVisitor);

@@ -126,6 +126,14 @@ class IndexGenerator {
             return;
         }
 
+        // A bal tool package carries a CLI command rather than an importable API, so it has nothing to
+        // contribute to the index and only pollutes library and connector search results. The published
+        // bala declares itself a tool via bal-tool.json, so no list of tool names has to be maintained.
+        if (resolvedPackage.manifest().balToolDescriptor().isPresent()) {
+            LOGGER.info("Skipping the bal tool package: " + packageMetadataInfo.name());
+            return;
+        }
+
         List<String> exportedModules = resolvedPackage.manifest().exportedModules();
         for (Module module : resolvedPackage.modules()) {
             if (exportedModules.contains(module.descriptor().name().toString())) {
@@ -278,7 +286,8 @@ class IndexGenerator {
                     parameterData.description(), parameterData.type(), parameterData.placeholder(),
                     parameterData.defaultValue(),
                     FunctionParameterKind.fromString(parameterData.kind().name()),
-                    parameterData.optional() ? 1 : 0, parameterData.importStatements(), parameterData.label());
+                    parameterData.optional() ? 1 : 0, parameterData.advanced() ? 1 : 0,
+                    parameterData.importStatements(), parameterData.label());
 
             // Insert parameter member types
             insertParameterMemberTypesFromParameterData(paramId, parameterData);

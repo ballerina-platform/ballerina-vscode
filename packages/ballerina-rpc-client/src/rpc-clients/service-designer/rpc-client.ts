@@ -38,6 +38,10 @@ import {
     ResourceReturnTypesRequest,
     ServiceDesignerAPI,
     ServiceInitSourceRequest,
+    ConnectorUpgradeAdviceRequest,
+    ConnectorUpgradeAdviceResponse,
+    PullConnectorUpgradeRequest,
+    PullConnectorUpgradeResult,
     ServiceModelFromCodeRequest,
     ServiceModelFromCodeResponse,
     ServiceModelInitResponse,
@@ -62,8 +66,10 @@ import {
     getListenerModelFromCode,
     getListeners,
     getResourceReturnTypes,
+    getConnectorUpgradeAdvice,
     getServiceInitModel,
     getServiceModel,
+    pullConnectorUpgrade,
     getServiceModelFromCode,
     getTriggerModels,
     searchTriggers,
@@ -165,6 +171,14 @@ export class ServiceDesignerRpcClient implements ServiceDesignerAPI {
 
     getServiceInitModel(params: ServiceModelRequest): Promise<ServiceModelInitResponse> {
         return this._messenger.sendRequest(getServiceInitModel, HOST_EXTENSION, params);
+    }
+
+    getConnectorUpgradeAdvice(params: ConnectorUpgradeAdviceRequest): Promise<ConnectorUpgradeAdviceResponse> {
+        return this._messenger.sendRequest(getConnectorUpgradeAdvice, HOST_EXTENSION, params);
+    }
+
+    pullConnectorUpgrade(params: PullConnectorUpgradeRequest): Promise<PullConnectorUpgradeResult> {
+        return this._messenger.sendRequest(pullConnectorUpgrade, HOST_EXTENSION, params);
     }
 
     createServiceAndListener(params: ServiceInitSourceRequest): Promise<UpdatedArtifactsResponse> {

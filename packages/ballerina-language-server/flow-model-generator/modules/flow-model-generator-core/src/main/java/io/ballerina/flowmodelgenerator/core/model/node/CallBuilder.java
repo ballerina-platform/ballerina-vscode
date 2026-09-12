@@ -351,12 +351,13 @@ public abstract class CallBuilder extends NodeBuilder {
                 .defaultValue(paramData.defaultValue())
                 .imports(paramData.importStatements())
                 .editable()
-                .defaultable(paramData.optional());
+                .optional(paramData.optional())
+                .advanced(paramData.advanced());
 
         switch (paramData.kind()) {
             case INCLUDED_RECORD_REST -> {
                 if (hasOnlyRestParams) {
-                    customPropBuilder.defaultable(false);
+                    customPropBuilder.optional(false).advanced(false);
                 }
                 Property template = customPropBuilder.buildRepeatableTemplates(paramData.typeSymbol(),
                         semanticModel, moduleInfo);
@@ -369,7 +370,7 @@ public abstract class CallBuilder extends NodeBuilder {
             }
             case REST_PARAMETER -> {
                 if (hasOnlyRestParams) {
-                    customPropBuilder.defaultable(false);
+                    customPropBuilder.optional(false).advanced(false);
                 }
                 Property template = customPropBuilder.buildRepeatableTemplates(paramData.typeSymbol(),
                         semanticModel, moduleInfo);

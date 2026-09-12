@@ -71,6 +71,45 @@ export const transformCategories = (categories: Category[]): Category[] => {
     return filteredCategories;
 };
 
+// Filters cached categories client-side, recursing into nested items so a matching child keeps its parent group.
+export const filterCategoriesLocally = (categories: any[], searchText: string): any[] => {
+    if (!searchText.trim()) return categories;
+
+    const lowerSearchText = searchText.toLowerCase();
+
+    const filterItemsRecursively = (items: any[]): any[] => {
+        if (!items) return [];
+
+        return items.map((item: any) => {
+            // Check if this item matches the search
+            const label = item.title || item.label;
+            const itemMatches = label.toLowerCase().includes(lowerSearchText);
+            if (itemMatches) {
+                return item;
+            }
+            // If this item has nested items (subcategory), recursively filter them
+            if (item.items && Array.isArray(item.items)) {
+                const filteredSubItems = filterItemsRecursively(item.items);
+
+                // Include this subcategory if it matches OR has matching nested items
+                if (filteredSubItems.length > 0) {
+                    return {
+                        ...item,
+                        items: filteredSubItems
+                    };
+                }
+                return null; // Filter out this subcategory
+            }
+            return null;
+        }).filter(item => item !== null);
+    };
+
+    return categories.map(category => ({
+        ...category,
+        items: filterItemsRecursively(category.items || [])
+    })).filter(category => category.items && category.items.length > 0);
+};
+
 export const findFunctionByName = (components: BallerinaProjectComponents, functionName: string) => {
     for (const pkg of components.packages) {
         for (const module of pkg.modules) {

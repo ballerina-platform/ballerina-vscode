@@ -18,7 +18,7 @@
 
 import React, { useState } from "react";
 import { PortWidget } from "@projectstorm/react-diagrams-core";
-import { CDAutomation, CDService, CDWorkflow, CDWorkflowEvent, CDWorkflowHumanTask, resolveBrandIcon } from "@wso2/ballerina-core";
+import { CDAutomation, CDService, CDWorkflow, CDWorkflowEvent, CDWorkflowHumanTask, toIconDescriptor } from "@wso2/ballerina-core";
 import { Item, Menu, MenuItem, Popover, ImageWithFallback, Icon } from "@wso2/ui-toolkit";
 import { useDiagramContext } from "../../../DiagramContext";
 import { HttpIcon, TaskIcon } from "../../../../resources";
@@ -81,7 +81,7 @@ const getNodeDescription = (model: EntryNodeModel) => {
     return "Service";
 };
 
-function getColorByMethod(method: string) {
+export function getColorByMethod(method: string) {
     switch (method.toUpperCase()) {
         case "GET":
             return colors.GET;
@@ -102,21 +102,19 @@ function getColorByMethod(method: string) {
     }
 }
 
-function getCustomEntryNodeIcon(type: string) {
-    let typePart = type;
-    if (type && type.includes(":")) {
-        const typeParts = type.split(":");
-        typePart = typeParts.at(0);
+function getServiceIcon(service: CDService) {
+    const descriptor = toIconDescriptor(service.icon);
+    const lightTheme = typeof document !== "undefined" && (document.body.classList.contains("vscode-light")
+        || document.body.classList.contains("vscode-high-contrast-light"));
+    const svg = lightTheme ? descriptor?.light : descriptor?.dark;
+    if (svg) {
+        const tinted = descriptor?.color ? svg.replace(/currentColor/g, descriptor.color) : svg;
+        return <img src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(tinted)}`} alt="" />;
     }
-
-    const brand = resolveBrandIcon(typePart);
-    if (!brand) {
-        return null;
-    }
-    return <Icon name={brand.glyph} sx={brand.color ? { color: brand.color } : undefined} />;
+    return <ImageWithFallback imageUrl={descriptor?.url ?? ""} fallbackEl={<HttpIcon />} />;
 }
 
-function FunctionBox(props: { func: any; model: EntryNodeModel; engine: any; readonly?: boolean }) {
+export function FunctionBox(props: { func: any; model: EntryNodeModel; engine: any; readonly?: boolean }) {
     const { func, model, engine, readonly } = props;
     const [isHovered, setIsHovered] = useState(false);
     const { onFunctionSelect } = useDiagramContext();
@@ -268,12 +266,7 @@ export function GeneralServiceWidget({ model, engine }: BaseNodeWidgetProps) {
             case "automation":
                 return <TaskIcon />;
             case "service":
-                const serviceType = (model.node as CDService)?.type;
-                const customIcon = getCustomEntryNodeIcon(serviceType);
-                if (customIcon) {
-                    return customIcon;
-                }
-                return <ImageWithFallback imageUrl={(model.node as CDService).icon} fallbackEl={<HttpIcon />} />;
+                return getServiceIcon(model.node as CDService);
             default:
                 return <HttpIcon />;
         }

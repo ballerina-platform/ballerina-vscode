@@ -16,6 +16,8 @@
  * under the License.
  */
 
+export const PRODUCT_INTEGRATOR_ISSUES_URL = "https://github.com/wso2/product-integrator/issues";
+
 export const SHARED_COMMANDS = {
     FORCE_UPDATE_PROJECT_ARTIFACTS: 'ballerina.force.update.artifacts',
     SHOW_VISUALIZER: 'ballerina.showVisualizer',
@@ -25,7 +27,9 @@ export const SHARED_COMMANDS = {
     OPEN_SERVICE_FORM: 'ballerina.open.service.form',
     OPEN_AI_PANEL: 'ballerina.open.ai.panel',
     CLOSE_AI_PANEL: 'ballerina.close.ai.panel',
-    OPEN_AGENT_CHAT: 'ballerina.open.agent.chat'
+    OPEN_AGENT_CHAT: 'ballerina.open.agent.chat',
+    SET_COPILOT_INLINE_STATUS: 'ballerina.copilot.setInlineStatusActive',
+    SET_COPILOT_AMBIENT_PRESENT: 'ballerina.copilot.setAmbientPresent'
 }
 
 export const BI_COMMANDS = {

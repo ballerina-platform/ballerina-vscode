@@ -18,6 +18,7 @@
                 "WEB_VIEW_WATCH_MODE": "true",
                 "WEB_VIEW_DEV_HOST": "http://localhost:9000",
                 "BALLERINA_STAGE_CENTRAL": "false",
+                "BALLERINA_DEV_CENTRAL": "false",
                 "TRACE_WEB_VIEW_DEV_HOST": "http://localhost:9001"
             },
             "outFiles": [

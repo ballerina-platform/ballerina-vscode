@@ -93,6 +93,18 @@ export interface FileOrDirRequest {
     allowOutsideProject?: boolean;
 }
 
+export interface ProjectFileRequest {
+    filters?: Record<string, string[]>;
+    targetDir?: string;
+    allowOutsideProject?: boolean;
+}
+
+export interface ProjectFileResponse {
+    path: string;
+    absolutePath?: string;
+    copied?: boolean;
+}
+
 export interface ShowErrorMessageRequest {
     message: string;
 }
@@ -119,7 +131,10 @@ export interface TomlPackage {
     version: string;
     title: string;
     library?: boolean;
+    visibility?: PackageVisibility;
 }
+
+export type PackageVisibility = 'public' | 'private';
 
 export interface WorkspaceTomlValues {
     workspace: TomlWorkspace;

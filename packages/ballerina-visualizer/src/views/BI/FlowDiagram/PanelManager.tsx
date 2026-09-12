@@ -86,6 +86,7 @@ export enum SidePanelView {
     CONNECTION_SELECT = "CONNECTION_SELECT",
     CONNECTION_CREATE = "CONNECTION_CREATE",
     AGENT_MEMORY_MANAGER = "AGENT_MEMORY_MANAGER",
+    AGENT_MEMORY_STORE = "AGENT_MEMORY_STORE",
     AGENT_CONFIG = "AGENT_CONFIG",
     AGENT_LIST = "AGENT_LIST",
     ERROR = "ERROR",
@@ -143,6 +144,10 @@ interface PanelManagerProps {
     onUpdateExpressionField: (updatedExpressionField: ExpressionFormField) => void;
     onResetUpdatedExpressionField: () => void;
     onSearchFunction?: (searchText: string, functionType: FUNCTION_TYPE) => void;
+    // Scroll pagination for the function list.
+    onLoadMoreFunctionSection?: (sectionTitle: string) => void;
+    functionSectionsWithMore?: Record<string, boolean>;
+    loadingFunctionSections?: Record<string, boolean>;
     onSearchWorkflow?: (searchText: string, functionType: FUNCTION_TYPE) => void;
     onSearchActivity?: (searchText: string, functionType: FUNCTION_TYPE) => void;
     onSearchNpFunction?: (searchText: string, functionType: FUNCTION_TYPE) => void;
@@ -223,6 +228,9 @@ export function PanelManager(props: PanelManagerProps) {
         onUpdateExpressionField,
         onResetUpdatedExpressionField,
         onSearchFunction,
+        onLoadMoreFunctionSection,
+        functionSectionsWithMore,
+        loadingFunctionSections,
         onSearchWorkflow,
         onSearchActivity,
         onSearchNpFunction,
@@ -231,6 +239,7 @@ export function PanelManager(props: PanelManagerProps) {
         expandedGroupId,
         onExpandedGroupChange,
         onSearchAll,
+        onSearchModelProvider,
         onSearchVectorStore,
         onSearchEmbeddingProvider,
         onSearchVectorKnowledgeBase,
@@ -295,6 +304,9 @@ export function PanelManager(props: PanelManagerProps) {
                         searchPlaceholder={"Search library functions"}
                         searchText={searchText}
                         onBack={canGoBack ? onBack : undefined}
+                        onLoadMoreSection={onLoadMoreFunctionSection}
+                        sectionsWithMore={functionSectionsWithMore}
+                        loadingSections={loadingFunctionSections}
                     />
                 );
 
@@ -393,6 +405,7 @@ export function PanelManager(props: PanelManagerProps) {
                         onClose={onClose}
                         title={"Model Providers"}
                         searchPlaceholder={"Search model providers"}
+                        onSearchTextChange={(searchText) => onSearchModelProvider?.(searchText, FUNCTION_TYPE.REGULAR)}
                         searchText={searchText}
                         onBack={canGoBack ? onBack : undefined}
                     />
@@ -584,6 +597,7 @@ export function PanelManager(props: PanelManagerProps) {
                 );
 
             case SidePanelView.AGENT_MEMORY_MANAGER:
+            case SidePanelView.AGENT_MEMORY_STORE:
             case SidePanelView.ADD_TOOL:
             case SidePanelView.NEW_TOOL_CUSTOM:
             case SidePanelView.NEW_TOOL_FROM_CONNECTION:
@@ -719,6 +733,8 @@ export function PanelManager(props: PanelManagerProps) {
         switch (sidePanelView) {
             case SidePanelView.AGENT_MEMORY_MANAGER:
                 return "Configure Memory";
+            case SidePanelView.AGENT_MEMORY_STORE:
+                return "Configure Memory Store";
             case SidePanelView.NEW_TOOL_FROM_AGENT:
             case SidePanelView.NEW_TOOL_FROM_AGENT_FORM:
                 return addToolTitle("AGENT");

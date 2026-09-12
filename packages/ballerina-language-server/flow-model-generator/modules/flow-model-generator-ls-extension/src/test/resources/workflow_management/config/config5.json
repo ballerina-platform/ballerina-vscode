@@ -1,0 +1,7 @@
+{
+  "projectPath": "proj5",
+  "description": "Project with only the pre-0.9.0 workflow.management import: the REST API is not enabled",
+  "response": {
+    "enabled": false
+  }
+}

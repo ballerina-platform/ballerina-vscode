@@ -27,7 +27,7 @@ import { AI_COMPONENT_PROGRESS_MESSAGE, AI_COMPONENT_PROGRESS_MESSAGE_TIMEOUT, L
 import { LoaderContainer } from "../RelativeLoader/styles";
 
 export function ConnectionSelectionList(props: ConnectionSelectionListProps): JSX.Element {
-    const { connectionKind, selectedNode, onSelect, expandedGroupId, onExpandedGroupChange } = props;
+    const { connectionKind, selectedNode, onSelect, expandedGroupId, onExpandedGroupChange, fillContainerHeight } = props;
 
     const { rpcClient } = useRpcContext();
     const [connectionCategories, setConnectionCategories] = useState<Category[]>([]);
@@ -87,6 +87,7 @@ export function ConnectionSelectionList(props: ConnectionSelectionListProps): JS
                     onSelect={onSelect}
                     expandedGroupId={expandedGroupId}
                     onExpandedGroupChange={onExpandedGroupChange}
+                    fillContainerHeight={fillContainerHeight}
                 />
             )}
         </>

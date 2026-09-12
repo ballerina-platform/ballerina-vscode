@@ -27,7 +27,7 @@ import type { FormField } from "../components/Form/types";
 import { renderWithForm } from "./formHarness";
 import { ChoiceForm } from "../components/editors/ChoiceForm";
 
-const choiceField = (labels: string[], enabledIndex = 0): FormField =>
+const choiceField = (labels: string[], enabledIndex = 0, notices: (string | undefined)[] = []): FormField =>
     ({
         key: "payload",
         label: "Payload type",
@@ -38,7 +38,7 @@ const choiceField = (labels: string[], enabledIndex = 0): FormField =>
         documentation: "",
         choices: labels.map((label, i) => ({
             enabled: i === enabledIndex,
-            metadata: { label, description: "" },
+            metadata: { label, description: "", notice: notices[i] },
             properties: {},
         })),
     } as unknown as FormField);
@@ -63,5 +63,22 @@ describe("ChoiceForm", () => {
     ])("renders without throwing (%s)", (_desc, labels) => {
         const { container } = renderChoice(choiceField(labels as string[]));
         expect(container.textContent).toContain("JSON");
+    });
+
+    it("shows a choice's notice, on unselected options too", () => {
+        const { container } = renderChoice(
+            choiceField(["Streamable HTTP Listener", "Listener"], 0, [
+                undefined,
+                "Renamed to make the transport explicit. Use mcp:StreamableHttpListener instead.",
+            ])
+        );
+        expect(container.textContent).toContain(
+            "Renamed to make the transport explicit. Use mcp:StreamableHttpListener instead."
+        );
+    });
+
+    it("renders nothing extra when a choice states no notice", () => {
+        const { container } = renderChoice(choiceField(["JSON", "XML"]));
+        expect(container.textContent).toBe("JSONXML");
     });
 });

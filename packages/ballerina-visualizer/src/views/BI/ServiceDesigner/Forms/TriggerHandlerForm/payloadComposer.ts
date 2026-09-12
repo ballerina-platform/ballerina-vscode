@@ -254,10 +254,15 @@ export function editTargetsOf(fn: FunctionModel, target: ParameterModel): Parame
     return bindingGroupSiblingsOf(fn, target);
 }
 
-/** Properties of a given codedata role, keyed as shipped. */
+/**
+ * Properties of a given codedata role, keyed as shipped. Excludes `hidden` ones: those are a fixed
+ * pass-through the language server carries (e.g. a hand-authored annotation the schema has no
+ * granular field for) so a re-save doesn't drop it, never meant to reach the form — some carry no
+ * `types`/nested shape a field renderer could handle at all.
+ */
 export function propertiesOfRole(fn: FunctionModel, role: string): [string, PropertyModel][] {
     return Object.entries(fn.properties ?? {}).filter(
-        ([, prop]) => (prop as PropertyModel).codedata?.type === role
+        ([, prop]) => (prop as PropertyModel).codedata?.type === role && !(prop as PropertyModel).hidden
     ) as [string, PropertyModel][];
 }
 

@@ -18,12 +18,14 @@
 
 import { DiagnosticMessage, Imports, PropertyTypeMemberInfo, InputType } from "./bi";
 import { LineRange } from "./common";
+import type { IconDescriptor } from "./extended-lang-client";
 
 
 export type ListenerModel = {
     id: number;
     name: string;
     type: string;
+    triggerKind?: string;
     displayName: string;
     documentation: string;
     moduleName: string;
@@ -31,7 +33,7 @@ export type ListenerModel = {
     version: string;
     packageName: string;
     listenerProtocol: string;
-    icon: string;
+    icon: IconDescriptor | string;
     properties?: ConfigProperties;
 };
 
@@ -54,6 +56,7 @@ export interface ServiceModel {
     id: number;
     name: string;
     type: string;
+    triggerKind?: string;
     displayName?: string;
     documentation?: string;
     moduleName: string;
@@ -61,7 +64,7 @@ export interface ServiceModel {
     version: string;
     packageName: string;
     listenerProtocol: string;
-    icon: string;
+    icon: IconDescriptor | string;
     properties?: ConfigProperties;
     functions?: FunctionModel[];
     schemaFunctions?: FunctionModel[];
@@ -111,11 +114,36 @@ export enum RepeatBehavior {
 }
 
 /**
+ * One section of a handler form's authored layout. `fields` holds unit ids: an author's own identifier
+ * (parameter name, `properties` key, payload `bindingGroup`), a reserved `$`-prefixed built-in
+ * (`$variant`, `$description`, `$name`, `$documentation`, `$parameters`, `$returnType`, `$headers`), or
+ * `*rest` for every unit no section claimed. An unresolved id is skipped with a dev warning.
+ *
+ * `*rest`'s placement is section-granular, not positional: it always appends the remainder at the end
+ * of whichever section's `fields` names it, regardless of where in that array it sits.
+ *
+ * Presentation only -- layout never reorders the emitted signature, which follows `parameters`.
+ */
+export interface HandlerLayoutSection {
+    /** Identifier for this section; used for diagnostics and stable render keys. */
+    id?: string;
+    /** Heading rendered above this section. Absent -> an ordered run with no heading. */
+    label?: string;
+    /** Explanatory text rendered under `label`. */
+    description?: string;
+    /** Render this section inside the collapsed advanced box. Labelled sections only. */
+    advanced?: boolean;
+    /** Ids of the units in this section, in the order they should appear. */
+    fields: string[];
+}
+
+/**
  * `group`/`variantLabel`/`addLabel`/`repeatable`/`nameEditable` are handler-catalog fields carried
  * by schema-driven triggers (unified TriggerModel): functions sharing a `group` are format variants
  * of one logical handler (labelled by `variantLabel`, offered under `addLabel`); `repeatable` says
  * whether/how the handler may be added more than once (see {@link RepeatBehavior}) and
- * `nameEditable: false` locks the emitted function name to the variant's.
+ * `nameEditable: false` locks the emitted function name to the variant's. `layout` is the optional
+ * presentation order/grouping of the form's inputs (see {@link HandlerLayoutSection}).
  */
 export interface FunctionModel {
     metadata?: MetaData;
@@ -144,6 +172,7 @@ export interface FunctionModel {
     returnType: ReturnTypeModel;
     documentation?: PropertyModel;
     qualifiers?: string[];
+    layout?: HandlerLayoutSection[];
 }
 
 
@@ -261,6 +290,14 @@ interface CodeData extends PayloadCodeDataHints, AnnotationCodeDataHints {
     path?: string;
     valueQualifier?: string;
     nameEditable?: boolean;
+    driverDependency?: DriverDependency;
+}
+
+interface DriverDependency {
+    groupId?: string;
+    artifactId?: string;
+    version?: string;
+    scope?: string;
 }
 
 export type ValidationSeverity = "ERROR" | "WARNING";
@@ -355,4 +392,3 @@ export interface ServiceInitModel {
     isLocalRepository?: boolean;
     resource?: FunctionModel;
 }
-

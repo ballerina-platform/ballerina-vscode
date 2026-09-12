@@ -17,7 +17,7 @@
  */
 import React from 'react';
 
-import { ISSUES_URL } from '../../Diagram/utils/constants';
+import { PRODUCT_INTEGRATOR_ISSUES_URL } from '@wso2/ballerina-core';
 
 export enum ErrorNodeKind {
     Input,
@@ -51,7 +51,7 @@ export function RenderingError(props: DataMapperErrorProps) {
                 {errorMessage}
             </p>
             <p>
-                Please raise an issue with the sample code in our <a href={ISSUES_URL}>issue tracker</a>
+                Please raise an issue with the sample code in our <a href={PRODUCT_INTEGRATOR_ISSUES_URL}>issue tracker</a>
             </p>
         </>
     )

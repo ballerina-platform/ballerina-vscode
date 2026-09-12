@@ -23,7 +23,7 @@ import { TitleBar } from "../../../components/TitleBar";
 import { isBetaModule } from "../ComponentListView/componentListUtils";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { FormField, FormImports, FormValues } from "@wso2/ballerina-side-panel";
-import { DIRECTORY_MAP, EVENT_TYPE, FunctionModel, hasBlockingValidationErrors, isSamePath, LineRange, ParameterModel, ProjectStructureArtifactResponse, PropertyModel, RecordTypeField, ServiceInitModel, ValidationResult } from "@wso2/ballerina-core";
+import { DIRECTORY_MAP, EVENT_TYPE, FunctionModel, hasBlockingValidationErrors, isSamePath, LineRange, ModelResolutionIssue, ParameterModel, ProjectStructureArtifactResponse, PropertyModel, RecordTypeField, ServiceInitModel, ValidationResult } from "@wso2/ballerina-core";
 import { FormHeader } from "../../../components/FormHeader";
 import ArtifactForm from "../Forms/ArtifactForm";
 import { AgentEndpointFields, PromptContinuation } from "./Forms/AgentEndpointFields";
@@ -139,6 +139,8 @@ enum PullingStatus {
     PULLING = "pulling",
     SUCCESS = "success",
     ERROR = "error",
+    UNSUPPORTED_VERSION = "unsupported_version",
+    UPDATING = "updating",
 }
 
 function findSeedableField(properties: Record<string, PropertyModel>, key: string): PropertyModel | undefined {
@@ -191,6 +193,7 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
     const [formFields, setFormFields] = useState<FormField[]>([]);
 
     const [pullingStatus, setPullingStatus] = useState<PullingStatus>(PullingStatus.FETCHING);
+    const [upgradeIssue, setUpgradeIssue] = useState<ModelResolutionIssue | undefined>(undefined);
     const [filePath, setFilePath] = useState<string>("");
     const [targetLineRange, setTargetLineRange] = useState<LineRange>();
     const [isSaving, setIsSaving] = useState<boolean>(false);
@@ -243,6 +246,11 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
 
             const initModel = res?.serviceInitModel;
             if (!initModel) {
+                if (res?.issue?.code === "UNSUPPORTED_CONNECTOR_VERSION") {
+                    setUpgradeIssue(res.issue);
+                    setPullingStatus(PullingStatus.UNSUPPORTED_VERSION);
+                    return;
+                }
                 setPullingStatus(PullingStatus.ERROR);
                 return;
             }
@@ -364,6 +372,35 @@ function seedAgentEndpoint(shaped: FunctionModel): FunctionModel {
     const defaultJoinedService = () => model?.properties?.[CONFIGURE_ENDPOINT_KEY]
         ?.choices?.[JOIN_EXISTING_BRANCH]?.properties?.[EXISTING_SERVICE_KEY]?.value as string;
 
+    const handleUpdateNow = async () => {
+        if (!upgradeIssue) {
+            return;
+        }
+        setPullingStatus(PullingStatus.UPDATING);
+        try {
+            const result = await rpcClient.getServiceDesignerRpcClient().pullConnectorUpgrade({
+                orgName: upgradeIssue.orgName,
+                moduleName: upgradeIssue.moduleName,
+                packageName: packageName,
+                targetVersion: upgradeIssue.requiredVersion,
+            });
+            if (!isMountedRef.current) {
+                return;
+            }
+            if (result.success) {
+                setUpgradeIssue(undefined);
+                fetchData();
+            } else {
+                setPullingStatus(PullingStatus.UNSUPPORTED_VERSION);
+            }
+        } catch (error) {
+            console.error(">>> Error updating connector", error);
+            if (isMountedRef.current) {
+                setPullingStatus(PullingStatus.UNSUPPORTED_VERSION);
+            }
+        }
+    };
+
     const handleOnChange = (fieldKey: string, value: any, allValues?: FormValues) => {
         if (fieldKey === CONFIGURE_ENDPOINT_KEY || fieldKey === EXISTING_SERVICE_KEY) {
             const joining = Number(allValues?.[CONFIGURE_ENDPOINT_KEY]) === JOIN_EXISTING_BRANCH;
@@ -452,6 +489,23 @@ function seedAgentEndpoint(shaped: FunctionModel): FunctionModel {
                             : "Failed to pull the package. Please try again."}
                     </StatusText>
                     <Button appearance="secondary" onClick={fetchData}>Retry</Button>
+                </StatusCard>
+            )}
+            {pullingStatus === PullingStatus.UNSUPPORTED_VERSION && upgradeIssue && (
+                <StatusCard>
+                    <Icon name="bi-error" sx={{ color: ThemeColors.ERROR, fontSize: "18px" }} />
+                    <StatusText variant="body2">
+                        A newer version is required to use this feature..
+                    </StatusText>
+                    <Button appearance="primary" onClick={handleUpdateNow}>Update Now</Button>
+                </StatusCard>
+            )}
+            {pullingStatus === PullingStatus.UPDATING && (
+                <StatusCard>
+                    <Icon name="bi-spinner" sx={{ color: ThemeColors.ON_SURFACE, fontSize: "18px" }} />
+                    <StatusText variant="body2">
+                        {`Updating ${packageName}...`}
+                    </StatusText>
                 </StatusCard>
             )}
         </StatusContainer>
