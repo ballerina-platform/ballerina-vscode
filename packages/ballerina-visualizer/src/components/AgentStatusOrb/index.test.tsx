@@ -77,6 +77,7 @@ function makeRpcClient() {
             getAgentRunStatus: jest.fn().mockResolvedValue(undefined),
             getCopilotOrbTheme: jest.fn().mockResolvedValue("animated"),
             executeCommand: jest.fn().mockResolvedValue(undefined),
+            agentBuilderModeEnabled: jest.fn().mockResolvedValue(false),
         }),
         onAgentRunStatusChanged: jest.fn((cb: (status: AgentRunStatus) => void) => {
             pushed = cb;
