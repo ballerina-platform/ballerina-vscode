@@ -3807,6 +3807,10 @@ public class CodeAnalyzer extends NodeVisitor {
             return;
         }
         startNode(kind, newExpressionNode);
+        if (kind == NodeKind.AGENT) {
+            nodeBuilder.properties().reserveProperty(AgentCallBuilder.ROLE)
+                    .reserveProperty(AgentCallBuilder.INSTRUCTIONS);
+        }
         Optional<MethodSymbol> optMethodSymbol = classSymbol.initMethod();
         FunctionDataBuilder functionDataBuilder = new FunctionDataBuilder()
                 .parentSymbol(classSymbol)
