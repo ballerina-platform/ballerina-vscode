@@ -17,7 +17,7 @@
 import { DIAGNOSTICS_TOOL_NAME } from "./tools/diagnostics";
 import { KILL_TASK_TOOL_NAME, SUBAGENT_TOOL_NAME, TASK_OUTPUT_TOOL_NAME } from "./subagents/types";
 import { TASK_WRITE_TOOL_NAME } from "./tools/task-writer";
-import { FILE_BATCH_EDIT_TOOL_NAME, FILE_READ_TOOL_NAME, FILE_SINGLE_EDIT_TOOL_NAME, FILE_WRITE_TOOL_NAME } from "./tools/text-editor";
+import { FILE_BATCH_EDIT_TOOL_NAME, FILE_DELETE_TOOL_NAME, FILE_READ_TOOL_NAME, FILE_SINGLE_EDIT_TOOL_NAME, FILE_WRITE_TOOL_NAME } from "./tools/text-editor";
 import { CONNECTOR_GENERATOR_TOOL } from "./tools/connector-generator";
 import { CONFIG_COLLECTOR_TOOL } from "./tools/config-collector";
 import { CLARIFY_TOOL } from "./tools/clarify";
@@ -32,6 +32,7 @@ import { getRequirementAnalysisCodeGenPrefix, getRequirementAnalysisTestGenPrefi
 import { CONCURRENCY_CODING_RULES } from "./concurrency-rules";
 import { extractResourceDocumentContent, flattenProjectToFiles } from "../utils/ai-utils";
 import { BALLERINA_RUN_TOOL_NAME } from "./tools/ballerina-run";
+import { BALLERINA_SCRATCH_RUN_TOOL_NAME } from "./tools/ballerina-scratch-run";
 import { BALLERINA_STOP_TOOL_NAME } from "./tools/ballerina-stop";
 import { getBuiltInSkillsSection, getProjectSkillsSection, getUserSkillsSection, getDisabledSkillsSection, ProjectSkillMeta } from "./skills";
 import { WEB_SEARCH_TOOL_NAME, WEB_FETCH_TOOL_NAME } from "./tools/web-tools";
@@ -131,6 +132,7 @@ This plan will be visible to the user and the execution will be guided on the ta
      - If no skill applies, call ${SUBAGENT_TOOL_NAME} (subagent_type: Librarian) with a purpose-written brief of what the integration must do; its report is your only source of library signatures (see "Library Usage").
      - If you think user is refering to an ambiguous API, or internal API, call ${CONNECTOR_GENERATOR_TOOL} to request for the API spec from the user and to generate a connector for it.
    - Before marking the task as completed, use ${DIAGNOSTICS_TOOL_NAME} to check for compilation errors and fix them.
+   - To check what code actually does at runtime — a connector call's real response, a transformation's output — use ${BALLERINA_SCRATCH_RUN_TOOL_NAME}. It runs a throwaway snippet against a temporary copy of the project, so NEVER add a temporary main function, test, or scratch file to the project to try something out.
    - Mark task as completed using ${TASK_WRITE_TOOL_NAME} (send ALL tasks, no approval flags) — the agent continues automatically. **IMPORTANT: When marking a task as completed in a message with other tool calls, ${TASK_WRITE_TOOL_NAME} MUST always be the LAST tool call in the message.**
    - After completing a logical unit of work (a set of related tasks), set **requestReview: true** on the ${TASK_WRITE_TOOL_NAME} call to let the user review before continuing. Do NOT set this after every single task.
    - Repeat until ALL tasks are done
@@ -156,6 +158,7 @@ Write/modify the Ballerina code to implement the user requirement. Use the ${FIL
 
 ### Step 4: Validate the code
 Once the code is written, always use ${DIAGNOSTICS_TOOL_NAME} to check for compilation errors and fix them. You may call it multiple times after making changes.
+To check runtime behaviour rather than compilation, use ${BALLERINA_SCRATCH_RUN_TOOL_NAME} — it runs a throwaway snippet against a temporary copy of the project, so never add a temporary main function, test, or scratch file to the project to try something out.
 If errors cannot be resolved after multiple attempts, bring the code to a good state and finish the task.
 Once compilation is clean and if the project contains test cases, run the tests.
 
@@ -244,6 +247,8 @@ ${CONCURRENCY_CODING_RULES}
 - Do not manually add/modify Dependencies.toml. For Config.toml configuration management, use ${CONFIG_COLLECTOR_TOOL}.
 - NEVER read Config.toml or tests/Config.toml directly. Use ${CONFIG_COLLECTOR_TOOL} CHECK mode to inspect configuration status — actual values must never be visible to you.
 - Prefer modifying existing bal files over creating new files unless explicitly asked to create a new file in the query.
+- The codebase structure lists every file that already exists, including files under modules/ and tests/. Check it before using ${FILE_WRITE_TOOL_NAME}: a path listed there exists, so edit it instead of writing it. Never create a "-new", "-v2" or "_backup" variant of a file you could not edit.
+- Use ${FILE_DELETE_TOOL_NAME} to remove a file that should no longer exist — a scratch file you created, or one whose contents you have fully moved elsewhere. Never delete a file the user wrote unless they asked for it to be removed.
 
 ## Workspace Management
 When working with Ballerina workspace projects (projects with a root Ballerina.toml containing a [workspace] section):
