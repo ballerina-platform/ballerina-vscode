@@ -43,6 +43,10 @@ jest.mock("@wso2/ballerina-rpc-client", () => ({
 jest.mock("./CopilotOrb", () => ({ CopilotOrb: (): null => null }));
 jest.mock("./MiniChat", () => ({ MiniChat: (): null => null }));
 
+// @wso2/ui-toolkit's barrel re-exports an ESM-only widget jest cannot load; the orb only
+// renders its own chat glyph, so a stub is enough.
+jest.mock("@wso2/ui-toolkit", () => ({ Icon: (): null => null }));
+
 import { AgentStatusOrb } from "./index";
 import { __resetAgentRunStatusStoreForTests } from "./shared";
 
