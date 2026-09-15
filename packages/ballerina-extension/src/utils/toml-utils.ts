@@ -29,6 +29,241 @@ export function isPlaceholderValue(value: string | undefined | null): boolean {
     return typeof value === "string" && /^\$\{[^}]+\}$/.test(value);
 }
 
+// Strips '& readonly' and a trailing '?' so e.g. "string[] & readonly" reduces to "string[]".
+export function stripTypeDecorations(type: string): string {
+    return type.replace(/&\s*readonly/g, "").replace(/\?\s*$/, "").trim();
+}
+
+// Matches an array type suffix, fixed-length or not: "[]", "[2]", "[10]", ... (Ballerina supports
+// fixed-length array configurables, e.g. `configurable string[2] items = ?;`).
+const ARRAY_TYPE_SUFFIX = /\[\d*\]\s*$/;
+
+export function isArrayType(type: string): boolean {
+    return ARRAY_TYPE_SUFFIX.test(type);
+}
+
+// Declared size of a fixed-length array type (e.g. "string[2]" -> 2); undefined for "string[]".
+export function fixedArrayLength(type: string): number | undefined {
+    const match = type.match(/\[(\d+)\]\s*$/);
+    return match ? parseInt(match[1], 10) : undefined;
+}
+
+export function arrayElementType(type: string): string {
+    return type.replace(ARRAY_TYPE_SUFFIX, "").trim();
+}
+
+// True if a comma exists at the top level (outside quotes, outside nested brackets/braces). A
+// quote only opens at an element boundary, so a mid-word apostrophe (e.g. "Bob's") can't swallow
+// the rest of the string; depth is clamped at 0 so an unbalanced closing bracket can't either.
+function hasTopLevelComma(value: string): boolean {
+    let depth = 0;
+    let quote: string | null = null;
+    let isEscaped = false;
+    let atBoundary = true;
+    for (const char of value) {
+        if (quote) {
+            if (isEscaped) {
+                isEscaped = false;
+            } else if (char === "\\") {
+                isEscaped = true;
+            } else if (char === quote) {
+                quote = null;
+            }
+            continue;
+        }
+        if ((char === "\"" || char === "'") && atBoundary) {
+            quote = char;
+            continue;
+        }
+        if (char === "[" || char === "{") {
+            depth++;
+        } else if (char === "]" || char === "}") {
+            depth = Math.max(0, depth - 1);
+        } else if (depth === 0 && char === ",") {
+            return true;
+        }
+        atBoundary = /\s/.test(char);
+    }
+    return false;
+}
+
+// Splits on top-level occurrences of a separator character, never inside a quoted element or a
+// nested array/inline-table. Same boundary-gated quoting and depth clamp as hasTopLevelComma.
+function tokenizeTopLevel(value: string, isSeparator: (char: string) => boolean): string[] {
+    const values: string[] = [];
+    let current = "";
+    let depth = 0;
+    let quote: string | null = null;
+    let isEscaped = false;
+    let atBoundary = true;
+
+    const pushCurrent = () => {
+        const trimmed = current.trim();
+        if (trimmed.length > 0) {
+            values.push(trimmed);
+        }
+        current = "";
+        atBoundary = true;
+    };
+
+    for (const char of value) {
+        if (quote) {
+            current += char;
+            if (isEscaped) {
+                isEscaped = false;
+            } else if (char === "\\") {
+                isEscaped = true;
+            } else if (char === quote) {
+                quote = null;
+            }
+            continue;
+        }
+        if ((char === "\"" || char === "'") && atBoundary) {
+            quote = char;
+            current += char;
+            continue;
+        }
+        if (char === "[" || char === "{") {
+            depth++;
+        } else if (char === "]" || char === "}") {
+            depth = Math.max(0, depth - 1);
+        }
+        if (depth === 0 && isSeparator(char)) {
+            pushCurrent();
+        } else {
+            current += char;
+            if (!/\s/.test(char)) {
+                atBoundary = false;
+            }
+        }
+    }
+    pushCurrent();
+    return values;
+}
+
+// Splits an array literal's elements: on commas if any exist at the top level, else on
+// whitespace. Either way, a quoted element (e.g. "New York") is never split on its own internal
+// characters — quote an element to protect an internal space from being treated as a separator.
+function splitArrayElements(value: string): string[] {
+    const isSeparator = hasTopLevelComma(value) ? (c: string) => c === "," : (c: string) => /\s/.test(c);
+    return tokenizeTopLevel(value, isSeparator);
+}
+
+// Decodes TOML basic-string escapes (\" \\ \n \t \r \b \f). Only meaningful for a value that was
+// actually double-quote-delimited — a bare token or a single-quoted TOML literal string has no
+// escape syntax to decode.
+function decodeTomlEscapes(value: string): string {
+    return value.replace(/\\(["\\bfnrt])/g, (_match, escaped: string) => {
+        switch (escaped) {
+            case "n": return "\n";
+            case "t": return "\t";
+            case "r": return "\r";
+            case "b": return "\b";
+            case "f": return "\f";
+            default: return escaped; // \" or \\
+        }
+    });
+}
+
+// Strips a single matching pair of surrounding quotes, decoding TOML escapes for a double-quoted
+// (but not single-quoted, which TOML treats as a literal string) element.
+function unquote(value: string): string {
+    const trimmed = value.trim();
+    if (trimmed.length >= 2) {
+        const first = trimmed[0];
+        const last = trimmed[trimmed.length - 1];
+        if ((first === "\"" || first === "'") && first === last) {
+            const inner = trimmed.slice(1, -1);
+            return first === "\"" ? decodeTomlEscapes(inner) : inner;
+        }
+    }
+    return trimmed;
+}
+
+const STRICT_INT_PATTERN = /^[+-]?\d+$/;
+// Whole-token match only — parseFloat accepts a numeric prefix of a longer string (e.g. "12ms" -> 12),
+// which would silently write a different value than what was typed.
+const STRICT_DECIMAL_PATTERN = /^[+-]?(?:\d+(?:\.\d+)?|\.\d+)(?:[eE][+-]?\d+)?$/;
+const BYTE_MIN = 0;
+const BYTE_MAX = 255;
+
+// float/decimal needs a decimal point or exponent to stay a float in TOML — @iarna/toml drops it
+// for an integral value (e.g. 1.0 -> 1), which Ballerina's config provider then rejects.
+function formatNumericValue(value: number, isFloatLike: boolean): string {
+    const str = String(value);
+    if (!isFloatLike || str.includes(".") || /e/i.test(str)) {
+        return str;
+    }
+    return `${str}.0`;
+}
+
+// `context` distinguishes an array-element error ("in array") from a scalar one ("").
+function parseIntegerToken(variableName: string, value: string, isByte: boolean, context: string): number {
+    if (!STRICT_INT_PATTERN.test(value)) {
+        throw new Error(`Invalid integer value${context} for ${variableName}`);
+    }
+    const n = parseInt(value, 10);
+    if (isByte && (n < BYTE_MIN || n > BYTE_MAX)) {
+        throw new Error(`Byte value${context} for ${variableName} must be between ${BYTE_MIN} and ${BYTE_MAX}`);
+    }
+    return n;
+}
+
+function parseDecimalToken(variableName: string, value: string, context: string): number {
+    if (!STRICT_DECIMAL_PATTERN.test(value)) {
+        throw new Error(`Invalid decimal value${context} for ${variableName}`);
+    }
+    return parseFloat(value);
+}
+
+function coerceArrayElement(variableName: string, raw: string, elementType: string): unknown {
+    const value = unquote(raw);
+    switch (elementType) {
+        case "int":
+        case "byte":
+            return parseIntegerToken(variableName, value, elementType === "byte", " in array");
+        case "decimal":
+        case "float":
+            return parseDecimalToken(variableName, value, " in array");
+        case "boolean":
+            if (value !== "true" && value !== "false") {
+                throw new Error(`Invalid boolean value in array for ${variableName}`);
+            }
+            return value === "true";
+        default:
+            return value;
+    }
+}
+
+// Parses a submitted array value (a bracket literal or a bare comma/whitespace-separated list)
+// into a real JS array so @iarna/toml emits a TOML array instead of a quoted string.
+function parseArrayConfigValue(variableName: string, value: string, varType: string): unknown[] {
+    const trimmed = value.trim();
+    const elementType = arrayElementType(stripTypeDecorations(varType));
+
+    const inner = trimmed.startsWith("[") && trimmed.endsWith("]") ? trimmed.slice(1, -1).trim() : trimmed;
+    const elements = inner ? splitArrayElements(inner) : [];
+
+    const expectedLength = fixedArrayLength(varType);
+    if (expectedLength !== undefined && elements.length !== expectedLength) {
+        throw new Error(`Expected ${expectedLength} value(s) for ${variableName}, got ${elements.length}`);
+    }
+
+    return elements.map(el => coerceArrayElement(variableName, el, elementType));
+}
+
+// Renders a JS array back into a bracket-literal string for display/pre-fill in the UI.
+function stringifyArrayConfigValue(value: unknown[]): string {
+    const renderElement = (v: unknown) => {
+        if (typeof v !== "string") {
+            return String(v);
+        }
+        const escaped = v.replace(/\\/g, "\\\\").replace(/"/g, "\\\"");
+        return `"${escaped}"`;
+    };
+    return `[${value.map(renderElement).join(", ")}]`;
+}
+
 function readTomlSection(
     configPath: string,
     orgName: string,
@@ -58,7 +293,10 @@ export function getAllConfigStatus(
         return status;
     }
     for (const [key, value] of Object.entries(section)) {
-        if (value !== null && typeof value !== "object") {
+        // An explicitly-submitted empty array is a deliberate, meaningful value, not "unset" —
+        // treated as filled here to agree with computeCollectStatus/classifySubmission, which
+        // already treat the pre-filled "[]" display string as provided.
+        if (value !== null && (typeof value !== "object" || Array.isArray(value))) {
             status[key] = "filled";
         }
     }
@@ -94,24 +332,18 @@ export function writeConfigValuesToConfig(
         }
     }
 
-    const numericKeys = new Set<string>();
     for (const [variableName, value] of Object.entries(configValues)) {
-        const varType = typeMap.get(variableName) || "string";
-        if (varType === "int" || varType === "byte") {
-            const intValue = parseInt(value, 10);
-            if (isNaN(intValue)) {
-                throw new Error(`Invalid integer value for ${variableName}`);
-            }
-            section[variableName] = intValue;
-            numericKeys.add(variableName);
+        const varType = stripTypeDecorations(typeMap.get(variableName) || "string");
+        if (isArrayType(varType)) {
+            section[variableName] = parseArrayConfigValue(variableName, value, varType);
+        } else if (varType === "int" || varType === "byte") {
+            section[variableName] = parseIntegerToken(variableName, value, varType === "byte", "");
         } else if (varType === "decimal" || varType === "float") {
-            const decimalValue = parseFloat(value);
-            if (isNaN(decimalValue)) {
-                throw new Error(`Invalid decimal value for ${variableName}`);
-            }
-            section[variableName] = decimalValue;
-            numericKeys.add(variableName);
+            section[variableName] = parseDecimalToken(variableName, value, "");
         } else if (varType === "boolean") {
+            if (value !== "true" && value !== "false") {
+                throw new Error(`Invalid boolean value for ${variableName}`);
+            }
             section[variableName] = value === "true";
         } else {
             section[variableName] = value;
@@ -126,28 +358,49 @@ export function writeConfigValuesToConfig(
 
         let tomlContent = stringify(config);
 
-        // @iarna/toml formats large numbers with underscores (e.g. 8_080); Ballerina requires plain digits.
-        // Scope replacements to the [org.name] section only to avoid touching identically-named keys
-        // in other sections of the same file.
-        if (numericKeys.size > 0) {
-            const sectionHeader = `[${orgName}.${packageName}]`;
-            const sectionStart = tomlContent.indexOf(sectionHeader);
-            if (sectionStart !== -1) {
-                const afterHeader = sectionStart + sectionHeader.length;
-                const nextSection = tomlContent.indexOf("\n[", afterHeader);
-                const sectionEnd = nextSection !== -1 ? nextSection : tomlContent.length;
+        // @iarna/toml round-trips numbers with quirks Ballerina rejects (underscore grouping,
+        // a spurious ".0" on some exponent floats, dropping the point off an integral float).
+        // Repaired from `section` (every key in the file, not just this call's submission) so a
+        // key already on disk and not resubmitted still gets fixed up, scoped to this org.package
+        // section so identically-named keys elsewhere in the file are untouched.
+        const sectionHeader = `[${orgName}.${packageName}]`;
+        const sectionStart = tomlContent.indexOf(sectionHeader);
+        if (sectionStart !== -1) {
+            const afterHeader = sectionStart + sectionHeader.length;
+            const nextSection = tomlContent.indexOf("\n[", afterHeader);
+            const sectionEnd = nextSection !== -1 ? nextSection : tomlContent.length;
 
-                let sectionSlice = tomlContent.slice(sectionStart, sectionEnd);
-                for (const key of numericKeys) {
-                    const numValue = section[key];
-                    if (typeof numValue === "number") {
-                        const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-                        const pattern = new RegExp(`^(\\s*${escapedKey}\\s*=\\s*)[0-9][0-9_]*(?:\\.[0-9]+)?`, "gm");
-                        sectionSlice = sectionSlice.replace(pattern, `$1${numValue}`);
-                    }
+            let sectionSlice = tomlContent.slice(sectionStart, sectionEnd);
+            for (const [key, numValue] of Object.entries(section)) {
+                if (typeof numValue !== "number") {
+                    continue;
                 }
-                tomlContent = tomlContent.slice(0, sectionStart) + sectionSlice + tomlContent.slice(sectionEnd);
+                const declaredType = stripTypeDecorations(typeMap.get(key) || "");
+                const isFloatLike = declaredType === "decimal" || declaredType === "float";
+                const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+                const pattern = new RegExp(
+                    `^(\\s*${escapedKey}\\s*=\\s*)[+-]?[0-9][0-9_]*(?:\\.[0-9_]+)?(?:[eE][+-]?[0-9]+)?(?:\\.0)?`,
+                    "gm"
+                );
+                sectionSlice = sectionSlice.replace(pattern, `$1${formatNumericValue(numValue, isFloatLike)}`);
             }
+            // Same idea for a numeric array: rebuild its '[ ... ]' span from the real values.
+            for (const [key, arrValue] of Object.entries(section)) {
+                if (!Array.isArray(arrValue) || arrValue.length === 0 || !arrValue.every(e => typeof e === "number")) {
+                    continue;
+                }
+                const declaredType = stripTypeDecorations(typeMap.get(key) || "");
+                const elementType = isArrayType(declaredType) ? arrayElementType(declaredType) : declaredType;
+                // A fractional element forces every element to render as a float — TOML arrays are
+                // single-type, so an integral sibling left as "1" would be a mixed-type array.
+                const hasFractionalValue = arrValue.some(v => !Number.isInteger(v));
+                const isFloatLike = hasFractionalValue || elementType === "decimal" || elementType === "float";
+                const formatted = `[ ${arrValue.map(v => formatNumericValue(v, isFloatLike)).join(", ")} ]`;
+                const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+                const pattern = new RegExp(`(^\\s*${escapedKey}\\s*=\\s*)\\[[^\\]]*\\]`, "m");
+                sectionSlice = sectionSlice.replace(pattern, `$1${formatted}`);
+            }
+            tomlContent = tomlContent.slice(0, sectionStart) + sectionSlice + tomlContent.slice(sectionEnd);
         }
 
         fs.writeFileSync(configPath, tomlContent, "utf-8");
@@ -180,6 +433,10 @@ export function readExistingConfigValues(
                 existingValues[name] = value;
             } else if (typeof value === "number") {
                 existingValues[name] = value.toString();
+            } else if (typeof value === "boolean") {
+                existingValues[name] = value ? "true" : "false";
+            } else if (Array.isArray(value)) {
+                existingValues[name] = stringifyArrayConfigValue(value);
             }
         }
     }

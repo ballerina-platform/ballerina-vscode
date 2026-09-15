@@ -23,6 +23,9 @@ import { TextDocumentEdit } from "vscode-languageserver-types";
 import { fileURLToPath } from "url";
 import { writeBallerinaFileDidOpenTemp } from "../../utils/modification";
 
+/** Marks errors whose cause is the package failing to compile, not an LS malfunction. */
+export const PACKAGE_COMPILATION_FAILED_PREFIX = "Package compilation failed: ";
+
 export async function attemptRepairProject(langClient: ExtendedLangClient, tempDir: string): Promise<Diagnostics[]> {
     // check project diagnostics
     let projectDiags: Diagnostics[] = await checkProjectDiagnostics(langClient, tempDir);
@@ -58,8 +61,12 @@ export async function checkProjectDiagnostics(langClient: ExtendedLangClient, te
     });
     const _diagDurationMs = Date.now() - _diagStartMs;
     if (!response.errorDiagnosticMap) {
-        console.log(`[DiagTiming] getProjectDiagnostics END — ${_diagDurationMs}ms — no errorDiagnosticMap (internal error)`);
-        throw new Error("Internal error while getting diagnostics from language server");
+        console.log(`[DiagTiming] getProjectDiagnostics END — ${_diagDurationMs}ms — no errorDiagnosticMap (${response.errorMsg ?? "internal error"})`);
+        // errorMsg carries the language server's reason — typically a package-compilation
+        // failure (e.g. unresolvable dependencies), which callers surface to the user.
+        throw new Error(response.errorMsg
+            ? `${PACKAGE_COMPILATION_FAILED_PREFIX}${response.errorMsg}`
+            : "Internal error while getting diagnostics from language server");
     }
     const _fileCount = Object.keys(response.errorDiagnosticMap).length;
     console.log(`[DiagTiming] getProjectDiagnostics END — ${_diagDurationMs}ms, ${_fileCount} files with errors`);

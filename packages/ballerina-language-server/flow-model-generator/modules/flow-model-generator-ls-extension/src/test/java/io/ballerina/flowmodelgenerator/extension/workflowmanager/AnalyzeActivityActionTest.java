@@ -101,6 +101,30 @@ public class AnalyzeActivityActionTest extends AbstractLSTest {
     }
 
     @Test
+    public void testKeywordParamNameIsEscaped() throws IOException {
+        JsonObject analysis = analyze("convert");
+        Assert.assertTrue(analysis.get("supported").getAsBoolean(), "Expected convert to be supported");
+        JsonArray params = analysis.getAsJsonArray("params");
+        Assert.assertEquals(params.size(), 2);
+
+        // from is a Ballerina keyword, so the two spellings differ: the bare name is what the action
+        // node template keys its property by (keys are always unescaped) and what the form labels the
+        // field, while the quoted one is only for text emitted as source — the generated activity's
+        // parameter name and the argument passed to the action.
+        JsonObject fromParam = params.get(0).getAsJsonObject();
+        Assert.assertEquals(fromParam.get("name").getAsString(), "from");
+        Assert.assertEquals(fromParam.get("escapedName").getAsString(), "'from");
+        Assert.assertEquals(fromParam.get("type").getAsString(), "string");
+        Assert.assertTrue(fromParam.get("required").getAsBoolean());
+        Assert.assertEquals(fromParam.get("description").getAsString(), "The source unit");
+
+        // A non-keyword name is identical in both spellings.
+        JsonObject toParam = params.get(1).getAsJsonObject();
+        Assert.assertEquals(toParam.get("name").getAsString(), "to");
+        Assert.assertEquals(toParam.get("escapedName").getAsString(), "to");
+    }
+
+    @Test
     public void testStreamReturnCollected() throws IOException {
         JsonObject analysis = analyze("fetchLines");
         Assert.assertTrue(analysis.get("supported").getAsBoolean(), "Expected fetchLines to be supported");

@@ -587,6 +587,7 @@ export class BallerinaExtension {
                     } else if (this.langClient.state === LS_STATE.Running) {
                         debug("[INIT] Language server is running, registering extended API capabilities");
                         await this.langClient?.registerExtendedAPICapabilities();
+                        this.langClient?.registerCorruptBirCache();
                         this.updateStatusBar(this.ballerinaVersion);
                         sendTelemetryEvent(this, TM_EVENT_EXTENSION_INIT, CMP_EXTENSION_CORE);
                         debug("[INIT] Extension initialization completed successfully");

@@ -34,7 +34,7 @@ const FormContainer = styled.div`
     flex-direction: column;
     max-width: 600px;
     gap: 20px;
-    padding: 0 16px;
+    padding-left: 16px;
 `;
 
 interface AddAgentDefinitionProps {
@@ -51,7 +51,7 @@ export function AddAgentDefinition(props: AddAgentDefinitionProps) {
                 <Container>
                     <FormHeader title="Create Agent Definition" subtitle="Define a reusable agent for your library" />
                     <FormContainer>
-                        <AgentDefinitionForm projectPath={projectPath} submitText="Create Agent Definition" />
+                        <AgentDefinitionForm projectPath={projectPath} submitText="Create Agent Definition" inModal={false} />
                     </FormContainer>
                 </Container>
             </ViewContent>

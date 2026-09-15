@@ -178,7 +178,7 @@ export function CopilotHeroBox({ placeholder }: { placeholder: string }) {
     const state = status?.state ?? "idle";
     const active = state !== "idle";
     const colors = useOrbColors(state);
-    const label = active && status ? activeStateLabel(status, productMode) : null;
+    const label = active && status ? activeStateLabel(status) : null;
 
     const openCopilot = () => openCopilotPanel(rpcClient);
 

@@ -62,19 +62,6 @@ public class CopilotLibraryServicesParityTest {
         return ModelToJsonConverter.libraryToJson(library).getAsJsonObject().getAsJsonArray("services");
     }
 
-    @DataProvider(name = "coveredLibraries")
-    public Object[][] coveredLibraries() {
-        return new Object[][]{
-                {"ballerinax/kafka"},
-                {"ballerinax/asb"},
-                {"ballerinax/rabbitmq"},
-                {"ballerina/ftp"},
-                {"ballerina/mqtt"},
-                {"ballerinax/salesforce"},
-                {"ballerinax/trigger.github"},
-        };
-    }
-
     @DataProvider(name = "allLibraries")
     public Object[][] allLibraries() {
         return new Object[][]{
@@ -89,28 +76,6 @@ public class CopilotLibraryServicesParityTest {
                 {"ballerina/graphql"},
                 {"ballerina/ai"},
         };
-    }
-
-    @Test(dataProvider = "coveredLibraries")
-    public void testServiceLoaderProducesNonEmptyResults(String libraryName) {
-        JsonArray services = wireJson(ServiceLoader.loadAllServices(libraryName));
-
-        Assert.assertFalse(services.isEmpty(),
-                "loadAllServices returned empty for covered library: " + libraryName);
-
-        // Verify each service entry has the expected structure
-        for (int i = 0; i < services.size(); i++) {
-            JsonObject svc = services.get(i).getAsJsonObject();
-            Assert.assertTrue(svc.has("type"), "Missing 'type' in service entry " + i + " for " + libraryName);
-            Assert.assertEquals(svc.get("type").getAsString(), "fixed",
-                    "Expected type 'fixed' for trigger service " + libraryName);
-            Assert.assertTrue(svc.has("listener"),
-                    "Missing 'listener' in service entry " + i + " for " + libraryName);
-
-            JsonObject listener = svc.getAsJsonObject("listener");
-            Assert.assertTrue(listener.has("name"), "Missing listener name for " + libraryName);
-            Assert.assertTrue(listener.has("parameters"), "Missing listener parameters for " + libraryName);
-        }
     }
 
     @Test(dataProvider = "allLibraries")

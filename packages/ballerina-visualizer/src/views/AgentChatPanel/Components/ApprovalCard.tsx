@@ -19,15 +19,15 @@
 import React, { useState } from "react";
 import styled from "@emotion/styled";
 import { Icon, Button } from "@wso2/ui-toolkit";
-import { ApprovalRequest, HumanResponse } from "@wso2/ballerina-core";
+import { ApprovalRequest, HumanDecision } from "@wso2/ballerina-core";
 
 interface ApprovalCardProps {
     requests: ApprovalRequest[];
-    decisions?: Record<string, HumanResponse>;
+    decisions?: Record<string, HumanDecision>;
     // Set once the user has dismissed this batch; renders as terminal even if some requests
     // still lack a decision.
     unresolvable?: boolean;
-    onSubmit: (decisions: Record<string, HumanResponse>) => Promise<void>;
+    onSubmit: (decisions: Record<string, HumanDecision>) => Promise<void>;
     // Lets the user give up on a batch that keeps failing instead of being stuck with a
     // disabled chat input. Optional since a fully/terminally rendered card has no use for it.
     onDismiss?: () => void;
@@ -241,14 +241,14 @@ const TextLinkButton = styled.button`
     }
 `;
 
-const DecidedBadge = styled.span<{ decision: "APPROVE" | "REJECT" }>`
+const DecidedBadge = styled.span<{ outcome: "APPROVE" | "REJECT" }>`
     display: inline-flex;
     align-items: center;
     gap: 4px;
     font-size: 12px;
     font-weight: 600;
-    color: ${({ decision }: { decision: "APPROVE" | "REJECT" }) =>
-        decision === "APPROVE" ? "var(--vscode-terminal-ansiGreen)" : "var(--vscode-errorForeground)"};
+    color: ${({ outcome }: { outcome: "APPROVE" | "REJECT" }) =>
+        outcome === "APPROVE" ? "var(--vscode-terminal-ansiGreen)" : "var(--vscode-errorForeground)"};
 `;
 
 const BatchActions = styled.div`
@@ -268,12 +268,12 @@ const CollapsedSummary = styled.div`
     font-size: 12px;
 `;
 
-const SummaryItem = styled.span<{ decision: "APPROVE" | "REJECT" }>`
+const SummaryItem = styled.span<{ outcome: "APPROVE" | "REJECT" }>`
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    color: ${({ decision }: { decision: "APPROVE" | "REJECT" }) =>
-        decision === "APPROVE" ? "var(--vscode-terminal-ansiGreen)" : "var(--vscode-errorForeground)"};
+    color: ${({ outcome }: { outcome: "APPROVE" | "REJECT" }) =>
+        outcome === "APPROVE" ? "var(--vscode-terminal-ansiGreen)" : "var(--vscode-errorForeground)"};
 `;
 
 function isPlainObject(value: unknown): value is Record<string, any> {
@@ -348,7 +348,7 @@ export const ApprovalCard: React.FC<ApprovalCardProps> = ({ requests, decisions,
 
     const toggleArgs = (id: string) => setExpandedArgs(prev => ({ ...prev, [id]: !prev[id] }));
 
-    const submit = async (partial: Record<string, HumanResponse>) => {
+    const submit = async (partial: Record<string, HumanDecision>) => {
         setSubmitting(true);
         try {
             await onSubmit(partial);
@@ -363,7 +363,7 @@ export const ApprovalCard: React.FC<ApprovalCardProps> = ({ requests, decisions,
         }
     };
 
-    const handleApprove = (id: string) => submit({ [id]: { decision: "APPROVE" } });
+    const handleApprove = (id: string) => submit({ [id]: { outcome: "APPROVE" } });
 
     const handleStartReject = (id: string) => {
         setRejectingId(id);
@@ -372,18 +372,18 @@ export const ApprovalCard: React.FC<ApprovalCardProps> = ({ requests, decisions,
 
     const handleConfirmReject = (id: string) => {
         const reason = reasonText.trim();
-        submit({ [id]: { decision: "REJECT", ...(reason ? { reason } : {}) } });
+        submit({ [id]: { outcome: "REJECT", ...(reason ? { reason } : {}) } });
     };
 
     const handleApproveAll = () => {
-        const decisionsMap: Record<string, HumanResponse> = {};
-        pendingRequests.forEach(r => { decisionsMap[r.id] = { decision: "APPROVE" }; });
+        const decisionsMap: Record<string, HumanDecision> = {};
+        pendingRequests.forEach(r => { decisionsMap[r.id] = { outcome: "APPROVE" }; });
         submit(decisionsMap);
     };
 
     const handleRejectAll = () => {
-        const decisionsMap: Record<string, HumanResponse> = {};
-        pendingRequests.forEach(r => { decisionsMap[r.id] = { decision: "REJECT" }; });
+        const decisionsMap: Record<string, HumanDecision> = {};
+        pendingRequests.forEach(r => { decisionsMap[r.id] = { outcome: "REJECT" }; });
         submit(decisionsMap);
     };
 
@@ -395,19 +395,19 @@ export const ApprovalCard: React.FC<ApprovalCardProps> = ({ requests, decisions,
                         const decided = decisions?.[req.id];
                         if (decided) {
                             return (
-                                <SummaryItem key={req.id} decision={decided.decision}>
+                                <SummaryItem key={req.id} outcome={decided.outcome}>
                                     <Icon
-                                        name={decided.decision === "APPROVE" ? "bi-check" : "bi-close"}
+                                        name={decided.outcome === "APPROVE" ? "bi-check" : "bi-close"}
                                         sx={{ width: 14, height: 14 }}
                                         iconSx={{ fontSize: "14px" }}
                                     />
-                                    {req.toolName} {decided.decision === "APPROVE" ? "approved" : "rejected"}
+                                    {req.toolName} {decided.outcome === "APPROVE" ? "approved" : "rejected"}
                                     {decided.reason ? ` — "${decided.reason}"` : ""}
                                 </SummaryItem>
                             );
                         }
                         return (
-                            <SummaryItem key={req.id} decision="REJECT">
+                            <SummaryItem key={req.id} outcome="REJECT">
                                 <Icon name="bi-warning" sx={{ width: 14, height: 14 }} iconSx={{ fontSize: "14px" }} />
                                 {req.toolName} could not be resumed
                             </SummaryItem>
@@ -425,13 +425,13 @@ export const ApprovalCard: React.FC<ApprovalCardProps> = ({ requests, decisions,
                     {requests.map(req => {
                         const decided = decisions![req.id];
                         return (
-                            <SummaryItem key={req.id} decision={decided.decision}>
+                            <SummaryItem key={req.id} outcome={decided.outcome}>
                                 <Icon
-                                    name={decided.decision === "APPROVE" ? "bi-check" : "bi-close"}
+                                    name={decided.outcome === "APPROVE" ? "bi-check" : "bi-close"}
                                     sx={{ width: 14, height: 14 }}
                                     iconSx={{ fontSize: "14px" }}
                                 />
-                                {req.toolName} {decided.decision === "APPROVE" ? "approved" : "rejected"}
+                                {req.toolName} {decided.outcome === "APPROVE" ? "approved" : "rejected"}
                                 {decided.reason ? ` — "${decided.reason}"` : ""}
                             </SummaryItem>
                         );
@@ -474,13 +474,13 @@ export const ApprovalCard: React.FC<ApprovalCardProps> = ({ requests, decisions,
                             <ArgumentsContainer>{renderArguments(req.arguments)}</ArgumentsContainer>
                         )}
                         {decided ? (
-                            <DecidedBadge decision={decided.decision}>
+                            <DecidedBadge outcome={decided.outcome}>
                                 <Icon
-                                    name={decided.decision === "APPROVE" ? "bi-check" : "bi-close"}
+                                    name={decided.outcome === "APPROVE" ? "bi-check" : "bi-close"}
                                     sx={{ width: 14, height: 14 }}
                                     iconSx={{ fontSize: "14px" }}
                                 />
-                                {decided.decision === "APPROVE" ? "Approved" : "Rejected"}
+                                {decided.outcome === "APPROVE" ? "Approved" : "Rejected"}
                                 {decided.reason ? ` — "${decided.reason}"` : ""}
                             </DecidedBadge>
                         ) : rejectingId === req.id ? (

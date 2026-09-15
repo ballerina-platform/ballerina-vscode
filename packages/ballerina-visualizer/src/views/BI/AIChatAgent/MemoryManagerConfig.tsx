@@ -24,16 +24,12 @@ import { cloneDeep } from "lodash";
 import { useEffect, useRef, useState } from "react";
 import { RelativeLoader } from "../../../components/RelativeLoader";
 import { FlowNodeForm } from "../Forms/FlowNodeForm";
-import { getAiModuleOrg, getNodeTemplate, refreshAgentNodeLineRange, resolveAgentNodePosition } from "./utils";
+import { findAgentScopedNode, getAiModuleOrg, getNodeTemplate, refreshAgentNodeLineRange, resolveAgentNodePosition, resolveFilePath } from "./utils";
+import { MemoryStoreConfig } from "./MemoryStoreConfig";
 import { usePanelOverlay } from "../FlowDiagram/hooks/usePanelOverlay";
 import { ConnectionSelectionList } from "../../../components/ConnectionSelector/ConnectionSelectionList";
 import { ConnectionCreator } from "../../../components/ConnectionSelector/ConnectionCreator";
 import { getNodeTemplateForConnection } from "../FlowDiagram/utils";
-
-const ScrollWrapper = styled.div`
-    height: 100%;
-    overflow-y: auto;
-`;
 
 const Container = styled.div`
     padding: 24px 16px 0;
@@ -265,17 +261,6 @@ export function MemoryManagerConfig(props: MemoryConfigProps): JSX.Element {
         await loadMemoryTemplate(memoryCodeData);
     };
 
-    const resolveFilePath = async (fileName: string | undefined, fallback: string): Promise<string> => {
-        if (!fileName) return fallback;
-        // `fileName` may be relative (e.g. "agents.bal") or already absolute
-        // (ConnectionSelector's updateNodeLineRange writes the artifact's absolute path).
-        // Skip joinProjectPath when already absolute to avoid doubling the project prefix.
-        if (fileName.startsWith("/") || /^[a-zA-Z]:[\\/]/.test(fileName)) {
-            return fileName;
-        }
-        return (await rpcClient.getVisualizerRpcClient().joinProjectPath({ segments: [fileName] })).filePath;
-    };
-
     const handleOnSave = async (updatedNode?: FlowNode): Promise<void> => {
         if (!agentNode) {
             console.error("Agent node not found", { agentNode, agentNodeRef });
@@ -286,7 +271,7 @@ export function MemoryManagerConfig(props: MemoryConfigProps): JSX.Element {
 
         try {
             const memoryFileName = updatedNode?.codedata?.lineRange?.fileName;
-            const memoryFilePath = await resolveFilePath(memoryFileName, agentFilePath.current);
+            const memoryFilePath = await resolveFilePath(rpcClient, memoryFileName, agentFilePath.current);
 
             const agentVarName = agentNode?.properties?.variable?.value as string;
 
@@ -300,6 +285,7 @@ export function MemoryManagerConfig(props: MemoryConfigProps): JSX.Element {
             await refreshAgentNodeLineRange(updatedAgentNode, rpcClient, memoryResponse?.artifacts);
 
             const agentNodeFilePath = await resolveFilePath(
+                rpcClient,
                 updatedAgentNode?.codedata?.lineRange?.fileName,
                 agentFilePath.current
             );
@@ -332,6 +318,18 @@ export function MemoryManagerConfig(props: MemoryConfigProps): JSX.Element {
         }
     };
 
+    const refreshMemoryLineRange = (artifacts?: ProjectStructureArtifactResponse[]) => {
+        const memoryName = (memoryNode || memoryNodeTemplate)?.properties?.variable?.value;
+        const position = artifacts?.find((artifact) => artifact.name === memoryName)?.position;
+        if (position) {
+            targetLineRange.current = {
+                ...targetLineRange.current,
+                startLine: { line: position.startLine, offset: position.startColumn },
+                endLine: { line: position.endLine, offset: position.endColumn },
+            };
+        }
+    };
+
     const handleStoreCreated = (createdNode: FlowNode, artifacts?: ProjectStructureArtifactResponse[]) => {
         const storeProperty = createdNode.properties?.store;
         if (!storeProperty?.value) {
@@ -353,13 +351,7 @@ export function MemoryManagerConfig(props: MemoryConfigProps): JSX.Element {
             }
         }
 
-        if (memoryArtifact?.position) {
-            targetLineRange.current = {
-                ...targetLineRange.current,
-                startLine: { line: memoryArtifact.position.startLine, offset: memoryArtifact.position.startColumn },
-                endLine: { line: memoryArtifact.position.endLine, offset: memoryArtifact.position.endColumn }
-            };
-        }
+        refreshMemoryLineRange(artifacts);
 
         const applyMemoryUpdates = (node: FlowNode): FlowNode => {
             const updated = cloneDeep(node);
@@ -435,6 +427,38 @@ export function MemoryManagerConfig(props: MemoryConfigProps): JSX.Element {
         }
     };
 
+    const handleEditStore = async (storeName: string) => {
+        const overlayId = openOverlay({
+            title: "Configure Memory Store",
+            content: (
+                <LoaderContainer>
+                    <RelativeLoader />
+                </LoaderContainer>
+            ),
+            onBack: closeTopOverlay,
+        });
+        const storeNode = await findAgentScopedNode(
+            rpcClient, agentNode, "SHORT_TERM_MEMORY_STORE", storeName, agentFilePath.current
+        );
+        if (!storeNode) {
+            console.error("Memory store declaration not found", storeName);
+            closeTopOverlay();
+            return;
+        }
+        updateOverlay(overlayId, {
+            content: (
+                <MemoryStoreConfig
+                    storeNode={storeNode}
+                    agentNode={agentNode}
+                    onSave={(_, artifacts) => {
+                        refreshMemoryLineRange(artifacts);
+                        closeTopOverlay();
+                    }}
+                />
+            ),
+        });
+    };
+
     const handleOpenStoreSelection = () => {
         const id = openOverlay({
             title: "Select Memory Store",
@@ -453,7 +477,7 @@ export function MemoryManagerConfig(props: MemoryConfigProps): JSX.Element {
     };
 
     return (
-        <ScrollWrapper>
+        <>
             {availableMemory.length > 0 && (
                 <Container>
                     <Row>
@@ -499,9 +523,11 @@ export function MemoryManagerConfig(props: MemoryConfigProps): JSX.Element {
                     disableSaveButton={isSaving}
                     submitText={isSaving ? "Saving..." : "Save"}
                     showProgressIndicator={isSaving}
-                    defaultExpandAdvanced={formKey > 0}
+                    hideInfoBanner
                     fieldOverrides={{
                         store: {
+                            advanced: false,
+                            editCallback: handleEditStore,
                             type: "ACTION_EXPRESSION",
                             types: [{ fieldType: "ACTION_EXPRESSION", selected: true }, { fieldType: "EXPRESSION", selected: false }],
                             codedata: { searchNodesKind: "SHORT_TERM_MEMORY_STORE" },
@@ -523,6 +549,6 @@ export function MemoryManagerConfig(props: MemoryConfigProps): JSX.Element {
                     }}
                 />
             )}
-        </ScrollWrapper>
+        </>
     );
 }

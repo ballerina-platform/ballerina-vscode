@@ -21,13 +21,13 @@ package io.ballerina.flowmodelgenerator.core.search;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.reflect.TypeToken;
+import io.ballerina.centralconnector.RemoteCentral;
+import io.ballerina.centralconnector.response.PackageResponse;
 import io.ballerina.compiler.api.ModuleID;
-import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.api.symbols.ClassSymbol;
 import io.ballerina.compiler.api.symbols.Documentation;
 import io.ballerina.compiler.api.symbols.ModuleSymbol;
-import io.ballerina.compiler.api.symbols.Symbol;
-import io.ballerina.compiler.api.symbols.SymbolKind;
+import io.ballerina.flowmodelgenerator.core.AiUtils;
 import io.ballerina.flowmodelgenerator.core.LocalIndexCentral;
 import io.ballerina.flowmodelgenerator.core.model.AvailableNode;
 import io.ballerina.flowmodelgenerator.core.model.Category;
@@ -36,10 +36,10 @@ import io.ballerina.flowmodelgenerator.core.model.Item;
 import io.ballerina.flowmodelgenerator.core.model.Metadata;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.modelgenerator.commons.CommonUtils;
+import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.modelgenerator.commons.SearchResult;
-import io.ballerina.projects.Module;
-import io.ballerina.projects.PackageCompilation;
+import io.ballerina.projects.Package;
 import io.ballerina.projects.Project;
 import io.ballerina.tools.text.LineRange;
 import org.ballerinalang.langserver.commons.BallerinaCompilerApi;
@@ -47,10 +47,13 @@ import org.ballerinalang.langserver.commons.BallerinaCompilerApi;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.regex.Pattern;
 
 /**
  * Handles the search command for agents.
@@ -60,11 +63,13 @@ import java.util.Optional;
 public class AgentSearchCommand extends SearchCommand {
 
     private static final Gson GSON = new Gson();
+    private static final String AGENT_KEYWORD_FILTER = "keywords:\"Type/Agent\"";
     private static final String CENTRAL_AGENTS_CATEGORY = "Central Agents";
     private static final String LOCAL_AGENTS_CATEGORY = "Local Agents";
     private static final String INIT_SYMBOL = "init";
     private static final String AGENTS_LANDING_JSON = "agents_landing.json";
     private static final Type LANDING_AGENTS_TYPE = new TypeToken<List<AvailableNode>>() { }.getType();
+    private static final Pattern RESERVED_OPERATOR = Pattern.compile("(?i)\\b(AND|OR|NOT)\\b");
 
     private static final String SOURCE_DEFAULT = "default";
     private static final String SOURCE_ALL = "all";
@@ -74,10 +79,12 @@ public class AgentSearchCommand extends SearchCommand {
     private List<Item> cachedDefaultAgents;
     private final String orgName;
     private final String source;
+    private final String packageId;
 
     public AgentSearchCommand(Project project, LineRange position, Map<String, String> queryMap) {
         super(project, position, queryMap);
         orgName = queryMap.get("orgName");
+        packageId = queryMap.get("package");
         String requestedSource = queryMap.getOrDefault("source", SOURCE_DEFAULT);
         source = SOURCE_ALL.equals(requestedSource) || SOURCE_ORGANIZATION.equals(requestedSource)
                 || SOURCE_LOCAL.equals(requestedSource)
@@ -111,6 +118,10 @@ public class AgentSearchCommand extends SearchCommand {
 
     @Override
     public JsonArray execute() {
+        if (packageId != null && !packageId.isEmpty()) {
+            return GSON.toJsonTree(getPackageAgents()).getAsJsonArray();
+        }
+
         List<Item> items;
         if (SOURCE_DEFAULT.equals(source)) {
             items = (query.isEmpty() && orgName == null) ? defaultView() : search();
@@ -151,11 +162,15 @@ public class AgentSearchCommand extends SearchCommand {
             return List.of();
         }
     }
+    // The default view stays offline; org packages arrive later via a separate `organization` source request.
     private List<Item> getAllAgents(String searchQuery) {
-        addCategory(CENTRAL_AGENTS_CATEGORY, filterAgents(getLandingAgents(), searchQuery));
         addCategory(LOCAL_AGENTS_CATEGORY, filterAgents(getWorkspaceAgents(), searchQuery));
+        addCategory(CENTRAL_AGENTS_CATEGORY, searchQuery == null || searchQuery.isEmpty()
+                ? filterAgents(getLandingAgents(), null)
+                : fetchAgentsFromCentral(searchQuery, false));
         return rootBuilder.build().items();
     }
+
     private List<Item> getLocalAgents(String searchQuery) {
         addCategory(LOCAL_AGENTS_CATEGORY, filterAgents(getWorkspaceAgents(), searchQuery));
         return rootBuilder.build().items();
@@ -166,7 +181,96 @@ public class AgentSearchCommand extends SearchCommand {
         addCategory(LOCAL_AGENTS_CATEGORY, filterAgents(getWorkspaceAgents(), searchQuery).stream()
                 .filter(agent -> agent.codedata().org().equalsIgnoreCase(currentOrg))
                 .toList());
+        addCategory(CENTRAL_AGENTS_CATEGORY, fetchAgentsFromCentral(searchQuery, true));
         return rootBuilder.build().items();
+    }
+
+    private List<AvailableNode> fetchAgentsFromCentral(String searchQuery, boolean orgScoped) {
+        try {
+            if (!orgScoped) {
+                return toAgentNodes(searchPackages(searchQuery, null, false));
+            }
+            return fetchOrganizationScopedAgents(searchQuery);
+        } catch (RuntimeException ignored) {
+            return List.of();
+        }
+    }
+
+    // Central ANDs `org` with `user-packages`, so an authorized user's own packages and the current org's
+    // packages are fetched as separate requests and merged, rather than dropping one for the other.
+    private List<AvailableNode> fetchOrganizationScopedAgents(String searchQuery) {
+        String currentOrg = project.currentPackage().packageOrg().value();
+        boolean hasOrg = currentOrg != null && !currentOrg.isEmpty();
+        boolean authorized = RemoteCentral.getInstance().hasAuthorizedAccess();
+        if (!hasOrg && !authorized) {
+            return List.of();
+        }
+
+        Map<String, AvailableNode> merged = new LinkedHashMap<>();
+        if (hasOrg) {
+            toAgentNodes(searchPackages(searchQuery, currentOrg, false))
+                    .forEach(node -> merged.putIfAbsent(node.codedata().org() + "/" + node.codedata().module(), node));
+        }
+        if (authorized) {
+            toAgentNodes(searchPackages(searchQuery, null, true))
+                    .forEach(node -> merged.putIfAbsent(node.codedata().org() + "/" + node.codedata().module(), node));
+        }
+        return List.copyOf(merged.values());
+    }
+
+    private PackageResponse searchPackages(String searchQuery, String org, boolean userPackages) {
+        Map<String, String> centralQueryMap = new HashMap<>();
+        // Keyword must lead: `<text> AND keywords:"..."` mis-associates on multi-word text and returns nothing.
+        String sanitizedQuery = sanitizeSearchQuery(searchQuery);
+        centralQueryMap.put("q", sanitizedQuery.isEmpty()
+                ? AGENT_KEYWORD_FILTER
+                : AGENT_KEYWORD_FILTER + " AND " + sanitizedQuery);
+        centralQueryMap.put("limit", String.valueOf(limit));
+        centralQueryMap.put("offset", String.valueOf(offset));
+        if (org != null) {
+            centralQueryMap.put("org", org);
+        }
+        if (userPackages) {
+            centralQueryMap.put("user-packages", "true");
+        }
+        return RemoteCentral.getInstance().searchPackages(centralQueryMap);
+    }
+
+    // Solr treats bare AND/OR/NOT as operators, so a trailing or stray one leaves the query unparsable.
+    private static String sanitizeSearchQuery(String searchQuery) {
+        if (searchQuery == null || searchQuery.isEmpty()) {
+            return "";
+        }
+        return RESERVED_OPERATOR.matcher(searchQuery.replace("\"", " "))
+                .replaceAll(" ")
+                .trim()
+                .replaceAll("\\s+", " ");
+    }
+
+    private static List<AvailableNode> toAgentNodes(PackageResponse response) {
+        if (response == null || response.packages() == null) {
+            return List.of();
+        }
+        return response.packages().stream().map(AgentSearchCommand::generateCentralAgentNode).toList();
+    }
+
+    private static AvailableNode generateCentralAgentNode(PackageResponse.Package pkg) {
+        Metadata metadata = new Metadata.Builder<>(null)
+                .label(pkg.name())
+                .description(pkg.summary())
+                .icon(CommonUtils.generateIcon(pkg.organization(), pkg.name(), pkg.version()))
+                .build();
+
+        Codedata codedata = new Codedata.Builder<>(null)
+                .node(NodeKind.TYPED_AGENT)
+                .org(pkg.organization())
+                .module(pkg.name())
+                .packageName(pkg.name())
+                .symbol(INIT_SYMBOL)
+                .version(pkg.version())
+                .build();
+
+        return new AvailableNode(metadata, codedata, true);
     }
 
     private void addCategory(String name, List<AvailableNode> agents) {
@@ -198,31 +302,28 @@ public class AgentSearchCommand extends SearchCommand {
                 .toList();
     }
 
-    private static List<AvailableNode> findAgentClasses(Project project) {
-        PackageCompilation compilation = PackageUtil.getCompilation(project);
-        List<AvailableNode> localAgents = new ArrayList<>();
-
-        for (Module module : project.currentPackage().modules()) {
-            SemanticModel semanticModel = compilation.getSemanticModel(module.moduleId());
-            for (Symbol symbol : semanticModel.moduleSymbols()) {
-                if (symbol.kind() != SymbolKind.CLASS) {
-                    continue;
-                }
-
-                ClassSymbol classSymbol = (ClassSymbol) symbol;
-                if (!CommonUtils.isAiAgentType(classSymbol)) {
-                    continue;
-                }
-
-                Optional<ModuleSymbol> optModule = symbol.getModule();
-                if (optModule.isEmpty()) {
-                    continue;
-                }
-
-                localAgents.add(buildLocalAgentNode(classSymbol, optModule.get()));
+    // Central results name a package, not a class; expanding one lists every agent it defines.
+    private List<Item> getPackageAgents() {
+        try {
+            ModuleInfo moduleInfo = ModuleInfo.from(packageId);
+            if (moduleInfo.isComplete()) {
+                PackageUtil.pullModuleAndNotify(null, moduleInfo)
+                        .ifPresent(pkg -> addCategory(CENTRAL_AGENTS_CATEGORY, findAgentClasses(pkg)));
             }
+        } catch (RuntimeException ignored) {
         }
+        return rootBuilder.build().items();
+    }
 
+    private static List<AvailableNode> findAgentClasses(Project project) {
+        return findAgentClasses(project.currentPackage());
+    }
+
+    private static List<AvailableNode> findAgentClasses(Package agentPackage) {
+        List<AvailableNode> localAgents = new ArrayList<>();
+        for (ClassSymbol classSymbol : AiUtils.findAgentClasses(agentPackage)) {
+            classSymbol.getModule().ifPresent(module -> localAgents.add(buildLocalAgentNode(classSymbol, module)));
+        }
         return localAgents;
     }
 

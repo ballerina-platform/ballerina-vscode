@@ -21,7 +21,7 @@ import { useErrorBoundary } from "react-error-boundary";
 
 import { useStyles } from "./style";
 import { Button, Codicon, Icon } from "@wso2/ui-toolkit";
-import { ISSUES_URL } from "../../../Diagram/utils/constants";
+import { PRODUCT_INTEGRATOR_ISSUES_URL } from "@wso2/ballerina-core";
 
 interface ErrorScreenProps {
     onClose: () => void;
@@ -51,7 +51,7 @@ export default function ErrorScreen(props: ErrorScreenProps) {
                     <div data-test-id={"error-message"} className={classes.errorMessage}>
                         <p>This mapping cannot be visualized. Please switch to the source view to continue editing.</p>
                         <p>
-                            Please raise an issue with the sample code in our <a className={classes.link} href={ISSUES_URL}>issue tracker.</a>
+                            Please raise an issue with the sample code in our <a className={classes.link} href={PRODUCT_INTEGRATOR_ISSUES_URL}>issue tracker.</a>
                         </p>
                     </div>
                     <div className={classes.actionButtons}>

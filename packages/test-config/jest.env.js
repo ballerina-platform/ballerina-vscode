@@ -69,29 +69,37 @@ if (typeof Element !== 'undefined') {
         toJSON: jest.fn(),
     }));
 
-    // Mock canvas 2d context.
-    HTMLCanvasElement.prototype.getContext = jest.fn(() => ({
-        fillRect: jest.fn(),
-        clearRect: jest.fn(),
-        getImageData: jest.fn(),
-        putImageData: jest.fn(),
-        createImageData: jest.fn(),
-        setTransform: jest.fn(),
-        drawImage: jest.fn(),
-        save: jest.fn(),
-        restore: jest.fn(),
-        beginPath: jest.fn(),
-        moveTo: jest.fn(),
-        lineTo: jest.fn(),
-        closePath: jest.fn(),
-        stroke: jest.fn(),
-        fill: jest.fn(),
-        scale: jest.fn(),
-        rotate: jest.fn(),
-        translate: jest.fn(),
-        measureText: jest.fn(() => ({ width: 10 })),
-        fillStyle: '',
-        strokeStyle: '',
-        globalAlpha: 1,
-    }));
+    // Mock canvas 2d context. WebGL contexts return null, same as a browser with no
+    // WebGL support, so callers that already handle that (e.g. a shader-based
+    // component falling back to a CSS rendering) take their real fallback path
+    // instead of crashing on a 2D-shaped stub with no WebGL methods.
+    HTMLCanvasElement.prototype.getContext = jest.fn((contextType) => {
+        if (contextType !== '2d') {
+            return null;
+        }
+        return {
+            fillRect: jest.fn(),
+            clearRect: jest.fn(),
+            getImageData: jest.fn(),
+            putImageData: jest.fn(),
+            createImageData: jest.fn(),
+            setTransform: jest.fn(),
+            drawImage: jest.fn(),
+            save: jest.fn(),
+            restore: jest.fn(),
+            beginPath: jest.fn(),
+            moveTo: jest.fn(),
+            lineTo: jest.fn(),
+            closePath: jest.fn(),
+            stroke: jest.fn(),
+            fill: jest.fn(),
+            scale: jest.fn(),
+            rotate: jest.fn(),
+            translate: jest.fn(),
+            measureText: jest.fn(() => ({ width: 10 })),
+            fillStyle: '',
+            strokeStyle: '',
+            globalAlpha: 1,
+        };
+    });
 }

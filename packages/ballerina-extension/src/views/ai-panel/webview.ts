@@ -60,8 +60,8 @@ export class AiPanelWebview {
             }
         );
         panel.iconPath = {
-            light: Uri.file(path.join(extension.context.extensionPath, 'resources', 'icons', 'dark-ai-chat.svg')),
-            dark: Uri.file(path.join(extension.context.extensionPath, 'resources', 'icons', 'light-ai-chat.svg'))
+            light: Uri.file(path.join(extension.context.extensionPath, 'resources', 'icons', 'light-copilot-orb.png')),
+            dark: Uri.file(path.join(extension.context.extensionPath, 'resources', 'icons', 'dark-copilot-orb.png'))
         };
         return panel;
     }

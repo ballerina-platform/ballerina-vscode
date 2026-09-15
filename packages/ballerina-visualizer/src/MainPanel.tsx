@@ -18,6 +18,7 @@
 
 import React, { createRef, useCallback, useEffect, useRef, useState } from "react";
 import {
+    PRODUCT_INTEGRATOR_ISSUES_URL,
     KeyboardNavigationManager,
     MachineStateValue,
     STModification,
@@ -217,8 +218,6 @@ const MainPanel = () => {
 
     useSuppressAgentStatusOrb(viewHidesAgentStatusOrb(activeView) || !!viewError);
     useTraceAnimationBridge();
-
-    const gitIssueUrl = "https://github.com/wso2/product-integrator/issues";
 
     // Leading edge so an ordinary navigation fetches immediately; trailing kept for bursts.
     const debounceFetchContext = useCallback(
@@ -840,10 +839,10 @@ const MainPanel = () => {
                         }
                         case MACHINE_VIEW.BIDurableAgentForm: {
                             const { FunctionForm } = await import("./views/BI/FunctionForm");
-                            // Durable agent declarations live in workflow.bal alongside the
+                            // Durable agent declarations live in workflows.bal alongside the
                             // workflow artifacts, not in functions.bal.
                             const workflowFile = value.documentUri
-                                ?? (await rpcClient.getVisualizerRpcClient().joinProjectPath({ segments: ['workflow.bal'] })).filePath;
+                                ?? (await rpcClient.getVisualizerRpcClient().joinProjectPath({ segments: ['workflows.bal'] })).filePath;
                             if (isStaleNavigation()) return;
                             setViewComponent(
                                 <FunctionForm
@@ -1084,7 +1083,7 @@ const MainPanel = () => {
         <>
             <Global styles={globalStyles} />
             <VisualizerContainer id="visualizer-container">
-                <ErrorBoundary goHome={handleNavigateToOverview} errorMsg="An error occurred in the visualizer" issueUrl={gitIssueUrl} ref={errorBoundaryRef} resetKeys={[viewComponent]}>
+                <ErrorBoundary goHome={handleNavigateToOverview} errorMsg="An error occurred in the visualizer" issueUrl={PRODUCT_INTEGRATOR_ISSUES_URL} ref={errorBoundaryRef} resetKeys={[viewComponent]}>
                     {/* {navActive && <NavigationBar showHome={showHome} />} */}
                     {showNavProgress && <ProgressIndicator id="visualizer-nav-progress" />}
                     {(showOverlay || modalStack.length > 0) && <Overlay />}

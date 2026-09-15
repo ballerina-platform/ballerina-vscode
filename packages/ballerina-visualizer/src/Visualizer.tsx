@@ -27,6 +27,7 @@ import {
     MachineStateValue,
     PendingIntegrationArtifactKind,
     ProjectDirectoryMap,
+    SHARED_COMMANDS,
 } from "@wso2/ballerina-core";
 import styled from '@emotion/styled';
 
@@ -37,6 +38,7 @@ import { WebviewErrorBoundary } from "./components/WebviewErrorBoundary";
 import { ThemeColors } from "@wso2/ui-toolkit";
 import { LoadingRing } from "./components/Loader";
 import { AgentStatusOrb } from "./components/AgentStatusOrb";
+import { subscribeAmbientCopilotPresence } from "./components/AgentStatusOrb/shared";
 
 const MainPanel = React.lazy(() => import("./MainPanel"));
 const AIPanel = React.lazy(() => import("./views/AIPanel/AIPanel"));
@@ -133,6 +135,22 @@ export function Visualizer({ mode }: { mode: string }) {
             rpcClient.webviewReady();
         }
     }, []);
+
+    useEffect(() => {
+        if (mode !== MODES.VISUALIZER || !rpcClient) {
+            return;
+        }
+        const pushPresence = (present: boolean): void => {
+            rpcClient.getCommonRpcClient().executeCommand({
+                commands: [SHARED_COMMANDS.SET_COPILOT_AMBIENT_PRESENT, present],
+            });
+        };
+        const unsubscribe = subscribeAmbientCopilotPresence(pushPresence);
+        return () => {
+            unsubscribe();
+            pushPresence(false);
+        };
+    }, [mode, rpcClient]);
 
     return (
         <WebviewErrorBoundary

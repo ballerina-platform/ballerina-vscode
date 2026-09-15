@@ -91,9 +91,7 @@ public class EmbeddingProviderBuilder extends CallBuilder {
     }
 
     private static String methodCallWithModulePrefix(SourceBuilder sourceBuilder) {
-        String module = sourceBuilder.flowNode.codedata().module();
-        String methodCallPrefix = (module != null) ? module.substring(module.lastIndexOf('.') + 1) + ":" : "";
-        return methodCallPrefix + GET_DEFAULT_EMBEDDING_PROVIDER_FUNCTION_NAME;
+        return sourceBuilder.importQualifier() + GET_DEFAULT_EMBEDDING_PROVIDER_FUNCTION_NAME;
     }
 
     @Override

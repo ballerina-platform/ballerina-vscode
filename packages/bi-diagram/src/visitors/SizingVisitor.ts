@@ -19,6 +19,7 @@
 import { BaseVisitor } from "@wso2/ballerina-core";
 
 import {
+    AGENT_BOX_BOTTOM_AFFORDANCE_GAP,
     AGENT_NODE_TOOL_GAP,
     AGENT_NODE_TOOL_SECTION_GAP,
     EMPTY_NODE_CONTAINER_WIDTH,
@@ -28,6 +29,7 @@ import {
     LABEL_WIDTH,
     LAST_NODE,
     NODE_BORDER_WIDTH,
+    NODE_DESCRIPTION_SINGLE_LINE_CHARS,
     NODE_GAP_X,
     NODE_GAP_Y,
     NODE_HEIGHT,
@@ -59,7 +61,12 @@ import { Branch, FlowNode } from "../utils/types";
 export class SizingVisitor implements BaseVisitor {
     private skipChildrenVisit = false;
 
-    constructor(private agentUsageOptions?: AgentUsageOptions) {
+    constructor(
+        private agentUsageOptions?: AgentUsageOptions,
+        // True when durable-agent-run boxes are being sized for a run() call site rather than the
+        // agent's own declaration — see endVisitDurableAgentRun.
+        private isDurableAgentReference: boolean = false,
+    ) {
         // console.log(">>> sizing visitor started");
     }
 
@@ -88,12 +95,31 @@ export class SizingVisitor implements BaseVisitor {
         node.viewState.ch = containerHeight || height;
     }
 
+    // Mirrors the description BaseNodeWidget/CallActivityNodeWidget/ApiCallNodeWidget actually
+    // render: a full assignment concatenates "variable = expression"; otherwise whichever single
+    // value is shown. Used only to estimate whether that text wraps to a second line.
+    private estimateDescriptionLength(node: FlowNode): number {
+        const variable = node.properties?.variable?.value;
+        const expression = node.properties?.expression?.value;
+        const type = node.properties?.type?.value;
+        const msg = node.properties?.msg?.value;
+        const text =
+            typeof variable === "string" && typeof expression === "string" && variable && expression
+                ? `${variable} = ${expression}`
+                : [variable, expression, type, msg].find((value) => typeof value === "string" && value) ?? "";
+        return (text as string).length;
+    }
+
     private createBaseNode(node: FlowNode): void {
         const totalWidth = NODE_WIDTH;
         const halfWidth = totalWidth / 2;
         let height = NODE_HEIGHT + NODE_BORDER_WIDTH * 2;
 
-        if (node.properties?.variable?.value || node.properties?.type?.value) {
+        // The description line only pushes the box past its own min-height once it wraps to a
+        // second line — a short value (or a bare "-" placeholder) fits with room to spare.
+        // Reserving the wrap allowance for every node with any description, regardless of length,
+        // stretched the links leading into short-description nodes well past NODE_GAP_Y.
+        if (this.estimateDescriptionLength(node) > NODE_DESCRIPTION_SINGLE_LINE_CHARS) {
             height += LABEL_HEIGHT;
         }
 
@@ -108,7 +134,7 @@ export class SizingVisitor implements BaseVisitor {
 
         const nodeHeight = NODE_HEIGHT;
         let containerHeight = nodeHeight;
-        if (node.properties?.variable?.value || node.properties?.type?.value) {
+        if (this.estimateDescriptionLength(node) > NODE_DESCRIPTION_SINGLE_LINE_CHARS) {
             containerHeight += LABEL_HEIGHT;
         }
 
@@ -139,8 +165,15 @@ export class SizingVisitor implements BaseVisitor {
         // links bent sideways to meet it. LABEL_WIDTH keeps the source's name from being clipped.
         const containerLeftWidth = halfNodeWidth + NODE_GAP_X + NODE_HEIGHT + LABEL_HEIGHT + rolesLabelWidth;
         const containerRightWidth = halfNodeWidth;
+        // The circle (with the ports) is flush with the top of the row and is only NODE_HEIGHT
+        // tall; the source-arrow SVG beside it is taller (it reserves room for the label under the
+        // arrow) but that extra height is dead space below the circle, not more room the ports
+        // need. Using the taller figure as the link-spacing height (like the old center-aligned
+        // layout did) recessed the ports and stretched every link touching this node — so the
+        // per-step height stays NODE_HEIGHT, while the container height keeps the taller figure to
+        // reserve room for the SVG within its branch.
         const containerHeight = NODE_HEIGHT + LABEL_HEIGHT;
-        this.setNodeSize(node, containerLeftWidth, containerRightWidth, containerHeight);
+        this.setNodeSize(node, containerLeftWidth, containerRightWidth, NODE_HEIGHT, containerLeftWidth, containerRightWidth, containerHeight);
     }
 
     private createBlockNode(node: Branch): void {
@@ -344,13 +377,9 @@ export class SizingVisitor implements BaseVisitor {
 
     endVisitAgentCall(node: FlowNode, parent?: FlowNode): void {
         if (!this.validateNode(node)) return;
-        const nodeWidth = NODE_WIDTH;
-        const halfNodeWidth = nodeWidth / 2;
-        const containerLeftWidth = halfNodeWidth;
-        const containerRightWidth = halfNodeWidth + NODE_GAP_X + NODE_HEIGHT + LABEL_HEIGHT + LABEL_WIDTH;
-
+        const halfNodeWidth = NODE_WIDTH / 2;
         const containerHeight = getAgentNodeContainerHeight(node, NodeTypes.AGENT_CALL_NODE);
-        this.setNodeSize(node, containerLeftWidth, containerRightWidth, containerHeight);
+        this.setNodeSize(node, halfNodeWidth, halfNodeWidth, containerHeight);
     }
 
     endVisitAgentRun(node: FlowNode, parent?: FlowNode): void {
@@ -402,6 +431,13 @@ export class SizingVisitor implements BaseVisitor {
             return;
         }
 
+        // Reference mode (a run() call site) collapses to the same simple reference row
+        // AgentCallNode uses — no side circle columns are painted, so no side space is reserved.
+        if (this.isDurableAgentReference) {
+            this.setNodeSize(node, halfNodeWidth, halfNodeWidth, getAgentNodeContainerHeight(node, NodeTypes.AGENT_CALL_NODE));
+            return;
+        }
+
         // Left column: human task and event circles (arrows point into the box).
         const leftCircles = (nodeMetadata?.humanTasks?.length || 0) + (nodeMetadata?.events?.length || 0);
         // Right column: the model circle plus AI tool, activity and peer circles — the same set the
@@ -424,7 +460,9 @@ export class SizingVisitor implements BaseVisitor {
             NODE_HEIGHT +
             AGENT_NODE_TOOL_SECTION_GAP +
             AGENT_NODE_TOOL_GAP * 2 +
-            (numberOfRows - 1) * (NODE_HEIGHT + AGENT_NODE_TOOL_GAP);
+            (numberOfRows - 1) * (NODE_HEIGHT + AGENT_NODE_TOOL_GAP) +
+            // Reserve space so the corner "+" affordance buttons don't overlap the role/instructions text.
+            AGENT_BOX_BOTTOM_AFFORDANCE_GAP;
         this.setNodeSize(node, containerLeftWidth, containerRightWidth, containerHeight);
     }
 

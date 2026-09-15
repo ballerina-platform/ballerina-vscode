@@ -68,31 +68,6 @@
       "items": [
         {
           "metadata": {
-            "label": "xlsx",
-            "description": "",
-            "keywords": []
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "writeSheet",
-                "description": "Write rows to a sheet in an XLSX file.",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_xlsx_1.0.1.png"
-              },
-              "codedata": {
-                "node": "FUNCTION_CALL",
-                "org": "ballerina",
-                "module": "xlsx",
-                "packageName": "xlsx",
-                "symbol": "writeSheet",
-                "version": "1.0.1"
-              },
-              "enabled": true
-            }
-          ]
-        },
-        {
-          "metadata": {
             "label": "io",
             "description": "",
             "keywords": []
@@ -243,8 +218,44 @@
               "enabled": true
             }
           ]
+        },
+        {
+          "metadata": {
+            "label": "xlsx",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "writeSheet",
+                "description": "Write rows to a sheet in an XLSX file.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_xlsx_1.0.1.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "xlsx",
+                "packageName": "xlsx",
+                "symbol": "writeSheet",
+                "version": "1.0.1"
+              },
+              "enabled": true
+            }
+          ]
         }
       ]
+    },
+    {
+      "metadata": {
+        "label": "Extended Library",
+        "description": "Components from the ballerinax organization",
+        "keywords": [
+          "Ballerinax",
+          "Library"
+        ]
+      },
+      "items": []
     }
   ]
 }

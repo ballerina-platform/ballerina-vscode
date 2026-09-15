@@ -22,17 +22,22 @@ import io.ballerina.servicemodelgenerator.extension.model.Listener;
 
 import java.util.Arrays;
 
-public record ListenerModelResponse(Listener listener, String errorMsg, String stacktrace) {
+public record ListenerModelResponse(Listener listener, String errorMsg, String stacktrace,
+                                     ModelResolutionIssue issue) {
 
     public ListenerModelResponse() {
-        this(null, null, null);
+        this(null, null, null, null);
     }
 
     public ListenerModelResponse(Listener listener) {
-        this(listener, null, null);
+        this(listener, null, null, null);
     }
 
     public ListenerModelResponse(Throwable e) {
-        this(null, e.toString(), Arrays.toString(e.getStackTrace()));
+        this(null, e.toString(), Arrays.toString(e.getStackTrace()), null);
+    }
+
+    public ListenerModelResponse(ModelResolutionIssue issue) {
+        this(null, null, null, issue);
     }
 }

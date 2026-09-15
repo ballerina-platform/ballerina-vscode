@@ -1,0 +1,93 @@
+{
+  "source": "nilable_enum.bal",
+  "description": "Call a function with a single select whose declared default is not one of its members",
+  "diagram": {
+    "id": "31",
+    "metadata": {
+      "label": "function5",
+      "description": ""
+    },
+    "codedata": {
+      "node": "FUNCTION_CALL",
+      "org": "$anon",
+      "module": ".",
+      "packageName": ".",
+      "symbol": "function5",
+      "version": "0.0.0",
+      "isNew": true,
+      "lineRange": {
+        "fileName": "nilable_enum.bal",
+        "startLine": {
+          "line": 10,
+          "offset": 0
+        },
+        "endLine": {
+          "line": 10,
+          "offset": 0
+        }
+      }
+    },
+    "returning": false,
+    "properties": {
+      "day": {
+        "metadata": {
+          "label": "Day"
+        },
+        "types": [
+          {
+            "fieldType": "SINGLE_SELECT",
+            "options": [
+              {
+                "label": "Monday",
+                "value": "\"Monday\""
+              },
+              {
+                "label": "Tuesday",
+                "value": "\"Tuesday\""
+              },
+              {
+                "label": "Wednesday",
+                "value": "\"Wednesday\""
+              }
+            ],
+            "selected": true
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "Day?",
+            "selected": false
+          }
+        ],
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "DEFAULTABLE",
+          "originalName": "day"
+        },
+        "defaultValue": "()",
+        "value": "\"Monday\"",
+        "modified": true
+      }
+    },
+    "flags": 0
+  },
+  "output": {
+    "nilable_enum.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 10,
+            "character": 0
+          },
+          "end": {
+            "line": 10,
+            "character": 0
+          }
+        },
+        "newText": "\nfunction5(\"Monday\");"
+      }
+    ]
+  }
+}

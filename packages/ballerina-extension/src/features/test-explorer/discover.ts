@@ -27,6 +27,10 @@ import { URI } from "vscode-uri";
 import { getTestFunctionGroups } from "../../utils/test-discovery";
 
 let groups: string[] = [];
+const fileChangeTimers = new Map<string, NodeJS.Timeout>();
+// Tracks the latest handleFileChange run per file so a slower, superseded run can't overwrite a newer tree.
+const fileChangeSequence = new Map<string, number>();
+const FILE_CHANGE_DEBOUNCE_MS = 300;
 
 export async function discoverTestFunctionsInProject(ballerinaExtInstance: BallerinaExtension,
     testController: TestController) {
@@ -176,6 +180,11 @@ function createTests(response: TestsDiscoveryResponse, testController: TestContr
 
 export async function handleFileChange(ballerinaExtInstance: BallerinaExtension,
     uri: Uri, testController: TestController) {
+    // Captured before any await so a later-started run can't lose the race for the higher sequence.
+    const fileKey = uri.fsPath;
+    const sequence = (fileChangeSequence.get(fileKey) ?? 0) + 1;
+    fileChangeSequence.set(fileKey, sequence);
+
     // Determine which project this file belongs to
     const projectInfo = StateMachine.context().projectInfo;
     let targetProjectPath: string | undefined;
@@ -201,17 +210,56 @@ export async function handleFileChange(ballerinaExtInstance: BallerinaExtension,
         return;
     }
 
+    // discoverInFile needs the native file path; uri.path is "/c:/..." on Windows, which Path.of() rejects.
     const request: TestsDiscoveryRequest = {
-        projectPath: uri.path
+        projectPath: uri.fsPath
     };
+
     const response: TestsDiscoveryResponse = await ballerinaExtInstance.langClient?.getFileTestFunctions(request);
     if (!response || !response.result) {
         return;
     }
 
+    // A newer run for this file already started; its result will supersede ours, so skip applying this one.
+    if (fileChangeSequence.get(fileKey) !== sequence) {
+        return;
+    }
+
     await handleFileDelete(uri, testController);
+
+    // Re-check: a newer run may have finished entirely while we were awaiting the delete above.
+    if (fileChangeSequence.get(fileKey) !== sequence) {
+        return;
+    }
+
     createTests(response, testController, isWorkspace ? targetProjectPath : undefined);
     setGroupsContext();
+}
+
+export function debouncedHandleFileChange(ballerinaExtInstance: BallerinaExtension,
+    uri: Uri, testController: TestController) {
+    const key = uri.fsPath;
+    const existing = fileChangeTimers.get(key);
+    if (existing) {
+        clearTimeout(existing);
+    }
+    fileChangeTimers.set(key, setTimeout(() => {
+        fileChangeTimers.delete(key);
+        handleFileChange(ballerinaExtInstance, uri, testController)
+            .catch((error) => console.error('Failed to refresh tests for', key, error));
+    }, FILE_CHANGE_DEBOUNCE_MS));
+}
+
+// Only for the watcher's delete event; handleFileDelete is also reused mid-refresh by handleFileChange.
+export function cancelPendingFileChange(uri: Uri) {
+    const key = uri.fsPath;
+    const existing = fileChangeTimers.get(key);
+    if (existing) {
+        clearTimeout(existing);
+        fileChangeTimers.delete(key);
+    }
+    // Also invalidates any handleFileChange already past its await, so it can't re-add the deleted file.
+    fileChangeSequence.delete(key);
 }
 
 export async function handleFileDelete(uri: Uri, testController: TestController) {

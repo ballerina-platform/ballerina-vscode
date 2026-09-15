@@ -40,32 +40,32 @@
             "fieldType": "SINGLE_SELECT",
             "options": [
               {
-                "label": "Wednesday",
-                "value": "\"Wednesday\""
-              },
-              {
-                "label": "Sunday",
-                "value": "\"Sunday\""
-              },
-              {
-                "label": "Saturday",
-                "value": "\"Saturday\""
-              },
-              {
-                "label": "Friday",
-                "value": "\"Friday\""
-              },
-              {
-                "label": "Thursday",
-                "value": "\"Thursday\""
+                "label": "Monday",
+                "value": "\"Monday\""
               },
               {
                 "label": "Tuesday",
                 "value": "\"Tuesday\""
               },
               {
-                "label": "Monday",
-                "value": "\"Monday\""
+                "label": "Wednesday",
+                "value": "\"Wednesday\""
+              },
+              {
+                "label": "Thursday",
+                "value": "\"Thursday\""
+              },
+              {
+                "label": "Friday",
+                "value": "\"Friday\""
+              },
+              {
+                "label": "Saturday",
+                "value": "\"Saturday\""
+              },
+              {
+                "label": "Sunday",
+                "value": "\"Sunday\""
               }
             ],
             "selected": false
@@ -76,10 +76,10 @@
             "selected": false
           }
         ],
-        "placeholder": "\"Sunday\"",
+        "placeholder": "\"Wednesday\"",
         "optional": true,
         "editable": true,
-        "advanced": true,
+        "advanced": false,
         "hidden": false,
         "codedata": {
           "kind": "DEFAULTABLE",

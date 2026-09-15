@@ -27,6 +27,10 @@ const EVENT_STAGGER_DELAY_MS = 400;
 const MAX_PENDING_TOOL_SPANS = 100;
 const PENDING_TOOL_SPAN_TTL_MS = 30_000; // 30 seconds
 
+function getSpanAttribute(span: Span, key: string): string | undefined {
+    return span.attributes?.find(a => a.key === key)?.value;
+}
+
 const activeSpans = new Map<string, { timer: NodeJS.Timeout; event: TraceAnimationEvent }>();
 let unsubscribe: (() => void) | undefined;
 
@@ -57,7 +61,7 @@ const parentMap = new Map<string, string>();
 // AND propagated up from chat spans to their ancestors.
 const ancestorInfoMap = new Map<string, { systemInstructions: string; toolNames: string[] }>();
 // Buffered execute_tool spans waiting for their ancestor chain to be completed
-const pendingToolSpans: Array<{ span: Span; activeToolName?: string; addedAt: number }> = [];
+const pendingToolSpans: Array<{ span: Span; activeToolName?: string; activeToolKitName?: string; addedAt: number }> = [];
 let pendingToolSpansCleanupTimer: NodeJS.Timeout | undefined;
 
 // Maps traceId → entrypoint info extracted from any span carrying these attributes
@@ -296,7 +300,7 @@ function prunePendingToolSpans() {
  * Try to enqueue a tool span using resolved ancestor info.
  * Returns true if successfully resolved and enqueued, false if still pending.
  */
-function tryResolveAndEnqueueToolSpan(span: Span, activeToolName?: string): boolean {
+function tryResolveAndEnqueueToolSpan(span: Span, activeToolName?: string, activeToolKitName?: string): boolean {
     const info = resolveAncestorInfo(span.spanId);
     if (!info) {
         return false;
@@ -306,6 +310,7 @@ function tryResolveAndEnqueueToolSpan(span: Span, activeToolName?: string): bool
         type: 'execute_tool',
         toolNames: info.toolNames,
         activeToolName,
+        activeToolKitName,
         spanId: span.spanId,
         active: true,
         systemInstructions: info.systemInstructions,
@@ -322,8 +327,8 @@ function tryResolveAndEnqueueToolSpan(span: Span, activeToolName?: string): bool
 function drainPendingToolSpans() {
     prunePendingToolSpans();
     for (let i = pendingToolSpans.length - 1; i >= 0; i--) {
-        const { span, activeToolName } = pendingToolSpans[i];
-        if (tryResolveAndEnqueueToolSpan(span, activeToolName)) {
+        const { span, activeToolName, activeToolKitName } = pendingToolSpans[i];
+        if (tryResolveAndEnqueueToolSpan(span, activeToolName, activeToolKitName)) {
             pendingToolSpans.splice(i, 1);
         }
     }
@@ -409,12 +414,13 @@ function processSpans(spans: Span[]) {
             };
             enqueueEvent(event, span);
         } else if (spanType === 'execute_tool') {
-            const activeToolName = span.attributes?.find(a => a.key === 'gen_ai.tool.name')?.value;
+            const activeToolName = getSpanAttribute(span, 'gen_ai.tool.name');
+            const activeToolKitName = getSpanAttribute(span, 'gen_ai.tool.toolkit.name');
 
             // Try to resolve via ancestor chain immediately
-            if (!tryResolveAndEnqueueToolSpan(span, activeToolName)) {
+            if (!tryResolveAndEnqueueToolSpan(span, activeToolName, activeToolKitName)) {
                 // Chain incomplete — buffer until ancestor arrives
-                pendingToolSpans.push({ span, activeToolName, addedAt: Date.now() });
+                pendingToolSpans.push({ span, activeToolName, activeToolKitName, addedAt: Date.now() });
                 prunePendingToolSpans();
             }
         }

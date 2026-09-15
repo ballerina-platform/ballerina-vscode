@@ -30,6 +30,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import static io.ballerina.servicemodelgenerator.extension.model.ServiceInitModel.KEY_CONFIGURE_LISTENER;
@@ -94,9 +96,68 @@ public class ListenerChoiceSelectionTest {
         Assert.assertEquals(configureListener.getValue(), "0");
     }
 
+    /**
+     * A connector declaring several listeners nests its params under a per-listener-type branch, so locating
+     * the create-new branch has to look through choices. The branches are reversed first because
+     * {@code indexOfCreateNewBranch} falls back to index 0, which would mask a broken search.
+     */
+    @Test
+    public void testCreateNewBranchIsFoundWhenParamsAreNestedUnderAListenerTypeChoice() throws Exception {
+        ServiceInitModel model = loadMcpMultiCreationModel();
+        Value listener = model.getProperties().get("listener");
+        Collections.reverse(listener.getChoices());
+        Value useExisting = listener.getChoices().get(0);
+        Value createNew = listener.getChoices().get(1);
+
+        Value prebuiltSelector = new Value.ValueBuilder()
+                .metadata("Select Listener", "Select from the existing mcp listeners")
+                .value("mcpListener")
+                .types(List.of(PropertyType.types(Value.FieldType.SINGLE_SELECT,
+                        Option.of(List.of("mcpListener")))))
+                .enabled(true)
+                .editable(true)
+                .build();
+        SchemaDrivenServiceBuilder.applyListenerChoiceSelection(listener, prebuiltSelector);
+
+        Value nested = useExisting.getProperties().get("listenerConfig").getProperties()
+                .get(KEY_EXISTING_LISTENER);
+        Assert.assertSame(nested, prebuiltSelector,
+                "the selector belongs in the use-existing branch; landing in create-new means the"
+                        + " create-new branch was located by its index rather than by its params");
+        Assert.assertEquals(listener.getValue(), "0", "use-existing is at index 0 in this fixture");
+        Assert.assertFalse(createNew.isEnabled(), "create-new must be deselected once a listener exists");
+        Assert.assertTrue(useExisting.isEnabled());
+    }
+
+    /**
+     * Every listener-name node is collected, not just the first: a branch left holding the shipped default
+     * would offer a name that may already be taken in the project.
+     */
+    @Test
+    public void testEveryListenerVarNameNodeIsCollectedAcrossListenerTypeBranches() throws Exception {
+        ServiceInitModel model = loadMcpMultiCreationModel();
+        List<Value> nodes = new ArrayList<>();
+        SchemaDrivenServiceBuilder.collectListenerVarNameNodes(model.getProperties(), nodes);
+
+        Assert.assertEquals(nodes.size(), 2,
+                "the fixture declares one listener name per listener-type branch");
+        List<String> types = nodes.stream()
+                .map(node -> node.getTypes().getFirst().ballerinaType())
+                .toList();
+        Assert.assertEquals(types, List.of("mcp:StreamableHttpListener", "mcp:Listener"),
+                "collected in document order, each branch naming its own listener type");
+    }
+
     private ServiceInitModel loadHubspotCreationModel() throws Exception {
-        Path path = Paths.get(getClass().getClassLoader()
-                .getResource("connector_models/hubspot/resources/service-creation.json").toURI());
+        return load("connector_models/hubspot/resources/service-creation.json");
+    }
+
+    private ServiceInitModel loadMcpMultiCreationModel() throws Exception {
+        return load("connector_models/mcp_multi/resources/service-creation.json");
+    }
+
+    private ServiceInitModel load(String resource) throws Exception {
+        Path path = Paths.get(getClass().getClassLoader().getResource(resource).toURI());
         return gson.fromJson(Files.readString(path, StandardCharsets.UTF_8), ServiceInitModel.class);
     }
 }

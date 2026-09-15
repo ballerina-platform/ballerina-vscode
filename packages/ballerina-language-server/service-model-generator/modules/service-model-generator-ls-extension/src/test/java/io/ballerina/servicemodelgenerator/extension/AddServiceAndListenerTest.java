@@ -163,7 +163,7 @@ public class AddServiceAndListenerTest extends AbstractLSTest {
             TestConfig updatedConfig =
                     new TestConfig(testConfig.filePath(), testConfig.description(), testConfig.serviceInitModel(),
                             newMap);
-            updateConfig(configJsonPath, updatedConfig);
+//            updateConfig(configJsonPath, updatedConfig);
             Assert.fail(String.format("Failed test: '%s' (%s)", testConfig.description(), configJsonPath));
         }
     }

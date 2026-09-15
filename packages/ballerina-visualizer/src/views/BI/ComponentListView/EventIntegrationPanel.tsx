@@ -18,7 +18,7 @@
 import React, { useMemo } from 'react';
 import { Icon, ImageWithFallback } from '@wso2/ui-toolkit';
 import { useRpcContext } from '@wso2/ballerina-rpc-client';
-import { DIRECTORY_MAP, EVENT_TYPE, MACHINE_VIEW, TriggerModelsResponse, ServiceModel, SCOPE, resolveBrandIcon, resolveKindDefaultIcon } from '@wso2/ballerina-core';
+import { DIRECTORY_MAP, EVENT_TYPE, MACHINE_VIEW, TriggerModelsResponse, ServiceModel, SCOPE, resolveBrandIcon, resolveKindDefaultIcon, toIconDescriptor } from '@wso2/ballerina-core';
 
 import { CardGrid, PanelViewMore, Title, TitleWrapper } from './styles';
 import { BodyText } from '../../styles';
@@ -26,6 +26,7 @@ import ButtonCard from '../../../components/ButtonCard';
 import { ARTIFACT_CATEGORY_META } from '../components/artifactCards';
 import { cardMatchesSearch, isBetaModule, OutOfScopeComponentTooltip } from './componentListUtils';
 import { RelativeLoader } from '../../../components/RelativeLoader';
+import { effectiveTriggerKind } from './triggerKind';
 
 interface EventIntegrationPanelProps {
     scope: SCOPE;
@@ -43,7 +44,7 @@ export function EventIntegrationPanel(props: EventIntegrationPanelProps) {
     const isDisabled = props.scope && (props.scope !== SCOPE.EVENT_INTEGRATION && props.scope !== SCOPE.ANY);
     const q = props.searchQuery;
     const matched = useMemo(
-        () => props.triggers.local.filter((t) => t.type === "event" && cardMatchesSearch(t.name, q)),
+        () => props.triggers.local.filter((t) => effectiveTriggerKind(t) === "event" && cardMatchesSearch(t.name, q)),
         [props.triggers, q]
     );
 
@@ -100,7 +101,6 @@ export function EventIntegrationPanel(props: EventIntegrationPanelProps) {
     );
 };
 
-// TODO: This should be removed once the new icons are added to the BE API.
 export function getEntryNodeIcon(item: ServiceModel) {
     const brandIcon = getCustomEntryNodeIcon(item.moduleName);
     if (brandIcon) {
@@ -109,15 +109,13 @@ export function getEntryNodeIcon(item: ServiceModel) {
     const kindDefault = resolveKindDefaultIcon(item.type);
     return (
         <ImageWithFallback
-            imageUrl={item.icon}
+            imageUrl={toIconDescriptor(item.icon)?.url ?? ""}
             fallbackEl={<Icon name={kindDefault.glyph} />}
             size={38}
         />
     );
 }
 
-// INFO: This is a temporary function to get the custom icon for the entry points.
-// TODO: This should be removed once the new icons are added to the BE API.
 export function getCustomEntryNodeIcon(type: string) {
     const brand = resolveBrandIcon(type);
     if (!brand) {

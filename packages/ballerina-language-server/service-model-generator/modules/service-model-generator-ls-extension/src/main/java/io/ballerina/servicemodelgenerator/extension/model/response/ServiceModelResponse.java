@@ -22,17 +22,21 @@ import io.ballerina.servicemodelgenerator.extension.model.Service;
 
 import java.util.Arrays;
 
-public record ServiceModelResponse(Service service, String errorMsg, String stacktrace) {
+public record ServiceModelResponse(Service service, String errorMsg, String stacktrace, ModelResolutionIssue issue) {
 
     public ServiceModelResponse() {
-        this(null, null, null);
+        this(null, null, null, null);
     }
 
     public ServiceModelResponse(Service service) {
-        this(service, null, null);
+        this(service, null, null, null);
     }
 
     public ServiceModelResponse(Throwable e) {
-        this(null, e.toString(), Arrays.toString(e.getStackTrace()));
+        this(null, e.toString(), Arrays.toString(e.getStackTrace()), null);
+    }
+
+    public ServiceModelResponse(ModelResolutionIssue issue) {
+        this(null, null, null, issue);
     }
 }

@@ -19,6 +19,7 @@
 package io.ballerina.copilotagent.core;
 
 import io.ballerina.compiler.syntax.tree.BlockStatementNode;
+import io.ballerina.compiler.syntax.tree.ClassDefinitionNode;
 import io.ballerina.compiler.syntax.tree.DoStatementNode;
 import io.ballerina.compiler.syntax.tree.ExpressionFunctionBodyNode;
 import io.ballerina.compiler.syntax.tree.ForEachStatementNode;
@@ -27,11 +28,10 @@ import io.ballerina.compiler.syntax.tree.FunctionBodyBlockNode;
 import io.ballerina.compiler.syntax.tree.FunctionBodyNode;
 import io.ballerina.compiler.syntax.tree.FunctionDefinitionNode;
 import io.ballerina.compiler.syntax.tree.IfElseStatementNode;
-import io.ballerina.compiler.syntax.tree.ListenerDeclarationNode;
+import io.ballerina.compiler.syntax.tree.ImportDeclarationNode;
 import io.ballerina.compiler.syntax.tree.LockStatementNode;
 import io.ballerina.compiler.syntax.tree.MatchClauseNode;
 import io.ballerina.compiler.syntax.tree.MatchStatementNode;
-import io.ballerina.compiler.syntax.tree.ModuleVariableDeclarationNode;
 import io.ballerina.compiler.syntax.tree.NamedWorkerDeclarationNode;
 import io.ballerina.compiler.syntax.tree.Node;
 import io.ballerina.compiler.syntax.tree.NodeList;
@@ -39,6 +39,7 @@ import io.ballerina.compiler.syntax.tree.NonTerminalNode;
 import io.ballerina.compiler.syntax.tree.OnFailClauseNode;
 import io.ballerina.compiler.syntax.tree.ServiceDeclarationNode;
 import io.ballerina.compiler.syntax.tree.StatementNode;
+import io.ballerina.compiler.syntax.tree.Token;
 import io.ballerina.compiler.syntax.tree.TransactionStatementNode;
 import io.ballerina.compiler.syntax.tree.TypeDefinitionNode;
 import io.ballerina.compiler.syntax.tree.WhileStatementNode;
@@ -53,6 +54,7 @@ import io.ballerina.designmodelgenerator.core.model.Connection;
 import io.ballerina.designmodelgenerator.core.model.DesignModel;
 import io.ballerina.designmodelgenerator.core.model.Listener;
 import io.ballerina.projects.Document;
+import io.ballerina.projects.Module;
 import io.ballerina.projects.Project;
 import io.ballerina.tools.text.LineRange;
 
@@ -60,11 +62,14 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.stream.Collectors;
 
 /**
@@ -78,6 +83,10 @@ public class SemanticDiffComputer {
     private final Project modifiedProject;
     private final List<SemanticDiff> semanticDiffs = new ArrayList<>();
     private final String rootProjectPath;
+    // Document-name → absolute path for the module currently being diffed. LineRange only
+    // carries the document name, which for module/test documents does not resolve against
+    // the project root; this map recovers the real on-disk path. Rebuilt per module.
+    private final Map<String, Path> currentModuleFilePaths = new HashMap<>();
     private boolean loadDesignDiagrams = false;
 
     public SemanticDiffComputer(Project originalProject,
@@ -90,8 +99,64 @@ public class SemanticDiffComputer {
 
     public Result computeSemanticDiffs() {
 
-        Map<String, Document> originalDocumentMap = collectDocumentMap(originalProject);
-        Map<String, Document> modifiedDocumentMap = collectDocumentMap(modifiedProject);
+        // Diff module by module: name-keyed construct maps are only unique within a module
+        // (the same function name may legally exist in two modules), and per-module passes
+        // keep document names unambiguous. The union covers added/removed modules.
+        Map<String, Module> originalModules = collectModules(originalProject);
+        Map<String, Module> modifiedModules = collectModules(modifiedProject);
+        Set<String> allModuleNames = new LinkedHashSet<>();
+        allModuleNames.addAll(originalModules.keySet());
+        allModuleNames.addAll(modifiedModules.keySet());
+
+        for (String moduleName : allModuleNames) {
+            computeModuleSemanticDiffs(originalModules.get(moduleName), modifiedModules.get(moduleName));
+        }
+
+        String compilationError = null;
+        if (!loadDesignDiagrams) {
+            try {
+                compareUsingDesignDiagrams();
+            } catch (Throwable t) {
+                // The design-model comparison is the only step that needs a full package
+                // compilation, which can fail for reasons unrelated to the edit (e.g. an
+                // unresolvable dependency). The syntax-level diffs above are still valid,
+                // so report the failure instead of discarding them.
+                compilationError = rootCauseMessage(t);
+            }
+        }
+
+        return new Result(loadDesignDiagrams, this.semanticDiffs, compilationError);
+    }
+
+    // Unwraps only async plumbing (CompletionException from join()); the first real
+    // exception's message already carries the full context (e.g. which module failed).
+    private static String rootCauseMessage(Throwable throwable) {
+        Throwable cause = throwable;
+        while (cause instanceof CompletionException
+                && cause.getCause() != null && cause.getCause() != cause) {
+            cause = cause.getCause();
+        }
+        String message = cause.getMessage();
+        return message == null || message.isBlank() ? cause.getClass().getName() : message;
+    }
+
+    private static Map<String, Module> collectModules(Project project) {
+        Map<String, Module> modules = new LinkedHashMap<>();
+        project.currentPackage().modules().forEach(module ->
+                modules.put(module.moduleName().toString(), module));
+        return modules;
+    }
+
+    /**
+     * Computes the semantic diffs contributed by one module. Either side may be null when the
+     * module itself was added or removed; the corresponding document map is then empty, so
+     * every construct on the other side registers as an addition/deletion.
+     */
+    private void computeModuleSemanticDiffs(Module originalModule, Module modifiedModule) {
+
+        this.currentModuleFilePaths.clear();
+        Map<String, Document> originalDocumentMap = collectDocumentMap(originalModule);
+        Map<String, Document> modifiedDocumentMap = collectDocumentMap(modifiedModule);
 
         STNodeRefMap originalNodeRefMap = new STNodeRefMap();
         STNodeRefMap modifiedNodeRefMap = new STNodeRefMap();
@@ -124,97 +189,210 @@ public class SemanticDiffComputer {
             modifiedDoc.syntaxTree().rootNode().accept(modifiedNodeRefExtractor);
         }
 
-        computeListenerDiffs(originalNodeRefMap.getListenerNodeMap(), modifiedNodeRefMap.getListenerNodeMap());
+        // Listeners and module variables (connections) shape the design diagram; the rest don't.
+        computeSourceDiffs(originalNodeRefMap.getListenerNodeMap(), modifiedNodeRefMap.getListenerNodeMap(),
+                NodeKind.LISTENER, true);
         computeServiceDiffs(originalNodeRefMap.getServiceNodeMap(), modifiedNodeRefMap.getServiceNodeMap());
         computeFunctionDiffs(originalNodeRefMap.getFunctionNodeMap(), modifiedNodeRefMap.getFunctionNodeMap());
         computeTypeDefDiffs(originalNodeRefMap.getTypeDefNodeMap(), modifiedNodeRefMap.getTypeDefNodeMap());
-        computeModuleVarDiffs(originalNodeRefMap.getModuleVarNodeMap(), modifiedNodeRefMap.getModuleVarNodeMap());
-
-        if (!loadDesignDiagrams) {
-            compareUsingDesignDiagrams();
-        }
-
-        return new Result(loadDesignDiagrams, this.semanticDiffs);
+        computeSourceDiffs(originalNodeRefMap.getModuleVarNodeMap(), modifiedNodeRefMap.getModuleVarNodeMap(),
+                NodeKind.MODULE_VARIABLE, true);
+        computeSourceDiffs(originalNodeRefMap.getConstantNodeMap(), modifiedNodeRefMap.getConstantNodeMap(),
+                NodeKind.CONSTANT, false);
+        computeSourceDiffs(originalNodeRefMap.getEnumNodeMap(), modifiedNodeRefMap.getEnumNodeMap(),
+                NodeKind.ENUM_DECLARATION, false);
+        computeClassDiffs(originalNodeRefMap.getClassNodeMap(), modifiedNodeRefMap.getClassNodeMap());
+        computeImportDiffs(originalNodeRefMap.getImportNodeMap(), modifiedNodeRefMap.getImportNodeMap());
     }
 
     /**
-     * Computes listener differences between original and modified projects to determine
-     * if design diagrams need to be reloaded.
-     *
-     * <p>This method performs a shallow comparison of listener declarations to detect
-     * structural changes such as listener additions or removals. It sets the
-     * {@code loadDesignDiagrams} flag if any differences are found, which indicates
-     * that the architecture diagram should be regenerated.
-     *
-     * <p>Note: This method does not analyze the expression content of listeners since
-     * only structural changes affect the design diagram. The comparison terminates
-     * early if a difference is already detected to optimize performance.
-     *
-     * @param originalListenerMap map of listener names to their declaration nodes
-     *                            from the original project
-     * @param modifiedListenerMap map of listener names to their declaration nodes
-     *                            from the modified project
+     * Computes import differences by key alone. An import's map key (org/module plus alias)
+     * already encodes everything semantic about the declaration, so two imports with the same
+     * key can only differ in surrounding trivia — e.g. a file-header comment that re-attached
+     * to a different import when one was inserted above it. Comparing source text here (as
+     * {@link #computeSourceDiffs} does) flagged such untouched imports as "modified", showing
+     * reviewers a comment shuffle. Only genuine additions and deletions are reported, and
+     * their displayed source is the canonical {@code import <key>;} form rather than
+     * {@code toSourceCode()}, which would drag any attached leading comment into the view.
      */
-    private void computeListenerDiffs(Map<String, ListenerDeclarationNode> originalListenerMap,
-                                      Map<String, ListenerDeclarationNode> modifiedListenerMap) {
+    private void computeImportDiffs(Map<String, ImportDeclarationNode> originalImportMap,
+                                    Map<String, ImportDeclarationNode> modifiedImportMap) {
 
-        if (loadDesignDiagrams) {
-            return;
+        for (Map.Entry<String, ImportDeclarationNode> entry : originalImportMap.entrySet()) {
+            String name = entry.getKey();
+            if (modifiedImportMap.containsKey(name)) {
+                modifiedImportMap.remove(name);
+                continue;
+            }
+            addDeletionDiff(NodeKind.IMPORT_DECLARATION, entry.getValue().lineRange(),
+                    buildSourceMetadata(name, canonicalImportSource(name), null));
         }
 
-        for (Map.Entry<String, ListenerDeclarationNode> entry : originalListenerMap.entrySet()) {
-            String listenerName = entry.getKey();
-            if (!modifiedListenerMap.containsKey(listenerName)) {
-                loadDesignDiagrams = true;
-                return;
+        for (Map.Entry<String, ImportDeclarationNode> entry : modifiedImportMap.entrySet()) {
+            addAdditionDiff(NodeKind.IMPORT_DECLARATION, entry.getValue().lineRange(),
+                    buildSourceMetadata(entry.getKey(), null, canonicalImportSource(entry.getKey())));
+        }
+    }
+
+    private static String canonicalImportSource(String importKey) {
+        return "import " + importKey + ";";
+    }
+
+    /**
+     * Computes diffs for a construct kind whose changes are reviewed as source text:
+     * name-keyed nodes compared by their trivia-free source ({@link #triviaFreeSource}, so a
+     * comment that re-attaches to an untouched declaration never reports it as modified),
+     * producing addition/deletion/modification entries carrying the raw source in the metadata.
+     *
+     * @param originalMap   original map of construct names to their declaration nodes
+     * @param modifiedMap   modified map of construct names to their declaration nodes
+     * @param kind          the NodeKind reported on the diffs
+     * @param affectsDesign whether a change to this kind reshapes the design diagram
+     *                      (listeners and module vars/connections do)
+     */
+    private <T extends Node> void computeSourceDiffs(Map<String, T> originalMap, Map<String, T> modifiedMap,
+                                                     NodeKind kind, boolean affectsDesign) {
+
+        for (Map.Entry<String, T> entry : originalMap.entrySet()) {
+            String name = entry.getKey();
+            T originalNode = entry.getValue();
+            if (!modifiedMap.containsKey(name)) {
+                loadDesignDiagrams |= affectsDesign;
+                addDeletionDiff(kind, originalNode.lineRange(),
+                        buildSourceMetadata(name, originalNode.toSourceCode(), null));
+                continue;
             }
-            ListenerDeclarationNode originalListener = entry.getValue();
-            ListenerDeclarationNode modifiedListener = modifiedListenerMap.remove(listenerName);
-            if (!originalListener.toSourceCode().equals(modifiedListener.toSourceCode())) {
-                loadDesignDiagrams = true;
-                return;
+            T modifiedNode = modifiedMap.remove(name);
+            if (!triviaFreeSource(originalNode).equals(triviaFreeSource(modifiedNode))) {
+                loadDesignDiagrams |= affectsDesign;
+                addModificationDiff(kind, modifiedNode.lineRange(), originalNode.lineRange(),
+                        buildSourceMetadata(name, originalNode.toSourceCode(), modifiedNode.toSourceCode()));
             }
         }
 
-        if (!modifiedListenerMap.isEmpty()) {
-            loadDesignDiagrams = true;
+        for (Map.Entry<String, T> entry : modifiedMap.entrySet()) {
+            loadDesignDiagrams |= affectsDesign;
+            addAdditionDiff(kind, entry.getValue().lineRange(),
+                    buildSourceMetadata(entry.getKey(), null, entry.getValue().toSourceCode()));
         }
     }
 
     /**
-     * Computes module-level variable differences between original and modified projects to
-     * determine if design diagrams need to be reloaded.
-     *
-     * <p>Module-level variables include client/connection declarations. Changes to these
-     * variables (additions, removals, or modifications) affect the design diagram and
-     * should trigger a reload.
-     *
-     * @param originalVarMap original map of variable names to their declaration nodes
-     * @param modifiedVarMap modified map of variable names to their declaration nodes
+     * Computes class-definition differences. Method changes are reported individually as
+     * OBJECT_FUNCTION diffs (they have flow representations); changes to the remaining class
+     * members (fields, init expressions) are reported as a single CLASS_DEFINITION diff.
      */
-    private void computeModuleVarDiffs(Map<String, ModuleVariableDeclarationNode> originalVarMap,
-                                       Map<String, ModuleVariableDeclarationNode> modifiedVarMap) {
+    private void computeClassDiffs(Map<String, ClassDefinitionNode> originalClassMap,
+                                   Map<String, ClassDefinitionNode> modifiedClassMap) {
 
-        if (loadDesignDiagrams) {
-            return;
+        for (Map.Entry<String, ClassDefinitionNode> entry : originalClassMap.entrySet()) {
+            String className = entry.getKey();
+            ClassDefinitionNode originalClass = entry.getValue();
+            if (!modifiedClassMap.containsKey(className)) {
+                addDeletionDiff(NodeKind.CLASS_DEFINITION, originalClass.lineRange(),
+                        buildSourceMetadata(className, originalClass.toSourceCode(), null));
+                continue;
+            }
+            ClassDefinitionNode modifiedClass = modifiedClassMap.remove(className);
+            String originalClassSource = originalClass.toSourceCode();
+            String modifiedClassSource = modifiedClass.toSourceCode();
+            if (originalClassSource.equals(modifiedClassSource)) {
+                continue;
+            }
+
+            Map<String, FunctionDefinitionNode> originalMethods = extractClassMethods(originalClass);
+            Map<String, FunctionDefinitionNode> modifiedMethods = extractClassMethods(modifiedClass);
+            for (Map.Entry<String, FunctionDefinitionNode> methodEntry : originalMethods.entrySet()) {
+                String methodKey = methodEntry.getKey();
+                FunctionDefinitionNode originalMethod = methodEntry.getValue();
+                Map<String, String> metadata = buildFunctionMetadata(className + "." + methodKey);
+                if (!modifiedMethods.containsKey(methodKey)) {
+                    addDeletionDiff(NodeKind.OBJECT_FUNCTION, originalMethod.lineRange(), metadata);
+                    continue;
+                }
+                compareFunctionBodies(originalMethod, modifiedMethods.remove(methodKey),
+                        NodeKind.OBJECT_FUNCTION, metadata);
+            }
+            for (Map.Entry<String, FunctionDefinitionNode> methodEntry : modifiedMethods.entrySet()) {
+                addAdditionDiff(NodeKind.OBJECT_FUNCTION, methodEntry.getValue().lineRange(),
+                        buildFunctionMetadata(className + "." + methodEntry.getKey()));
+            }
+
+            if (!classHeaderAndMembersSource(originalClass).equals(classHeaderAndMembersSource(modifiedClass))) {
+                addModificationDiff(NodeKind.CLASS_DEFINITION, modifiedClass.lineRange(),
+                        originalClass.lineRange(),
+                        buildSourceMetadata(className, originalClassSource, modifiedClassSource));
+            }
         }
 
-        for (Map.Entry<String, ModuleVariableDeclarationNode> entry : originalVarMap.entrySet()) {
-            String varName = entry.getKey();
-            if (!modifiedVarMap.containsKey(varName)) {
-                loadDesignDiagrams = true;
-                return;
-            }
-            ModuleVariableDeclarationNode originalVar = entry.getValue();
-            ModuleVariableDeclarationNode modifiedVar = modifiedVarMap.remove(varName);
-            if (!originalVar.toSourceCode().equals(modifiedVar.toSourceCode())) {
-                loadDesignDiagrams = true;
-                return;
-            }
+        for (Map.Entry<String, ClassDefinitionNode> entry : modifiedClassMap.entrySet()) {
+            addAdditionDiff(NodeKind.CLASS_DEFINITION, entry.getValue().lineRange(),
+                    buildSourceMetadata(entry.getKey(), null, entry.getValue().toSourceCode()));
         }
+    }
 
-        if (!modifiedVarMap.isEmpty()) {
-            loadDesignDiagrams = true;
+    private static Map<String, FunctionDefinitionNode> extractClassMethods(ClassDefinitionNode classNode) {
+        Map<String, FunctionDefinitionNode> methods = new LinkedHashMap<>();
+        classNode.members().forEach(member -> {
+            if (member instanceof FunctionDefinitionNode method) {
+                String resourcePath = method.relativeResourcePath().stream()
+                        .map(node -> node.toSourceCode().trim())
+                        .collect(Collectors.joining(""));
+                methods.put(method.functionName().text().trim()
+                        + (resourcePath.isEmpty() ? "" : "#" + resourcePath), method);
+            }
+        });
+        return methods;
+    }
+
+    private static String nonMethodMembersSource(ClassDefinitionNode classNode) {
+        return classNode.members().stream()
+                .filter(member -> !(member instanceof FunctionDefinitionNode))
+                .map(SemanticDiffComputer::triviaFreeSource)
+                .collect(Collectors.joining("\n"));
+    }
+
+    /**
+     * Signature used to decide whether a class needs a {@code CLASS_DEFINITION} diff once its methods
+     * have been diffed separately. It combines the class header — metadata, visibility, class-type
+     * qualifiers, the {@code class} keyword and the name — with the non-method members, so a
+     * header-only change (for example adding {@code isolated} or an annotation) is not lost when the
+     * members are unchanged. Built from token text only ({@link #triviaFreeSource}), so a comment or
+     * formatting shuffle around the class or its fields never registers as a modification — the same
+     * trivia-only handling as {@link #computeImportDiffs}. Annotations and markdown documentation are
+     * syntax nodes, not trivia, so genuine changes to them still produce a diff.
+     */
+    private static String classHeaderAndMembersSource(ClassDefinitionNode classNode) {
+        StringBuilder header = new StringBuilder();
+        classNode.metadata().ifPresent(metadata -> header.append(triviaFreeSource(metadata)).append(' '));
+        classNode.visibilityQualifier().ifPresent(qualifier -> header.append(qualifier.text()).append(' '));
+        classNode.classTypeQualifiers().forEach(qualifier -> header.append(qualifier.text()).append(' '));
+        header.append(classNode.classKeyword().text()).append(' ');
+        header.append(classNode.className().text());
+        return header + "\n" + nonMethodMembersSource(classNode);
+    }
+
+    /**
+     * Source text of a node with all trivia removed: token texts joined by single spaces, so
+     * comments and whitespace never contribute. Only for comparison keys — the joined text is
+     * not valid, displayable source.
+     */
+    private static String triviaFreeSource(Node node) {
+        StringBuilder sb = new StringBuilder();
+        appendTriviaFreeSource(node, sb);
+        return sb.toString();
+    }
+
+    private static void appendTriviaFreeSource(Node node, StringBuilder sb) {
+        if (node instanceof Token token) {
+            if (!sb.isEmpty()) {
+                sb.append(' ');
+            }
+            sb.append(token.text());
+        } else if (node instanceof NonTerminalNode nonTerminal) {
+            for (Node child : nonTerminal.children()) {
+                appendTriviaFreeSource(child, sb);
+            }
         }
     }
 
@@ -230,10 +408,12 @@ public class SemanticDiffComputer {
 
         for (Map.Entry<String, TypeDefinitionNode> entry : originalTypeDefMap.entrySet()) {
             String typeDefName = entry.getKey();
+            TypeDefinitionNode originalTypeDef = entry.getValue();
             if (!modifiedTypeDefMap.containsKey(typeDefName)) {
+                addDeletionDiff(NodeKind.TYPE_DEFINITION, originalTypeDef.lineRange(),
+                        buildTypeMetadata(typeDefName));
                 continue;
             }
-            TypeDefinitionNode originalTypeDef = entry.getValue();
             TypeDefinitionNode modifiedTypeDef = modifiedTypeDefMap.remove(typeDefName);
             if (originalTypeDef.toSourceCode().equals(modifiedTypeDef.toSourceCode())) {
                 continue;
@@ -390,43 +570,49 @@ public class SemanticDiffComputer {
             return;
         }
 
-        if (originalFunctionBody instanceof FunctionBodyBlockNode originalBodyNode
-                && modifiedFunctionBody instanceof FunctionBodyBlockNode modifiedBodyNode) {
-            if (originalBodyNode.statements().size() != modifiedBodyNode.statements().size()) {
+        if (!(originalFunctionBody instanceof FunctionBodyBlockNode originalBodyNode)
+                || !(modifiedFunctionBody instanceof FunctionBodyBlockNode modifiedBodyNode)) {
+            // Same body class but not a statement block (e.g. both `external` bodies): the
+            // sources already differ per the check above, so report the modification instead
+            // of falling through silently.
+            addModificationDiff(kind, modifiedFunction.lineRange(), originalFunction.lineRange(), metadata);
+            return;
+        }
+
+        if (originalBodyNode.statements().size() != modifiedBodyNode.statements().size()) {
+            addModificationDiff(kind, modifiedFunction.lineRange(), originalFunction.lineRange(), metadata);
+            return;
+        }
+
+        for (int i = 0; i < originalBodyNode.statements().size(); i++) {
+            StatementNode originalStmtNode = originalBodyNode.statements().get(i);
+            StatementNode modifiedStmtNode = modifiedBodyNode.statements().get(i);
+
+            if (originalStmtNode.toSourceCode().equals(modifiedStmtNode.toSourceCode())) {
+                continue;
+            }
+
+            List<Node> allOriginalStmtNodes = new ArrayList<>();
+            extractStatementNodes(originalStmtNode, allOriginalStmtNodes);
+            List<Node> allModifiedStmtNodes = new ArrayList<>();
+            extractStatementNodes(modifiedStmtNode, allModifiedStmtNodes);
+
+            if (allOriginalStmtNodes.size() != allModifiedStmtNodes.size()) {
                 addModificationDiff(kind, modifiedFunction.lineRange(), originalFunction.lineRange(), metadata);
                 return;
             }
 
-            for (int i = 0; i < originalBodyNode.statements().size(); i++) {
-                StatementNode originalStmtNode = originalBodyNode.statements().get(i);
-                StatementNode modifiedStmtNode = modifiedBodyNode.statements().get(i);
-
-                if (originalStmtNode.toSourceCode().equals(modifiedStmtNode.toSourceCode())) {
-                    continue;
-                }
-
-                List<Node> allOriginalStmtNodes = new ArrayList<>();
-                extractStatementNodes(originalStmtNode, allOriginalStmtNodes);
-                List<Node> allModifiedStmtNodes = new ArrayList<>();
-                extractStatementNodes(modifiedStmtNode, allModifiedStmtNodes);
-
-                if (allOriginalStmtNodes.size() != allModifiedStmtNodes.size()) {
-                    addModificationDiff(kind, modifiedFunction.lineRange(), originalFunction.lineRange(), metadata);
+            for (int j = 0; j < allOriginalStmtNodes.size(); j++) {
+                Node originalNode = allOriginalStmtNodes.get(j);
+                Node modifiedNode = allModifiedStmtNodes.get(j);
+                // need to change whether both nodes have the same type
+                if (!originalNode.getClass().equals(modifiedNode.getClass())) {
+                    addModificationDiff(kind, modifiedNode.lineRange(), originalNode.lineRange(), metadata);
                     return;
                 }
-
-                for (int j = 0; j < allOriginalStmtNodes.size(); j++) {
-                    Node originalNode = allOriginalStmtNodes.get(j);
-                    Node modifiedNode = allModifiedStmtNodes.get(j);
-                    // need to change whether both nodes have the same type
-                    if (!originalNode.getClass().equals(modifiedNode.getClass())) {
-                        addModificationDiff(kind, modifiedNode.lineRange(), originalNode.lineRange(), metadata);
-                        return;
-                    }
-                    if (!originalNode.toSourceCode().trim().equals(modifiedNode.toSourceCode().trim())) {
-                        addModificationDiff(kind, modifiedNode.lineRange(), originalNode.lineRange(), metadata);
-                        return;
-                    }
+                if (!originalNode.toSourceCode().trim().equals(modifiedNode.toSourceCode().trim())) {
+                    addModificationDiff(kind, modifiedNode.lineRange(), originalNode.lineRange(), metadata);
+                    return;
                 }
             }
         }
@@ -442,6 +628,34 @@ public class SemanticDiffComputer {
         SemanticDiff diff = new SemanticDiff(ChangeType.MODIFICATION, kind,
                 resolveUri(modifiedLineRange.fileName()), modifiedLineRange, originalLineRange, metadata);
         this.semanticDiffs.add(diff);
+    }
+
+    private void addAdditionDiff(NodeKind kind, LineRange lineRange, Map<String, String> metadata) {
+        this.semanticDiffs.add(new SemanticDiff(ChangeType.ADDITION, kind,
+                resolveUri(lineRange.fileName()), lineRange, metadata));
+    }
+
+    private void addDeletionDiff(NodeKind kind, LineRange originalLineRange, Map<String, String> metadata) {
+        this.semanticDiffs.add(new SemanticDiff(ChangeType.DELETION, kind,
+                resolveUri(originalLineRange.fileName()), originalLineRange, metadata));
+    }
+
+    /**
+     * Metadata for construct kinds the review UI renders as source text rather than a
+     * diagram (constants, module vars, listeners, imports, enums, classes): carries the
+     * construct's before/after source so the UI needs no extra content lookup. Either
+     * side may be null (pure addition/deletion).
+     */
+    private static Map<String, String> buildSourceMetadata(String name, String oldSource, String newSource) {
+        Map<String, String> metadata = new LinkedHashMap<>();
+        metadata.put("name", name);
+        if (oldSource != null) {
+            metadata.put("oldSource", oldSource.strip());
+        }
+        if (newSource != null) {
+            metadata.put("newSource", newSource.strip());
+        }
+        return metadata;
     }
 
     private void extractStatementNodes(Node statementNode, List<Node> nodes) {
@@ -713,21 +927,46 @@ public class SemanticDiffComputer {
     }
 
     /**
-     * Collects a map of document names to Document objects from the given project.
+     * Collects a map of document names to Document objects from the given module, covering
+     * both source and test documents so edits confined to tests still produce diffs. Also
+     * records each document's on-disk path for URI resolution.
      *
-     * @param project the Ballerina project to collect documents from
+     * @param module the module to collect documents from; null yields an empty map (module
+     *               absent on this side of the diff)
      * @return a map of document names to Document objects
      */
-    private Map<String, Document> collectDocumentMap(Project project) {
+    private Map<String, Document> collectDocumentMap(Module module) {
 
         Map<String, Document> documentMap = new HashMap<>();
-        project.currentPackage().getDefaultModule().documentIds().stream()
-                .map(project.currentPackage().getDefaultModule()::document)
+        if (module == null) {
+            return documentMap;
+        }
+        module.documentIds().stream()
+                .map(module::document)
                 .filter(Objects::nonNull)
                 .forEach(document -> {
                     documentMap.put(document.name(), document);
+                    registerDocumentPath(module, document);
+                });
+        module.testDocumentIds().stream()
+                .map(module::document)
+                .filter(Objects::nonNull)
+                .forEach(document -> {
+                    documentMap.put(document.name(), document);
+                    registerDocumentPath(module, document);
                 });
         return documentMap;
+    }
+
+    private void registerDocumentPath(Module module, Document document) {
+        Optional<Path> documentPath = module.project().documentPath(document.documentId());
+        // LineRange.fileName() reflects the syntax tree's file path (normally the document
+        // name); register both so either form resolves. Both sides of the diff share the
+        // same disk path, so a single map serves original and modified lookups.
+        documentPath.ifPresent(path -> {
+            this.currentModuleFilePaths.putIfAbsent(document.name(), path);
+            this.currentModuleFilePaths.putIfAbsent(document.syntaxTree().filePath(), path);
+        });
     }
 
     /**
@@ -742,7 +981,10 @@ public class SemanticDiffComputer {
         for (Map.Entry<String, ServiceDeclarationNode> entry : serviceMap.entrySet()) {
             String serviceName = entry.getKey();
             String basePath = serviceName.split("#")[0];
-            serviceBasePaths.put(basePath, serviceName);
+            // Two services may legally share a base path (different listeners). Keep the
+            // first instead of silently overwriting — the unmatched one then surfaces via
+            // the removed/added handling rather than being paired with the wrong service.
+            serviceBasePaths.putIfAbsent(basePath, serviceName);
         }
         return serviceBasePaths;
     }
@@ -911,7 +1153,10 @@ public class SemanticDiffComputer {
 
     private String resolveUri(String fileName) {
 
-        Path filePath = Path.of(rootProjectPath).resolve(fileName);
+        // Module and test documents don't live directly under the project root, so prefer
+        // the recorded document path; fall back to root-relative for robustness.
+        Path filePath = this.currentModuleFilePaths.getOrDefault(
+                fileName, Path.of(rootProjectPath).resolve(fileName));
         return "ai" + filePath.toUri().toString().substring(4);
     }
 }

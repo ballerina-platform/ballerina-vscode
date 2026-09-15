@@ -1,0 +1,176 @@
+// Copyright (c) 2026, WSO2 LLC. (https://www.wso2.com/) All Rights Reserved.
+
+// WSO2 LLC. licenses this file to you under the Apache License,
+// Version 2.0 (the "License"); you may not use this file except
+// in compliance with the License.
+// You may obtain a copy of the License at
+
+// http://www.apache.org/licenses/LICENSE-2.0
+
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied. See the License for the
+// specific language governing permissions and limitations
+// under the License.
+/**
+ * @jest-environment node
+ *
+ * Subagent persistence and resume validation. A wrong file layout or a resume that loads the wrong
+ * conversation fails silently at runtime (the model sees a plausible history), so the round trip and
+ * the three rejection paths are pinned here.
+ */
+
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
+import type { ModelMessage } from "ai";
+import {
+    getSubagentDir,
+    loadSubagentHistory,
+    loadSubagentMetadata,
+    saveSubagentRun,
+    SubagentNotFoundError,
+} from "../features/ai/agent/subagents/store";
+import { markForegroundRun, validateResume } from "../features/ai/agent/subagents/resume";
+import { registerBackgroundSubagent, resetBackgroundSubagentsForTests } from "../features/ai/agent/subagents/background";
+import { generateSubagentId, isSubagentId } from "../features/ai/agent/subagents/types";
+
+let threadDir: string;
+beforeEach(() => { threadDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagent-store-")); resetBackgroundSubagentsForTests(); });
+afterEach(() => { fs.rmSync(threadDir, { recursive: true, force: true }); resetBackgroundSubagentsForTests(); });
+
+describe("ids", () => {
+    it("generates task-subagent-<8 hex> ids", () => {
+        const id = generateSubagentId();
+        expect(isSubagentId(id)).toBe(true);
+        expect(isSubagentId("task-subagent-xyz")).toBe(false);
+        expect(isSubagentId("librarian-12345678")).toBe(false);
+    });
+});
+
+describe("store", () => {
+    it("round-trips history as JSONL and metadata as JSON under threads/<id>/subagents/<taskId>", () => {
+        const id = generateSubagentId();
+        const messages: ModelMessage[] = [
+            { role: "user", content: "Find Kafka" },
+            { role: "assistant", content: [{ type: "text", text: "## Libraries\n- ballerinax/kafka" }] },
+        ];
+        saveSubagentRun(threadDir, id, { subagentType: "Librarian", description: "Kafka lookup", messages });
+
+        const dir = getSubagentDir(threadDir, id);
+        expect(dir).toBe(path.join(threadDir, "subagents", id));
+        expect(fs.readFileSync(path.join(dir, "history.jsonl"), "utf8").trim().split("\n")).toHaveLength(2);
+        expect(loadSubagentHistory(threadDir, id)).toEqual(messages);
+        const meta = loadSubagentMetadata(threadDir, id)!;
+        expect(meta.subagentType).toBe("Librarian");
+        expect(meta.description).toBe("Kafka lookup");
+        expect(new Date(meta.createdAt).getTime()).toBeGreaterThan(0);
+    });
+
+    it("keeps createdAt across a resave (resume overwrites the history, not the origin)", () => {
+        const id = generateSubagentId();
+        saveSubagentRun(threadDir, id, { subagentType: "Librarian", description: "a", messages: [{ role: "user", content: "1" }] });
+        const first = loadSubagentMetadata(threadDir, id)!.createdAt;
+        saveSubagentRun(threadDir, id, { subagentType: "Librarian", description: "a", messages: [{ role: "user", content: "1" }, { role: "assistant", content: "2" }] });
+        expect(loadSubagentMetadata(threadDir, id)!.createdAt).toBe(first);
+        expect(loadSubagentHistory(threadDir, id)).toHaveLength(2);
+    });
+
+    it("throws SubagentNotFoundError for an unknown id and returns null metadata", () => {
+        expect(() => loadSubagentHistory(threadDir, "task-subagent-deadbeef")).toThrow(SubagentNotFoundError);
+        expect(loadSubagentMetadata(threadDir, "task-subagent-deadbeef")).toBeNull();
+    });
+
+    it("rejects an id that is not the generated shape before touching the filesystem", () => {
+        // A `../` traversal must not be able to name another thread's subagents directory.
+        expect(() => getSubagentDir(threadDir, "../../other-thread/subagents/task-subagent-00000000")).toThrow(SubagentNotFoundError);
+        expect(() => loadSubagentHistory(threadDir, "../escape")).toThrow(SubagentNotFoundError);
+        expect(() => loadSubagentMetadata(threadDir, "../escape")).toThrow(SubagentNotFoundError);
+        expect(() => saveSubagentRun(threadDir, "../escape", { subagentType: "Librarian", description: "x", messages: [] })).toThrow(SubagentNotFoundError);
+        expect(fs.existsSync(path.join(threadDir, "..", "escape"))).toBe(false);
+    });
+});
+
+describe("validateResume", () => {
+    it("loads the history when the type matches", () => {
+        const id = generateSubagentId();
+        saveSubagentRun(threadDir, id, { subagentType: "Librarian", description: "d", messages: [{ role: "user", content: "q" }] });
+        const v = validateResume(threadDir, id, "Librarian");
+        expect(v.kind).toBe("ok");
+        if (v.kind === "ok") {
+            expect(v.messages).toHaveLength(1);
+            expect(v.description).toBe("d");
+        }
+    });
+
+    it("rejects a type mismatch and names the right type", () => {
+        const id = generateSubagentId();
+        saveSubagentRun(threadDir, id, { subagentType: "LibraryResearcher", description: "d", messages: [] });
+        const v = validateResume(threadDir, id, "Librarian");
+        expect(v.kind).toBe("error");
+        if (v.kind === "error") {
+            expect(v.error).toBe("SUBAGENT_TYPE_MISMATCH");
+            expect(v.message).toContain("subagent_type=LibraryResearcher");
+        }
+    });
+
+    it("rejects an unknown id", () => {
+        const v = validateResume(threadDir, "task-subagent-00000000", "Librarian");
+        expect(v.kind).toBe("error");
+        if (v.kind === "error") { expect(v.error).toBe("SUBAGENT_NOT_FOUND"); }
+    });
+
+    it("rejects a traversal id before it reaches the filesystem", () => {
+        const v = validateResume(threadDir, "../../other-thread/subagents/task-subagent-00000000", "Librarian");
+        expect(v.kind).toBe("error");
+        if (v.kind === "error") {
+            expect(v.error).toBe("SUBAGENT_NOT_FOUND");
+            expect(v.message).toContain("not a valid subagent id");
+        }
+    });
+
+    it("rejects a resume whose metadata is missing, even though the history exists", () => {
+        const id = generateSubagentId();
+        saveSubagentRun(threadDir, id, { subagentType: "Librarian", description: "d", messages: [{ role: "user", content: "q" }] });
+        fs.rmSync(path.join(getSubagentDir(threadDir, id), "metadata.json"));
+        const v = validateResume(threadDir, id, "Librarian");
+        expect(v.kind).toBe("error");
+        if (v.kind === "error") {
+            expect(v.error).toBe("SUBAGENT_NOT_FOUND");
+            expect(v.message).toContain("cannot be verified");
+        }
+    });
+
+    it("rejects a resume whose metadata is corrupt", () => {
+        const id = generateSubagentId();
+        saveSubagentRun(threadDir, id, { subagentType: "Librarian", description: "d", messages: [{ role: "user", content: "q" }] });
+        fs.writeFileSync(path.join(getSubagentDir(threadDir, id), "metadata.json"), "{not json");
+        expect(validateResume(threadDir, id, "Librarian").kind).toBe("error");
+    });
+
+    it("rejects a resume while a foreground run of the same id is in flight, and allows it after release", () => {
+        const id = generateSubagentId();
+        saveSubagentRun(threadDir, id, { subagentType: "Librarian", description: "d", messages: [{ role: "user", content: "q" }] });
+        const release = markForegroundRun(id);
+        const during = validateResume(threadDir, id, "Librarian");
+        expect(during.kind).toBe("error");
+        if (during.kind === "error") { expect(during.error).toBe("SUBAGENT_STILL_RUNNING"); }
+        release();
+        expect(validateResume(threadDir, id, "Librarian").kind).toBe("ok");
+    });
+
+    it("rejects a task that is still running in the background", () => {
+        const id = generateSubagentId();
+        registerBackgroundSubagent({
+            id, subagentType: "Librarian", description: "bg", runKey: "r", toolCallId: "c", startTime: new Date(),
+            output: "", completed: false, success: null, aborted: false, abortController: new AbortController(), notified: false,
+        });
+        const v = validateResume(threadDir, id, "Librarian");
+        expect(v.kind).toBe("error");
+        if (v.kind === "error") {
+            expect(v.error).toBe("SUBAGENT_STILL_RUNNING");
+            expect(v.message).toContain("task_output");
+        }
+    });
+});

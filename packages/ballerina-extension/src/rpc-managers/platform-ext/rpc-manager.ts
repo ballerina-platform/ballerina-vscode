@@ -100,6 +100,8 @@ import {
 } from "./platform-utils";
 import { debounce } from "lodash";
 import { BiDiagramRpcManager } from "../bi-diagram/rpc-manager";
+import { promptToAddConstruct } from "../../features/devant/add-construct-prompt";
+import { confirmListenerAlongside } from "../../features/devant/integration-type";
 import { updateSourceCode, WI_EXTENSION_ID } from "../../utils";
 
 export class PlatformExtRpcManager implements PlatformExtAPI {
@@ -514,23 +516,37 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
 
         const services = project.directoryMap[DIRECTORY_MAP.SERVICE];
         const automation = project.directoryMap[DIRECTORY_MAP.AUTOMATION];
+        const workflows = project.directoryMap[DIRECTORY_MAP.WORKFLOW];
 
         let scopes: DevantScopes[] = [];
         if (services?.length > 0) {
             const svcScopes = services
-                .map((svc) => findDevantScope(svc?.kind, svc?.moduleName))
+                .map((svc) => findDevantScope(svc?.triggerKind ?? svc?.kind, svc?.moduleName))
                 .filter((svc) => svc !== undefined);
             scopes.push(...Array.from(new Set(svcScopes)));
+        }
+        if (workflows?.length > 0) {
+            scopes.push(DevantScopes.WORKFLOW);
         }
         if (automation?.length > 0) {
             scopes.push(DevantScopes.AUTOMATION);
         }
 
+        if (scopes.length === 0) {
+            promptToAddConstruct();
+            return;
+        }
+
+        // Deliberately asks whenever there is more than one scope, rather than going through
+        // selectIntegrationType like the other two deploy entry points. Auto-picking would decide
+        // the component's classification for the user, and this panel is the surface where they
+        // expect to choose it. The listener warning is orthogonal to that choice, so it is applied
+        // below either way. Aligning the three is tracked separately as a product decision.
         let integrationType: DevantScopes;
 
         if (scopes.length === 1) {
             integrationType = scopes[0];
-        } else if (scopes?.length > 1) {
+        } else {
             const selectedScope = await window.showQuickPick(scopes, {
                 placeHolder:
                     "You have multiple artifact types within this project. Select the artifact type to be deployed",
@@ -539,6 +555,10 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
                 return;
             }
             integrationType = selectedScope as DevantScopes;
+        }
+
+        if (!(await confirmListenerAlongside(scopes, integrationType))) {
+            return;
         }
 
         const deployementParams: ICreateNewIntegrationCmdParams = {

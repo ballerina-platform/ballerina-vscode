@@ -47,6 +47,16 @@ describe("formatMethodName", () => {
         expect(formatMethodName("method2Call")).toBe("Method2 Call");
     });
 
+    it("title-cases a SCREAMING_SNAKE_CASE constant instead of leaving it all-caps", () => {
+        expect(formatMethodName("MODEL_PROVIDER")).toBe("Model Provider");
+        expect(formatMethodName("NEW_CONNECTION")).toBe("New Connection");
+        expect(formatMethodName("USER_ID")).toBe("User ID");
+    });
+
+    it("keeps a bare all-caps acronym as-is", () => {
+        expect(formatMethodName("HTTP")).toBe("HTTP");
+    });
+
     it("lower-cases trailing words in sentence casing, acronyms excepted", () => {
         expect(formatMethodName("createPresignedUrl", { casing: "sentence" })).toBe("Create presigned URL");
         expect(formatMethodName("getUserId", { casing: "sentence" })).toBe("Get user ID");

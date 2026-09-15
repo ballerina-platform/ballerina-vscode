@@ -1,0 +1,21 @@
+{
+  "projectPath": "proj4",
+  "description": "Project that imports workflow.management for use, and the REST import: only the REST import is removed",
+  "output": {
+    "proj4/main.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 2,
+            "character": 0
+          },
+          "end": {
+            "line": 2,
+            "character": 47
+          }
+        },
+        "newText": ""
+      }
+    ]
+  }
+}

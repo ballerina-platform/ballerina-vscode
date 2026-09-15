@@ -27,8 +27,9 @@ const SIGN_IN_TIMEOUT_MS = 300_000;
 /**
  * Manages the sign-in / cancel-sign-in flow.
  *
- * Returns `isSigningIn` state and stable `handleSignIn` / `handleCancelSignIn`
- * callbacks. Cleans up the internal timeout on unmount.
+ * Returns `isSigningIn` state, a `canSignIn` capability flag and stable
+ * `handleSignIn` / `handleCancelSignIn` callbacks. Cleans up the internal
+ * timeout on unmount.
  */
 export function useSignIn() {
     const { wsClient } = useVisualizerContext();
@@ -54,7 +55,19 @@ export function useSignIn() {
     // Clean up on unmount.
     useEffect(() => () => clearSignInTimeout(), []);
 
+    /**
+     * The form this backs is also rendered outside the embedded host (the migration
+     * wizard), where the context default leaves `wsClient` an empty object. Calling
+     * through it would throw on click, so sign-in is simply unavailable there rather
+     * than broken.
+     */
+    const canRunCommand = typeof wsClient?.runCommand === "function";
+
     const handleSignIn = () => {
+        if (!canRunCommand) {
+            console.warn("Sign-in is unavailable: no command transport in this host.");
+            return;
+        }
         setIsSigningIn(true);
         clearSignInTimeout();
         timeoutRef.current = setTimeout(() => {
@@ -69,10 +82,13 @@ export function useSignIn() {
     const handleCancelSignIn = () => {
         setIsSigningIn(false);
         clearSignInTimeout();
+        if (!canRunCommand) {
+            return;
+        }
         wsClient
             .runCommand({ command: WICommandIds.CancelSignIn, args: [] })
             .catch((error) => console.error("Cancel sign-in command failed:", error));
     };
 
-    return { isSigningIn, handleSignIn, handleCancelSignIn };
+    return { isSigningIn, canSignIn: canRunCommand, handleSignIn, handleCancelSignIn };
 }

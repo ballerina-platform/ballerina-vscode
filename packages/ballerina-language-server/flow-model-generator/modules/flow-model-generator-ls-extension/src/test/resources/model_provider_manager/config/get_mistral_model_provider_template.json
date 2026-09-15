@@ -105,132 +105,132 @@
               "fieldType": "SINGLE_SELECT",
               "options": [
                 {
-                  "label": "open-codestral-mamba",
-                  "value": "\"open-codestral-mamba\""
+                  "label": "MISTRAL_SMALL_LATEST",
+                  "value": "\"mistral-small-latest\""
                 },
                 {
-                  "label": "pixtral-12b-2409",
-                  "value": "\"pixtral-12b-2409\""
-                },
-                {
-                  "label": "pixtral-large-2411",
-                  "value": "\"pixtral-large-2411\""
-                },
-                {
-                  "label": "open-mixtral-8x22b",
-                  "value": "\"open-mixtral-8x22b\""
-                },
-                {
-                  "label": "open-mixtral-8x7b",
-                  "value": "\"open-mixtral-8x7b\""
-                },
-                {
-                  "label": "open-mistral-nemo",
-                  "value": "\"open-mistral-nemo\""
-                },
-                {
-                  "label": "open-mistral-7b",
-                  "value": "\"open-mistral-7b\""
-                },
-                {
-                  "label": "devstral-small-2505",
-                  "value": "\"devstral-small-2505\""
-                },
-                {
-                  "label": "codestral-mamba-2407",
-                  "value": "\"codestral-mamba-2407\""
-                },
-                {
-                  "label": "codestral-2501",
-                  "value": "\"codestral-2501\""
-                },
-                {
-                  "label": "codestral-2405",
-                  "value": "\"codestral-2405\""
-                },
-                {
-                  "label": "mistral-saba-2502",
-                  "value": "\"mistral-saba-2502\""
-                },
-                {
-                  "label": "mistral-large-2411",
-                  "value": "\"mistral-large-2411\""
-                },
-                {
-                  "label": "mistral-large-2407",
-                  "value": "\"mistral-large-2407\""
-                },
-                {
-                  "label": "mistral-large-2402",
-                  "value": "\"mistral-large-2402\""
-                },
-                {
-                  "label": "mistral-medium-2505",
-                  "value": "\"mistral-medium-2505\""
-                },
-                {
-                  "label": "mistral-medium-2312",
-                  "value": "\"mistral-medium-2312\""
-                },
-                {
-                  "label": "ministral-8b-2410",
-                  "value": "\"ministral-8b-2410\""
-                },
-                {
-                  "label": "ministral-3b-2410",
-                  "value": "\"ministral-3b-2410\""
-                },
-                {
-                  "label": "mistral-small-2503",
-                  "value": "\"mistral-small-2503\""
-                },
-                {
-                  "label": "mistral-small-2501",
-                  "value": "\"mistral-small-2501\""
-                },
-                {
-                  "label": "mistral-small-2409",
-                  "value": "\"mistral-small-2409\""
-                },
-                {
-                  "label": "mistral-small-2402",
-                  "value": "\"mistral-small-2402\""
-                },
-                {
-                  "label": "codestral-latest",
-                  "value": "\"codestral-latest\""
-                },
-                {
-                  "label": "mistral-saba-latest",
-                  "value": "\"mistral-saba-latest\""
-                },
-                {
-                  "label": "ministral-8b-latest",
-                  "value": "\"ministral-8b-latest\""
-                },
-                {
-                  "label": "ministral-3b-latest",
-                  "value": "\"ministral-3b-latest\""
-                },
-                {
-                  "label": "pixtral-large-latest",
-                  "value": "\"pixtral-large-latest\""
-                },
-                {
-                  "label": "devstral-small-latest",
-                  "value": "\"devstral-small-latest\""
-                },
-                {
-                  "label": "mistral-large-latest",
-                  "value": "\"mistral-large-latest\""
-                },
-                {
-                  "label": "mistral-medium-latest",
+                  "label": "MISTRAL_MEDIUM_LATEST",
                   "value": "\"mistral-medium-latest\""
                 },
                 {
-                  "label": "mistral-small-latest",
-                  "value": "\"mistral-small-latest\""
+                  "label": "MISTRAL_LARGE_LATEST",
+                  "value": "\"mistral-large-latest\""
+                },
+                {
+                  "label": "DEVSTRAL_SMALL_LATEST",
+                  "value": "\"devstral-small-latest\""
+                },
+                {
+                  "label": "PIXTRAL_LARGE_LATEST",
+                  "value": "\"pixtral-large-latest\""
+                },
+                {
+                  "label": "MINISTRAL_3B_LATEST",
+                  "value": "\"ministral-3b-latest\""
+                },
+                {
+                  "label": "MINISTRAL_8B_LATEST",
+                  "value": "\"ministral-8b-latest\""
+                },
+                {
+                  "label": "MISTRAL_SABA_LATEST",
+                  "value": "\"mistral-saba-latest\""
+                },
+                {
+                  "label": "CODESTRAL_LATEST",
+                  "value": "\"codestral-latest\""
+                },
+                {
+                  "label": "MISTRAL_SMALL_2402",
+                  "value": "\"mistral-small-2402\""
+                },
+                {
+                  "label": "MISTRAL_SMALL_2409",
+                  "value": "\"mistral-small-2409\""
+                },
+                {
+                  "label": "MISTRAL_SMALL_2501",
+                  "value": "\"mistral-small-2501\""
+                },
+                {
+                  "label": "MISTRAL_SMALL_2503",
+                  "value": "\"mistral-small-2503\""
+                },
+                {
+                  "label": "MINISTRAL_3B_2410",
+                  "value": "\"ministral-3b-2410\""
+                },
+                {
+                  "label": "MINISTRAL_8B_2410",
+                  "value": "\"ministral-8b-2410\""
+                },
+                {
+                  "label": "MISTRAL_MEDIUM_2312",
+                  "value": "\"mistral-medium-2312\""
+                },
+                {
+                  "label": "MISTRAL_MEDIUM_2505",
+                  "value": "\"mistral-medium-2505\""
+                },
+                {
+                  "label": "MISTRAL_LARGE_2402",
+                  "value": "\"mistral-large-2402\""
+                },
+                {
+                  "label": "MISTRAL_LARGE_2407",
+                  "value": "\"mistral-large-2407\""
+                },
+                {
+                  "label": "MISTRAL_LARGE_2411",
+                  "value": "\"mistral-large-2411\""
+                },
+                {
+                  "label": "MISTRAL_SABA_2502",
+                  "value": "\"mistral-saba-2502\""
+                },
+                {
+                  "label": "CODESTRAL_2405",
+                  "value": "\"codestral-2405\""
+                },
+                {
+                  "label": "CODESTRAL_2501",
+                  "value": "\"codestral-2501\""
+                },
+                {
+                  "label": "CODESTRAL_MAMBA_2407",
+                  "value": "\"codestral-mamba-2407\""
+                },
+                {
+                  "label": "DEVSTRAL_SMALL_2505",
+                  "value": "\"devstral-small-2505\""
+                },
+                {
+                  "label": "OPEN_MISTRAL_7B",
+                  "value": "\"open-mistral-7b\""
+                },
+                {
+                  "label": "OPEN_MISTRAL_NEMO",
+                  "value": "\"open-mistral-nemo\""
+                },
+                {
+                  "label": "OPEN_MIXTRAL_8X7B",
+                  "value": "\"open-mixtral-8x7b\""
+                },
+                {
+                  "label": "OPEN_MIXTRAL_8X22B",
+                  "value": "\"open-mixtral-8x22b\""
+                },
+                {
+                  "label": "PIXTRAL_LARGE_2411",
+                  "value": "\"pixtral-large-2411\""
+                },
+                {
+                  "label": "PIXTRAL_12B_2409",
+                  "value": "\"pixtral-12b-2409\""
+                },
+                {
+                  "label": "OPEN_CODESTRAL_MAMBA",
+                  "value": "\"open-codestral-mamba\""
                 }
               ],
               "selected": false
@@ -241,7 +241,7 @@
               "selected": false
             }
           ],
-          "placeholder": "\"open-codestral-mamba\"",
+          "placeholder": "",
           "optional": false,
           "editable": true,
           "advanced": false,
@@ -271,7 +271,7 @@
           "placeholder": "\"\"",
           "optional": true,
           "editable": true,
-          "advanced": true,
+          "advanced": false,
           "hidden": false,
           "codedata": {
             "kind": "DEFAULTABLE",
@@ -299,7 +299,7 @@
           "placeholder": "0",
           "optional": true,
           "editable": true,
-          "advanced": true,
+          "advanced": false,
           "hidden": false,
           "codedata": {
             "kind": "DEFAULTABLE",
@@ -327,7 +327,7 @@
           "placeholder": "0.0d",
           "optional": true,
           "editable": true,
-          "advanced": true,
+          "advanced": false,
           "hidden": false,
           "codedata": {
             "kind": "DEFAULTABLE",
@@ -345,16 +345,16 @@
               "fieldType": "SINGLE_SELECT",
               "options": [
                 {
-                  "label": "2.0",
-                  "value": "\"2.0\""
+                  "label": "HTTP_1_0",
+                  "value": "\"1.0\""
                 },
                 {
-                  "label": "1.1",
+                  "label": "HTTP_1_1",
                   "value": "\"1.1\""
                 },
                 {
-                  "label": "1.0",
-                  "value": "\"1.0\""
+                  "label": "HTTP_2_0",
+                  "value": "\"2.0\""
                 }
               ],
               "selected": false
@@ -368,7 +368,7 @@
           "placeholder": "\"2.0\"",
           "optional": true,
           "editable": true,
-          "advanced": true,
+          "advanced": false,
           "hidden": false,
           "codedata": {
             "kind": "INCLUDED_FIELD",
@@ -388,7 +388,7 @@
               "typeMembers": [
                 {
                   "type": "ClientHttp1Settings",
-                  "packageInfo": "ballerina:http:2.16.6",
+                  "packageInfo": "ballerina:http:2.17.1",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -425,7 +425,7 @@
               "typeMembers": [
                 {
                   "type": "ClientHttp2Settings",
-                  "packageInfo": "ballerina:http:2.16.6",
+                  "packageInfo": "ballerina:http:2.17.1",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -470,7 +470,7 @@
           "placeholder": "0.0d",
           "optional": true,
           "editable": true,
-          "advanced": true,
+          "advanced": false,
           "hidden": false,
           "codedata": {
             "kind": "INCLUDED_FIELD",
@@ -498,7 +498,7 @@
           "placeholder": "\"\"",
           "optional": true,
           "editable": true,
-          "advanced": true,
+          "advanced": false,
           "hidden": false,
           "codedata": {
             "kind": "INCLUDED_FIELD",
@@ -518,7 +518,7 @@
               "typeMembers": [
                 {
                   "type": "PoolConfiguration",
-                  "packageInfo": "ballerina:http:2.16.6",
+                  "packageInfo": "ballerina:http:2.17.1",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -555,7 +555,7 @@
               "typeMembers": [
                 {
                   "type": "CacheConfig",
-                  "packageInfo": "ballerina:http:2.16.6",
+                  "packageInfo": "ballerina:http:2.17.1",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -613,7 +613,7 @@
           "placeholder": "\"AUTO\"",
           "optional": true,
           "editable": true,
-          "advanced": true,
+          "advanced": false,
           "hidden": false,
           "codedata": {
             "kind": "INCLUDED_FIELD",
@@ -633,7 +633,7 @@
               "typeMembers": [
                 {
                   "type": "CircuitBreakerConfig",
-                  "packageInfo": "ballerina:http:2.16.6",
+                  "packageInfo": "ballerina:http:2.17.1",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -670,7 +670,7 @@
               "typeMembers": [
                 {
                   "type": "RetryConfig",
-                  "packageInfo": "ballerina:http:2.16.6",
+                  "packageInfo": "ballerina:http:2.17.1",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -707,7 +707,7 @@
               "typeMembers": [
                 {
                   "type": "ResponseLimitConfigs",
-                  "packageInfo": "ballerina:http:2.16.6",
+                  "packageInfo": "ballerina:http:2.17.1",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -744,7 +744,7 @@
               "typeMembers": [
                 {
                   "type": "ClientSecureSocket",
-                  "packageInfo": "ballerina:http:2.16.6",
+                  "packageInfo": "ballerina:http:2.17.1",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -781,7 +781,7 @@
               "typeMembers": [
                 {
                   "type": "ProxyConfig",
-                  "packageInfo": "ballerina:http:2.16.6",
+                  "packageInfo": "ballerina:http:2.17.1",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -826,7 +826,7 @@
           "placeholder": "false",
           "optional": true,
           "editable": true,
-          "advanced": true,
+          "advanced": false,
           "hidden": false,
           "codedata": {
             "kind": "INCLUDED_FIELD",

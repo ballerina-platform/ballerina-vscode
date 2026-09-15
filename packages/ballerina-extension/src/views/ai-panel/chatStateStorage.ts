@@ -297,6 +297,15 @@ export class ChatStateStorage {
     // ============================================
 
     /**
+     * On-disk directory of one thread: `<workspaceDir>/threads/<threadId>`. Subagent histories live in
+     * `subagents/<id>/` under it. The `threads` segment duplicates a private constant of the submodule's
+     * CopilotPersistenceStore; prefer a store accessor once one exists.
+     */
+    getThreadDir(projectRootPath: string, threadId: string): string {
+        return path.join(this.persistenceStore.getWorkspaceDir(projectRootPath), 'threads', threadId);
+    }
+
+    /**
      * Flush a thread to disk after mutation.
      * Called after every state change to keep files as the source of truth.
      */
@@ -1382,6 +1391,16 @@ export class ChatStateStorage {
      */
     getActiveExecution(projectRootPath: string, threadId: string): ActiveExecution | undefined {
         return this.activeExecutions.get(projectRootPath)?.get(threadId);
+    }
+
+    /**
+     * True while any thread in the workspace has an execution registered. Broader than
+     * runEventStore.hasActiveRun, which only sees runs buffered for panel reconnection — the
+     * type creator and the other command executors register here without ever beginning a run.
+     */
+    hasActiveExecutionFor(projectRootPath: string): boolean {
+        const threadMap = this.activeExecutions.get(projectRootPath);
+        return threadMap !== undefined && threadMap.size > 0;
     }
 
     hasAnyActiveExecution(): boolean {

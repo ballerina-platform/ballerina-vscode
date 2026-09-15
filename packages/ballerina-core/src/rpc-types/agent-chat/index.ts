@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { ChatReqMessage, ChatRespMessage, TraceInput, TraceStatus, TraceStatusRequest, ChatHistoryResponse, AgentStatusResponse, ClearChatResponse, ExecutionStep, SessionInput, SessionInfoResponse, AgentInfo, AvailableAgentsResponse, SwitchAgentRequest, SwitchAgentResponse, SubmitDecisionRequest, ApprovalDecision, ApprovalRequest, HumanResponse, DecisionMessage, PendingApprovalInfo } from "./interfaces";
+import { ChatReqMessage, ChatRespMessage, TraceInput, TraceStatus, TraceStatusRequest, ChatHistoryResponse, AgentStatusResponse, ClearChatResponse, ExecutionStep, SessionInput, SessionInfoResponse, AgentInfo, AvailableAgentsResponse, SwitchAgentRequest, SwitchAgentResponse, SubmitDecisionRequest, ApprovalOutcome, ApprovalRequest, HumanDecision, DecisionMessage, PendingApprovalInfo } from "./interfaces";
 
 export interface AgentChatAPI {
     getChatMessage: (params: ChatReqMessage) => Promise<ChatRespMessage>;
@@ -33,4 +33,4 @@ export interface AgentChatAPI {
     switchChatAgent: (params: SwitchAgentRequest) => Promise<SwitchAgentResponse>;
 }
 
-export type { ChatReqMessage, ChatRespMessage, TraceInput, TraceStatus, TraceStatusRequest, ChatHistoryResponse, AgentStatusResponse, ClearChatResponse, ExecutionStep, SessionInput, SessionInfoResponse, AgentInfo, AvailableAgentsResponse, SwitchAgentRequest, SwitchAgentResponse, SubmitDecisionRequest, ApprovalDecision, ApprovalRequest, HumanResponse, DecisionMessage, PendingApprovalInfo };
+export type { ChatReqMessage, ChatRespMessage, TraceInput, TraceStatus, TraceStatusRequest, ChatHistoryResponse, AgentStatusResponse, ClearChatResponse, ExecutionStep, SessionInput, SessionInfoResponse, AgentInfo, AvailableAgentsResponse, SwitchAgentRequest, SwitchAgentResponse, SubmitDecisionRequest, ApprovalOutcome, ApprovalRequest, HumanDecision, DecisionMessage, PendingApprovalInfo };

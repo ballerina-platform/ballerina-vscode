@@ -93,7 +93,7 @@ public class SemanticDiffComputerTest extends AbstractLSTest {
         actualOutput = gson.fromJson(outputJsonStr, JsonElement.class);
         // assert the results
         if (!actualOutput.equals(testConfig.output())) {
-            TestConfig updatedConfig = new TestConfig(testConfig.description(), 
+            TestConfig updatedConfig = new TestConfig(testConfig.description(),
                     testConfig.projectPath(), actualOutput.getAsJsonObject());
 //            updateConfig(configJsonPath, updatedConfig);
             Assert.fail(String.format("Failed test: '%s' (%s)", testConfig.description(), configJsonPath));

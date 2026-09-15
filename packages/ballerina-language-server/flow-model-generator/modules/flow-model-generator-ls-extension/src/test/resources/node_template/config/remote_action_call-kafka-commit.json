@@ -20,7 +20,7 @@
     "metadata": {
       "label": "'commit",
       "description": "Commits the currently consumed offsets of the consumer.\n```ballerina\nkafka:Error? result = consumer->commit();\n```\n",
-      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_kafka_4.6.5.png"
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_kafka_4.6.6.png"
     },
     "codedata": {
       "node": "REMOTE_ACTION_CALL",

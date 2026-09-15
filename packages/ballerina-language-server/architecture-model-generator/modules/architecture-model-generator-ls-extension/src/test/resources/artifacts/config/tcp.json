@@ -100,7 +100,10 @@
         "name": "tcpListener",
         "scope": "Global",
         "visibility": "module",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_tcp_1.13.5.png",
+        "icon": {
+          "url": "https://bcentral-packageicons.azureedge.net/images/ballerina_tcp_1.13.2.png",
+          "source": "ballerina-central"
+        },
         "module": "tcp",
         "children": {}
       }
@@ -123,7 +126,10 @@
         "name": "TCP Service",
         "scope": "Global",
         "visibility": "module",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_tcp_1.13.5.png",
+        "icon": {
+          "url": "https://bcentral-packageicons.azureedge.net/images/ballerina_tcp_1.13.2.png",
+          "source": "ballerina-central"
+        },
         "module": "tcp",
         "children": {
           "onConnect": {

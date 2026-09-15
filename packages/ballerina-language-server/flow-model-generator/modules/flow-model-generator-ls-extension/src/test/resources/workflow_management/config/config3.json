@@ -1,6 +1,6 @@
 {
   "projectPath": "proj3",
-  "description": "Project with the workflow management import without a prefix",
+  "description": "Project with the workflow management REST import without a prefix",
   "response": {
     "enabled": true
   }

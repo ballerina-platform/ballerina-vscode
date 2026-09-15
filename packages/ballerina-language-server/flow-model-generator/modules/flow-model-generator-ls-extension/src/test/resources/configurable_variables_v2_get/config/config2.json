@@ -7,6 +7,122 @@
     "ballerina/http": {
       "": [
         {
+          "id": "52628",
+          "metadata": {
+            "label": "Config",
+            "description": "Create a configurable variable"
+          },
+          "codedata": {
+            "node": "CONFIG_VARIABLE",
+            "lineRange": {
+              "fileName": "http_back_pressure.bal",
+              "startLine": {
+                "line": 21,
+                "offset": 0
+              },
+              "endLine": {
+                "line": 21,
+                "offset": 52
+              }
+            }
+          },
+          "returning": false,
+          "properties": {
+            "variable": {
+              "metadata": {
+                "label": "Variable Name",
+                "description": "Name of the variable"
+              },
+              "types": [
+                {
+                  "fieldType": "IDENTIFIER",
+                  "scope": "Global",
+                  "selected": true
+                }
+              ],
+              "value": "maxBackPressureStallTime",
+              "optional": false,
+              "editable": false,
+              "advanced": false,
+              "hidden": false
+            },
+            "type": {
+              "metadata": {
+                "label": "Variable Type",
+                "description": "Type of the variable"
+              },
+              "types": [
+                {
+                  "fieldType": "TYPE",
+                  "typeMembers": [],
+                  "selected": false
+                }
+              ],
+              "value": "decimal",
+              "placeholder": "var",
+              "optional": false,
+              "editable": false,
+              "advanced": false,
+              "hidden": false
+            },
+            "defaultValue": {
+              "metadata": {
+                "label": "Default Value",
+                "description": "Default value of the variable"
+              },
+              "types": [
+                {
+                  "fieldType": "EXPRESSION",
+                  "selected": true
+                }
+              ],
+              "value": "300",
+              "optional": true,
+              "editable": false,
+              "advanced": false,
+              "hidden": false,
+              "modified": false
+            },
+            "configValue": {
+              "metadata": {
+                "label": "Config Value",
+                "description": "Config value of the variable, to be used in Config.toml"
+              },
+              "types": [
+                {
+                  "fieldType": "EXPRESSION",
+                  "selected": true
+                }
+              ],
+              "value": "",
+              "optional": true,
+              "editable": true,
+              "advanced": false,
+              "hidden": true,
+              "modified": false
+            },
+            "documentation": {
+              "metadata": {
+                "label": "Documentation",
+                "description": "Variable documentation in Markdown format"
+              },
+              "types": [
+                {
+                  "fieldType": "TEXT",
+                  "selected": true
+                }
+              ],
+              "value": "",
+              "optional": true,
+              "editable": false,
+              "advanced": false,
+              "hidden": false,
+              "modified": false
+            }
+          },
+          "flags": 0
+        },
+        {
           "id": "49643",
           "metadata": {
             "label": "Config",
@@ -54,15 +170,7 @@
               "types": [
                 {
                   "fieldType": "TYPE",
-                  "typeMembers": [
-                    {
-                      "type": "int",
-                      "packageInfo": "",
-                      "packageName": "",
-                      "kind": "BASIC_TYPE",
-                      "selected": false
-                    }
-                  ],
+                  "typeMembers": [],
                   "selected": false
                 }
               ],
@@ -178,15 +286,7 @@
               "types": [
                 {
                   "fieldType": "TYPE",
-                  "typeMembers": [
-                    {
-                      "type": "int",
-                      "packageInfo": "",
-                      "packageName": "",
-                      "kind": "BASIC_TYPE",
-                      "selected": false
-                    }
-                  ],
+                  "typeMembers": [],
                   "selected": false
                 }
               ],
@@ -302,15 +402,7 @@
               "types": [
                 {
                   "fieldType": "TYPE",
-                  "typeMembers": [
-                    {
-                      "type": "decimal",
-                      "packageInfo": "",
-                      "packageName": "",
-                      "kind": "BASIC_TYPE",
-                      "selected": false
-                    }
-                  ],
+                  "typeMembers": [],
                   "selected": false
                 }
               ],
@@ -426,15 +518,7 @@
               "types": [
                 {
                   "fieldType": "TYPE",
-                  "typeMembers": [
-                    {
-                      "type": "int",
-                      "packageInfo": "",
-                      "packageName": "",
-                      "kind": "BASIC_TYPE",
-                      "selected": false
-                    }
-                  ],
+                  "typeMembers": [],
                   "selected": false
                 }
               ],
@@ -550,15 +634,7 @@
               "types": [
                 {
                   "fieldType": "TYPE",
-                  "typeMembers": [
-                    {
-                      "type": "decimal",
-                      "packageInfo": "",
-                      "packageName": "",
-                      "kind": "BASIC_TYPE",
-                      "selected": false
-                    }
-                  ],
+                  "typeMembers": [],
                   "selected": false
                 }
               ],
@@ -674,15 +750,7 @@
               "types": [
                 {
                   "fieldType": "TYPE",
-                  "typeMembers": [
-                    {
-                      "type": "decimal",
-                      "packageInfo": "",
-                      "packageName": "",
-                      "kind": "BASIC_TYPE",
-                      "selected": false
-                    }
-                  ],
+                  "typeMembers": [],
                   "selected": false
                 }
               ],
@@ -798,15 +866,7 @@
               "types": [
                 {
                   "fieldType": "TYPE",
-                  "typeMembers": [
-                    {
-                      "type": "decimal",
-                      "packageInfo": "",
-                      "packageName": "",
-                      "kind": "BASIC_TYPE",
-                      "selected": false
-                    }
-                  ],
+                  "typeMembers": [],
                   "selected": false
                 }
               ],
@@ -922,15 +982,7 @@
               "types": [
                 {
                   "fieldType": "TYPE",
-                  "typeMembers": [
-                    {
-                      "type": "decimal",
-                      "packageInfo": "",
-                      "packageName": "",
-                      "kind": "BASIC_TYPE",
-                      "selected": false
-                    }
-                  ],
+                  "typeMembers": [],
                   "selected": false
                 }
               ],
@@ -1046,15 +1098,7 @@
               "types": [
                 {
                   "fieldType": "TYPE",
-                  "typeMembers": [
-                    {
-                      "type": "int",
-                      "packageInfo": "",
-                      "packageName": "",
-                      "kind": "BASIC_TYPE",
-                      "selected": false
-                    }
-                  ],
+                  "typeMembers": [],
                   "selected": false
                 }
               ],
@@ -1170,15 +1214,7 @@
               "types": [
                 {
                   "fieldType": "TYPE",
-                  "typeMembers": [
-                    {
-                      "type": "ListenerConfiguration",
-                      "packageInfo": "ballerina:http:2.16.6",
-                      "packageName": "http",
-                      "kind": "RECORD_TYPE",
-                      "selected": false
-                    }
-                  ],
+                  "typeMembers": [],
                   "selected": false
                 }
               ],
@@ -1294,15 +1330,7 @@
               "types": [
                 {
                   "fieldType": "TYPE",
-                  "typeMembers": [
-                    {
-                      "type": "boolean",
-                      "packageInfo": "",
-                      "packageName": "",
-                      "kind": "BASIC_TYPE",
-                      "selected": false
-                    }
-                  ],
+                  "typeMembers": [],
                   "selected": false
                 }
               ],
@@ -1418,15 +1446,7 @@
               "types": [
                 {
                   "fieldType": "TYPE",
-                  "typeMembers": [
-                    {
-                      "type": "TraceLogAdvancedConfiguration",
-                      "packageInfo": "ballerina:http:2.16.6",
-                      "packageName": "http",
-                      "kind": "RECORD_TYPE",
-                      "selected": false
-                    }
-                  ],
+                  "typeMembers": [],
                   "selected": false
                 }
               ],
@@ -1542,15 +1562,7 @@
               "types": [
                 {
                   "fieldType": "TYPE",
-                  "typeMembers": [
-                    {
-                      "type": "AccessLogConfiguration",
-                      "packageInfo": "ballerina:http:2.16.6",
-                      "packageName": "http",
-                      "kind": "RECORD_TYPE",
-                      "selected": false
-                    }
-                  ],
+                  "typeMembers": [],
                   "selected": false
                 }
               ],

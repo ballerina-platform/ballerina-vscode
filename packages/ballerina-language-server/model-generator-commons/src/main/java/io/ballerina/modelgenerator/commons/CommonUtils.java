@@ -50,7 +50,6 @@ import io.ballerina.compiler.syntax.tree.DoStatementNode;
 import io.ballerina.compiler.syntax.tree.EnumMemberNode;
 import io.ballerina.compiler.syntax.tree.ExpressionNode;
 import io.ballerina.compiler.syntax.tree.FunctionDefinitionNode;
-import io.ballerina.compiler.syntax.tree.IdentifierToken;
 import io.ballerina.compiler.syntax.tree.InterpolationNode;
 import io.ballerina.compiler.syntax.tree.MappingConstructorExpressionNode;
 import io.ballerina.compiler.syntax.tree.MappingFieldNode;
@@ -96,8 +95,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -117,6 +117,8 @@ public class CommonUtils {
     private static final String CENTRAL_ICON_URL = "https://bcentral-packageicons.azureedge.net/images/%s_%s_%s.png";
     private static final Pattern FULLY_QUALIFIED_MODULE_ID_PATTERN =
             Pattern.compile("(\\w+)/([\\w.]+):([^:]+):(\\w+)[|]?");
+    /** Separates a qualifier from its module in an encoded {@code importStatements} entry. */
+    public static final String IMPORT_QUALIFIER_SEPARATOR = "=";
     private static final String KNOWLEDGE_BASE_TYPE_NAME = "KnowledgeBase";
     private static final String EMBEDDING_PROVIDER_TYPE_NAME = "EmbeddingProvider";
     private static final String MODEL_PROVIDER_TYPE_NAME = "ModelProvider";
@@ -156,7 +158,8 @@ public class CommonUtils {
     private static final String DOUBLE_QUOTE = "\"";
     public static final Pattern STRING_TEMPLATE_PATTERN = Pattern.compile("string\\s*`.*`", Pattern.DOTALL);
     private static final String LS = System.lineSeparator();
-
+    private static final Pattern TYPE_MODULE_PREFIX_PATTERN =
+            Pattern.compile("(?<![\\w'])([A-Za-z_]\\w*):(?=[A-Za-z_])");
     /**
      * Removes the quotes from the given string.
      *
@@ -183,25 +186,42 @@ public class CommonUtils {
      */
     public static String getTypeSignature(SemanticModel semanticModel, TypeSymbol typeSymbol, boolean ignoreError,
                                           ModuleInfo moduleInfo) {
+        return getTypeSignature(semanticModel, typeSymbol, ignoreError, moduleInfo, null);
+    }
+
+    /**
+     * Retrieves the type signature, rendering every module qualifier through {@code allocator} so that each one
+     * names exactly one module. The allocator spans the whole signature, union members and type parameters
+     * included, since a qualifier is only unambiguous relative to the entire text it appears in.
+     *
+     * @param allocator the qualifier allocator, or null to render each module under its own natural segment as
+     *                  before, which is ambiguous when two modules share one
+     * @see TypeQualifierAllocator
+     */
+    public static String getTypeSignature(SemanticModel semanticModel, TypeSymbol typeSymbol, boolean ignoreError,
+                                          ModuleInfo moduleInfo, TypeQualifierAllocator allocator) {
         return switch (typeSymbol.typeKind()) {
             case COMPILATION_ERROR -> UNKNOWN_TYPE;
             case UNION -> {
                 UnionTypeSymbol unionTypeSymbol = (UnionTypeSymbol) typeSymbol;
                 yield unionTypeSymbol.memberTypeDescriptors().stream()
                         .filter(memberType -> !ignoreError || !memberType.subtypeOf(semanticModel.types().ERROR))
-                        .map(type -> getTypeSignature(semanticModel, type, ignoreError, moduleInfo))
+                        .map(type -> getTypeSignature(semanticModel, type, ignoreError, moduleInfo, allocator))
                         .reduce((s1, s2) -> s1 + "|" + s2)
-                        .orElse(getTypeSignature(unionTypeSymbol, moduleInfo));
+                        // orElseGet, not orElse: the fallback renders the whole union, error members included, and
+                        // would otherwise record every module in it against a text that never used them.
+                        .orElseGet(() -> getTypeSignature(unionTypeSymbol, moduleInfo, allocator));
             }
             // TODO: This only address how type descriptors work with dependent types. Need to extend this to improve
             //  on handling cases where functions take type descriptors as parameters.
             case TYPEDESC -> {
                 TypeDescTypeSymbol typeDescTypeSymbol = (TypeDescTypeSymbol) typeSymbol;
                 yield typeDescTypeSymbol.typeParameter()
-                        .map(typeParameter -> getTypeSignature(semanticModel, typeParameter, ignoreError, null))
-                        .orElse(getTypeSignature(typeDescTypeSymbol, moduleInfo));
+                        .map(typeParameter ->
+                                getTypeSignature(semanticModel, typeParameter, ignoreError, null, allocator))
+                        .orElseGet(() -> getTypeSignature(typeDescTypeSymbol, moduleInfo, allocator));
             }
-            default -> getTypeSignature(typeSymbol, moduleInfo);
+            default -> getTypeSignature(typeSymbol, moduleInfo, allocator);
         };
     }
 
@@ -227,6 +247,21 @@ public class CommonUtils {
      * @return the processed type signature
      */
     public static String getTypeSignature(TypeSymbol typeSymbol, ModuleInfo moduleInfo) {
+        return getTypeSignature(typeSymbol, moduleInfo, null);
+    }
+
+    /**
+     * Returns the processed type signature of the type symbol, rendering each module qualifier through
+     * {@code allocator} when one is given. See {@link TypeQualifierAllocator} for why the natural segment alone is
+     * not a usable qualifier.
+     *
+     * @param typeSymbol the type symbol
+     * @param moduleInfo the default module name descriptor
+     * @param allocator  the qualifier allocator, or null for the natural segment
+     * @return the processed type signature
+     */
+    public static String getTypeSignature(TypeSymbol typeSymbol, ModuleInfo moduleInfo,
+                                          TypeQualifierAllocator allocator) {
         String text = typeSymbol.signature();
         StringBuilder newText = new StringBuilder();
         Matcher matcher = FULLY_QUALIFIED_MODULE_ID_PATTERN.matcher(text);
@@ -235,7 +270,9 @@ public class CommonUtils {
             // Append up-to start of the match
             newText.append(text, nextStart, matcher.start(1));
 
-            String modPart = matcher.group(2);
+            String orgPart = matcher.group(1);
+            String fullModulePart = matcher.group(2);
+            String modPart = fullModulePart;
             int last = modPart.lastIndexOf(".");
             if (last != -1) {
                 modPart = modPart.substring(last + 1);
@@ -244,7 +281,17 @@ public class CommonUtils {
             String typeName = matcher.group(4);
 
             if (moduleInfo == null || !modPart.equals(moduleInfo.packageName())) {
-                newText.append(modPart);
+                if (allocator != null) {
+                    // The allocator may hand back something other than the natural segment, which is what keeps
+                    // two modules ending in the same segment from rendering under one qualifier. The qualifier is
+                    // kept raw here too; reserved-keyword prefixes are escaped only at source emission.
+                    newText.append(allocator.qualifierFor(orgPart, fullModulePart, moduleInfo));
+                } else {
+                    // Keep the module prefix raw here; this signature is also used as a lookup key and stored as
+                    // metadata. Reserved-keyword prefixes are escaped only at source emission
+                    // (see escapeTypeSignatureModulePrefixes).
+                    newText.append(modPart);
+                }
                 newText.append(":");
             }
             newText.append(typeName);
@@ -755,7 +802,10 @@ public class CommonUtils {
      * @return an Optional containing comma-separated list of import statements, or empty if no imports needed
      */
     public static Optional<String> getImportStatements(TypeSymbol typeSymbol, ModuleInfo moduleInfo) {
-        Set<String> imports = new HashSet<>();
+        // Insertion-ordered, so the joined string follows the type walk rather than hash order. A reader
+        // allocates prefixes in the order it parses them, and the first claimant keeps the natural segment --
+        // so a hashed order makes which of two colliding modules gets aliased vary between runs.
+        Set<String> imports = new LinkedHashSet<>();
         analyzeTypeSymbolForImports(imports, typeSymbol, moduleInfo);
         if (imports.isEmpty()) {
             return Optional.empty();
@@ -841,6 +891,85 @@ public class CommonUtils {
     }
 
     /**
+     * Renders an imports map back into the {@code importStatements} string carried by {@link FunctionData} and
+     * {@link ParameterData}, as {@code prefix=org/module} entries.
+     *
+     * <p>
+     * The qualifier is written out with the module because it is not derivable from it: two modules ending in the
+     * same dot-segment share a natural qualifier, so the one a signature was actually rendered under has to be
+     * stated. An entry without a qualifier still parses — see {@link #parseImportStatements} — which is what lets
+     * index-generated strings keep working unchanged.
+     * </p>
+     *
+     * @param imports qualifier -> {@code org/module}
+     * @return the encoded string, or null when there is nothing to import
+     */
+    public static String encodeImportStatements(Map<String, String> imports) {
+        if (imports == null || imports.isEmpty()) {
+            return null;
+        }
+        return imports.entrySet().stream()
+                .map(entry -> {
+                    // Only a renamed qualifier is written out. One that is the module's own last dot-segment is
+                    // what a reader derives anyway, so leaving it implicit keeps every entry that names no
+                    // colliding module in the shape it has always had -- the index included.
+                    String signature = entry.getValue().split(":")[0];
+                    String module = signature.contains("/")
+                            ? signature.substring(signature.indexOf('/') + 1) : signature;
+                    return entry.getKey().equals(ModuleAliasResolver.selfPrefix(module))
+                            ? entry.getValue()
+                            : entry.getKey() + IMPORT_QUALIFIER_SEPARATOR + entry.getValue();
+                })
+                .collect(Collectors.joining(","));
+    }
+
+    /**
+     * Parses an {@code importStatements} string into the {@code prefix -> org/module} map the model carries.
+     *
+     * <p>
+     * Accepts both shapes. A {@code prefix=org/module} entry keeps the qualifier the type text was rendered under,
+     * so the two agree. A bare {@code org/module} entry — everything the index holds today — falls back to the
+     * module's natural dot-segment, and to an allocated one if that is already claimed by another module in the same
+     * string, which keeps the second module from displacing the first and losing its import.
+     * </p>
+     *
+     * @param importStatements the encoded imports, may be null
+     * @return qualifier -> {@code org/module}, never null
+     */
+    public static Map<String, String> parseImportStatements(String importStatements) {
+        Map<String, String> imports = new LinkedHashMap<>();
+        if (importStatements == null || importStatements.isBlank()) {
+            return imports;
+        }
+        for (String entry : importStatements.split(",")) {
+            String importStatement = entry.trim();
+            if (importStatement.isEmpty()) {
+                continue;
+            }
+            int separator = importStatement.indexOf(IMPORT_QUALIFIER_SEPARATOR);
+            if (separator > 0) {
+                imports.put(importStatement.substring(0, separator),
+                        importStatement.substring(separator + 1));
+                continue;
+            }
+            // The entry is kept verbatim, version and all: a value may carry one -- the client echoes back the
+            // module id it was given -- and the pull path reads it to resolve the package without asking Central
+            // which version is latest. Only the prefix is derived here, and that derivation ignores the tail.
+            String signature = importStatement.split(":")[0];
+            String module = signature.contains("/")
+                    ? signature.substring(signature.indexOf('/') + 1) : signature;
+            if (module.isEmpty()) {
+                continue;
+            }
+            if (imports.containsValue(importStatement)) {
+                continue;
+            }
+            imports.put(ModuleAliasResolver.allocatePrefix(module, imports.keySet()), importStatement);
+        }
+        return imports;
+    }
+
+    /**
      * Generates the import statement  of the format `<org>/<package>[.<module>]`.
      *
      * @param orgName     the organization name
@@ -861,6 +990,63 @@ public class CommonUtils {
             importStatement.append(packageName);
         }
         return importStatement.toString();
+    }
+
+    /**
+     * Escapes reserved-keyword segments of a dot-separated module name for source emission, e.g.
+     * "hubspot.crm.import" -> "hubspot.crm.'import".
+     *
+     * @param moduleName the dot-separated module name
+     * @return the module name with each reserved-keyword sub-segment escaped
+     */
+    public static String escapeModuleName(String moduleName) {
+        String[] segments = moduleName.split("\\.", -1);
+        StringBuilder result = new StringBuilder();
+        for (int i = 0; i < segments.length; i++) {
+            if (i > 0) {
+                result.append(".");
+            }
+            result.append(i == 0 ? segments[i] : CommonUtil.escapeReservedKeyword(segments[i]));
+        }
+        return result.toString();
+    }
+
+    /**
+     * Reverses {@link #escapeModuleName(String)} by stripping the escape quote from each dot-separated segment.
+     * Used to normalize a module name read from source (whose identifier tokens carry the leading quote) back to
+     * its raw form before comparison.
+     *
+     * @param moduleName the possibly-escaped dot-separated module name
+     * @return the raw module name
+     */
+    public static String unescapeModuleName(String moduleName) {
+        return Arrays.stream(moduleName.split("\\.", -1))
+                .map(CommonUtil::unescapeReservedKeyword)
+                .collect(Collectors.joining("."));
+    }
+
+    /**
+     * Escapes reserved-keyword segments of the module name in a raw import statement (e.g.
+     * {@code ballerinax/hubspot.crm.import} -> {@code ballerinax/hubspot.crm.'import}) so the emitted import line is
+     * valid Ballerina. Any org prefix and trailing {@code as <alias>} clause are preserved verbatim.
+     * <p>
+     * This is an emission-time helper.
+     *
+     * @param importStatement the raw import statement ({@code [org/]module[.sub][ as alias]})
+     * @return the import statement with reserved-keyword module segments escaped
+     */
+    public static String escapeImportStatement(String importStatement) {
+        String rest = importStatement;
+        String alias = "";
+        int asIndex = rest.indexOf(" as ");
+        if (asIndex != -1) {
+            alias = rest.substring(asIndex);
+            rest = rest.substring(0, asIndex);
+        }
+        int slashIndex = rest.indexOf('/');
+        String orgPrefix = slashIndex != -1 ? rest.substring(0, slashIndex + 1) : "";
+        String module = slashIndex != -1 ? rest.substring(slashIndex + 1) : rest;
+        return orgPrefix + escapeModuleName(module) + alias;
     }
 
     /**
@@ -1026,6 +1212,49 @@ public class CommonUtils {
     }
 
     /**
+     * Returns the module prefix used to reference a module in source, escaping it when it is a reserved keyword.
+     * Predefined language-library prefixes (e.g. {@code int}, {@code error}) are keywords but are legal unescaped
+     * as module qualifiers, so they are left as-is.
+     * <p>
+     * This is an emission-time helper: the returned value is meant to be written into generated Ballerina source.
+     *
+     * @param orgName    the organization name
+     * @param moduleName the fully qualified module name
+     * @return the (possibly escaped) module prefix
+     */
+    public static String escapeModulePrefix(String orgName, String moduleName) {
+        String prefix = getDefaultModulePrefix(moduleName);
+        return isPredefinedLangLib(orgName, moduleName) ? prefix : CommonUtil.escapeReservedKeyword(prefix);
+    }
+
+    /**
+     * Escapes reserved-keyword module qualifiers embedded in a (possibly generic/union/array) type signature so it
+     * can be written into generated Ballerina source. A qualifier is the {@code prefix} in a {@code prefix:TypeName}
+     * reference. Predefined language-library prefixes (e.g. {@code int:Signed32}, {@code error:StackFrame}) are left
+     * unescaped. Already-escaped prefixes are left untouched (idempotent).
+     * <p>
+     * This is an emission-time helper. The raw signature must be kept for storage/lookup.
+     *
+     * @param signature the raw type signature (prefixes are the last module segment, e.g. {@code import:Rec})
+     * @return the signature with reserved-keyword module qualifiers escaped
+     */
+    public static String escapeTypeSignatureModulePrefixes(String signature) {
+        if (signature == null || signature.indexOf(':') < 0) {
+            return signature;
+        }
+        Matcher matcher = TYPE_MODULE_PREFIX_PATTERN.matcher(signature);
+        StringBuilder result = new StringBuilder();
+        while (matcher.find()) {
+            String prefix = matcher.group(1);
+            String replacement = CommonUtil.PRE_DECLARED_LANG_LIBS.contains(LANG_LIB_PREFIX + prefix)
+                    ? prefix : CommonUtil.escapeReservedKeyword(prefix);
+            matcher.appendReplacement(result, Matcher.quoteReplacement(replacement) + ":");
+        }
+        matcher.appendTail(result);
+        return result.toString();
+    }
+
+    /**
      * Constructs a fully qualified ID from a module descriptor in the format:
      * <org>/<package-name>.<module-name>:<version>
      *
@@ -1062,13 +1291,14 @@ public class CommonUtils {
      * @return true if the import exists, false otherwise
      */
     public static boolean importExists(ModulePartNode node, String org, String module) {
+        String rawModule = unescapeModuleName(module);
         return node.imports().stream().anyMatch(importDeclarationNode -> {
             String moduleName = importDeclarationNode.moduleName().stream()
-                    .map(IdentifierToken::text)
+                    .map(token -> CommonUtil.unescapeReservedKeyword(token.text()))
                     .collect(Collectors.joining("."));
             return importDeclarationNode.orgName().isPresent() &&
                     org.equals(importDeclarationNode.orgName().get().orgName().text()) &&
-                    module.equals(moduleName);
+                    rawModule.equals(moduleName);
         });
     }
 
@@ -1081,11 +1311,12 @@ public class CommonUtils {
      * @return true if the import exists, false otherwise
      */
     public static boolean importExists(ModulePartNode node, String module) {
+        String rawModule = unescapeModuleName(module);
         return node.imports().stream().anyMatch(importDeclarationNode -> {
             String moduleName = importDeclarationNode.moduleName().stream()
-                    .map(IdentifierToken::text)
+                    .map(token -> CommonUtil.unescapeReservedKeyword(token.text()))
                     .collect(Collectors.joining("."));
-            return importDeclarationNode.orgName().isEmpty() && module.equals(moduleName);
+            return importDeclarationNode.orgName().isEmpty() && rawModule.equals(moduleName);
         });
     }
 
@@ -1098,10 +1329,11 @@ public class CommonUtils {
      * @return true if the import exists, false otherwise
      */
     public static boolean importExists(BLangPackage blangPackage, String org, String module) {
+        String rawModule = unescapeModuleName(module);
         return blangPackage.imports.stream().anyMatch(importDeclarationNode ->
                 org.equals(importDeclarationNode.orgName.value) &&
-                        module.equals(importDeclarationNode.pkgNameComps.stream()
-                                .map(identifierNode -> identifierNode.value)
+                        rawModule.equals(importDeclarationNode.pkgNameComps.stream()
+                                .map(identifierNode -> CommonUtil.unescapeReservedKeyword(identifierNode.value))
                                 .collect(Collectors.joining("."))));
     }
 

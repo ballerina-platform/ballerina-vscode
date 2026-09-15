@@ -28,7 +28,28 @@ import {
 } from "../resources/constants";
 import { Branch, FlowNode, FlowNodeDiffState } from "./types";
 
-const WORKFLOW_NODE_KINDS = new Set(["WORKFLOW_RUN", "ACTIVITY_CALL", "SEND_DATA", "WAIT_DATA", "HUMAN_TASK"]);
+// Workflow statements carry the heavier border so they read as a distinct layer from the plain
+// statements around them. Most of the kinds below already get a dedicated widget (activity call,
+// send, wait, human task, ...) that draws that border unconditionally, so this set doesn't govern
+// them — they're only listed here for documentation. The kinds that actually consult this set via
+// isWorkflowNode() are the ones sharing a general-purpose widget with non-workflow nodes: the API
+// call box (WORKFLOW_RUN, CHILD_WORKFLOW_RUN, CHILD_WORKFLOW_CALL) and the base node fallback used
+// by any kind with no dedicated widget (UPDATE_DATA, SLEEP). Don't treat this list as the
+// authoritative index of which kinds get the workflow border — check the widget itself for that.
+const WORKFLOW_NODE_KINDS = new Set([
+    "WORKFLOW_RUN",
+    "CHILD_WORKFLOW_RUN",
+    "CHILD_WORKFLOW_CALL",
+    "CHILD_WORKFLOW_SEND_DATA",
+    "CHILD_WORKFLOW_WAIT",
+    "ACTIVITY_CALL",
+    "CONNECTION_ACTIVITY_CALL",
+    "SEND_DATA",
+    "WAIT_DATA",
+    "UPDATE_DATA",
+    "HUMAN_TASK",
+    "SLEEP",
+]);
 
 // Durable-agentic-workflow register/add statements: rendered without the module prefix and
 // with the registered name (metadata.description) as the node's second line.
@@ -38,6 +59,26 @@ const DURABLE_AGENT_REGISTER_NODE_KINDS = new Set([
     "DURABLE_AGENT_ADD_ACTIVITY",
     "DURABLE_AGENT_HUMAN_TASK",
 ]);
+
+// SLEEP is the one exception with its own dedicated node kind, matched directly here; it is also
+// included in WORKFLOW_MODULE_FUNCTION_TITLES below so that map remains the single source of truth
+// if the language server ever starts sending it as a generic statement instead.
+const WORKFLOW_UTILITY_NODE_TITLES: Record<string, string> = {
+    SLEEP: "Sleep",
+};
+
+// Workflow accessor/utility statements — `workflow:currentTime()`, `workflow:sleep()`, etc. — are plain
+// function calls on the workflow context, not calls into a module's public API, so they render with the
+// same friendly names the side panel's "Workflow Functions" list uses instead of "workflow : <symbol>".
+// The language server currently emits these as generic statement kinds (e.g. "EXPRESSION") rather than
+// the dedicated WORKFLOW_* node kinds, so matching has to key off the function symbol, not the node kind.
+const WORKFLOW_MODULE_FUNCTION_TITLES: Record<string, string> = {
+    currentTime: "Get Current Time",
+    isReplaying: "Is Replaying",
+    getWorkflowId: "Get Workflow ID",
+    getWorkflowType: "Get Workflow Type",
+    sleep: "Sleep"
+};
 
 // Workflow and durable-agent statements are actions on the context or the agent — `ctx->callActivity`,
 // `ctx->runChildWorkflow`, `agent.sendData` — not calls into a module's API. Titling them
@@ -175,6 +216,16 @@ function splitListElements(body: string): string[] {
 
 export function isWaitingAgentCall(node?: FlowNode) {
     return (node?.metadata?.data as { waits?: boolean } | undefined)?.waits === true;
+}
+
+/**
+ * Whether a data-event wait or human task has a configured timeout deadline. The language server
+ * can emit an empty `timeout = ()` call, which arrives as the literal string "()" rather than an
+ * absent value, so a plain truthiness check on the property would still badge it.
+ */
+export function hasWaitTimeout(node?: FlowNode): boolean {
+    const timeoutValue = (node?.properties as any)?.timeout?.value as string | undefined;
+    return !!timeoutValue && timeoutValue.trim() !== "()";
 }
 
 /**
@@ -442,6 +493,18 @@ export function getNodeTitle(node: FlowNode) {
         return node.metadata?.label ?? node.codedata.node;
     }
 
+    if (node.codedata?.node && WORKFLOW_UTILITY_NODE_TITLES[node.codedata.node]) {
+        return WORKFLOW_UTILITY_NODE_TITLES[node.codedata.node];
+    }
+
+    if (node.codedata?.org === "ballerina" && node.codedata?.module === "workflow") {
+        const symbol = typeof node.codedata?.symbol === "string" ? node.codedata.symbol : node.metadata?.label;
+        const friendlyTitle = symbol && WORKFLOW_MODULE_FUNCTION_TITLES[symbol];
+        if (friendlyTitle) {
+            return friendlyTitle;
+        }
+    }
+
     const label = node.metadata.label.includes(".") ? node.metadata.label.split(".").pop() : node.metadata.label;
 
     // An action keeps its own name: the module prefix would describe where the API lives, which is
@@ -457,6 +520,19 @@ export function getNodeTitle(node: FlowNode) {
         return `${module} : ${label}`;
     }
     return label;
+}
+
+// getFlowModel always requests forceAssign, so properties.variable can carry a suggested name that
+// doesn't match the source — for an uncaptured call, a discard (`_ = ...`), or a plain reassignment
+// to an existing variable (`draft = ...`, no type). The statement's own source is the ground truth
+// for what it assigns to, so an uncaptured call renders no name rather than a suggested one.
+export function getResultVariableName(node: FlowNode): string | undefined {
+    const source = node.codedata?.sourceCode?.trim();
+    const lhs = source?.match(/^([^=]*)=[^=]/)?.[1]?.trim();
+    if (!lhs || lhs === "_" || lhs.includes("(")) {
+        return undefined;
+    }
+    return lhs.split(/\s+/).pop();
 }
 
 export function getRawTemplate(text: string) {

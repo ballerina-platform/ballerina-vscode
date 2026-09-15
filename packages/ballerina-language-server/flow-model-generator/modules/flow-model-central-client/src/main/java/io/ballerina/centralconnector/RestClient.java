@@ -55,13 +55,20 @@ import static io.ballerina.projects.util.ProjectUtils.initializeProxy;
  */
 class RestClient {
 
-    private static final String BASE_URL = "https://api.central.ballerina.io/2.0/registry/";
+    // The registry the LS queries directly, kept in step with the one the package resolution below pulls from.
+    // RepoUtils resolves it from the BALLERINA_STAGE_CENTRAL / BALLERINA_DEV_CENTRAL environment variables, so a
+    // session pointed at staging or dev searches the same registry it installs packages from. Hardcoding prod here
+    // let the two diverge: a package resolvable from dev was still searched for on prod, where it does not exist.
+    // The returned URL carries no trailing slash, which is what the "%s/%s" formatting below expects.
+    private static final String BASE_URL = RepoUtils.getRemoteRepoURL();
     private static final String SEARCH_SYMBOLS = "search-symbols";
     private static final String SEARCH_PACKAGES = "search-packages";
     private static final String CONNECTOR = "connector";
     private final Gson gson;
     private final CentralAPIClient centralClient;
     private final String accessToken;
+    private final int connectTimeoutMillis;
+    private final int readTimeoutMillis;
 
     private static final String supportedPlatform = Arrays.stream(JvmTarget.values())
             .map(JvmTarget::code)
@@ -73,9 +80,19 @@ class RestClient {
         Central central = settings.getCentral();
         Proxy proxy = settings.getProxy();
         this.accessToken = getAccessTokenOfCLI(settings);
+        this.connectTimeoutMillis = toMillis(central.getConnectTimeout());
+        this.readTimeoutMillis = toMillis(central.getReadTimeout());
         centralClient = new CentralAPIClient(RepoUtils.getRemoteRepoURL(), initializeProxy(proxy), proxy.username(),
                 proxy.password(), accessToken, central.getConnectTimeout(), central.getReadTimeout(),
                 central.getWriteTimeout(), central.getCallTimeout(), central.getMaxRetries());
+    }
+
+    private static int toMillis(int seconds) {
+        if (seconds <= 0) {
+            return 0;
+        }
+        long millis = (long) seconds * 1000;
+        return millis > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) millis;
     }
 
     public ConnectorsResponse connectors(Map<String, String> queryMap) {
@@ -167,6 +184,8 @@ class RestClient {
             URL url = new URL(api);
             conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("GET");
+            conn.setConnectTimeout(connectTimeoutMillis);
+            conn.setReadTimeout(readTimeoutMillis);
 
             // Add Authorization header if accessToken is present
             if (hasAuthorizedAccess()) {

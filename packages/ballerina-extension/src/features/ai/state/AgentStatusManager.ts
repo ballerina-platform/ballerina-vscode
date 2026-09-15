@@ -20,7 +20,7 @@ import * as vscode from 'vscode';
 import { AgentRunStatus, AgentRunState, ChatNotify, agentRunStatusChanged, SHARED_COMMANDS } from '@wso2/ballerina-core';
 import { RPCLayer } from '../../../RPCLayer';
 import { VisualizerWebview } from '../../../views/visualizer/webview';
-import { describeToolCall } from './toolLabels';
+import { describeToolCall, describeToolResultProgress } from './toolLabels';
 import { aiAssistantName, aiAssistantShortName } from "../../../utils/config";
 
 /** How long a terminal (completed/error) status stays visible before resetting to idle. */
@@ -49,6 +49,11 @@ class AgentStatusManager {
     private resetTimer: NodeJS.Timeout | undefined;
     /** Panel on screen right now, as opposed to `status.aiPanelOpen`, which is merely alive. */
     private aiPanelVisible = false;
+    /** An in-view surface (the overview composer) is already reporting the status inline. */
+    private inlineStatusVisible = false;
+    // retainContextWhenHidden keeps the composer mounted (and its inline flag set) while the
+    // visualizer tab is buried, so the flag only counts while the panel is actually on screen.
+    private visualizerVisible = false;
 
     init(context: vscode.ExtensionContext): void {
         if (this.statusBarItem) {
@@ -92,6 +97,14 @@ class AgentStatusManager {
             case 'tool_call':
                 this.update({ state: 'running', label: describeToolCall(msg.toolName, msg.toolInput) });
                 break;
+            case 'tool_result': {
+                // Only a partial result (a progress report) moves the label; final results leave the last call's wording.
+                const progress = describeToolResultProgress(msg);
+                if (progress) {
+                    this.update({ state: 'running', label: progress });
+                }
+                break;
+            }
             case 'compaction_start':
                 this.update({ state: 'running', label: 'Compacting conversation' });
                 break;
@@ -132,11 +145,29 @@ class AgentStatusManager {
         this.broadcast();
     }
 
+    /** The overview composer sets this while mounted so the status bar doesn't double-report. */
+    setInlineStatusVisible(visible: boolean): void {
+        if (this.inlineStatusVisible === visible) {
+            return;
+        }
+        this.inlineStatusVisible = visible;
+        this.render();
+    }
+
+    setVisualizerVisible(visible: boolean): void {
+        if (this.visualizerVisible === visible) {
+            return;
+        }
+        this.visualizerVisible = visible;
+        this.render();
+    }
+
     setAiPanelVisible(visible: boolean): void {
         if (this.aiPanelVisible === visible) {
             return;
         }
         this.aiPanelVisible = visible;
+        vscode.commands.executeCommand('setContext', 'ballerina.aiPanelVisible', visible);
         // Either direction means the panel has been on screen: becoming visible
         // shows the outcome, and going hidden means it was visible until now.
         const acknowledged = this.acknowledgeTerminalState();
@@ -188,9 +219,10 @@ class AgentStatusManager {
             return;
         }
         // Only worth a slot in the status bar when there is live status to report
-        // and no panel on screen already reporting it. A panel that is open but
-        // hidden behind another tab still needs the status bar.
-        if (this.status.state === 'idle' || this.aiPanelVisible) {
+        // and nothing on screen already reporting it — a visible panel, or the
+        // overview composer's inline status. A panel open but hidden behind another
+        // tab still needs the status bar.
+        if (this.status.state === 'idle' || this.aiPanelVisible || (this.inlineStatusVisible && this.visualizerVisible)) {
             this.statusBarItem.hide();
             return;
         }

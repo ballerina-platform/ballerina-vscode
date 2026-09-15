@@ -28,7 +28,7 @@ import { FormField } from "../components/Form/types";
  */
 export function convertConfig(properties: NodeProperties, skipKeys: string[] = []): FormField[] {
     const formFields: FormField[] = [];
-    for (const key of Object.keys(properties).sort()) {
+    for (const key of Object.keys(properties)) {
         if (skipKeys.includes(key)) {
             continue;
         }

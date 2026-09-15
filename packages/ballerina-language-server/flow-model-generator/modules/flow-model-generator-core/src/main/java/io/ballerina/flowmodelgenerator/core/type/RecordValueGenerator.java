@@ -46,6 +46,7 @@ public class RecordValueGenerator {
                 case "union" -> generateUnionValue(json, builder, indentLevel);
                 case "enum" -> generateEnumValue(json, builder, indentLevel);
                 case "array" -> generateArrayValue(json, builder, indentLevel);
+                case "intersection" -> generateIntersectionValue(json, builder, indentLevel);
                 default -> {
                     if (json.has("value") && !json.get("value").getAsString().isEmpty()) {
                         builder.append(json.get("value").getAsString());
@@ -58,6 +59,72 @@ public class RecordValueGenerator {
                 }
             }
         }
+    }
+
+    /**
+     * Generates the value for an intersection such as {@code readonly & Config}. Only the member that carries the
+     * shape can produce a value; a {@code readonly} member merely constrains mutability. Without this the switch
+     * falls through to the default branch, which emits the type name as a string literal.
+     */
+    private static void generateIntersectionValue(JsonObject json, StringBuilder builder, int indentLevel) {
+        // What the wrapper states about the value is answer enough, and is checked in the order the default
+        // branch this replaced used: without the `defaultValue` arm, a wrapper carrying only a default would
+        // delegate to a member that has none and emit that member's zero value instead.
+        if (json.has("value") && !json.get("value").getAsString().isEmpty()) {
+            builder.append(json.get("value").getAsString());
+            return;
+        }
+        if (json.has("defaultValue") && !json.get("defaultValue").getAsString().isEmpty()) {
+            builder.append(json.get("defaultValue").getAsString());
+            return;
+        }
+
+        JsonObject shape = shapeMember(json);
+        if (shape == null) {
+            // No single member to build a value from; keep the unrepresentable-type fallback of the default branch.
+            builder.append("\"%s\"".formatted(json.get("typeName").getAsString()));
+            return;
+        }
+
+        // Only `name` and `selected` need carrying: this is the field slot's half of what
+        // IntersectionNormalizer.merge does, not the whole merge. The record and array branches skip an
+        // unselected node, which for a record field would emit the field name with no value at all, and
+        // isAmbiguousUnionModulePrefix keys off the field's name - `typeInfo` it reads from the member, which
+        // is where diagram-util puts it (`getIntersectionType` never stamps the wrapper).
+        JsonObject member = shape.deepCopy();
+        if (json.has("selected")) {
+            member.add("selected", json.get("selected"));
+        }
+        if (json.has("name")) {
+            member.add("name", json.get("name"));
+        }
+        generateValue(member, builder, indentLevel);
+    }
+
+    /**
+     * Returns the single member of an intersection that carries its shape, or {@code null} when there is no
+     * unambiguous one: {@code Foo & Bar} has no single member to generate a value from.
+     */
+    private static JsonObject shapeMember(JsonObject json) {
+        if (!json.has("members") || !json.get("members").isJsonArray()) {
+            return null;
+        }
+        JsonObject shape = null;
+        for (JsonElement member : json.get("members").getAsJsonArray()) {
+            if (!member.isJsonObject()) {
+                continue;
+            }
+            JsonObject memberObj = member.getAsJsonObject();
+            if (!memberObj.has("typeName") ||
+                    IntersectionNormalizer.READONLY_TYPE_NAMES.equals(memberObj.get("typeName").getAsString())) {
+                continue;
+            }
+            if (shape != null) {
+                return null;
+            }
+            shape = memberObj;
+        }
+        return shape;
     }
 
     private static void generateEnumValue(JsonObject jsonObject, StringBuilder builder, int indentLevel) {
@@ -213,6 +280,7 @@ public class RecordValueGenerator {
             case "record" -> generateRecordValue(jsonObject, builder, indentLevel);
             case "union" -> generateUnionValue(jsonObject, builder, indentLevel);
             case "array" -> builder.append("[]");
+            case "intersection" -> generateIntersectionValue(jsonObject, builder, indentLevel);
             case "enum" -> {
                 if (jsonObject.has("members") && jsonObject.get("members").isJsonArray()) {
                     JsonElement members = jsonObject.get("members");

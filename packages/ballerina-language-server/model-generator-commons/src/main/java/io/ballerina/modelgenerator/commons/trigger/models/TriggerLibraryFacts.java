@@ -18,6 +18,8 @@
 
 package io.ballerina.modelgenerator.commons.trigger.models;
 
+import io.ballerina.compiler.api.symbols.TypeSymbol;
+
 import java.util.List;
 
 /**
@@ -44,8 +46,16 @@ public record TriggerLibraryFacts(List<Listener> listeners, List<ServiceType> se
      *              {@code RECORD_FIELD} for an expanded record field
      * @param doc    the parameter's documentation, if any
      * @param fields expanded fields when {@code type} is a record; depth-capped and recursive
+     * @param typeSymbol the resolved semantic type, for widget derivation; {@code null} for a fact
+     *                   built from serialized data alone (see the compatibility constructor)
      */
-    public record Param(String name, String type, boolean optional, String kind, String doc, List<Param> fields) {
+    public record Param(String name, String type, boolean optional, String kind, String doc, List<Param> fields,
+                        TypeSymbol typeSymbol) {
+
+        /** Compatibility constructor for tests and callers that only need serializable structural facts. */
+        public Param(String name, String type, boolean optional, String kind, String doc, List<Param> fields) {
+            this(name, type, optional, kind, doc, fields, null);
+        }
     }
 
     public record Function(String name, List<String> qualifiers, String kind, String returnType,

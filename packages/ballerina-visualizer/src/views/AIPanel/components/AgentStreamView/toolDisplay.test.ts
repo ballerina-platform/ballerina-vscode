@@ -32,7 +32,7 @@ import {
     getToolResultDisplay,
     getToolResultIcon,
     parseMcpName,
-} from "./toolDisplay";
+ isToolResultInProgress } from "./toolDisplay";
 
 describe("parseMcpName", () => {
     it("splits a namespaced MCP tool into server and tool", () => {
@@ -155,5 +155,43 @@ describe("tool icons", () => {
     it("shows a warning icon for diagnostics that found errors", () => {
         expect(getToolResultIcon("getCompilationErrors", { diagnostics: [1] })).toBe("codicon-warning");
         expect(getToolResultIcon("getCompilationErrors", { diagnostics: [] })).toBe("codicon-pass-filled");
+    });
+});
+
+describe("subagent tool rows", () => {
+    it("labels the Subagent call from the description and marks background and resume runs", () => {
+        expect(getToolCallDisplay("Subagent", { description: "kafka connector lookup" })).toEqual({ label: "Consulting the Librarian — kafka connector lookup..." });
+        expect(getToolCallDisplay("Subagent", { description: "Kafka lookup", run_in_background: true })).toEqual({ label: "Consulting the Librarian (background) — Kafka lookup..." });
+        expect(getToolCallDisplay("Subagent", { description: "Kafka lookup", resume: "task-subagent-0123abcd" })).toEqual({ label: "Following up with the Librarian — Kafka lookup..." });
+        expect(getToolCallDisplay("Subagent", { subagent_type: "LibraryResearcher" })).toEqual({ label: "Consulting the Library Researcher..." });
+        expect(getToolCallDisplay("Subagent", {})).toEqual({ label: "Consulting the Librarian..." });
+    });
+
+    it("words each Subagent result status, listing found libraries", () => {
+        expect(getToolResultDisplay("Subagent", { description: "Kafka lookup", status: "started", background: true })).toEqual({ label: "Librarian running in background — Kafka lookup" });
+        // Heartbeats carry what the subagent just did; the row keeps spinning while the result is partial.
+        expect(getToolResultDisplay("Subagent", { description: "Kafka lookup", status: "running", progress: "reading ballerinax/kafka docs", step: 3 }))
+            .toEqual({ label: "Consulting the Librarian — reading ballerinax/kafka docs (step 3)..." });
+        expect(getToolResultDisplay("Subagent", { subagent_type: "LibraryResearcher", status: "running", background: true, progress: "searching the web", step: 2 }))
+            .toEqual({ label: "Consulting the Library Researcher (background) — searching the web (step 2)..." });
+        expect(isToolResultInProgress({ partial: true })).toBe(true);
+        expect(isToolResultInProgress({})).toBe(false);
+        expect(isToolResultInProgress(undefined)).toBe(false);
+        expect(getToolResultDisplay("Subagent", { description: "Kafka lookup", status: "completed", libraries: ["ballerinax/kafka"] }))
+            .toEqual({ label: "Kafka lookup — found:", detail: "ballerinax/kafka" });
+        expect(getToolResultDisplay("Subagent", { description: "Kafka lookup", status: "completed", libraries: [] })).toEqual({ label: "Kafka lookup — done", detail: undefined });
+        expect(getToolResultDisplay("Subagent", { description: "Kafka lookup", status: "failed" })).toEqual({ label: "Kafka lookup — failed" });
+        expect(getToolResultDisplay("Subagent", { description: "Kafka lookup", status: "aborted" })).toEqual({ label: "Kafka lookup — stopped" });
+    });
+
+    it("shows the wait-and-wake row and its outcomes", () => {
+        expect(getToolCallDisplay("task_output", { task_id: "t", description: "Kafka lookup" })).toEqual({ label: "Waiting for: Kafka lookup..." });
+        expect(getToolCallDisplay("task_output", { task_id: "t", block: false })).toEqual({ label: "Checking: background task..." });
+        expect(getToolResultDisplay("task_output", { description: "Kafka lookup", status: "completed" })).toEqual({ label: "Kafka lookup — result received" });
+        expect(getToolResultDisplay("task_output", { description: "Kafka lookup", status: "running" })).toEqual({ label: "Kafka lookup — still running" });
+        expect(getToolResultDisplay("task_output", { status: "not_found" })).toEqual({ label: "Background task not found" });
+        expect(getToolResultDisplay("kill_task", { status: "killed" })).toEqual({ label: "Background task stopped" });
+        expect(getToolIcon("task_output")).toBe("codicon-clock");
+        expect(getToolIcon("Subagent")).toBe("codicon-package");
     });
 });

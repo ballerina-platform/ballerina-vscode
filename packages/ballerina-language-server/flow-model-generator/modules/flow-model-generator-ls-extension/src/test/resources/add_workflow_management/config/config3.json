@@ -1,6 +1,21 @@
 {
   "projectPath": "proj3",
-  "description": "Project that already has the workflow management import",
+  "description": "Project with only the pre-0.9.0 workflow.management import: the REST import is still added to main.bal",
   "output": {
+    "proj3/main.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "import ballerina/workflow.management.rest as _;\n"
+      }
+    ]
   }
 }

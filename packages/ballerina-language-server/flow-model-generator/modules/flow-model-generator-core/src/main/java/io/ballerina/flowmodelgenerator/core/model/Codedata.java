@@ -19,6 +19,7 @@
 package io.ballerina.flowmodelgenerator.core.model;
 
 import io.ballerina.compiler.syntax.tree.Node;
+import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.tools.text.LineRange;
 
 import java.util.LinkedHashMap;
@@ -86,7 +87,8 @@ public record Codedata(NodeKind node, String org, String module, String packageN
     }
 
     public String getModulePrefix() {
-        return module.substring(module.lastIndexOf('.') + 1);
+        // Emission-time prefix: escaped so it is valid when written into generated source / editor templates.
+        return CommonUtils.escapeModulePrefix(org, module);
     }
 
     public static class Builder<T> extends FacetedBuilder<T> {

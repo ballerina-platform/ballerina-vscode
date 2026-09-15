@@ -174,19 +174,19 @@ export function getIntegrationCreationCopy({
     if (projectName && isNewProject) {
         return {
             title: `Creating project ${projectName} with ${componentLabel} ${integrationName}`,
-            subtitle: `Your new ${opening} will open once the project is ready.`,
+            subtitle: `Your ${opening} will open once the project is ready.`,
         };
     }
     if (projectName) {
         return {
             title: `Adding ${componentLabel} ${integrationName} to project ${projectName}`,
-            subtitle: `Your new ${opening} will open once it has been created.`,
+            subtitle: `Your ${opening} will open once it has been created.`,
         };
     }
     // Standalone package — there is no project to name.
     return {
         title: `Creating ${integrationName}`,
-        subtitle: `Your new ${opening} will open once the project is ready.`,
+        subtitle: `Your ${opening} will open once the project is ready.`,
     };
 }
 

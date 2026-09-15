@@ -1,6 +1,6 @@
 {
   "projectPath": "proj2",
-  "description": "Project with only main.bal (no functions.bal) and no workflow management import",
+  "description": "Project with only main.bal: the REST import is added to it",
   "output": {
     "proj2/main.bal": [
       {
@@ -14,7 +14,7 @@
             "character": 0
           }
         },
-        "newText": "import ballerina/workflow.management as _;\n"
+        "newText": "import ballerina/workflow.management.rest as _;\n"
       }
     ]
   }

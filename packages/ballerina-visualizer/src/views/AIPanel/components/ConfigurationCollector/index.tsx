@@ -266,15 +266,48 @@ interface FieldConfig {
 
 const NUMERIC_INT_TYPES = new Set(["int", "byte"]);
 const NUMERIC_FLOAT_TYPES = new Set(["decimal", "float"]);
+// Matches what parseInt(value, 10) can safely/unambiguously read — no exponent notation or
+// underscore grouping, both of which parseInt silently truncates at (e.g. "1e3" -> 1, "8_080" -> 8).
+const STRICT_INT_PATTERN = /^[+-]?\d+$/;
+// Whole-token match — parseFloat accepts a numeric prefix of a longer string (e.g. "12ms" -> 12).
+const STRICT_DECIMAL_PATTERN = /^[+-]?(?:\d+(?:\.\d+)?|\.\d+)(?:[eE][+-]?\d+)?$/;
+const BYTE_MIN = 0;
+const BYTE_MAX = 255;
+
+function isValidByteToken(value: string): boolean {
+    const n = Number(value);
+    return n >= BYTE_MIN && n <= BYTE_MAX;
+}
+// Matches an array type suffix, fixed-length or not: "[]", "[2]", "[10]", ...
+const ARRAY_TYPE_SUFFIX = /\[\d*\]\s*$/;
+
+// Strips '& readonly' and a trailing '?' — the LS reports array configurables this way.
+function stripTypeDecorations(type: string): string {
+    return type.replace(/&\s*readonly/g, "").replace(/\?\s*$/, "").trim();
+}
+
+// Rough (non-quote-aware) split used only to validate individual elements of a numeric array before
+// submit; the authoritative, quote-aware parse happens server-side in toml-utils.ts.
+function splitArrayElementsForValidation(value: string): string[] {
+    const trimmed = value.trim();
+    const inner = trimmed.startsWith("[") && trimmed.endsWith("]") ? trimmed.slice(1, -1).trim() : trimmed;
+    if (!inner) return [];
+    return (inner.includes(",") ? inner.split(",") : inner.split(/\s+/))
+        .map((s) => s.trim().replace(/^["']|["']$/g, ""))
+        .filter((s) => s.length > 0);
+}
 
 function getFieldConfig(type: string | undefined): FieldConfig {
     if (NUMERIC_INT_TYPES.has(type ?? "")) {
+        const isByte = type === "byte";
         return {
             inputKind: "number",
             placeholder: "Enter integer",
             validate: (v) => {
-                if (!v.trim()) return null;
-                if (isNaN(parseInt(v, 10)) || !Number.isInteger(parseFloat(v))) return "Enter a valid integer";
+                const trimmed = v.trim();
+                if (!trimmed) return null;
+                if (!STRICT_INT_PATTERN.test(trimmed)) return "Enter a valid integer";
+                if (isByte && !isValidByteToken(trimmed)) return "Enter a byte value between 0 and 255";
                 return null;
             },
         };
@@ -284,9 +317,9 @@ function getFieldConfig(type: string | undefined): FieldConfig {
             inputKind: "number",
             placeholder: "Enter number",
             validate: (v) => {
-                if (!v.trim()) return null;
-                if (isNaN(parseFloat(v))) return "Enter a valid number";
-                return null;
+                const trimmed = v.trim();
+                if (!trimmed) return null;
+                return STRICT_DECIMAL_PATTERN.test(trimmed) ? null : "Enter a valid number";
             },
         };
     }
@@ -301,7 +334,40 @@ function getFieldConfig(type: string | undefined): FieldConfig {
             validate: () => null, // select always holds a valid option
         };
     }
-    // Default: string, records, arrays, maps, or any unknown LS type
+    const strippedType = type ? stripTypeDecorations(type) : type;
+    if (strippedType && ARRAY_TYPE_SUFFIX.test(strippedType)) {
+        // Per-element validation for a numeric/boolean array, matching its scalar field's validation.
+        const elementType = strippedType.replace(ARRAY_TYPE_SUFFIX, "").trim();
+        const isNumericInt = NUMERIC_INT_TYPES.has(elementType);
+        const isNumericFloat = NUMERIC_FLOAT_TYPES.has(elementType);
+        const isByte = elementType === "byte";
+        const isBoolean = elementType === "boolean";
+        return {
+            inputKind: "text",
+            placeholder: "Enter values separated by commas, e.g. read, write",
+            validate: (v) => {
+                if (!v.trim() || (!isNumericInt && !isNumericFloat && !isBoolean)) return null;
+                for (const el of splitArrayElementsForValidation(v)) {
+                    if (isNumericInt) {
+                        if (!STRICT_INT_PATTERN.test(el)) {
+                            return "Enter valid integers separated by commas";
+                        }
+                        if (isByte && !isValidByteToken(el)) {
+                            return "Enter byte values between 0 and 255, separated by commas";
+                        }
+                    }
+                    if (isNumericFloat && !STRICT_DECIMAL_PATTERN.test(el)) {
+                        return "Enter valid numbers separated by commas";
+                    }
+                    if (isBoolean && el !== "true" && el !== "false") {
+                        return "Enter 'true' or 'false' values separated by commas";
+                    }
+                }
+                return null;
+            },
+        };
+    }
+    // Default: string, records, maps, or any unknown LS type
     return {
         inputKind: "text",
         placeholder: "Enter value",

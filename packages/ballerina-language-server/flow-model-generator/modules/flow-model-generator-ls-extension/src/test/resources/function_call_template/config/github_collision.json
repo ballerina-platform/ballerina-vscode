@@ -1,0 +1,16 @@
+{
+  "description": "A symbol from a module whose name ends in the same segment as one the file already imports: the inserted reference must use the prefix this file can bind it to",
+  "filePath": "github_collision.bal",
+  "codedata": {
+    "node": "FUNCTION_CALL",
+    "org": "ballerinax",
+    "module": "trigger.github",
+    "symbol": "Listener",
+    "version": "0.11.0"
+  },
+  "kind": "AVAILABLE",
+  "searchKind": "TYPE",
+  "functionCall": "triggerGithub:Listener",
+  "prefix": "triggerGithub",
+  "moduleId": "ballerinax/trigger.github:0.11.0"
+}

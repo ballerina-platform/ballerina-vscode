@@ -94,6 +94,14 @@ export interface ConfigureProjectFormProps {
     isMultiProject: boolean;
     /** Absolute path to the original source project (e.g. Mule XML directory). */
     importSourcePath?: string;
+    /** Whether the migration should preserve the original source file layout. */
+    keepStructure: boolean;
+    /**
+     * The selected tool's `keepStructure` declaration, supplying the checkbox label and
+     * description. Absent for a tool that does not declare it, which hides the section.
+     */
+    keepStructureParam?: MigrationTool["parameters"][number] | null;
+    onKeepStructureChange: (keepStructure: boolean) => void;
     onNext: (project: ProjectRequest, aiFeatureUsed: boolean) => Promise<void> | void;
     onBack: () => void;
 }

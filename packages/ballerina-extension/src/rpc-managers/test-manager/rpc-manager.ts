@@ -54,6 +54,7 @@ import * as path from 'path';
 import { EvaluationReportWebview } from "../../views/evaluation-report/webview";
 import { getDiffStat, getDiffFull, objectExists, restoreToCheckpoint } from "../../utils/git-utils";
 import { getTestFunctionNames } from "../../utils/test-discovery";
+import { refreshTestsForFile } from "../../features/test-explorer/activator";
 
 export class TestServiceManagerRpcManager implements TestManagerServiceAPI {
 
@@ -72,6 +73,11 @@ export class TestServiceManagerRpcManager implements TestManagerServiceAPI {
                 const result: SourceUpdateResponse = {
                     artifacts: artifacts
                 };
+                try {
+                    refreshTestsForFile(targetFile);
+                } catch (error) {
+                    console.warn('Failed to refresh tests after test function update:', error);
+                }
                 resolve(result);
             } catch (error) {
                 console.log(error);
@@ -91,6 +97,11 @@ export class TestServiceManagerRpcManager implements TestManagerServiceAPI {
                 const result: SourceUpdateResponse = {
                     artifacts: artifacts
                 };
+                try {
+                    refreshTestsForFile(targetFile);
+                } catch (error) {
+                    console.warn('Failed to refresh tests after test function creation:', error);
+                }
                 resolve(result);
             } catch (error) {
                 console.log(error);
@@ -144,7 +155,7 @@ export class TestServiceManagerRpcManager implements TestManagerServiceAPI {
                         const name = evalsetData.name || path.basename(uri.fsPath, '.evalset.json');
                         const description = evalsetData.description || '';
                         const filePath = params.projectPath
-                            ? path.relative(params.projectPath, uri.fsPath)
+                            ? path.relative(params.projectPath, uri.fsPath).split(path.sep).join('/')
                             : uri.fsPath;
 
                         evalsets.push({
