@@ -17,7 +17,7 @@
  */
 
 apply from: "$rootDir/gradle/javaProject.gradle"
-apply plugin: "com.github.johnrengelman.shadow"
+apply plugin: "com.gradleup.shadow"
 apply plugin: "java"
 
 description = 'LS extension for XSD to Ballerina type generation'
@@ -114,6 +114,8 @@ test {
     useTestNG() {
         suites "src/test/resources/testng.xml"
     }
+
+    failOnNoDiscoveredTests = false // the only test is @Test(enabled = false)
 }
 
 ext.moduleName = 'io.ballerina.xsd.extension'

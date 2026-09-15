@@ -43,10 +43,12 @@ dependencies {
     }
 }
 
-sourceCompatibility = JavaVersion.VERSION_21
-
 tasks.withType(JavaCompile) {
     options.encoding = 'UTF-8'
+}
+
+jacoco {
+    toolVersion = "${jacocoToolVersion}"
 }
 
 checkstyle {
@@ -72,6 +74,12 @@ task validateSpotbugs() {
     }
 }
 
+spotbugs {
+    // Gradle 9 needs the newer plugin, but its default analyzer enables detectors
+    // that fire across the existing codebase. Pin the analyzer the project already used.
+    toolVersion = "${spotbugsToolVersion}"
+}
+
 spotbugsMain {
     def classLoader = plugins["com.github.spotbugs"].class.classLoader
     def SpotBugsConfidence = classLoader.findLoadedClass("com.github.spotbugs.snom.Confidence")
@@ -79,7 +87,7 @@ spotbugsMain {
     effort = SpotBugsEffort.MAX
     reportLevel = SpotBugsConfidence.LOW
     ignoreFailures = true
-    reportsDir = file("$project.buildDir/reports/spotbugs")
+    reportsDir = file("${project.layout.buildDirectory.get().asFile}/reports/spotbugs")
     def excludeFile = file("${rootDir}/spotbugs-exclude.xml")
     if (excludeFile.exists()) {
         it.excludeFilter = excludeFile
@@ -94,7 +102,7 @@ spotbugsTest {
 }
 
 test {
-    systemProperty "ballerina.home", "$buildDir"
+    systemProperty "ballerina.home", "${layout.buildDirectory.get().asFile}"
     systemProperty "org.apache.commons.logging.Log", "org.apache.commons.logging.impl.NoOpLog"
     testLogging {
         showStackTraces = true
@@ -104,7 +112,7 @@ test {
     }
     jacoco {
         enabled = true
-        destinationFile = file("$buildDir/coverage-reports/jacoco.exec")
+        destinationFile = file("${layout.buildDirectory.get().asFile}/coverage-reports/jacoco.exec")
         includeNoLocationClasses = true
         excludes = ['jdk.internal.*']
     }
