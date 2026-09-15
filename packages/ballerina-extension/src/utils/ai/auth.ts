@@ -18,7 +18,7 @@
 
 import * as vscode from 'vscode';
 import { extension } from "../../BalExtensionContext";
-import { DEVANT_TOKEN_EXCHANGE_URL } from '../../features/ai/utils';
+import { DEVANT_TOKEN_EXCHANGE_URL, setBackendRegion } from '../../features/ai/utils';
 import axios from 'axios';
 import { AuthCredentials, BIIntelSecrets, LoginMethod, AnthropicAwsSecrets } from '@wso2/ballerina-core';
 import { IWso2PlatformExtensionAPI } from '@wso2/wso2-platform-core';
@@ -50,6 +50,51 @@ export const getPlatformExtensionAPI = async (): Promise<IWso2PlatformExtensionA
         await platformExt.activate();
     }
     return platformExt.exports?.cloudAPIs as IWso2PlatformExtensionAPI;
+};
+
+export type CopilotRegion = "us" | "eu";
+
+/**
+ * Reads the user's region from the platform extension. Returns undefined when the
+ * extension is unavailable, not logged in, or returns an unrecognised region.
+ * Region persistence is always best-effort.
+ */
+export const getPlatformRegion = async (): Promise<CopilotRegion | undefined> => {
+    try {
+        const api = await getPlatformExtensionAPI();
+        if (!api?.isLoggedIn()) {
+            return undefined; // getAuthState() reports "US" when logged out / not ready
+        }
+        const region = api.getAuthState()?.region?.trim().toLowerCase();
+        return region === "us" || region === "eu" ? region : undefined;
+    } catch {
+        return undefined;
+    }
+};
+
+/** Returns the region saved in the currently stored BI_INTEL credentials, if any. */
+const getStoredRegion = async (): Promise<CopilotRegion | undefined> => {
+    const creds = await getAuthCredentials();
+    if (creds?.loginMethod !== LoginMethod.BI_INTEL) {
+        return undefined;
+    }
+    const region = (creds.secrets as BIIntelSecrets).region;
+    return region === "us" || region === "eu" ? region : undefined;
+};
+
+/**
+ * Stores BI_INTEL credentials, persisting the user's region so warm restarts
+ * keep routing to the correct backend. Falls back to the previously saved region
+ * when the platform extension is unavailable or not yet logged in.
+ */
+export const storeBiIntelCredentials = async (secrets: BIIntelSecrets): Promise<AuthCredentials> => {
+    const region = (await getPlatformRegion()) ?? (await getStoredRegion());
+    const credentials: AuthCredentials = {
+        loginMethod: LoginMethod.BI_INTEL,
+        secrets: { ...secrets, ...(region && { region }) }
+    };
+    await storeAuthCredentials(credentials);
+    return credentials;
 };
 
 //TODO: What if user doesnt have github copilot.
@@ -162,6 +207,16 @@ export const getPlatformStsToken = async (): Promise<string | undefined> => {
         const api = await getPlatformExtensionAPI();
         if (!api) {
             return undefined;
+        }
+        if (api.isLoggedIn()) {
+            try {
+                const region = api.getAuthState()?.region;
+                if (region) {
+                    setBackendRegion(region.toLowerCase());
+                }
+            } catch {
+                /* region resolution non-fatal; keep default backend */
+            }
         }
         return await api.getStsToken();
     } catch (error) {
@@ -405,14 +460,9 @@ export const getRefreshedAccessToken = async (): Promise<string> => {
                 console.log('Refreshing token via STS exchange...');
                 const newSecrets = await refreshTokenViaStsExchange();
 
-                // Update stored credentials
-                const updatedCredentials: AuthCredentials = {
-                    loginMethod: LoginMethod.BI_INTEL,
-                    secrets: newSecrets
-                };
-                await storeAuthCredentials(updatedCredentials);
-
-                resolve(newSecrets.accessToken);
+                // Update stored credentials, persisting region so warm restarts restore it
+                const updatedCredentials = await storeBiIntelCredentials(newSecrets);
+                resolve((updatedCredentials.secrets as BIIntelSecrets).accessToken);
                 return;
             } catch (stsError) {
                 console.error('STS token exchange failed:', stsError);

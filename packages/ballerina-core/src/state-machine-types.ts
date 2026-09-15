@@ -1032,6 +1032,7 @@ export enum LoginMethod {
 export interface BIIntelSecrets {
     accessToken: string;
     expiresAt?: number;  // Unix timestamp in milliseconds
+    region?: string;
 }
 
 export interface AnthropicKeySecrets {
