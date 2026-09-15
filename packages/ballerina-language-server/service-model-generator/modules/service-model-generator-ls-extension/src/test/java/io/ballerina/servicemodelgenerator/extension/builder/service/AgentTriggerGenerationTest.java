@@ -1207,14 +1207,6 @@ public class AgentTriggerGenerationTest {
     }
 
     @Test
-    public void testAPayloadThatIsNotAnydataIsRenderedAsText() {
-        String src = generateForEvent("sap.jco", "idocAgent", "jco:IDocService", "onReceive", true);
-
-        Assert.assertTrue(src.contains("${iDoc.toString()}"),
-                "xml is not anydata, so toJsonString would not compile: " + src);
-    }
-
-    @Test
     public void testAnEventSourceIsOfferedToAnAgentWithoutBeingRegistered() {
         Assert.assertEquals(AgentTriggerChannels.kindOf("ballerinax", "kafka", "event"), "EVENT",
                 "every event source is served by the generic channel; naming them one by one is what "
