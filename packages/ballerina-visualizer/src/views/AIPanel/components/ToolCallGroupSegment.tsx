@@ -132,10 +132,10 @@ interface ToolCategory {
     done: string;
 }
 
-const FILE_TOOLS = ["file_write", "file_edit", "file_batch_edit"];
+const FILE_TOOLS = ["file_write", "file_edit", "file_batch_edit", "file_delete"];
 const LIBRARY_SEARCH_TOOLS = ["LibrarySearchTool"];
 const LIBRARY_FETCH_TOOLS = ["LibraryGetTool", "HealthcareLibraryProviderTool"];
-const RUN_TOOLS = ["runBallerinaPackage", "getServiceLogs", "stopBallerinaService"];
+const RUN_TOOLS = ["runBallerinaPackage", "runBallerinaScratch", "getServiceLogs", "stopBallerinaService"];
 const CURL_TOOLS = ["curlRequest"];
 
 function getGroupCategory(toolNames: (string | undefined)[]): ToolCategory {

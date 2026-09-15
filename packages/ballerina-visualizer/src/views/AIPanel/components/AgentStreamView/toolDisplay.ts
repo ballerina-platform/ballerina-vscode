@@ -26,7 +26,7 @@
  * pure mapping can be unit-tested without a DOM. The visualizer package's jsdom
  * environment is currently broken; tests here run under `--env=node`.
  */
-export const COMMAND_OUTPUT_TOOLS = new Set(["runBallerinaPackage", "runTests", "getServiceLogs", "stopBallerinaService"]);
+export const COMMAND_OUTPUT_TOOLS = new Set(["runBallerinaPackage", "runBallerinaScratch", "runTests", "getServiceLogs", "stopBallerinaService"]);
 
 // ── Tool icon mapping ─────────────────────────────────────────────────────────
 
@@ -37,6 +37,7 @@ const TOOL_ICON_MAP: Record<string, ToolIconEntry> = {
     file_write:                    { loading: "codicon-edit" },
     file_edit:                     { loading: "codicon-edit" },
     file_batch_edit:               { loading: "codicon-edit" },
+    file_delete:                   { loading: "codicon-trash" },
     LibrarySearchTool:             { loading: "codicon-package" },
     LibraryGetTool:                { loading: "codicon-package" },
     HealthcareLibraryProviderTool: { loading: "codicon-package" },
@@ -44,6 +45,7 @@ const TOOL_ICON_MAP: Record<string, ToolIconEntry> = {
     web_fetch:                     { loading: "codicon-globe" },
     runTests:                      { loading: "codicon-beaker" },
     runBallerinaPackage:           { loading: "codicon-play" },
+    runBallerinaScratch:           { loading: "codicon-beaker" },
     getServiceLogs:                { loading: "codicon-output" },
     stopBallerinaService:          { loading: "codicon-debug-stop" },
     getCompilationErrors:          { loading: "codicon-pulse", done: "codicon-pass-filled" },
@@ -113,6 +115,7 @@ export function getToolCallDisplay(toolName: string | undefined, toolInput: any)
         case "file_write":   return { label: "Creating",  detail: getFileName(toolInput?.fileName) + "..." };
         case "file_edit":
         case "file_batch_edit": return { label: "Updating", detail: getFileName(toolInput?.fileName) + "..." };
+        case "file_delete":  return { label: "Deleting",  detail: getFileName(toolInput?.fileName) + "..." };
         case "TaskWrite":    return { label: "Planning..." };
         case "LibrarySearchTool": {
             const desc = toolInput?.searchDescription;
@@ -127,6 +130,7 @@ export function getToolCallDisplay(toolName: string | undefined, toolInput: any)
         case "runTests": return { label: "Running tests..." };
         case "hurlRunnerTool": return { label: "Sending HTTP request..." };
         case "runBallerinaPackage": return { label: `Running ${toolInput?.runType === "service" ? "service" : "program"}...` };
+        case "runBallerinaScratch": return { label: "Trying it out..." };
         case "getServiceLogs": return { label: "Fetching logs..." };
         case "stopBallerinaService": return { label: "Stopping service..." };
         case "web_search": return { label: toolInput?.query ? "Searching the web:" : "Searching the web...", detail: toolInput?.query };
@@ -152,6 +156,7 @@ export function getToolResultDisplay(toolName: string | undefined, toolOutput: a
         case "file_write":   return { label: toolOutput?.action === "updated" ? "Updated" : "Created", detail: getFileName(toolOutput?.fileName) };
         case "file_edit":
         case "file_batch_edit": return { label: "Updated", detail: getFileName(toolOutput?.fileName) };
+        case "file_delete":  return { label: "Deleted", detail: getFileName(toolOutput?.fileName) };
         case "TaskWrite":    return { label: "Plan ready" };
         case "LibrarySearchTool": {
             const desc = toolOutput?.searchDescription;
@@ -177,6 +182,10 @@ export function getToolResultDisplay(toolName: string | undefined, toolOutput: a
         case "runBallerinaPackage": {
             const status = toolOutput?.status ?? "completed";
             return { label: status === "started" ? "Service started" : status === "completed" ? "Program completed" : status === "timeout" ? "Program timed out" : "Run failed" };
+        }
+        case "runBallerinaScratch": {
+            const status = toolOutput?.status ?? "completed";
+            return { label: status === "completed" ? "Try-out completed" : status === "timeout" ? "Try-out timed out" : "Try-out failed" };
         }
         case "getServiceLogs": {
             const status = toolOutput?.status ?? "running";
