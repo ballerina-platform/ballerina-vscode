@@ -371,11 +371,170 @@ for connection details rather than inventing keys for those modes; only `IN_MEMO
 for durability across restarts, at which point use `LOCAL` and pick a `taskQueue` name from the
 workflow's purpose.
 
-## Out of scope: `workflow:DurableAgent`
+## Durable agents — `workflow:DurableAgent`
 
-`workflow:DurableAgent` is a separate, more complex construct for building a long-running agentic
-process out of activities, tools, events and human tasks together — it is not what this skill
-covers. If the user's request is really "an AI agent that also needs to durably survive restarts
-and pause for human approval over days," say that `ballerina/workflow`'s `DurableAgent` may be the
-right building block, but do not improvise its declaration shape from this skill — treat it as a
-distinct, unverified feature and ask before generating it.
+A durable AI agent declared as an object. Its capabilities — activities, tools, event channels,
+human tasks — are fixed in the constructor, and the compiler plugin generates the Temporal
+registration for them at module init.
+
+```ballerina
+final workflow:DurableAgent <agentName> = check new ({
+    systemPrompt: {role: "<role>", instructions: "<instructions>"},
+    model: <modelProvider>,
+    activities: [<activityName>, <activityName>],
+    events: {<channelName>: {request: <RequestType>, response: <ResponseType>, cardinality: workflow:MULTI_EVENT}}
+});
+```
+
+Three declaration rules:
+
+- **Assign it to a module-level `final` variable — this is compiler-enforced.** Never a local
+  variable, never a non-`final` one.
+- **The module-level variable name is the agent's stable identity**, so renaming the variable
+  renames the agent.
+- **`check new ({...})`** — `init` takes `*DurableAgentConfig` as an included record, so the whole
+  configuration is a single mapping argument, and the constructor returns an error on an invalid
+  config.
+
+`bindAgentName` exists on the object but is called by the compiler-plugin-generated module-init
+code and is not part of the public API surface — never write a call to it.
+
+### `DurableAgentConfig`
+
+| Field | Type | Default |
+|---|---|---|
+| `systemPrompt` | `ai:SystemPrompt` | required |
+| `model` | `ai:ModelProvider` | required |
+| `inputType` | `typedesc<json>?` | `json` |
+| `resultType` | `typedesc<anydata>?` | `()` |
+| `activities` | `(ActivityDecl\|function)[]` | `[]` |
+| `tools` | `(ToolDecl\|ai:ToolConfig\|ai:BaseToolKit\|function)[]` | `[]` |
+| `events` | `map<EventConfig>` | `{}` |
+| `humanTasks` | `map<HumanTaskDefinition>` | `{}` |
+| `peers` | `PeerDecl[]` | `[]` |
+| `maxIter` | `int` | `16` |
+| `eventTimeout` | `Duration?` | `()` |
+
+**Capability names share one namespace** across `activities`, `tools`, `events`, `humanTasks` and
+`peers`. A name claimed twice is rejected when the agent registers, so the program fails at startup.
+
+For a capability that needs no extra configuration, pass the bare value — an `@workflow:Activity`
+function in `activities` (as the example above does), or an `@ai:AgentTool` function,
+`ai:ToolConfig` or `ai:BaseToolKit` in `tools`. The records below are the with-configuration forms.
+
+#### `ActivityDecl`
+
+An activity capability, with optional gating and retry config.
+
+| Field | Type | Default |
+|---|---|---|
+| `activity` | `function` | required — the `@workflow:Activity` function |
+| `name` | `string` | optional — the function name |
+| `description` | `string` | optional — the function's doc comment |
+| `bindings` | `map<anydata\|object {}>` | optional |
+| `requiresApproval` | `boolean` | `false` |
+| `userRoles` | `string\|string[]` | optional |
+| `retryPolicy` | `AutoRetry\|ReviewTaskDefinition\|NoAutomaticRetry` | `NoAutomaticRetry` |
+
+`name` and `description` are what the model sees; they default to the function's own name and doc
+comment. `bindings` are fixed arguments partially applied to the activity (a connection, say),
+hidden from the model — only the remaining data parameters appear in the tool's schema, and a client
+object is bound by referencing its module-level `final` variable. `retryPolicy` behaves as it does
+for `ctx->callActivity`.
+
+#### `ToolDecl`
+
+An AI tool capability, with optional gating config.
+
+| Field | Type | Default |
+|---|---|---|
+| `tool` | `ai:BaseToolKit\|ai:ToolConfig\|ai:FunctionTool` | required |
+| `requiresApproval` | `boolean` | `false` |
+| `userRoles` | `string\|string[]` | optional |
+
+#### `HumanTaskDefinition`
+
+The values of `humanTasks`, keyed by task name — `humanTasks: {signoff: {userRoles: ["manager"]}}`.
+
+| Field | Type | Default |
+|---|---|---|
+| `userRoles` | `string\|string[]` | required |
+| `title` | `string?` | `()` |
+| `description` | `string?` | `()` |
+| `timeout` | `Duration?` | `()` |
+| `taskInputType` | `typedesc<map<json>>` | `JsonObject` |
+| `resultType` | `typedesc<anydata>` | `anydata` |
+
+The first four are included from `*ReviewTaskDefinition`, and the record is open. Input supplied to
+the task is checked against `taskInputType` before the task is created. `resultType` is how an agent
+declares the answer's shape; a workflow states that as `awaitHumanTask`'s `T` instead.
+
+#### `PeerDecl`
+
+A peer durable agent advertised to this agent's model as a delegable tool. The framework runs the
+peer as a Temporal child workflow.
+
+| Field | Type | Default |
+|---|---|---|
+| `agent` | `DurableAgent` | required — the peer agent |
+| `name` | `string` | required — tool name, unique across all capabilities |
+| `description` | `string` | optional — what the peer does, for the model |
+| `'wait` | `boolean` | `true` |
+| `callbackChannel` | `string` | optional |
+| `requiresApproval` | `boolean` | `false` |
+| `userRoles` | `string\|string[]` | optional |
+
+`'wait` is written with a leading quote because `wait` is a keyword. Left `true`, the delegation
+blocks durably for the peer's result; set to `false`, the peer runs async and replies on
+`callbackChannel`, which is **required** in that case and must name a channel declared in `events`.
+
+**Do not write `'wait` in a `PeerDecl` literal.** Against `ballerina/workflow` 0.9.0 the compiler
+plugin emits invalid code for it — the build fails with `action invocation as an expression not
+allowed here` and `invalid token ':'`, reported at a line past the end of your own file because the
+fault is in generated code. Every other field of `PeerDecl`, `callbackChannel` included, is fine.
+Omit `'wait` and take its `true` default until that is fixed.
+
+On all three, `requiresApproval = true` gates every call with a `PRE_RUN` review activity, and
+`userRoles` says who may decide those reviews.
+
+An event channel is one `EventConfig`, keyed in `events` by the channel name:
+
+| Field | Type | Default |
+|---|---|---|
+| `request` | `typedesc<anydata>` | required |
+| `response` | `typedesc<anydata>?` | `()` |
+| `cardinality` | `EventCardinality` | `MULTI_EVENT` |
+
+A `response` type declares a **duplex** channel, whose turn answers are read back with
+`getDataResult` / `waitForDataResult`; a nil `response` declares a **one-way** channel — data flows
+in and nothing is read back. `cardinality` is `workflow:MULTI_EVENT` (re-armed per turn) or
+`workflow:SINGLE_EVENT` (consumed once).
+
+### Driving the agent
+
+Every one of these is a plain method, **not** a remote method — call them with `.`, never `->`.
+
+```ballerina
+string instanceId = check <agentName>.run(<query>, <input>);
+string token = check <agentName>.sendData(instanceId, "<channelName>", <data>);
+<Result> result = check <agentName>.waitForResult(instanceId);
+<Response> reply = check <agentName>.waitForDataResult(instanceId, token);
+```
+
+- **`run(string query, json input = ())` returns the new instance ID — always the ID, never the
+  result.** A durable agent may suspend for days on a human task, so no caller thread is blocked.
+  `query` is the user turn appended to the agent's system prompt; `input` is an optional structured
+  JSON payload that must match the agent's declared `inputType`. Outside a workflow this is a
+  top-level start; inside a `@workflow:Workflow` the agent runs as a Temporal child workflow.
+- **`sendData(instanceId, eventName, data)` returns a correlation token**, not the answer — hold it
+  to read that turn's response. `eventName` must be a channel declared in the agent's `events`,
+  `data` is validated against that channel's declared `request` type, and `instanceId` must be one
+  this same agent's `run` returned.
+- **Non-blocking reads: `getResult` / `getDataResult`.** They do not wait: while the instance — or
+  that specific turn — is still in progress, they return a `workflow:AgentBusyError`. Use them only
+  when the caller genuinely wants to poll and check back later.
+- **Durable waits: `waitForResult` / `waitForDataResult`.** Inside a workflow these suspend the
+  caller durably, holding no thread; from a service they block but are resumable — if the caller
+  crashes, calling again after restart resumes the wait, because the result lives in history.
+
+Prefer the waiting forms unless the user specifically asks to poll.
