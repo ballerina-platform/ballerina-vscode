@@ -27,7 +27,4 @@ module.exports = {
         '\\.(svg|png|jpg|jpeg|gif|ico|woff|woff2|ttf|eot)$': '<rootDir>/src/test/fileMock.js',
         '^@wso2/ballerina-side-panel$': '<rootDir>/../ballerina-side-panel/src/utils/formatMethodName.ts',
     },
-    // These unit tests mock @wso2/ballerina-core and use the pre-built CJS libs,
-    // so no node_modules (incl. @wso2 packages) need transformation.
-    transformIgnorePatterns: ['node_modules/'],
 };

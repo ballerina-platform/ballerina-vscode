@@ -460,7 +460,7 @@ export function AgentStatusOrb() {
         : state === "idle"
             ? ACCENT_CORE
             : `color-mix(in srgb, ${colors[0]} 70%, transparent)`;
-    const label = state === "idle" ? `Chat with ${assistantName}` : activeStateLabel(status, productMode);
+    const label = state === "idle" ? `Chat with ${assistantName}` : activeStateLabel(status);
     const showLabel = !dragging && !snapping && state !== "idle" && !miniOpen;
 
     // Typing into the invite starts the conversation in the mini chat — every

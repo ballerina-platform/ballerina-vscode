@@ -19,7 +19,7 @@
 import { useEffect, useLayoutEffect, useState } from "react";
 import styled from "@emotion/styled";
 import { keyframes } from "@emotion/react";
-import { AgentRunState, AgentRunStatus, ChatNotify, MACHINE_VIEW, ProductMode, assistantName, shortAssistantName } from "@wso2/ballerina-core";
+import { AgentRunState, AgentRunStatus, ChatNotify, MACHINE_VIEW } from "@wso2/ballerina-core";
 import { BallerinaRpcClient, useRpcContext } from "@wso2/ballerina-rpc-client";
 import type { MiniChatPrompt } from "./promptHandoff";
 import { ambientBorderColor } from "./orbTheme";
@@ -228,24 +228,27 @@ export const AmbientFrame = styled.div<AmbientFrameProps>`
     }
 `;
 
-/** User-facing label for a non-idle run state, shared by the orb and the hero box. */
-export function awaitingInputLabel(mode: ProductMode): string {
-    return `${shortAssistantName(mode)} needs your input`;
+/**
+ * User-facing label for a non-idle run state. Never names the product: every surface
+ * that shows one already does — the orb tooltip, and the status bar the extension
+ * builds from the same vocabulary.
+ */
+export function awaitingInputLabel(): string {
+    return "Needs your input";
 }
 
-export function activeStateLabel(status: AgentRunStatus, mode: ProductMode): string {
-    const shortName = shortAssistantName(mode);
+export function activeStateLabel(status: AgentRunStatus): string {
     switch (status.state) {
         case "completed":
-            return status.aiPanelOpen ? "Done" : `Done — click to open ${shortName}`;
+            return status.aiPanelOpen ? "Done" : "Done — click to open the chat";
         case "running":
             return status.label ?? "Working on it…";
         case "awaiting-input":
-            return status.label ?? awaitingInputLabel(mode);
+            return status.label ?? awaitingInputLabel();
         case "error":
-            return status.label ?? `${shortName} hit an error`;
+            return status.label ?? "Something went wrong";
         default:
-            return `Chat with ${assistantName(mode)}`;
+            return "Ready to chat";
     }
 }
 

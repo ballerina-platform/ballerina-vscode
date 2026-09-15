@@ -1026,7 +1026,7 @@ export function MiniChat({ anchor, onClose, takeInitialPrompt }: MiniChatProps) 
             {awaitingInput && (
                 <EscalationBanner>
                     <Codicon name="warning" />
-                    <span style={{ flex: 1 }}>{awaitingInputLabel(productMode)}</span>
+                    <span style={{ flex: 1 }}>{awaitingInputLabel()}</span>
                     <BannerButton onClick={openFullChat}>Open full chat</BannerButton>
                 </EscalationBanner>
             )}
