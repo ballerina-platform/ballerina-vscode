@@ -488,6 +488,70 @@ public class WorkflowUtil {
      * @return the config literal, or empty when the initializer is not a {@code new} with a
      *         positional mapping argument
      */
+    /**
+     * One declared capability of a durable agent: its name, the mapping that configures it, and the
+     * node it was declared at.
+     *
+     * @param name   the capability's name
+     * @param config the mapping that configures it
+     * @param node   the declaration node, for a location a reader can navigate to
+     */
+    public record CapabilityEntry(String name, MappingConstructorExpressionNode config, Node node) {
+    }
+
+    /**
+     * The entries of an agent capability field, in whichever form it was declared: a mapping keyed
+     * by capability name — {@code events: {chat: {request: string}}}, what the module documents —
+     * or the list of records that carry their own {@code name} field, which it still accepts.
+     *
+     * <p>Reading only one form leaves the other invisible, and a capability the tooling cannot see
+     * is one it silently drops the next time it writes the declaration back.
+     *
+     * @param value the value of an {@code events}, {@code humanTasks} or similar config field
+     * @return the entries it declares, empty when the value is neither form
+     */
+    public static List<CapabilityEntry> capabilityEntries(ExpressionNode value) {
+        List<CapabilityEntry> entries = new ArrayList<>();
+        if (value instanceof MappingConstructorExpressionNode keyed) {
+            for (MappingFieldNode field : keyed.fields()) {
+                if (!(field instanceof SpecificFieldNode entry) || entry.valueExpr().isEmpty()
+                        || !(entry.valueExpr().get() instanceof MappingConstructorExpressionNode config)) {
+                    continue;
+                }
+                String name = literalOrIdentifier(entry.fieldName().toSourceCode().trim());
+                if (!name.isEmpty()) {
+                    entries.add(new CapabilityEntry(name, config, entry));
+                }
+            }
+            return entries;
+        }
+        if (value instanceof ListConstructorExpressionNode list) {
+            for (Node item : list.expressions()) {
+                if (!(item instanceof MappingConstructorExpressionNode config)) {
+                    continue;
+                }
+                for (MappingFieldNode field : config.fields()) {
+                    if (field instanceof SpecificFieldNode entry && entry.valueExpr().isPresent()
+                            && "name".equals(entry.fieldName().toSourceCode().trim())) {
+                        String name = literalOrIdentifier(entry.valueExpr().get().toSourceCode().trim());
+                        if (!name.isEmpty()) {
+                            entries.add(new CapabilityEntry(name, config, item));
+                        }
+                    }
+                }
+            }
+        }
+        return entries;
+    }
+
+    // A capability name as written: a string literal carries escapes, a quoted identifier a prefix.
+    private static String literalOrIdentifier(String source) {
+        if (source.length() >= 2 && source.startsWith("\"") && source.endsWith("\"")) {
+            return unescapeLiteralBody(source.substring(1, source.length() - 1));
+        }
+        return source.startsWith("'") ? source.substring(1) : source;
+    }
+
     public static Optional<MappingConstructorExpressionNode> agentConfigLiteral(ExpressionNode initializerExpr) {
         ExpressionNode initializer = initializerExpr;
         if (initializer instanceof CheckExpressionNode checkExpr) {
@@ -649,36 +713,18 @@ public class WorkflowUtil {
         return names;
     }
 
-    // Collects the `name` field of each mapping entry in the config's `events` list.
+    // Collects the name of each entry in the config's `events`, in whichever form it was declared.
     private static void collectDeclaredEventNames(
             MappingConstructorExpressionNode config,
             java.util.Set<String> names) {
         for (MappingFieldNode field : config.fields()) {
             if (!(field instanceof SpecificFieldNode specificField)
                     || specificField.valueExpr().isEmpty()
-                    || !"events".equals(specificField.fieldName().toSourceCode().trim())
-                    || !(specificField.valueExpr().get()
-                            instanceof ListConstructorExpressionNode list)) {
+                    || !"events".equals(specificField.fieldName().toSourceCode().trim())) {
                 continue;
             }
-            for (Node item : list.expressions()) {
-                if (item.kind() != SyntaxKind.MAPPING_CONSTRUCTOR) {
-                    continue;
-                }
-                for (MappingFieldNode entryField
-                        : ((MappingConstructorExpressionNode) item).fields()) {
-                    if (entryField instanceof SpecificFieldNode entry
-                            && entry.valueExpr().isPresent()
-                            && "name".equals(entry.fieldName().toSourceCode().trim())) {
-                        String raw = entry.valueExpr().get().toSourceCode().trim();
-                        if (raw.length() >= 2 && raw.startsWith("\"") && raw.endsWith("\"")) {
-                            raw = unescapeLiteralBody(raw.substring(1, raw.length() - 1));
-                        }
-                        if (!raw.isEmpty()) {
-                            names.add(raw);
-                        }
-                    }
-                }
+            for (CapabilityEntry entry : capabilityEntries(specificField.valueExpr().get())) {
+                names.add(entry.name());
             }
         }
     }
