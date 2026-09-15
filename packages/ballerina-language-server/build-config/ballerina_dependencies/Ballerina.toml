@@ -310,7 +310,7 @@ version = "1.13.7"
 [[dependency]]
 org = "ballerinax"
 name = "telegram"
-version = "0.9.3"
+version = "0.9.4"
 
 [[dependency]]
 org = "ballerina"
@@ -330,12 +330,12 @@ version = "0.1.1"
 [[dependency]]
 org = "ballerinax"
 name = "trigger.twilio"
-version = "0.10.0"
+version = "0.10.1"
 
 [[dependency]]
 org = "ballerinax"
 name = "whatsapp.business"
-version = "2.1.0"
+version = "2.1.1"
 
 [[dependency]]
 org = "ballerinax"

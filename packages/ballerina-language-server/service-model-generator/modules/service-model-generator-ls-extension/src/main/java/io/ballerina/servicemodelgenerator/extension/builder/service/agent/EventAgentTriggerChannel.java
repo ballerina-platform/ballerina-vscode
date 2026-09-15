@@ -56,7 +56,9 @@ public class EventAgentTriggerChannel implements AgentTriggerChannel {
     private static final String REPLY_METHOD_PREFIX = "runAgent";
     private static final String SOLE_PAYLOAD_LABEL = "Event payload";
 
-    private static final Map<String, String> PREFERRED_HANDLER = Map.of("cdc:Service", "onCreate");
+    private static final Map<String, String> PREFERRED_HANDLER = Map.of(
+            "cdc:Service", "onCreate",
+            "github:IssuesService", "onOpened");
 
     private static final String REPLY_METHOD = """
             function {{method}}({{params}}) {
