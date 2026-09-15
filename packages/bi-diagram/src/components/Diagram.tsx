@@ -409,7 +409,7 @@ export function Diagram(props: DiagramProps) {
         </>
     );
 
-    if (isAgentFocusView && embedded) {
+    if (isAgentFocusView) {
         return (
             <div style={{
                 opacity: canvasVisible ? 1 : 0,
