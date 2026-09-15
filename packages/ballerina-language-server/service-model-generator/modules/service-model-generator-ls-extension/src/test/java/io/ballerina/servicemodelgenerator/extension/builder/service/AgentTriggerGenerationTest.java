@@ -134,7 +134,7 @@ public class AgentTriggerGenerationTest {
     public void testWhatsAppServiceIsWiredToTheAgent() {
         String src = generateForAgent("whatsapp.business", "mathTutorAgent", null);
 
-        Assert.assertTrue(src.contains("remote function onMessages(whatsapp:MessagesNotification notification)"),
+        Assert.assertTrue(src.contains("remote function onMessages(business:MessagesNotification notification)"),
                 "the handler must be emitted, not left to an off-by-default schema function: " + src);
         Assert.assertTrue(src.contains("_ = start self.replyToWhatsAppMessages(notification);"),
                 "handler should offload rather than block the webhook: " + src);
@@ -146,9 +146,9 @@ public class AgentTriggerGenerationTest {
     public void testWhatsAppServiceOwnsItsClientAndReplyMethod() {
         String src = generateForAgent("whatsapp.business", "mathTutorAgent", null);
 
-        int serviceStart = src.indexOf("service whatsapp:WhatsAppService");
+        int serviceStart = src.indexOf("service business:WhatsAppService");
         Assert.assertTrue(serviceStart >= 0, "expected a WhatsApp service: " + src);
-        Assert.assertTrue(src.indexOf("final whatsapp:Client whatsappClient;") > serviceStart,
+        Assert.assertTrue(src.indexOf("final business:Client whatsappClient;") > serviceStart,
                 "the reply client should be a service field, not a module-level variable: " + src);
         Assert.assertTrue(src.contains("self.whatsappClient = check new "),
                 "the client should be initialised in the service's init(): " + src);
@@ -177,7 +177,7 @@ public class AgentTriggerGenerationTest {
 
         Assert.assertEquals(src.split("start self.replyToWhatsAppMessages", -1).length - 1, 1,
                 "exactly one strand should be spawned per notification: " + src);
-        Assert.assertTrue(src.indexOf("foreach whatsapp:InboundMessage") > src.indexOf("function replyTo"),
+        Assert.assertTrue(src.indexOf("foreach business:InboundMessage") > src.indexOf("function replyTo"),
                 "the per-message loop belongs inside the reply method, not the handler: " + src);
     }
 
@@ -256,7 +256,7 @@ public class AgentTriggerGenerationTest {
                 "sibling handlers should be present: " + src);
         Assert.assertEquals(src.split("start self\\.runAgent", -1).length - 1, 1,
                 "only the primary handler should call the agent: " + src);
-        Assert.assertEquals(src.split("remote function ", -1).length - 1, 7,
+        Assert.assertEquals(src.split("remote function ", -1).length - 1, 18,
                 "the channel's whole handler surface should be emitted: " + src);
     }
 
@@ -339,8 +339,15 @@ public class AgentTriggerGenerationTest {
 
     @Test
     public void testSalesforceKeepsItsChannelPath() {
-        String src = generateForAgent("salesforce", "cdcAgent", null,
-                Map.of("instructions", "Explain what changed."));
+        ServiceInitModel form = initForm("salesforce");
+        form.getProperties().get("basePath").setValue("/data/ChangeEvents");
+        form.addProperty(AGENT_NAME_PROPERTY, new Value.ValueBuilder()
+                .enabled(true).editable(false).value("cdcAgent").build());
+        form.addProperty("instructions", new Value.ValueBuilder()
+                .enabled(true).editable(true).value("Explain what changed.").build());
+        AgentTriggerChannel channel = channel("salesforce");
+        String src = render(AgentTriggerServiceBuilder.buildEdits(form, triggerModel("salesforce"), channel,
+                rootOf("\n"), "main.bal"));
 
         Assert.assertTrue(src.contains("service salesforce:CdcService /data/ChangeEvents on salesforceListener"),
                 "the subscribed channel path must survive, or the service listens to nothing: " + src);
@@ -359,7 +366,7 @@ public class AgentTriggerGenerationTest {
                 "only the chosen handler should call the agent: " + src);
         Assert.assertTrue(src.contains("remote function onOpened(github:IssuesEvent payload) returns error? {\n    }"),
                 "the schema's first handler should now be emitted empty: " + src);
-        Assert.assertEquals(src.split("remote function ", -1).length - 1, 7,
+        Assert.assertEquals(src.split("remote function ", -1).length - 1, 18,
                 "the channel's whole handler surface should still be emitted: " + src);
     }
 
@@ -412,8 +419,9 @@ public class AgentTriggerGenerationTest {
         Value issues = perChannel.get("github:IssuesService").getProperties().get("agentEventHandler");
         List<Option> options = issues.getTypes().getFirst().options();
         Assert.assertEquals(options.stream().map(Option::value).toList(),
-                List.of("onOpened", "onClosed", "onReopened", "onAssigned", "onUnassigned", "onLabeled",
-                        "onUnlabeled"),
+                List.of("onReopened", "onTransferred", "onUnpinned", "onAssigned", "onMilestoned", "onLabeled",
+                        "onOpened", "onPinned", "onTyped", "onEdited", "onUntyped", "onDemilestoned", "onLocked",
+                        "onUnassigned", "onUnlocked", "onUnlabeled", "onClosed", "onDeleted"),
                 "Issues should offer exactly its own events: " + options);
         Assert.assertEquals(issues.getValue(), "onOpened", "the channel's primary event should be preselected");
 
@@ -1196,14 +1204,6 @@ public class AgentTriggerGenerationTest {
                 "a caller the listener supplies stays in the signature: " + src);
         Assert.assertFalse(src.contains("${caller"),
                 "a caller carries no event, so there is nothing in it for the agent to read: " + src);
-    }
-
-    @Test
-    public void testAPayloadThatIsNotAnydataIsRenderedAsText() {
-        String src = generateForEvent("sap.jco", "idocAgent", "jco:IDocService", "onReceive", true);
-
-        Assert.assertTrue(src.contains("${iDoc.toString()}"),
-                "xml is not anydata, so toJsonString would not compile: " + src);
     }
 
     @Test

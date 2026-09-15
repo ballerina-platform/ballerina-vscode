@@ -19,7 +19,7 @@
 export type StreamItem =
     | { kind: "text"; text: string }
     | { kind: "tool_call"; toolCallId?: string; toolName?: string; toolInput?: any }
-    | { kind: "tool_result"; toolCallId?: string; toolName?: string; toolOutput?: any; failed?: boolean }
+    | { kind: "tool_result"; toolCallId?: string; toolName?: string; toolOutput?: any; failed?: boolean; partial?: boolean }
     | { kind: "plan"; requestId: string; tasks: any[]; message?: string; approvalStatus?: "approved" | "revised"; approvalComment?: string }
     | { kind: "config"; data: Record<string, any> }
     | { kind: "connector"; data: Record<string, any> }

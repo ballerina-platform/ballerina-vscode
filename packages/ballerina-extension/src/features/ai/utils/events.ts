@@ -44,14 +44,24 @@ export function calculateTotalCost(
     return mainCost + toolCost;
 }
 
-export function emitModelUsage(eventHandler: CopilotEventHandler, usages: ModelUsage[], accumulator: ToolModelUsage): void {
+/**
+ * Adds tool-internal LLM usage to the run's cost accumulator without announcing it. Subagent calls use
+ * this: their tokens belong in `cost.total`, but the `usage_metrics` event drives the UI's context-usage
+ * meter, which measures the main agent's context window and must not be reset to a subagent's counts.
+ */
+export function accumulateModelUsage(usages: ModelUsage[], accumulator: ToolModelUsage): void {
     for (const u of usages) {
         if (!accumulator[u.model]) {
             accumulator[u.model] = { inputTokens: 0, outputTokens: 0 };
         }
         accumulator[u.model].inputTokens += u.inputTokens;
         accumulator[u.model].outputTokens += u.outputTokens;
+    }
+}
 
+export function emitModelUsage(eventHandler: CopilotEventHandler, usages: ModelUsage[], accumulator: ToolModelUsage): void {
+    accumulateModelUsage(usages, accumulator);
+    for (const u of usages) {
         eventHandler({
             type: "usage_metrics",
             model: u.model,

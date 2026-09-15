@@ -40,7 +40,7 @@ import {
     useSuppressAgentStatusOrb,
 } from "../../../components/AgentStatusOrb/shared";
 import { openCopilotPanel, submitPromptToCopilot } from "../../../components/AgentStatusOrb/CopilotHeroBox";
-import { useProductMode, useAssistantName } from "../../../hooks/useProductMode";
+import { useAssistantName } from "../../../hooks/useProductMode";
 import { LoadingRing } from "../../../components/Loader";
 import LoginPanel from "../../AIPanel/LoginPanel";
 import WaitingForLogin from "../../AIPanel/WaitingForLoginSection";
@@ -542,7 +542,6 @@ interface EmptyStateProps {
 export function EmptyState({ onCreateFromScratch, isLibrary }: EmptyStateProps) {
     const copy = isLibrary ? LIBRARY_COPY : AGENT_COPY;
     const assistantName = useAssistantName();
-    const productMode = useProductMode();
     const { rpcClient } = useRpcContext();
     const [status, setStatus] = useState<AgentRunStatus | null>(null);
     const [text, setText] = useState("");
@@ -639,7 +638,7 @@ export function EmptyState({ onCreateFromScratch, isLibrary }: EmptyStateProps) 
     const orbHighlight = working ? `color-mix(in srgb, ${orbColors[0]} 70%, transparent)` : ACCENT_CORE;
     const runHeading =
         state === "awaiting-input"
-            ? awaitingInputLabel(productMode)
+            ? awaitingInputLabel()
             : state === "error"
                 ? "Something went wrong"
                 : state === "completed"
