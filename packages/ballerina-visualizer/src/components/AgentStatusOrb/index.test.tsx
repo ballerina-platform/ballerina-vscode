@@ -27,10 +27,21 @@ import { createRoot, Root } from "react-dom/client";
 import type { AgentRunStatus } from "@wso2/ballerina-core";
 
 // The core barrel re-exports ESM-only LS transport modules jest cannot load. shared.ts
-// only property-accesses MACHINE_VIEW, and the orb only reads the open-panel command id.
+// only property-accesses MACHINE_VIEW, and the orb reads the open-panel command id plus
+// useProductMode's own exports (via ../../hooks/useProductMode, which imports them too).
+enum MockProductMode {
+    INTEGRATOR = "integrator",
+    AGENT_BUILDER = "agent-builder",
+}
+
 jest.mock("@wso2/ballerina-core", () => ({
     MACHINE_VIEW: {},
     SHARED_COMMANDS: { OPEN_AI_PANEL: "ballerina.open.ai.panel" },
+    ProductMode: MockProductMode,
+    assistantName: (mode: MockProductMode) =>
+        mode === MockProductMode.AGENT_BUILDER ? "WSO2 Agent Builder Copilot" : "WSO2 Integrator Copilot",
+    shortAssistantName: (mode: MockProductMode) =>
+        mode === MockProductMode.AGENT_BUILDER ? "Agent Builder Copilot" : "Integrator Copilot",
 }));
 
 let mockRpcClient: ReturnType<typeof makeRpcClient>["client"] | undefined;
