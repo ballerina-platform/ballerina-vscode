@@ -50,7 +50,7 @@ import TryItScenariosSegment from "../TryItScenariosSegment";
 import TodoSection from "../TodoSection";
 import AgentStreamView from "../AgentStreamView";
 import { StreamEntry, StreamItem } from "../AgentStreamView/types";
-import { getToolCallDisplay } from "../AgentStreamView/toolDisplay";
+import { getToolCallDisplay, getToolResultDisplay, isToolResultInProgress } from "../AgentStreamView/toolDisplay";
 import { ConnectorGeneratorSegment } from "../ConnectorGeneratorSegment";
 import { ConfigurationCollectorSegment } from "../ConfigurationCollectorSegment";
 import CheckpointSeparator from "../CheckpointSeparator";
@@ -91,7 +91,7 @@ import WelcomeMessage from "./Welcome";
 import { getOnboardingOpens, incrementOnboardingOpens, convertToUIMessages, isContainsSyntaxError } from "./utils/utils";
 import { applyGenerationStatus, deriveReviewBarState, PanelMessage } from "./utils/reviewBarState";
 import { backTooltipFor, PanelRoute } from "./utils/panelNav";
-import {
+import { upsertToolResult,
     serializeStream, parseStream, appendToLastEntry, upsertComponent, upsertRequestCard,
     buildRequestCardData, buildPlanItem, applyPlanApprovalResolution, appendAbortMarker, applyTaskWriteResult,
     COMPACTION_DISABLED_NOTICE,
@@ -1362,6 +1362,14 @@ const AIChat: React.FC = () => {
             const { label, detail } = getToolCallDisplay(response.toolName, response.toolInput);
             const entry = { id: response.toolCallId ?? "", label: detail ? `${label} ${detail}` : label };
             setInFlightTools(prev => [...prev, entry]);
+        } else if (type === "tool_result" && isToolResultInProgress(response)) {
+            // A partial result (progress report): the call is still running, so reword its entry instead of retiring it.
+            const runningId = response.toolCallId ?? "";
+            const { label, detail } = getToolResultDisplay(response.toolName, response.toolOutput);
+            const text = detail ? `${label} ${detail}` : label;
+            setInFlightTools(prev => prev.some(tool => tool.id === runningId)
+                ? prev.map(tool => (tool.id === runningId ? { ...tool, label: text } : tool))
+                : [...prev, { id: runningId, label: text }]);
         } else if (type === "tool_result") {
             // Drop only the matching call. Tools without an id share the "" key,
             // so each anonymous result retires the oldest anonymous call.
@@ -1445,28 +1453,17 @@ const AIChat: React.FC = () => {
                     return msgs;
                 });
             } else {
-                // Replace the matching tool_call item with tool_result
+                // Resolve the matching tool_call (or update an earlier result of the
+                // same call — background subagents report "running" then "completed").
                 setMessages(prevMessages => {
                     const msgs = [...prevMessages];
                     const targetIndex = ensureAssistantMessage(msgs);
                     const last = msgs[targetIndex];
                     const entries = parseStream(last.content);
-                    const resultItem: StreamItem = { kind: "tool_result", toolCallId: response.toolCallId, toolName: response.toolName, toolOutput: response.toolOutput, failed: response.failed };
-                    let matched = false;
-                    const updated = entries.map(entry => {
-                        if (matched) return entry;
-                        const idx = entry.items.findIndex(i => i.kind === "tool_call" && i.toolCallId === response.toolCallId);
-                        if (idx === -1) return entry;
-                        matched = true;
-                        const updatedItems = entry.items.map((item, i) => i === idx ? resultItem : item);
-                        return { ...entry, items: updatedItems };
+                    const updated = upsertToolResult(entries, {
+                        toolCallId: response.toolCallId, toolName: response.toolName, toolOutput: response.toolOutput, failed: response.failed, partial: response.partial,
                     });
-                    if (!matched) {
-                        // No matching call found — append as new item to last entry
-                        msgs[targetIndex] = { ...last, content: serializeStream(appendToLastEntry(entries, resultItem), last.content) };
-                    } else {
-                        msgs[targetIndex] = { ...last, content: serializeStream(updated, last.content) };
-                    }
+                    msgs[targetIndex] = { ...last, content: serializeStream(updated, last.content) };
                     return msgs;
                 });
             }

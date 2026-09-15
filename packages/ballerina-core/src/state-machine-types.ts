@@ -516,6 +516,12 @@ export interface ToolResult {
     toolOutput?: any;
     toolCallId?: string;
     failed?: boolean;
+    /**
+     * A progress report, not the call's final result: the tool will send another `tool_result` with the
+     * same `toolCallId` later (a subagent heartbeat, a background task that just started). Renderers keep
+     * the row in its running state; the terminal result carries no `partial`.
+     */
+    partial?: boolean;
 }
 
 export interface EvalsToolResult {

@@ -26,7 +26,7 @@
  * a type check.
  */
 
-import { describeToolCall } from '../features/ai/state/toolLabels';
+import { describeToolCall, describeToolResultProgress } from '../features/ai/state/toolLabels';
 
 describe('describeToolCall', () => {
     describe('the fileName key the file tools actually emit', () => {
@@ -79,5 +79,30 @@ describe('describeToolCall', () => {
     it('names the tool behind an MCP call, and falls back for unknown tools', () => {
         expect(describeToolCall('mcp__github__create_issue')).toBe('Using create_issue');
         expect(describeToolCall('some_future_tool')).toBe('Running some_future_tool');
+    });
+});
+
+
+describe('subagent wording on the status line', () => {
+    it('names the subagent and the brief on the call', () => {
+        expect(describeToolCall('Subagent', { subagent_type: 'Librarian', description: 'kafka connector lookup' }))
+            .toBe('Consulting the Librarian: kafka connector lookup');
+        expect(describeToolCall('Subagent', { subagent_type: 'LibraryResearcher', description: 'pdf examples', run_in_background: true }))
+            .toBe('Consulting the Library Researcher (background): pdf examples');
+        expect(describeToolCall('Subagent', { subagent_type: 'Librarian', description: 'kafka lookup', resume: 'task-subagent-0123abcd' }))
+            .toBe('Following up with the Librarian: kafka lookup');
+        expect(describeToolCall('Subagent', {})).toBe('Consulting the Librarian');
+    });
+
+    it('moves the label only for a partial result', () => {
+        expect(describeToolResultProgress({ toolName: 'Subagent', partial: true, toolOutput: { subagent_type: 'Librarian', status: 'running', progress: 'reading ballerinax/kafka docs', step: 3 } }))
+            .toBe('Librarian: reading ballerinax/kafka docs');
+        expect(describeToolResultProgress({ toolName: 'Subagent', partial: true, toolOutput: { subagent_type: 'Librarian', status: 'started', background: true, description: 'kafka lookup' } }))
+            .toBe('Librarian running in background: kafka lookup');
+        // A final result, and a non-partial "running" status from another tool, leave the label alone.
+        expect(describeToolResultProgress({ toolName: 'Subagent', toolOutput: { status: 'completed', libraries: ['ballerinax/kafka'] } })).toBeUndefined();
+        expect(describeToolResultProgress({ toolName: 'task_output', toolOutput: { status: 'running' } })).toBeUndefined();
+        // Another tool's partial result falls back to its call wording.
+        expect(describeToolResultProgress({ toolName: 'runTests', partial: true, toolOutput: {} })).toBe(describeToolCall('runTests', {}));
     });
 });

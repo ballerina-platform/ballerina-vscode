@@ -20,7 +20,7 @@ import * as vscode from 'vscode';
 import { AgentRunStatus, AgentRunState, ChatNotify, agentRunStatusChanged, SHARED_COMMANDS } from '@wso2/ballerina-core';
 import { RPCLayer } from '../../../RPCLayer';
 import { VisualizerWebview } from '../../../views/visualizer/webview';
-import { describeToolCall } from './toolLabels';
+import { describeToolCall, describeToolResultProgress } from './toolLabels';
 
 /** How long a terminal (completed/error) status stays visible before resetting to idle. */
 const TERMINAL_STATE_RESET_MS = 20000;
@@ -96,6 +96,14 @@ class AgentStatusManager {
             case 'tool_call':
                 this.update({ state: 'running', label: describeToolCall(msg.toolName, msg.toolInput) });
                 break;
+            case 'tool_result': {
+                // Only a partial result (a progress report) moves the label; final results leave the last call's wording.
+                const progress = describeToolResultProgress(msg);
+                if (progress) {
+                    this.update({ state: 'running', label: progress });
+                }
+                break;
+            }
             case 'compaction_start':
                 this.update({ state: 'running', label: 'Compacting conversation' });
                 break;

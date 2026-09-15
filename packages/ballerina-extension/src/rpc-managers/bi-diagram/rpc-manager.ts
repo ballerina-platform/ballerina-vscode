@@ -184,8 +184,6 @@ import {
     IWso2PlatformExtensionAPI,
     ICreateNewIntegrationCmdParams,
     ICreateNewIntegrationCmdIntegrations,
-    resolveIntegrationType,
-    AUTOMATION_WITH_LISTENER_WARNING,
 } from "@wso2/wso2-platform-core";
 import {
     ShellExecution,
@@ -197,6 +195,7 @@ import {
     window, workspace
 } from "vscode";
 import { DebugProtocol } from "vscode-debugprotocol";
+import { selectIntegrationType as pickIntegrationType } from "../../features/devant/integration-type";
 import { extension } from "../../BalExtensionContext";
 import { notifyCurrentWebview } from "../../RPCLayer";
 import { OLD_BACKEND_URL } from "../../features/ai/utils";
@@ -1361,33 +1360,10 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
     }
 
     private async selectIntegrationType(integrationTypes: SCOPE[]): Promise<SCOPE | undefined> {
-        if (!integrationTypes || integrationTypes.length === 0) {
-            return undefined;
-        }
-
-        const resolution = resolveIntegrationType(integrationTypes);
-
-        if (resolution.kind === "autoPick") {
-            return resolution.scope as SCOPE;
-        }
-
-        if (resolution.kind === "autoPickWithWarning") {
-            const choice = await window.showWarningMessage(
-                AUTOMATION_WITH_LISTENER_WARNING,
-                { modal: true },
-                "Continue",
-            );
-            if (choice !== "Continue") {
-                return undefined;
-            }
-            return resolution.scope as SCOPE;
-        }
-
-        const selectedScope = await window.showQuickPick(resolution.choices, {
-            placeHolder: 'You have different types of artifacts within this integration. Select the artifact type to be deployed'
-        });
-
-        return selectedScope as SCOPE;
+        return pickIntegrationType(
+            integrationTypes,
+            'You have different types of artifacts within this integration. Select the artifact type to be deployed'
+        );
     }
 
     openAIChat(params: AIChatRequest): void {
