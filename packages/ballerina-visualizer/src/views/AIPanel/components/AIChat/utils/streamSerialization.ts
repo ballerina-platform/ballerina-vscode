@@ -74,6 +74,41 @@ export function appendToLastEntry(entries: StreamEntry[], item: StreamItem): Str
 }
 
 /**
+ * Resolve a `tool_result` against the transcript: replace the matching open
+ * `tool_call` (the ordinary case); otherwise update an existing `tool_result`
+ * with the same `toolCallId` — a background subagent reports twice on one
+ * call id, first "running" and later "completed"; otherwise append.
+ *
+ * Shared because BOTH surfaces persist turns: a surface that appended the
+ * second result instead of updating would persist a row stuck at "running"
+ * next to a duplicate, and the other surface would faithfully render that.
+ */
+export function upsertToolResult(
+    entries: StreamEntry[],
+    evt: { toolCallId?: string; toolName?: string; toolOutput?: any; failed?: boolean; partial?: boolean }
+): StreamEntry[] {
+    const resultItem: StreamItem = {
+        kind: "tool_result", toolCallId: evt.toolCallId, toolName: evt.toolName, toolOutput: evt.toolOutput, failed: evt.failed,
+        ...(evt.partial ? { partial: true } : {}),
+    };
+    const replaceIn = (kind: "tool_call" | "tool_result"): StreamEntry[] | null => {
+        let matched = false;
+        const updated = entries.map(entry => {
+            if (matched) return entry;
+            const idx = entry.items.findIndex(i => i.kind === kind && i.toolCallId === evt.toolCallId);
+            if (idx === -1) return entry;
+            matched = true;
+            return { ...entry, items: entry.items.map((item, i) => (i === idx ? resultItem : item)) };
+        });
+        return matched ? updated : null;
+    };
+    if (evt.toolCallId !== undefined) {
+        return replaceIn("tool_call") ?? replaceIn("tool_result") ?? appendToLastEntry(entries, resultItem);
+    }
+    return replaceIn("tool_call") ?? appendToLastEntry(entries, resultItem);
+}
+
+/**
  * Insert-or-update a `chat_component` item, keyed by `id` when the event carries
  * one and by `componentType` otherwise; `data` is merged over any existing item's.
  *

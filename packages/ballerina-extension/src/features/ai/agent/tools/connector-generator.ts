@@ -32,9 +32,8 @@ import {
 import { CopilotEventHandler } from "../../utils/events";
 import { langClient } from "../../activator";
 import { applyTextEdits } from "../utils";
-import { LIBRARY_GET_TOOL } from "./library-get";
 import { approvalManager } from '../../state/ApprovalManager';
-import { LIBRARY_SEARCH_TOOL } from "./library-search";
+import { SUBAGENT_TOOL_NAME } from "../subagents/types";
 import { recordAiTouchedFile } from "../../../../rpc-managers/diagram-validity";
 import { addToIntegration } from "../../../../rpc-managers/ai-panel/utils";
 
@@ -49,7 +48,6 @@ const SpecFetcherInputSchema = z.object({
 
 export function createConnectorGeneratorTool(eventHandler: CopilotEventHandler, tempProjectPath: string, projectName?: string, modifiedFiles?: string[]) {
     return tool({
-        // TODO: Verify that the agent invokes LIBRARY_SEARCH_TOOL before LIBRARY_GET_TOOL and only falls back to this tool when no suitable library is found; update the tool description or agent prompt if the ordering is incorrect
         description: `
 Generates a connector for an external service by deriving the service contract from user-provided OpenAPI specifications.
 
@@ -57,7 +55,7 @@ Use this tool when:
 1. Target service is custom, internal, or niche
 2. User request is ambiguous and needs a SaaS connector
 3. User explicitly requests to create a SaaS connector
-4. After searching with ${LIBRARY_SEARCH_TOOL}, no suitable connector is found
+4. After the Librarian subagent (${SUBAGENT_TOOL_NAME}) reports that no suitable connector exists
 
 **CRITICAL: Do NOT call this tool again for the same service if the user has already skipped it (errorCode: USER_SKIPPED). Accept the skip and proceed without the connector.**
 
