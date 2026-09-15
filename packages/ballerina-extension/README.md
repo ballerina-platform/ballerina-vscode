@@ -63,3 +63,5 @@ BI Playwright tests are located in `e2e-test/e2e-playwright-tests`.
 From this directory (`workspaces/ballerina/ballerina-extension`):
 - Run `pnpm run e2e-test:bi` to execute BI Playwright tests.
 - Run `pnpm run e2e-test:bi:download-prerelease` to run BI tests after downloading prerelease VSIXs.
+
+<!-- Temporary marker for an e2e control run (PR to be closed). -->
