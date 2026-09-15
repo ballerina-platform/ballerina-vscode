@@ -19,6 +19,7 @@
 package io.ballerina.servicemodelgenerator.extension.model;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -50,6 +51,7 @@ public class ServiceInitModel {
     private final String icon;
     private final Map<String, Value> properties = new LinkedHashMap<>();
     private Boolean isLocalRepository;
+    private List<String> selectedTools;
 
     public ServiceInitModel(String id, String displayName, String description, String orgName,
                             String packageName, String moduleName, String version, String type, String icon) {
@@ -114,6 +116,14 @@ public class ServiceInitModel {
 
     public void addProperty(String key, Value value) {
         this.properties.put(key, value);
+    }
+
+    public List<String> getSelectedTools() {
+        return selectedTools;
+    }
+
+    public void setSelectedTools(List<String> selectedTools) {
+        this.selectedTools = selectedTools;
     }
 
     public void addProperties(Map<String, Value> properties) {

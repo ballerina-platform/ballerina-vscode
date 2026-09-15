@@ -259,14 +259,17 @@ public final class PayloadComposer {
      * always normalized to this same {@code {{type}}} form before reaching it.
      */
     static String applyTemplate(String template, String element) {
-        if (template == null || template.isBlank()) {
-            return element == null ? "" : element;
-        }
         String safe = element == null ? "" : element;
+        if (template == null || template.isBlank()) {
+            return safe;
+        }
         if (template.contains(BRACED)) {
             return template.replace(BRACED, safe);
         }
-        return STANDALONE_T.matcher(template).replaceAll(Matcher.quoteReplacement(safe));
+        // A template carrying neither placeholder cannot be composed: fall back to the element
+        // rather than emitting a type that silently drops it.
+        Matcher matcher = STANDALONE_T.matcher(template);
+        return matcher.find() ? matcher.replaceAll(Matcher.quoteReplacement(safe)) : safe;
     }
 
     public static String selectedFieldType(TriggerUISchemaModel.Property property) {
