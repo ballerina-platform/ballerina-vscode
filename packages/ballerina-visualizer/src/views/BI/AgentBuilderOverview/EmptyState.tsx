@@ -125,12 +125,11 @@ const EXAMPLES: Example[] = [
             "Create a helpdesk agent that replies to incoming WhatsApp messages and answers common account and billing questions, telling the customer a human will follow up whenever it cannot answer confidently. Add a WhatsApp trigger for it.",
     },
     {
-        name: "Sales Assistant",
-        description: "Looks up CRM records from Slack",
-        icon: "organization",
-        isCodicon: true,
+        name: "Order Tools",
+        description: "Exposes order lookup and returns as tools",
+        icon: "bi-mcp",
         prompt:
-            "Create a sales assistant agent that answers questions asked in Slack by looking up account and opportunity records in Salesforce as a tool, and replies in the same thread. Add a Slack trigger for it.",
+            "Create an MCP server that exposes order lookup, order status and returns from our order system as tools.",
     },
 ];
 
@@ -536,10 +535,11 @@ const LinkButton = styled.button`
 
 interface EmptyStateProps {
     onCreateFromScratch: () => void;
+    onAddMcpService?: () => void;
     isLibrary?: boolean;
 }
 
-export function EmptyState({ onCreateFromScratch, isLibrary }: EmptyStateProps) {
+export function EmptyState({ onCreateFromScratch, onAddMcpService, isLibrary }: EmptyStateProps) {
     const copy = isLibrary ? LIBRARY_COPY : AGENT_COPY;
     const assistantName = useAssistantName();
     const productMode = useProductMode();
@@ -909,6 +909,18 @@ export function EmptyState({ onCreateFromScratch, isLibrary }: EmptyStateProps) 
                                 >
                                     {copy.manualLabel}
                                 </Button>
+                                {onAddMcpService && (
+                                    <>
+                                        or
+                                        <Button
+                                            appearance="secondary"
+                                            onClick={onAddMcpService}
+                                            buttonSx={MANUAL_BUTTON_SX}
+                                        >
+                                            Add an MCP Server
+                                        </Button>
+                                    </>
+                                )}
                             </ManualRow>
                         </ExitGroup>
                     </div>

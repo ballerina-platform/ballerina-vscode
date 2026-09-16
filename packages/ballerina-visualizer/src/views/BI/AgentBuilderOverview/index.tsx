@@ -44,6 +44,7 @@ const LazyFocusFlowDiagram = React.lazy(() =>
 );
 const LazyAddAgentPopup = React.lazy(() => import("../AIChatAgent/AddAgentPopup"));
 const LazyAddLibraryArtifactPopup = React.lazy(() => import("./AddLibraryArtifactPopup"));
+const LazyAddMcpServicePopup = React.lazy(() => import("./AddMcpServicePopup"));
 
 const Page = styled.div`
     display: flex;
@@ -186,6 +187,7 @@ export function AgentBuilderOverview({ projectPath, agentFocus }: AgentBuilderOv
     const pendingRenameRef = useRef<{ artifact: ProjectStructureArtifactResponse; agentsAtStash: ProjectStructureArtifactResponse[] }>();
     const [showAddAgent, setShowAddAgent] = useState(false);
     const [showAddLibraryArtifact, setShowAddLibraryArtifact] = useState(false);
+    const [showAddMcpService, setShowAddMcpService] = useState(false);
     const [deployAnchor, setDeployAnchor] = useState<HTMLElement | null>(null);
     const [canvasReady, setCanvasReady] = useState(false);
     // Only true once the empty state has actually been on screen, so opening a
@@ -514,6 +516,9 @@ export function AgentBuilderOverview({ projectPath, agentFocus }: AgentBuilderOv
                                         onCreateFromScratch={() =>
                                             isLibrary ? setShowAddLibraryArtifact(true) : setShowAddAgent(true)
                                         }
+                                        onAddMcpService={
+                                            isLibrary ? undefined : () => setShowAddMcpService(true)
+                                        }
                                     />
                                 </Layer>
                             )}
@@ -534,6 +539,14 @@ export function AgentBuilderOverview({ projectPath, agentFocus }: AgentBuilderOv
             {showAddLibraryArtifact && (
                 <React.Suspense fallback={null}>
                     <LazyAddLibraryArtifactPopup onClose={() => setShowAddLibraryArtifact(false)} />
+                </React.Suspense>
+            )}
+            {showAddMcpService && (
+                <React.Suspense fallback={null}>
+                    <LazyAddMcpServicePopup
+                        projectPath={projectPath}
+                        onClose={() => setShowAddMcpService(false)}
+                    />
                 </React.Suspense>
             )}
         </>
