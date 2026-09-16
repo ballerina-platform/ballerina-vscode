@@ -667,7 +667,9 @@ public class CodeAnalyzer extends NodeVisitor {
                 nestedIf.elseBody().ifPresent(inner -> analyzeElseChain(inner, chainId));
             }
             case BlockStatementNode blockStatementNode -> visitIfChainBranch("else", chainId, blockStatementNode);
-            default -> throw new IllegalStateException("Unexpected else body kind: " + elseBody.kind());
+            // Grammar allows only the two cases above; this is belt-and-suspenders for an error-recovery tree
+            // mid-edit. Fall back to a plain visit rather than throwing, as the pre-existing code did.
+            default -> elseBody.accept(this);
         }
     }
 
@@ -769,9 +771,7 @@ public class CodeAnalyzer extends NodeVisitor {
                     if (expressionNode instanceof NewExpressionNode newExpressionNode) {
                         SeparatedNodeList<FunctionArgumentNode> argList =
                                 connectionFinder.getArgList(newExpressionNode);
-                        connectionFinder.extractRole(connection, argList);
-                        connectionFinder.extractAgentConfig(connection, argList);
-                        connectionFinder.extractTypedAgentTools(connection, rawType);
+                        connectionFinder.extractAgentConfig(connection, argList, rawType);
                         List<ExpressionNode> argExprs = connectionFinder.getInitMethodArgExprs(argList);
                         for (ExpressionNode argExpr : argExprs) {
                             connectionFinder.handleInitMethodArgs(connection, argExpr);
