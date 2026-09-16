@@ -164,9 +164,7 @@ public class ConnectionFinder {
                                 }
                                 if (expressionNode instanceof NewExpressionNode newExpressionNode) {
                                     SeparatedNodeList<FunctionArgumentNode> argList = getArgList(newExpressionNode);
-                                    extractRole(connection, argList);
-                                    extractAgentConfig(connection, argList);
-                                    extractTypedAgentTools(connection, rawType);
+                                    extractAgentConfig(connection, argList, rawType);
                                     List<ExpressionNode> argExprs = getInitMethodArgExprs(argList);
                                     for (ExpressionNode argExpr : argExprs) {
                                         handleInitMethodArgs(connection, argExpr);
@@ -344,8 +342,8 @@ public class ConnectionFinder {
     }
 
     // A named toolkit reads by its variable or class field; an inline `new ai:McpToolKit("url")` by its server URL.
-    private static String mcpToolKitLabel(Node expr) {
-        Node inner = expr instanceof CheckExpressionNode checkExpression ? checkExpression.expression() : expr;
+    private String mcpToolKitLabel(Node expr) {
+        Node inner = unwrapCheck(expr);
         if (inner instanceof SimpleNameReferenceNode reference) {
             return reference.name().text();
         }
@@ -358,12 +356,8 @@ public class ConnectionFinder {
         return MCP_SERVER;
     }
 
-    private static Optional<String> firstStringArgument(NewExpressionNode newExpression) {
-        Optional<ParenthesizedArgList> args = newExpression instanceof ExplicitNewExpressionNode explicit
-                ? Optional.of(explicit.parenthesizedArgList())
-                : ((ImplicitNewExpressionNode) newExpression).parenthesizedArgList();
-        return args.stream()
-                .flatMap(list -> list.arguments().stream())
+    private Optional<String> firstStringArgument(NewExpressionNode newExpression) {
+        return getArgList(newExpression).stream()
                 .filter(arg -> arg instanceof PositionalArgumentNode positional
                         && positional.expression() instanceof BasicLiteralNode literal
                         && literal.kind() == SyntaxKind.STRING_LITERAL)
@@ -372,28 +366,24 @@ public class ConnectionFinder {
                 .findFirst();
     }
 
-    /**
-     * Finds the agent's {@code systemPrompt: {role: "...", ...}} argument among the {@code new(...)}
-     * call's named arguments and records its role. Handles agent construction, which passes each
-     * config field as its own named argument rather than one aggregate mapping literal (the shape
-     * {@link #handleInitMethodArgs} otherwise expects).
-     */
-    public void extractRole(Connection connection, SeparatedNodeList<FunctionArgumentNode> argList) {
-        for (Node argument : argList) {
-            if (argument instanceof NamedArgumentNode namedArgumentNode
-                    && SYSTEM_PROMPT_FIELD.equals(namedArgumentNode.argumentName().name().text())
-                    && namedArgumentNode.expression() instanceof MappingConstructorExpressionNode systemPrompt) {
-                setRoleFromSystemPrompt(connection, systemPrompt);
-                return;
-            }
-        }
+    // check <expr> and <expr> resolve to the same connection/value; callers only care about the latter.
+    private static Node unwrapCheck(Node expression) {
+        return expression instanceof CheckExpressionNode check ? check.expression() : expression;
+    }
+
+    private static ExpressionNode unwrapCheck(ExpressionNode expression) {
+        return expression instanceof CheckExpressionNode check ? check.expression() : expression;
     }
 
     /**
-     * Records what the agent is constructed with: the {@code model = ...} and {@code memory = ...} named
-     * arguments of an {@code ai:Agent}, or a positional argument of provider type, as a typed agent's class takes it.
+     * Records what an agent is constructed with: {@code systemPrompt.role}, {@code model} / {@code memory} named
+     * arguments (or a positional provider argument, as a typed agent's class takes it), and, for a typed agent
+     * class, its {@code @ai:AgentTool} methods and MCP toolkit fields. Agent construction passes each config field
+     * as its own named argument rather than one aggregate mapping literal (the shape {@link #handleInitMethodArgs}
+     * otherwise expects).
      */
-    public void extractAgentConfig(Connection connection, SeparatedNodeList<FunctionArgumentNode> argList) {
+    public void extractAgentConfig(Connection connection, SeparatedNodeList<FunctionArgumentNode> argList,
+                                   TypeSymbol rawType) {
         for (Node argument : argList) {
             if (argument instanceof NamedArgumentNode namedArgumentNode) {
                 recordAgentConfigField(connection, namedArgumentNode.argumentName().name().text(),
@@ -402,10 +392,11 @@ public class ConnectionFinder {
                 setModelProvider(connection, positionalArgumentNode.expression());
             }
         }
+        extractTypedAgentTools(connection, rawType);
     }
 
     // A typed agent's tools are its methods annotated @ai:AgentTool, as the flow model lists them.
-    public void extractTypedAgentTools(Connection connection, TypeSymbol rawType) {
+    private void extractTypedAgentTools(Connection connection, TypeSymbol rawType) {
         if (!(rawType instanceof ClassSymbol classSymbol)) {
             return;
         }
@@ -434,7 +425,7 @@ public class ConnectionFinder {
     }
 
     private void setMemory(Connection connection, ExpressionNode expression) {
-        ExpressionNode expr = expression instanceof CheckExpressionNode check ? check.expression() : expression;
+        ExpressionNode expr = unwrapCheck(expression);
         Optional<TypeSymbol> type = this.semanticModel.typeOf(expr);
         if (type.isEmpty()) {
             return;
@@ -450,7 +441,7 @@ public class ConnectionFinder {
     // A named variable resolves through its type; an inline `ai:getDefaultModelProvider()` has no variable
     // and a union return type, so it is recognised by name.
     private void setModelProvider(Connection connection, ExpressionNode expression) {
-        ExpressionNode expr = expression instanceof CheckExpressionNode check ? check.expression() : expression;
+        ExpressionNode expr = unwrapCheck(expression);
         if (expr instanceof FunctionCallExpressionNode call
                 && call.functionName().toSourceCode().trim().endsWith(DEFAULT_MODEL_PROVIDER_FUNCTION)) {
             connection.setModelProvider(new Connection.ModelProvider(null, WSO2_MODEL_PROVIDER, null));
@@ -469,7 +460,13 @@ public class ConnectionFinder {
                 CommonUtils.generateIcon(rawType)));
     }
 
+    // handleInitMethodArgs walks every connection's init args generically, agent or not, so this is the one place
+    // that must gate on kind: role/model/memory only ever mean something for an agent, and without this check a
+    // plain connector whose config record happens to reuse one of these field names would get a bogus reading.
     private void recordAgentConfigField(Connection connection, String fieldName, ExpressionNode fieldValue) {
+        if (!ConnectionKind.AGENT.toString().equals(connection.getKind())) {
+            return;
+        }
         if (SYSTEM_PROMPT_FIELD.equals(fieldName)
                 && fieldValue instanceof MappingConstructorExpressionNode systemPrompt) {
             setRoleFromSystemPrompt(connection, systemPrompt);

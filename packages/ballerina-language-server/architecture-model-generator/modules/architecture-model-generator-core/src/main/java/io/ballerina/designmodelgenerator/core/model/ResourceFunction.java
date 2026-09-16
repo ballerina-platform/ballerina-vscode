@@ -51,4 +51,26 @@ public record ResourceFunction(String accessor, String path, Location location, 
         return Objects.hash(accessor().hashCode(), path().hashCode(), location().hashCode(), connections, workflows,
                 workflowSendData, invalidWorkflowSendData);
     }
+
+    // Mirrors hashCode's size-based fields (agentCalls excluded) instead of the record-derived, field-by-field
+    // equals, which would otherwise drift out of sync with hashCode the moment a component is added here.
+    @Override
+    public boolean equals(Object obj) {
+        if (!(obj instanceof ResourceFunction other)) {
+            return false;
+        }
+        int connections = connections() != null ? connections().size() : 0;
+        int otherConnections = other.connections() != null ? other.connections().size() : 0;
+        int workflows = workflows() != null ? workflows().size() : 0;
+        int otherWorkflows = other.workflows() != null ? other.workflows().size() : 0;
+        int workflowSendData = workflowSendData() != null ? workflowSendData().size() : 0;
+        int otherWorkflowSendData = other.workflowSendData() != null ? other.workflowSendData().size() : 0;
+        int invalidWorkflowSendData = invalidWorkflowSendData() != null ? invalidWorkflowSendData().size() : 0;
+        int otherInvalidWorkflowSendData = other.invalidWorkflowSendData() != null
+                ? other.invalidWorkflowSendData().size() : 0;
+        return accessor().equals(other.accessor()) && path().equals(other.path())
+                && location().equals(other.location()) && connections == otherConnections
+                && workflows == otherWorkflows && workflowSendData == otherWorkflowSendData
+                && invalidWorkflowSendData == otherInvalidWorkflowSendData;
+    }
 }
