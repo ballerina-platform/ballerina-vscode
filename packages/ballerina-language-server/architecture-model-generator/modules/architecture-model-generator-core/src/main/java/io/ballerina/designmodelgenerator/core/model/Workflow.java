@@ -295,7 +295,7 @@ public final class Workflow extends DesignGraphNode {
 
     /**
      * Represents a human task awaited inside a workflow function via {@code ctx->awaitHumanTask(...)}.
-     *
+     */
     public record HumanTask(String name, Location location, List<String> userRoles, String title) {
 
         public HumanTask(String name, Location location) {
@@ -306,7 +306,6 @@ public final class Workflow extends DesignGraphNode {
     public record ActivityDecl(String name, boolean requiresApproval, List<String> userRoles) {
     }
 
-     */
     public record PeerDecl(String name, String agentUuid, boolean requiresApproval, List<String> userRoles) {
     }
 
