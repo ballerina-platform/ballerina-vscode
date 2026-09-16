@@ -62,6 +62,10 @@ describe("getFileName", () => {
         expect(getFileName("main.bal")).toBe("main.bal");
     });
 
+    it("strips a backslash path too, matching MiniChat's describeTool", () => {
+        expect(getFileName("modules\\helpers\\types.bal")).toBe("types.bal");
+    });
+
     it("falls back to a placeholder when the path is missing", () => {
         expect(getFileName(undefined)).toBe("file");
     });

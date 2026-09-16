@@ -490,10 +490,12 @@ const PROTECTED_DELETE_FILES = ['Ballerina.toml', 'Dependencies.toml', 'Config.t
 const PROTECTED_DELETE_DIRS = ['generated'];
 
 function validateDeletable(file_path: string): ValidationResult {
-  const normalized = file_path.split(path.sep).join('/');
+  // Lowercased like the restricted-read check below: macOS and Windows resolve `ballerina.toml`
+  // to the real Ballerina.toml.
+  const normalized = file_path.replace(/\\/g, '/').toLowerCase();
   const baseName = normalized.split('/').pop() ?? '';
 
-  if (PROTECTED_DELETE_FILES.includes(baseName)) {
+  if (PROTECTED_DELETE_FILES.some(f => f.toLowerCase() === baseName)) {
     return {
       valid: false,
       error: `'${file_path}' is part of the package definition and cannot be deleted. `
@@ -503,7 +505,7 @@ function validateDeletable(file_path: string): ValidationResult {
 
   const segments = normalized.split('/').filter(Boolean);
   // Drops the file name, so only directory segments are matched.
-  if (segments.slice(0, -1).some(segment => PROTECTED_DELETE_DIRS.includes(segment))) {
+  if (segments.slice(0, -1).some(segment => PROTECTED_DELETE_DIRS.some(d => d.toLowerCase() === segment))) {
     return {
       valid: false,
       error: `'${file_path}' lives under a generated module and cannot be deleted. `
@@ -512,6 +514,36 @@ function validateDeletable(file_path: string): ValidationResult {
   }
 
   return { valid: true };
+}
+
+/** Shared so the containment check and the delete itself agree on the root. */
+function deleteRootFor(ctx: ExecutionContext | undefined, tempProjectPath: string): string {
+  return ctx ? (ctx.workspacePath || ctx.projectPath) : tempProjectPath;
+}
+
+/**
+ * validateFilePath rejects `..` lexically, which cannot see a symlinked directory resolving outside
+ * the project. Both sides are resolved, since the root is often itself a symlink (/tmp on macOS).
+ * The file's own link is not followed, so deleting a symlink removes the link, not its target.
+ */
+function validateContained(root: string, file_path: string): ValidationResult {
+  try {
+    const realRoot = fs.realpathSync(root);
+    const realParent = fs.realpathSync(path.dirname(path.join(root, file_path)));
+    const relative = path.relative(realRoot, realParent);
+    if (relative === '..' || relative.startsWith('..' + path.sep) || path.isAbsolute(relative)) {
+      return {
+        valid: false,
+        error: `'${file_path}' resolves outside the project and cannot be deleted.`
+      };
+    }
+    return { valid: true };
+  } catch (error) {
+    return {
+      valid: false,
+      error: `'${file_path}' could not be resolved for deletion: ${error instanceof Error ? error.message : String(error)}`
+    };
+  }
 }
 
 /**
@@ -542,7 +574,7 @@ async function persistLiveDelete(
     }
   }
 
-  const workspaceRoot = ctx.workspacePath || ctx.projectPath;
+  const workspaceRoot = deleteRootFor(ctx, tempProjectPath);
   const absolutePath = path.join(workspaceRoot, file_path);
   try {
     await addToIntegration(workspaceRoot, [{ filePath: file_path, content: '', deleted: true }]);
@@ -628,6 +660,18 @@ export function createDeleteExecute(
       const result = {
         success: false,
         message: `'${file_path}' is a directory. This tool deletes a single file — delete its files individually.`,
+        error: `Error: ${ErrorMessages.DELETE_NOT_PERMITTED}`
+      };
+      emitFileToolResult(eventHandler, FILE_DELETE_TOOL_NAME, result, file_path);
+      return result;
+    }
+
+    const containment = validateContained(deleteRootFor(ctx, tempProjectPath), file_path);
+    if (!containment.valid) {
+      console.error(`[FileDeleteTool] Path escapes the project: ${file_path}`);
+      const result = {
+        success: false,
+        message: containment.error!,
         error: `Error: ${ErrorMessages.DELETE_NOT_PERMITTED}`
       };
       emitFileToolResult(eventHandler, FILE_DELETE_TOOL_NAME, result, file_path);

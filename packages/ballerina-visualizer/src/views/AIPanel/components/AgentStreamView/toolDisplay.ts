@@ -111,7 +111,8 @@ export function isToolResultInProgress(result: { partial?: boolean } | undefined
 
 export function getFileName(filePath: string | undefined): string {
     if (!filePath) return "file";
-    const i = filePath.lastIndexOf("/");
+    // Both separators, matching describeTool in MiniChat: the tools echo the model's own path back.
+    const i = Math.max(filePath.lastIndexOf("/"), filePath.lastIndexOf("\\"));
     return i !== -1 ? filePath.substring(i + 1) : filePath;
 }
 

@@ -205,6 +205,46 @@ describe("file_delete", () => {
         expect(integrationCalls).toEqual([]);
     });
 
+    it.each([
+        ["ballerina.toml"],
+        ["BALLERINA.TOML"],
+        ["config.toml"],
+        ["dependencies.toml"],
+        ["Generated/fooApi/client.bal"],
+    ])("refuses %s, which macOS and Windows resolve to a protected file", async (relative) => {
+        write(relative);
+        const execute = createDeleteExecute(noopEvents, projectRoot, [], new Set(), ctx());
+
+        const result = await execute({ file_path: relative });
+
+        expect(result.success).toBe(false);
+        expect(fs.existsSync(path.join(projectRoot, relative))).toBe(true);
+        expect(integrationCalls).toEqual([]);
+    });
+
+    it("refuses a file reached through a symlinked directory that leaves the project", async () => {
+        const outside = fs.mkdtempSync(path.join(os.tmpdir(), "agent-file-tooling-outside-"));
+        fs.writeFileSync(path.join(outside, "victim.bal"), "// not ours\n", "utf8");
+        fs.symlinkSync(outside, path.join(projectRoot, "escape"));
+        const execute = createDeleteExecute(noopEvents, projectRoot, [], new Set(), ctx());
+
+        const result = await execute({ file_path: "escape/victim.bal" });
+
+        expect(result.success).toBe(false);
+        expect(fs.existsSync(path.join(outside, "victim.bal"))).toBe(true);
+        expect(integrationCalls).toEqual([]);
+        fs.rmSync(outside, { recursive: true, force: true });
+    });
+
+    it("still deletes through a symlinked project root", async () => {
+        write("scratch.bal");
+        const execute = createDeleteExecute(noopEvents, projectRoot, [], new Set(), ctx());
+
+        const result = await execute({ file_path: "scratch.bal" });
+
+        expect(result.success).toBe(true);
+    });
+
     it("refuses a path that escapes the project", async () => {
         const execute = createDeleteExecute(noopEvents, projectRoot, [], new Set(), ctx());
 

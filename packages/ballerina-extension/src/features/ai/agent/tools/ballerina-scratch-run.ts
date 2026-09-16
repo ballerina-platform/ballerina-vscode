@@ -22,7 +22,7 @@ import { tool } from 'ai';
 import { z } from 'zod';
 import { CopilotEventHandler } from '../../utils/events';
 import { extension } from '../../../../BalExtensionContext';
-import { spawnProcess, killProcessGroup } from './running-service-manager';
+import { spawnProcess, killProcessGroup, waitForExit } from './running-service-manager';
 import { BALLERINA_COMMANDS } from '../../../project/cmds/cmd-runner';
 import { resolvePackageBasePath } from './path-utils';
 import { DIAGNOSTICS_TOOL_NAME } from './diagnostics';
@@ -225,7 +225,10 @@ export async function executeScratchRun(
                 status: "timeout",
                 exitCode: -1,
                 output: run.output,
-                message: `The scratch run did not finish within ${timeout}ms. If the snippet waits on something slow, raise the timeout; otherwise it may be blocked.`,
+                message: `The scratch run did not finish within ${timeout}ms and was killed. The snippet may `
+                    + `have already run some or all of its side effects — check the output above and, if it `
+                    + `writes anything or calls a non-idempotent API, do not simply run it again. Tell the `
+                    + `user what it got as far as before retrying.`,
                 scratchFile,
             };
         }
@@ -286,6 +289,8 @@ async function runScratchTest(cwd: string, timeout: number): Promise<{ output: s
 
     if (!exited) {
         await killProcessGroup(proc, 'SIGTERM');
+        // The caller deletes this process's cwd next, so wait for it to actually be gone.
+        await waitForExit(proc);
         return { output: logs.join(''), exitCode: -1, timedOut: true };
     }
 
