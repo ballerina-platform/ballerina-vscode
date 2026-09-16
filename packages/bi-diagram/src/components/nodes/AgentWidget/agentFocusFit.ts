@@ -24,17 +24,14 @@ import { BaseAgentNodeModel } from "../BaseAgentNodeModel";
 export const AGENT_FOCUS_MIN_ZOOM = 25;
 export const AGENT_FOCUS_READABLE_ZOOM = 65;
 export const AGENT_FOCUS_FIT_PADDING = 5;
-export const AGENT_FOCUS_FIT_PADDING_Y = 32;
+export const AGENT_FOCUS_FIT_PADDING_Y = 80;
 export const AGENT_FOCUS_FIT_ANIMATION_MS = 300;
 const MIN_FITTABLE_CANVAS = 50;
 
 function isAgentFocusType(node: NodeModel): boolean {
     const type = node.getType();
-    return type === NodeTypes.AGENT_NODE || type === NodeTypes.AGENT_CALL_NODE || type === NodeTypes.TYPED_AGENT_NODE;
-}
-
-export function isSingleAgentFocusNode(nodes: NodeModel[]): boolean {
-    return nodes.length === 1 && isAgentFocusType(nodes[0]);
+    return type === NodeTypes.AGENT_NODE || type === NodeTypes.AGENT_CALL_NODE || type === NodeTypes.TYPED_AGENT_NODE
+        || type === NodeTypes.DURABLE_AGENT_RUN_NODE;
 }
 
 export function findAgentFocusNode(nodes: NodeModel[]): BaseAgentNodeModel | undefined {
@@ -48,7 +45,7 @@ export function positionAgentFocusNode(node: BaseAgentNodeModel): void {
 
 /** The horizontal span the node actually paints — the reserved box is wider and not symmetric. */
 function measureAgentNodeInkX(nodeElement: Element): { left: number; right: number } | null {
-    const row = nodeElement.querySelector("[data-testid='agent-node'],[data-testid='typed-agent-node']") ?? nodeElement;
+    const row = nodeElement.querySelector("[data-testid='agent-node'],[data-testid='typed-agent-node'],[data-testid='durable-agent-run-node']") ?? nodeElement;
     let left = Infinity;
     let right = -Infinity;
     for (const child of Array.from(row.children)) {
@@ -93,6 +90,7 @@ export interface AgentFocusFitInput {
     embedded: boolean;
 }
 
+// The upward bias of a centred node never lifts it into the top padding.
 export function fitAgentFocus(input: AgentFocusFitInput): AgentFocusFitTarget {
     const { canvasWidth, canvasHeight, contentWidth, contentHeight, contentLeft, contentTop, embedded } = input;
     const fitWidthPct = ((canvasWidth - AGENT_FOCUS_FIT_PADDING * 2) / contentWidth) * 100;
@@ -101,21 +99,40 @@ export function fitAgentFocus(input: AgentFocusFitInput): AgentFocusFitTarget {
     const targetZoomPct = Math.min(100, Math.max(AGENT_FOCUS_MIN_ZOOM, wanted));
     const zoom = targetZoomPct / 100;
     const targetOffsetX = canvasWidth / 2 - (contentLeft + contentWidth / 2) * zoom;
-    const overflows = contentHeight * zoom > canvasHeight - AGENT_FOCUS_FIT_PADDING_Y * 2;
     const verticalBias = embedded ? 0 : 40;
-    const targetOffsetY = overflows
-        ? AGENT_FOCUS_FIT_PADDING_Y - contentTop * zoom
-        : canvasHeight / 2 - verticalBias - (contentTop + contentHeight / 2) * zoom;
+    const fromTop = AGENT_FOCUS_FIT_PADDING_Y - contentTop * zoom;
+    const centred = canvasHeight / 2 - verticalBias - (contentTop + contentHeight / 2) * zoom;
+    const targetOffsetY = Math.max(centred, fromTop);
     return { targetZoomPct, targetOffsetX, targetOffsetY };
 }
 
-/** Fits the agent node's painted width into the canvas, capped at 100% zoom, and centers it. */
+/** The vertical span of every drawn node, so the Start pill above a durable box is fitted with it. */
+function measureNodesY(diagramEngine: DiagramEngine, nodes: NodeModel[]): { top: number; bottom: number } {
+    let top = Infinity;
+    let bottom = -Infinity;
+    nodes.forEach((node) => {
+        try {
+            const rect = diagramEngine.getNodeElement(node).getBoundingClientRect();
+            top = Math.min(top, rect.top);
+            bottom = Math.max(bottom, rect.bottom);
+        } catch {
+            // not in the DOM yet
+        }
+    });
+    return { top, bottom };
+}
+
+/** Fits the agent node's painted width and the drawing's height into the canvas, capped at 100% zoom, and centers it. */
 export function computeAgentFocusFit(
     canvas: HTMLElement,
     diagramEngine: DiagramEngine,
-    agentNode: BaseAgentNodeModel,
+    nodes: NodeModel[],
     embedded: boolean
 ): AgentFocusFitTarget | null {
+    const agentNode = findAgentFocusNode(nodes);
+    if (!agentNode) {
+        return null;
+    }
     let nodeElement: Element;
     try {
         nodeElement = diagramEngine.getNodeElement(agentNode);
@@ -126,8 +143,9 @@ export function computeAgentFocusFit(
     const model = diagramEngine.getModel();
     const currentZoom = model.getZoomLevel() / 100;
     const nodeRect = nodeElement.getBoundingClientRect();
-    const topLeft = diagramEngine.getRelativeMousePoint({ clientX: nodeRect.left, clientY: nodeRect.top });
-    const contentHeight = nodeRect.height / currentZoom;
+    const span = measureNodesY(diagramEngine, nodes);
+    const topLeft = diagramEngine.getRelativeMousePoint({ clientX: nodeRect.left, clientY: span.top });
+    const contentHeight = (span.bottom - span.top) / currentZoom;
 
     const ink = measureAgentNodeInkX(nodeElement);
     const contentWidth = (ink ? ink.right - ink.left : nodeRect.width) / currentZoom;

@@ -19,8 +19,10 @@
 package io.ballerina.designmodelgenerator.core.model;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -50,6 +52,15 @@ public final class Workflow extends DesignGraphNode {
     private final Set<String> connections;
     private final Set<String> invalidSendDataServices;
     private final Set<String> invalidSendDataFunctions;
+    // Durable-agent facts, null until declared so they stay off the wire for plain workflows.
+    private String role;
+    private List<ActivityDecl> activityDecls;
+    private List<String> tools;
+    private List<String> mcpToolKits;
+    private List<PeerDecl> peers;
+    private Set<String> delegatesTo;
+    private Set<String> toolConnections;
+    private Map<String, String> agentTools;
 
     public Workflow(String symbol, String sortText, Location location) {
         this(symbol, sortText, location, KIND_WORKFLOW);
@@ -152,6 +163,93 @@ public final class Workflow extends DesignGraphNode {
         this.activities.add(activityUuid);
     }
 
+    public String getRole() {
+        return role;
+    }
+
+    public void setRole(String role) {
+        this.role = role;
+    }
+
+    public List<ActivityDecl> getActivityDecls() {
+        return activityDecls;
+    }
+
+    public void addActivityDecl(ActivityDecl activityDecl) {
+        if (this.activityDecls == null) {
+            this.activityDecls = new ArrayList<>();
+        }
+        this.activityDecls.add(activityDecl);
+    }
+
+    public List<String> getTools() {
+        return tools;
+    }
+
+    public void addTool(String toolFunctionName) {
+        if (this.tools == null) {
+            this.tools = new ArrayList<>();
+        }
+        this.tools.add(toolFunctionName);
+    }
+
+    public List<String> getMcpToolKits() {
+        return mcpToolKits;
+    }
+
+    public void addMcpToolKit(String label) {
+        if (this.mcpToolKits == null) {
+            this.mcpToolKits = new ArrayList<>();
+        }
+        if (!this.mcpToolKits.contains(label)) {
+            this.mcpToolKits.add(label);
+        }
+    }
+
+    public List<PeerDecl> getPeers() {
+        return peers;
+    }
+
+    public void addPeer(PeerDecl peer) {
+        if (this.peers == null) {
+            this.peers = new ArrayList<>();
+        }
+        this.peers.add(peer);
+    }
+
+    public Set<String> getDelegatesTo() {
+        return delegatesTo;
+    }
+
+    public void addDelegatesTo(String agentUuid) {
+        if (this.delegatesTo == null) {
+            this.delegatesTo = new HashSet<>();
+        }
+        this.delegatesTo.add(agentUuid);
+    }
+
+    public Set<String> getToolConnections() {
+        return toolConnections;
+    }
+
+    public void addToolConnection(String connectionUuid) {
+        if (this.toolConnections == null) {
+            this.toolConnections = new HashSet<>();
+        }
+        this.toolConnections.add(connectionUuid);
+    }
+
+    public Map<String, String> getAgentTools() {
+        return agentTools;
+    }
+
+    public void addAgentTool(String toolFunctionName, String agentUuid) {
+        if (this.agentTools == null) {
+            this.agentTools = new HashMap<>();
+        }
+        this.agentTools.put(toolFunctionName, agentUuid);
+    }
+
     /**
      * Represents an external data event a workflow waits on: a {@code future<T>} field of the workflow function's
      * events record parameter. Senders are the automation/service functions calling {@code workflow:sendData} with
@@ -199,10 +297,37 @@ public final class Workflow extends DesignGraphNode {
     /**
      * Represents a human task awaited inside a workflow function via {@code ctx->awaitHumanTask(...)}.
      *
-     * @param name     name of the human task
-     * @param location location of the await call
+     * @param name      name of the human task
+     * @param location  location of the await call, or of a durable agent's task declaration
+     * @param userRoles roles a durable agent's declaration assigns, absent for awaited tasks
+     * @param title     the declared title, absent for awaited tasks
      */
-    public record HumanTask(String name, Location location) {
+    public record HumanTask(String name, Location location, List<String> userRoles, String title) {
+
+        public HumanTask(String name, Location location) {
+            this(name, location, null, null);
+        }
+    }
+
+    /**
+     * A declared activity: {@code activities: [fn, {activity: fn, requiresApproval: true, userRoles: "X"}]}.
+     *
+     * @param name             the activity function's name
+     * @param requiresApproval whether every call parks on a human review
+     * @param userRoles        the roles that may release a gated call, absent when none are declared
+     */
+    public record ActivityDecl(String name, boolean requiresApproval, List<String> userRoles) {
+    }
+
+    /**
+     * A declared peer agent: {@code peers: [{agent: other, name: "pay", requiresApproval: true, userRoles: "X"}]}.
+     *
+     * @param name             the peer's tool name
+     * @param agentUuid        the peer agent's overview uuid
+     * @param requiresApproval whether the hand-off parks on a human review
+     * @param userRoles        the roles that may release a gated hand-off, absent when none are declared
+     */
+    public record PeerDecl(String name, String agentUuid, boolean requiresApproval, List<String> userRoles) {
     }
 
     @Override

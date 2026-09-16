@@ -137,7 +137,10 @@ export function Diagram(props: DiagramProps) {
         embedded,
     } = props;
 
-    const agentUsageOptions = { canAddTrigger: Boolean(agentNode?.onAddTrigger) };
+    const agentUsageOptions = {
+        canAddTrigger: Boolean(agentNode?.onAddTrigger),
+        canAddEventTrigger: Boolean(agentNode?.onAddEventTrigger),
+    };
 
     const [showErrorFlow, setShowErrorFlow] = useState(false);
     const [nodeComments, setNodeComments] = useState<Map<string, FlowNode[]>>(new Map());

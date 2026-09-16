@@ -29,6 +29,7 @@ import {
     CDModel,
     CDResourceFunction,
     CDService,
+    CDWorkflow,
     FlowNode,
     IconDescriptor,
     NodePosition,
@@ -189,7 +190,7 @@ function parentAgentUsages(model: CDModel, uuid: string): AgentUsage[] {
         .filter((connection) => connection.kind === "Agent" && connection.delegatesTo?.includes(uuid))
         .map((parent) => ({
             label: parent.symbol,
-            serviceLabel: "uses as a tool",
+            serviceLabel: "used as a tool by",
             type: "agent",
             typeLabel: "Agent",
             documentUri: parent.location.filePath,
@@ -206,6 +207,67 @@ function agentCallSite(service: CDService, uuid: string, entryPoints: number): C
     return helpers.length === 1 ? helpers[0].location : undefined;
 }
 
+// What every row of one service shares, computed once per service.
+interface ServiceRows {
+    subLabel: string;
+    name: string;
+    isAgentChat: boolean;
+    isHttp: boolean;
+    tryIt?: AgentUsageTryIt;
+    scopedTrigger: (rowLabel: string, location: CDLocation) => AgentUsageTrigger | undefined;
+    serviceTrigger?: AgentUsageTrigger;
+}
+
+function serviceRows(model: CDModel, service: CDService, uuid: string, scope?: AgentTriggerDeletionScope): ServiceRows {
+    const trigger = scope ? triggerFor(model, service) : undefined;
+    const memberScoped = scope === "ENTRY_POINT" || scope === "ENTRY_POINT_BODY";
+    return {
+        subLabel: serviceSubLabel(service),
+        name: serviceName(service),
+        isAgentChat: modulePrefix(service.type) === "ai",
+        isHttp: modulePrefix(service.type) === "http",
+        tryIt: tryItFor(model, service),
+        scopedTrigger: (rowLabel, location) =>
+            memberScoped ? entryPointTrigger(service, trigger, uuid, scope, rowLabel, location) : trigger,
+        serviceTrigger: memberScoped ? undefined : trigger,
+    };
+}
+
+function resourceUsage(service: CDService, resource: CDResourceFunction, rows: ServiceRows): AgentUsage {
+    const rowLabel = rows.isAgentChat ? "Agent Chat" : resourceLabel(resource.accessor, resource.path);
+    return {
+        label: rowLabel,
+        serviceLabel: rows.subLabel,
+        serviceName: rows.name,
+        functionName: resourcePath(resource.path),
+        type: service.type,
+        typeLabel: serviceTypeLabel(service.type),
+        icon: iconUrl(service.icon),
+        documentUri: resource.location.filePath,
+        position: toPosition(resource.location),
+        trigger: rows.scopedTrigger(rowLabel, resource.location),
+        tryIt: rows.tryIt && rows.isHttp
+            ? { ...rows.tryIt, resource: { method: resource.accessor, path: resource.path } }
+            : rows.tryIt,
+    };
+}
+
+function remoteUsage(service: CDService, fn: CDFunction, rows: ServiceRows): AgentUsage {
+    return {
+        label: fn.name,
+        serviceLabel: rows.subLabel,
+        serviceName: rows.name,
+        functionName: fn.name,
+        type: service.type,
+        typeLabel: serviceTypeLabel(service.type),
+        icon: iconUrl(service.icon),
+        documentUri: fn.location.filePath,
+        position: toPosition(fn.location),
+        trigger: rows.scopedTrigger(fn.name, fn.location),
+        tryIt: rows.tryIt,
+    };
+}
+
 function usagesForService(
     model: CDModel,
     service: CDService,
@@ -214,54 +276,19 @@ function usagesForService(
     scope?: AgentTriggerDeletionScope
 ): AgentUsage[] {
     const label = serviceLabel(service);
-    const subLabel = serviceSubLabel(service);
-    const name = serviceName(service);
-    const isAgentChat = modulePrefix(service.type) === "ai";
-    const trigger = scope ? triggerFor(model, service) : undefined;
-    const memberScoped = scope === "ENTRY_POINT" || scope === "ENTRY_POINT_BODY";
-    const serviceTrigger = memberScoped ? undefined : trigger;
-    const scopedTrigger = (rowLabel: string, location: CDLocation) =>
-        memberScoped ? entryPointTrigger(service, trigger, uuid, scope, rowLabel, location) : trigger;
-    const tryIt = tryItFor(model, service);
-    const isHttp = modulePrefix(service.type) === "http";
+    const rows = serviceRows(model, service, uuid, scope);
+    const { name, tryIt, serviceTrigger } = rows;
     const usages: AgentUsage[] = [];
 
     for (const resource of service.resourceFunctions ?? []) {
         if (runsAgent(resource, uuid, delegated)) {
-            const rowLabel = isAgentChat ? "Agent Chat" : resourceLabel(resource.accessor, resource.path);
-            usages.push({
-                label: rowLabel,
-                serviceLabel: subLabel,
-                serviceName: name,
-                functionName: resourcePath(resource.path),
-                type: service.type,
-                typeLabel: serviceTypeLabel(service.type),
-                icon: iconUrl(service.icon),
-                documentUri: resource.location.filePath,
-                position: toPosition(resource.location),
-                trigger: scopedTrigger(rowLabel, resource.location),
-                tryIt: tryIt && isHttp
-                    ? { ...tryIt, resource: { method: resource.accessor, path: resource.path } }
-                    : tryIt,
-            });
+            usages.push(resourceUsage(service, resource, rows));
         }
     }
 
     for (const fn of service.remoteFunctions ?? []) {
         if (runsAgent(fn, uuid, delegated)) {
-            usages.push({
-                label: fn.name,
-                serviceLabel: subLabel,
-                serviceName: name,
-                functionName: fn.name,
-                type: service.type,
-                typeLabel: serviceTypeLabel(service.type),
-                icon: iconUrl(service.icon),
-                documentUri: fn.location.filePath,
-                position: toPosition(fn.location),
-                trigger: scopedTrigger(fn.name, fn.location),
-                tryIt,
-            });
+            usages.push(remoteUsage(service, fn, rows));
         }
     }
 
@@ -345,6 +372,74 @@ export function findAgentUsages(
     usages.push(...parentAgentUsages(model, uuid));
 
     return usages;
+}
+
+// --- Durable agents: the design model files them as workflows, run through `.run` and fed through `sendData`. ---
+
+type DurableCaller = { workflows?: string[]; workflowSendData?: Record<string, string[]> };
+
+function findDurableAgentWorkflow(model: CDModel, agent: AgentRef): CDWorkflow | undefined {
+    const workflows = (model.workflows ?? []).filter((workflow) => workflow.kind === "DURABLE_AGENT");
+    const byLocation = workflows.find(
+        (workflow) =>
+            samePath(workflow.location?.filePath ?? "", agent.filePath) && workflow.location?.startLine?.line === agent.startLine
+    );
+    return byLocation ?? (agent.symbol ? workflows.find((workflow) => workflow.symbol === agent.symbol) : undefined);
+}
+
+// A run row as any trigger's, then one row per channel the handler sends on, drawn beside that channel's circle; a
+// send has no trigger to delete or try.
+function durableRows(fn: DurableCaller, uuid: string, row: AgentUsage): AgentUsage[] {
+    const runs = fn.workflows?.includes(uuid) ? [row] : [];
+    const sends = (fn.workflowSendData?.[uuid] ?? []).map((channel): AgentUsage => ({ ...row, channel, trigger: undefined, tryIt: undefined }));
+    return [...runs, ...sends];
+}
+
+function durableUsagesForService(model: CDModel, service: CDService, uuid: string, scope?: AgentTriggerDeletionScope): AgentUsage[] {
+    const rows = serviceRows(model, service, uuid, scope);
+    return [
+        ...(service.resourceFunctions ?? []).flatMap((resource) => durableRows(resource, uuid, resourceUsage(service, resource, rows))),
+        ...(service.remoteFunctions ?? []).flatMap((fn) => durableRows(fn, uuid, remoteUsage(service, fn, rows))),
+    ];
+}
+
+function peerUsages(model: CDModel, uuid: string): AgentUsage[] {
+    return (model.workflows ?? [])
+        .filter((workflow) => workflow.kind === "DURABLE_AGENT" && (workflow.peers ?? []).some((peer) => peer.agentUuid === uuid))
+        .map((parent) => ({
+            label: parent.symbol,
+            serviceLabel: "used as a peer by",
+            type: "agent",
+            typeLabel: "Durable Agent",
+            documentUri: parent.location.filePath,
+            position: toPosition(parent.location),
+            parentAgent: true,
+        }));
+}
+
+export function findDurableAgentUsages(model: CDModel, agent: AgentRef, triggerScopes?: AgentTriggerScopes): AgentUsage[] {
+    const uuid = model && findDurableAgentWorkflow(model, agent)?.uuid;
+    if (!uuid) {
+        return [];
+    }
+    const touches = (fn: DurableCaller) => Boolean(fn.workflows?.includes(uuid) || fn.workflowSendData?.[uuid]?.length);
+    const services = (model.services ?? [])
+        .filter((service) => !isGeneratedChatService(service.location?.filePath))
+        .filter((service) => [...(service.resourceFunctions ?? []), ...(service.remoteFunctions ?? [])].some(touches));
+    const usages = groupByChannel(services).flatMap((service) =>
+        durableUsagesForService(model, service, uuid, triggerScopes?.get(modulePrefix(service.type))));
+
+    const automation = model.automation;
+    if (automation?.workflows?.includes(uuid)) {
+        usages.push({
+            label: automation.displayName || automation.name,
+            type: "automation",
+            typeLabel: "Automation",
+            documentUri: automation.location.filePath,
+            position: toPosition(automation.location),
+        });
+    }
+    return [...usages, ...peerUsages(model, uuid)];
 }
 
 export function findAgentToolTargets(model: CDModel, agent: AgentRef): Record<string, AgentToolTarget> {

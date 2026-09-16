@@ -16,7 +16,21 @@
  * under the License.
  */
 
-import { AGENT_FOCUS_FIT_PADDING, AGENT_FOCUS_FIT_PADDING_Y, AGENT_FOCUS_READABLE_ZOOM, fitAgentFocus } from "../components/nodes/AgentWidget/agentFocusFit";
+import { AGENT_FOCUS_FIT_PADDING, AGENT_FOCUS_FIT_PADDING_Y, AGENT_FOCUS_READABLE_ZOOM, findAgentFocusNode, fitAgentFocus } from "../components/nodes/AgentWidget/agentFocusFit";
+import { DurableAgentRunNodeModel } from "../components/nodes/DurableAgentRunNode/DurableAgentRunNodeModel";
+import { StartNodeModel } from "../components/nodes/StartNode/StartNodeModel";
+
+const flowNode = (id: string, kind: string) =>
+    ({ id, codedata: { node: kind }, viewState: { x: 0, y: 0, lw: 0, rw: 0, h: 0 }, metadata: { label: id, description: "", data: {} }, branches: [] }) as any;
+
+describe("findAgentFocusNode", () => {
+    it("picks the durable agent box out of the declaration canvas, beside its Start pill", () => {
+        const start = new StartNodeModel(flowNode("start", "EVENT_START"));
+        const box = new DurableAgentRunNodeModel(flowNode("box", "DURABLE_AGENT_RUN"));
+        expect(findAgentFocusNode([start, box])).toBe(box);
+        expect(findAgentFocusNode([start])).toBeUndefined();
+    });
+});
 
 const node = { contentWidth: 900, contentHeight: 1300, contentLeft: -450, contentTop: 0, embedded: true };
 
@@ -41,5 +55,13 @@ describe("fitAgentFocus", () => {
         const roomy = fitAgentFocus({ ...node, contentHeight: 300, canvasWidth: 1900, canvasHeight: 900 });
         expect(roomy.targetZoomPct).toBe(100);
         expect(roomy.targetOffsetY).toBeCloseTo(900 / 2 - 150);
+    });
+
+    it("keeps the top padding above a node the upward bias would otherwise lift into the header", () => {
+        const tall = fitAgentFocus({ ...node, embedded: false, contentHeight: 900 - 2 * AGENT_FOCUS_FIT_PADDING_Y, canvasWidth: 1900, canvasHeight: 900 });
+        expect(tall.targetZoomPct).toBe(100);
+        expect(tall.targetOffsetY).toBe(AGENT_FOCUS_FIT_PADDING_Y);
+        const short = fitAgentFocus({ ...node, embedded: false, contentHeight: 300, canvasWidth: 1900, canvasHeight: 900 });
+        expect(short.targetOffsetY).toBeCloseTo(900 / 2 - 40 - 150);
     });
 });

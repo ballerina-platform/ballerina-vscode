@@ -123,11 +123,50 @@ public class DesignModelGeneratorTest extends AbstractLSTest {
                             != expectedWorkflow.getAttachedFunctions().size()
                     || sizeOf(actualWorkflow.getHumanTasks()) != sizeOf(expectedWorkflow.getHumanTasks())
                     || sizeOf(actualWorkflow.getActivities()) != sizeOf(expectedWorkflow.getActivities())
-                    || !assertWorkflowEvents(actualWorkflow.getEvents(), expectedWorkflow.getEvents())) {
+                    || !assertWorkflowEvents(actualWorkflow.getEvents(), expectedWorkflow.getEvents())
+                    || !assertDurableAgentFacts(actualWorkflow, expectedWorkflow, actual, expected)) {
                 return false;
             }
         }
         return true;
+    }
+
+    // Uuids change per run, so a peer is compared by the symbol its uuid resolves to in the same list.
+    private boolean assertDurableAgentFacts(Workflow actual, Workflow expected,
+                                            List<Workflow> actualAll, List<Workflow> expectedAll) {
+        return Objects.equals(actual.getRole(), expected.getRole())
+                && Objects.equals(actual.getTools(), expected.getTools())
+                && Objects.equals(actual.getMcpToolKits(), expected.getMcpToolKits())
+                && Objects.equals(actual.getActivityDecls(), expected.getActivityDecls())
+                && Objects.equals(humanTaskRoles(actual), humanTaskRoles(expected))
+                && sizeOf(actual.getDelegatesTo()) == sizeOf(expected.getDelegatesTo())
+                && sizeOf(actual.getToolConnections()) == sizeOf(expected.getToolConnections())
+                && Objects.equals(agentToolNames(actual), agentToolNames(expected))
+                && Objects.equals(peerSummaries(actual, actualAll), peerSummaries(expected, expectedAll));
+    }
+
+    private static List<List<String>> humanTaskRoles(Workflow workflow) {
+        return workflow.getHumanTasks() == null ? List.of()
+                : workflow.getHumanTasks().stream().map(Workflow.HumanTask::userRoles).toList();
+    }
+
+    private static Set<String> agentToolNames(Workflow workflow) {
+        return workflow.getAgentTools() == null ? Set.of() : workflow.getAgentTools().keySet();
+    }
+
+    private static List<String> peerSummaries(Workflow workflow, List<Workflow> all) {
+        if (workflow.getPeers() == null) {
+            return null;
+        }
+        return workflow.getPeers().stream()
+                .map(peer -> peer.name() + "->" + symbolOf(all, peer.agentUuid()) + (peer.requiresApproval() ? "!" : "")
+                        + peer.userRoles())
+                .toList();
+    }
+
+    private static String symbolOf(List<Workflow> all, String uuid) {
+        return all.stream().filter(workflow -> uuid.equals(workflow.getUuid())).map(Workflow::getSymbol)
+                .findFirst().orElse("?");
     }
 
     private boolean assertWorkflowEvents(List<Workflow.Event> actual, List<Workflow.Event> expected) {

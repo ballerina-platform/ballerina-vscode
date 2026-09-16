@@ -35,7 +35,7 @@ import { VSCodeLink } from "@vscode/webview-ui-toolkit/react";
 import { Markdown } from "../../../components/Markdown";
 import { IOpenInConsoleCmdParams, WICommandIds } from "@wso2/wso2-platform-core";
 import { AlertBoxWithClose } from "../../AIPanel/AlertBoxWithClose";
-import { getIntegrationTypes, validateComponentName, useProjectContentRefresh } from "./utils";
+import { getIntegrationTypes, hasWorkflowArtifacts, validateComponentName, useProjectContentRefresh } from "./utils";
 import { usePlatformExtContext } from "../../../providers/platform-ext-ctx-provider";
 import { TopNavigationBar } from "../../../components/TopNavigationBar";
 import { TitleBar } from "../../../components/TitleBar";
@@ -894,6 +894,7 @@ export function PackageOverview(props: PackageOverviewProps) {
     const [workflowMgmtEnabled, setWorkflowMgmtEnabled] = useState(false);
     const [showAlert, setShowAlert] = React.useState(false);
     const [projectStructure, setProjectStructure] = useState<ProjectStructure>();
+    const hasWorkflows = hasWorkflowArtifacts(projectStructure);
     const [isInProject, setIsInProject] = useState(false);
     const [isLibrary, setIsLibrary] = useState<boolean>(false);
     const [isNPSupported, setIsNPSupported] = useState<boolean>(false);
@@ -1365,7 +1366,7 @@ export function PackageOverview(props: PackageOverviewProps) {
                                             </div>
                                         </>
                                     )}
-                                    {(projectStructure?.directoryMap?.[DIRECTORY_MAP.WORKFLOW]?.length ?? 0) > 0 && (
+                                    {hasWorkflows && (
                                         <>
                                             <Divider sx={{ margin: "16px 0" }} />
                                             <WorkflowManagement

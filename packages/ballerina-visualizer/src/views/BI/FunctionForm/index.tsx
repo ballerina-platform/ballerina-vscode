@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
 import { FunctionNode, LineRange, NodeKind, NodeProperties, NodePropertyKey, DIRECTORY_MAP, EVENT_TYPE, getPrimaryInputType, isTemplateType, RecordTypeField } from "@wso2/ballerina-core";
 import { Button, Codicon, Typography, View, ViewContent } from "@wso2/ui-toolkit";
 import styled from "@emotion/styled";
@@ -29,14 +29,15 @@ import { FormHeader } from "../../../components/FormHeader";
 import { convertConfig, getImportsForProperty, orderFormFields, DURABLE_AGENT_FORM_ORDER } from "../../../utils/bi";
 import { BodyText, LoadingContainer, TopBar } from "../../styles";
 import { LoadingRing } from "../../../components/Loader";
+import { useCreateNode } from "../../../components/ConnectionSelector/useCreateNode";
 
 // Default (auto-numbered) name offered by the Durable Agentic Workflow creation form.
 const DURABLE_AGENT_DEFAULT_NAME = "durableAgenticWorkflow";
 
-const FormContainer = styled.div`
+const FormContainer = styled.div<{ $fullWidth?: boolean }>`
     display: flex;
     flex-direction: column;
-    max-width: 600px;
+    max-width: ${(props: { $fullWidth?: boolean }) => props.$fullWidth ? "none" : "600px"};
     gap: 20px;
 `;
 
@@ -45,6 +46,33 @@ const Container = styled.div`
     flex-direction: "column";
     gap: 10;
 `;
+
+interface FunctionFormShellProps {
+    embedded?: boolean;
+    isPopup?: boolean;
+    projectPath: string;
+    title: string;
+    subtitle: string;
+    children: ReactNode;
+}
+
+// Inside another popup the form brings no page chrome; `View` alone would claim the full viewport height.
+function FunctionFormShell({ embedded, isPopup, projectPath, title, subtitle, children }: FunctionFormShellProps) {
+    if (embedded) {
+        return <>{children}</>;
+    }
+    return (
+        <View>
+            {!isPopup &&
+                <>
+                    <TopNavigationBar projectPath={projectPath} />
+                    <TitleBar title={title} subtitle={subtitle} />
+                </>
+            }
+            <ViewContent padding>{children}</ViewContent>
+        </View>
+    );
+}
 
 
 interface FunctionFormProps {
@@ -58,11 +86,12 @@ interface FunctionFormProps {
     isActivity?: boolean;
     isAutomation?: boolean;
     isPopup?: boolean;
+    embedded?: boolean;
 }
 
 export function FunctionForm(props: FunctionFormProps) {
     const { rpcClient } = useRpcContext();
-    const { projectPath, functionName, filePath, isDataMapper, isNpFunction, isWorkflow, isDurableAgent, isActivity, isAutomation, isPopup } = props;
+    const { projectPath, functionName, filePath, isDataMapper, isNpFunction, isWorkflow, isDurableAgent, isActivity, isAutomation, isPopup, embedded } = props;
 
     const [functionFields, setFunctionFields] = useState<FormField[]>([]);
     const [functionNode, setFunctionNode] = useState<FunctionNode>(undefined);
@@ -75,6 +104,7 @@ export function FunctionForm(props: FunctionFormProps) {
 
     const fileName = filePath.split(/[\\/]/).pop();
     const formType = useRef("Function");
+    const handleCreateNode = useCreateNode(filePath, targetLineRange);
     const isMountedRef = useRef(true);
     const functionNodeRef = useRef<FunctionNode>();
 
@@ -615,7 +645,7 @@ export function FunctionForm(props: FunctionFormProps) {
                 location: {
                     view: null,
                     recentIdentifier: functionName,
-                    artifactType: isDurableAgent ? DIRECTORY_MAP.DURABLE_AGENT : isWorkflow ? DIRECTORY_MAP.WORKFLOW : isActivity ? DIRECTORY_MAP.ACTIVITY : DIRECTORY_MAP.FUNCTION
+                    artifactType: isDurableAgent ? DIRECTORY_MAP.AGENT : isWorkflow ? DIRECTORY_MAP.WORKFLOW : isActivity ? DIRECTORY_MAP.ACTIVITY : DIRECTORY_MAP.FUNCTION
                 },
                 isPopup: true
             });
@@ -643,70 +673,66 @@ export function FunctionForm(props: FunctionFormProps) {
     });
 
     return (
-        <View>
-            {!isPopup &&
-                <>
-                    <TopNavigationBar projectPath={projectPath} />
-                    <TitleBar
-                        title={formType.current}
-                        subtitle={titleSubtitle}
-                    />
-                </>
-            }
-            <ViewContent padding>
-                <Container>
-                    {isPopup && (
-                        <>
-                            <TopBar>
-                                <Typography variant="h2">Create New {formType.current}</Typography>
-                                <Button appearance="icon" onClick={() => handleClosePopup()}>
-                                    <Codicon name="close" />
-                                </Button>
-                            </TopBar>
-                            <BodyText>
-                                {isDurableAgent
-                                    ? "Create a new durable workflow driven by an agentic model."
-                                    : (isWorkflow
-                                    ? "Create a new workflow process with a configurable input type."
-                                    : "Create a new function to define reusable logic.")}
-                            </BodyText>
-                        </>
-                    )}
-                    <FormHeader
-                        title={`${functionName ? 'Edit' : 'Create New'} ${formType.current}`}
-                        subtitle={formSubtitle}
-                    />
-                    {(isLoading || (saving && !functionName)) && (
-                        <LoadingContainer>
-                            <LoadingRing message={saving ? `Creating the ${formType.current.toLowerCase()}...` : undefined} />
-                        </LoadingContainer>
-                    )}
-                    {/* While a new artifact is being created the form is replaced by the loader:
-                        the source is already written, so keeping the form mounted lets the name
-                        field re-validate against the freshly created function and flash a
-                        misleading "name already used" error. */}
-                    <FormContainer>
-                        {filePath && targetLineRange && functionFields.length > 0 && !(saving && !functionName) &&
-                            <ArtifactForm
-                                fileName={filePath}
-                                nestedForm={true}
-                                targetLineRange={targetLineRange}
-                                fields={functionFields}
-                                recordTypeFields={recordTypeFields}
-                                isSaving={saving}
-                                onSubmit={handleFormSubmit}
-                                submitText={saving
-                                    ? (functionName ? "Saving..." : "Creating...")
-                                    : (functionName
-                                        ? "Save"
-                                        : (isDurableAgent ? "Create Agent" : "Create"))}
-                                selectedNode={functionNode?.codedata?.node}
-                                preserveFieldOrder={true}
-                            />
-                        }
-                    </FormContainer>
-                </Container>
-            </ViewContent>
-        </View>
+        <FunctionFormShell
+            embedded={embedded}
+            isPopup={isPopup}
+            projectPath={projectPath}
+            title={formType.current}
+            subtitle={titleSubtitle}
+        >
+            <Container>
+                {isPopup && (
+                    <>
+                        <TopBar>
+                            <Typography variant="h2">Create New {formType.current}</Typography>
+                            <Button appearance="icon" onClick={() => handleClosePopup()}>
+                                <Codicon name="close" />
+                            </Button>
+                        </TopBar>
+                        <BodyText>
+                            {isDurableAgent
+                                ? "Create a new durable workflow driven by an agentic model."
+                                : (isWorkflow
+                                ? "Create a new workflow process with a configurable input type."
+                                : "Create a new function to define reusable logic.")}
+                        </BodyText>
+                    </>
+                )}
+                <FormHeader
+                    title={embedded ? undefined : `${functionName ? 'Edit' : 'Create New'} ${formType.current}`}
+                    subtitle={formSubtitle}
+                />
+                {(isLoading || (saving && !functionName)) && (
+                    <LoadingContainer>
+                        <LoadingRing message={saving ? `Creating the ${formType.current.toLowerCase()}...` : undefined} />
+                    </LoadingContainer>
+                )}
+                {/* While a new artifact is being created the form is replaced by the loader:
+                    the source is already written, so keeping the form mounted lets the name
+                    field re-validate against the freshly created function and flash a
+                    misleading "name already used" error. */}
+                <FormContainer $fullWidth={embedded}>
+                    {filePath && targetLineRange && functionFields.length > 0 && !(saving && !functionName) &&
+                        <ArtifactForm
+                            fileName={filePath}
+                            nestedForm={true}
+                            targetLineRange={targetLineRange}
+                            fields={functionFields}
+                            recordTypeFields={recordTypeFields}
+                            isSaving={saving}
+                            onSubmit={handleFormSubmit}
+                            submitText={saving
+                                ? (functionName ? "Saving..." : "Creating...")
+                                : (functionName
+                                    ? "Save"
+                                    : (isDurableAgent ? "Create Agent" : "Create"))}
+                            selectedNode={functionNode?.codedata?.node}
+                            preserveFieldOrder={true}
+                            onCreateNode={handleCreateNode}
+                        />
+                    }
+                </FormContainer>
+            </Container>
+        </FunctionFormShell>
     );
 }

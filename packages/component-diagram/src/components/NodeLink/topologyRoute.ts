@@ -25,10 +25,12 @@ export interface Point {
 }
 
 const CORNER_RADIUS = 10;
+// Estimated card heights put ports a few px off; that close, the edge is drawn dead straight.
 const STRAIGHT_TOLERANCE = 8;
 
 export interface Route {
     points: Point[];
+    // The leg chips sit on: the last one into the target, or the first one out of the source when the route heads back.
     run: [Point, Point];
 }
 
@@ -36,25 +38,33 @@ function toPoint(main: number, cross: number, vertical: boolean): Point {
     return vertical ? { x: cross, y: main } : { x: main, y: cross };
 }
 
-export function route(source: Point, target: Point, via: Point[], bow: number, vertical: boolean): Route {
+// Flow axis to the bend, across, flow axis into the target; the bow moves only the leg into the target.
+// A layout that hands over several vias (a back edge wrapping around the cards, a long edge detouring) is
+// drawn through all of them; a wrap's chips label the leg leaving the source, since its last leg shares the
+// target's port with the forward arrivals.
+// A `lane` makes the edge step sideways to it first and drop from there, instead of dropping from its port.
+export function route(source: Point, target: Point, via: Point[], bow: number, vertical: boolean, lane?: number): Route {
     const main = (point: Point) => (vertical ? point.y : point.x);
     const cross = (point: Point) => (vertical ? point.x : point.y);
+    const depart = lane ?? cross(source);
+    const elbow = lane === undefined ? [] : [toPoint(main(source), lane, vertical)];
+    const leaving = elbow[0] ?? source;
     if (via.length >= 2) {
-        const first = toPoint(main(via[0]), cross(source), vertical);
+        const first = toPoint(main(via[0]), depart, vertical);
         const last = toPoint(main(via[via.length - 1]), cross(target) + bow, vertical);
         const finish = toPoint(main(target), cross(target) + bow, vertical);
-        const points = [source, first, ...via.slice(1, -1), last, finish];
-        return { points, run: main(target) < main(source) ? [source, first] : [last, finish] };
+        const points = [source, ...elbow, first, ...via.slice(1, -1), last, finish];
+        return { points, run: main(target) < main(source) ? [leaving, first] : [last, finish] };
     }
     const bend = via.length ? main(via[0]) : (main(source) + main(target)) / 2;
     const start = toPoint(main(source), cross(source), vertical);
-    if (Math.abs(cross(target) + bow - cross(source)) < STRAIGHT_TOLERANCE) {
-        const finish = toPoint(main(target), cross(source), vertical);
-        return { points: [start, finish], run: [toPoint(bend, cross(source), vertical), finish] };
+    if (Math.abs(cross(target) + bow - depart) < STRAIGHT_TOLERANCE) {
+        const finish = toPoint(main(target), depart, vertical);
+        return { points: [start, ...elbow, finish], run: [toPoint(bend, depart, vertical), finish] };
     }
     const finish = toPoint(main(target), cross(target) + bow, vertical);
     const runStart = toPoint(bend, cross(target) + bow, vertical);
-    return { points: [start, toPoint(bend, cross(source), vertical), runStart, finish], run: [runStart, finish] };
+    return { points: [start, ...elbow, toPoint(bend, depart, vertical), runStart, finish], run: [runStart, finish] };
 }
 
 function distance(a: Point, b: Point): number {
@@ -90,12 +100,13 @@ export function roundedPath(points: Point[]): string {
 }
 
 export interface LinkChips {
+    // A pill sits at the middle of the final run, staggered along a vertical run when edges are bowed apart.
     pillPoint: Point;
 }
 
 export function linkRoute(link: TopologyLinkModel): Route & LinkChips {
     const bow = link.bow * ARRIVAL_BOW_PX;
-    const drawn = route(link.getFirstPoint().getPosition(), link.getLastPoint().getPosition(), link.via, bow, link.vertical);
+    const drawn = route(link.getFirstPoint().getPosition(), link.getLastPoint().getPosition(), link.via, bow, link.vertical, link.lane);
     const mid = midpoint(drawn.run[0], drawn.run[1]);
     const pillPoint = link.vertical ? { x: mid.x, y: mid.y + bow } : mid;
     return { ...drawn, pillPoint };

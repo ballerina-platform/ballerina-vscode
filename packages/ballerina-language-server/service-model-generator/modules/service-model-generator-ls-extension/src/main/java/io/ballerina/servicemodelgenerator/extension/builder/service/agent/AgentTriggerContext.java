@@ -34,6 +34,7 @@ import java.util.Map;
  * @param listenerVarName the listener the service attaches to
  * @param agentVarName    the agent variable the trigger is wired to
  * @param agentOrgName    the agent's publishing org, deciding {@code .run} vs {@code ->run}
+ * @param agentKind       "durable" for a workflow:DurableAgent, which runs and chats through instances; else absent
  * @param formValues      the filled creation form, flattened to leaf key -> value
  * @param initForm        the filled creation form itself
  * @param triggerModel    the connector's schema
@@ -42,23 +43,83 @@ import java.util.Map;
  * @since 1.9.0
  */
 public record AgentTriggerContext(String emitAlias, String listenerVarName, String agentVarName,
-                                  String agentOrgName, Map<String, String> formValues,
+                                  String agentOrgName, String agentKind, Map<String, String> formValues,
                                   ServiceInitModel initForm, TriggerUISchemaModel triggerModel,
                                   List<String> auxiliaryTypes, Map<String, String> auxiliaryImports) {
 
+    public static final String DURABLE_KIND = "durable";
+    public static final String CHAT_CHANNEL_PROPERTY = "chatChannel";
+    public static final String DEFAULT_CHAT_CHANNEL = "chat";
+    public static final String EVENT_CHANNEL_PROPERTY = "eventChannel";
+    public static final String EVENT_RESPONSE_PROPERTY = "eventResponse";
     private static final String BALLERINA_ORG = "ballerina";
+    private static final String DURABLE_HELPERS_SLOT = "\n{{durableHelpers}}\n";
+
+    // A durable run starts an instance and returns its id; a chat turn is an event sent into that instance and
+    // awaited. One instance per session lives in the service for as long as the service does.
+    private static final String DURABLE_HELPERS = """
+                // In memory: a restart starts a new instance for a returning session while the old one keeps waiting.
+                private map<string> durableSessions = {};
+
+                function durableTurn(string sessionKey, string text) returns string|error {
+                    string instanceId = check self.instanceFor(sessionKey);
+                    string token = check {{agent}}.sendData(instanceId, "{{channel}}", text);
+                    return {{agent}}.waitForDataResult(instanceId, token);
+                }
+
+                function instanceFor(string sessionKey) returns string|error {
+                    lock {
+                        string? existing = self.durableSessions[sessionKey];
+                        if existing is string {
+                            return existing;
+                        }
+                        string id = check {{agent}}.run(string `session=${sessionKey}`);
+                        self.durableSessions[sessionKey] = id;
+                        return id;
+                    }
+                }
+            """;
 
     public AgentTriggerContext(String emitAlias, String listenerVarName, String agentVarName, String agentOrgName,
                                Map<String, String> formValues, ServiceInitModel initForm,
                                TriggerUISchemaModel triggerModel) {
-        this(emitAlias, listenerVarName, agentVarName, agentOrgName, formValues, initForm, triggerModel,
-                new ArrayList<>(), new LinkedHashMap<>());
+        this(emitAlias, listenerVarName, agentVarName, agentOrgName, null, formValues, initForm, triggerModel);
     }
 
+    public AgentTriggerContext(String emitAlias, String listenerVarName, String agentVarName, String agentOrgName,
+                               String agentKind, Map<String, String> formValues, ServiceInitModel initForm,
+                               TriggerUISchemaModel triggerModel) {
+        this(emitAlias, listenerVarName, agentVarName, agentOrgName, agentKind, formValues, initForm,
+                triggerModel, new ArrayList<>(), new LinkedHashMap<>());
+    }
+
+    public boolean isDurable() {
+        return DURABLE_KIND.equals(agentKind);
+    }
+
+    /** The trigger sends data on one of the durable agent's channels instead of running it. */
+    public boolean isEventTrigger() {
+        return isDurable() && !eventChannel().isEmpty();
+    }
+
+    public String eventChannel() {
+        return formValue(EVENT_CHANNEL_PROPERTY).strip();
+    }
+
+    /** The channel's response type; empty for a one-way channel, whose send has nothing to await. */
+    public String eventResponse() {
+        return formValue(EVENT_RESPONSE_PROPERTY).strip();
+    }
+
+    // A chat turn: the AI agent's run keyed by session, or the durable agent's turn on its session's instance.
     public String agentRun(String queryExpr, String sessionExpr) {
+        if (isDurable()) {
+            return "self.durableTurn(%s, %s)".formatted(sessionExpr, queryExpr);
+        }
         return "%s(%s, sessionId = %s)".formatted(runTarget(), queryExpr, sessionExpr);
     }
 
+    // A one-shot run; for a durable agent the result is the started instance's id.
     public String agentRun(String queryExpr) {
         return "%s(%s)".formatted(runTarget(), queryExpr);
     }
@@ -67,9 +128,25 @@ public record AgentTriggerContext(String emitAlias, String listenerVarName, Stri
         return agentVarName + (BALLERINA_ORG.equals(agentOrgName) ? "." : "->") + "run";
     }
 
+    private String chatChannel() {
+        String channel = formValue(CHAT_CHANNEL_PROPERTY).strip();
+        return channel.isEmpty() ? DEFAULT_CHAT_CHANNEL : channel;
+    }
+
+    // The members a durable chat service needs, or nothing: the template's slot line then disappears.
+    public String durableHelpers() {
+        if (!isDurable()) {
+            return "";
+        }
+        return DURABLE_HELPERS.replace("{{agent}}", agentVarName).replace("{{channel}}", chatChannel());
+    }
+
     /** Fills the placeholders every channel template shares. */
     public String fill(String template) {
-        return template.replace("{{alias}}", emitAlias).replace("{{listener}}", listenerVarName);
+        String helpers = durableHelpers();
+        return template.replace("{{alias}}", emitAlias)
+                .replace("{{listener}}", listenerVarName)
+                .replace(DURABLE_HELPERS_SLOT, helpers.isEmpty() ? "\n" : "\n" + helpers);
     }
 
     public String formValue(String key) {

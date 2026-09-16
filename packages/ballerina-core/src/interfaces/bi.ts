@@ -180,6 +180,8 @@ export type AgentUsage = {
     trigger?: AgentUsageTrigger;
     tryIt?: AgentUsageTryIt;
     parentAgent?: boolean;
+    // The channel a durable agent's caller sends on; only a send row has one, and it is drawn beside that channel.
+    channel?: string;
 };
 
 export type AgentUsageTryIt = {

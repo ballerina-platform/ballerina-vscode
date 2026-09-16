@@ -19,13 +19,14 @@
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import styled from "@emotion/styled";
-import { goToAgent, startAgentChat } from "../AIChatAgent/utils";
+import { goToAgent, startAddAgentTrigger, startAddDurableEventTrigger, startAgentChat } from "../AIChatAgent/utils";
 import { DIAGRAM_REFRESH_DEBOUNCE_MS } from "../diagramRefreshDebounce";
 import { MemoizedDiagram } from "@wso2/bi-diagram";
 import {
     BIAvailableNodesRequest,
     Flow,
     FlowNode,
+    ToolData,
     Branch,
     Category,
     AvailableNode,
@@ -69,6 +70,7 @@ import {
 } from "../../../utils/bi";
 import { findCurrentIntegrationCategory } from "../../../utils/function-category";
 import { useDraftNodeManager } from "./hooks/useDraftNodeManager";
+import { useDurableAgentUsages } from "./durableAgentUsages";
 import { NodePosition, STNode } from "@wso2/syntax-tree";
 import { View, ProgressIndicator, ThemeColors } from "@wso2/ui-toolkit";
 import { applyModifications, textToModifications } from "../../../utils/utils";
@@ -204,6 +206,11 @@ const mergePanelCategories = (prev: PanelCategory[] = [], next: PanelCategory[] 
     }
     return merged;
 };
+
+// The synthetic agent box (or its draft placeholder) the LS puts first in a durable agent's flow model.
+const isDurableAgentBoxNode = (node: FlowNode) =>
+    node.codedata?.node === "DURABLE_AGENT_RUN" &&
+    ((node.metadata?.data as { agentBox?: boolean })?.agentBox === true || node.metadata?.draft === true);
 
 export function BIFlowDiagram(props: BIFlowDiagramProps) {
     const { projectPath, breakpointState, syntaxTree, onUpdate, onReady, onSave, hideAgentConfiguration } = props;
@@ -3979,14 +3986,11 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         return handleOnEditNode(node);
     };
 
-    // Model select for the durable agent box: an object-model agent edits the model on the
-    // declaration through the box form; a legacy durable run node configures its own `model`
-    // property. AI agents fall through to the agent editor controller's handler.
+    // Model select for the durable agent box: the model-provider panel writes the box's hidden `model`
+    // property, which the LS renders into the declaration's config (or a legacy run node's own argument).
+    // AI agents fall through to the agent editor controller's handler.
     const handleOnEditDurableAgentModel = (agentCallNode: FlowNode) => {
         const superseded = beginPanelNav();
-        if (agentVarFromRunNode(agentCallNode)) {
-            return handleOnEditNode(agentCallNode);
-        }
         selectedNodeRef.current = agentCallNode;
         showEditForm.current = true;
         setSelectedNodeId(agentCallNode.id);
@@ -4150,19 +4154,22 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     // agent box (or its draft placeholder) at index 0 followed by the full control-flow
     // chain. While the configuration is hidden, render just [Start, agent box] — the
     // visitor links the pair with a non-editable edge.
-    const isDurableAgentBoxNode = (node: FlowNode) =>
-        node.codedata?.node === "DURABLE_AGENT_RUN" &&
-        ((node.metadata?.data as { agentBox?: boolean })?.agentBox === true || node.metadata?.draft === true);
     const agentOnlyView = !!hideAgentConfiguration && !!flowModel?.nodes?.some(isDurableAgentBoxNode);
-    const displayModel = agentOnlyView
-        ? {
-            ...flowModel,
-            nodes: [
-                ...flowModel.nodes.filter((node) => node.codedata?.node === "EVENT_START"),
-                ...flowModel.nodes.filter(isDurableAgentBoxNode),
-            ],
-        }
-        : flowModel;
+    const durableUsagesLoaded = useDurableAgentUsages(agentOnlyView, model, projectPath, setModel);
+    // Memoised on the model: a fresh object here would redraw the diagram on every panel open or close,
+    // remounting the box (its rail fades in again) and skipping the panel's own slide-in frame.
+    const displayModel = useMemo(
+        () => (agentOnlyView
+            ? {
+                ...flowModel,
+                nodes: [
+                    ...flowModel.nodes.filter((node) => node.codedata?.node === "EVENT_START"),
+                    ...flowModel.nodes.filter(isDurableAgentBoxNode),
+                ],
+            }
+            : flowModel),
+        [flowModel, agentOnlyView]
+    );
 
     // No RHS side panel in the agent-only view: node clicks (the Start pill) are inert;
     // the agent box hosts its own affordances. While a side panel is already open,
@@ -4216,6 +4223,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 onAddActivity: handleOnAddDurableActivity,
                 onAddHumanTask: handleOnAddDurableHumanTask,
                 onAddEvent: handleOnAddDurableEvent,
+                // The declaration canvas offers the durable box an Add Trigger tile, as the agent page does for an AI agent.
+                onAddTrigger: agentOnlyView ? (node: FlowNode) => startAddAgentTrigger(node, rpcClient) : agentEditor.diagramCallbacks.onAddTrigger,
+                onAddEventTrigger: agentOnlyView ? (node: FlowNode, event: ToolData) => startAddDurableEventTrigger(node, event, rpcClient) : undefined,
                 onEditCapability: handleOnEditDurableCapability,
                 onDeleteCapability: handleOnDeleteDurableCapability,
                 onConfigureAgent: handleOnConfigureAgentIdentifier,
@@ -4224,6 +4234,8 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 durableAgentReference: !agentOnlyView,
                 onGoToAgent: handleOnGoToDurableAgent,
             },
+            // The declaration canvas is a one-box page like the agent page: centre and fit the box on load.
+            isAgentFocusView: agentOnlyView,
             suggestions: {
                 fetching: fetchingAiSuggestions,
                 onAccept: onAcceptSuggestions,
@@ -4276,8 +4288,8 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                     <ProgressIndicator color={ThemeColors.PRIMARY} />
                 )}
                 <Container>
-                    {!model && <DiagramSkeleton />}
-                    {model && <MemoizedDiagram {...memoizedDiagramProps} />}
+                    {(!model || !durableUsagesLoaded) && <DiagramSkeleton />}
+                    {model && durableUsagesLoaded && <MemoizedDiagram {...memoizedDiagramProps} />}
                 </Container>
             </View>
 

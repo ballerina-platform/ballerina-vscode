@@ -20,7 +20,7 @@ import React from "react";
 import { prettyDOM, waitFor } from "@testing-library/dom";
 import { fireEvent, render, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import { CDConnection, CDModel, CDResourceFunction, CDService } from "@wso2/ballerina-core";
+import { CDConnection, CDModel, CDResourceFunction, CDService, CDWorkflow } from "@wso2/ballerina-core";
 import { AgentTopologyDiagram } from "../components/AgentTopologyDiagram";
 import { TopologyAgentArtifact, TopologyInput } from "../components/AgentTopologyDiagram/types";
 
@@ -103,6 +103,41 @@ function helpDeskInput(): TopologyInput {
             artifact("orderAgent", AGENTS_BAL, 13),
             artifact("shippingRatesAgent", AGENTS_BAL, 17),
         ],
+    };
+}
+
+// The durable_claims demo: one durable agent run by one resource and sent `chat` events by two others,
+// stopping for a MANAGER (task) and an ACCOUNTANT (gated activity).
+function durableClaimsInput(): TopologyInput {
+    const claimAgent: CDWorkflow = {
+        symbol: "claimAgent",
+        location: { filePath: AGENTS_BAL, ...range(3) },
+        kind: "DURABLE_AGENT",
+        attachedServices: [],
+        attachedFunctions: [],
+        uuid: "claim",
+        enableFlowModel: true,
+        sortText: `${AGENTS_BAL}3`,
+        role: "Smart Claim assistant",
+        events: [{ name: "chat", type: "string", attachedServices: [], attachedFunctions: [] }],
+        humanTasks: [{ name: "managerApproval", location: { filePath: AGENTS_BAL, ...range(8) }, userRoles: ["MANAGER"], title: "Manager sign-off" }],
+        activityDecls: [{ name: "fileClaim" }, { name: "validateClaim" }, { name: "notifyUser" }, { name: "executePayment", requiresApproval: true, userRoles: ["ACCOUNTANT"] }],
+        toolConnections: ["notif"],
+        connections: ["model"],
+    };
+    const notifications: CDConnection = { symbol: "notifications", location: { filePath: AGENTS_BAL, ...range(20) }, scope: "GLOBAL", kind: "Connection", uuid: "notif", enableFlowModel: true, sortText: `${AGENTS_BAL}20` };
+    const claimModel: CDConnection = { symbol: "claimModel", location: { filePath: AGENTS_BAL, ...range(1) }, scope: "GLOBAL", kind: "Model Provider", uuid: "model", enableFlowModel: true, sortText: `${AGENTS_BAL}1` };
+    const durableFn = (accessor: string, path: string, line: number, workflows: string[], sendData?: Record<string, string[]>): CDResourceFunction =>
+        ({ accessor, path, location: { filePath: SERVICES_BAL, ...range(line) }, connections: [], workflows, workflowSendData: sendData });
+    const agentService = service(SERVICES_BAL, 1, "http:Service", "/agent", [], [
+        durableFn("post", "conversations", 3, ["claim"]),
+        durableFn("post", "conversations/[string id]/messages", 6, [], { claim: ["chat"] }),
+        durableFn("post", "cases/[string caseId]/submit", 9, [], { claim: ["chat"] }),
+        durableFn("get", "conversations/[string id]/state", 12, []),
+    ]);
+    return {
+        model: { connections: [notifications, claimModel], listeners: [], services: [agentService], workflows: [claimAgent] },
+        agents: [{ name: "claimAgent", path: AGENTS_BAL, startLine: 3, moduleName: "workflow", isDefinition: false, kind: "durable" }],
     };
 }
 
@@ -201,41 +236,151 @@ describe("AgentTopologyDiagram - Snapshot Tests", () => {
     test("renders an empty package with no agents", async () => {
         await renderAndCheckSnapshot({ model: { connections: [], listeners: [], services: [] }, agents: [] }, "no-agents");
     }, 15000);
+
+    test("renders the durable claims shape: inlet, people line and a three-row legend", async () => {
+        await renderAndCheckSnapshot(durableClaimsInput(), "durable-claims-shape");
+        const view = within(render(<AgentTopologyDiagram input={durableClaimsInput()} onAgentSelect={jest.fn()} onTriggerSelect={jest.fn()} />).container);
+        expect(view.getByText("Durable Agent")).toBeInTheDocument();
+        // The channel is named once, on the inlet; the sending rows carry no badge.
+        expect(view.getAllByText("chat")).toHaveLength(1);
+        // Roles live in the popovers, not on the card.
+        expect(view.queryByText(/Manager|Accountant/)).toBeNull();
+        ["Runs the agent", "Sends an event", "Stops for a person"].forEach((label) => expect(view.getByText(label)).toBeInTheDocument());
+        expect(view.queryByText("Delegates to")).toBeNull();
+        expect(view.queryByText("Add Trigger")).toBeNull();
+    }, 15000);
+
+    test("opens a list per capability circle: the people circle names the human task, the events circle the channel", () => {
+        const view = within(render(<AgentTopologyDiagram input={durableClaimsInput()} onAgentSelect={jest.fn()} onTriggerSelect={jest.fn()} />).container);
+        // Counts on the line read activities 4, people 1, channels 1.
+        const [people, channels] = view.getAllByText("1").map((count) => count.parentElement);
+        fireEvent.mouseEnter(people);
+        expect(document.body).toHaveTextContent("Manager decidesmanagerApproval");
+        fireEvent.mouseLeave(people);
+        expect(document.body).not.toHaveTextContent("managerApproval");
+        fireEvent.mouseEnter(channels);
+        // The inlet and the popover row.
+        expect(within(document.body).getAllByText("chat")).toHaveLength(2);
+    }, 15000);
 });
 
-describe("AgentTopologyDiagram - Entry points", () => {
-    it("folds the triggers into a chip, pins a flow from the list and clears it from the chip or with Escape", () => {
-        const dom = render(<AgentTopologyDiagram input={helpDeskInput()} onAgentSelect={() => {}} onTriggerSelect={() => {}} />);
-        expect(dom.queryByRole("listbox")).toBeNull();
-        fireEvent.click(dom.getByRole("button", { name: /entry points/i }));
+describe("AgentTopologyDiagram - Find", () => {
+    const openFind = (dom: ReturnType<typeof render>) => fireEvent.click(dom.getByRole("button", { name: /find entry points and agents/i }));
+    const resultRows = (dom: ReturnType<typeof render>) => within(dom.getByRole("listbox", { name: "Results" })).getAllByRole("button", { pressed: false });
 
-        const rows = within(dom.getByRole("listbox", { name: "Entry points" })).getAllByRole("button", { pressed: false });
-        expect(rows.map((row) => row.textContent)).toEqual(["POST /helpDeskAgent Chat", "POST /quoteshttp:Service · /shipping-api"]);
+    it("folds into a chip, lists entry points then agents, pins a flow and clears it from the chip or with Escape", () => {
+        const dom = render(<AgentTopologyDiagram input={helpDeskInput()} onAgentSelect={() => {}} onTriggerSelect={() => {}} />);
+        expect(dom.queryByRole("dialog")).toBeNull();
+        openFind(dom);
+
+        const rows = resultRows(dom);
+        expect(rows).toHaveLength(7);
+        expect(rows.slice(0, 2).map((row) => row.textContent)).toEqual(["POST /helpDeskAgent Chat", "POST /quoteshttp:Service · /shipping-api"]);
+        expect(rows[2]).toHaveTextContent("supportSupervisorAgent");
+        expect(dom.getByText("Entry points").nextSibling).toHaveTextContent("2");
+        expect(dom.getByText("Agents").nextSibling).toHaveTextContent("5");
 
         fireEvent.click(rows[1]);
-        expect(dom.queryByRole("listbox")).toBeNull();
+        expect(dom.queryByRole("dialog")).toBeNull();
         expect(dom.getByRole("button", { name: "POST /quotes" })).toBeInTheDocument();
 
-        fireEvent.click(dom.getByRole("button", { name: "Clear the pinned flow" }));
-        expect(dom.getByRole("button", { name: /entry points/i })).toBeInTheDocument();
+        fireEvent.click(dom.getByRole("button", { name: "Clear the pin" }));
+        expect(dom.getByRole("button", { name: /find entry points and agents/i })).toHaveTextContent("Find");
 
-        fireEvent.click(dom.getByRole("button", { name: /entry points/i }));
-        fireEvent.click(within(dom.getByRole("listbox")).getAllByRole("button", { pressed: false })[0]);
+        openFind(dom);
+        fireEvent.click(resultRows(dom)[0]);
         fireEvent.keyDown(document, { key: "Escape" });
-        expect(dom.queryByRole("button", { name: "Clear the pinned flow" })).toBeNull();
+        expect(dom.queryByRole("button", { name: "Clear the pin" })).toBeNull();
     });
 
-    it("opens a flow from the row's shortcut and from the pinned chip, as the trigger square would", () => {
+    it("searches both groups, explains an attribute match, and narrows by kind", () => {
+        const dom = render(<AgentTopologyDiagram input={helpDeskInput()} onAgentSelect={() => {}} onTriggerSelect={() => {}} />);
+        openFind(dom);
+        const field = dom.getByRole("textbox", { name: "Search entry points and agents" });
+
+        fireEvent.change(field, { target: { value: "shipping" } });
+        expect(resultRows(dom).map((row) => row.textContent)).toEqual(["POST /quoteshttp:Service · /shipping-api", "shippingRatesAgentAI Agent"]);
+
+        fireEvent.change(field, { target: { value: "orderAgent" } });
+        expect(resultRows(dom).map((row) => row.textContent)).toEqual(["POST /quotesruns · orderAgent", "orderAgentAI Agent"]);
+
+        fireEvent.change(field, { target: { value: "zebra" } });
+        expect(dom.getByRole("listbox", { name: "Results" })).toHaveTextContent("Nothing matches “zebra”.");
+
+        fireEvent.change(field, { target: { value: "" } });
+        fireEvent.click(dom.getByRole("button", { name: /^Chat/ }));
+        expect(resultRows(dom).map((row) => row.textContent)).toEqual(["POST /helpDeskAgent Chat"]);
+    });
+
+    it("opens a flow or an agent from the row's shortcut and from the pinned chip", () => {
         const onTriggerSelect = jest.fn();
-        const dom = render(<AgentTopologyDiagram input={helpDeskInput()} onAgentSelect={() => {}} onTriggerSelect={onTriggerSelect} />);
-        fireEvent.click(dom.getByRole("button", { name: /entry points/i }));
+        const onAgentSelect = jest.fn();
+        const dom = render(<AgentTopologyDiagram input={helpDeskInput()} onAgentSelect={onAgentSelect} onTriggerSelect={onTriggerSelect} />);
+        openFind(dom);
         fireEvent.click(dom.getByRole("button", { name: "Open POST /quotes" }));
         expect(onTriggerSelect).toHaveBeenCalledWith({ filePath: SERVICES_BAL, position: { line: 3, offset: 0 }, endPosition: { line: 4, offset: 1 } });
-        expect(dom.getByRole("listbox")).toBeInTheDocument();
+        expect(dom.getByRole("dialog")).toBeInTheDocument();
 
-        fireEvent.click(within(dom.getByRole("listbox")).getAllByRole("button", { pressed: false })[1]);
+        fireEvent.click(dom.getByRole("button", { name: "Open billingAgent" }));
+        expect(onAgentSelect).toHaveBeenCalledWith(expect.objectContaining({ path: AGENTS_BAL, startLine: 5, name: "billingAgent" }));
+
+        fireEvent.click(resultRows(dom)[1]);
         fireEvent.click(dom.getByRole("button", { name: "Open POST /quotes" }));
         expect(onTriggerSelect).toHaveBeenCalledTimes(2);
     });
 
+    it("announces the pin in a banner, isolates from it, and leaves isolation with Escape while keeping the pin", () => {
+        const dom = render(<AgentTopologyDiagram input={helpDeskInput()} onAgentSelect={() => {}} onTriggerSelect={() => {}} />);
+        expect(dom.queryByRole("status")).toBeNull();
+        openFind(dom);
+        fireEvent.click(resultRows(dom)[1]);
+        expect(dom.getByRole("status")).toHaveTextContent("Pinned·POST /quotes");
+        expect(dom.getAllByText("billingAgent").length).toBeGreaterThan(0);
+
+        fireEvent.click(dom.getByRole("button", { name: "Isolate" }));
+        expect(dom.queryByText("billingAgent")).toBeNull();
+        expect(dom.getAllByText("shippingRatesAgent").length).toBeGreaterThan(0);
+        expect(dom.getByRole("status")).toHaveTextContent("Isolated view·POST /quotes");
+
+        fireEvent.click(dom.getByRole("button", { name: /Exit isolated view/ }));
+        expect(dom.getAllByText("billingAgent").length).toBeGreaterThan(0);
+        expect(dom.getByRole("status")).toHaveTextContent("Pinned");
+
+        fireEvent.click(dom.getByRole("button", { name: "Isolate" }));
+        fireEvent.keyDown(document, { key: "Escape" });
+        expect(dom.getAllByText("billingAgent").length).toBeGreaterThan(0);
+        expect(dom.getByRole("button", { name: "Clear the pin" })).toBeInTheDocument();
+
+        fireEvent.click(dom.getByRole("button", { name: "Unpin" }));
+        expect(dom.queryByRole("status")).toBeNull();
+    });
+
+    it("keeps the pin when the bare canvas is clicked and moves between results with the arrow keys", () => {
+        const dom = render(<AgentTopologyDiagram input={helpDeskInput()} onAgentSelect={() => {}} onTriggerSelect={() => {}} />);
+        openFind(dom);
+        const field = dom.getByRole("textbox", { name: "Search entry points and agents" });
+        fireEvent.keyDown(field, { key: "ArrowDown" });
+        const rows = resultRows(dom);
+        expect(document.activeElement).toBe(rows[0]);
+        fireEvent.keyDown(rows[0], { key: "ArrowDown" });
+        expect(document.activeElement).toBe(rows[1]);
+        fireEvent.keyDown(rows[1], { key: "ArrowUp" });
+        fireEvent.keyDown(rows[0], { key: "ArrowUp" });
+        expect(document.activeElement).toBe(field);
+
+        fireEvent.click(rows[1]);
+        fireEvent.click(dom.container.querySelector("[data-testid='diagram-canvas']") ?? dom.container.firstElementChild!);
+        expect(dom.getByRole("status")).toHaveTextContent("Pinned");
+    });
+
+    it("unfolds a card's idle rows from its footer and folds them back from 'Show fewer'", () => {
+        const dom = render(<AgentTopologyDiagram input={durableClaimsInput()} onAgentSelect={jest.fn()} onTriggerSelect={jest.fn()} />);
+        const idleRow = "/conversations/[string id]/state";
+        expect(dom.queryByText(idleRow)).toBeNull();
+        fireEvent.click(dom.getByText("Show 1 more"));
+        expect(dom.getByText(idleRow)).toBeInTheDocument();
+        fireEvent.click(dom.getByText("Show fewer"));
+        expect(dom.queryByText(idleRow)).toBeNull();
+        expect(dom.getByText("Show 1 more")).toBeInTheDocument();
+    });
 });

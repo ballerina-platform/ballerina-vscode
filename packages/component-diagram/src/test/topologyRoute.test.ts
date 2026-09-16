@@ -54,4 +54,17 @@ describe("route", () => {
         expect(drawn.run).toEqual([source, { x: 50, y: 760 }]);
     });
 
+    it("steps out to its lane before dropping when the edge leaves a row", () => {
+        const source = { x: 426, y: 74 };
+        const target = { x: 280, y: 300 };
+        const drawn = route(source, target, [{ x: 460, y: 168 }], 0, true, 460);
+        expect(drawn.points).toEqual([source, { x: 460, y: 74 }, { x: 460, y: 168 }, { x: 280, y: 168 }, target]);
+    });
+
+    it("drops straight down its lane when the lane lines up with the target", () => {
+        const source = { x: 426, y: 74 };
+        const target = { x: 460, y: 300 };
+        const drawn = route(source, target, [{ x: 460, y: 168 }], 0, true, 460);
+        expect(drawn.points).toEqual([source, { x: 460, y: 74 }, { x: 460, y: 300 }]);
+    });
 });

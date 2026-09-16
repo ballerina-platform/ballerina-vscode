@@ -33,6 +33,8 @@ export interface AgentNodeActions {
     onDeleteMemoryManager?: (node: FlowNode) => void;
     onChatWithAgent?: (node: FlowNode) => void;
     onAddTrigger?: (node: FlowNode) => void;
+    // Durable agent box: a trigger that sends data on one of its declared event channels.
+    onAddEventTrigger?: (node: FlowNode, event: ToolData) => void;
     onDeleteTrigger?: (usage: AgentUsage, node: FlowNode) => void;
     onTryTrigger?: (usage: AgentUsage, node: FlowNode) => void;
     onAddActivity?: (node: FlowNode) => void;

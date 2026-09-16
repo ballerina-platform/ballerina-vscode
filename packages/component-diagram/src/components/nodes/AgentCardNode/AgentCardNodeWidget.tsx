@@ -21,25 +21,35 @@ import styled from "@emotion/styled";
 import { css } from "@emotion/react";
 import { DiagramEngine, PortWidget } from "@projectstorm/react-diagrams-core";
 import { Icon, ThemeColors, getAIModuleIcon } from "@wso2/ui-toolkit";
-import { NodeIcon } from "@wso2/bi-diagram";
+import { DurableAgentIcon, NodeIcon } from "@wso2/bi-diagram";
 import { resolveBrandIconFromUrl } from "@wso2/ballerina-core";
-import { AgentCardNodeModel } from "./AgentCardNodeModel";
+import { AgentCardNodeModel, inletPortName } from "./AgentCardNodeModel";
 import {
     AGENT_CARD_MIN_HEIGHT,
     AGENT_CARD_WIDTH,
+    DURABLE_RUN_PORT_OFFSET,
+    ENTRY_ROW_HEIGHT,
+    EVENT_COLOR,
     FOCUS_FADE_MS,
+    INLET_VISIBLE_MAX,
     NODE_BG_HOVER_COLOR,
     NODE_BORDER_COLOR,
     NODE_BORDER_WIDTH,
+    WORKFLOW_ROW_CAP,
+    WORKFLOW_TASKS_GAP,
     NODE_HOVER_GLOW,
+    WARNING_COLOR,
 } from "../../../resources/constants";
 import { useTopologyContext } from "../../AgentTopologyDiagram/TopologyContext";
 import { CardPopover, PopoverRow } from "../../AgentTopologyDiagram/CardPopover";
 import { useOpenableNode } from "../../AgentTopologyDiagram/useOpenableNode";
-import { ToolChip, TopologyAgentNode, TopologyModelProvider, TopologyTool } from "../../AgentTopologyDiagram/types";
+import { inletCrossOffset, inletSlot } from "../../AgentTopologyDiagram/topologyLayout";
+import { inletFocusId } from "../../AgentTopologyDiagram/topologyFocus";
+import { roleLabel } from "../../AgentTopologyDiagram/roleLabel";
+import { ToolChip, TopologyAgentNode, TopologyChannel, TopologyModelProvider, TopologyRole, TopologyTool } from "../../AgentTopologyDiagram/types";
 
-const WARNING_COLOR = "var(--vscode-editorWarning-foreground, #cca700)";
 const CIRCLE_SIZE = 22;
+const INLET_HEIGHT = 16;
 const GLYPH_SIZE = 14;
 const RAIL_WIDTH = 56;
 const MAX_CONNECTION_CHIPS = 3;
@@ -50,18 +60,18 @@ const HIGH_CONTRAST_HOVER_OUTLINE = css`
     outline-offset: 2px;
 `;
 
-const Card = styled.div<{ hovered: boolean; orphan: boolean; receded: boolean; readonly?: boolean }>`
+const Card = styled.div<{ hovered: boolean; receded: boolean; readonly?: boolean; railless?: boolean }>`
     display: grid;
-    grid-template-columns: 1fr ${RAIL_WIDTH}px;
+    grid-template-columns: ${(props) => (props.railless ? "1fr" : `1fr ${RAIL_WIDTH}px`)};
     gap: 12px;
     width: ${AGENT_CARD_WIDTH}px;
     min-height: ${AGENT_CARD_MIN_HEIGHT}px;
     box-sizing: border-box;
-    padding: 14px 10px 12px 16px;
+    padding: ${(props) => (props.railless ? "14px 16px 12px" : "14px 10px 12px 16px")};
     border-radius: 10px;
     border-width: ${NODE_BORDER_WIDTH}px;
-    border-style: ${(props) => (props.orphan ? "dashed" : "solid")};
-    border-color: ${(props) => (props.hovered ? ThemeColors.HIGHLIGHT : props.orphan ? WARNING_COLOR : NODE_BORDER_COLOR)};
+    border-style: solid;
+    border-color: ${(props) => (props.hovered ? ThemeColors.HIGHLIGHT : NODE_BORDER_COLOR)};
     ${(props) => (props.hovered ? HIGH_CONTRAST_HOVER_OUTLINE : "")}
     background-color: ${(props) => (props.hovered ? NODE_BG_HOVER_COLOR : ThemeColors.SURFACE_DIM)};
     box-shadow: ${(props) => (props.hovered ? NODE_HOVER_GLOW : "none")};
@@ -152,6 +162,35 @@ const Connections = styled.div`
     margin-left: auto;
 `;
 
+// A plain workflow's human tasks read as rows, like a service's handlers, not a collapsed capability pill.
+const Tasks = styled.div`
+    display: flex;
+    flex-direction: column;
+    margin-top: ${WORKFLOW_TASKS_GAP}px;
+`;
+
+const TaskRow = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: ${ENTRY_ROW_HEIGHT}px;
+    min-width: 0;
+    border-top: 1px solid ${ThemeColors.OUTLINE_VARIANT};
+    font-family: "GilmerRegular";
+    font-size: 12px;
+    color: ${ThemeColors.ON_SURFACE_VARIANT};
+`;
+
+const TaskRowLabel = styled.span`
+    min-width: 0;
+    font-family: var(--vscode-editor-font-family, monospace);
+    font-size: 12.5px;
+    color: ${ThemeColors.ON_SURFACE};
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+`;
+
 const Circle = styled.span<{ dashed?: boolean }>`
     display: inline-flex;
     align-items: center;
@@ -205,6 +244,55 @@ const Chip = styled.span`
     }
 `;
 
+// A capability's count sits beside its circle; a gated activity wears an amber dot on the circle's corner.
+const Capability = styled.span`
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    position: relative;
+`;
+
+const GateDot = styled.span`
+    position: absolute;
+    left: ${CIRCLE_SIZE - 7}px;
+    top: ${CIRCLE_SIZE - 7}px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: ${WARNING_COLOR};
+    border: 1.5px solid ${ThemeColors.SURFACE_DIM};
+    box-sizing: content-box;
+`;
+
+// An inlet hangs off the card's border at the offset the layout routes its edge to, fully outside the card.
+const Inlet = styled.div<{ offset: number; vertical: boolean; dimmed: boolean }>`
+    position: absolute;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: ${INLET_HEIGHT}px;
+    box-sizing: border-box;
+    padding: 0 6px 0 5px;
+    border-radius: ${INLET_HEIGHT / 2}px;
+    border: 1px solid ${EVENT_COLOR};
+    background-color: ${ThemeColors.SURFACE};
+    color: ${EVENT_COLOR};
+    font-family: var(--vscode-editor-font-family, monospace);
+    font-size: 9.5px;
+    white-space: nowrap;
+    opacity: ${(props) => (props.dimmed ? 0.3 : 1)};
+    transition: opacity ${FOCUS_FADE_MS}ms ease;
+    ${(props) =>
+        props.vertical
+            ? `top: 0; left: ${props.offset}px; transform: translate(-50%, calc(-100% + 7px));`
+            : `left: 0; top: ${props.offset}px; transform: translate(calc(-100% + 7px), -50%);`}
+`;
+
+const InletPortWidget = styled(PortWidget)<{ vertical: boolean }>`
+    position: absolute;
+    ${(props) => (props.vertical ? "top: -6px; left: 50%; transform: translateX(-50%);" : "left: -6px; top: 50%; transform: translateY(-50%);")}
+`;
+
 const Rail = styled.div`
     display: grid;
     align-content: start;
@@ -243,10 +331,11 @@ const OrphanFooter = styled.div`
     }
 `;
 
-const LeftPortWidget = styled(PortWidget)`
+// A run arrives at the card's centre, or at a durable card's header, where the layout routes it.
+const LeftPortWidget = styled(PortWidget)<{ at?: string }>`
     position: absolute;
     left: -6px;
-    top: 50%;
+    top: ${(props) => props.at ?? "50%"};
     transform: translateY(-50%);
 `;
 
@@ -257,10 +346,10 @@ const RightPortWidget = styled(PortWidget)`
     transform: translateY(-50%);
 `;
 
-const TopPortWidget = styled(PortWidget)`
+const TopPortWidget = styled(PortWidget)<{ at?: string }>`
     position: absolute;
     top: -6px;
-    left: 50%;
+    left: ${(props) => props.at ?? "50%"};
     transform: translateX(-50%);
 `;
 
@@ -311,11 +400,36 @@ function toolGlyph(tool: TopologyTool): React.ReactNode {
     if (tool.kind === "agent") {
         return <NodeIcon type="AGENT" size={GLYPH_SIZE} color={ThemeColors.ON_SURFACE} />;
     }
+    if (tool.kind === "activity") {
+        return <NodeIcon type="ACTIVITY_CALL" size={GLYPH_SIZE} color={ThemeColors.ON_SURFACE} />;
+    }
     return tool.kind === "mcp" ? mcpGlyph() : <FunctionGlyph>ƒ</FunctionGlyph>;
 }
 
-function toolRows(tools: TopologyTool[]): PopoverRow[] {
-    const rows = tools.slice(0, MAX_POPOVER_TOOLS).map((tool) => ({ key: tool.name, glyph: <Circle>{toolGlyph(tool)}</Circle>, label: tool.name }));
+// Who the agent stops for, before the name it stops on: "Manager decides" a task, "Accountant releases" a gated call.
+function stopPrefix(people: TopologyRole[], name: string, verb: "decides" | "releases"): string | undefined {
+    const who = people.filter((person) => person[verb].includes(name)).map((person) => roleLabel(person.role));
+    return who.length ? `${who.join(", ")} ${verb}` : undefined;
+}
+
+const CARDINALITY_WORDS: Record<string, string> = { MULTI_EVENT: "re-arms after every answer", SINGLE_EVENT: "consumed once per run" };
+
+function channelRows(channel: TopologyChannel): PopoverRow[] {
+    const rows: PopoverRow[] = [{ key: "request", prefix: "Request", label: channel.request ?? "anydata" }];
+    if (channel.response) {
+        rows.push({ key: "response", prefix: "Response", label: channel.response });
+    }
+    if (channel.cardinality) {
+        rows.push({ key: "cardinality", label: CARDINALITY_WORDS[channel.cardinality] ?? channel.cardinality, muted: true });
+    }
+    const senders = channel.senders.map((sender) => ({ key: `sent-${sender}`, prefix: "Sent by", label: sender }));
+    return [...rows, ...(senders.length ? senders : [{ key: "no-sender", label: "No sender yet", muted: true }])];
+}
+
+function toolRows(tools: TopologyTool[], people: TopologyRole[] = []): PopoverRow[] {
+    const rows = tools
+        .slice(0, MAX_POPOVER_TOOLS)
+        .map((tool) => ({ key: tool.name, glyph: <Circle>{toolGlyph(tool)}</Circle>, prefix: stopPrefix(people, tool.name, "releases"), label: tool.name }));
     const rest = tools.length - rows.length;
     return rest > 0 ? [...rows, { key: "more", label: `+${rest} more`, muted: true }] : rows;
 }
@@ -368,6 +482,135 @@ interface AgentCardNodeWidgetProps {
 
 type ShowPopover = (rows: PopoverRow[]) => React.MouseEventHandler<HTMLElement>;
 
+interface CapabilityProps {
+    node: TopologyAgentNode;
+    show: ShowPopover;
+    hide: () => void;
+}
+
+type CapabilityGlyph = "ACTIVITY_CALL" | "HUMAN_TASK" | "WAIT_DATA" | "AGENT_RUN";
+
+function capabilityGlyph(type: CapabilityGlyph): React.ReactNode {
+    return <NodeIcon type={type} size={GLYPH_SIZE} color={ThemeColors.ON_SURFACE} />;
+}
+
+function namedRows(type: CapabilityGlyph, names: string[], prefix: (name: string) => string | undefined = () => undefined): PopoverRow[] {
+    return names.map((name, index) => ({ key: `${index}-${name}`, glyph: <Circle>{capabilityGlyph(type)}</Circle>, prefix: prefix(name), label: name }));
+}
+
+// What a durable agent can do, one circle per kind present with its count, as the durable box draws them.
+// Each circle opens its own list, naming who the agent stops for; the activities circle lists everything callable.
+function Capabilities({ node, show, hide }: CapabilityProps) {
+    const people = node.people;
+    const items: Array<{ key: string; count: number; glyph: CapabilityGlyph; rows: PopoverRow[]; gated?: boolean }> = [
+        { key: "activities", count: node.activities, glyph: "ACTIVITY_CALL", rows: toolRows(node.tools, people), gated: node.gatedActivities > 0 },
+        { key: "people", count: node.humanTasks.length, glyph: "HUMAN_TASK", rows: namedRows("HUMAN_TASK", node.humanTasks, (name) => stopPrefix(people, name, "decides")) },
+        { key: "channels", count: node.channels.length, glyph: "WAIT_DATA", rows: namedRows("WAIT_DATA", node.channels.map((channel) => channel.name)) },
+        { key: "peers", count: node.peers.length, glyph: "AGENT_RUN", rows: namedRows("AGENT_RUN", node.peers, (name) => stopPrefix(people, name, "releases")) },
+    ];
+    const present = items.filter((item) => item.count > 0);
+    return (
+        <Tools>
+            {present.map((item) => (
+                <Capability key={item.key} onMouseEnter={item.rows.length ? show(item.rows) : undefined} onMouseLeave={hide}>
+                    <Circle>{capabilityGlyph(item.glyph)}</Circle>
+                    {item.gated && <GateDot />}
+                    <Count>{item.count}</Count>
+                </Capability>
+            ))}
+            {present.length === 0 && <Count>No capabilities</Count>}
+        </Tools>
+    );
+}
+
+// The bottom line's left side: a plain workflow's own rows already say what it does, so it adds nothing here;
+// a durable agent keeps its capability pills, a plain agent its tool count.
+function ToolsSummary({ node, show, hide }: CapabilityProps) {
+    if (node.kind === "workflow") {
+        return null;
+    }
+    if (node.kind === "durable") {
+        return <Capabilities node={node} show={show} hide={hide} />;
+    }
+    return (
+        <Tools onMouseEnter={node.tools.length ? show(toolRows(node.tools)) : undefined} onMouseLeave={hide}>
+            <ToolKinds node={node} />
+            <Count>{toolLabel(node.toolCount)}</Count>
+        </Tools>
+    );
+}
+
+// A plain workflow's human tasks are its defining structure, not a secondary capability, so they read as
+// named rows (like a service's handlers) instead of collapsing into a single count pill.
+function WorkflowTasks({ node, show, hide }: CapabilityProps) {
+    const tasks = node.humanTasks;
+    const shown = tasks.slice(0, WORKFLOW_ROW_CAP);
+    const folded = tasks.slice(WORKFLOW_ROW_CAP);
+    return (
+        <Tasks>
+            {shown.map((name) => (
+                <TaskRow key={name}>
+                    <Circle>{capabilityGlyph("HUMAN_TASK")}</Circle>
+                    <TaskRowLabel>{name}</TaskRowLabel>
+                </TaskRow>
+            ))}
+            {folded.length > 0 && (
+                <TaskRow onMouseEnter={show(namedRows("HUMAN_TASK", folded))} onMouseLeave={hide}>
+                    <Circle>{capabilityGlyph("HUMAN_TASK")}</Circle>+{folded.length} more
+                </TaskRow>
+            )}
+        </Tasks>
+    );
+}
+
+interface InletsProps {
+    node: TopologyAgentNode;
+    model: AgentCardNodeModel;
+    engine: DiagramEngine;
+    vertical: boolean;
+    // Entering a pill: its popover, and the channel's senders lit; the folded pill names no one channel.
+    onInlet: (channel: string | undefined, rows: PopoverRow[]) => React.MouseEventHandler<HTMLElement>;
+    offInlet: () => void;
+}
+
+// One pill per channel up to the visible limit; the rest fold into a "+N" pill that carries their ports.
+function Inlets({ node, model, engine, vertical, onInlet, offInlet }: InletsProps) {
+    const { focus } = useTopologyContext();
+    const channels = node.channels;
+    // A pill dims when its card is lit but none of its channels' event edges are, as a row does for its handler.
+    const inletDimmed = (owned: TopologyChannel[]): boolean =>
+        focus !== undefined && focus.nodes.has(model.getID()) && !owned.some((channel) => focus.inlets.has(inletFocusId(model.getID(), channel.name)));
+    const shown = channels.slice(0, INLET_VISIBLE_MAX);
+    const folded = channels.slice(INLET_VISIBLE_MAX);
+    const port = (channel: TopologyChannel) => (
+        <InletPortWidget key={channel.name} port={model.getPort(inletPortName(channel.name))!} engine={engine} vertical={vertical} />
+    );
+    const at = (index: number) => inletCrossOffset(index, channels.length, vertical);
+    return (
+        <>
+            {shown.map((channel, index) => (
+                <Inlet key={channel.name} offset={at(index)} vertical={vertical} dimmed={inletDimmed([channel])} onMouseEnter={onInlet(channel.name, channelRows(channel))} onMouseLeave={offInlet}>
+                    {port(channel)}
+                    <NodeIcon type="WAIT_DATA" size={10} color={EVENT_COLOR} />
+                    {channel.name}
+                </Inlet>
+            ))}
+            {folded.length > 0 && (
+                <Inlet
+                    offset={at(inletSlot(INLET_VISIBLE_MAX))}
+                    vertical={vertical}
+                    dimmed={inletDimmed(folded)}
+                    onMouseEnter={onInlet(undefined, namedRows("WAIT_DATA", folded.map((channel) => channel.name)))}
+                    onMouseLeave={offInlet}
+                >
+                    {folded.map(port)}+{folded.length}
+                </Inlet>
+            )}
+        </>
+    );
+}
+
+// Model is always drawn: an agent cannot run without one. Memory is optional, so an absent one is not shown.
 function RailSlots({ node, show, hide }: { node: TopologyAgentNode; show: ShowPopover; hide: () => void }) {
     const modelRows: PopoverRow[] = node.modelProvider
         ? [{ key: "model", glyph: <Circle>{modelGlyph(node.modelProvider)}</Circle>, label: node.modelProvider.label }]
@@ -400,6 +643,21 @@ export function AgentCardNodeWidget(props: AgentCardNodeWidgetProps) {
     const show = (rows: PopoverRow[]) => (event: React.MouseEvent<HTMLElement>) =>
         setPopover({ anchor: event.currentTarget.getBoundingClientRect(), rows });
     const hide = () => setPopover(undefined);
+    // A plain workflow node shares a durable agent's inlets and run-port layout, just none of its fields.
+    const durable = node.kind !== "agent";
+    const isWorkflow = node.kind === "workflow";
+
+    // An inlet hangs outside the card, so hovering it must not read as hovering the card and every flow through it.
+    const onInlet = (channel: string | undefined, rows: PopoverRow[]) => (event: React.MouseEvent<HTMLElement>) => {
+        show(rows)(event);
+        setCardHovered(false);
+        setHovered?.(channel ? inletFocusId(model.getID(), channel) : undefined);
+    };
+    const offInlet = () => {
+        hide();
+        setCardHovered(!readonly);
+        setHovered?.(model.getID());
+    };
 
     const selection = () => ({
         path: node.filePath,
@@ -413,7 +671,7 @@ export function AgentCardNodeWidget(props: AgentCardNodeWidgetProps) {
         (onAddTrigger ?? onAgentSelect)(selection());
     };
 
-    const { hovered, handlers } = useOpenableNode(handleClick, {
+    const { hovered, setHovered: setCardHovered, handlers } = useOpenableNode(handleClick, {
         readonly,
         onHoverChange: (isHovered) => setHovered?.(isHovered ? model.getID() : undefined),
     });
@@ -424,42 +682,49 @@ export function AgentCardNodeWidget(props: AgentCardNodeWidgetProps) {
             orphan={node.orphan}
             receded={focus !== undefined && !focus.nodes.has(model.getID())}
             readonly={readonly}
+            railless={isWorkflow}
             {...handlers}
         >
-            <InPort port={model.getPort("in")!} engine={engine} />
+            <InPort port={model.getPort("in")!} engine={engine} at={durable ? `${DURABLE_RUN_PORT_OFFSET}px` : undefined} />
             <OutPort port={model.getPort("out")!} engine={engine} />
+            {durable && <Inlets node={node} model={model} engine={engine} vertical={vertical} onInlet={onInlet} offInlet={offInlet} />}
             <Body>
                 <HeaderRow>
-                    <NodeIcon type="AGENT" size={24} />
+                    {isWorkflow ? <NodeIcon type="WORKFLOW_RUN" size={24} /> : durable ? <DurableAgentIcon size={24} /> : <NodeIcon type="AGENT" size={24} />}
                     <HeaderText title={node.name}>
                         <Eyebrow>{node.typeName}</Eyebrow>
                         <Name>{node.name}</Name>
                     </HeaderText>
                 </HeaderRow>
+                {isWorkflow && <WorkflowTasks node={node} show={show} hide={hide} />}
                 <ToolsLine>
-                    <Tools onMouseEnter={node.tools.length ? show(toolRows(node.tools)) : undefined} onMouseLeave={hide}>
-                        <ToolKinds node={node} />
-                        <Count>{toolLabel(node.toolCount)}</Count>
-                    </Tools>
+                    <ToolsSummary node={node} show={show} hide={hide} />
                     <ConnectionChips chips={node.chips} onMouseEnter={show(connectionRows(node.chips))} onMouseLeave={hide} />
                 </ToolsLine>
                 {node.orphan && (
                     <OrphanFooter>
-                        No trigger yet ·{" "}
-                        <u
-                            role="button"
-                            tabIndex={readonly ? -1 : 0}
-                            onMouseDown={(event) => event.stopPropagation()}
-                            onMouseUp={(event) => event.stopPropagation()}
-                            onClick={readonly ? undefined : handleAddTrigger}
-                            onKeyDown={(event) => !readonly && (event.key === "Enter" || event.key === " ") && handleAddTrigger(event)}
-                        >
-                            Add Trigger
-                        </u>
+                        {isWorkflow ? (
+                            // No codegen exists yet for wiring a plain workflow function to a new caller.
+                            "No trigger yet"
+                        ) : (
+                            <>
+                                No trigger yet ·{" "}
+                                <u
+                                    role="button"
+                                    tabIndex={readonly ? -1 : 0}
+                                    onMouseDown={(event) => event.stopPropagation()}
+                                    onMouseUp={(event) => event.stopPropagation()}
+                                    onClick={readonly ? undefined : handleAddTrigger}
+                                    onKeyDown={(event) => !readonly && (event.key === "Enter" || event.key === " ") && handleAddTrigger(event)}
+                                >
+                                    Add Trigger
+                                </u>
+                            </>
+                        )}
                     </OrphanFooter>
                 )}
             </Body>
-            <RailSlots node={node} show={show} hide={hide} />
+            {!isWorkflow && <RailSlots node={node} show={show} hide={hide} />}
             {popover && <CardPopover rows={popover.rows} anchor={popover.anchor} zoom={engine.getModel().getZoomLevel() / 100} />}
         </Card>
     );

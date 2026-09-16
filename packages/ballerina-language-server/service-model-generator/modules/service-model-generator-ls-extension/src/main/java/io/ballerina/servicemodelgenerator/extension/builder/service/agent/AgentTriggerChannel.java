@@ -51,6 +51,11 @@ public interface AgentTriggerChannel {
         return Map.of();
     }
 
+    /** The channel's own fields for this request; by default the same whatever the agent or trigger. */
+    default Map<String, Value> additionalProperties(GetServiceInitModelContext context) {
+        return additionalProperties();
+    }
+
     default List<String> imports() {
         return List.of("ballerina/log");
     }

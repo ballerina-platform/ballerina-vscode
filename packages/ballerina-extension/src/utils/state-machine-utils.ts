@@ -542,25 +542,13 @@ function findViewByArtifact(
             case DIRECTORY_MAP.AUTOMATION:
             case DIRECTORY_MAP.FUNCTION:
             case DIRECTORY_MAP.WORKFLOW:
-            // A durable agentic workflow artifact opens as a BI diagram at the declaration's
-            // range, where the flow model renders the agent model canvas.
-            case DIRECTORY_MAP.DURABLE_AGENT:
             case DIRECTORY_MAP.ACTIVITY:
             case DIRECTORY_MAP.REMOTE:
-                return {
-                    location: {
-                        view: MACHINE_VIEW.BIDiagram,
-                        documentUri: currentDocumentUri,
-                        identifier: dir.name,
-                        position: dir.position,
-                        artifactType: dir.type,
-                        metadata: {
-                            enableSequenceDiagram: extension.ballerinaExtInstance.enableSequenceDiagramView(),
-                        }
-                    },
-                    dataMapperDepth: 0
-                };
+                return flowDiagramEntry(dir, currentDocumentUri);
             case DIRECTORY_MAP.AGENT:
+                if (dir.moduleName === "workflow") {
+                    return flowDiagramEntry(dir, currentDocumentUri);
+                }
                 return {
                     location: {
                         view: MACHINE_VIEW.BIDiagram,
@@ -645,6 +633,22 @@ function findViewByArtifact(
         }
     }
     return null;
+}
+
+function flowDiagramEntry(dir: ProjectStructureArtifactResponse, documentUri: string): HistoryEntry {
+    return {
+        location: {
+            view: MACHINE_VIEW.BIDiagram,
+            documentUri,
+            identifier: dir.name,
+            position: dir.position,
+            artifactType: dir.type as DIRECTORY_MAP,
+            metadata: {
+                enableSequenceDiagram: extension.ballerinaExtInstance.enableSequenceDiagramView(),
+            }
+        },
+        dataMapperDepth: 0
+    };
 }
 
 function isPositionWithinRange(position: NodePosition, artifactPosition: NodePosition) {

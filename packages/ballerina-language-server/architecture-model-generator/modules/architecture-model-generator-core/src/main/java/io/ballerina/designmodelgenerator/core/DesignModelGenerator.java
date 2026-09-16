@@ -29,6 +29,7 @@ import io.ballerina.compiler.api.symbols.RecordTypeSymbol;
 import io.ballerina.compiler.api.symbols.Symbol;
 import io.ballerina.compiler.api.symbols.TypeSymbol;
 import io.ballerina.compiler.api.symbols.VariableSymbol;
+import io.ballerina.compiler.syntax.tree.BasicLiteralNode;
 import io.ballerina.compiler.syntax.tree.ExpressionNode;
 import io.ballerina.compiler.syntax.tree.FunctionDefinitionNode;
 import io.ballerina.compiler.syntax.tree.ListConstructorExpressionNode;
@@ -67,10 +68,12 @@ import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Consumer;
 
 import static io.ballerina.modelgenerator.commons.CommonUtils.CONNECTOR_TYPE;
 import static io.ballerina.modelgenerator.commons.CommonUtils.PERSIST;
@@ -289,24 +292,53 @@ public class DesignModelGenerator {
             if (!ConnectionKind.AGENT.toString().equals(connection.getKind())) {
                 continue;
             }
-            for (String toolFunctionName : connection.getDependentFunctions()) {
-                IntermediateModel.FunctionModel tool = intermediateModel.functionModelMap.get(toolFunctionName);
-                if (tool == null) {
-                    continue;
+            for (String toolName : connection.getDependentFunctions()) {
+                IntermediateModel.FunctionModel tool = analyzedFunction(intermediateModel, toolName);
+                if (tool != null) {
+                    walkToolConnections(intermediateModel, tool, agentUuid -> {
+                        connection.addDelegatesTo(agentUuid);
+                        connection.addAgentTool(toolName, agentUuid);
+                    }, connection::addToolConnection);
                 }
-                if (!tool.analyzed) {
-                    buildConnectionAndWorkflowGraph(intermediateModel, tool, null);
-                }
-                classifyToolConnections(intermediateModel, connection, toolFunctionName, tool);
             }
         }
+        for (Workflow workflow : intermediateModel.workflowMap.values()) {
+            if (Workflow.KIND_DURABLE_AGENT.equals(workflow.getKind())) {
+                linkDurableAgentToolTargets(intermediateModel, workflow);
+            }
+        }
+    }
+
+    // Activities count as tools here: an activity's http client is a chip on the agent's card.
+    private void linkDurableAgentToolTargets(IntermediateModel intermediateModel, Workflow agent) {
+        List<String> toolNames = new ArrayList<>(agent.getTools() == null ? List.of() : agent.getTools());
+        if (agent.getActivityDecls() != null) {
+            agent.getActivityDecls().forEach(decl -> toolNames.add(decl.name()));
+        }
+        for (String toolName : toolNames) {
+            IntermediateModel.FunctionModel tool = analyzedFunction(intermediateModel, toolName);
+            if (tool != null) {
+                walkToolConnections(intermediateModel, tool, agentUuid -> {
+                    agent.addDelegatesTo(agentUuid);
+                    agent.addAgentTool(toolName, agentUuid);
+                }, agent::addToolConnection);
+            }
+        }
+    }
+
+    private IntermediateModel.FunctionModel analyzedFunction(IntermediateModel intermediateModel, String name) {
+        IntermediateModel.FunctionModel tool = intermediateModel.functionModelMap.get(name);
+        if (tool != null && !tool.analyzed) {
+            buildConnectionAndWorkflowGraph(intermediateModel, tool, null);
+        }
+        return tool;
     }
 
     // A tool's connections are the clients it uses itself; what a delegated agent uses (its memory, its
     // store, its own tools' clients) belongs on that agent's card, so the walk stops at agents. Hidden AI
     // objects (providers, memories) are not connections.
-    private void classifyToolConnections(IntermediateModel intermediateModel, Connection agent, String toolName,
-                                         IntermediateModel.FunctionModel tool) {
+    private void walkToolConnections(IntermediateModel intermediateModel, IntermediateModel.FunctionModel tool,
+                                     Consumer<String> onAgent, Consumer<String> onConnection) {
         Set<String> seen = new HashSet<>();
         Deque<String> pending = new ArrayDeque<>(tool.connections);
         while (!pending.isEmpty()) {
@@ -316,12 +348,11 @@ public class DesignModelGenerator {
                 continue;
             }
             if (ConnectionKind.AGENT.toString().equals(dependentConnection.getKind())) {
-                agent.addDelegatesTo(uuid);
-                agent.addAgentTool(toolName, uuid);
+                onAgent.accept(uuid);
                 continue;
             }
             if (dependentConnection.isFlowModelEnabled()) {
-                agent.addToolConnection(uuid);
+                onConnection.accept(uuid);
             }
             pending.addAll(dependentConnection.getDependentConnection());
         }
@@ -402,6 +433,7 @@ public class DesignModelGenerator {
     }
 
     private void populateModuleLevelWorkflows(IntermediateModel intermediateModel) {
+        Map<Workflow, LineRange> durableAgents = new LinkedHashMap<>();
         for (Symbol symbol : this.semanticModel.moduleSymbols()) {
             if (symbol.getName().isEmpty() || symbol.getLocation().isEmpty()) {
                 continue;
@@ -426,11 +458,13 @@ public class DesignModelGenerator {
                 String sortText = lineRange.fileName() + lineRange.startLine().line();
                 Workflow agent = new Workflow(symbol.getName().get(), sortText, getLocation(lineRange),
                         Workflow.KIND_DURABLE_AGENT);
-                populateAgentDeclaredCapabilities(intermediateModel, agent, lineRange);
+                durableAgents.put(agent, lineRange);
                 intermediateModel.workflowMap.put(symbol.getName().get(), agent);
                 intermediateModel.uuidToWorkflowMap.put(agent.getUuid(), agent);
             }
         }
+        // A peer names another agent, so every agent is registered before any declaration is read.
+        durableAgents.forEach((agent, range) -> populateAgentDeclaredCapabilities(intermediateModel, agent, range));
     }
 
     /**
@@ -489,77 +523,186 @@ public class DesignModelGenerator {
      */
     private void populateAgentDeclaredCapabilities(IntermediateModel intermediateModel, Workflow agent,
                                                    LineRange lineRange) {
+        // Shared with the edit paths so an explicit `new workflow:DurableAgent({...})` agent
+        // renders its capability circles too, not just the implicit-new shape.
+        Optional<MappingConstructorExpressionNode> configLiteral =
+                declarationAt(lineRange).flatMap(WorkflowUtil::agentConfigLiteral);
+        if (configLiteral.isEmpty()) {
+            return;
+        }
+        for (MappingFieldNode field : configLiteral.get().fields()) {
+            if (field instanceof SpecificFieldNode specificField && specificField.valueExpr().isPresent()) {
+                readAgentConfigField(intermediateModel, agent, specificField.fieldName().toSourceCode().trim(),
+                        specificField.valueExpr().get());
+            }
+        }
+    }
+
+    // The symbol's location is the variable-name token, so the declaration is matched by line containment.
+    private Optional<ModuleVariableDeclarationNode> declarationAt(LineRange lineRange) {
         ModulePartNode root = this.documentMap.get(lineRange.fileName());
         if (root == null) {
-            return;
+            return Optional.empty();
         }
+        int line = lineRange.startLine().line();
         for (ModuleMemberDeclarationNode member : root.members()) {
-            // The symbol's location is the variable-name token, so match by line containment.
-            if (!(member instanceof ModuleVariableDeclarationNode varDecl)
-                    || varDecl.lineRange().startLine().line() > lineRange.startLine().line()
-                    || varDecl.lineRange().endLine().line() < lineRange.startLine().line()
-                    || varDecl.initializer().isEmpty()) {
-                continue;
+            if (member instanceof ModuleVariableDeclarationNode varDecl
+                    && varDecl.lineRange().startLine().line() <= line
+                    && varDecl.lineRange().endLine().line() >= line) {
+                return Optional.of(varDecl);
             }
-            // Shared with the edit paths so an explicit `new workflow:DurableAgent({...})` agent
-            // renders its capability circles too, not just the implicit-new shape.
-            Optional<MappingConstructorExpressionNode> configLiteral = WorkflowUtil.agentConfigLiteral(varDecl);
-            if (configLiteral.isEmpty()) {
-                continue;
+        }
+        return Optional.empty();
+    }
+
+    private void readAgentConfigField(IntermediateModel intermediateModel, Workflow agent, String fieldName,
+                                      ExpressionNode valueExpr) {
+        switch (fieldName) {
+            case "systemPrompt" -> agent.setRole(roleFromSystemPrompt(valueExpr));
+            case "model" -> linkAgentModelProvider(intermediateModel, agent, valueExpr);
+            case "events" -> populateAgentEvents(agent, valueExpr);
+            case "humanTasks" -> populateAgentHumanTasks(agent, valueExpr);
+            case "activities" -> linkAgentActivities(intermediateModel, agent, valueExpr);
+            case "tools" -> populateAgentTools(agent, valueExpr);
+            case "peers" -> populateAgentPeers(intermediateModel, agent, valueExpr);
+            default -> {
             }
-            for (MappingFieldNode field : configLiteral.get().fields()) {
-                if (!(field instanceof SpecificFieldNode specificField)
-                        || specificField.valueExpr().isEmpty()) {
-                    continue;
-                }
-                String fieldName = specificField.fieldName().toSourceCode().trim();
-                ExpressionNode valueExpr = specificField.valueExpr().get();
-                // The model provider is a module-level client — link it so the overview draws
-                // the agent -> model-provider connection edge.
-                if ("model".equals(fieldName)) {
-                    linkAgentModelProvider(intermediateModel, agent, valueExpr);
-                    continue;
-                }
-                if (!(valueExpr instanceof ListConstructorExpressionNode list)) {
-                    continue;
-                }
-                switch (fieldName) {
-                    case "events" -> populateAgentEvents(agent, list);
-                    case "humanTasks" -> populateAgentHumanTasks(agent, list);
-                    case "activities" -> linkAgentActivities(intermediateModel, agent, list);
-                    default -> {
-                    }
-                }
-            }
+        }
+    }
+
+    private static String roleFromSystemPrompt(ExpressionNode systemPrompt) {
+        if (!(systemPrompt instanceof MappingConstructorExpressionNode prompt)) {
+            return null;
+        }
+        return stringLiteralValue(getMappingFieldExpr(prompt, "role"));
+    }
+
+    private void populateAgentEvents(Workflow agent, ExpressionNode events) {
+        for (DeclaredEntry entry : declaredEntries(events)) {
+            String requestType = entry.config() == null ? null : getMappingRawField(entry.config(), "request");
+            agent.addEvent(new Workflow.Event(entry.name(), requestType == null ? "anydata" : requestType));
+        }
+    }
+
+    private void populateAgentHumanTasks(Workflow agent, ExpressionNode tasks) {
+        for (DeclaredEntry entry : declaredEntries(tasks)) {
+            String title = entry.config() == null ? null : getMappingStringField(entry.config(), "title");
+            agent.addHumanTask(new Workflow.HumanTask(entry.name(), getLocation(entry.node().lineRange()),
+                    rolesOf(entry.config()), title));
+        }
+    }
+
+    private void populateAgentTools(Workflow agent, ExpressionNode tools) {
+        if (!(tools instanceof ListConstructorExpressionNode list)) {
             return;
         }
-    }
-
-    private void populateAgentEvents(Workflow agent,
-                                     ListConstructorExpressionNode events) {
-        for (Node item : events.expressions()) {
-            if (!(item instanceof MappingConstructorExpressionNode entry)) {
+        for (Node item : list.expressions()) {
+            if (isMcpToolKit(item)) {
+                agent.addMcpToolKit(ConnectionFinder.mcpToolKitLabel(item));
                 continue;
             }
-            String name = getMappingStringField(entry, "name");
-            String requestType = getMappingRawField(entry, "request");
-            if (name != null) {
-                agent.addEvent(new Workflow.Event(name, requestType == null ? "anydata" : requestType));
+            String toolName = item instanceof MappingConstructorExpressionNode config
+                    ? getMappingRawField(config, "tool") : referenceName(item);
+            if (toolName != null) {
+                agent.addTool(toolName);
             }
         }
     }
 
-    private void populateAgentHumanTasks(Workflow agent,
-                                         ListConstructorExpressionNode tasks) {
-        for (Node item : tasks.expressions()) {
-            if (!(item instanceof MappingConstructorExpressionNode entry)) {
+    private boolean isMcpToolKit(Node expr) {
+        return this.semanticModel.typeOf(expr).map(CommonUtils::isAiMcpToolKit).orElse(false);
+    }
+
+    private void populateAgentPeers(IntermediateModel intermediateModel, Workflow agent, ExpressionNode peers) {
+        if (!(peers instanceof ListConstructorExpressionNode list)) {
+            return;
+        }
+        for (Node item : list.expressions()) {
+            if (!(item instanceof MappingConstructorExpressionNode config)) {
                 continue;
             }
-            String name = getMappingStringField(entry, "name");
-            if (name != null) {
-                agent.addHumanTask(new Workflow.HumanTask(name, getLocation(item.lineRange())));
+            String targetName = getMappingRawField(config, "agent");
+            Workflow target = targetName == null ? null : intermediateModel.workflowMap.get(targetName);
+            if (target == null) {
+                continue;
+            }
+            agent.addPeer(new Workflow.PeerDecl(getMappingStringField(config, "name"), target.getUuid(),
+                    isGated(config), rolesOf(config)));
+            agent.addDelegatesTo(target.getUuid());
+        }
+    }
+
+    private record DeclaredEntry(String name, Node node, MappingConstructorExpressionNode config) {
+    }
+
+    // workflow 0.9 keys `events`/`humanTasks` by name; older code lists records carrying a `name`. Read both.
+    private static List<DeclaredEntry> declaredEntries(ExpressionNode value) {
+        if (value instanceof MappingConstructorExpressionNode keyed) {
+            return keyedEntries(keyed);
+        }
+        if (value instanceof ListConstructorExpressionNode list) {
+            return listedEntries(list);
+        }
+        return List.of();
+    }
+
+    private static List<DeclaredEntry> keyedEntries(MappingConstructorExpressionNode keyed) {
+        List<DeclaredEntry> entries = new ArrayList<>();
+        for (MappingFieldNode field : keyed.fields()) {
+            if (!(field instanceof SpecificFieldNode entry) || entry.valueExpr().isEmpty()) {
+                continue;
+            }
+            MappingConstructorExpressionNode config =
+                    entry.valueExpr().get() instanceof MappingConstructorExpressionNode mapping ? mapping : null;
+            entries.add(new DeclaredEntry(stripQuotes(entry.fieldName().toSourceCode().trim()), entry, config));
+        }
+        return entries;
+    }
+
+    private static List<DeclaredEntry> listedEntries(ListConstructorExpressionNode list) {
+        List<DeclaredEntry> entries = new ArrayList<>();
+        for (Node item : list.expressions()) {
+            if (item instanceof MappingConstructorExpressionNode config) {
+                String name = getMappingStringField(config, "name");
+                if (name != null) {
+                    entries.add(new DeclaredEntry(name, item, config));
+                }
             }
         }
+        return entries;
+    }
+
+    // `userRoles: "X"` or `userRoles: ["X", "Y"]`; a variable is recorded as absent.
+    private static List<String> rolesOf(MappingConstructorExpressionNode config) {
+        ExpressionNode value = config == null ? null : getMappingFieldExpr(config, "userRoles");
+        if (value == null) {
+            return null;
+        }
+        Iterable<? extends Node> items = value instanceof ListConstructorExpressionNode list
+                ? list.expressions() : List.of(value);
+        List<String> roles = new ArrayList<>();
+        for (Node item : items) {
+            String role = stringLiteralValue(item);
+            if (role != null) {
+                roles.add(role);
+            }
+        }
+        return roles.isEmpty() ? null : roles;
+    }
+
+    private static boolean isGated(MappingConstructorExpressionNode config) {
+        return config != null && "true".equals(getMappingRawField(config, "requiresApproval"));
+    }
+
+    private static String referenceName(Node item) {
+        return item.kind() == SyntaxKind.SIMPLE_NAME_REFERENCE ? item.toSourceCode().trim() : null;
+    }
+
+    private static String stringLiteralValue(Node node) {
+        if (node instanceof BasicLiteralNode literal && literal.kind() == SyntaxKind.STRING_LITERAL) {
+            return stripQuotes(literal.literalToken().text());
+        }
+        return null;
     }
 
     // The agent's `model: <var>` config field references a module-level model-provider client;
@@ -588,17 +731,18 @@ public class DesignModelGenerator {
     // Declared activity functions link the agent to the shared activities column, exactly like
     // ctx->callActivity does for workflow functions.
     private void linkAgentActivities(IntermediateModel intermediateModel, Workflow agent,
-                                     ListConstructorExpressionNode activities) {
-        for (Node item : activities.expressions()) {
-            String activityName = null;
-            if (item.kind() == SyntaxKind.SIMPLE_NAME_REFERENCE) {
-                activityName = item.toSourceCode().trim();
-            } else if (item instanceof MappingConstructorExpressionNode entry) {
-                activityName = getMappingRawField(entry, "activity");
-            }
+                                     ExpressionNode activities) {
+        if (!(activities instanceof ListConstructorExpressionNode list)) {
+            return;
+        }
+        for (Node item : list.expressions()) {
+            MappingConstructorExpressionNode config =
+                    item instanceof MappingConstructorExpressionNode mapping ? mapping : null;
+            String activityName = config == null ? referenceName(item) : getMappingRawField(config, "activity");
             if (activityName == null) {
                 continue;
             }
+            agent.addActivityDecl(new Workflow.ActivityDecl(activityName, isGated(config), rolesOf(config)));
             Activity activity = intermediateModel.activityMap.get(activityName);
             if (activity != null) {
                 agent.addActivity(activity.getUuid());
@@ -609,7 +753,10 @@ public class DesignModelGenerator {
 
     private static String getMappingStringField(
             MappingConstructorExpressionNode mapping, String fieldName) {
-        String raw = getMappingRawField(mapping, fieldName);
+        return stripQuotes(getMappingRawField(mapping, fieldName));
+    }
+
+    private static String stripQuotes(String raw) {
         if (raw != null && raw.length() >= 2 && raw.startsWith("\"") && raw.endsWith("\"")) {
             return raw.substring(1, raw.length() - 1);
         }
@@ -618,11 +765,16 @@ public class DesignModelGenerator {
 
     private static String getMappingRawField(
             MappingConstructorExpressionNode mapping, String fieldName) {
+        ExpressionNode value = getMappingFieldExpr(mapping, fieldName);
+        return value == null ? null : value.toSourceCode().trim();
+    }
+
+    private static ExpressionNode getMappingFieldExpr(MappingConstructorExpressionNode mapping, String fieldName) {
         for (MappingFieldNode field : mapping.fields()) {
             if (field instanceof SpecificFieldNode specificField
                     && fieldName.equals(specificField.fieldName().toSourceCode().trim())
                     && specificField.valueExpr().isPresent()) {
-                return specificField.valueExpr().get().toSourceCode().trim();
+                return specificField.valueExpr().get();
             }
         }
         return null;
@@ -662,7 +814,7 @@ public class DesignModelGenerator {
                         ConnectionKind kind = CommonUtils.getConnectionKind(objectTypeSymbol);
                         Connection connection = new Connection(variableSymbol.getName().get(), sortText,
                                 getLocation(lineRange), Connection.Scope.GLOBAL, icon, showConnection, kind);
-                        if (kind == ConnectionKind.AGENT) {
+                        if (kind == ConnectionKind.AGENT || kind == ConnectionKind.MODEL_PROVIDER) {
                             connection.setTypeName(CommonUtils.getTypeName(objectTypeSymbol));
                         }
                         if (persistClassSymbol != null) {

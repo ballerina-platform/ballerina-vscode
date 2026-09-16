@@ -22,10 +22,10 @@ import { Button, Icon, Switch, View, ThemeColors, Tooltip } from "@wso2/ui-toolk
 import { BIFlowDiagram } from "../FlowDiagram";
 import { BISequenceDiagram } from "../SequenceDiagram";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { useTracingStatus } from "../../../hooks/useProductMode";
+import { useProductMode, useTracingStatus } from "../../../hooks/useProductMode";
 import { TopNavigationBar } from "../../../components/TopNavigationBar";
 import { TitleBar } from "../../../components/TitleBar";
-import { CodeData, DIRECTORY_MAP, EVENT_TYPE, FOCUS_FLOW_DIAGRAM_VIEW, FocusFlowDiagramView, FunctionModel, isSamePath, LineRange, ParentMetadata, ProjectStructureArtifactResponse, Protocol, SHARED_COMMANDS } from "@wso2/ballerina-core";
+import { CodeData, DIRECTORY_MAP, EVENT_TYPE, FOCUS_FLOW_DIAGRAM_VIEW, FocusFlowDiagramView, FunctionModel, isSamePath, LineRange, ParentMetadata, ProductMode, ProjectStructureArtifactResponse, Protocol, SHARED_COMMANDS } from "@wso2/ballerina-core";
 import { VisualizerLocation, NodePosition } from "@wso2/ballerina-core";
 import { MACHINE_VIEW } from "@wso2/ballerina-core";
 import styled from "@emotion/styled";
@@ -144,6 +144,7 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
     const [servicePosition, setServicePosition] = useState<NodePosition>();
     const [isSaving, setIsSaving] = useState(false);
     const { isTracingEnabled, isToggling, toggleTracing } = useTracingStatus(rpcClient, projectPath);
+    const productMode = useProductMode();
     const [isNarrowViewport, setIsNarrowViewport] = useState(
         typeof window !== "undefined" && window.innerWidth < TRACING_LABEL_BREAKPOINT
     );
@@ -415,6 +416,8 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
     let isActivity = parentMetadata?.kind === "Activity";
     let isNPFunction = view === FOCUS_FLOW_DIAGRAM_VIEW.NP_FUNCTION;
     let isAgentFocus = view === FOCUS_FLOW_DIAGRAM_VIEW.AGENT || view === FOCUS_FLOW_DIAGRAM_VIEW.TYPED_AGENT;
+    // Agent Builder titles the durable page like the agent page; Integrator keeps the workflow title bar.
+    const isDurableAgentPage = isDurableAgent && productMode === ProductMode.AGENT_BUILDER;
 
     const handleResourceTryIt = async (methodValue: string, pathValue: string) => {
         if (serviceType !== "http") { return; }
@@ -546,6 +549,7 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
     // Calculate title based on conditions
     const getTitle = () => {
         if (isAgentFocus) return agentName || "AI Agent";
+        if (isDurableAgentPage) return parentMetadata?.label || "Durable Agent";
         if (isNPFunction) return "Natural Function";
         if (isAutomation) return "Automation";
         const workflowTitle = getWorkflowTitleFromSource();
@@ -605,7 +609,7 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
             );
         }
 
-        if (isAgentFocus) {
+        if (isAgentFocus || isDurableAgentPage) {
             return tracingButton;
         }
 
@@ -667,13 +671,11 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
             ) : (
                 <TitleBar
                     title={getTitle()}
-                    {...(isAgentFocus
-                        ? { subtitle: "AI Agent" }
-                        : { subtitleElement: getSubtitleElement })}
+                    {...titleBarSubtitleProps(isAgentFocus, isDurableAgentPage, getSubtitleElement)}
                     actions={loadingDiagram ? null : getActions()}
                 />
             )}
-            {enableSequenceDiagram && !isAgent && !isAgentFocus &&
+            {enableSequenceDiagram && !isAgent && !isAgentFocus && !isDurableAgentPage &&
                 (
                     !loadingDiagram ? (
                         <Switch
@@ -762,6 +764,16 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
 }
 
 export default DiagramWrapper;
+
+function titleBarSubtitleProps(isAgentFocus: boolean, isDurableAgentPage: boolean, subtitleElement: React.ReactNode) {
+    if (isAgentFocus) {
+        return { subtitle: "AI Agent" };
+    }
+    if (isDurableAgentPage) {
+        return { subtitle: "Durable Agent" };
+    }
+    return { subtitleElement };
+}
 
 export function getTitleBarSubEl(label: string, accessor: string, isResource: boolean, isAutomation: boolean): React.ReactNode {
     return (

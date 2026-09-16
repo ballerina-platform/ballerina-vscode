@@ -33,6 +33,7 @@ function toArtifact(agent: ProjectStructureArtifactResponse, isDefinition: boole
         startLine: agent.position?.startLine ?? 0,
         moduleName: agent.moduleName,
         isDefinition,
+        kind: agent.moduleName === "workflow" ? "durable" : undefined,
     };
 }
 

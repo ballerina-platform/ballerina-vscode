@@ -24,7 +24,7 @@ import { Button, Icon, Item, Menu, MenuItem } from "@wso2/ui-toolkit";
 import { SendDataNodeModel } from "./SendDataNodeModel";
 import { FlowNode } from "../../../utils/types";
 import { MoreVertIcon } from "../../../resources";
-import NodeIcon from "../../NodeIcon";
+import NodeIcon, { getNodeChartColor } from "../../NodeIcon";
 import { useDiagramContext } from "../../DiagramContext";
 import { DiagnosticsPopUp } from "../../DiagnosticsPopUp";
 import {
@@ -515,6 +515,7 @@ export function SendDataNodeWidget(props: SendDataNodeWidgetProps) {
                                 width: 24,
                                 height: 24,
                                 fontSize: 24,
+                                color: agentName ? getNodeChartColor("DURABLE_AGENT_RUN") : undefined,
                             }}
                         />
                     </div>

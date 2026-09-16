@@ -19,7 +19,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { DiagramEngine, NodeModel } from "@projectstorm/react-diagrams";
 import { BaseAgentNodeModel } from "../BaseAgentNodeModel";
-import { animateAgentFocusFit, computeAgentFocusFit, findAgentFocusNode, isSingleAgentFocusNode, positionAgentFocusNode } from "./agentFocusFit";
+import { animateAgentFocusFit, computeAgentFocusFit, findAgentFocusNode, positionAgentFocusNode } from "./agentFocusFit";
 
 /** Owns the agent-focus-view's center-and-fit behavior: initial placement, manual fit-to-screen, and resize. */
 export function useAgentFocusFit(diagramEngine: DiagramEngine, isAgentFocusView: boolean, embedded: boolean) {
@@ -34,13 +34,9 @@ export function useAgentFocusFit(diagramEngine: DiagramEngine, isAgentFocusView:
             if (!canvas) {
                 return false;
             }
-            const agentNode = findAgentFocusNode(diagramEngine.getModel().getNodes());
-            if (!agentNode) {
-                return false;
-            }
             cancelAnimationRef.current?.();
             cancelAnimationRef.current = undefined;
-            const target = computeAgentFocusFit(canvas, diagramEngine, agentNode, embedded);
+            const target = computeAgentFocusFit(canvas, diagramEngine, diagramEngine.getModel().getNodes(), embedded);
             if (!target) {
                 return false;
             }
@@ -99,11 +95,14 @@ export function useAgentFocusFit(diagramEngine: DiagramEngine, isAgentFocusView:
 
     const positionAndFit = useCallback(
         (nodes: NodeModel[]) => {
-            if (!isAgentFocusView || !isSingleAgentFocusNode(nodes)) {
+            const agentNode = findAgentFocusNode(nodes);
+            if (!isAgentFocusView || !agentNode) {
                 return;
             }
-            const agentNode = findAgentFocusNode(nodes);
-            positionAgentFocusNode(agentNode);
+            // A lone agent node goes on the axis; the durable box keeps the chain position it shares with its Start pill.
+            if (nodes.length === 1) {
+                positionAgentFocusNode(agentNode);
+            }
             const animate = hasFittedRef.current && document.hasFocus();
             hasFittedRef.current = true;
             requestAnimationFrame(() => requestAnimationFrame(() => {

@@ -210,6 +210,16 @@ interface AgentBuilderOverviewProps {
     projectPath: string;
 }
 
+// Triggers (services/automations/workflows) render as idle entry-point cards on the canvas even
+// without an agent, so their presence should skip the empty state too.
+function hasTriggerArtifacts(directoryMap: ProjectStructure["directoryMap"] | undefined): boolean {
+    return (
+        (directoryMap?.[DIRECTORY_MAP.SERVICE]?.length ?? 0) > 0 ||
+        (directoryMap?.[DIRECTORY_MAP.WORKFLOW]?.length ?? 0) > 0 ||
+        (directoryMap?.[DIRECTORY_MAP.AUTOMATION]?.length ?? 0) > 0
+    );
+}
+
 export function AgentBuilderOverview({ projectPath }: AgentBuilderOverviewProps) {
     const { rpcClient } = useRpcContext();
     const { platformExtState } = usePlatformExtContext();
@@ -220,7 +230,7 @@ export function AgentBuilderOverview({ projectPath }: AgentBuilderOverviewProps)
     const [deployAnchor, setDeployAnchor] = useState<HTMLElement | null>(null);
     const [canvasReady, setCanvasReady] = useState(false);
     // Only true once the empty state has actually been on screen, so opening a
-    // project that already has an agent never flashes it.
+    // project that already has an agent or trigger never flashes it.
     const [emptyMounted, setEmptyMounted] = useState(false);
     const compactHeader = useCompactHeader();
     const { isTracingEnabled, toggleTracing } = useTracingStatus(rpcClient, projectPath);
@@ -255,10 +265,11 @@ export function AgentBuilderOverview({ projectPath }: AgentBuilderOverviewProps)
         [projectStructure]
     );
     const hasAgents = agents.length > 0;
+    const hasContent = hasAgents || hasTriggerArtifacts(projectStructure?.directoryMap);
 
     const isLibrary = projectStructure?.isLibrary ?? false;
 
-    if (projectStructure && !hasAgents) {
+    if (projectStructure && !hasContent) {
         sawEmptyRef.current = true;
     }
     const canvasVisible = canvasReady || !sawEmptyRef.current;
@@ -274,7 +285,7 @@ export function AgentBuilderOverview({ projectPath }: AgentBuilderOverviewProps)
         if (!projectStructure) {
             return;
         }
-        if (!hasAgents) {
+        if (!hasContent) {
             clearTimeout(revealTimerRef.current);
             setCanvasReady(false);
             setEmptyMounted(true);
@@ -285,7 +296,7 @@ export function AgentBuilderOverview({ projectPath }: AgentBuilderOverviewProps)
         }
         const fallback = setTimeout(() => setCanvasReady(true), READY_FALLBACK_MS);
         return () => clearTimeout(fallback);
-    }, [projectStructure, hasAgents]);
+    }, [projectStructure, hasContent]);
 
     useEffect(() => {
         if (!canvasVisible) {
@@ -317,7 +328,10 @@ export function AgentBuilderOverview({ projectPath }: AgentBuilderOverviewProps)
         );
         if (match) {
             openAgent(rpcClient, match);
+            return;
         }
+        // Not an agent artifact: a plain @workflow:Workflow function's card, opened as plain source.
+        openTrigger(rpcClient, { filePath: agent.path, position: { line: agent.startLine, offset: 0 } });
     }, [agents, rpcClient]);
 
     const handleOpenTrigger = useCallback((trigger: TriggerSelection) => {
@@ -345,7 +359,13 @@ export function AgentBuilderOverview({ projectPath }: AgentBuilderOverviewProps)
         });
     }, [rpcClient]);
 
+    // The trigger generator calls a plain ai:Agent with `.` and a typed agent with `->`, keyed on the agent's org;
+    // a durable agent (published by ballerina/workflow) is run and chatted with through its instances.
     const handleAddTriggerFromCanvas = useCallback(async (agent: AgentSelection) => {
+        if (agent.moduleName === "workflow") {
+            openAddAgentTrigger(rpcClient, agent.name, "ballerina", "durable");
+            return;
+        }
         const isPlainAgent = !agent.moduleName || agent.moduleName === "ai";
         const toml = isPlainAgent ? undefined : await rpcClient.getCommonRpcClient().getCurrentProjectTomlValues();
         openAddAgentTrigger(rpcClient, agent.name, isPlainAgent ? "ballerina" : toml?.package?.org);
@@ -498,7 +518,7 @@ export function AgentBuilderOverview({ projectPath }: AgentBuilderOverviewProps)
                 <MainContent>
                     <Panel bordered={canvasVisible}>
                         <Stage>
-                            {hasAgents && (
+                            {hasContent && (
                                 <Layer $show={canvasVisible}>
                                     <Strip>
                                         <BreadcrumbLabel>{OVERVIEW_TITLE}</BreadcrumbLabel>
@@ -530,7 +550,7 @@ export function AgentBuilderOverview({ projectPath }: AgentBuilderOverviewProps)
                                     </CanvasSlot>
                                 </Layer>
                             )}
-                            {(!hasAgents || emptyMounted) && (
+                            {(!hasContent || emptyMounted) && (
                                 <Layer $show={!canvasVisible}>
                                     <EmptyState
                                         isLibrary={isLibrary}
