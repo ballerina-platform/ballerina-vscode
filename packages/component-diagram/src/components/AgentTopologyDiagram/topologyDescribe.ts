@@ -17,7 +17,7 @@
  */
 
 import { CDAgentCall, CDFunction, CDModel, CDResourceFunction, CDService } from "@wso2/ballerina-core";
-import { LayoutOptions, NodePosition, TopologyAgentNode, TopologyGraph, TopologyLayout } from "./types";
+import { LayoutOptions, NodePosition, TopologyAgentNode, TopologyGraph, TopologyHandler, TopologyLayout } from "./types";
 
 function at(position: NodePosition | undefined): string {
     return position ? `@${Math.round(position.x)},${Math.round(position.y)}` : "@?";
@@ -36,6 +36,21 @@ function toolKinds(agent: TopologyAgentNode): string {
     return kinds.length ? ` (${kinds.join(", ")})` : "";
 }
 
+function durableFacts(agent: TopologyAgentNode): string[] {
+    if (agent.kind === "agent") {
+        return [];
+    }
+    const channels = `channels ${agent.channels.length ? agent.channels.map((channel) => channel.name).join(",") : "-"}`;
+    if (agent.kind === "workflow") {
+        return ["workflow", channels];
+    }
+    return [
+        "durable",
+        channels,
+        `people ${agent.people.length ? agent.people.map((person) => `${person.role}${person.gate ? "!" : ""}`).join(",") : "-"}`,
+    ];
+}
+
 function agentLines(graph: TopologyGraph, layout: TopologyLayout, id: (nodeId: string) => string, vertical: boolean): string[] {
     const lanes = lanesAlongFlow(Object.values(layout.agentPositions), vertical);
     return graph.agents.map((agent) => {
@@ -49,10 +64,18 @@ function agentLines(graph: TopologyGraph, layout: TopologyLayout, id: (nodeId: s
             `chips ${agent.chips.length ? agent.chips.map((chip) => chip.label).join(",") : "-"}`,
             `model ${agent.modelProvider ? agent.modelProvider.label : "-"}`,
             `memory ${agent.memory ? agent.memory.label : "-"}`,
+            ...durableFacts(agent),
             agent.orphan ? "ORPHAN" : "",
         ].filter(Boolean);
         return `  ${pad(id(agent.id), 4)} ${pad(agent.name, 34)} ${agent.typeName.padEnd(12)} ${facts.join("  ")}`;
     });
+}
+
+function rowShape(handler: TopologyHandler): string {
+    if (!handler.wired) {
+        return "idle";
+    }
+    return handler.ordered ? "chain" : "fan";
 }
 
 function entryLines(graph: TopologyGraph, layout: TopologyLayout, id: (nodeId: string) => string): string[] {
@@ -62,9 +85,8 @@ function entryLines(graph: TopologyGraph, layout: TopologyLayout, id: (nodeId: s
         const folded = entry.handlers.length - rows;
         const head = `  ${pad(id(entry.id), 4)} ${pad(entry.title, 26)} ${pad(entry.subtitle, 22)} ${entry.handlers.length} row(s)${folded > 0 ? ` (+${folded} folded)` : ""}  ${at(layout.entryPositions[entry.id])}  ${file}:${entry.position.line + 1}`;
         const rowLines = entry.handlers.map((handler) => {
-            const shape = handler.ordered ? "chain" : "fan";
             const logic = handler.logic.length ? ` logic ${handler.logic.join(",")}` : "";
-            return `       ${pad(id(handler.id), 4)} ${pad([handler.accessor, handler.label].filter(Boolean).join(" "), 26)} ${shape}${logic}`;
+            return `       ${pad(id(handler.id), 4)} ${pad([handler.accessor, handler.label].filter(Boolean).join(" "), 26)} ${rowShape(handler)}${logic}`;
         });
         return [head, ...rowLines];
     });
@@ -76,13 +98,16 @@ function edgeLines(graph: TopologyGraph, layout: TopologyLayout, id: (nodeId: st
         const vias = layout.edgeVias[edge.id] ?? [];
         const bow = layout.edgeBows[edge.id] ?? 0;
         const shape = vias.length >= 2 && main(vias[0]) > main(vias[vias.length - 1]) ? "WRAPS" : "DETOURS";
+        const lane = layout.edgeLanes[edge.id];
         const geometry = [
+            lane === undefined ? "" : `lane ${Math.round(lane)}`,
             vias.length >= 2 ? `${shape} via ${vias.map((via) => at(via).slice(1)).join(" ")}` : vias.length ? `bend ${at(vias[0]).slice(1)}` : "",
             bow ? `bow ${bow > 0 ? "+" : ""}${bow}` : "",
         ].filter(Boolean);
         const handlers = (edge.handlers ?? []).map((step) => `${step.order}·${id(step.triggerId)}`).join(",");
-        const row = edge.handlerId ? id(edge.handlerId) : "";
-        return `  ${pad(id(edge.sourceId), 4)} → ${pad(id(edge.targetId), 4)} ${pad(edge.kind, 10)} ${pad(row, 4)} ${pad(handlers, 14)} ${geometry.join("  ")}`.trimEnd();
+        const row = [edge.handlerId ? id(edge.handlerId) : "", edge.channel ? `#${edge.channel}` : ""].join("");
+        const gate = edge.gated ? "  LOCK" : "";
+        return `  ${pad(id(edge.sourceId), 4)} → ${pad(id(edge.targetId), 4)} ${pad(edge.kind, 10)} ${pad(row, 4)} ${pad(handlers, 14)} ${geometry.join("  ")}${gate}`.trimEnd();
     });
 }
 
@@ -91,14 +116,24 @@ function callText(call: CDAgentCall, names: Map<string, string>): string {
     return `${names.get(call.connection) ?? call.connection.slice(0, 8)}${groups ? `{${groups}}` : ""}`;
 }
 
-function handlerText(label: string, fn: { connections?: string[]; agentCalls?: CDAgentCall[] }, names: Map<string, string>): string | undefined {
-    const agents = (fn.connections ?? []).filter((uuid) => names.has(uuid));
-    if (agents.length === 0) {
+interface HandlerFacts {
+    connections?: string[];
+    agentCalls?: CDAgentCall[];
+    workflows?: string[];
+    workflowSendData?: Record<string, string[]>;
+}
+
+function handlerText(label: string, fn: HandlerFacts, names: Map<string, string>): string | undefined {
+    const agents = [...(fn.connections ?? []), ...(fn.workflows ?? [])].filter((uuid) => names.has(uuid));
+    const sends = Object.entries(fn.workflowSendData ?? {})
+        .filter(([uuid]) => names.has(uuid))
+        .flatMap(([uuid, channels]) => channels.map((channel) => `sends ${channel} → ${names.get(uuid)}`));
+    if (agents.length === 0 && sends.length === 0) {
         return undefined;
     }
     const calls = fn.agentCalls ?? [];
-    const body = calls.length ? calls.map((call) => callText(call, names)).join(", ") : `(no direct calls) reaches ${agents.map((uuid) => names.get(uuid)).join(", ")}`;
-    return `  ${pad(label, 40)} → ${body}`;
+    const called = calls.length ? calls.map((call) => callText(call, names)).join(", ") : agents.length ? `(no direct calls) reaches ${agents.map((uuid) => names.get(uuid)).join(", ")}` : "";
+    return `  ${pad(label, 40)} → ${[called, ...sends].filter(Boolean).join(", ")}`;
 }
 
 function serviceHandlers(service: CDService, names: Map<string, string>): string[] {
@@ -110,7 +145,10 @@ function serviceHandlers(service: CDService, names: Map<string, string>): string
 }
 
 function handlerLines(model: CDModel): string[] {
-    const names = new Map((model.connections ?? []).filter((connection) => connection.kind === "Agent").map((connection) => [connection.uuid, connection.symbol]));
+    const names = new Map([
+        ...(model.connections ?? []).filter((connection) => connection.kind === "Agent").map((connection): [string, string] => [connection.uuid, connection.symbol]),
+        ...(model.workflows ?? []).filter((workflow) => workflow.kind === "DURABLE_AGENT").map((workflow): [string, string] => [workflow.uuid, workflow.symbol]),
+    ]);
     const lines = (model.services ?? []).flatMap((service) => serviceHandlers(service, names));
     const main = model.automation ? handlerText("main()", model.automation, names) : undefined;
     return main ? [...lines, main] : lines;

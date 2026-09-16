@@ -22,6 +22,10 @@ import { NodePortModel } from "../../NodePort";
 import { NODE_LOCKED, NodeTypes } from "../../../resources/constants";
 import { TopologyAgentNode } from "../../AgentTopologyDiagram/types";
 
+export function inletPortName(channel: string): string {
+    return `in::${channel}`;
+}
+
 export class AgentCardNodeModel extends NodeModel {
     readonly node: TopologyAgentNode;
     protected portIn: NodePortModel;
@@ -36,13 +40,15 @@ export class AgentCardNodeModel extends NodeModel {
         this.node = node;
         this.addInPort("in");
         this.addOutPort("out");
+        node.channels.forEach((channel) => this.addInPort(inletPortName(channel.name)));
     }
 
     addPort<T extends NodePortModel>(port: T): T {
         super.addPort(port);
-        if (port.getOptions().in) {
+        const name = port.getOptions().name;
+        if (name === "in") {
             this.portIn = port;
-        } else {
+        } else if (name === "out") {
             this.portOut = port;
         }
         return port;
@@ -58,6 +64,11 @@ export class AgentCardNodeModel extends NodeModel {
 
     getInPort(): NodePortModel {
         return this.portIn;
+    }
+
+    getInletPort(channel: string | undefined): NodePortModel {
+        const inlet = channel ? (this.getPort(inletPortName(channel)) as NodePortModel) : undefined;
+        return inlet ?? this.portIn;
     }
 
     getOutPort(): NodePortModel {

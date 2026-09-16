@@ -69,6 +69,14 @@ export type CDWorkflow = {
     connections?: string[];
     invalidSendDataServices?: string[];
     invalidSendDataFunctions?: string[];
+    role?: string;
+    activityDecls?: CDWorkflowActivity[];
+    tools?: string[];
+    mcpToolKits?: string[];
+    peers?: CDWorkflowPeer[];
+    delegatesTo?: string[];
+    toolConnections?: string[];
+    agentTools?: Record<string, string>;
     uuid: string;
     enableFlowModel: boolean;
     sortText: string;
@@ -84,6 +92,21 @@ export type CDWorkflowEvent = {
 export type CDWorkflowHumanTask = {
     name: string;
     location: CDLocation;
+    userRoles?: string[];
+    title?: string;
+};
+
+export type CDWorkflowActivity = {
+    name: string;
+    requiresApproval?: boolean;
+    userRoles?: string[];
+};
+
+export type CDWorkflowPeer = {
+    name?: string;
+    agentUuid: string;
+    requiresApproval?: boolean;
+    userRoles?: string[];
 };
 
 export type CDActivity = {

@@ -205,6 +205,16 @@ export interface ArtifactInfo {
     isLocalRepository?: boolean;
     agentName?: string;
     agentOrgName?: string;
+    agentKind?: AgentKind;
+    agentEvent?: AgentEventChannel;
+}
+
+export type AgentKind = "ai" | "typed" | "durable";
+
+export interface AgentEventChannel {
+    name: string;
+    request?: string;
+    response?: string;
 }
 
 export interface ManagedCredentialMapping {

@@ -22,7 +22,9 @@ import { ThemeColors } from "@wso2/ui-toolkit";
 import { TopologyLinkModel } from "./TopologyLinkModel";
 import { linkRoute, roundedPath } from "./topologyRoute";
 import { useTopologyContext } from "../AgentTopologyDiagram/TopologyContext";
-import { FOCUS_FADE_MS } from "../../resources/constants";
+import { roleLabel } from "../AgentTopologyDiagram/roleLabel";
+import { CardPopover, PopoverRow } from "../AgentTopologyDiagram/CardPopover";
+import { EVENT_COLOR, FOCUS_FADE_MS, WARNING_COLOR } from "../../resources/constants";
 
 export const RECEDED_OPACITY = 0.15;
 export const FOCUS_FADE = `${FOCUS_FADE_MS}ms ease`;
@@ -33,15 +35,38 @@ interface TopologyLinkWidgetProps {
 }
 
 const ARROW_SIZE = 8;
+const LOCK_RADIUS = 10;
+const DASH: Record<TopologyLinkModel["kind"], string | undefined> = { trigger: undefined, event: "2 4", delegation: "6 5" };
 
-export function TopologyLinkWidget({ link }: TopologyLinkWidgetProps) {
+type LockHover = Pick<React.SVGAttributes<SVGGElement>, "onMouseEnter" | "onMouseLeave">;
+
+export function LockChip({ at, ...hover }: { at: { x: number; y: number } } & LockHover) {
+    return (
+        <g transform={`translate(${at.x}, ${at.y})`} pointerEvents="all" style={{ transition: `opacity ${FOCUS_FADE}` }} {...hover}>
+            <circle r={LOCK_RADIUS} fill={ThemeColors.SURFACE} stroke={WARNING_COLOR} strokeWidth={1.5} />
+            <rect x={-3.5} y={-1} width={7} height={5.5} rx={1} fill={ThemeColors.ON_SURFACE} />
+            <path d="M -2 -1 V -2.5 A 2 2 0 0 1 2 -2.5 V -1" fill="none" stroke={ThemeColors.ON_SURFACE} strokeWidth={1.2} />
+        </g>
+    );
+}
+
+function lockRows(gatedBy: string[]): PopoverRow[] {
+    return gatedBy.length
+        ? [{ key: "released", prefix: "Released by", label: gatedBy.map(roleLabel).join(", ") }]
+        : [{ key: "released", label: "Released by a person", muted: true }];
+}
+
+export function TopologyLinkWidget({ link, engine }: TopologyLinkWidgetProps) {
     const [isHovered, setIsHovered] = useState(false);
+    const [lockAnchor, setLockAnchor] = useState<DOMRect>();
     const { focus } = useTopologyContext();
     const focused = focus?.edges.has(link.edgeId) ?? false;
-    const color = isHovered || focused ? ThemeColors.PRIMARY : ThemeColors.ON_SURFACE;
+    const lit = isHovered || focused;
+    const color = link.kind === "event" ? EVENT_COLOR : lit ? ThemeColors.PRIMARY : ThemeColors.ON_SURFACE;
     const opacity = focus && !focused ? RECEDED_OPACITY : 1;
 
-    const path = roundedPath(linkRoute(link).points);
+    const route = linkRoute(link);
+    const path = roundedPath(route.points);
     const markerId = `${link.getID()}-arrow`;
 
     return (
@@ -53,9 +78,17 @@ export function TopologyLinkWidget({ link }: TopologyLinkWidgetProps) {
                 fill="none"
                 style={{ stroke: color, transition: `stroke ${FOCUS_FADE}` }}
                 strokeWidth={1.5}
-                strokeDasharray={link.dashed ? "6 5" : undefined}
+                strokeDasharray={DASH[link.kind]}
                 markerEnd={`url(#${markerId})`}
             />
+            {link.gated && (
+                <LockChip
+                    at={route.pillPoint}
+                    onMouseEnter={(event) => setLockAnchor(event.currentTarget.getBoundingClientRect())}
+                    onMouseLeave={() => setLockAnchor(undefined)}
+                />
+            )}
+            {lockAnchor && <CardPopover rows={lockRows(link.gatedBy)} anchor={lockAnchor} zoom={engine.getModel().getZoomLevel() / 100} />}
             <defs>
                 <marker
                     markerWidth={ARROW_SIZE}

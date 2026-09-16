@@ -61,7 +61,7 @@ export function AddAgentPopup(props: AddAgentPopupProps) {
     const [pendingAgent, setPendingAgent] = useState<AvailableNode>();
     const isDependencyToolForm = Boolean(dependencyToolForm);
     const isForm = isDependencyToolForm || view === "package" || view === "configure" || view === "create"
-        || view === "createDefinition";
+        || view === "createDefinition" || view === "createDurable";
 
     const changeView = (nextView: AddAgentView, direction: "forward" | "backward" = "forward") => {
         setTransitionDirection(direction);
@@ -99,6 +99,7 @@ export function AddAgentPopup(props: AddAgentPopupProps) {
                                     : view === "configure" ? "Configure Agent"
                                     : view === "create" ? "Create Agent"
                                     : view === "createDefinition" ? "Create Agent Definition"
+                                    : view === "createDurable" ? "Create Durable Agent"
                                         : dependencyMode ? "Use Agent" : "Add Agent"}
                             </PopupTitle>
                         </HeaderTitleContainer>

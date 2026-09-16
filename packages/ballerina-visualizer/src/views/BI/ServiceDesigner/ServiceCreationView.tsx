@@ -23,7 +23,7 @@ import { TitleBar } from "../../../components/TitleBar";
 import { isBetaModule } from "../ComponentListView/componentListUtils";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { FormField, FormImports, FormValues } from "@wso2/ballerina-side-panel";
-import { DIRECTORY_MAP, EVENT_TYPE, FunctionModel, hasBlockingValidationErrors, isSamePath, LineRange, ModelResolutionIssue, ParameterModel, ProjectStructureArtifactResponse, PropertyModel, RecordTypeField, ServiceInitModel, ValidationResult } from "@wso2/ballerina-core";
+import { AgentEventChannel, AgentKind, DIRECTORY_MAP, EVENT_TYPE, FunctionModel, hasBlockingValidationErrors, isSamePath, LineRange, ModelResolutionIssue, ParameterModel, ProjectStructureArtifactResponse, PropertyModel, RecordTypeField, ServiceInitModel, ValidationResult } from "@wso2/ballerina-core";
 import { FormHeader } from "../../../components/FormHeader";
 import ArtifactForm from "../Forms/ArtifactForm";
 import { AgentEndpointFields, PromptContinuation } from "./Forms/AgentEndpointFields";
@@ -117,6 +117,8 @@ export interface ServiceCreationViewProps {
     isLocalRepository?: boolean;
     agentName?: string;
     agentOrgName?: string;
+    agentKind?: AgentKind;
+    agentEvent?: AgentEventChannel;
     isPopup?: boolean;
     defaultValues?: Record<string, string>;
     collectEndpointShape?: boolean;
@@ -185,7 +187,7 @@ function untakenPath(seed: string, taken: string[]): string {
 export function ServiceCreationView(props: ServiceCreationViewProps) {
 
     const { projectPath, orgName, packageName, moduleName, version, isLocalRepository,
-        agentName, agentOrgName, isPopup, onCreated, defaultValues, collectEndpointShape } = props;
+        agentName, agentOrgName, agentKind, agentEvent, isPopup, onCreated, defaultValues, collectEndpointShape } = props;
     const { rpcClient } = useRpcContext();
 
     const [headerInfo, setHeaderInfo] = useState<HeaderInfo>(null);
@@ -213,7 +215,8 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
                 .getServiceInitModel({
                     filePath: "", orgName: orgName, pkgName: packageName, moduleName: moduleName,
                     listenerName: "", version: version, isLocalRepository: isLocalRepository,
-                    agentName: agentName, agentOrgName: agentOrgName
+                    agentName: agentName, agentOrgName: agentOrgName, agentKind: agentKind,
+                    eventChannel: agentEvent?.name, eventResponse: agentEvent?.response
                 });
 
             let timer: ReturnType<typeof setTimeout> | null = null;
@@ -306,10 +309,10 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
         }
     }, [model]);
 
-function seedAgentEndpoint(shaped: FunctionModel): FunctionModel {
+function seedAgentEndpoint(shaped: FunctionModel, event?: AgentEventChannel): FunctionModel {
     let seeded = { ...shaped };
     if (seeded.name && !seeded.name.value) {
-        seeded.name = { ...seeded.name, value: "." };
+        seeded.name = { ...seeded.name, value: event ? `[string instanceId]/${event.name}` : "." };
     }
     if (seeded.accessor) {
         seeded = applyMethod(seeded, "POST");
@@ -322,10 +325,22 @@ function seedAgentEndpoint(shaped: FunctionModel): FunctionModel {
             enabled: true,
             httpParamType: "PAYLOAD",
             name: { ...payload.name, value: "payload" },
-            type: { ...payload.type, value: "string" },
+            type: { ...payload.type, value: event?.request ?? "string" },
         }];
     }
-    return seeded;
+    return event ? withEventResponse(seeded, event) : seeded;
+}
+
+function withEventResponse(seeded: FunctionModel, event: AgentEventChannel): FunctionModel {
+    const responses = seeded.returnType?.responses;
+    if (!responses?.length) {
+        return seeded;
+    }
+    const [success, ...rest] = responses;
+    const seededSuccess = event.response
+        ? { ...success, body: { ...success.body, value: event.response } }
+        : { ...success, statusCode: { ...success.statusCode, value: "202" }, body: { ...success.body, value: "" } };
+    return { ...seeded, returnType: { ...seeded.returnType, responses: [seededSuccess, ...rest] } };
 }
 
     const [endpointModel, setEndpointModel] = useState<FunctionModel>(undefined);
@@ -361,7 +376,7 @@ function seedAgentEndpoint(shaped: FunctionModel): FunctionModel {
             .getHttpResourceModel({ type: "http", functionName: "resource" })
             .then((res) => {
                 if (isMountedRef.current && res?.function) {
-                    setEndpointModel(seedAgentEndpoint(res.function));
+                    setEndpointModel(seedAgentEndpoint(res.function, agentEvent));
                 }
             });
     }, [collectEndpointShape, endpointModel]);
@@ -530,10 +545,10 @@ function seedAgentEndpoint(shaped: FunctionModel): FunctionModel {
                     />,
                     index: 1
                 },
-                { component: <PromptContinuation model={endpointModel} />, index: Infinity }
+                ...(agentEvent ? [] : [{ component: <PromptContinuation model={endpointModel} />, index: Infinity }])
             ]
             : undefined,
-        [collectEndpointShape, endpointModel, existingResources]
+        [collectEndpointShape, endpointModel, existingResources, agentEvent]
     );
 
     const form = !pullingStatus && formFields && formFields.length > 0 && filePath && targetLineRange && (

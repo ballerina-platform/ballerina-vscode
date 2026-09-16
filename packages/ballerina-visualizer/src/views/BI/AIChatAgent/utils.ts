@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { AgentToolData, AvailableNode, CodeData, ConfigVariable, DIRECTORY_MAP, ELineRange, EVENT_TYPE, FlowNode, GET_DEFAULT_MODEL_PROVIDER, isAgentDeclarationNode, LinePosition, LineRange, MACHINE_VIEW, NodeKind, NodePosition, ProjectStructureArtifactResponse, Property, SearchNodesQuery, ToolParameters, VisualizerLocation } from "@wso2/ballerina-core";
+import { AgentEventChannel, AgentKind, AgentToolData, AvailableNode, CodeData, ConfigVariable, DIRECTORY_MAP, ELineRange, EVENT_TYPE, FlowNode, GET_DEFAULT_MODEL_PROVIDER, isAgentDeclarationNode, LinePosition, LineRange, MACHINE_VIEW, NodeKind, NodePosition, ProjectStructureArtifactResponse, Property, SearchNodesQuery, ToolData, ToolParameters, VisualizerLocation } from "@wso2/ballerina-core";
 import { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
 import { FormField } from "@wso2/ballerina-side-panel";
 import { cloneDeep } from "lodash";
@@ -553,25 +553,55 @@ export const startAgentChat = (node: FlowNode, filePath: string, rpcClient: Ball
 };
 
 export const startAddAgentTrigger = (node: FlowNode, rpcClient: BallerinaRpcClient) => {
-    const properties = node.properties as Record<string, { value?: unknown }> | undefined;
-    const holder = isAgentDeclarationNode(node.codedata?.node)
-        ? properties?.variable
-        : properties?.connection;
-    const agentVarName = typeof holder?.value === "string" ? holder.value.trim() : "";
+    const agentVarName = agentVarNameOf(node);
     if (!agentVarName) {
         console.error("Cannot add an agent trigger: missing agent variable name");
         return;
     }
-    openAddAgentTrigger(rpcClient, agentVarName, node.codedata?.org);
+    const kind = agentKindOf(node);
+    openAddAgentTrigger(rpcClient, agentVarName, kind === "durable" ? "ballerina" : node.codedata?.org, kind);
 };
 
-export const openAddAgentTrigger = (rpcClient: BallerinaRpcClient, agentName: string, agentOrgName?: string) => {
+export const startAddDurableEventTrigger = (node: FlowNode, event: ToolData, rpcClient: BallerinaRpcClient) => {
+    const agentVarName = agentVarNameOf(node);
+    if (!agentVarName || !event?.name) {
+        console.error("Cannot add a data-event trigger: missing agent variable name or channel");
+        return;
+    }
+    const declared = (event as { values?: Record<string, string> }).values;
+    openAddAgentTrigger(rpcClient, agentVarName, "ballerina", "durable", {
+        name: event.name,
+        request: declared?.requestType,
+        response: declared?.responseType,
+    });
+};
+
+export const agentVarNameOf = (node: FlowNode): string => {
+    if (agentKindOf(node) === "durable") {
+        const agentName = (node.metadata?.data as { agentName?: string } | undefined)?.agentName;
+        return typeof agentName === "string" ? agentName.trim() : "";
+    }
+    const properties = node.properties as Record<string, { value?: unknown }> | undefined;
+    const holder = isAgentDeclarationNode(node.codedata?.node) ? properties?.variable : properties?.connection;
+    return typeof holder?.value === "string" ? holder.value.trim() : "";
+};
+
+export const agentKindOf = (node: FlowNode): AgentKind | undefined =>
+    node.codedata?.node === "DURABLE_AGENT_RUN" ? "durable" : undefined;
+
+export const openAddAgentTrigger = (
+    rpcClient: BallerinaRpcClient,
+    agentName: string,
+    agentOrgName?: string,
+    agentKind?: AgentKind,
+    agentEvent?: AgentEventChannel
+) => {
     void rpcClient.getVisualizerRpcClient().openView({
         type: EVENT_TYPE.OPEN_VIEW,
         isPopup: true,
         location: {
             view: MACHINE_VIEW.BIAddAgentTrigger,
-            artifactInfo: { agentName, agentOrgName },
+            artifactInfo: { agentName, agentOrgName, agentKind, agentEvent },
         },
     });
 };

@@ -36,7 +36,7 @@ import {
     VarIcon,
 } from "../../resources";
 import { NodeKind } from "../../utils/types";
-import { Icon } from "@wso2/ui-toolkit";
+import { Icon, ThemeColors } from "@wso2/ui-toolkit";
 import { isHighContrastTheme as isHighContrastThemeShared } from "@wso2/ballerina-core";
 
 // VSCode chart colors - guaranteed to be available in all webviews
@@ -119,7 +119,6 @@ const NODE_COLOR_GROUPS = {
         "AGENT_RUN",
         "AGENT",
         "AGENTS",
-        "DURABLE_AGENT_RUN",
         "NP_FUNCTION",
         "NP_FUNCTION_CALL",
         "MODEL_PROVIDER",
@@ -239,6 +238,10 @@ export const getNodeChartColor = (nodeType: NodeKind, symbol?: string): string =
         if (BUILTIN_ACTIVITY_COLOR_GROUPS.BLUE.includes(symbol)) {
             return dark ? CHART_COLORS.BRIGHT_BLUE : CHART_COLORS.BLUE;
         }
+    }
+
+    if (nodeType === "DURABLE_AGENT_RUN") {
+        return CHART_COLORS.BRIGHT_BLUE;
     }
 
     // Control flow group - blue variants
@@ -411,6 +414,37 @@ const IconWrapper = styled.div<{ color: string }>`
         fill: ${(props) => props.color};
     }
 `;
+
+const BadgedIcon = styled.span<{ size: number }>`
+    position: relative;
+    display: inline-flex;
+    flex: none;
+    width: ${(props) => props.size}px;
+    height: ${(props) => props.size}px;
+`;
+
+const CornerBadge = styled.span<{ right: number; bottom: number }>`
+    position: absolute;
+    right: ${(props) => -props.right}px;
+    bottom: ${(props) => -props.bottom}px;
+    display: flex;
+    line-height: 0;
+    color: ${ThemeColors.ON_SURFACE_VARIANT};
+    opacity: 0.8;
+`;
+
+export function DurableAgentIcon(props: { size?: number; color?: string }) {
+    const { size = 24, color } = props;
+    const badge = Math.round(size * 0.46);
+    return (
+        <BadgedIcon size={size}>
+            <NodeIcon type="DURABLE_AGENT_RUN" size={size} color={color} />
+            <CornerBadge right={Math.round(size / 3)} bottom={Math.round(size / 6)}>
+                <Icon name="bi-flowchart" sx={{ fontSize: badge, width: badge, height: badge, display: "flex", alignItems: "center", justifyContent: "center" }} />
+            </CornerBadge>
+        </BadgedIcon>
+    );
+}
 
 interface NodeIconProps {
     type: NodeKind;

@@ -513,7 +513,7 @@ const EDGE_ADD_PLUS_R = 9;
 const EDGE_ADD_LABEL_GAP = 8;
 const EDGE_ADD_HIT_WIDTH = 170;
 
-const usageFadeIn = (delay: number) => css`
+export const usageFadeIn = (delay: number) => css`
     animation: ${usageRowFadeIn} 260ms ease-out both;
     animation-delay: ${delay}ms;
 `;
@@ -579,7 +579,7 @@ function usageDash(usage: AgentUsage): string | undefined {
     return usage.parentAgent ? "6 5" : undefined;
 }
 
-function UsageIcon(props: { usage: AgentUsage; codedata?: FlowNode["codedata"] }) {
+export function UsageIcon(props: { usage: AgentUsage; codedata?: FlowNode["codedata"] }) {
     const { usage, codedata } = props;
     if (usage.parentAgent) {
         return <Icon name="bi-ai-agent" sx={{ fontSize: 24, width: 24, height: 24 }} />;
@@ -617,14 +617,18 @@ function UsageIcon(props: { usage: AgentUsage; codedata?: FlowNode["codedata"] }
     return <Icon name={resolveKindDefaultIcon(modulePart).glyph} sx={{ fontSize: 24, width: 24, height: 24 }} />;
 }
 
-function EdgeAddButton(props: {
+const EDGE_ADD_ICON_SIZE = 16;
+
+export function EdgeAddButton(props: {
     anchorX: number; y: number; side: "left" | "right"; label: string; title: string; testId: string;
     animationDelay?: number; onClick: () => void; readOnly?: boolean;
+    icon?: React.ReactNode;
 }) {
-    const { anchorX, y, side, label, title, testId, animationDelay, onClick, readOnly } = props;
+    const { anchorX, y, side, label, title, testId, animationDelay, onClick, readOnly, icon } = props;
     const dir = side === "right" ? 1 : -1;
     const plusCx = dir * EDGE_ADD_PLUS_CX;
-    const labelX = dir * (EDGE_ADD_PLUS_CX + EDGE_ADD_PLUS_R + EDGE_ADD_LABEL_GAP);
+    const iconX = dir * (EDGE_ADD_PLUS_CX + EDGE_ADD_PLUS_R + EDGE_ADD_LABEL_GAP);
+    const labelX = icon ? iconX + dir * (EDGE_ADD_ICON_SIZE + EDGE_ADD_LABEL_GAP / 2) : iconX;
     const strokeColor = readOnly ? ThemeColors.OUTLINE_VARIANT : ThemeColors.ON_SURFACE;
     const labelColor = readOnly ? ThemeColors.ON_SURFACE_VARIANT : ADD_TILE_LABEL_COLOR;
     return (
@@ -688,6 +692,17 @@ function EdgeAddButton(props: {
                     stroke={strokeColor} strokeWidth={1.5} strokeLinecap="round" />
                 <line className="edge-add-stroke" x1={plusCx} y1="-4" x2={plusCx} y2="4"
                     stroke={strokeColor} strokeWidth={1.5} strokeLinecap="round" />
+                {icon && (
+                    <foreignObject
+                        x={side === "right" ? iconX : iconX - EDGE_ADD_ICON_SIZE}
+                        y={-EDGE_ADD_ICON_SIZE / 2}
+                        width={EDGE_ADD_ICON_SIZE}
+                        height={EDGE_ADD_ICON_SIZE}
+                        style={{ pointerEvents: "none", color: labelColor }}
+                    >
+                        {icon}
+                    </foreignObject>
+                )}
                 <text
                     x={labelX}
                     y="0"
