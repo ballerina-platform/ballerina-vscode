@@ -84,7 +84,6 @@ export function AddMcpServicePopup({ projectPath, onClose }: AddMcpServicePopupP
                         <ContentSlot>
                             <ServiceCreationView
                                 isPopup
-                                onCreated={close}
                                 projectPath={projectPath}
                                 {...MCP_PACKAGE}
                             />
