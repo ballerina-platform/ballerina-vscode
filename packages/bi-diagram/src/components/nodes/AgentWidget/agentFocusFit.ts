@@ -22,10 +22,8 @@ import { NodeTypes } from "../../../resources/constants";
 import { BaseAgentNodeModel } from "../BaseAgentNodeModel";
 
 export const AGENT_FOCUS_MIN_ZOOM = 25;
-// Height fitting shrinks the node only this far; below it the node keeps its size and overflows, top first visible.
 export const AGENT_FOCUS_READABLE_ZOOM = 65;
 export const AGENT_FOCUS_FIT_PADDING = 5;
-// Room above and below the node; width is tight so a narrow panel still gets the whole card.
 export const AGENT_FOCUS_FIT_PADDING_Y = 32;
 export const AGENT_FOCUS_FIT_ANIMATION_MS = 300;
 const MIN_FITTABLE_CANVAS = 50;
@@ -88,7 +86,6 @@ export interface AgentFocusFitTarget {
 export interface AgentFocusFitInput {
     canvasWidth: number;
     canvasHeight: number;
-    // The node's painted extent and its top-left corner, in diagram units.
     contentWidth: number;
     contentHeight: number;
     contentLeft: number;
@@ -96,8 +93,6 @@ export interface AgentFocusFitInput {
     embedded: boolean;
 }
 
-// Width must always fit. Height fits too while that keeps the node readable; a short canvas keeps the readable
-// zoom instead and shows the node from its top, so the head is what stays visible and the tail is what overflows.
 export function fitAgentFocus(input: AgentFocusFitInput): AgentFocusFitTarget {
     const { canvasWidth, canvasHeight, contentWidth, contentHeight, contentLeft, contentTop, embedded } = input;
     const fitWidthPct = ((canvasWidth - AGENT_FOCUS_FIT_PADDING * 2) / contentWidth) * 100;

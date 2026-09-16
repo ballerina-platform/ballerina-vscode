@@ -34,7 +34,7 @@ import {
 } from "../../../resources/constants";
 import { useTopologyContext } from "../../AgentTopologyDiagram/TopologyContext";
 import { EntrySelection, TopologyEntryNode, TopologyHandler } from "../../AgentTopologyDiagram/types";
-import { useClickWithDragTolerance } from "../../../hooks/useClickWithDragTolerance";
+import { useOpenableNode } from "../../AgentTopologyDiagram/useOpenableNode";
 import { rowCrossOffset } from "../../AgentTopologyDiagram/topologyLayout";
 import { TriggerGlyph } from "../../AgentTopologyDiagram/TriggerGlyph";
 
@@ -137,16 +137,12 @@ const Footer = styled.div`
     cursor: pointer;
 `;
 
-// Left to right a port sits on the card's right edge level with its row; top to bottom every port sits on the
-// bottom edge, spread across the width. The layout offsets each row's edges by the same rule.
 const RowPort = styled(PortWidget)<{ offset: number; vertical: boolean }>`
     position: absolute;
     ${(props) => (props.vertical ? `bottom: -6px; left: ${props.offset}px;` : `right: -6px; top: ${props.offset}px;`)}
     transform: ${(props) => (props.vertical ? "translateX(-50%)" : "translateY(-50%)")};
 `;
 
-// The vscode-button "icon" appearance gives the slotted svg `fill: currentColor` and shrinks it to 16px;
-// a plain div wrapper skips both, which is why a raw <MoreVertIcon> renders oversized and black.
 const MenuButton = styled(Button)`
     flex: none;
 `;
@@ -163,34 +159,21 @@ interface RowProps {
 
 function HandlerRow({ handler, dimmed }: RowProps) {
     const { onTriggerSelect, readonly, setHovered } = useTopologyContext();
-    const [isHovered, setIsHovered] = useState(false);
     const open = () => onTriggerSelect({ filePath: handler.filePath, position: handler.position, endPosition: handler.endPosition });
-    const { handleMouseDown, handleMouseUp } = useClickWithDragTolerance(open);
+    const { hovered, handlers } = useOpenableNode(open, {
+        readonly,
+        onHoverChange: (isHovered) => setHovered?.(isHovered ? handler.id : undefined),
+    });
 
     return (
         <RowBox
-            hovered={!readonly && isHovered}
+            hovered={hovered}
             dimmed={dimmed}
             title={`Open ${handler.accessor ? `${handler.accessor} ` : ""}${handler.label}`}
-            tabIndex={0}
-            onMouseEnter={() => {
-                setHovered?.(handler.id);
-                setIsHovered(true);
-            }}
-            onMouseLeave={() => {
-                setHovered?.(undefined);
-                setIsHovered(false);
-            }}
-            onMouseDown={!readonly ? handleMouseDown : undefined}
-            onMouseUp={!readonly ? handleMouseUp : undefined}
-            onKeyDown={(event) => {
-                if (!readonly && (event.key === "Enter" || event.key === " ")) {
-                    open();
-                }
-            }}
+            {...handlers}
         >
             {handler.accessor && <Accessor>{handler.accessor}</Accessor>}
-            <RowLabel hovered={!readonly && isHovered}>{handler.label}</RowLabel>
+            <RowLabel hovered={hovered}>{handler.label}</RowLabel>
         </RowBox>
     );
 }
@@ -205,10 +188,6 @@ function entrySelection(entry: TopologyEntryNode): EntrySelection {
     };
 }
 
-// The Popover portals into document.body, but React still bubbles its events through the *component*
-// tree it was declared in (react.dev/reference/react-dom/createPortal#event-bubbling-through-portals).
-// Nesting it inside Header would make every menu click also fire Header's own click detector, so the
-// trigger button and the portal are split: the button stays in Header, the portal sits beside it.
 function useCardMenu(entry: TopologyEntryNode) {
     const { readonly, onConfigureEntry, onDeleteEntry } = useTopologyContext();
     const [anchor, setAnchor] = useState<HTMLElement | SVGSVGElement>(null);
@@ -272,18 +251,18 @@ export function ServiceNodeWidget(props: ServiceNodeWidgetProps) {
     const { model, engine } = props;
     const { onTriggerSelect, readonly, orientation, focus, setHovered, visibleRows, onExpandEntry } = useTopologyContext();
     const vertical = orientation === "vertical";
-    const [headerHovered, setHeaderHovered] = useState(false);
     const entry = model.node;
     const shown = Math.min(visibleRows?.[entry.id] ?? entry.handlers.length, entry.handlers.length);
     const hidden = entry.handlers.length - shown;
     const rows = entry.handlers.slice(0, shown);
     const isService = entry.kind === "service";
 
-    // An automation is a single handler with no rows, so its card opens that handler; a service card opens the
-    // service itself and leaves its handlers to the rows.
     const target = isService ? entry : entry.handlers[0];
     const openHeader = () => onTriggerSelect({ filePath: target.filePath, position: target.position, endPosition: target.endPosition });
-    const { handleMouseDown, handleMouseUp } = useClickWithDragTolerance(openHeader);
+    const { hovered: headerHovered, handlers: headerHandlers } = useOpenableNode(openHeader, {
+        readonly,
+        onHoverChange: (isHovered) => setHovered?.(isHovered ? entry.id : undefined),
+    });
 
     const receded = focus !== undefined && !focus.nodes.has(entry.id);
     const rowDimmed = (handler: TopologyHandler): boolean =>
@@ -293,29 +272,14 @@ export function ServiceNodeWidget(props: ServiceNodeWidgetProps) {
     return (
         <Card receded={receded}>
             <Header
-                hovered={!readonly && headerHovered}
+                hovered={headerHovered}
                 clickable={!readonly}
                 title={isService ? `Open ${entry.title}` : "Open main"}
-                tabIndex={0}
-                onMouseEnter={() => {
-                    setHovered?.(entry.id);
-                    setHeaderHovered(true);
-                }}
-                onMouseLeave={() => {
-                    setHovered?.(undefined);
-                    setHeaderHovered(false);
-                }}
-                onMouseDown={!readonly ? handleMouseDown : undefined}
-                onMouseUp={!readonly ? handleMouseUp : undefined}
-                onKeyDown={(event) => {
-                    if (!readonly && (event.key === "Enter" || event.key === " ")) {
-                        openHeader();
-                    }
-                }}
+                {...headerHandlers}
             >
                 <TriggerGlyph glyphType={entry.glyphType} icon={entry.icon} size={22} />
                 <Titles>
-                    <Title hovered={!readonly && headerHovered}>{entry.title}</Title>
+                    <Title hovered={headerHovered}>{entry.title}</Title>
                     <Subtitle>{entry.subtitle}</Subtitle>
                 </Titles>
                 {isService && <CardMenuButton menu={menu} />}

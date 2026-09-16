@@ -495,7 +495,6 @@ const USAGE_LABEL_CHAR_WIDTH = 7.4;
 const USAGE_SERVICE_CHAR_WIDTH = 7.2;
 const USAGE_SERVICE_LABEL_MAX = 32;
 const USAGE_MENU_SIZE = 24;
-// The glyph spans y 2..46, and `middle` renders ~3px below its y, as the model label's 28 against cy 24 does.
 const USAGE_TEXT_CENTER_Y = 21;
 const USAGE_LINE_GAP = 19;
 const USAGE_ROW_HIT_RIGHT_X = 291;
@@ -505,7 +504,6 @@ const TOOL_ROW_RIGHT_X = 300;
 const TOOL_MENU_SIZE = 24;
 const TOOL_MENU_GAP = 6;
 const NODE_EDGE_LEFT_X = 300;
-// The usage column is 48 px wider than the tool rail, so the node's left edge sits further right inside its SVG.
 const USAGE_COLUMN_RIGHT_X = 348;
 const NODE_EDGE_RIGHT_X = 0;
 const EDGE_ADD_DOT_R = 3;
@@ -520,7 +518,6 @@ const usageFadeIn = (delay: number) => css`
     animation-delay: ${delay}ms;
 `;
 
-// The tool circle opens the tool's own flow, so the jump to the agent it hands off to lives under the label.
 function ToolTargetLink({ target, openView }: { target: AgentToolTarget; openView?: (location: VisualizerLocation) => void }) {
     return (
         <span
@@ -578,7 +575,6 @@ function ToolLabel({ tool, openView, isToolActive, aiColor }: {
     );
 }
 
-// A parent agent's row is drawn like the overview's delegation edge: dashed.
 function usageDash(usage: AgentUsage): string | undefined {
     return usage.parentAgent ? "6 5" : undefined;
 }

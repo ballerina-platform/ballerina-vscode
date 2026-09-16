@@ -26,16 +26,11 @@ export interface TopologyLinkModelOptions {
     bow?: number;
 }
 
-// Solid = an entry point runs this agent, or the next step of an ordered handler; dashed = agent-to-agent
-// delegation. A link carries no label: a condition or a step number is a fact about one call site, and an
-// edge stands for a whole handler.
 export class TopologyLinkModel extends DefaultLinkModel {
     edgeId = "";
     dashed = false;
     bow = 0;
-    // Where the layout bends this edge.
     via: { x: number; y: number }[] = [];
-    // Ports face each other vertically when the topology is laid out top to bottom.
     vertical = false;
 
     constructor(options: TopologyLinkModelOptions = {}) {

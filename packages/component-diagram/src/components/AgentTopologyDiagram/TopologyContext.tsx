@@ -24,15 +24,11 @@ export interface TopologyContextState {
     orientation: TopologyOrientation;
     onAgentSelect: (agent: AgentSelection) => void;
     onTriggerSelect: (trigger: TriggerSelection) => void;
-    // An orphan card's "Add Trigger" link; falls back to opening the agent when absent.
     onAddTrigger?: (agent: AgentSelection) => void;
-    // The service card's menu; the menu is hidden unless both are given.
     onConfigureEntry?: (entry: EntrySelection) => void;
     onDeleteEntry?: (entry: EntrySelection) => void;
-    // Set while a node is hovered: what it is connected to lights up, everything else recedes.
     focus?: TopologyFocus;
     setHovered?: (id?: string) => void;
-    // How many handler rows each entry card draws; the rest fold behind "Show N more".
     visibleRows?: Record<string, number>;
     onExpandEntry?: (entryId: string) => void;
 }

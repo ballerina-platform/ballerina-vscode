@@ -345,7 +345,6 @@ export function AgentBuilderOverview({ projectPath }: AgentBuilderOverviewProps)
         });
     }, [rpcClient]);
 
-    // The trigger generator calls a plain ai:Agent with `.` and a typed agent with `->`, keyed on the agent's org.
     const handleAddTriggerFromCanvas = useCallback(async (agent: AgentSelection) => {
         const isPlainAgent = !agent.moduleName || agent.moduleName === "ai";
         const toml = isPlainAgent ? undefined : await rpcClient.getCommonRpcClient().getCurrentProjectTomlValues();

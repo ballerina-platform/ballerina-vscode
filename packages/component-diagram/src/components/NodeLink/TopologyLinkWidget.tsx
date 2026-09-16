@@ -44,7 +44,6 @@ export function TopologyLinkWidget({ link }: TopologyLinkWidgetProps) {
     const path = roundedPath(linkRoute(link).points);
     const markerId = `${link.getID()}-arrow`;
 
-    // Hit-test the stroke only: a back edge that wraps around the cards encloses them, and "all" would let that interior swallow their clicks.
     return (
         <g pointerEvents="stroke" style={{ opacity, transition: `opacity ${FOCUS_FADE}` }} onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)}>
             <path d={path} fill="none" stroke="transparent" strokeWidth={16} />

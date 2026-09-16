@@ -27,7 +27,6 @@ function pad(text: string, width: number): string {
     return text.length >= width ? text : text + " ".repeat(width - text.length);
 }
 
-// Which column (or row, when vertical) a node sits in, counted along the flow axis.
 function lanesAlongFlow(positions: NodePosition[], vertical: boolean): number[] {
     return [...new Set(positions.map((position) => (vertical ? position.y : position.x)))].sort((a, b) => a - b);
 }
@@ -56,7 +55,6 @@ function agentLines(graph: TopologyGraph, layout: TopologyLayout, id: (nodeId: s
     });
 }
 
-// One line per entry card, then one indented line per handler row it draws.
 function entryLines(graph: TopologyGraph, layout: TopologyLayout, id: (nodeId: string) => string): string[] {
     return graph.entries.flatMap((entry) => {
         const file = entry.filePath.split("/").pop();
@@ -111,7 +109,6 @@ function serviceHandlers(service: CDService, names: Map<string, string>): string
     return [...resources, ...remotes].filter((line): line is string => Boolean(line));
 }
 
-// The design model's side of the story: which handler calls which agents, in what constructs.
 function handlerLines(model: CDModel): string[] {
     const names = new Map((model.connections ?? []).filter((connection) => connection.kind === "Agent").map((connection) => [connection.uuid, connection.symbol]));
     const lines = (model.services ?? []).flatMap((service) => serviceHandlers(service, names));
@@ -119,9 +116,6 @@ function handlerLines(model: CDModel): string[] {
     return main ? [...lines, main] : lines;
 }
 
-// A plain-text picture of the whole canvas: nodes with positions, every edge with its geometry,
-// and the handlers the design model reported. Printed to the webview console so a diagram can be pasted
-// into a conversation instead of screenshotted.
 export function describeTopology(model: CDModel, graph: TopologyGraph, layout: TopologyLayout, options: LayoutOptions): string {
     const vertical = options.orientation === "vertical";
     const shortIds = new Map<string, string>();
