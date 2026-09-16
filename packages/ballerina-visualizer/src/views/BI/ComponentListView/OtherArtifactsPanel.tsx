@@ -148,6 +148,7 @@ export function OtherArtifactsPanel(props: OtherArtifactsPanelProps) {
                         title={card.displayName}
                         onClick={() => handleClick(card.directoryKey)}
                         isBeta={card.isBeta}
+                        tooltip={card.tooltip}
                     />
                 ))}
             </CardGrid>
