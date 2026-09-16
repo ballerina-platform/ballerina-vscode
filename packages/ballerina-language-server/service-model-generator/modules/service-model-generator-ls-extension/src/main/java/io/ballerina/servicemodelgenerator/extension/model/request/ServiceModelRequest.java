@@ -36,24 +36,39 @@ package io.ballerina.servicemodelgenerator.extension.model.request;
  */
 public record ServiceModelRequest(String filePath, String orgName, String pkgName, String moduleName,
                                   String listenerName, String version, boolean isLocalRepository,
-                                  String agentName, String agentOrgName) {
+                                  String agentName, String agentOrgName, String agentKind,
+                                  String eventChannel, String eventResponse) {
+
+    public ServiceModelRequest(String filePath, String orgName, String pkgName, String moduleName,
+                               String listenerName, String version, boolean isLocalRepository,
+                               String agentName, String agentOrgName, String agentKind) {
+        this(filePath, orgName, pkgName, moduleName, listenerName, version, isLocalRepository, agentName,
+                agentOrgName, agentKind, null, null);
+    }
+
+    public ServiceModelRequest(String filePath, String orgName, String pkgName, String moduleName,
+                               String listenerName, String version, boolean isLocalRepository,
+                               String agentName, String agentOrgName) {
+        this(filePath, orgName, pkgName, moduleName, listenerName, version, isLocalRepository, agentName,
+                agentOrgName, null);
+    }
 
     public ServiceModelRequest(String filePath, String orgName, String pkgName, String moduleName,
                                String listenerName, String version, boolean isLocalRepository) {
-        this(filePath, orgName, pkgName, moduleName, listenerName, version, isLocalRepository, null, null);
+        this(filePath, orgName, pkgName, moduleName, listenerName, version, isLocalRepository, null, null, null);
     }
 
     public ServiceModelRequest(String filePath, String orgName, String pkgName, String moduleName,
                                String listenerName, String version) {
-        this(filePath, orgName, pkgName, moduleName, listenerName, version, false, null, null);
+        this(filePath, orgName, pkgName, moduleName, listenerName, version, false, null, null, null);
     }
 
     public ServiceModelRequest(String filePath, String orgName, String moduleName, String listenerName) {
-        this(filePath, orgName, moduleName, moduleName, listenerName, null, false, null, null);
+        this(filePath, orgName, moduleName, moduleName, listenerName, null, false, null, null, null);
     }
 
     public ServiceModelRequest(String filePath, String orgName, String pkgName, String moduleName,
                                String listenerName) {
-        this(filePath, orgName, pkgName, moduleName, listenerName, null, false, null, null);
+        this(filePath, orgName, pkgName, moduleName, listenerName, null, false, null, null, null);
     }
 }

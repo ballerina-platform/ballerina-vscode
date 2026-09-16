@@ -38,6 +38,7 @@ public class WhatsAppBusinessChannel implements AgentTriggerChannel {
 
     private static final String SERVICE_BLOCK = """
             service {{alias}}:WhatsAppService on {{listener}} {
+            {{durableHelpers}}
                 final {{alias}}:Client whatsappClient;
 
                 function init() returns error? {

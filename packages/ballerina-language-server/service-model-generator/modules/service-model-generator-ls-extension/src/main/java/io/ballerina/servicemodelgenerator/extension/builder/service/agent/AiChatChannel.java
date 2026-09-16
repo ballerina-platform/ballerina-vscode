@@ -49,6 +49,7 @@ public class AiChatChannel implements AgentTriggerChannel {
 
     private static final String SERVICE_BLOCK = """
             service {{basePath}} on {{listener}} {
+            {{durableHelpers}}
                 resource function post chat(@http:Payload {{alias}}:ChatReqMessage request)
                         returns {{alias}}:ChatRespMessage|error {
                     string stringResult = check {{agentRun}};

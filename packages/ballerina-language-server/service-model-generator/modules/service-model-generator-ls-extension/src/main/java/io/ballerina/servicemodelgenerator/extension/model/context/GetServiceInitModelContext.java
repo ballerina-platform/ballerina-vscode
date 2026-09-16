@@ -40,5 +40,25 @@ import io.ballerina.projects.Project;
  */
 public record GetServiceInitModelContext(String orgName, String packageName, String moduleName, String version,
                                          Project project, SemanticModel semanticModel, Document document,
-                                         boolean isLocalRepository, String agentName, String agentOrgName) {
+                                         boolean isLocalRepository, String agentName, String agentOrgName,
+                                         String agentKind, String eventChannel, String eventResponse) {
+
+    public GetServiceInitModelContext(String orgName, String packageName, String moduleName, String version,
+                                      Project project, SemanticModel semanticModel, Document document,
+                                      boolean isLocalRepository, String agentName, String agentOrgName,
+                                      String agentKind) {
+        this(orgName, packageName, moduleName, version, project, semanticModel, document, isLocalRepository,
+                agentName, agentOrgName, agentKind, null, null);
+    }
+
+    public GetServiceInitModelContext(String orgName, String packageName, String moduleName, String version,
+                                      Project project, SemanticModel semanticModel, Document document,
+                                      boolean isLocalRepository, String agentName, String agentOrgName) {
+        this(orgName, packageName, moduleName, version, project, semanticModel, document, isLocalRepository,
+                agentName, agentOrgName, null);
+    }
+
+    public boolean isEventTrigger() {
+        return eventChannel != null && !eventChannel.isBlank();
+    }
 }

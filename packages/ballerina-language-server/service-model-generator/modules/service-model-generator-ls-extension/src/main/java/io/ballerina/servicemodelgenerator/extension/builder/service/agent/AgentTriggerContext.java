@@ -42,20 +42,73 @@ import java.util.Map;
  * @since 1.9.0
  */
 public record AgentTriggerContext(String emitAlias, String listenerVarName, String agentVarName,
-                                  String agentOrgName, Map<String, String> formValues,
+                                  String agentOrgName, String agentKind, Map<String, String> formValues,
                                   ServiceInitModel initForm, TriggerUISchemaModel triggerModel,
                                   List<String> auxiliaryTypes, Map<String, String> auxiliaryImports) {
 
+    public static final String DURABLE_KIND = "durable";
+    public static final String CHAT_CHANNEL_PROPERTY = "chatChannel";
+    public static final String DEFAULT_CHAT_CHANNEL = "chat";
+    public static final String EVENT_CHANNEL_PROPERTY = "eventChannel";
+    public static final String EVENT_RESPONSE_PROPERTY = "eventResponse";
     private static final String BALLERINA_ORG = "ballerina";
+    private static final String DURABLE_HELPERS_SLOT = "\n{{durableHelpers}}\n";
+
+    private static final String DURABLE_HELPERS = """
+                private map<string> durableSessions = {};
+
+                function durableTurn(string sessionKey, string text) returns string|error {
+                    string instanceId = check self.instanceFor(sessionKey);
+                    string token = check {{agent}}.sendData(instanceId, "{{channel}}", text);
+                    return {{agent}}.waitForDataResult(instanceId, token);
+                }
+
+                function instanceFor(string sessionKey) returns string|error {
+                    lock {
+                        string? existing = self.durableSessions[sessionKey];
+                        if existing is string {
+                            return existing;
+                        }
+                        string id = check {{agent}}.run(string `session=${sessionKey}`);
+                        self.durableSessions[sessionKey] = id;
+                        return id;
+                    }
+                }
+            """;
 
     public AgentTriggerContext(String emitAlias, String listenerVarName, String agentVarName, String agentOrgName,
                                Map<String, String> formValues, ServiceInitModel initForm,
                                TriggerUISchemaModel triggerModel) {
-        this(emitAlias, listenerVarName, agentVarName, agentOrgName, formValues, initForm, triggerModel,
-                new ArrayList<>(), new LinkedHashMap<>());
+        this(emitAlias, listenerVarName, agentVarName, agentOrgName, null, formValues, initForm, triggerModel);
+    }
+
+    public AgentTriggerContext(String emitAlias, String listenerVarName, String agentVarName, String agentOrgName,
+                               String agentKind, Map<String, String> formValues, ServiceInitModel initForm,
+                               TriggerUISchemaModel triggerModel) {
+        this(emitAlias, listenerVarName, agentVarName, agentOrgName, agentKind, formValues, initForm,
+                triggerModel, new ArrayList<>(), new LinkedHashMap<>());
+    }
+
+    public boolean isDurable() {
+        return DURABLE_KIND.equals(agentKind);
+    }
+
+    public boolean isEventTrigger() {
+        return isDurable() && !eventChannel().isEmpty();
+    }
+
+    public String eventChannel() {
+        return formValue(EVENT_CHANNEL_PROPERTY).strip();
+    }
+
+    public String eventResponse() {
+        return formValue(EVENT_RESPONSE_PROPERTY).strip();
     }
 
     public String agentRun(String queryExpr, String sessionExpr) {
+        if (isDurable()) {
+            return "self.durableTurn(%s, %s)".formatted(sessionExpr, queryExpr);
+        }
         return "%s(%s, sessionId = %s)".formatted(runTarget(), queryExpr, sessionExpr);
     }
 
@@ -67,9 +120,24 @@ public record AgentTriggerContext(String emitAlias, String listenerVarName, Stri
         return agentVarName + (BALLERINA_ORG.equals(agentOrgName) ? "." : "->") + "run";
     }
 
+    private String chatChannel() {
+        String channel = formValue(CHAT_CHANNEL_PROPERTY).strip();
+        return channel.isEmpty() ? DEFAULT_CHAT_CHANNEL : channel;
+    }
+
+    public String durableHelpers() {
+        if (!isDurable()) {
+            return "";
+        }
+        return DURABLE_HELPERS.replace("{{agent}}", agentVarName).replace("{{channel}}", chatChannel());
+    }
+
     /** Fills the placeholders every channel template shares. */
     public String fill(String template) {
-        return template.replace("{{alias}}", emitAlias).replace("{{listener}}", listenerVarName);
+        String helpers = durableHelpers();
+        return template.replace("{{alias}}", emitAlias)
+                .replace("{{listener}}", listenerVarName)
+                .replace(DURABLE_HELPERS_SLOT, helpers.isEmpty() ? "\n" : "\n" + helpers);
     }
 
     public String formValue(String key) {

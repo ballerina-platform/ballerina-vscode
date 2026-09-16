@@ -59,6 +59,8 @@ import java.util.Map;
 public class AgentTriggerGenerationTest {
 
     private static final String AGENT_NAME_PROPERTY = "agentName";
+    private static final String AGENT_KIND_PROPERTY = "agentKind";
+    private static final Map<String, String> DURABLE = Map.of(AGENT_KIND_PROPERTY, "durable");
     private static final String SERVICE_TYPE_PROPERTY = "serviceType";
     private static final String HANDLER_PROPERTY = "agentEventHandler";
     private final Gson gson = new Gson();
@@ -1284,5 +1286,174 @@ public class AgentTriggerGenerationTest {
                 "the event already wired must survive: " + src);
         Assert.assertEquals(src.split("service cdc:Service", -1).length - 1, 1,
                 "a second service on the same listener fails to start: " + src);
+    }
+
+
+    private ServiceInitModel durableForm(String orgName, String moduleName, String basePath) {
+        AgentTriggerChannel channel = channel(orgName, moduleName);
+        ServiceInitModel form = channel.initModel(new GetServiceInitModelContext(orgName, moduleName, moduleName,
+                "1.0.0", null, null, null, false, "claimAgent", null, "durable")).orElseThrow();
+        form.addProperty(AGENT_NAME_PROPERTY, new Value.ValueBuilder()
+                .enabled(true).editable(false).value("claimAgent").build());
+        form.addProperty(AGENT_KIND_PROPERTY, new Value.ValueBuilder()
+                .enabled(true).editable(false).value("durable").build());
+        channel.additionalProperties().forEach(form::addProperty);
+        form.getProperties().get("basePath").setValue(basePath);
+        return form;
+    }
+
+    private static void assertDurableChat(String src, String turn) {
+        Assert.assertTrue(src.contains(turn), "the chat turn should go through the session's instance: " + src);
+        Assert.assertTrue(src.contains("private map<string> durableSessions = {};"),
+                "the service should keep one instance per session: " + src);
+        Assert.assertTrue(src.contains("string token = check claimAgent.sendData(instanceId, \"chat\", text);")
+                        && src.contains("return claimAgent.waitForDataResult(instanceId, token);"),
+                "a turn is a sendData on the chat channel awaited through its token: " + src);
+        Assert.assertEquals(src.split("\\.run\\(", -1).length - 1, 1, "run() starts the instance, once: " + src);
+        Assert.assertTrue(src.indexOf(".run(") > src.indexOf("function instanceFor(string sessionKey)"),
+                "the one run() belongs to instanceFor: " + src);
+        Assert.assertFalse(src.contains("sessionId ="), "DurableAgent.run takes no sessionId: " + src);
+    }
+
+    @Test
+    public void testDurableAgentChatTurnsThroughAnInstance() {
+        String src = render(AgentTriggerServiceBuilder.buildEdits(durableForm("ballerina", "ai", "/claims"), null,
+                channel("ballerina", "ai"), rootOf("\n"), "main.bal"));
+
+        assertDurableChat(src, "check self.durableTurn(request.sessionId, request.message)");
+    }
+
+    @Test
+    public void testDurableGoogleChatTurnsThroughAnInstance() {
+        String src = generateForAgent("googleapis.chat", "claimAgent", null, DURABLE);
+
+        assertDurableChat(src, "self.durableTurn(\"googlechat:\" + (event.space?.name ?: \"unknown\"), text)");
+    }
+
+    @Test
+    public void testDurableChatSendsOnTheChosenChannel() {
+        String src = generateForAgent("googleapis.chat", "claimAgent", null,
+                Map.of(AGENT_KIND_PROPERTY, "durable", "chatChannel", "support"));
+
+        Assert.assertTrue(src.contains("claimAgent.sendData(instanceId, \"support\", text)"),
+                "the form's channel name is the one each turn is sent on: " + src);
+    }
+
+    @Test
+    public void testDurableEventRunLogsTheInstanceId() {
+        String src = generateForAgent("trigger.shopify", "claimAgent", null, DURABLE);
+
+        Assert.assertTrue(src.contains("string|error result = claimAgent.run("),
+                "an event starts an instance with a plain run: " + src);
+        Assert.assertTrue(src.contains("log:printInfo(\"Agent started\", instanceId = result);"),
+                "the result of a durable run is the instance id, and the log should say so: " + src);
+        Assert.assertFalse(src.contains("durableSessions"), "an event run needs no session map: " + src);
+    }
+
+    @Test
+    public void testDurableHttpAcknowledgesWithTheInstanceId() {
+        ServiceInitModel form = durableForm("ballerina", "http", "/claims");
+        form.getProperties().get("instructions").setValue("File the claim.");
+        String src = render(AgentTriggerServiceBuilder.buildEdits(form, null, channel("ballerina", "http"),
+                rootOf("\n"), "main.bal"));
+
+        Assert.assertTrue(src.contains("returns http:Accepted|error"),
+                "a durable run is what a caller must not block on, so the endpoint acknowledges: " + src);
+        Assert.assertTrue(src.contains("return <http:Accepted>{body: {instanceId: result}};"),
+                "the acknowledgement carries the instance id: " + src);
+        Assert.assertFalse(src.contains("sessionId ="), "DurableAgent.run takes no sessionId: " + src);
+    }
+
+    @Test
+    public void testDurableChatFormAsksForTheChannel() {
+        AgentTriggerServiceBuilder builder = new AgentTriggerServiceBuilder();
+        ServiceInitModel durable = builder.getServiceInitModel(new GetServiceInitModelContext("ballerina", "ai",
+                "ai", "1.0.0", null, null, null, false, "claimAgent", null, "durable"));
+        ServiceInitModel plain = builder.getServiceInitModel(new GetServiceInitModelContext("ballerina", "ai",
+                "ai", "1.0.0", null, null, null, false, "mathTutorAgent", null));
+
+        Assert.assertEquals(durable.getProperties().get("chatChannel").getValue(), "chat",
+                "the durable form should offer the conventional channel by default");
+        Assert.assertEquals(durable.getProperties().get(AGENT_KIND_PROPERTY).getValue(), "durable");
+        Assert.assertNull(plain.getProperties().get("chatChannel"), "an AI agent's form has no channel to ask for");
+    }
+
+
+    private static GetServiceInitModelContext eventContext(String channel, String response) {
+        return new GetServiceInitModelContext("ballerina", "http", "http", "1.0.0", null, null, null, false,
+                "claimAgent", null, "durable", channel, response);
+    }
+
+    private ServiceInitModel eventForm(String channel, String response, Function shaped) {
+        ServiceInitModel form = new AgentTriggerServiceBuilder().getServiceInitModel(eventContext(channel, response));
+        form.getProperties().get("basePath").setValue("/claim-agent");
+        form.setResource(shaped);
+        return form;
+    }
+
+    private static Function eventEndpoint(String path, List<Parameter> parameters, String statusCode, String body) {
+        FunctionReturnType returnType = new FunctionReturnType(
+                new Value.ValueBuilder().enabled(true).value("").build());
+        returnType.setResponses(List.of(new HttpResponse(
+                new Value.ValueBuilder().enabled(true).value(statusCode).build(),
+                new Value.ValueBuilder().enabled(true).value(body).build(),
+                null, null, new Value.ValueBuilder().enabled(false).value("").build(), null, true, true)));
+        return new Function.FunctionBuilder()
+                .kind("RESOURCE")
+                .accessor(new Value.ValueBuilder().enabled(true).value("POST").build())
+                .name(new Value.ValueBuilder().enabled(true).value(path).build())
+                .parameters(new ArrayList<>(parameters))
+                .returnType(returnType)
+                .enabled(true)
+                .build();
+    }
+
+    private String generateForEvent(String channel, String response, Function shaped) {
+        return render(AgentTriggerServiceBuilder.buildEdits(eventForm(channel, response, shaped), null,
+                channel("ballerina", "http"), rootOf("\n"), "main.bal"));
+    }
+
+    @Test
+    public void testEventTriggerSendsTheRequestToTheInstanceAndAwaitsTheReply() {
+        String src = generateForEvent("chat", "string", eventEndpoint("[string instanceId]/chat",
+                List.of(param("PAYLOAD", "string", "payload")), "201", "string"));
+
+        Assert.assertTrue(src.contains("resource function post [string instanceId]/chat(@http:Payload string payload)"
+                + " returns error|string {"), "the endpoint keeps the shape the form gave it: " + src);
+        Assert.assertTrue(src.contains("string token = check claimAgent.sendData(instanceId, \"chat\", payload);"),
+                "the payload is sent on the channel to the instance the path names: " + src);
+        Assert.assertTrue(src.contains("string result = check claimAgent.waitForDataResult(instanceId, token);")
+                && src.contains("return result;"), "the channel's reply is awaited and returned: " + src);
+        Assert.assertFalse(src.contains(".run("), "a data event never starts an instance: " + src);
+        Assert.assertFalse(src.contains("string prompt"), "a data event carries the request, not a prompt: " + src);
+    }
+
+    @Test
+    public void testEventTriggerOnAOneWayChannelOnlyAcknowledges() {
+        String src = generateForEvent("shipping", null, eventEndpoint("[string instanceId]/shipping",
+                List.of(param("PAYLOAD", "string", "payload")), "202", ""));
+
+        Assert.assertTrue(src.contains("_ = check claimAgent.sendData(instanceId, \"shipping\", payload);"),
+                "a one-way channel's correlation token is discarded, as the compiler plugin requires: " + src);
+        Assert.assertTrue(src.contains("return http:ACCEPTED;"), "the send is acknowledged: " + src);
+        Assert.assertFalse(src.contains("waitForDataResult"), "a one-way channel has no reply to await: " + src);
+    }
+
+    @Test
+    public void testEventTriggerFormCarriesTheChannelAndAsksForNoInstructions() {
+        ServiceInitModel form = new AgentTriggerServiceBuilder().getServiceInitModel(eventContext("chat", "string"));
+
+        Assert.assertEquals(form.getProperties().get("eventChannel").getValue(), "chat");
+        Assert.assertEquals(form.getProperties().get("eventResponse").getValue(), "string");
+        Assert.assertNull(form.getProperties().get("instructions"), "the request is sent as-is; nothing to instruct");
+    }
+
+    @Test
+    public void testEventTriggerRefusesAnEndpointWithoutAnInstancePathParameter() {
+        GenerationRefusedException thrown = Assert.expectThrows(GenerationRefusedException.class,
+                () -> generateForEvent("chat", "string", eventEndpoint(".",
+                        List.of(param("PAYLOAD", "string", "payload")), "201", "string")));
+
+        Assert.assertTrue(thrown.getMessage().contains("path parameter"), thrown.getMessage());
     }
 }
