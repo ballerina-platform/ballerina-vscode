@@ -34,9 +34,10 @@ public final class Automation extends DesignGraphNode {
     private final List<String> connections;
     private final List<String> workflows;
     private final String type;
+    private final List<AgentCall> agentCalls;
 
     public Automation(String name, String displayName, String sortText, Location location, List<String> connections,
-                      List<String> workflows) {
+                      List<String> workflows, List<AgentCall> agentCalls) {
         super(true, sortText);
         this.name = name;
         this.displayName = displayName;
@@ -44,6 +45,7 @@ public final class Automation extends DesignGraphNode {
         this.connections = connections;
         this.workflows = workflows;
         this.type = "automation";
+        this.agentCalls = agentCalls;
     }
 
     public String getType() {
@@ -68,6 +70,10 @@ public final class Automation extends DesignGraphNode {
 
     public List<String> getWorkflows() {
         return workflows;
+    }
+
+    public List<AgentCall> getAgentCalls() {
+        return agentCalls;
     }
 
     @Override
