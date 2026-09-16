@@ -917,7 +917,7 @@ export function EmptyState({ onCreateFromScratch, onAddMcpService, isLibrary }: 
                                             onClick={onAddMcpService}
                                             buttonSx={MANUAL_BUTTON_SX}
                                         >
-                                            Add an MCP Server
+                                            Add an MCP Server manually
                                         </Button>
                                     </>
                                 )}
