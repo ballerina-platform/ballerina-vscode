@@ -20,30 +20,38 @@ import {
     AGENT_CARD_MIN_HEIGHT,
     AGENT_CARD_WIDTH,
     ARRIVAL_BOW_PX,
+    DURABLE_ARRIVAL_BOW,
+    DURABLE_RUN_PORT_OFFSET,
+    INLET_TOP_OFFSET,
     TOPOLOGY_COLUMN_GAP,
     TOPOLOGY_GAP_X,
     TOPOLOGY_GAP_X_MAX,
     TOPOLOGY_GAP_X_PAIR,
-    TOPOLOGY_GAP_Y,
     TOPOLOGY_ROW_GAP,
     ENTRY_CARD_WIDTH,
     ENTRY_HEADER_HEIGHT,
+    ENTRY_FOOTER_HEIGHT,
+    ENTRY_MIN_ROWS,
     ENTRY_ROW_HEIGHT,
+    ROW_LANE_GAP,
+    ROW_LANE_PITCH,
+    TOPOLOGY_GAP_Y,
 } from "../resources/constants";
-import { estimateAgentCardHeight, layoutTopology } from "../components/AgentTopologyDiagram/topologyLayout";
+import { defaultVisibleRows, entryCardHeight, estimateAgentCardHeight, inletCrossOffset, layoutTopology } from "../components/AgentTopologyDiagram/topologyLayout";
 
 const ONE_ROW_CARD = ENTRY_HEADER_HEIGHT + ENTRY_ROW_HEIGHT;
 import { TopologyAgentNode, TopologyEdge, TopologyEntryNode, TopologyGraph, TopologyHandler } from "../components/AgentTopologyDiagram/types";
 
 function agent(id: string, extra: Partial<TopologyAgentNode> = {}): TopologyAgentNode {
     return {
-        id, name: id, typeName: "AI Agent", role: "", toolCount: 0, functionTools: 0, agentTools: 0, mcpTools: 0, tools: [], chips: [],
-        typed: false, orphan: false, filePath: "/proj/agents.bal", position: { line: 1, offset: 0 }, ...extra,
+        id, name: id, kind: "agent", typeName: "AI Agent", role: "", toolCount: 0, functionTools: 0, agentTools: 0, mcpTools: 0, tools: [], chips: [],
+        typed: false, orphan: false, filePath: "/proj/agents.bal", position: { line: 1, offset: 0 },
+        channels: [], people: [], activities: 0, gatedActivities: 0, humanTasks: [], peers: [], ...extra,
     };
 }
 
 function handler(id: string, extra: Partial<TopologyHandler> = {}): TopologyHandler {
-    return { id, label: id, filePath: "/proj/services.bal", position: { line: 1, offset: 0 }, logic: [], ordered: false, ...extra };
+    return { id, label: id, filePath: "/proj/services.bal", position: { line: 1, offset: 0 }, logic: [], ordered: false, wired: true, ...extra };
 }
 
 // An entry card with one row per handler id; the card's own id is what edges and ranks use.
@@ -300,7 +308,7 @@ describe("layoutTopology", () => {
         expect(folded.cardHeights["svc"]).toBeLessThan(all.cardHeights["svc"]);
     });
 
-    it("leaves every row's edges from the card's bottom edge, spread across it, when the flow runs top to bottom", () => {
+    it("steps every row's edge out past the card's right edge to its own lane, top row farthest, when the flow runs top to bottom", () => {
         const graph = graphOf(
             [agent("a1"), agent("a2")],
             [trigger("svc", ["h1", "h2"])],
@@ -313,11 +321,18 @@ describe("layoutTopology", () => {
         const card = layout.entryPositions["svc"];
         const first = layout.edgeVias["h1->a1"][0];
         const second = layout.edgeVias["h2->a2"][0];
-        // Both leave below the card, at a third and two thirds of its width.
+        const cardRight = card.x + ENTRY_CARD_WIDTH;
+        expect(layout.edgeLanes["h1->a1"]).toBe(cardRight + ROW_LANE_GAP + ROW_LANE_PITCH);
+        expect(layout.edgeLanes["h2->a2"]).toBe(cardRight + ROW_LANE_GAP);
+        expect(first.x).toBe(layout.edgeLanes["h1->a1"]);
+        expect(second.x).toBe(layout.edgeLanes["h2->a2"]);
         expect(first.y).toBeGreaterThan(card.y + layout.cardHeights["svc"]);
-        expect(second.y).toBeGreaterThan(card.y + layout.cardHeights["svc"]);
-        expect(first.x).toBeCloseTo(card.x + ENTRY_CARD_WIDTH / 3);
-        expect(second.x).toBeCloseTo(card.x + (2 * ENTRY_CARD_WIDTH) / 3);
+        expect(second.y).toBeGreaterThan(first.y);
+    });
+
+    it("gives a row's edge no lane left to right", () => {
+        const graph = graphOf([agent("a1")], [trigger("svc", ["h1"])], [{ id: "h1->a1", sourceId: "svc", targetId: "a1", kind: "trigger", handlerId: "h1" }]);
+        expect(layoutTopology(graph).edgeLanes).toEqual({});
     });
 
     it("leaves each row's edges from that row's own place down the card", () => {
@@ -435,8 +450,8 @@ describe("layoutTopology", () => {
     });
 
     it("grows the card height once tool chips overflow the first row, and stacks the next card below it", () => {
-        expect(estimateAgentCardHeight()).toBe(AGENT_CARD_MIN_HEIGHT);
-        expect(estimateAgentCardHeight(true)).toBeGreaterThan(AGENT_CARD_MIN_HEIGHT);
+        expect(estimateAgentCardHeight(agent("a"))).toBe(AGENT_CARD_MIN_HEIGHT);
+        expect(estimateAgentCardHeight(agent("a", { orphan: true }))).toBeGreaterThan(AGENT_CARD_MIN_HEIGHT);
 
         const tall = agent("tall", { chips: Array.from({ length: 7 }, (_, i) => ({ key: String(i), label: `c${i}` })) });
         const short = agent("short");
@@ -454,6 +469,32 @@ describe("layoutTopology", () => {
         const graph = graphOf([], [trigger("t1"), trigger("t2")], []);
         const layout = layoutTopology(graph);
         expect(layout.entryPositions["t2"].y - layout.entryPositions["t1"].y).toBeGreaterThanOrEqual(ONE_ROW_CARD);
+    });
+
+    it("stacks a card with no wired row below the wired cards instead of ranking it", () => {
+        const idle = trigger("idle", [], { handlers: [handler("ping", { wired: false })] });
+        const graph = graphOf([agent("a1")], [idle, trigger("t1"), trigger("t2")], [edge("t1", "a1"), edge("t2", "a1")]);
+        const layout = layoutTopology(graph);
+        const bottomOfWired = Math.max(layout.entryPositions.t1.y, layout.entryPositions.t2.y) + ONE_ROW_CARD;
+        expect(layout.entryPositions.idle.x).toBe(0);
+        expect(layout.entryPositions.idle.y).toBe(bottomOfWired + TOPOLOGY_GAP_Y);
+    });
+
+    it("shows a card's wired rows by default, at least the minimum, and never more than fit", () => {
+        const rows = ["a", "b", "c", "d", "e"].map((id, index) => handler(id, { wired: index < 4 }));
+        const entry = trigger("t", [], { handlers: rows });
+        expect(defaultVisibleRows(entry, 10)).toBe(4);
+        expect(defaultVisibleRows(entry, 2)).toBe(ENTRY_MIN_ROWS);
+        expect(defaultVisibleRows({ ...entry, handlers: rows.map((row) => ({ ...row, wired: false })) }, 10)).toBe(ENTRY_MIN_ROWS);
+    });
+
+    it("keeps the footer row on a card the user unfolded, so 'Show fewer' has its place", () => {
+        const entry = trigger("t", ["a", "b", "c", "d"]);
+        const allRows = ENTRY_HEADER_HEIGHT + 4 * ENTRY_ROW_HEIGHT;
+        expect(entryCardHeight(entry, 4)).toBe(allRows);
+        expect(entryCardHeight(entry, 4, true)).toBe(allRows + ENTRY_FOOTER_HEIGHT);
+        const layout = layoutTopology(graphOf([agent("a1")], [entry], [edge("t", "a1")]), { unfolded: new Set(["t"]) });
+        expect(layout.cardHeights.t).toBe(allRows + ENTRY_FOOTER_HEIGHT);
     });
 });
 
@@ -510,5 +551,55 @@ describe("layoutTopology (vertical)", () => {
         const a2 = layout.agentPositions["a2"];
         expect(vias[1].x < a2.x || vias[1].x > a2.x + AGENT_CARD_WIDTH).toBe(true);
         expect(vias[3].x).toBe(layout.agentPositions["a3"].x + AGENT_CARD_WIDTH / 2 + layout.edgeBows["a1->a3"] * ARRIVAL_BOW_PX);
+    });
+
+    describe("durable agents", () => {
+        const people = [{ role: "MANAGER", gate: false, decides: ["signoff"], releases: [] }];
+        const channels = [{ name: "chat", senders: [] }];
+
+        it("keeps a durable card at the plain card's height, whoever it stops for", () => {
+            expect(estimateAgentCardHeight(agent("d", { kind: "durable", people }))).toBe(AGENT_CARD_MIN_HEIGHT);
+            const layout = layoutTopology(graphOf([agent("d", { kind: "durable", people })], [trigger("t")], [edge("t", "d")]));
+            expect(layout.cardHeights.d).toBe(AGENT_CARD_MIN_HEIGHT);
+        });
+
+        function eventGraph() {
+            const send: TopologyEdge = { id: "t~>d#chat", sourceId: "t", targetId: "d", kind: "event", handlerId: "t", channel: "chat" };
+            return graphOf([agent("a"), agent("d", { kind: "durable", channels })], [trigger("t")], [edge("t", "a"), edge("a", "d", "delegation"), send]);
+        }
+
+        it("lands an event edge on its channel's inlet instead of the card's centre", () => {
+            const layout = layoutTopology(eventGraph());
+            const vias = layout.edgeVias["t~>d#chat"];
+            expect(vias[vias.length - 1].y).toBe(layout.agentPositions.d.y + INLET_TOP_OFFSET);
+            expect(layout.edgeBows["t~>d#chat"]).toBeUndefined();
+        });
+
+        it("lands a run on a durable card's header, above its inlets, and a plain card's at its centre", () => {
+            const agents = [agent("a"), agent("d", { kind: "durable", channels }), agent("p")];
+            const edges = [edge("t", "a"), edge("a", "d", "delegation"), edge("t", "d"), edge("a", "p", "delegation"), edge("t", "p")];
+            const layout = layoutTopology(graphOf(agents, [trigger("t")], edges));
+            const into = (id: string) => {
+                const vias = layout.edgeVias[id];
+                return vias[vias.length - 1].y - layout.edgeBows[id] * ARRIVAL_BOW_PX;
+            };
+            expect(into("t->d")).toBe(layout.agentPositions.d.y + DURABLE_RUN_PORT_OFFSET);
+            expect(into("t->p")).toBe(layout.agentPositions.p.y + layout.cardHeights.p / 2);
+            expect(Math.abs(layout.edgeBows["t->p"])).toBe(0.5);
+            expect(Math.abs(layout.edgeBows["t->d"])).toBeCloseTo(0.5 * DURABLE_ARRIVAL_BOW);
+        });
+
+        it("spreads inlets across the card's top edge when the topology runs top to bottom", () => {
+            const layout = layoutTopology(eventGraph(), { orientation: "vertical" });
+            const vias = layout.edgeVias["t~>d#chat"];
+            expect(inletCrossOffset(0, 1, true)).toBe(AGENT_CARD_WIDTH / 2);
+            expect(vias[vias.length - 1].x).toBe(layout.agentPositions.d.x + AGENT_CARD_WIDTH / 2);
+        });
+
+        it("folds inlets past the second into one slot", () => {
+            expect(inletCrossOffset(1, 4, false)).toBe(inletCrossOffset(1, 2, false));
+            expect(inletCrossOffset(2, 4, false)).toBe(inletCrossOffset(3, 4, false));
+            expect(inletCrossOffset(2, 4, false)).toBeGreaterThan(inletCrossOffset(1, 4, false));
+        });
     });
 });

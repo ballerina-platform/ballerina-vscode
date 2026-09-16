@@ -73,4 +73,47 @@ describe("describeTopology", () => {
         expect(text).toMatchSnapshot();
     });
 
+    it("names a durable agent's inlets, people and gates, and prints event edges with their channel", () => {
+        const durableModel = {
+            connections: [
+                { symbol: "stockAgent", location: { filePath: AGENTS_BAL, ...range(20) }, scope: "GLOBAL", kind: "Agent", uuid: "s", typeName: "Agent", dependentFunctions: [], enableFlowModel: false, sortText: "a20" },
+            ],
+            listeners: [],
+            workflows: [
+                {
+                    symbol: "orderAgent", location: { filePath: AGENTS_BAL, ...range(3) }, kind: "DURABLE_AGENT", uuid: "o", enableFlowModel: true, sortText: "a3",
+                    attachedServices: [], attachedFunctions: [], role: "Order desk",
+                    events: [{ name: "shipping", type: "ShippingUpdate", attachedServices: [], attachedFunctions: [] }],
+                    humanTasks: [{ name: "release", location: { filePath: AGENTS_BAL, ...range(5) }, userRoles: ["FINANCE"] }],
+                    activityDecls: [{ name: "reserveItems" }, { name: "chargeCard", requiresApproval: true, userRoles: ["FINANCE"] }],
+                    tools: ["askStock"], agentTools: { askStock: "s" }, delegatesTo: ["s"],
+                },
+            ],
+            services: [{
+                location: { filePath: SERVICES_BAL, ...range(1) },
+                attachedListeners: [],
+                connections: ["s"],
+                functions: [],
+                remoteFunctions: [],
+                resourceFunctions: [
+                    { accessor: "post", path: "orders", location: { filePath: SERVICES_BAL, ...range(2) }, connections: ["s"], workflows: ["o"] },
+                    { accessor: "post", path: "orders/[string id]/events", location: { filePath: SERVICES_BAL, ...range(5) }, connections: [], workflowSendData: { o: ["shipping"] } },
+                ],
+                absolutePath: "/order-desk",
+                type: "http:Service",
+                icon: "",
+                uuid: "svc",
+                enableFlowModel: true,
+                sortText: "s1",
+            }],
+        } as unknown as CDModel;
+        const durableAgents = [
+            { name: "orderAgent", path: AGENTS_BAL, startLine: 3, moduleName: "workflow", isDefinition: false, kind: "durable" as const },
+            { name: "stockAgent", path: AGENTS_BAL, startLine: 20, moduleName: "ai", isDefinition: false },
+        ];
+        const graph = buildTopology({ model: durableModel, agents: durableAgents });
+        const layout = layoutTopology(graph, { availableWidth: 1400 });
+
+        expect(describeTopology(durableModel, graph, layout, { availableWidth: 1400 })).toMatchSnapshot();
+    });
 });

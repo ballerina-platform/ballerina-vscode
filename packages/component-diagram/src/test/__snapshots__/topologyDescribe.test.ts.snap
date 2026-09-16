@@ -1,5 +1,23 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`describeTopology names a durable agent's inlets, people and gates, and prints event edges with their channel 1`] = `
+">>> agent overview · horizontal · canvas 1400px · drawn 1320×128 (left 0) · legend trigger, event, delegation, people
+ENTRY POINTS (1 card(s), 2 handler(s))
+  E1   /order-desk                http:Service           2 row(s)  @0,0  services.bal:2
+       H1   POST /orders               chain
+       H2   POST /orders/[string id]/events chain
+AGENTS (2)
+  A1   orderAgent                         Durable Agent col 1  @496,8  h112  tools 3 (1 agent)  chips -  model -  memory -  durable  channels shipping  people FINANCE!
+  A2   stockAgent                         AI Agent     col 2  @1040,8  h112  tools 0  chips -  model -  memory -
+EDGES (3)  source → target  kind  row  steps (order·handler)  geometry
+  E1   → A1   trigger    H1                  bend 272,74
+  E1   → A1   event      H2#shipping                bend 272,110
+  A1   → A2   delegation                     bend 816,64
+HANDLERS (design model: direct agent calls in source order, {construct:label} for the enclosing constructs)
+  POST /order-desk/orders                  → (no direct calls) reaches stockAgent, orderAgent
+  POST /order-desk/orders/[string id]/events → sends shipping → orderAgent"
+`;
+
 exports[`describeTopology prints every node, edge and handler of the canvas as text 1`] = `
 ">>> agent overview · horizontal · canvas 1400px · drawn 1320×288 (left 0) · legend trigger, delegation
 ENTRY POINTS (1 card(s), 1 handler(s))
