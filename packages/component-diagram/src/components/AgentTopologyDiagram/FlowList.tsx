@@ -21,7 +21,6 @@ import styled from "@emotion/styled";
 import { Icon, ThemeColors } from "@wso2/ui-toolkit";
 import { TopologyEntryNode, TopologyHandler } from "./types";
 
-// A row in the list: one handler, shown with the service it belongs to.
 interface FlowRow {
     handler: TopologyHandler;
     label: string;
@@ -67,7 +66,6 @@ const IconButton = styled.button`
     background: transparent;
     color: inherit;
     cursor: pointer;
-    /* Rows already turn SURFACE_CONTAINER on hover, so the button needs a brighter step of its own. */
     &:hover {
         background-color: ${ThemeColors.SURFACE_BRIGHT};
         color: ${ThemeColors.PRIMARY};
@@ -78,7 +76,6 @@ const IconButton = styled.button`
     }
 `;
 
-// Collapsed: one small chip that names the pinned flow, or just opens the list.
 const Chip = styled.div<{ pinned: boolean }>`
     display: flex;
     align-items: center;
@@ -110,7 +107,6 @@ const ChipLabel = styled.button`
     }
 `;
 
-// A row is a shell around the pin button and its trailing shortcuts, so the buttons never nest.
 const RowShell = styled.div<{ pinned: boolean }>`
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto auto;
@@ -175,10 +171,8 @@ const SubLabel = styled.span`
     text-overflow: ellipsis;
 `;
 
-// Codicons sit high in their line box next to Gilmer text; a flex wrapper centres the glyph on the row.
 const ICON_BOX = { width: 16, height: 16, display: "flex", alignItems: "center", justifyContent: "center" };
 const codicon = (name: string, size = 14) => <Icon name={name} isCodicon={true} sx={{ ...ICON_BOX, fontSize: size }} iconSx={{ fontSize: size, lineHeight: 1 }} />;
-// The "View Agent" glyph the agent call node uses to jump to an instance.
 const openGlyph = <Icon name="bi-arrow-outward" sx={{ ...ICON_BOX, fontSize: 16 }} iconSx={{ fontSize: 16, lineHeight: 1, display: "flex" }} />;
 
 export interface FlowListProps {
@@ -191,11 +185,7 @@ export interface FlowListProps {
     onOpen: (trigger: TopologyHandler) => void;
 }
 
-// The package's entry points, folded into a chip until asked for. Hovering a row previews its flow, clicking pins it
-// (and fits the canvas to it) and folds the list back to the chip, which then names the flow and clears it with ✕.
-// An "Open flow" shortcut on each row (and on the pinned chip) does what clicking the trigger square does.
 export function FlowList({ entries, pinnedId, open, onToggle, onPreview, onPin, onOpen }: FlowListProps) {
-    // One row per handler, carrying its service's glyph and name so a row reads on its own.
     const rows: FlowRow[] = entries.flatMap((entry) =>
         entry.handlers.map((handler) => ({
             handler,
@@ -228,7 +218,6 @@ export function FlowList({ entries, pinnedId, open, onToggle, onPreview, onPin, 
             </Chip>
         );
     }
-    // Arrows move between rows; Enter pins (the button's click); Cmd/Ctrl+Enter opens the flow.
     const onRowKey = (trigger: TopologyHandler) => (event: React.KeyboardEvent<HTMLButtonElement>) => {
         if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
             event.preventDefault();

@@ -24,8 +24,6 @@ import { useProjectContentRefresh } from "../PackageOverview/utils";
 
 const DEFER_MS = 600;
 
-// Keyed by projectPath so returning from a drill-in paints immediately with the last input,
-// same idea as agentUsages.ts's usage cache.
 const inputCache = new Map<string, TopologyInput>();
 
 function toArtifact(agent: ProjectStructureArtifactResponse, isDefinition: boolean): TopologyAgentArtifact {

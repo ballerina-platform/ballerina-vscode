@@ -35,7 +35,7 @@ import {
 } from "../../../resources/constants";
 import { useTopologyContext } from "../../AgentTopologyDiagram/TopologyContext";
 import { CardPopover, PopoverRow } from "../../AgentTopologyDiagram/CardPopover";
-import { useClickWithDragTolerance } from "../../../hooks/useClickWithDragTolerance";
+import { useOpenableNode } from "../../AgentTopologyDiagram/useOpenableNode";
 import { ToolChip, TopologyAgentNode, TopologyModelProvider, TopologyTool } from "../../AgentTopologyDiagram/types";
 
 const WARNING_COLOR = "var(--vscode-editorWarning-foreground, #cca700)";
@@ -50,7 +50,6 @@ const HIGH_CONTRAST_HOVER_OUTLINE = css`
     outline-offset: 2px;
 `;
 
-// The instance diagram hangs the model and memory off the node's right edge; the card gives them a rail.
 const Card = styled.div<{ hovered: boolean; orphan: boolean; receded: boolean; readonly?: boolean }>`
     display: grid;
     grid-template-columns: 1fr ${RAIL_WIDTH}px;
@@ -78,7 +77,6 @@ const Card = styled.div<{ hovered: boolean; orphan: boolean; receded: boolean; r
     }
 `;
 
-// The card's min height is what the layout assumes, so ports land where the edges expect them.
 const Body = styled.div`
     min-width: 0;
     display: flex;
@@ -154,7 +152,6 @@ const Connections = styled.div`
     margin-left: auto;
 `;
 
-// The instance diagram draws the model, memory and every tool as a circle; the card keeps the shape.
 const Circle = styled.span<{ dashed?: boolean }>`
     display: inline-flex;
     align-items: center;
@@ -274,7 +271,6 @@ const BottomPortWidget = styled(PortWidget)`
     transform: translateX(-50%);
 `;
 
-// Brand mark for the known providers (WSO2, OpenAI, Anthropic, ...), the model glyph for the rest.
 function modelGlyph(provider: TopologyModelProvider): React.ReactNode {
     return getAIModuleIcon(provider.type, GLYPH_SIZE) ?? <NodeIcon type="MODEL_PROVIDER" size={GLYPH_SIZE} />;
 }
@@ -328,8 +324,6 @@ function connectionRows(chips: ToolChip[]): PopoverRow[] {
     return chips.map((chip) => ({ key: chip.key, glyph: <Chip>{chipGlyph(chip)}</Chip>, label: chip.label }));
 }
 
-// Tool kinds present, as the instance diagram draws them: ƒ for a function, the robot for an agent used as a tool,
-// the MCP mark for a toolkit.
 function ToolKinds({ node }: { node: TopologyAgentNode }) {
     if (node.toolCount === 0) {
         return null;
@@ -374,7 +368,6 @@ interface AgentCardNodeWidgetProps {
 
 type ShowPopover = (rows: PopoverRow[]) => React.MouseEventHandler<HTMLElement>;
 
-// Model is always drawn: an agent cannot run without one. Memory is optional, so an absent one is not shown.
 function RailSlots({ node, show, hide }: { node: TopologyAgentNode; show: ShowPopover; hide: () => void }) {
     const modelRows: PopoverRow[] = node.modelProvider
         ? [{ key: "model", glyph: <Circle>{modelGlyph(node.modelProvider)}</Circle>, label: node.modelProvider.label }]
@@ -402,7 +395,6 @@ export function AgentCardNodeWidget(props: AgentCardNodeWidgetProps) {
     const vertical = orientation === "vertical";
     const InPort = vertical ? TopPortWidget : LeftPortWidget;
     const OutPort = vertical ? BottomPortWidget : RightPortWidget;
-    const [isHovered, setIsHovered] = useState(false);
     const [popover, setPopover] = useState<{ anchor: DOMRect; rows: PopoverRow[] }>();
     const node = model.node;
     const show = (rows: PopoverRow[]) => (event: React.MouseEvent<HTMLElement>) =>
@@ -421,34 +413,18 @@ export function AgentCardNodeWidget(props: AgentCardNodeWidgetProps) {
         (onAddTrigger ?? onAgentSelect)(selection());
     };
 
-    const { handleMouseDown, handleMouseUp } = useClickWithDragTolerance(handleClick);
+    const { hovered, handlers } = useOpenableNode(handleClick, {
+        readonly,
+        onHoverChange: (isHovered) => setHovered?.(isHovered ? model.getID() : undefined),
+    });
 
     return (
         <Card
-            hovered={isHovered}
+            hovered={hovered}
             orphan={node.orphan}
             receded={focus !== undefined && !focus.nodes.has(model.getID())}
             readonly={readonly}
-            tabIndex={0}
-            onMouseEnter={() => {
-                setHovered?.(model.getID());
-                if (!readonly) {
-                    setIsHovered(true);
-                }
-            }}
-            onMouseLeave={() => {
-                setHovered?.(undefined);
-                if (!readonly) {
-                    setIsHovered(false);
-                }
-            }}
-            onMouseDown={!readonly ? handleMouseDown : undefined}
-            onMouseUp={!readonly ? handleMouseUp : undefined}
-            onKeyDown={(event) => {
-                if (!readonly && (event.key === "Enter" || event.key === " ")) {
-                    handleClick();
-                }
-            }}
+            {...handlers}
         >
             <InPort port={model.getPort("in")!} engine={engine} />
             <OutPort port={model.getPort("out")!} engine={engine} />

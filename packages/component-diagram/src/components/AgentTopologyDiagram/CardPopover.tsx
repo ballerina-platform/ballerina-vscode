@@ -21,7 +21,6 @@ import { createPortal } from "react-dom";
 import styled from "@emotion/styled";
 import { ThemeColors } from "@wso2/ui-toolkit";
 
-// Rendered on document.body: the link layer sits above the nodes, so a popover inside the card would be crossed by lines.
 const Popover = styled.div`
     position: fixed;
     z-index: 10000;
@@ -69,13 +68,11 @@ const Muted = styled.span`
 export interface PopoverRow {
     key: string;
     glyph?: React.ReactNode;
-    // Plain words before the label, which stays in the editor font ("Runs after" orderAgent).
     prefix?: string;
     label: string;
     muted?: boolean;
 }
 
-// Drawn outside the canvas, so it takes the canvas zoom itself to stay the card's size.
 export function CardPopover({ rows, anchor, zoom }: { rows: PopoverRow[]; anchor: DOMRect; zoom: number }) {
     return createPortal(
         <Popover style={{ left: anchor.left, top: anchor.bottom + 8 * zoom, transform: `scale(${zoom})`, transformOrigin: "top left" }}>

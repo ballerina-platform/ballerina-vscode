@@ -26,8 +26,6 @@ export function rowPortName(handlerId: string): string {
     return `out::${handlerId}`;
 }
 
-// An entry point only originates edges, so it registers out ports only: one per handler row, and one on the
-// card itself for the rows it has folded away.
 export class ServiceNodeModel extends NodeModel {
     readonly node: TopologyEntryNode;
     protected portOut: NodePortModel;
@@ -40,7 +38,6 @@ export class ServiceNodeModel extends NodeModel {
         });
         this.node = node;
         this.addOutPort("out");
-        // Only a service draws rows; an automation's single handler leaves the card's own port.
         if (node.kind === "service") {
             node.handlers.forEach((handler) => this.addOutPort(rowPortName(handler.id)));
         }
@@ -62,7 +59,6 @@ export class ServiceNodeModel extends NodeModel {
         return this.portOut;
     }
 
-    // The row's own port, or the card's when that row is folded away and has none rendered.
     getRowPort(handlerId: string | undefined): NodePortModel {
         const row = handlerId ? (this.getPort(rowPortName(handlerId)) as NodePortModel) : undefined;
         return row ?? this.portOut;

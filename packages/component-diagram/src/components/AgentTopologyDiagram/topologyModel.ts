@@ -102,7 +102,6 @@ function typeLabel(connection: CDConnection | undefined): string {
     return typeName && typeName !== PLAIN_AGENT_TYPE ? typeName : PLAIN_AGENT_LABEL;
 }
 
-// An agent's tools are its dependent functions; the design model names the ones that hand off to another agent.
 function toolFacts(connection: CDConnection | undefined): Pick<TopologyAgentNode, "toolCount" | "functionTools" | "agentTools" | "mcpTools" | "tools"> {
     const handoffs = new Set(Object.keys(connection?.agentTools ?? {}));
     const tools: TopologyTool[] = [
@@ -159,13 +158,10 @@ function agentNodeFromArtifact(
     };
 }
 
-// LSP4J sends the scope enum as its ordinal (GLOBAL = 1); Gson in tests sends the name.
 function isModuleLevel(connection: CDConnection): boolean {
     return String(connection.scope) === "GLOBAL" || String(connection.scope) === "1";
 }
 
-// A module-level agent the design model sees but the artifact list doesn't (e.g. a non-default-module
-// caller's target) still gets a node, keyed by its own location.
 function agentNodeFromConnection(
     connection: CDConnection,
     uuidToConnection: Map<string, CDConnection>,
@@ -197,7 +193,6 @@ function buildAgentNodes(
     const uuidToConnection = new Map(connections.map((connection) => [connection.uuid, connection]));
     const uuidToNodeId = new Map<string, string>();
 
-    // Cards are agent instances: a definition (class) is not one, and neither is the field it holds inside.
     const nodes = agents
         .filter((artifact) => !artifact.isDefinition)
         .map((artifact) => agentNodeFromArtifact(artifact, connections, uuidToConnection, uuidToNodeId));
@@ -229,7 +224,6 @@ interface EntryLabels {
     icon?: string;
 }
 
-// The card's own labels, as Integrator's design diagram draws them: the base path over the service's type.
 function entryLabelsFor(service: CDService): EntryLabels {
     const modulePrefix = (service.type ?? "").split(":")[0] || "http";
     return {
@@ -240,7 +234,6 @@ function entryLabelsFor(service: CDService): EntryLabels {
     };
 }
 
-// A resource is its method and path; a remote function is its name.
 function handlerLabelFor(fn: CDFunction | CDResourceFunction, isResource: boolean): { label: string; accessor?: string } {
     if (!isResource) {
         return { label: (fn as CDFunction).name };
@@ -252,9 +245,7 @@ function handlerLabelFor(fn: CDFunction | CDResourceFunction, isResource: boolea
 interface Handler {
     entryId: string;
     node: TopologyHandler;
-    // Agent node ids in source order, repeats kept -- a repeat is what makes a handler unchainable.
     calls: string[];
-    // Agents the handler reaches only through a helper, so no call site is known.
     reached: string[];
 }
 
@@ -272,8 +263,6 @@ function logicIn(calls: CDAgentCall[]): HandlerLogic[] {
     return LOGIC_ORDER.filter((kind) => found.has(kind));
 }
 
-// A chain says "then this one runs", so it may only be drawn where that is true of every step: no construct
-// around any call, and no agent called twice (a chain would have to revisit a node and would lose a step).
 function chainable(handler: Handler): boolean {
     return handler.node.logic.length === 0 && new Set(handler.calls).size === handler.calls.length;
 }
@@ -282,8 +271,6 @@ function chainPairs(calls: string[]): string[] {
     return calls.slice(1).map((target, index) => `${calls[index]}|${target}`);
 }
 
-// Two handlers that run the same pair in opposite orders cannot both be chains: the canvas would draw a cycle
-// that does not exist. Neither is more right than the other, so both fall back to a fan.
 function resolveOrderConflicts(handlers: Handler[]): void {
     const owners = new Map<string, Handler[]>();
     handlers.forEach((handler) => {
@@ -304,13 +291,10 @@ function edge(sourceId: string, targetId: string, kind: TopologyEdgeKind, step?:
     return { id: `${sourceId}${kind === "delegation" ? "=>" : "->"}${targetId}`, sourceId, targetId, kind, handlers: step ? [step] : undefined };
 }
 
-// An edge leaving a service leaves one of its rows: the id names the handler so two rows reaching one agent stay
-// two edges, while sourceId names the card the layout places.
 function rowEdge(entryId: string, handlerId: string, targetId: string, step?: HandlerStep): TopologyEdge {
     return { id: `${handlerId}->${targetId}`, sourceId: entryId, targetId, kind: "trigger", handlerId, handlers: step ? [step] : undefined };
 }
 
-// Handlers that share a step produce the same edge twice; the canvas draws it once, crediting every handler.
 function mergeDuplicateEdges(edges: TopologyEdge[]): TopologyEdge[] {
     const byId = new Map<string, TopologyEdge>();
     edges.forEach((link) => {
@@ -326,8 +310,6 @@ function mergeDuplicateEdges(edges: TopologyEdge[]): TopologyEdge[] {
     return [...byId.values()];
 }
 
-// An ordered handler is a chain from its trigger; any other handler fans, and its badge says why. Either way an
-// edge means one thing only: this entry point runs this agent.
 function handlerEdges(handler: Handler): TopologyEdge[] {
     const { entryId } = handler;
     const triggerId = handler.node.id;
@@ -346,8 +328,6 @@ function collectAgentUuids(fn: { connections?: string[] }, uuidToNodeId: Map<str
     return (fn.connections ?? []).filter((uuid) => uuidToNodeId.has(uuid));
 }
 
-// The agents a handler runs: its direct calls first, then those it reaches only through helper functions. An agent
-// reached through another agent's tool is delegation, not a trigger, so the fold's delegates are left out.
 function triggeredAgentUuids(fn: AgentCallSite, uuidToNodeId: Map<string, string>, delegated: Set<string>): string[] {
     const called = (fn.agentCalls ?? []).map((call) => call.connection).filter((uuid) => uuidToNodeId.has(uuid));
     const reached = collectAgentUuids(fn, uuidToNodeId).filter((uuid) => !delegated.has(uuid));
@@ -402,8 +382,6 @@ function buildHandler(
     return handler;
 }
 
-// One card per service, holding the handlers that run agents. A service none of whose handlers runs an agent is
-// not drawn at all.
 function buildServiceEntries(model: CDModel, uuidToNodeId: Map<string, string>): { entries: TopologyEntryNode[]; handlers: Handler[] } {
     const entries: TopologyEntryNode[] = [];
     const handlers: Handler[] = [];

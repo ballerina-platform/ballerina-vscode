@@ -29,8 +29,6 @@ function rangeOf(source: TriggerSelection | EntrySelection) {
     };
 }
 
-// The handler's whole range when the trigger carries its end, as the focus rail's usage tiles send; a bare start
-// point inside an ai:Service resolves to the service instead of the resource.
 export function triggerLocation(trigger: TriggerSelection) {
     return { documentUri: trigger.filePath, position: rangeOf(trigger) };
 }
@@ -39,7 +37,6 @@ export function entryRange(entry: EntrySelection) {
     return rangeOf(entry);
 }
 
-// The artifact resolver matches on the declaration's exact start, so the whole range is sent.
 export function agentLocation(agent: ProjectStructureArtifactResponse) {
     return { documentUri: agent.path, position: agent.position };
 }

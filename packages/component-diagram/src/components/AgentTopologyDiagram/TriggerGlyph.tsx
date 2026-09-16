@@ -21,7 +21,6 @@ import { Icon } from "@wso2/ui-toolkit";
 import { resolveBrandIcon, resolveEntryTypeGlyph } from "@wso2/ballerina-core";
 import { ConnectorIcon } from "@wso2/bi-diagram";
 
-// Same order as the focus diagram's usage tile: entry kind, brand glyph, the module's Central icon, then the globe.
 export function TriggerGlyph({ glyphType, icon, size = 24 }: { glyphType: string; icon?: string; size?: number }) {
     const sx = { width: size, height: size, fontSize: size, display: "flex", alignItems: "center", justifyContent: "center" };
     const entryGlyph = resolveEntryTypeGlyph(glyphType);

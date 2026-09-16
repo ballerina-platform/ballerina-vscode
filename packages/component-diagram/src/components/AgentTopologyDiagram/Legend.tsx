@@ -54,7 +54,6 @@ function Line({ dashed = false }: { dashed?: boolean }) {
     );
 }
 
-// One column for every swatch, so the labels line up.
 const Swatch = styled.div`
     width: ${SWATCH_W}px;
     display: flex;

@@ -26,7 +26,6 @@ export function useAgentFocusFit(diagramEngine: DiagramEngine, isAgentFocusView:
     const [canvasVisible, setCanvasVisible] = useState(!isAgentFocusView);
     const nodeObserverRef = useRef<ResizeObserver>();
     const cancelAnimationRef = useRef<() => void>();
-    // The first fit happens behind the fade; later ones are on screen, so they ease instead of snapping.
     const hasFittedRef = useRef(false);
 
     const fitToContainer = useCallback(

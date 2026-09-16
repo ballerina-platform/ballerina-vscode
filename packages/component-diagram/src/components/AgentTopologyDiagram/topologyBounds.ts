@@ -26,7 +26,6 @@ export interface Bounds {
     height: number;
 }
 
-// The box around a lit flow: its entry cards, agent cards and the bends of its edges.
 export function focusBounds(layout: TopologyLayout, focus: TopologyFocus): Bounds | undefined {
     const boxes: { at: NodePosition; w: number; h: number }[] = [];
     focus.nodes.forEach((id) => {

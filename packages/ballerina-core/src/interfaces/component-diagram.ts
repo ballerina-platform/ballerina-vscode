@@ -51,7 +51,6 @@ export type CDAgentCallGroup = {
 export type CDAgentCall = {
     connection: string;
     line: number;
-    // Enclosing if/match/fork/while/foreach constructs, outermost first.
     groups?: CDAgentCallGroup[];
 };
 
@@ -117,16 +116,11 @@ export type CDConnection = {
     toolConnections?: string[];
     modelProvider?: CDModelProvider;
     memory?: CDMemoryStore;
-    // Tool functions that hand the request to another agent; the rest of dependentFunctions are plain tools.
-    // Tool name -> uuid of the agent that tool hands off to.
     agentTools?: Record<string, string>;
-    // The agent's class name, e.g. Agent or a definition such as CalendarAssistant.
     typeName?: string;
-    // MCP toolkits listed as tools: the variable's name, or the server URL for an inline toolkit.
     mcpToolKits?: string[];
 };
 
-// The provider an agent is constructed with; `symbol` is absent for an inline expression.
 export type CDModelProvider = {
     symbol?: string;
     type: string;

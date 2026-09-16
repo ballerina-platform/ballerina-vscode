@@ -90,7 +90,6 @@ function serviceTypeLabel(type?: string): string | undefined {
     return SERVICE_TYPE_LABELS[modulePart] ?? `${modulePart.charAt(0).toUpperCase()}${modulePart.slice(1)} Service`;
 }
 
-// An Agent Chat row already names the service kind, so its sublabel is the bare path.
 function serviceSubLabel(service: CDService): string {
     const label = serviceLabel(service);
     const typeLabel = modulePrefix(service.type) === "ai" ? undefined : serviceTypeLabel(service.type);
@@ -172,8 +171,6 @@ function tryItFor(model: CDModel, service: CDService): AgentUsageTryIt | undefin
 
 type AgentCaller = { connections?: string[]; agentCalls?: CDAgentCall[] };
 
-// A caller's connections fold in what its agents delegate to; only its own calls make it a trigger.
-// The handler runs the agent itself or through a helper; reaching it through another agent's tool is delegation.
 function runsAgent(fn: AgentCaller, uuid: string, delegated: Set<string>): boolean {
     const called = (fn.agentCalls ?? []).some((call) => call.connection === uuid);
     return called || (Boolean(fn.connections?.includes(uuid)) && !delegated.has(uuid));
@@ -350,7 +347,6 @@ export function findAgentUsages(
     return usages;
 }
 
-// Which agent each agent-tool hands off to, so the rail can offer a jump to it.
 export function findAgentToolTargets(model: CDModel, agent: AgentRef): Record<string, AgentToolTarget> {
     const uuid = model && findAgentUuid(model, agent);
     const connections = model?.connections ?? [];
