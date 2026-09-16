@@ -51,12 +51,9 @@ const createFlow = (node: ReturnType<typeof createAgentBoxNode>) => ({ nodes: [n
 const halfNodeWidth = NODE_WIDTH / 2;
 const sideColumnWidth = NODE_GAP_X + NODE_HEIGHT + LABEL_HEIGHT + LABEL_WIDTH;
 
-// The right column at n rows: the model circle, then the rest under the tool section gap, flush at the bottom.
 const rightColumn = (rows: number) =>
     NODE_HEIGHT + AGENT_NODE_TOOL_SECTION_GAP + (rows - 1) * (NODE_HEIGHT + AGENT_NODE_TOOL_GAP);
-// A left-column group of n circles, preceded by the section gap.
 const leftGroup = (rows: number) => DURABLE_LEFT_SECTION_GAP + rows * (NODE_HEIGHT + AGENT_NODE_TOOL_GAP);
-// The two footer tiles right under the circles: one row, and the second tile a tile pitch lower.
 const footerTiles = NODE_HEIGHT + DURABLE_FOOTER_TILE_PITCH;
 
 describe("SizingVisitor: durable-agent reference sizing", () => {
@@ -64,7 +61,6 @@ describe("SizingVisitor: durable-agent reference sizing", () => {
         const node = createAgentBoxNode();
         traverseFlow(createFlow(node), new SizingVisitor(undefined, false));
 
-        // Left: the two footer tiles fit under the right column's model circle plus tool tile.
         expect(node.viewState.lw).toBe(halfNodeWidth + sideColumnWidth);
         expect(node.viewState.rw).toBe(halfNodeWidth + sideColumnWidth);
         expect(node.viewState.ch).toBe(rightColumn(2));
@@ -83,7 +79,6 @@ describe("SizingVisitor: durable-agent reference sizing", () => {
         traverseFlow(createFlow(node), new SizingVisitor({ canAddTrigger: true }, false));
 
         const triggerBlock = (5 + 1 + 1) * AGENT_USAGE_ROW_PITCH;
-        // One task and one event circle, then the two footer tiles.
         expect(node.viewState.lw).toBe(halfNodeWidth + sideColumnWidth + DURABLE_USAGE_COLUMN_EXTRA_WIDTH);
         expect(node.viewState.rw).toBe(halfNodeWidth + sideColumnWidth);
         expect(node.viewState.ch).toBe(triggerBlock + leftGroup(2) + footerTiles);
@@ -99,7 +94,6 @@ describe("SizingVisitor: durable-agent reference sizing", () => {
         } as any;
         traverseFlow(createFlow(node), new SizingVisitor({ canAddTrigger: true }, false));
 
-        // One run row and the Add Trigger tile; the task keeps a circle row, the event's slot is its two sender rows.
         const triggerBlock = 2 * AGENT_USAGE_ROW_PITCH;
         const circles = DURABLE_LEFT_SECTION_GAP + (NODE_HEIGHT + AGENT_NODE_TOOL_GAP) + 2 * AGENT_USAGE_ROW_PITCH;
         expect(node.viewState.lw).toBe(halfNodeWidth + sideColumnWidth + DURABLE_USAGE_COLUMN_EXTRA_WIDTH + DURABLE_SENDER_COLUMN_WIDTH);
@@ -111,7 +105,6 @@ describe("SizingVisitor: durable-agent reference sizing", () => {
         node.metadata.data = { agentBox: true, events: [{ name: "chat" }] } as any;
         traverseFlow(createFlow(node), new SizingVisitor({ canAddTrigger: true, canAddEventTrigger: true }, false));
 
-        // The Add Trigger tile alone at the top; the channel's slot is one tile row plus room for its caption.
         const triggerBlock = AGENT_USAGE_ROW_PITCH;
         const channelSlot = Math.max(AGENT_USAGE_ROW_PITCH, NODE_HEIGHT + AGENT_NODE_TOOL_GAP + DURABLE_CAPTION_HEIGHT);
         expect(node.viewState.lw).toBe(halfNodeWidth + sideColumnWidth + DURABLE_USAGE_COLUMN_EXTRA_WIDTH);

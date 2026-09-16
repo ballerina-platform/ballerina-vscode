@@ -240,7 +240,6 @@ export const getNodeChartColor = (nodeType: NodeKind, symbol?: string): string =
         }
     }
 
-    // The durable agent's robot: bright blue in both themes tells it from the cyan agent and reads on light too.
     if (nodeType === "DURABLE_AGENT_RUN") {
         return CHART_COLORS.BRIGHT_BLUE;
     }
@@ -434,7 +433,6 @@ const CornerBadge = styled.span<{ right: number; bottom: number }>`
     opacity: 0.8;
 `;
 
-// The durable agent's robot with the workflow glyph tucked past its bottom-right corner, as the Add Agent card draws it.
 export function DurableAgentIcon(props: { size?: number; color?: string }) {
     const { size = 24, color } = props;
     const badge = Math.round(size * 0.46);

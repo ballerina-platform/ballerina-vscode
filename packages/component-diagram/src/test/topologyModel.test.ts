@@ -98,7 +98,6 @@ function durableWorkflow(uuid: string, symbol: string, filePath: string, line: n
     };
 }
 
-// A resource that runs or sends to a durable agent: the design model files both under the handler's workflow facts.
 function durableFn(accessor: string, path: string, line: number, workflows: string[], sendData?: Record<string, string[]>): CDResourceFunction {
     return { accessor, path, location: { filePath: SERVICES_BAL, ...range(line) }, connections: [], workflows, workflowSendData: sendData };
 }
@@ -107,7 +106,6 @@ function durableArtifact(name: string, line: number): TopologyAgentArtifact {
     return artifact(name, AGENTS_BAL, line, { moduleName: "workflow", kind: "durable" });
 }
 
-// The durable_claims demo: one durable agent, run by one resource and sent `chat` events by two others.
 function claimsInput(): TopologyInput {
     const claimAgent = durableWorkflow("claim", "claimAgent", AGENTS_BAL, 3, {
         role: "Smart Claim assistant",
@@ -260,7 +258,6 @@ describe("buildTopology", () => {
         expect(graph.edges.map((edge) => edge.sourceId)).toEqual([triggerId, triggerId]);
     });
 
-    // Inside a loop the body still runs in order on every iteration, so a straight-line body chains (evaluator_optimizer).
     it("chains a handler whose calls sit inside a loop but nothing else, and still records the loop", () => {
         const generator = agentConnection("g", "generatorAgent", AGENTS_BAL, 1);
         const evaluator = agentConnection("e", "evaluatorAgent", AGENTS_BAL, 5);
@@ -283,7 +280,6 @@ describe("buildTopology", () => {
         ]);
     });
 
-    // The chain follows each agent's first call; a repeat is a fact about a call site and is drawn nowhere.
     it("chains a handler that calls one agent twice along the first calls, and draws the repeat nowhere", () => {
         const notify = agentConnection("not", "notifyAgent", AGENTS_BAL, 1);
         const refund = agentConnection("ref", "refundAgent", AGENTS_BAL, 5);
@@ -306,8 +302,6 @@ describe("buildTopology", () => {
         ]);
     });
 
-    // evaluator_optimizer's /translate: translator, quality, then translator again inside an `if`. The first calls
-    // sit under the loop alone, so quality runs after translator on every pass; only the retry is conditional.
     it("chains the first calls when only a repeat sits under a branch", () => {
         const translator = agentConnection("t", "translatorAgent", AGENTS_BAL, 1);
         const quality = agentConnection("q", "qualityAgent", AGENTS_BAL, 5);
@@ -686,7 +680,6 @@ describe("buildTopology", () => {
         expect(events).toHaveLength(2);
         expect(new Set(events.map((edge) => edge.id)).size).toBe(2);
         events.forEach((edge) => expect(edge).toMatchObject({ targetId: claim, channel: "chat" }));
-        // The read-only GET draws nothing, so it is an idle row after the three that do.
         expect(graph.handlers.map((handler) => handler.label)).toEqual(["/conversations", "/conversations/[string id]/messages", "/cases/[string caseId]/submit", "/conversations/[string id]/state"]);
         expect(graph.handlers.map((handler) => handler.sends)).toEqual([undefined, ["chat"], ["chat"], undefined]);
         expect(graph.handlers.map((handler) => handler.wired)).toEqual([true, true, true, false]);

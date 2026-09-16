@@ -412,7 +412,6 @@ export class SizingVisitor implements BaseVisitor {
         this.setNodeSize(node, containerLeftWidth, containerRightWidth, containerHeight);
     }
 
-    // The declaration canvas draws footer tiles on both sides (two left, one right); the same rows the widget paints.
     private durableBoxRows(nodeMetadata: DurableBoxMetadata | undefined, usages: AgentUsage[]): DurableBoxRows {
         return {
             triggerRows: durableTriggerRows(durableRunUsages(usages), canAddTrigger(this.agentUsageOptions)),
@@ -460,7 +459,6 @@ export class SizingVisitor implements BaseVisitor {
 
         const rows = this.durableBoxRows(nodeMetadata, getDurableAgentUsages(node));
 
-        // The left column always draws its tiles here; trigger rows need the wider rail, sender rows a column of their own.
         const hasSenders = durableHasSenders(nodeMetadata?.events ?? [], getDurableAgentUsages(node));
         const containerLeftWidth = halfNodeWidth + durableLeftColumnWidth(sideColumnWidth, rows.triggerRows, hasSenders);
         // Reserve right-side space for the model circle and capability circles column.

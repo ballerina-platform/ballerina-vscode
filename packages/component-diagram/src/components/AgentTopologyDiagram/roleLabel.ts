@@ -16,7 +16,6 @@
  * under the License.
  */
 
-// Roles are declared in caps ("MANAGER"); the canvas shows them as words, leaving a mixed-case name alone.
 export function roleLabel(role: string): string {
     const rest = role === role.toUpperCase() ? role.slice(1).toLowerCase() : role.slice(1);
     return role.charAt(0).toUpperCase() + rest;

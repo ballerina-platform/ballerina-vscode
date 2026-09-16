@@ -37,8 +37,6 @@ export function useOpenableNode(open: () => void, { readonly, onHoverChange }: O
 
     return {
         hovered: !readonly && hovered,
-        // For a caller with something else hoverable inside its bounds (e.g. a durable card's inlets), which must
-        // suppress the card's own hover state without going through onHoverChange.
         setHovered,
         handlers: {
             tabIndex: 0,

@@ -52,7 +52,6 @@ public final class Workflow extends DesignGraphNode {
     private final Set<String> connections;
     private final Set<String> invalidSendDataServices;
     private final Set<String> invalidSendDataFunctions;
-    // Durable-agent facts, null until declared so they stay off the wire for plain workflows.
     private String role;
     private List<ActivityDecl> activityDecls;
     private List<String> tools;
@@ -297,11 +296,6 @@ public final class Workflow extends DesignGraphNode {
     /**
      * Represents a human task awaited inside a workflow function via {@code ctx->awaitHumanTask(...)}.
      *
-     * @param name      name of the human task
-     * @param location  location of the await call, or of a durable agent's task declaration
-     * @param userRoles roles a durable agent's declaration assigns, absent for awaited tasks
-     * @param title     the declared title, absent for awaited tasks
-     */
     public record HumanTask(String name, Location location, List<String> userRoles, String title) {
 
         public HumanTask(String name, Location location) {
@@ -309,23 +303,9 @@ public final class Workflow extends DesignGraphNode {
         }
     }
 
-    /**
-     * A declared activity: {@code activities: [fn, {activity: fn, requiresApproval: true, userRoles: "X"}]}.
-     *
-     * @param name             the activity function's name
-     * @param requiresApproval whether every call parks on a human review
-     * @param userRoles        the roles that may release a gated call, absent when none are declared
-     */
     public record ActivityDecl(String name, boolean requiresApproval, List<String> userRoles) {
     }
 
-    /**
-     * A declared peer agent: {@code peers: [{agent: other, name: "pay", requiresApproval: true, userRoles: "X"}]}.
-     *
-     * @param name             the peer's tool name
-     * @param agentUuid        the peer agent's overview uuid
-     * @param requiresApproval whether the hand-off parks on a human review
-     * @param userRoles        the roles that may release a gated hand-off, absent when none are declared
      */
     public record PeerDecl(String name, String agentUuid, boolean requiresApproval, List<String> userRoles) {
     }

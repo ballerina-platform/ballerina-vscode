@@ -207,7 +207,6 @@ const mergePanelCategories = (prev: PanelCategory[] = [], next: PanelCategory[] 
     return merged;
 };
 
-// The synthetic agent box (or its draft placeholder) the LS puts first in a durable agent's flow model.
 const isDurableAgentBoxNode = (node: FlowNode) =>
     node.codedata?.node === "DURABLE_AGENT_RUN" &&
     ((node.metadata?.data as { agentBox?: boolean })?.agentBox === true || node.metadata?.draft === true);
@@ -3986,9 +3985,6 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         return handleOnEditNode(node);
     };
 
-    // Model select for the durable agent box: the model-provider panel writes the box's hidden `model`
-    // property, which the LS renders into the declaration's config (or a legacy run node's own argument).
-    // AI agents fall through to the agent editor controller's handler.
     const handleOnEditDurableAgentModel = (agentCallNode: FlowNode) => {
         const superseded = beginPanelNav();
         selectedNodeRef.current = agentCallNode;
@@ -4156,8 +4152,6 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     // visitor links the pair with a non-editable edge.
     const agentOnlyView = !!hideAgentConfiguration && !!flowModel?.nodes?.some(isDurableAgentBoxNode);
     const durableUsagesLoaded = useDurableAgentUsages(agentOnlyView, model, projectPath, setModel);
-    // Memoised on the model: a fresh object here would redraw the diagram on every panel open or close,
-    // remounting the box (its rail fades in again) and skipping the panel's own slide-in frame.
     const displayModel = useMemo(
         () => (agentOnlyView
             ? {
@@ -4223,7 +4217,6 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 onAddActivity: handleOnAddDurableActivity,
                 onAddHumanTask: handleOnAddDurableHumanTask,
                 onAddEvent: handleOnAddDurableEvent,
-                // The declaration canvas offers the durable box an Add Trigger tile, as the agent page does for an AI agent.
                 onAddTrigger: agentOnlyView ? (node: FlowNode) => startAddAgentTrigger(node, rpcClient) : agentEditor.diagramCallbacks.onAddTrigger,
                 onAddEventTrigger: agentOnlyView ? (node: FlowNode, event: ToolData) => startAddDurableEventTrigger(node, event, rpcClient) : undefined,
                 onEditCapability: handleOnEditDurableCapability,
@@ -4234,7 +4227,6 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 durableAgentReference: !agentOnlyView,
                 onGoToAgent: handleOnGoToDurableAgent,
             },
-            // The declaration canvas is a one-box page like the agent page: centre and fit the box on load.
             isAgentFocusView: agentOnlyView,
             suggestions: {
                 fetching: fetchingAiSuggestions,

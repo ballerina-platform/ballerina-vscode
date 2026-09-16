@@ -40,8 +40,6 @@ const DASH: Record<TopologyLinkModel["kind"], string | undefined> = { trigger: u
 
 type LockHover = Pick<React.SVGAttributes<SVGGElement>, "onMouseEnter" | "onMouseLeave">;
 
-// The lock a gated hand-off wears, at the pill point of the link's final run; the legend draws the same mark.
-// It keeps its own colours when the edge lights up, and its whole face answers the hover, not just the ring.
 export function LockChip({ at, ...hover }: { at: { x: number; y: number } } & LockHover) {
     return (
         <g transform={`translate(${at.x}, ${at.y})`} pointerEvents="all" style={{ transition: `opacity ${FOCUS_FADE}` }} {...hover}>
@@ -52,7 +50,6 @@ export function LockChip({ at, ...hover }: { at: { x: number; y: number } } & Lo
     );
 }
 
-// The lock's popover, in the card popover's grammar: "Released by Finance".
 function lockRows(gatedBy: string[]): PopoverRow[] {
     return gatedBy.length
         ? [{ key: "released", prefix: "Released by", label: gatedBy.map(roleLabel).join(", ") }]
@@ -64,7 +61,6 @@ export function TopologyLinkWidget({ link, engine }: TopologyLinkWidgetProps) {
     const [lockAnchor, setLockAnchor] = useState<DOMRect>();
     const { focus } = useTopologyContext();
     const focused = focus?.edges.has(link.edgeId) ?? false;
-    // An event edge keeps its purple when lit: the rest receding is enough, and blue would read as a run.
     const lit = isHovered || focused;
     const color = link.kind === "event" ? EVENT_COLOR : lit ? ThemeColors.PRIMARY : ThemeColors.ON_SURFACE;
     const opacity = focus && !focused ? RECEDED_OPACITY : 1;

@@ -416,7 +416,6 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
     let isActivity = parentMetadata?.kind === "Activity";
     let isNPFunction = view === FOCUS_FLOW_DIAGRAM_VIEW.NP_FUNCTION;
     let isAgentFocus = view === FOCUS_FLOW_DIAGRAM_VIEW.AGENT || view === FOCUS_FLOW_DIAGRAM_VIEW.TYPED_AGENT;
-    // Agent Builder titles the durable page like the agent page; Integrator keeps the workflow title bar.
     const isDurableAgentPage = isDurableAgent && productMode === ProductMode.AGENT_BUILDER;
 
     const handleResourceTryIt = async (methodValue: string, pathValue: string) => {

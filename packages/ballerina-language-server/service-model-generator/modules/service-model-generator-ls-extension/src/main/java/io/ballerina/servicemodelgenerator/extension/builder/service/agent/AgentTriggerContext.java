@@ -34,7 +34,6 @@ import java.util.Map;
  * @param listenerVarName the listener the service attaches to
  * @param agentVarName    the agent variable the trigger is wired to
  * @param agentOrgName    the agent's publishing org, deciding {@code .run} vs {@code ->run}
- * @param agentKind       "durable" for a workflow:DurableAgent, which runs and chats through instances; else absent
  * @param formValues      the filled creation form, flattened to leaf key -> value
  * @param initForm        the filled creation form itself
  * @param triggerModel    the connector's schema
@@ -55,10 +54,7 @@ public record AgentTriggerContext(String emitAlias, String listenerVarName, Stri
     private static final String BALLERINA_ORG = "ballerina";
     private static final String DURABLE_HELPERS_SLOT = "\n{{durableHelpers}}\n";
 
-    // A durable run starts an instance and returns its id; a chat turn is an event sent into that instance and
-    // awaited. One instance per session lives in the service for as long as the service does.
     private static final String DURABLE_HELPERS = """
-                // In memory: a restart starts a new instance for a returning session while the old one keeps waiting.
                 private map<string> durableSessions = {};
 
                 function durableTurn(string sessionKey, string text) returns string|error {
@@ -97,7 +93,6 @@ public record AgentTriggerContext(String emitAlias, String listenerVarName, Stri
         return DURABLE_KIND.equals(agentKind);
     }
 
-    /** The trigger sends data on one of the durable agent's channels instead of running it. */
     public boolean isEventTrigger() {
         return isDurable() && !eventChannel().isEmpty();
     }
@@ -106,12 +101,10 @@ public record AgentTriggerContext(String emitAlias, String listenerVarName, Stri
         return formValue(EVENT_CHANNEL_PROPERTY).strip();
     }
 
-    /** The channel's response type; empty for a one-way channel, whose send has nothing to await. */
     public String eventResponse() {
         return formValue(EVENT_RESPONSE_PROPERTY).strip();
     }
 
-    // A chat turn: the AI agent's run keyed by session, or the durable agent's turn on its session's instance.
     public String agentRun(String queryExpr, String sessionExpr) {
         if (isDurable()) {
             return "self.durableTurn(%s, %s)".formatted(sessionExpr, queryExpr);
@@ -119,7 +112,6 @@ public record AgentTriggerContext(String emitAlias, String listenerVarName, Stri
         return "%s(%s, sessionId = %s)".formatted(runTarget(), queryExpr, sessionExpr);
     }
 
-    // A one-shot run; for a durable agent the result is the started instance's id.
     public String agentRun(String queryExpr) {
         return "%s(%s)".formatted(runTarget(), queryExpr);
     }
@@ -133,7 +125,6 @@ public record AgentTriggerContext(String emitAlias, String listenerVarName, Stri
         return channel.isEmpty() ? DEFAULT_CHAT_CHANNEL : channel;
     }
 
-    // The members a durable chat service needs, or nothing: the template's slot line then disappears.
     public String durableHelpers() {
         if (!isDurable()) {
             return "";

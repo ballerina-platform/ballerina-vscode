@@ -71,11 +71,8 @@ public class EventAgentTriggerChannel implements AgentTriggerChannel {
             }""";
 
     private static final String RESULT_LOG = """
-            // TODO: replace this with what should happen with the agent's answer
             log:printInfo("Agent result", result = result);""";
-    // A durable run returns the started instance's id, not an answer.
     private static final String INSTANCE_LOG = """
-            // TODO: replace this with what should happen once the agent instance has started
             log:printInfo("Agent started", instanceId = result);""";
 
     private final String moduleName;

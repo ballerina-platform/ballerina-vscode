@@ -90,7 +90,6 @@ export interface AgentFocusFitInput {
     embedded: boolean;
 }
 
-// The upward bias of a centred node never lifts it into the top padding.
 export function fitAgentFocus(input: AgentFocusFitInput): AgentFocusFitTarget {
     const { canvasWidth, canvasHeight, contentWidth, contentHeight, contentLeft, contentTop, embedded } = input;
     const fitWidthPct = ((canvasWidth - AGENT_FOCUS_FIT_PADDING * 2) / contentWidth) * 100;
@@ -106,7 +105,6 @@ export function fitAgentFocus(input: AgentFocusFitInput): AgentFocusFitTarget {
     return { targetZoomPct, targetOffsetX, targetOffsetY };
 }
 
-/** The vertical span of every drawn node, so the Start pill above a durable box is fitted with it. */
 function measureNodesY(diagramEngine: DiagramEngine, nodes: NodeModel[]): { top: number; bottom: number } {
     let top = Infinity;
     let bottom = -Infinity;
@@ -116,13 +114,11 @@ function measureNodesY(diagramEngine: DiagramEngine, nodes: NodeModel[]): { top:
             top = Math.min(top, rect.top);
             bottom = Math.max(bottom, rect.bottom);
         } catch {
-            // not in the DOM yet
         }
     });
     return { top, bottom };
 }
 
-/** Fits the agent node's painted width and the drawing's height into the canvas, capped at 100% zoom, and centers it. */
 export function computeAgentFocusFit(
     canvas: HTMLElement,
     diagramEngine: DiagramEngine,

@@ -47,37 +47,29 @@ import { LayoutOptions, NodePosition, TopologyAgentNode, TopologyEdge, TopologyE
 const ORPHAN_FOOTER_HEIGHT = 26;
 const LANE_CLEARANCE = 28;
 const LANE_LEAD = 24;
-// How far past the cards a back edge (a delegation cycle) wraps around.
 const BACK_EDGE_CLEARANCE = 24;
 const BEND_OFFSET = 40;
 const BEND_STAGGER = 14;
 
-// A plain workflow card grows for its named human-task rows, folding past WORKFLOW_ROW_CAP into one "+N more" row.
 function workflowRowCount(taskCount: number): number {
     return Math.min(taskCount, WORKFLOW_ROW_CAP) + (taskCount > WORKFLOW_ROW_CAP ? 1 : 0);
 }
 
-// The min height already budgets one bottom line (tools/capabilities + chips); a workflow's task rows and an
-// orphan's footer are the only things that grow it further.
 export function estimateAgentCardHeight(node: Pick<TopologyAgentNode, "orphan" | "kind" | "humanTasks">): number {
     const taskRows = node.kind === "workflow" ? WORKFLOW_TASKS_GAP + workflowRowCount(node.humanTasks.length) * ENTRY_ROW_HEIGHT : 0;
     return AGENT_CARD_MIN_HEIGHT + taskRows + (node.orphan ? ORPHAN_FOOTER_HEIGHT : 0);
 }
 
-// Which inlet a channel is drawn as: its own up to the visible limit, the "+N" pill past it.
 export function inletSlot(index: number): number {
     return Math.min(index, INLET_VISIBLE_MAX);
 }
 
-// Where an inlet sits across the flow, measured from the card's own cross position: down the left border when
-// left to right, spread across the top edge when top to bottom. The widget places the pills by the same rule.
 export function inletCrossOffset(index: number, count: number, vertical: boolean): number {
     const slot = inletSlot(index);
     const slots = Math.min(count, INLET_VISIBLE_MAX + 1);
     return vertical ? ((slot + 1) / (slots + 1)) * AGENT_CARD_WIDTH : INLET_TOP_OFFSET + slot * INLET_PITCH;
 }
 
-// A card's height follows the rows it draws, plus the footer row when it folds the rest away or was unfolded.
 export function entryCardHeight(entry: TopologyEntryNode, rows: number, unfolded = false): number {
     if (entry.kind === "automation") {
         return ENTRY_HEADER_HEIGHT;
@@ -87,33 +79,25 @@ export function entryCardHeight(entry: TopologyEntryNode, rows: number, unfolded
     return ENTRY_HEADER_HEIGHT + shown * ENTRY_ROW_HEIGHT + (footer ? ENTRY_FOOTER_HEIGHT : 0);
 }
 
-// How many rows a card draws until unfolded: the rows that run an agent, within what fits, never under the minimum.
-// Idle rows fill the minimum when there are too few wired ones; the rest sit behind "Show N more".
 export function defaultVisibleRows(entry: TopologyEntryNode, fits: number): number {
     const wired = entry.handlers.filter((handler) => handler.wired).length;
     return Math.max(ENTRY_MIN_ROWS, Math.min(fits, wired));
 }
 
-// Where a row's port sits down the card's side, level with its row, in either orientation.
 export function rowPortOffset(index: number): number {
     return ENTRY_HEADER_HEIGHT + index * ENTRY_ROW_HEIGHT + ENTRY_ROW_HEIGHT / 2;
 }
 
-// How much room a card's lanes take beside it, top to bottom.
 export function rowLaneSpan(rows: number): number {
     return ROW_LANE_GAP + (rows - 1) * ROW_LANE_PITCH;
 }
 
-// Where a row's edge leaves across the flow, measured from the card's own cross position. Left to right that is
-// the port itself, level with the row. Top to bottom every row's edge steps out past the card's right edge to
-// its own lane and drops from there: the top row farthest out, so no row's step crosses another's drop.
 export function rowCrossOffset(index: number, count: number, vertical: boolean): number {
     return vertical ? ENTRY_CARD_WIDTH + ROW_LANE_GAP + (count - 1 - index) * ROW_LANE_PITCH : rowPortOffset(index);
 }
 
 type Adjacency = Map<string, string[]>;
 
-// Sources in one layer would otherwise share a bus line; stagger their bends so fans stay apart.
 function bendOffsets(layers: string[][], placement: Placement): Map<string, number> {
     const offsets = new Map<string, number>();
     layers.forEach((ids) =>
@@ -125,7 +109,6 @@ function bendOffsets(layers: string[][], placement: Placement): Map<string, numb
 }
 
 
-// Positions along the cross axis (y when horizontal, x when vertical) with each node's size on that axis.
 interface Placement {
     cross: Map<string, number>;
     sizes: Record<string, number>;
@@ -137,8 +120,6 @@ interface Extent {
     height: number;
 }
 
-// Everything the orientation decides: node extents, the gap between siblings, and where each rank sits
-// along the flow axis.
 interface Frame {
     vertical: boolean;
     crossGap: number;
@@ -164,8 +145,6 @@ function adjacency(edges: TopologyEdge[], from: "sourceId" | "targetId", to: "so
     return map;
 }
 
-// Longest path from the seeds. An edge back into the path being walked closes a delegation
-// cycle and does not lengthen it, so the cycle's members stay in adjacent ranks.
 function relaxRanks(rank: Map<string, number>, children: Adjacency, seeds: string[]): void {
     const walking = new Set<string>();
     const visit = (id: string): void => {
@@ -182,8 +161,6 @@ function relaxRanks(rank: Map<string, number>, children: Adjacency, seeds: strin
     seeds.forEach(visit);
 }
 
-// Rank = longest path from an entry point. Agents nothing reaches start in the first agent rank
-// and pull their own delegates along, so an untriggered supervisor still fans out.
 function computeRanks(graph: TopologyGraph, edges: TopologyEdge[]): Map<string, number> {
     const rank = new Map<string, number>();
     const children = adjacency(edges, "sourceId", "targetId");
@@ -191,7 +168,6 @@ function computeRanks(graph: TopologyGraph, edges: TopologyEdge[]): Map<string, 
     relaxRanks(rank, children, graph.entries.map((entry) => entry.id));
     const orphans = graph.agents.filter((agent) => !rank.has(agent.id));
     orphans.forEach((agent) => rank.set(agent.id, 1));
-    // An orphan that another orphan's walk already pulled along is not a root of its own.
     orphans.forEach((agent) => {
         if (rank.get(agent.id) === 1) {
             relaxRanks(rank, children, [agent.id]);
@@ -200,8 +176,6 @@ function computeRanks(graph: TopologyGraph, edges: TopologyEdge[]): Map<string, 
     return rank;
 }
 
-// Edges arriving at one node spread across its port side, at most ±1 step apart; a durable card's header has
-// room for a fraction of that, so its arrivals stay above the inlets.
 function spreadArrivals(edges: TopologyEdge[], stepOf: (targetId: string) => number): Record<string, number> {
     const groups = new Map<string, TopologyEdge[]>();
     edges.forEach((edge) => groups.set(edge.targetId, [...(groups.get(edge.targetId) ?? []), edge]));
@@ -213,10 +187,7 @@ function spreadArrivals(edges: TopologyEdge[], stepOf: (targetId: string) => num
     return bows;
 }
 
-// A delegation back to an earlier rank (or to the agent itself) leaves the source's out port, wraps
-// around below the cards and comes back into the target's in port.
 
-// Where an edge leaves: a node's out port.
 interface Source {
     rank: number;
     main: number;
@@ -233,17 +204,14 @@ function backEdgeVias(edge: TopologyEdge, from: Source, frame: Frame, final: Pla
     return [place(start, from.centre), place(start, clear), place(finish, clear), place(finish, arrival)];
 }
 
-// A plain workflow node takes its run edge on the header glyph and its events on inlets, same as a durable agent.
 function isDurable(graph: TopologyGraph, id: string): boolean {
     return graph.agents.some((agent) => agent.id === id && agent.kind !== "agent");
 }
 
-// A run lands on a durable card's header glyph, clear of its inlets; on a plain card, at its centre.
 function runArrival(graph: TopologyGraph, id: string, placement: Placement): number {
     return isDurable(graph, id) ? placement.cross.get(id) + DURABLE_RUN_PORT_OFFSET : centre(id, placement);
 }
 
-// An event edge lands on its channel's inlet, not on the card's centre, and inlets are never bowed apart.
 function inletArrival(graph: TopologyGraph, edge: TopologyEdge, final: Placement, vertical: boolean): number | undefined {
     if (edge.kind !== "event") {
         return undefined;
@@ -253,8 +221,6 @@ function inletArrival(graph: TopologyGraph, edge: TopologyEdge, final: Placement
     return final.cross.get(edge.targetId) + inletCrossOffset(index, channels.length, vertical);
 }
 
-// Columns spread across the canvas when there is room, but never closer than the default gap
-// and never so far apart that the edges turn into long flat lines.
 function resolveGapX(columnCount: number, availableWidth: number | undefined): number {
     if (!availableWidth || columnCount < 2) {
         return TOPOLOGY_GAP_X;
@@ -275,8 +241,6 @@ function horizontalFrame(graph: TopologyGraph, cardHeights: Record<string, numbe
     return { vertical: false, crossGap: TOPOLOGY_GAP_Y, extents, main };
 }
 
-// Rows are as tall as their tallest card. An entry's extent pads both sides of the card by its lane span: the
-// lanes need the room on one side, and padding the other too keeps the card, not the block, centred on its agents.
 function verticalFrame(graph: TopologyGraph, cardHeights: Record<string, number>, lanePads: Record<string, number>, rank: Map<string, number>): Frame {
     const extents: Record<string, Extent> = {};
     const rowDepth = new Map<number, number>();
@@ -316,7 +280,6 @@ function stack(ids: string[], placement: Placement, start = 0): void {
     });
 }
 
-// Where a node's first incoming edge falls, which follows the source order of the handler's calls.
 function arrivals(graph: TopologyGraph): Map<string, number> {
     const result = new Map<string, number>();
     graph.edges.forEach((edge, order) => {
@@ -327,9 +290,6 @@ function arrivals(graph: TopologyGraph): Map<string, number> {
     return result;
 }
 
-// Forward pass: each rank is ordered by where its parents sit, which keeps siblings together and edges from
-// crossing; under one parent, nodes follow the source order of the calls that reach them. Nodes with no parent
-// (orphans) keep their built order at the end.
 function orderRanks(ranks: Map<number, string[]>, maxRank: number, parents: Adjacency, reached: Map<string, number>, frame: Frame, sizes: Record<string, number>): Placement {
     const provisional: Placement = { cross: new Map(), sizes, gap: frame.crossGap };
     stack(ranks.get(0) ?? [], provisional);
@@ -353,8 +313,6 @@ interface Wishes {
     constrained: Set<string>;
 }
 
-// Nodes that pushed each other apart move back as one block towards where they wanted to be, so two
-// triggers sharing one agent straddle it; the block never climbs into the block before it.
 function settleCluster(cluster: string[], wishes: Wishes, final: Placement, gap: number, floor: number): number {
     const wanting = cluster.filter((id) => wishes.constrained.has(id));
     const shift = wanting.length ? mean(wanting.map((id) => wishes.desired.get(id) - final.cross.get(id))) : 0;
@@ -364,8 +322,6 @@ function settleCluster(cluster: string[], wishes: Wishes, final: Placement, gap:
     return final.cross.get(last) + final.sizes[last] + gap;
 }
 
-// Backward pass: a node with children sits at the centre of its children's block; a node
-// without keeps its provisional slot. Overlaps push along, cluster by cluster.
 function placeRank(ids: string[], children: Adjacency, provisional: Placement, final: Placement, gap = final.gap): void {
     const wishes: Wishes = { desired: new Map(), constrained: new Set() };
     ids.forEach((id) => {
@@ -402,8 +358,6 @@ function lowestStep(edge: TopologyEdge): number {
     return orders.length ? Math.min(...orders) : Infinity;
 }
 
-// The parent an agent lines up under: the agent that runs it earliest in a chain (delegations rank after a
-// handler's steps), or its trigger when no agent runs it and exactly one trigger does.
 function primaryParents(graph: TopologyGraph, rank: Map<string, number>): Adjacency {
     const incoming = new Map<string, TopologyEdge[]>();
     graph.edges
@@ -421,8 +375,6 @@ function primaryParents(graph: TopologyGraph, rank: Map<string, number>): Adjace
     return primary;
 }
 
-// Top-down: a node moves under its primary parent when its row has room, so chains run straight
-// instead of bending because a parent was pushed aside by a neighbour.
 function straightenUnderParents(ranks: Map<number, string[]>, parents: Adjacency, final: Placement, skip = new Set<string>()): void {
     [...ranks.keys()].sort((a, b) => a - b).filter((r) => r > 0).forEach((r) => {
         const row = [...ranks.get(r)].sort((a, b) => final.cross.get(a) - final.cross.get(b));
@@ -441,9 +393,6 @@ function straightenUnderParents(ranks: Map<number, string[]>, parents: Adjacency
     });
 }
 
-// Where a long edge may run across the ranks it skips: at its arrival's cross position (straight in), along its
-// source's (one turn before the target), or through a lane the skipped cards leave free: the gaps between them and
-// the space beyond the first and last, staggered per edge. The first free lane by travel wins.
 function longEdgeVias(
     source: number,
     skipped: string[],
@@ -470,7 +419,6 @@ function longEdgeVias(
     return [place(bends.first, source), place(bends.first, cross), place(bends.last, cross), place(bends.last, arrival)];
 }
 
-// The lanes past the skipped cards: the middle of each gap between neighbours, and the clearance beyond both ends.
 function freeLanes(skipped: string[], final: Placement, offset: number): number[] {
     const sorted = [...skipped].sort((a, b) => final.cross.get(a) - final.cross.get(b));
     const bottomOf = (id: string): number => final.cross.get(id) + final.sizes[id];
@@ -485,9 +433,7 @@ export function layoutTopology(graph: TopologyGraph, options: LayoutOptions = {}
     graph.agents.forEach((agent) => (cardHeights[agent.id] = estimateAgentCardHeight(agent)));
     const rows = (entry: TopologyEntryNode): number => options.visibleRows?.[entry.id] ?? entry.handlers.length;
     graph.entries.forEach((entry) => (cardHeights[entry.id] = entryCardHeight(entry, rows(entry), options.unfolded?.has(entry.id))));
-    // Which row of its card a handler is, so its edges leave from that row's port and not from the card's centre.
     const rowAt = new Map<string, { index: number; count: number }>();
-    // Top to bottom a service card keeps room for its rows' lanes beside it; the card itself sits past them.
     const vertical = options.orientation === "vertical";
     const lanePads: Record<string, number> = {};
     graph.entries.forEach((entry) => {
@@ -496,8 +442,6 @@ export function layoutTopology(graph: TopologyGraph, options: LayoutOptions = {}
         lanePads[entry.id] = vertical && drawn.length ? rowLaneSpan(drawn.length) : 0;
     });
 
-    // A card none of whose rows runs an agent has nothing to line up with, so it stays out of the ranks and is
-    // stacked below the wired cards once those are placed.
     const idle = new Set(graph.entries.filter((entry) => !entry.handlers.some((handler) => handler.wired)).map((entry) => entry.id));
     const ranks = new Map<number, string[]>();
     [...graph.entries.filter((entry) => !idle.has(entry.id)), ...graph.agents].forEach((node) => {
@@ -514,7 +458,6 @@ export function layoutTopology(graph: TopologyGraph, options: LayoutOptions = {}
     const sizes = crossSizes(frame);
     const provisional = orderRanks(ranks, maxRank, adjacency(graph.edges, "targetId", "sourceId"), arrivals(graph), frame, sizes);
     const final: Placement = { cross: new Map(), sizes, gap: frame.crossGap };
-    // Each rank is placed after the rank it feeds, so every node is centred on what it runs; triggers go last.
     const children = adjacency(graph.edges, "sourceId", "targetId");
     for (let r = maxRank; r >= 0; r--) {
         placeRank(ranks.get(r) ?? [], children, provisional, final);
@@ -530,15 +473,12 @@ export function layoutTopology(graph: TopologyGraph, options: LayoutOptions = {}
 
     const offsets = bendOffsets([...ranks.values()], final);
     const rowOf = (edge: TopologyEdge) => (edge.handlerId ? rowAt.get(edge.handlerId) : undefined);
-    // A folded-away row has no port, so its edges leave the card's centre instead.
     const sourceCross = (edge: TopologyEdge): number => {
         const row = rowOf(edge);
         return row === undefined
             ? centre(edge.sourceId, final)
             : final.cross.get(edge.sourceId) + (lanePads[edge.sourceId] ?? 0) + rowCrossOffset(row.index, row.count, frame.vertical);
     };
-    // Top to bottom, rows bend in order down the canvas: the top row's run sits highest, so where a lower row's
-    // drop has to cross it, it crosses beside the card, not above the arrowheads.
     const rowBend = (edge: TopologyEdge): number => {
         const row = rowOf(edge);
         return frame.vertical && row ? row.index * BEND_STAGGER : 0;
@@ -611,11 +551,9 @@ function collectLayout(
         const normalised = shift(position, minX, minY);
         const bucket = agentIds.has(id) ? agentPositions : entryPositions;
         bucket[id] = normalised;
-        // An entry's extent pads both sides of the card; its position already sits past the left pad.
         right = Math.max(right, normalised.x + frame.extents[id].width - 2 * (lanePads[id] ?? 0));
         height = Math.max(height, normalised.y + frame.extents[id].height);
     });
-    // A wrapped back edge is part of the drawn bounds.
     vias.forEach((points, edgeId) => {
         edgeVias[edgeId] = points.map((via) => shift(via, minX, minY));
         edgeVias[edgeId].forEach((via) => {

@@ -321,8 +321,6 @@ describe("layoutTopology", () => {
         const card = layout.entryPositions["svc"];
         const first = layout.edgeVias["h1->a1"][0];
         const second = layout.edgeVias["h2->a2"][0];
-        // Both drop past the card's bottom from lanes off its right edge: the top row farthest out, the bottom row
-        // nearest, and the top row bends first so the rows' runs stack in order.
         const cardRight = card.x + ENTRY_CARD_WIDTH;
         expect(layout.edgeLanes["h1->a1"]).toBe(cardRight + ROW_LANE_GAP + ROW_LANE_PITCH);
         expect(layout.edgeLanes["h2->a2"]).toBe(cardRight + ROW_LANE_GAP);
@@ -565,7 +563,6 @@ describe("layoutTopology (vertical)", () => {
             expect(layout.cardHeights.d).toBe(AGENT_CARD_MIN_HEIGHT);
         });
 
-        // t runs a, a delegates to d, and t also sends an event to d: the event edge skips a's column.
         function eventGraph() {
             const send: TopologyEdge = { id: "t~>d#chat", sourceId: "t", targetId: "d", kind: "event", handlerId: "t", channel: "chat" };
             return graphOf([agent("a"), agent("d", { kind: "durable", channels })], [trigger("t")], [edge("t", "a"), edge("a", "d", "delegation"), send]);
@@ -578,7 +575,6 @@ describe("layoutTopology (vertical)", () => {
             expect(layout.edgeBows["t~>d#chat"]).toBeUndefined();
         });
 
-        // t runs a and, skipping a's column, both d and p; a delegates to both. Only a long edge's vias carry its arrival.
         it("lands a run on a durable card's header, above its inlets, and a plain card's at its centre", () => {
             const agents = [agent("a"), agent("d", { kind: "durable", channels }), agent("p")];
             const edges = [edge("t", "a"), edge("a", "d", "delegation"), edge("t", "d"), edge("a", "p", "delegation"), edge("t", "p")];
@@ -589,7 +585,6 @@ describe("layoutTopology (vertical)", () => {
             };
             expect(into("t->d")).toBe(layout.agentPositions.d.y + DURABLE_RUN_PORT_OFFSET);
             expect(into("t->p")).toBe(layout.agentPositions.p.y + layout.cardHeights.p / 2);
-            // Two arrivals each: the plain card spreads them a full half step, the durable card's header a fraction of it.
             expect(Math.abs(layout.edgeBows["t->p"])).toBe(0.5);
             expect(Math.abs(layout.edgeBows["t->d"])).toBeCloseTo(0.5 * DURABLE_ARRIVAL_BOW);
         });

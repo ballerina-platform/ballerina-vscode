@@ -56,7 +56,6 @@ interface FunctionFormShellProps {
     children: ReactNode;
 }
 
-// Inside another popup the form brings no page chrome; `View` alone would claim the full viewport height.
 function FunctionFormShell({ embedded, isPopup, projectPath, title, subtitle, children }: FunctionFormShellProps) {
     if (embedded) {
         return <>{children}</>;

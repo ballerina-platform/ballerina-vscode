@@ -25,7 +25,6 @@ import { buildFindFacets, buildFindRows, FindFacet, FindRow } from "./findRows";
 import { TopologyGraph } from "./types";
 import { colors as methodColors } from "../nodes/EntryNode/components/styles";
 
-// Same palette as the service node's own rows, so a method pill reads the same everywhere.
 const DEFAULT_METHOD_COLOR = "#876036";
 const methodColor = (accessor: string) => methodColors[accessor.toUpperCase() as keyof typeof methodColors] ?? DEFAULT_METHOD_COLOR;
 
@@ -171,7 +170,6 @@ const IconButton = styled.button`
     background: transparent;
     color: inherit;
     cursor: pointer;
-    /* Rows already turn SURFACE_CONTAINER on hover, so the button needs a brighter step of its own. */
     &:hover {
         background-color: ${ThemeColors.SURFACE_BRIGHT};
         color: ${ThemeColors.PRIMARY};
@@ -186,7 +184,6 @@ const IconButton = styled.button`
     }
 `;
 
-// Collapsed: one small chip that names the pinned story, or just opens the panel.
 const Chip = styled.div<{ pinned: boolean }>`
     display: flex;
     align-items: center;
@@ -224,7 +221,6 @@ const ChipLabel = styled.button`
     }
 `;
 
-// A row is a shell around the pin button and its trailing shortcuts, so the buttons never nest.
 const RowShell = styled.div<{ pinned: boolean }>`
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto auto;
@@ -317,10 +313,8 @@ const SubLabel = styled.span<{ via?: boolean }>`
     }
 `;
 
-// Codicons sit high in their line box next to Gilmer text; a flex wrapper centres the glyph on the row.
 const ICON_BOX = { width: 16, height: 16, display: "flex", alignItems: "center", justifyContent: "center" };
 const codicon = (name: string, size = 14) => <Icon name={name} isCodicon={true} sx={{ ...ICON_BOX, fontSize: size }} iconSx={{ fontSize: size, lineHeight: 1 }} />;
-// The "View Agent" glyph the agent call node uses to jump to an instance.
 const openGlyph = <Icon name="bi-arrow-outward" sx={{ ...ICON_BOX, fontSize: 16 }} iconSx={{ fontSize: 16, lineHeight: 1, display: "flex" }} />;
 
 export function rowGlyph(row: FindRow, size: number) {
@@ -331,7 +325,6 @@ export function rowGlyph(row: FindRow, size: number) {
     return <NodeIcon type={kind === "workflow" ? "WORKFLOW_RUN" : kind === "durable" ? "DURABLE_AGENT_RUN" : "AGENT"} size={size} />;
 }
 
-// The matched run of the text in a <mark>, so the row says why it is in the list.
 function highlight(text: string, query: string): React.ReactNode {
     const needle = query.trim().toLowerCase();
     const at = needle ? text.toLowerCase().indexOf(needle) : -1;
@@ -358,7 +351,6 @@ export interface FindPanelProps {
     onOpen: (row: FindRow) => void;
 }
 
-// Arrows move between rows; Enter pins (the button's click); Cmd/Ctrl+Enter opens; Esc folds the panel.
 function rowKeyHandler(open: () => void, close: () => void) {
     return (event: React.KeyboardEvent<HTMLButtonElement>) => {
         if (event.key === "Escape") {
@@ -464,7 +456,6 @@ function FacetBar({ facets, active, onSelect, onPreview }: FacetBarProps) {
     );
 }
 
-// The chip when the panel is folded: "Find" with its key, or the pinned story with open and clear.
 function FindChip({ pinned, onOpenPanel, onOpen, onClear }: { pinned?: FindRow; onOpenPanel: () => void; onOpen: () => void; onClear: () => void }) {
     return (
         <Chip pinned={Boolean(pinned)}>
@@ -489,9 +480,6 @@ function FindChip({ pinned, onOpenPanel, onOpen, onClear }: { pinned?: FindRow; 
     );
 }
 
-// The package's entry points and agents, folded into a chip until asked for. One field searches both, kind chips
-// narrow the list, hovering a row previews its story, clicking pins it (and fits the canvas to it) and folds the
-// panel back to the chip, which then names the story and clears it with ✕.
 export function FindPanel(props: FindPanelProps) {
     const { graph, pinnedId, open, onToggle, onPreview, onPreviewFacet, onPin, onOpen } = props;
     const [query, setQuery] = useState("");

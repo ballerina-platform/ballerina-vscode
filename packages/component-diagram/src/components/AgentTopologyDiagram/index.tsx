@@ -62,10 +62,8 @@ export interface AgentTopologyDiagramProps {
 const FIT_MARGIN = 40;
 const GLIDE_MS = 240;
 const HOVER_FOCUS_DELAY_MS = 60;
-// Ports are re-measured only once the nodes have finished gliding.
 const SETTLE_MS = GLIDE_MS + 60;
 
-// Remembered across remounts so drilling into an agent and back keeps the chosen layout.
 let lastOrientation: TopologyOrientation = "horizontal";
 
 type TopologyNodeModel = AgentCardNodeModel | ServiceNodeModel;
@@ -165,17 +163,12 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
     const [legendKinds, setLegendKinds] = useState<ReturnType<typeof buildTopology>["legendKinds"]>([]);
     const [hoveredId, setHoveredId] = useState<string>();
     const [graph, setGraph] = useState<TopologyGraph>();
-    // Entry cards whose rows the user has unfolded; cleared whenever the model changes.
     const [unfolded, setUnfolded] = useState<Set<string>>(new Set());
-    // The row budget the last layout drew with, held as state so the cards re-render when it changes.
     const [visibleRows, setVisibleRows] = useState<Record<string, number>>();
-    // The Find chip is worth drawing from two things to find: wired handlers and agent cards together.
     const findable = graph ? findableCount(graph) : 0;
     const [pinnedId, setPinnedId] = useState<string>();
     const [findOpen, setFindOpen] = useState(false);
-    // Isolated: the canvas shows only the pinned story, laid out on its own.
     const [isolated, setIsolated] = useState(false);
-    // A kind chip under the pointer lights every flow of that kind instead of one node's.
     const [facetFocus, setFacetFocus] = useState<TopologyFocus>();
     const pinnedRef = useRef<string>();
     const isolatedRef = useRef(false);
@@ -187,7 +180,6 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
     const [settling, setSettling] = useState(false);
     const layoutRef = useRef<TopologyLayout>();
     const graphRef = useRef<TopologyGraph>();
-    // What the canvas draws right now: the whole graph, or the pinned story while isolated.
     const shownGraphRef = useRef<TopologyGraph>();
     const graphSignatureRef = useRef<string>();
     const lastDescriptionRef = useRef<string>();
@@ -201,9 +193,6 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
         return { width: rect && rect.width > 0 ? rect.width : undefined, height: rect && rect.height > 0 ? rect.height : undefined };
     }, [diagramEngine]);
 
-    // How many rows each card can draw before the rest fold behind "Show N more". Left to right the cards stack in
-    // one column and share its height; top to bottom they sit side by side, so each may use the band the entry row
-    // is allowed. Within that a card draws its wired rows (`defaultVisibleRows`); an unfolded card draws all of them.
     const rowBudget = useCallback((graph: TopologyGraph, height: number | undefined, vertical: boolean, unfoldedNow: Set<string>): Record<string, number> => {
         const budget: Record<string, number> = {};
         const wanting = graph.entries.filter((entry) => entry.handlers.length > 1);
@@ -219,7 +208,6 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
         return budget;
     }, []);
 
-    // Positions come from the layout for the canvas width we have right now; re-run when it changes.
     const applyLayout = useCallback((unfoldedNow: Set<string> = unfolded) => {
         const graph = shownGraphRef.current ?? graphRef.current;
         if (!graph) {
@@ -231,7 +219,6 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
         const layout = layoutTopology(graph, layoutOptions);
         layoutRef.current = layout;
         setVisibleRows((current) => (sameRows(current, layout.visibleRows) ? current : layout.visibleRows));
-        // A pasteable picture of the canvas for debugging, once per distinct layout, at the verbose level so DevTools hides it by default.
         const description = describeTopology(input.model, graph, layout, layoutOptions);
         if (description !== lastDescriptionRef.current) {
             lastDescriptionRef.current = description;
@@ -249,8 +236,6 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
         });
     }, [canvasSize, rowBudget, orientation, input.model, unfolded]);
 
-    // Centre the laid-out graph in the canvas from its own bounds, so the first paint does not
-    // depend on when the nodes were measured; capped at 1:1 so small graphs are not blown up.
     const fitToBounds = useCallback((bounds: Bounds | undefined) => {
         const canvas = diagramEngine.getCanvas();
         if (!bounds || !canvas || bounds.width <= 0 || bounds.height <= 0) {
@@ -276,7 +261,6 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
         }
     }, [fitToBounds]);
 
-    // A pinned flow is fitted on its own; anything else fits the whole graph.
     const refit = useCallback(() => {
         const pinned = pinnedRef.current;
         if (pinned && layoutRef.current && graphRef.current) {
@@ -286,7 +270,6 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
         fitToLayout();
     }, [fitToBounds, fitToLayout, orientation]);
 
-    // Folding or unfolding a card changes its height, so the graph is laid out again around it right away.
     const onToggleEntry = useCallback(
         (entryId: string) => {
             const next = new Set(unfolded);
@@ -303,8 +286,6 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
         [unfolded, applyLayout, refit, diagramEngine]
     );
 
-    // Build the node and link models for a graph, lay it out and hand the engine a fresh model; a graph with a
-    // different node set is fitted once its nodes have measured, one with the same set keeps the camera.
     const installGraph = useCallback((graph: TopologyGraph) => {
         shownGraphRef.current = graph;
         const nodeModels = new Map<string, TopologyNodeModel>();
@@ -364,7 +345,6 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
 
     useEffect(() => {
         const graph = buildTopology(input);
-        // The design model carries a fresh uuid per request, so an unchanged package arrives as a new input.
         const signature = JSON.stringify(graph);
         if (signature === graphSignatureRef.current) {
             return;
@@ -387,8 +367,6 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [input]);
 
-    // A canvas that appears or resizes later (lazy mount, side panel opening) re-centres the graph
-    // until the user has panned or zoomed it themselves.
     useEffect(() => {
         const canvas = diagramEngine.getCanvas();
         if (!canvas || typeof ResizeObserver === "undefined") {
@@ -404,7 +382,6 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
         return () => observer.disconnect();
     }, [diagramEngine, diagramModel, applyLayout, refit]);
 
-    // Passing the pointer over a card on the way elsewhere should not make the canvas flicker.
     const setHovered = useCallback((id?: string) => {
         clearTimeout(hoverTimerRef.current);
         if (id === undefined) {
@@ -415,7 +392,6 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
     }, []);
     useEffect(() => () => clearTimeout(hoverTimerRef.current), []);
 
-    // Leaving isolation puts the whole graph back; `installGraph` fits it once the nodes have measured.
     const showEverything = useCallback(() => {
         if (!isolatedRef.current || !graphRef.current) {
             return false;
@@ -426,7 +402,6 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
         return true;
     }, [installGraph]);
 
-    // Pin a story from the Find list: it stays lit and the canvas fits it until it is unpinned.
     const unpin = useCallback(() => {
         if (!pinnedRef.current) {
             return;
@@ -439,7 +414,6 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
         }
     }, [fitToLayout, showEverything]);
 
-    // Pinning folds the panel back to its chip and drops the row's own hover so the pin alone drives the focus.
     const pin = useCallback(
         (id: string) => {
             setFindOpen(false);
@@ -458,7 +432,6 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
         [unpin, refit, setHovered, showEverything]
     );
 
-    // Isolate the pinned story: only its cards and lit edges stay, laid out on their own.
     const isolate = useCallback(
         (on: boolean) => {
             const whole = graphRef.current;
@@ -482,7 +455,6 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
         setFacetFocus(facet && graphRef.current ? focusKind(graphRef.current, facet) : undefined);
     }, []);
 
-    // The ↗ on a row does what clicking the trigger square or the agent card does.
     const openRow = useCallback(
         (row: FindRow) => {
             if (row.handler) {
@@ -494,7 +466,6 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
         [onTriggerSelect, onAgentSelect]
     );
 
-    // "/" opens Find (not while typing elsewhere); Esc folds the panel, then leaves isolation, then clears the pin.
     useEffect(() => {
         const onKeyDown = (event: KeyboardEvent) => {
             const target = event.target as HTMLElement | null;
@@ -517,7 +488,6 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
         return () => document.removeEventListener("keydown", onKeyDown);
     }, [findOpen, findable, showEverything, unpin]);
 
-    // A click on the bare canvas, not on a node, link or chip, folds the panel; the pin stays.
     const onCanvasClick = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
         if (!(event.target as HTMLElement).closest(".node, svg, foreignObject")) {
             setFindOpen(false);
@@ -538,15 +508,12 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
         setOrientation((current) => (current === "vertical" ? "horizontal" : "vertical"));
     }, []);
 
-    // The trigger node changes size with the orientation, and react-diagrams then re-measures its ports
-    // from a DOM that may still show the old position; measure every port again once the canvas has repainted.
     const reportPorts = useCallback(() => {
         nodeModelsRef.current.forEach((node) =>
             Object.values(node.getPorts()).forEach((port) => {
                 try {
                     port.updateCoords(diagramEngine.getPortCoords(port));
                 } catch {
-                    // The node is not in the DOM yet; the port reports itself on mount.
                 }
             })
         );

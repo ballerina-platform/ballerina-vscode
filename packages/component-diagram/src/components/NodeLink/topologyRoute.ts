@@ -25,12 +25,10 @@ export interface Point {
 }
 
 const CORNER_RADIUS = 10;
-// Estimated card heights put ports a few px off; that close, the edge is drawn dead straight.
 const STRAIGHT_TOLERANCE = 8;
 
 export interface Route {
     points: Point[];
-    // The leg chips sit on: the last one into the target, or the first one out of the source when the route heads back.
     run: [Point, Point];
 }
 
@@ -38,11 +36,6 @@ function toPoint(main: number, cross: number, vertical: boolean): Point {
     return vertical ? { x: cross, y: main } : { x: main, y: cross };
 }
 
-// Flow axis to the bend, across, flow axis into the target; the bow moves only the leg into the target.
-// A layout that hands over several vias (a back edge wrapping around the cards, a long edge detouring) is
-// drawn through all of them; a wrap's chips label the leg leaving the source, since its last leg shares the
-// target's port with the forward arrivals.
-// A `lane` makes the edge step sideways to it first and drop from there, instead of dropping from its port.
 export function route(source: Point, target: Point, via: Point[], bow: number, vertical: boolean, lane?: number): Route {
     const main = (point: Point) => (vertical ? point.y : point.x);
     const cross = (point: Point) => (vertical ? point.x : point.y);
@@ -100,7 +93,6 @@ export function roundedPath(points: Point[]): string {
 }
 
 export interface LinkChips {
-    // A pill sits at the middle of the final run, staggered along a vertical run when edges are bowed apart.
     pillPoint: Point;
 }
 

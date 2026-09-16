@@ -205,9 +205,7 @@ export interface ArtifactInfo {
     isLocalRepository?: boolean;
     agentName?: string;
     agentOrgName?: string;
-    // "durable" for a workflow:DurableAgent; the trigger generator needs a different call shape for it.
     agentKind?: AgentKind;
-    // Set when the trigger is to send data on one of a durable agent's event channels instead of running it.
     agentEvent?: AgentEventChannel;
 }
 

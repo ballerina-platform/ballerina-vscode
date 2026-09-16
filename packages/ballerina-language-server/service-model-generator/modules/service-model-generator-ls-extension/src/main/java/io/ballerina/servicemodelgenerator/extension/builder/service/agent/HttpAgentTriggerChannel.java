@@ -104,7 +104,6 @@ public class HttpAgentTriggerChannel implements AgentTriggerChannel {
 
     private static final String DEFAULT_SIGNATURE =
             "resource function post .(@http:Payload string payload) returns string|error ";
-    // A durable run is what a caller must not block on: acknowledge with the instance id.
     private static final String DURABLE_DEFAULT_SIGNATURE =
             "resource function post .(@http:Payload string payload) returns http:Accepted|error ";
 
@@ -125,7 +124,6 @@ public class HttpAgentTriggerChannel implements AgentTriggerChannel {
     private static final String RETURN_INSTANCE_ID =
             "        return <http:Accepted>{body: {instanceId: result}};" + NEW_LINE;
 
-    // A data event: the request goes to the instance the path names, and the channel's reply is awaited.
     private static final String INSTANCE_PARAM = "instanceId";
     private static final String EVENT_SIGNATURE =
             "resource function post [string " + INSTANCE_PARAM + "](@http:Payload string payload) returns ";
@@ -137,7 +135,6 @@ public class HttpAgentTriggerChannel implements AgentTriggerChannel {
                     string token = check {{sendData}};
                     {{answerType}} result = check {{agent}}.waitForDataResult({{instance}}, token);
             {{return}}    } on fail error err {
-                    // handle error
                     return error("unhandled error", err);
                 }
             }""";
@@ -147,7 +144,6 @@ public class HttpAgentTriggerChannel implements AgentTriggerChannel {
                     _ = check {{sendData}};
                     return http:ACCEPTED;
                 } on fail error err {
-                    // handle error
                     return error("unhandled error", err);
                 }
             }""";
@@ -323,7 +319,6 @@ public class HttpAgentTriggerChannel implements AgentTriggerChannel {
                 "What the agent should do with each request.", DEFAULT_INSTRUCTIONS));
     }
 
-    // A data event carries the request as-is; there is no prompt to instruct.
     @Override
     public Map<String, Value> additionalProperties(GetServiceInitModelContext context) {
         return context.isEventTrigger() ? Map.of() : additionalProperties();
@@ -401,7 +396,6 @@ public class HttpAgentTriggerChannel implements AgentTriggerChannel {
     }
 
     private static String shapedResource(AgentTriggerContext context, Function shaped) {
-        // A durable run yields the instance id, a string, whatever the resource declares it answers with.
         Answer answer = context.isDurable() ? Answer.text(answer(shaped).wrapped()) : answer(shaped);
         return body(context, shapedHeader(context, shaped), answer, promptParameters(shaped));
     }
@@ -436,7 +430,6 @@ public class HttpAgentTriggerChannel implements AgentTriggerChannel {
                 .replace("{{sendData}}", sendData);
     }
 
-    // The instance the event is for is named by the first path parameter; without one the endpoint cannot address it.
     private static String instanceExpression(Function shaped) {
         List<HandlerParameter> pathParameters = shaped == null ? EVENT_PATH_PARAMETERS : pathParameters(shaped);
         if (pathParameters.isEmpty()) {
@@ -446,7 +439,6 @@ public class HttpAgentTriggerChannel implements AgentTriggerChannel {
         return pathParameters.getFirst().name();
     }
 
-    // The data sent on the channel: the payload, else the first parameter that carries request data.
     private static String dataExpression(Function shaped) {
         if (shaped == null) {
             return DEFAULT_PAYLOAD_NAME;

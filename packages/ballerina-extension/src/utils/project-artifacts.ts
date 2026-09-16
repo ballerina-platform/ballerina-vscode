@@ -378,7 +378,6 @@ async function getComponents(
     return entries;
 }
 
-// The shell lists an entry under Agents only when its type says AGENT; durability rides on moduleName.
 function publishedIdentity(artifact: BaseArtifact): { type: DIRECTORY_MAP; moduleName?: string } {
     if (artifact.type === DIRECTORY_MAP.DURABLE_AGENT) {
         return { type: DIRECTORY_MAP.AGENT, moduleName: "workflow" };

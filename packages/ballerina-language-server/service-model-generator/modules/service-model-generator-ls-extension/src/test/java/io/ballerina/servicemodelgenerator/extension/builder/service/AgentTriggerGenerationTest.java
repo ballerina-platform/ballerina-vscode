@@ -1288,7 +1288,6 @@ public class AgentTriggerGenerationTest {
                 "a second service on the same listener fails to start: " + src);
     }
 
-    // --- Durable agents: a run starts an instance; a chat turn is an event sent into it and awaited. ---
 
     private ServiceInitModel durableForm(String orgName, String moduleName, String basePath) {
         AgentTriggerChannel channel = channel(orgName, moduleName);
@@ -1379,14 +1378,12 @@ public class AgentTriggerGenerationTest {
         Assert.assertNull(plain.getProperties().get("chatChannel"), "an AI agent's form has no channel to ask for");
     }
 
-    // --- Durable agents: an HTTP trigger on a data event sends the request to a running instance. ---
 
     private static GetServiceInitModelContext eventContext(String channel, String response) {
         return new GetServiceInitModelContext("ballerina", "http", "http", "1.0.0", null, null, null, false,
                 "claimAgent", null, "durable", channel, response);
     }
 
-    /** The event trigger's form as the builder hands it out, with the endpoint shaped the way the wizard seeds it. */
     private ServiceInitModel eventForm(String channel, String response, Function shaped) {
         ServiceInitModel form = new AgentTriggerServiceBuilder().getServiceInitModel(eventContext(channel, response));
         form.getProperties().get("basePath").setValue("/claim-agent");

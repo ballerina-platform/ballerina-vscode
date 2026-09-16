@@ -36,9 +36,6 @@ import io.ballerina.projects.Project;
  *                          result rather than Central (see {@code ServiceModelRequest.isLocalRepository})
  * @param agentName         the agent variable this trigger is created for, or {@code null}
  * @param agentOrgName      the publishing org of that agent, deciding {@code .run} vs {@code ->run}
- * @param agentKind        "durable" for a workflow:DurableAgent, else absent
- * @param eventChannel      the durable agent's data event the trigger sends on instead of running it, else absent
- * @param eventResponse     that channel's response type; absent for a one-way channel
  * @since 1.3.0
  */
 public record GetServiceInitModelContext(String orgName, String packageName, String moduleName, String version,
@@ -61,7 +58,6 @@ public record GetServiceInitModelContext(String orgName, String packageName, Str
                 agentName, agentOrgName, null);
     }
 
-    /** True when the trigger is to send data on one of a durable agent's event channels rather than run it. */
     public boolean isEventTrigger() {
         return eventChannel != null && !eventChannel.isBlank();
     }

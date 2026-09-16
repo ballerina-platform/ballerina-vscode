@@ -106,8 +106,6 @@ function helpDeskInput(): TopologyInput {
     };
 }
 
-// The durable_claims demo: one durable agent run by one resource and sent `chat` events by two others,
-// stopping for a MANAGER (task) and an ACCOUNTANT (gated activity).
 function durableClaimsInput(): TopologyInput {
     const claimAgent: CDWorkflow = {
         symbol: "claimAgent",
@@ -241,9 +239,7 @@ describe("AgentTopologyDiagram - Snapshot Tests", () => {
         await renderAndCheckSnapshot(durableClaimsInput(), "durable-claims-shape");
         const view = within(render(<AgentTopologyDiagram input={durableClaimsInput()} onAgentSelect={jest.fn()} onTriggerSelect={jest.fn()} />).container);
         expect(view.getByText("Durable Agent")).toBeInTheDocument();
-        // The channel is named once, on the inlet; the sending rows carry no badge.
         expect(view.getAllByText("chat")).toHaveLength(1);
-        // Roles live in the popovers, not on the card.
         expect(view.queryByText(/Manager|Accountant/)).toBeNull();
         ["Runs the agent", "Sends an event", "Stops for a person"].forEach((label) => expect(view.getByText(label)).toBeInTheDocument());
         expect(view.queryByText("Delegates to")).toBeNull();
@@ -252,14 +248,12 @@ describe("AgentTopologyDiagram - Snapshot Tests", () => {
 
     test("opens a list per capability circle: the people circle names the human task, the events circle the channel", () => {
         const view = within(render(<AgentTopologyDiagram input={durableClaimsInput()} onAgentSelect={jest.fn()} onTriggerSelect={jest.fn()} />).container);
-        // Counts on the line read activities 4, people 1, channels 1.
         const [people, channels] = view.getAllByText("1").map((count) => count.parentElement);
         fireEvent.mouseEnter(people);
         expect(document.body).toHaveTextContent("Manager decidesmanagerApproval");
         fireEvent.mouseLeave(people);
         expect(document.body).not.toHaveTextContent("managerApproval");
         fireEvent.mouseEnter(channels);
-        // The inlet and the popover row.
         expect(within(document.body).getAllByText("chat")).toHaveLength(2);
     }, 15000);
 });

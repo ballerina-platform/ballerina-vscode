@@ -22,8 +22,6 @@ import { createRoot, Root } from "react-dom/client";
 import { AgentUsage, Flow, FlowNode } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 
-// The hook's rpc-client import is an ES module jest cannot parse, so the context is mocked; the design-model walk is
-// mocked too, so the hook's fetch-and-cache behaviour is under test on its own.
 jest.mock("@wso2/ballerina-rpc-client", () => ({ useRpcContext: jest.fn() }));
 jest.mock("../FocusFlowDiagram/agentUsages", () => ({ ...jest.requireActual("../FocusFlowDiagram/agentUsages"), findDurableAgentUsages: jest.fn() }));
 
@@ -87,7 +85,6 @@ describe("useDurableAgentUsages", () => {
     let container: HTMLDivElement;
     let latest: Flow | undefined;
 
-    // The flow diagram's own state: the hook writes usages back through setFlow, a content change hands it a fresh model.
     let refresh: (flow: Flow) => void = () => {};
     function Probe({ initial }: { initial: Flow }): null {
         const [flow, setFlow] = useState(initial);
@@ -131,7 +128,6 @@ describe("useDurableAgentUsages", () => {
 
     it("refetches the callers after a project content change instead of putting the stale cache back", async () => {
         (findDurableAgentUsages as jest.Mock).mockReturnValue([]);
-        // A fresh agent name so the module-level cache starts empty for this test.
         const freshBox = node("box", "DURABLE_AGENT_RUN", { agentBox: true, agentName: `agent-${Date.now()}` });
         const initial = { fileName: "/proj/main.bal", nodes: [start, freshBox] } as unknown as Flow;
         act(() => root.render(React.createElement(Probe, { initial })));
@@ -139,18 +135,15 @@ describe("useDurableAgentUsages", () => {
         expect(getDesignModel).toHaveBeenCalledTimes(1);
         expect(boxUsages()).toEqual([]);
 
-        // A trigger was added: the project content changes, and the flow model comes back without usages.
         (findDurableAgentUsages as jest.Mock).mockReturnValue([usage]);
         act(() => contentListeners.forEach((listener) => listener()));
         act(() => refresh({ ...initial, nodes: [start, { ...freshBox }] } as Flow));
         await flush(0);
-        // The cached (empty) list paints first, then the dirty cache is refreshed after the debounce.
         expect(boxUsages()).toEqual([]);
         await flush(600);
         expect(getDesignModel).toHaveBeenCalledTimes(2);
         expect(boxUsages()).toEqual([usage]);
 
-        // Without a content change, a refreshed model only puts the cache back.
         act(() => refresh({ ...initial, nodes: [start, { ...freshBox }] } as Flow));
         await flush(600);
         expect(getDesignModel).toHaveBeenCalledTimes(2);

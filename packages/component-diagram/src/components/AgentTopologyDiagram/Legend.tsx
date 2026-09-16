@@ -56,7 +56,6 @@ function Line({ dash, color = "currentColor" }: { dash?: string; color?: string 
     );
 }
 
-// The lock chip as a gated delegation edge wears it, scaled to the swatch row.
 function LockSwatch() {
     return (
         <svg width={SWATCH_W} height={SWATCH_H} style={{ flex: "none", overflow: "visible" }}>
@@ -67,7 +66,6 @@ function LockSwatch() {
     );
 }
 
-// The amber dot a gated call wears on the card's activities circle.
 const GateSwatch = styled.span`
     display: inline-block;
     margin: 0 auto;

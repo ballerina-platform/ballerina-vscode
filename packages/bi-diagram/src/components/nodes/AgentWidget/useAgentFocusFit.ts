@@ -99,7 +99,6 @@ export function useAgentFocusFit(diagramEngine: DiagramEngine, isAgentFocusView:
             if (!isAgentFocusView || !agentNode) {
                 return;
             }
-            // A lone agent node goes on the axis; the durable box keeps the chain position it shares with its Start pill.
             if (nodes.length === 1) {
                 positionAgentFocusNode(agentNode);
             }

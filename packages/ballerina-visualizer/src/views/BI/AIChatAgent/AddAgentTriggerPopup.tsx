@@ -84,8 +84,6 @@ const SECTIONS: { kind: AgentTriggerKind; title: string; description: string }[]
     },
 ];
 
-// A data event is delivered over HTTP only for now. Chat channels are a conversation with the agent, so they are
-// not offered; event and file sources stay listed, greyed out.
 const EVENT_TRIGGER_SECTIONS: Partial<Record<AgentTriggerKind, { available: boolean; description: string }>> = {
     HTTP: {
         available: true,

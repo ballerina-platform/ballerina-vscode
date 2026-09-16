@@ -39,7 +39,6 @@ import { rowPortOffset } from "../../AgentTopologyDiagram/topologyLayout";
 import { TriggerGlyph } from "../../AgentTopologyDiagram/TriggerGlyph";
 import { colors as methodColors } from "../EntryNode/components/styles";
 
-// Same palette as the Service Designer's resource list, so a method pill reads the same everywhere.
 const DEFAULT_METHOD_COLOR = "#876036";
 const methodColor = (accessor: string) => methodColors[accessor?.toUpperCase() as keyof typeof methodColors] ?? DEFAULT_METHOD_COLOR;
 
@@ -153,7 +152,6 @@ const RowPort = styled(PortWidget)<{ offset: number }>`
     transform: translateY(-50%);
 `;
 
-// The card's own port, for the rows folded away: level with the header left to right, the bottom edge's centre top to bottom.
 const CardPort = styled(PortWidget)<{ vertical: boolean }>`
     position: absolute;
     ${(props) => (props.vertical ? `bottom: -6px; left: ${ENTRY_CARD_WIDTH / 2}px;` : `right: -6px; top: ${ENTRY_HEADER_HEIGHT / 2}px;`)}

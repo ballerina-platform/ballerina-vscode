@@ -131,7 +131,6 @@ public class DesignModelGeneratorTest extends AbstractLSTest {
         return true;
     }
 
-    // Uuids change per run, so a peer is compared by the symbol its uuid resolves to in the same list.
     private boolean assertDurableAgentFacts(Workflow actual, Workflow expected,
                                             List<Workflow> actualAll, List<Workflow> expectedAll) {
         return Objects.equals(actual.getRole(), expected.getRole())

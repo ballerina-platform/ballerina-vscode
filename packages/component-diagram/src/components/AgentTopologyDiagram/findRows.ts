@@ -21,23 +21,19 @@ import { TopologyAgentNode, TopologyEntryNode, TopologyFocus, TopologyGraph, Top
 
 export type FindGroup = "entry" | "agent";
 
-// A kind chip: every entry kind and agent kind the project has, with how many rows it holds.
 export interface FindFacet {
     group: FindGroup;
     kind: string;
     count: number;
 }
 
-// One row of the Find list: a wired handler or an agent card, with what the canvas needs to pin or open it.
 export interface FindRow {
     id: string;
     group: FindGroup;
     label: string;
     sublabel: string;
-    // The attribute that matched when the label did not ("matches tool · githubClient").
     via?: string;
     kind: string;
-    // An HTTP-style accessor (GET, POST, …), drawn as a colored pill like the service node's own rows.
     accessor?: string;
     handler?: TopologyHandler;
     entry?: TopologyEntryNode;
@@ -69,7 +65,6 @@ export function agentKind(agent: TopologyAgentNode): string {
 
 const includes = (text: string | undefined, query: string) => Boolean(text && text.toLowerCase().includes(query));
 
-// Agents a handler runs or sends to, directly or as a later step of its chain.
 function handlerTargets(graph: TopologyGraph, handlerId: string): Set<string> {
     const owned = graph.edges.filter((edge) => edge.handlerId === handlerId || (edge.handlers ?? []).some((step) => step.triggerId === handlerId));
     return new Set(owned.map((edge) => edge.targetId));
@@ -82,7 +77,6 @@ function entryRow(graph: TopologyGraph, entry: TopologyEntryNode, handler: Topol
     const targets = handlerTargets(graph, handler.id);
     let via: string | undefined;
     if (query && !includes(`${searchText} ${sublabel}`, query)) {
-        // Node ids are file-and-line based; the person is typing the agent's name.
         const target = graph.agents.find((agent) => targets.has(agent.id) && includes(agent.name, query));
         if (!target) {
             return undefined;
@@ -92,7 +86,6 @@ function entryRow(graph: TopologyGraph, entry: TopologyEntryNode, handler: Topol
     return { id: handler.id, group: "entry", label, sublabel, via, kind: entryKind(entry), accessor: handler.accessor, handler, entry };
 }
 
-// The first attribute the query hits, named the way the card's popovers name it.
 function agentAttributeMatch(agent: TopologyAgentNode, query: string): string | undefined {
     const tool = agent.tools.find((candidate) => includes(candidate.name, query));
     if (tool) {
@@ -127,7 +120,6 @@ function agentRow(agent: TopologyAgentNode, query: string): FindRow | undefined 
     return { id: agent.id, group: "agent", label: agent.name, sublabel: agent.typeName, via, kind: agentKind(agent), agent };
 }
 
-// Label matches first, attribute matches after them, each in the canvas's own order.
 const byMatch = (a: FindRow, b: FindRow) => Number(Boolean(a.via)) - Number(Boolean(b.via));
 
 export interface FindRows {
@@ -150,7 +142,6 @@ export function buildFindRows(graph: TopologyGraph, query: string, facet?: Pick<
     return { entries: entries.sort(byMatch), agents: agents.sort(byMatch) };
 }
 
-// Kinds in the order the canvas meets them, counting wired handlers for entries and cards for agents.
 export function buildFindFacets(graph: TopologyGraph): FindFacet[] {
     const facets: FindFacet[] = [];
     const bump = (group: FindGroup, kind: string) => {
@@ -166,12 +157,10 @@ export function buildFindFacets(graph: TopologyGraph): FindFacet[] {
     return [...facets.filter((facet) => facet.group === "entry"), ...facets.filter((facet) => facet.group === "agent")];
 }
 
-// How many things the list could offer: the chip is worth drawing from two.
 export function findableCount(graph: TopologyGraph): number {
     return graph.handlers.filter((handler) => handler.wired).length + graph.agents.length;
 }
 
-// What a kind chip lights while hovered: every flow of that entry kind, or just the cards of that agent kind.
 export function focusKind(graph: TopologyGraph, facet: Pick<FindFacet, "group" | "kind">): TopologyFocus {
     const focus: TopologyFocus = { nodes: new Set(), edges: new Set(), inlets: new Set() };
     if (facet.group === "agent") {

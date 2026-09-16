@@ -116,8 +116,6 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
         }
         channel.ifPresent(c -> {
             c.additionalProperties(context).forEach(initModel::addProperty);
-            // A durable agent takes each chat turn on a declared event channel; the design model is not at hand
-            // here to list them, so the form asks for the name and offers the conventional one.
             if (durable && c.kind() == AgentTriggerKind.CHAT) {
                 initModel.addProperty(AgentTriggerContext.CHAT_CHANNEL_PROPERTY, chatChannelField());
             }
@@ -126,7 +124,6 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
         return initModel;
     }
 
-    // An event trigger sends on one declared channel; its response type, when the channel declares one, is awaited.
     private static void addEventChannelValues(ServiceInitModel initModel, GetServiceInitModelContext context) {
         initModel.addProperty(AgentTriggerContext.EVENT_CHANNEL_PROPERTY, hiddenValue(context.eventChannel()));
         if (context.eventResponse() != null && !context.eventResponse().isBlank()) {

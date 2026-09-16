@@ -162,7 +162,6 @@ const Connections = styled.div`
     margin-left: auto;
 `;
 
-// A plain workflow's human tasks read as rows, like a service's handlers, not a collapsed capability pill.
 const Tasks = styled.div`
     display: flex;
     flex-direction: column;
@@ -244,7 +243,6 @@ const Chip = styled.span`
     }
 `;
 
-// A capability's count sits beside its circle; a gated activity wears an amber dot on the circle's corner.
 const Capability = styled.span`
     display: inline-flex;
     align-items: center;
@@ -264,7 +262,6 @@ const GateDot = styled.span`
     box-sizing: content-box;
 `;
 
-// An inlet hangs off the card's border at the offset the layout routes its edge to, fully outside the card.
 const Inlet = styled.div<{ offset: number; vertical: boolean; dimmed: boolean }>`
     position: absolute;
     display: inline-flex;
@@ -331,7 +328,6 @@ const OrphanFooter = styled.div`
     }
 `;
 
-// A run arrives at the card's centre, or at a durable card's header, where the layout routes it.
 const LeftPortWidget = styled(PortWidget)<{ at?: string }>`
     position: absolute;
     left: -6px;
@@ -406,7 +402,6 @@ function toolGlyph(tool: TopologyTool): React.ReactNode {
     return tool.kind === "mcp" ? mcpGlyph() : <FunctionGlyph>ƒ</FunctionGlyph>;
 }
 
-// Who the agent stops for, before the name it stops on: "Manager decides" a task, "Accountant releases" a gated call.
 function stopPrefix(people: TopologyRole[], name: string, verb: "decides" | "releases"): string | undefined {
     const who = people.filter((person) => person[verb].includes(name)).map((person) => roleLabel(person.role));
     return who.length ? `${who.join(", ")} ${verb}` : undefined;
@@ -498,8 +493,6 @@ function namedRows(type: CapabilityGlyph, names: string[], prefix: (name: string
     return names.map((name, index) => ({ key: `${index}-${name}`, glyph: <Circle>{capabilityGlyph(type)}</Circle>, prefix: prefix(name), label: name }));
 }
 
-// What a durable agent can do, one circle per kind present with its count, as the durable box draws them.
-// Each circle opens its own list, naming who the agent stops for; the activities circle lists everything callable.
 function Capabilities({ node, show, hide }: CapabilityProps) {
     const people = node.people;
     const items: Array<{ key: string; count: number; glyph: CapabilityGlyph; rows: PopoverRow[]; gated?: boolean }> = [
@@ -523,8 +516,6 @@ function Capabilities({ node, show, hide }: CapabilityProps) {
     );
 }
 
-// The bottom line's left side: a plain workflow's own rows already say what it does, so it adds nothing here;
-// a durable agent keeps its capability pills, a plain agent its tool count.
 function ToolsSummary({ node, show, hide }: CapabilityProps) {
     if (node.kind === "workflow") {
         return null;
@@ -540,8 +531,6 @@ function ToolsSummary({ node, show, hide }: CapabilityProps) {
     );
 }
 
-// A plain workflow's human tasks are its defining structure, not a secondary capability, so they read as
-// named rows (like a service's handlers) instead of collapsing into a single count pill.
 function WorkflowTasks({ node, show, hide }: CapabilityProps) {
     const tasks = node.humanTasks;
     const shown = tasks.slice(0, WORKFLOW_ROW_CAP);
@@ -568,16 +557,13 @@ interface InletsProps {
     model: AgentCardNodeModel;
     engine: DiagramEngine;
     vertical: boolean;
-    // Entering a pill: its popover, and the channel's senders lit; the folded pill names no one channel.
     onInlet: (channel: string | undefined, rows: PopoverRow[]) => React.MouseEventHandler<HTMLElement>;
     offInlet: () => void;
 }
 
-// One pill per channel up to the visible limit; the rest fold into a "+N" pill that carries their ports.
 function Inlets({ node, model, engine, vertical, onInlet, offInlet }: InletsProps) {
     const { focus } = useTopologyContext();
     const channels = node.channels;
-    // A pill dims when its card is lit but none of its channels' event edges are, as a row does for its handler.
     const inletDimmed = (owned: TopologyChannel[]): boolean =>
         focus !== undefined && focus.nodes.has(model.getID()) && !owned.some((channel) => focus.inlets.has(inletFocusId(model.getID(), channel.name)));
     const shown = channels.slice(0, INLET_VISIBLE_MAX);
@@ -610,7 +596,6 @@ function Inlets({ node, model, engine, vertical, onInlet, offInlet }: InletsProp
     );
 }
 
-// Model is always drawn: an agent cannot run without one. Memory is optional, so an absent one is not shown.
 function RailSlots({ node, show, hide }: { node: TopologyAgentNode; show: ShowPopover; hide: () => void }) {
     const modelRows: PopoverRow[] = node.modelProvider
         ? [{ key: "model", glyph: <Circle>{modelGlyph(node.modelProvider)}</Circle>, label: node.modelProvider.label }]
@@ -643,11 +628,9 @@ export function AgentCardNodeWidget(props: AgentCardNodeWidgetProps) {
     const show = (rows: PopoverRow[]) => (event: React.MouseEvent<HTMLElement>) =>
         setPopover({ anchor: event.currentTarget.getBoundingClientRect(), rows });
     const hide = () => setPopover(undefined);
-    // A plain workflow node shares a durable agent's inlets and run-port layout, just none of its fields.
     const durable = node.kind !== "agent";
     const isWorkflow = node.kind === "workflow";
 
-    // An inlet hangs outside the card, so hovering it must not read as hovering the card and every flow through it.
     const onInlet = (channel: string | undefined, rows: PopoverRow[]) => (event: React.MouseEvent<HTMLElement>) => {
         show(rows)(event);
         setCardHovered(false);
@@ -704,7 +687,6 @@ export function AgentCardNodeWidget(props: AgentCardNodeWidgetProps) {
                 {node.orphan && (
                     <OrphanFooter>
                         {isWorkflow ? (
-                            // No codegen exists yet for wiring a plain workflow function to a new caller.
                             "No trigger yet"
                         ) : (
                             <>

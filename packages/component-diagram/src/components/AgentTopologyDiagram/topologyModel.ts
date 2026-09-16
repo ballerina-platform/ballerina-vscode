@@ -118,7 +118,6 @@ function toolCounts(tools: TopologyTool[]): ToolFacts {
     return { toolCount: tools.length, functionTools: count("function"), agentTools: count("agent"), mcpTools: count("mcp"), tools };
 }
 
-// An agent's tools are its dependent functions; the design model names the ones that hand off to another agent.
 function toolFacts(connection: CDConnection | undefined): ToolFacts {
     const handoffs = new Set(Object.keys(connection?.agentTools ?? {}));
     return toolCounts([
@@ -171,13 +170,10 @@ function agentNodeFromArtifact(
     };
 }
 
-// LSP4J sends the scope enum as its ordinal (GLOBAL = 1); Gson in tests sends the name.
 function isModuleLevel(connection: CDConnection): boolean {
     return String(connection.scope) === "GLOBAL" || String(connection.scope) === "1";
 }
 
-// A module-level agent the design model sees but the artifact list doesn't (e.g. a non-default-module
-// caller's target) still gets a node, keyed by its own location.
 function agentNodeFromConnection(
     connection: CDConnection,
     uuidToConnection: Map<string, CDConnection>,
@@ -215,7 +211,6 @@ function findDurableWorkflow(workflows: CDWorkflow[], artifact: TopologyAgentArt
     return byLocation ?? workflows.find((workflow) => workflow.symbol === artifact.name);
 }
 
-// Activities join the tool list so the same popover lists everything the agent can call.
 function durableToolFacts(workflow: CDWorkflow | undefined): ToolFacts {
     const handoffs = new Set(Object.keys(workflow?.agentTools ?? {}));
     return toolCounts([
@@ -225,14 +220,11 @@ function durableToolFacts(workflow: CDWorkflow | undefined): ToolFacts {
     ]);
 }
 
-// A durable agent's model is one of its direct connections; the connection itself is the provider, and its own
-// typeName (not a nested modelProvider field, which only an agent connection carries) is the provider's class.
 function durableModelProvider(workflow: CDWorkflow | undefined, uuidToConnection: Map<string, CDConnection>): TopologyModelProvider | undefined {
     const provider = (workflow?.connections ?? []).map((uuid) => uuidToConnection.get(uuid)).find((connection) => connection?.kind === MODEL_PROVIDER_KIND);
     return provider ? { label: provider.symbol, type: provider.typeName ?? "", icon: provider.icon } : undefined;
 }
 
-// One chip per role: a human task's role decides; a gated activity's or peer's role releases, and a gate wins.
 function durablePeople(workflow: CDWorkflow | undefined): TopologyRole[] {
     const roles = new Map<string, TopologyRole>();
     const add = (role: string, target: string, gate: boolean): void => {
@@ -259,21 +251,16 @@ function durableCapabilities(workflow: CDWorkflow | undefined): Capabilities {
     };
 }
 
-// An artifact (from projectStructure's AGENT directory) is always a durable agent; without one, a plain
-// @workflow:Workflow function and a durable agent the artifact list missed both fall back to workflow.kind.
 function workflowKindLabel(isDurable: boolean): Pick<TopologyAgentNode, "kind" | "typeName"> {
     return isDurable ? { kind: "durable", typeName: DURABLE_AGENT_LABEL } : { kind: "workflow", typeName: WORKFLOW_LABEL };
 }
 
-// A plain workflow has no `toolConnections` (durable-agent only): its chips are its own direct connections plus
-// its activities' connections, the same set Integrator's diagram draws as derived workflow -> connection edges.
 function workflowConnectionUuids(workflow: CDWorkflow | undefined, activities: CDActivity[]): string[] {
     const activityUuids = new Set(workflow?.activities ?? []);
     const viaActivities = activities.filter((activity) => activityUuids.has(activity.uuid)).flatMap((activity) => activity.connections ?? []);
     return [...(workflow?.connections ?? []), ...viaActivities];
 }
 
-// The node id is the declaration's (file, line), never the uuid: uuids change on every design-model request.
 function durableAgentNode(
     workflow: CDWorkflow | undefined,
     artifact: TopologyAgentArtifact | undefined,
@@ -306,8 +293,6 @@ function durableAgentNode(
     };
 }
 
-// Every module-level workflow, durable agent or plain @workflow:Workflow function alike: both are run
-// through `.run()`, so both need a node id before the handlers that call them are wired up.
 function buildWorkflowNodes(
     model: CDModel,
     artifacts: TopologyAgentArtifact[],
@@ -331,7 +316,6 @@ function buildAgentNodes(
     const uuidToConnection = new Map(connections.map((connection) => [connection.uuid, connection]));
     const uuidToNodeId = new Map<string, string>();
 
-    // Cards are agent instances: a definition (class) is not one, and neither is the field it holds inside.
     const nodes = agents
         .filter((artifact) => !artifact.isDefinition && artifact.kind !== "durable")
         .map((artifact) => agentNodeFromArtifact(artifact, connections, uuidToConnection, uuidToNodeId));
@@ -365,7 +349,6 @@ interface EntryLabels {
     icon?: string;
 }
 
-// The card's own labels, as Integrator's design diagram draws them: the base path over the service's type.
 function entryLabelsFor(service: CDService): EntryLabels {
     const modulePrefix = (service.type ?? "").split(":")[0] || "http";
     return {
@@ -376,7 +359,6 @@ function entryLabelsFor(service: CDService): EntryLabels {
     };
 }
 
-// A resource is its method and path; a remote function is its name.
 function handlerLabelFor(fn: CDFunction | CDResourceFunction, isResource: boolean): { label: string; accessor?: string } {
     if (!isResource) {
         return { label: (fn as CDFunction).name };
@@ -385,7 +367,6 @@ function handlerLabelFor(fn: CDFunction | CDResourceFunction, isResource: boolea
     return { label: resourcePath(resourceFn.path), accessor: resourceFn.accessor.toUpperCase() };
 }
 
-// One sendData call: the durable agent's node and the channel it is sent on.
 interface Sent {
     agentId: string;
     channel: string;
@@ -394,9 +375,7 @@ interface Sent {
 interface Handler {
     entryId: string;
     node: TopologyHandler;
-    // Each agent's first call in source order: the spine a chain follows. Repeats are not drawn.
     spine: string[];
-    // Agents the handler reaches only through a helper, so no call site is known.
     reached: string[];
     sends: Sent[];
 }
@@ -415,7 +394,6 @@ function logicIn(calls: CDAgentCall[]): HandlerLogic[] {
     return LOGIC_ORDER.filter((kind) => found.has(kind));
 }
 
-// A branch or fork around a spine call makes "B runs after A" untrue; a loop or a repeat only adds runs.
 function underAlternative(call: CDAgentCall): boolean {
     return (call.groups ?? []).some((group) => logicOf(group.kind) !== "loop");
 }
@@ -436,8 +414,6 @@ function chainPairs(calls: string[]): string[] {
     return calls.slice(1).map((target, index) => `${calls[index]}|${target}`);
 }
 
-// Two handlers that run the same pair in opposite orders cannot both be chains: the canvas would draw a cycle
-// that does not exist. Neither is more right than the other, so both fall back to a fan.
 function resolveOrderConflicts(handlers: Handler[]): void {
     const owners = new Map<string, Handler[]>();
     handlers.forEach((handler) => {
@@ -458,18 +434,14 @@ function edge(sourceId: string, targetId: string, kind: TopologyEdgeKind, step?:
     return { id: `${sourceId}${kind === "delegation" ? "=>" : "->"}${targetId}`, sourceId, targetId, kind, handlers: step ? [step] : undefined };
 }
 
-// An edge leaving a service leaves one of its rows: the id names the handler so two rows reaching one agent stay
-// two edges, while sourceId names the card the layout places.
 function rowEdge(entryId: string, handlerId: string, targetId: string, step?: HandlerStep): TopologyEdge {
     return { id: `${handlerId}->${targetId}`, sourceId: entryId, targetId, kind: "trigger", handlerId, handlers: step ? [step] : undefined };
 }
 
-// The channel is part of the id, so a send never merges with the same row's run edge into the same card.
 function eventEdge(entryId: string, handlerId: string, sent: Sent): TopologyEdge {
     return { id: `${handlerId}~>${sent.agentId}#${sent.channel}`, sourceId: entryId, targetId: sent.agentId, kind: "event", handlerId, channel: sent.channel };
 }
 
-// Handlers that share a step produce the same edge twice; the canvas draws it once, crediting every handler.
 function mergeDuplicateEdges(edges: TopologyEdge[]): TopologyEdge[] {
     const byId = new Map<string, TopologyEdge>();
     edges.forEach((link) => {
@@ -486,8 +458,6 @@ function mergeDuplicateEdges(edges: TopologyEdge[]): TopologyEdge[] {
     return [...byId.values()];
 }
 
-// An ordered handler is a chain from its trigger; any other handler fans, and its badge says why. Either way an
-// edge means one thing only: this entry point runs this agent.
 function handlerEdges(handler: Handler): TopologyEdge[] {
     const { entryId } = handler;
     const triggerId = handler.node.id;
@@ -503,13 +473,10 @@ function handlerEdges(handler: Handler): TopologyEdge[] {
     return [...drawn, ...helped, ...sent];
 }
 
-// A durable agent is run through `.run`, which the design model files under the handler's workflows.
 function collectAgentUuids(fn: { connections?: string[]; workflows?: string[] }, uuidToNodeId: Map<string, string>): string[] {
     return [...(fn.connections ?? []), ...(fn.workflows ?? [])].filter((uuid) => uuidToNodeId.has(uuid));
 }
 
-// The agents a handler runs: its direct calls first, then those it reaches only through helper functions. An agent
-// reached through another agent's tool is delegation, not a trigger, so the fold's delegates are left out.
 function triggeredAgentUuids(fn: AgentCallSite, uuidToNodeId: Map<string, string>, delegated: Set<string>): string[] {
     const called = (fn.agentCalls ?? []).map((call) => call.connection).filter((uuid) => uuidToNodeId.has(uuid));
     const reached = collectAgentUuids(fn, uuidToNodeId).filter((uuid) => !delegated.has(uuid));
@@ -578,8 +545,6 @@ function buildHandler(
     };
 }
 
-// One card per service with every handler as a row, the ones that run agents first, so the card shows the whole
-// service and not only the part the agents use.
 function buildServiceEntries(model: CDModel, uuidToNodeId: Map<string, string>): { entries: TopologyEntryNode[]; handlers: Handler[] } {
     const entries: TopologyEntryNode[] = [];
     const handlers: Handler[] = [];
@@ -655,7 +620,6 @@ function buildDelegationEdges(model: CDModel, uuidToNodeId: Map<string, string>)
     return [...edges, ...durableDelegationEdges(model, uuidToNodeId)];
 }
 
-// A durable agent delegates through its peers and its agent tools; a peer declared with requiresApproval is gated.
 function durableDelegationEdges(model: CDModel, uuidToNodeId: Map<string, string>): TopologyEdge[] {
     const edges: TopologyEdge[] = [];
     for (const workflow of durableWorkflows(model)) {
@@ -675,7 +639,6 @@ function durableDelegationEdges(model: CDModel, uuidToNodeId: Map<string, string
     return edges;
 }
 
-// An event does not start an instance, so a durable agent nothing runs stays an orphan even with senders.
 function markReachability(agents: TopologyAgentNode[], entries: TopologyEntryNode[], edges: TopologyEdge[]): void {
     const adjacency = new Map<string, string[]>();
     edges.filter((edge) => edge.kind !== "event").forEach((edge) => {
@@ -719,7 +682,6 @@ function computeLegendKinds(agents: TopologyAgentNode[], edges: TopologyEdge[]):
     return kinds;
 }
 
-// Each inlet names the rows that send on it, for its popover.
 function fillChannelSenders(agents: TopologyAgentNode[], handlers: TopologyHandler[], edges: TopologyEdge[]): void {
     const labels = new Map(handlers.map((handler) => [handler.id, [handler.accessor, handler.label].filter(Boolean).join(" ")]));
     const byId = new Map(agents.map((agent) => [agent.id, agent]));
@@ -765,9 +727,6 @@ function declarationOrder(a: Declared, b: Declared): number {
     return a.filePath.localeCompare(b.filePath) || a.position.line - b.position.line;
 }
 
-// The design model lists everything in uuid order, and uuids change on every request, so a reload could swap
-// cards and cross edges. The graph follows the source instead: nodes by declaration, edges by the row they
-// leave (a handler's own calls keep their call order) or, for a delegation, by the agent they reach.
 function canonical(agents: TopologyAgentNode[], entries: TopologyEntryNode[], edges: TopologyEdge[]): Pick<TopologyGraph, "agents" | "entries" | "handlers" | "edges"> {
     const sortedAgents = [...agents].sort(declarationOrder);
     const sortedEntries = [...entries].sort(declarationOrder);

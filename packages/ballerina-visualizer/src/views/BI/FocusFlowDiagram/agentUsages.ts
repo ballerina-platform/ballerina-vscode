@@ -207,7 +207,6 @@ function agentCallSite(service: CDService, uuid: string, entryPoints: number): C
     return helpers.length === 1 ? helpers[0].location : undefined;
 }
 
-// What every row of one service shares, computed once per service.
 interface ServiceRows {
     subLabel: string;
     name: string;
@@ -374,7 +373,6 @@ export function findAgentUsages(
     return usages;
 }
 
-// --- Durable agents: the design model files them as workflows, run through `.run` and fed through `sendData`. ---
 
 type DurableCaller = { workflows?: string[]; workflowSendData?: Record<string, string[]> };
 
@@ -387,8 +385,6 @@ function findDurableAgentWorkflow(model: CDModel, agent: AgentRef): CDWorkflow |
     return byLocation ?? (agent.symbol ? workflows.find((workflow) => workflow.symbol === agent.symbol) : undefined);
 }
 
-// A run row as any trigger's, then one row per channel the handler sends on, drawn beside that channel's circle; a
-// send has no trigger to delete or try.
 function durableRows(fn: DurableCaller, uuid: string, row: AgentUsage): AgentUsage[] {
     const runs = fn.workflows?.includes(uuid) ? [row] : [];
     const sends = (fn.workflowSendData?.[uuid] ?? []).map((channel): AgentUsage => ({ ...row, channel, trigger: undefined, tryIt: undefined }));

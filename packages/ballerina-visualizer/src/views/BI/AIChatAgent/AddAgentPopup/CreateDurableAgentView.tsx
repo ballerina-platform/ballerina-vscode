@@ -22,7 +22,6 @@ import { RelativeLoader } from "../../../../components/RelativeLoader";
 import { FunctionForm } from "../../FunctionForm";
 import { FormContainer, LoaderWrapper } from "./styles";
 
-// Durable agent declarations live beside the workflow artifacts, the same target as Integrator's own form.
 const WORKFLOW_FILE_NAME = "workflows.bal";
 
 export function CreateDurableAgentView({ projectPath }: { projectPath: string }) {

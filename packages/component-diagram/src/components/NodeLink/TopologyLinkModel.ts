@@ -29,21 +29,14 @@ export interface TopologyLinkModelOptions {
     bow?: number;
 }
 
-// Solid = an entry point runs this agent, or the next step of an ordered handler; dotted = a trigger sends an
-// event into a durable agent's inlet; dashed = agent-to-agent delegation, with a lock when the hand-off is gated.
-// A link carries no other label: a condition or a step number is a fact about one call site, and an edge stands
-// for a whole handler.
 export class TopologyLinkModel extends DefaultLinkModel {
     edgeId = "";
     kind: TopologyEdgeKind = "trigger";
     gated = false;
     gatedBy: string[] = [];
     bow = 0;
-    // Where the layout bends this edge.
     via: { x: number; y: number }[] = [];
-    // Ports face each other vertically when the topology is laid out top to bottom.
     vertical = false;
-    // Top to bottom, a row's edge steps sideways to this cross position before it drops; other edges drop from their port.
     lane?: number;
 
     constructor(options: TopologyLinkModelOptions = {}) {

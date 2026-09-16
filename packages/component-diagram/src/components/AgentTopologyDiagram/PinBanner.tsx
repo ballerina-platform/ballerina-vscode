@@ -109,8 +109,6 @@ export interface PinBannerProps {
     onUnpin: () => void;
 }
 
-// Top-centre while something is pinned: says what is pinned and offers Isolate; once isolated, says so and offers
-// the way out. Neither mode is left by clicking the canvas, only from here or with Esc.
 export function PinBanner({ row, isolated, onIsolate, onExitIsolation, onUnpin }: PinBannerProps) {
     return (
         <Banner role="status" isolated={isolated}>

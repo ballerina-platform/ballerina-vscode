@@ -40,7 +40,6 @@ export class AgentCardNodeModel extends NodeModel {
         this.node = node;
         this.addInPort("in");
         this.addOutPort("out");
-        // A durable agent takes events on named inlets; a run still arrives at the card's own in port.
         node.channels.forEach((channel) => this.addInPort(inletPortName(channel.name)));
     }
 
@@ -67,7 +66,6 @@ export class AgentCardNodeModel extends NodeModel {
         return this.portIn;
     }
 
-    // The channel's inlet, or the card's in port for a channel the agent does not declare.
     getInletPort(channel: string | undefined): NodePortModel {
         const inlet = channel ? (this.getPort(inletPortName(channel)) as NodePortModel) : undefined;
         return inlet ?? this.portIn;

@@ -309,7 +309,6 @@ public class DesignModelGenerator {
         }
     }
 
-    // Activities count as tools here: an activity's http client is a chip on the agent's card.
     private void linkDurableAgentToolTargets(IntermediateModel intermediateModel, Workflow agent) {
         List<String> toolNames = new ArrayList<>(agent.getTools() == null ? List.of() : agent.getTools());
         if (agent.getActivityDecls() != null) {
@@ -463,7 +462,6 @@ public class DesignModelGenerator {
                 intermediateModel.uuidToWorkflowMap.put(agent.getUuid(), agent);
             }
         }
-        // A peer names another agent, so every agent is registered before any declaration is read.
         durableAgents.forEach((agent, range) -> populateAgentDeclaredCapabilities(intermediateModel, agent, range));
     }
 
@@ -523,8 +521,6 @@ public class DesignModelGenerator {
      */
     private void populateAgentDeclaredCapabilities(IntermediateModel intermediateModel, Workflow agent,
                                                    LineRange lineRange) {
-        // Shared with the edit paths so an explicit `new workflow:DurableAgent({...})` agent
-        // renders its capability circles too, not just the implicit-new shape.
         Optional<MappingConstructorExpressionNode> configLiteral =
                 declarationAt(lineRange).flatMap(WorkflowUtil::agentConfigLiteral);
         if (configLiteral.isEmpty()) {
@@ -538,7 +534,6 @@ public class DesignModelGenerator {
         }
     }
 
-    // The symbol's location is the variable-name token, so the declaration is matched by line containment.
     private Optional<ModuleVariableDeclarationNode> declarationAt(LineRange lineRange) {
         ModulePartNode root = this.documentMap.get(lineRange.fileName());
         if (root == null) {
@@ -635,7 +630,6 @@ public class DesignModelGenerator {
     private record DeclaredEntry(String name, Node node, MappingConstructorExpressionNode config) {
     }
 
-    // workflow 0.9 keys `events`/`humanTasks` by name; older code lists records carrying a `name`. Read both.
     private static List<DeclaredEntry> declaredEntries(ExpressionNode value) {
         if (value instanceof MappingConstructorExpressionNode keyed) {
             return keyedEntries(keyed);
@@ -672,7 +666,6 @@ public class DesignModelGenerator {
         return entries;
     }
 
-    // `userRoles: "X"` or `userRoles: ["X", "Y"]`; a variable is recorded as absent.
     private static List<String> rolesOf(MappingConstructorExpressionNode config) {
         ExpressionNode value = config == null ? null : getMappingFieldExpr(config, "userRoles");
         if (value == null) {

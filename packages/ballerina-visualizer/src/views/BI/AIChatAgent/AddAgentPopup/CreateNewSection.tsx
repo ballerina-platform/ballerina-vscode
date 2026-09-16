@@ -54,7 +54,6 @@ function OptionCard({ icon, title, description, onClick }: OptionCardProps) {
     );
 }
 
-// The two robots wear the canvas cards' colours: agent cyan, durable bright blue.
 const agentIcon = <Icon name="bi-ai-agent" sx={{ fontSize: 24, width: 24, height: 24, color: getNodeChartColor("AGENT") }} />;
 
 const durableAgentIcon = (

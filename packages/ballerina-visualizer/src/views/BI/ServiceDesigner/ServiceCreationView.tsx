@@ -118,7 +118,6 @@ export interface ServiceCreationViewProps {
     agentName?: string;
     agentOrgName?: string;
     agentKind?: AgentKind;
-    // The durable agent's data event the endpoint sends on; the request goes to a running instance instead of a run.
     agentEvent?: AgentEventChannel;
     isPopup?: boolean;
     defaultValues?: Record<string, string>;
@@ -310,7 +309,6 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
         }
     }, [model]);
 
-// A data event's endpoint names the instance in its path and carries the channel's request as the payload.
 function seedAgentEndpoint(shaped: FunctionModel, event?: AgentEventChannel): FunctionModel {
     let seeded = { ...shaped };
     if (seeded.name && !seeded.name.value) {
@@ -333,7 +331,6 @@ function seedAgentEndpoint(shaped: FunctionModel, event?: AgentEventChannel): Fu
     return event ? withEventResponse(seeded, event) : seeded;
 }
 
-// The channel's reply is the endpoint's answer; a one-way channel is only acknowledged.
 function withEventResponse(seeded: FunctionModel, event: AgentEventChannel): FunctionModel {
     const responses = seeded.returnType?.responses;
     if (!responses?.length) {
@@ -548,7 +545,6 @@ function withEventResponse(seeded: FunctionModel, event: AgentEventChannel): Fun
                     />,
                     index: 1
                 },
-                // A data event has no prompt, so nothing is appended to instructions.
                 ...(agentEvent ? [] : [{ component: <PromptContinuation model={endpointModel} />, index: Infinity }])
             ]
             : undefined,

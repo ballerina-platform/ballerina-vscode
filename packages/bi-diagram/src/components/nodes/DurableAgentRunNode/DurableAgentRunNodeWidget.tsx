@@ -434,16 +434,12 @@ type DurableAgentNodeMetadata = NodeMetadata & {
     peers?: ToolData[];
     agentName?: string;
     agentBox?: boolean;
-    // Filled by the visualizer from the design model: the handlers that run or send to this agent.
     usages?: AgentUsage[];
-    // False on a repaint of the list already on screen, so the rows fade in only when they are new.
     animateUsages?: boolean;
 };
 
 const LEFT_SVG_WIDTH = 300;
-// The left circles are drawn at cx 220 with r 22; a sender's arrow lands on this edge.
 const LEFT_CIRCLE_EDGE_X = 198;
-// The caller square spans x 246..290 in the rail's own coordinate space; its line runs to the box edge.
 const USAGE_SQUARE_X = 246;
 const USAGE_TEXT_RIGHT_X = 238;
 const USAGE_TEXT_CENTER_Y = 21;
@@ -452,12 +448,10 @@ const USAGE_ROW_STAGGER_MS = 70;
 
 const fadeIn = (delay: number | undefined) => (delay === undefined ? "" : usageFadeIn(delay));
 
-// A repaint of the list already on screen carries false; anything else, including the first paint, fades in.
 function animatesUsages(metadata: { animateUsages?: boolean } | undefined): boolean {
     return metadata?.animateUsages !== false;
 }
 
-// A run is drawn solid, a send dotted (as the overview's event edge), a peer dashed (as its delegation edge).
 function usageDash(usage: AgentUsage): string | undefined {
     if (usage.parentAgent) {
         return "6 5";
@@ -471,14 +465,11 @@ interface UsageRowProps {
     boxEdgeX: number;
     codedata: FlowNode["codedata"];
     markerId: string;
-    // Where the arrow lands, relative to the row: a sender row bends to its circle's centre.
     targetY?: number;
     animationDelay?: number;
     onOpen: (usage: AgentUsage) => void;
 }
 
-// One caller of the agent, drawn as the AI agent's rail draws it: a square, its labels, an arrow to the box or circle.
-// The fade keyframes animate transform, so they run on an inner group and leave the row's translate alone.
 function UsageRow({ usage, index, boxEdgeX, codedata, markerId, targetY = 25, animationDelay, onOpen }: UsageRowProps) {
     const title = [usage.serviceLabel ?? usage.typeLabel, usage.label].filter(Boolean).join(" — ");
     return (
@@ -530,7 +521,6 @@ interface UsageRowsProps {
     onAddTrigger: () => void;
 }
 
-// The declaration canvas offers the tile when the page can open the trigger picker; a run() reference never does.
 function durableTriggerHost(
     agentNode: { onAddTrigger?: (node: FlowNode) => void } | undefined,
     isAgentReference: boolean,
@@ -549,7 +539,6 @@ function durableTriggerHost(
     };
 }
 
-// The declaration canvas offers each channel its own Add Trigger tile when the page can open the picker for a data event.
 function durableEventTriggerHost(
     agentNode: { onAddEventTrigger?: (node: FlowNode, event: ToolData) => void } | undefined,
     isAgentReference: boolean,
@@ -566,7 +555,6 @@ function durableEventTriggerHost(
     return { offered, addFor: (item) => (offered ? add(item) : undefined) };
 }
 
-// The trigger block: the visible caller rows, "+N more" for the rest, then the Add Trigger tile.
 function UsageRows({ column, boxEdgeX, codedata, markerId, readOnly, animate, onOpen, onAddTrigger }: UsageRowsProps) {
     const stagger = (row: number) => (animate ? row * USAGE_ROW_STAGGER_MS : undefined);
     return (
@@ -608,7 +596,6 @@ function UsageRows({ column, boxEdgeX, codedata, markerId, readOnly, animate, on
 interface ChannelSendersProps {
     channel: string;
     senders: AgentUsage[];
-    // The circle's offset down its slot, so each row's arrow bends to the circle's centre.
     circleOffset: number;
     circleEdgeX: number;
     codedata: FlowNode["codedata"];
@@ -616,12 +603,9 @@ interface ChannelSendersProps {
     animate: boolean;
     readOnly: boolean;
     onOpen: (usage: AgentUsage) => void;
-    // Offered on the declaration canvas: a trigger that sends data on this channel.
     onAddTrigger?: () => void;
 }
 
-// A capability's circle and label light up together when the whole target can be clicked; the open-flow button
-// shows itself while the row is hovered either way.
 const capabilityHitStyle = (clickable: boolean) => css`
     cursor: ${clickable ? "pointer" : "default"};
     .capability-circle {
@@ -654,7 +638,6 @@ const CapabilityLabel = styled.div`
     white-space: nowrap;
 `;
 
-// The agent run node's Open Agent chip, shrunk to its glyph.
 const OpenFlowButton = styled.div`
     display: inline-flex;
     align-items: center;
@@ -674,13 +657,9 @@ const OpenFlowButton = styled.div`
     }
 `;
 
-// The vertical the sender rows' bent arrows share on their way into the circle.
 const SENDER_TRUNK_X = USAGE_SQUARE_X + 57;
-// The tile's plus (r 9) tops out where a square would (y 2), so the gap above it matches the gap between squares.
 const SENDER_TILE_CENTER_Y = 11;
 
-// The handlers that send on one channel, stacked beside its circle with their arrows bending into it, then the
-// Add Trigger tile for the channel: alone it hangs off the circle; under senders it joins their trunk.
 function ChannelSenders({ channel, senders, circleOffset, circleEdgeX, codedata, markerId, animate, readOnly, onOpen, onAddTrigger }: ChannelSendersProps) {
     const visible = senders.slice(0, AGENT_USAGE_ROW_LIMIT);
     const hidden = senders.length - visible.length;
@@ -745,9 +724,6 @@ type CapabilityItem = {
 // Capabilities addable from the agent box's "+" affordances, each pinned to a fixed anchor.
 type AddableCapability = "humanTask" | "event" | "activity" | "model";
 
-// The capability add tiles hang off the side columns under their own group — human tasks and data events on
-// the left, the single tool/activity entry on the right (a plain tool is just an activity, plus the project's
-// AI tools and MCP); only the model configuration is a floating affordance, top-right.
 const ADD_AFFORDANCES: {
     kind: AddableCapability;
     label: string;
@@ -762,12 +738,10 @@ const ADD_AFFORDANCES: {
 
 const MODEL_AFFORDANCE_ANCHOR: NodeStyles.AffordanceAnchorName = "topRight";
 
-// The model affordance floats until the declaration has a model.
 function showsModelAffordance(readOnly: boolean, nodeMetadata: DurableAgentNodeMetadata | undefined): boolean {
     return !readOnly && !nodeMetadata?.model;
 }
 
-// Row counts for both columns: the declaration canvas adds two footer tiles on the left and one on the right.
 function durableBoxRows(triggerRows: number, leftSenders: number[], rightItems: number, showsTiles: boolean): DurableBoxRows {
     const tile = showsTiles ? 1 : 0;
     return { triggerRows, leftSenders, leftTiles: tile * 2, rightRows: rightItems + 1 + tile };
@@ -786,13 +760,11 @@ interface CapabilityAddTileProps {
     anchorX: number;
     y: number;
     side: "left" | "right";
-    // The declaration canvas offers the tiles; a run() reference draws none.
     show: boolean;
     readOnly: boolean;
     onAdd: (kind: AddableCapability) => void;
 }
 
-// One add tile, drawn like the Add Trigger tile with the capability's own glyph.
 function CapabilityAddTile({ kind, anchorX, y, side, show, readOnly, onAdd }: CapabilityAddTileProps) {
     if (!show) {
         return null;
@@ -936,7 +908,6 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
         agentNode?.onEditCapability?.(model.node, { ...item.data, type: item.kind });
     };
 
-    // A tool or activity registers a function whose flow the sublink opens, as the AI agent's tool circles do.
     const flowOpener = (item: CapabilityItem): (() => void) | undefined => {
         if (readOnly || !agentNode?.goToTool || (item.kind !== "tool" && item.kind !== "activity")) {
             return undefined;
@@ -1010,7 +981,6 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
             onClick: () => { agentNode.onGoToAgent!(model.node); setMenuPos(null); },
         }] : []),
     ];
-    // The agent identifier names the box under its kind, as the AI agent node's variable does; fall back to the label.
     const nodeTitle = nodeMetadata?.agentName || model.node.metadata?.label || "Durable Agentic Workflow";
     const hasError = nodeHasError(model.node);
     const nodeModelIconUrl = nodeMetadata?.model?.path;
@@ -1028,30 +998,23 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
 
     const declaredHumanTasks: AgentCapability[] = nodeMetadata?.humanTasks || [];
     const declaredEvents: AgentCapability[] = nodeMetadata?.events || [];
-    // Capability circles rendered on the left side: human tasks, then events (arrows point into the box).
     const leftItems: CapabilityItem[] = [
         ...declaredHumanTasks.map((humanTask: AgentCapability): CapabilityItem => ({ data: humanTask, kind: "humanTask" })),
         ...declaredEvents.map((event: AgentCapability): CapabilityItem => ({ data: event, kind: "event" })),
     ];
 
-    // Triggers that run the agent take the top of the left column; the rail's labels need a wider column than the
-    // circles do. A handler that sends on a channel is drawn beside that channel's circle instead, in a column of its
-    // own further left, so the trigger block and the circles move right by its width when there is one.
     const triggerHost = durableTriggerHost(agentNode, isAgentReference, readOnly, model.node);
     const usages = getDurableAgentUsages(model.node);
     const usageColumn = durableUsageColumn(durableRunUsages(usages), triggerHost.canAddTrigger);
     const sendersOf = (item: CapabilityItem): AgentUsage[] => (item.kind === "event" ? durableChannelSenders(usages, item.data.name) : []);
     const eventTriggerHost = durableEventTriggerHost(agentNode, isAgentReference, readOnly, model.node);
     const leftSenders = durableLeftSenders(declaredHumanTasks.length, declaredEvents, usages, eventTriggerHost.offered);
-    // A channel's Add Trigger tile alone fits beside its circle; only real callers open the sender column.
     const senderShift = durableHasSenders(declaredEvents, usages) ? DURABLE_SENDER_COLUMN_WIDTH : 0;
     const columnShift = usageColumn.shift + senderShift;
     const leftSvgWidth = LEFT_SVG_WIDTH + columnShift;
     const rows = durableBoxRows(usageColumn.triggerRows, leftSenders, rightItems.length, !isAgentReference);
     const showsLeftColumn = rows.triggerRows + rows.leftSenders.length + rows.leftTiles > 0;
 
-    // The viewBox height for the side-connector SVGs; the box's rendered height is viewState.ch, set by
-    // SizingVisitor.endVisitDurableAgentRun from the same function, so the connector lines meet the box edge.
     const containerHeight = durableAgentBoxHeight(rows);
     const footerTileY = (indexFromBottom: number) => durableBottomTileY(containerHeight, indexFromBottom);
 
@@ -1064,7 +1027,6 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
 
     const renderCapabilityIcon = (item: CapabilityItem) => {
         if (item.kind === "peer") {
-            // Delegating runs another durable agent, so it wears the durable robot, not a plain tool function.
             return <NodeIcon type="DURABLE_AGENT_RUN" size={24} />;
         }
         // The three declared capability kinds are the same things the node palette lists, so they are
@@ -1633,7 +1595,6 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
                 {/* circles for tools and activities */}
                 {rightItems.map((item: CapabilityItem, index: number) => {
                     const itemName = item.data.name;
-                    // A registered tool has no configuration form of its own to open.
                     const clickable = !readOnly && item.kind !== "tool";
                     const openFlow = flowOpener(item);
                     return (

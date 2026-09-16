@@ -30,7 +30,6 @@ export interface TopologyContextState {
     focus?: TopologyFocus;
     setHovered?: (id?: string) => void;
     visibleRows?: Record<string, number>;
-    // Cards the user unfolded; their footer reads "Show fewer" and folds them back.
     unfolded?: Set<string>;
     onToggleEntry?: (entryId: string) => void;
 }

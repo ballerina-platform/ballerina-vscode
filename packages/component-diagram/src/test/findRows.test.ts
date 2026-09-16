@@ -47,8 +47,6 @@ function delegates(sourceId: string, targetId: string): TopologyEdge {
     return { id: `${sourceId}->${targetId}`, sourceId, targetId, kind: "delegation" };
 }
 
-// /ops: GET /status runs triage; POST /incidents runs the commander, who delegates to triage and comms.
-// /releases: POST /hotfix runs review ① → deploy ②. main runs cost. audit is an orphan on Anthropic.
 const graph: TopologyGraph = (() => {
     const agents = [
         agent("commander", { tools: [{ name: "slackClient", kind: "function" }], peers: ["triage", "comms"] }),

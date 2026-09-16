@@ -16,8 +16,6 @@
  * under the License.
  */
 
-// The WSO2 Integrator shell lists an explorer entry under Agents only when the entry's type is
-// AGENT, so a `workflow:DurableAgent` must publish as AGENT and carry its durability on moduleName.
 
 import type {
     ARTIFACT_TYPE as ArtifactType,
@@ -28,8 +26,6 @@ import type {
     ProjectStructureResponse,
 } from "@wso2/ballerina-core";
 
-// The real barrel pulls in a WebSocket LS client that jest cannot load, so stub it. The enum
-// values must match the real ones — the assertions below compare against them.
 const DIRECTORY_MAP = Object.fromEntries([
     "AUTOMATION", "SERVICE", "LISTENER", "FUNCTION", "CONNECTION", "TYPE", "CONFIGURABLE", "DATA_MAPPER",
     "NP_FUNCTION", "AGENT", "AGENT_DEFINITION", "LOCAL_CONNECTORS", "WORKFLOW", "DURABLE_AGENT", "ACTIVITY",

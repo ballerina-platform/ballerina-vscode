@@ -562,7 +562,6 @@ export const startAddAgentTrigger = (node: FlowNode, rpcClient: BallerinaRpcClie
     openAddAgentTrigger(rpcClient, agentVarName, kind === "durable" ? "ballerina" : node.codedata?.org, kind);
 };
 
-// A trigger for one of the durable agent's data events: the picker sends the request on that channel to an instance.
 export const startAddDurableEventTrigger = (node: FlowNode, event: ToolData, rpcClient: BallerinaRpcClient) => {
     const agentVarName = agentVarNameOf(node);
     if (!agentVarName || !event?.name) {
@@ -577,7 +576,6 @@ export const startAddDurableEventTrigger = (node: FlowNode, event: ToolData, rpc
     });
 };
 
-// The durable agent box names its agent in metadata; a declaration in `variable`; a call site in `connection`.
 export const agentVarNameOf = (node: FlowNode): string => {
     if (agentKindOf(node) === "durable") {
         const agentName = (node.metadata?.data as { agentName?: string } | undefined)?.agentName;
@@ -588,7 +586,6 @@ export const agentVarNameOf = (node: FlowNode): string => {
     return typeof holder?.value === "string" ? holder.value.trim() : "";
 };
 
-// Only a durable agent needs its kind spelled out; the org already tells `.run` from `->run` for the others.
 export const agentKindOf = (node: FlowNode): AgentKind | undefined =>
     node.codedata?.node === "DURABLE_AGENT_RUN" ? "durable" : undefined;
 

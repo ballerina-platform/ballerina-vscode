@@ -622,7 +622,6 @@ const EDGE_ADD_ICON_SIZE = 16;
 export function EdgeAddButton(props: {
     anchorX: number; y: number; side: "left" | "right"; label: string; title: string; testId: string;
     animationDelay?: number; onClick: () => void; readOnly?: boolean;
-    // A capability glyph between the plus and the label, telling one add tile from another.
     icon?: React.ReactNode;
 }) {
     const { anchorX, y, side, label, title, testId, animationDelay, onClick, readOnly, icon } = props;

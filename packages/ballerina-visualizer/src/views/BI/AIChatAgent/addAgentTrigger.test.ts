@@ -19,8 +19,6 @@
 import type { FlowNode } from "@wso2/ballerina-core";
 import type { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
 
-// The core barrel and the rpc client pull in an ES-module LS client jest cannot parse, and utils.ts needs the form
-// helpers; only the trigger opener is under test, so every other export is an empty stand-in.
 const EVENT_TYPE = { OPEN_VIEW: "OPEN_VIEW" };
 const MACHINE_VIEW = { BIAddAgentTrigger: "Add Agent Trigger" };
 jest.mock("@wso2/ballerina-core", () =>

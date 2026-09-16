@@ -18,7 +18,6 @@
 
 import { TopologyEdge, TopologyFocus, TopologyGraph } from "./types";
 
-// Which handlers an edge is part of; undefined for delegation, which runs whenever its source runs.
 type Handlers = Set<string> | undefined;
 
 function intersect(a: Set<string>, b: Set<string>): Set<string> {
@@ -38,7 +37,6 @@ function handlerResolver(): (edge: TopologyEdge) => Handlers {
     };
 }
 
-// The hover key of a durable card's inlet: it lights the channel's event edges and their senders, not the card's flows.
 export function inletFocusId(nodeId: string, channel: string): string {
     return `inlet|${nodeId}|${channel}`;
 }
@@ -57,16 +55,11 @@ function litInlets(graph: TopologyGraph, edges: Set<string>): Set<string> {
     return new Set(graph.edges.filter((edge) => edge.kind === "event" && edges.has(edge.id)).map((edge) => inletFocusId(edge.targetId, edge.channel)));
 }
 
-// The flow through a node, handler by handler: upstream to the triggers whose chains reach it (through the parents
-// that delegate to it too), then downstream along those handlers' chains only, and along every delegation. A chain
-// edge that belongs to another handler running through the same card stays dark.
 export function focusAround(graph: TopologyGraph, id: string): TopologyFocus {
     const inlet = focusInlet(graph, id);
     if (inlet) {
         return inlet;
     }
-    // Hovering a row lights that handler's flow; hovering the card lights every handler on it. Either way the
-    // walk starts at the card, which is the node the edges leave.
     const entry = graph.entries.find((candidate) => candidate.id === id || candidate.handlers.some((handler) => handler.id === id));
     const seedHandlers = entry ? (entry.id === id ? entry.handlers.map((handler) => handler.id) : [id]) : [];
     const start = entry ? entry.id : id;
@@ -114,7 +107,6 @@ export function focusAround(graph: TopologyGraph, id: string): TopologyFocus {
     };
 
     up(start, seedHandlers.length ? new Set(seedHandlers) : "any");
-    // Every handler the walk upstream arrived at, so the downstream walk follows only those flows.
     const reached = new Set([...graph.entries.flatMap((candidate) => candidate.handlers)]
         .filter((handler) => nodes.has(handler.id) || seedHandlers.includes(handler.id))
         .map((handler) => handler.id));
@@ -128,8 +120,6 @@ export function focusAround(graph: TopologyGraph, id: string): TopologyFocus {
     return { nodes, edges, inlets: litInlets(graph, edges) };
 }
 
-// The graph cut down to one lit story: its cards and its lit edges, laid out on their own when dimming the rest
-// leaves the story too small to read. Rows stay with their card; the focus keeps dimming the ones outside the story.
 export function isolateGraph(graph: TopologyGraph, focus: TopologyFocus): TopologyGraph {
     const entries = graph.entries.filter((entry) => focus.nodes.has(entry.id));
     return {

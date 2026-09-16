@@ -111,7 +111,6 @@ describe("focusAround", () => {
     });
 
 
-    // One card with a `run` row that runs a and d, and a `send` row that sends `chat` to the durable d.
     function sendGraph(): TopologyGraph {
         const durable: TopologyAgentNode = { ...agent("d"), kind: "durable", channels: [{ name: "chat", senders: [] }] };
         const card: TopologyEntryNode = {

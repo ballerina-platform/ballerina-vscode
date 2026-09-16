@@ -210,8 +210,6 @@ interface AgentBuilderOverviewProps {
     projectPath: string;
 }
 
-// Triggers (services/automations/workflows) render as idle entry-point cards on the canvas even
-// without an agent, so their presence should skip the empty state too.
 function hasTriggerArtifacts(directoryMap: ProjectStructure["directoryMap"] | undefined): boolean {
     return (
         (directoryMap?.[DIRECTORY_MAP.SERVICE]?.length ?? 0) > 0 ||
@@ -230,7 +228,6 @@ export function AgentBuilderOverview({ projectPath }: AgentBuilderOverviewProps)
     const [deployAnchor, setDeployAnchor] = useState<HTMLElement | null>(null);
     const [canvasReady, setCanvasReady] = useState(false);
     // Only true once the empty state has actually been on screen, so opening a
-    // project that already has an agent or trigger never flashes it.
     const [emptyMounted, setEmptyMounted] = useState(false);
     const compactHeader = useCompactHeader();
     const { isTracingEnabled, toggleTracing } = useTracingStatus(rpcClient, projectPath);
@@ -330,7 +327,6 @@ export function AgentBuilderOverview({ projectPath }: AgentBuilderOverviewProps)
             openAgent(rpcClient, match);
             return;
         }
-        // Not an agent artifact: a plain @workflow:Workflow function's card, opened as plain source.
         openTrigger(rpcClient, { filePath: agent.path, position: { line: agent.startLine, offset: 0 } });
     }, [agents, rpcClient]);
 
@@ -359,8 +355,6 @@ export function AgentBuilderOverview({ projectPath }: AgentBuilderOverviewProps)
         });
     }, [rpcClient]);
 
-    // The trigger generator calls a plain ai:Agent with `.` and a typed agent with `->`, keyed on the agent's org;
-    // a durable agent (published by ballerina/workflow) is run and chatted with through its instances.
     const handleAddTriggerFromCanvas = useCallback(async (agent: AgentSelection) => {
         if (agent.moduleName === "workflow") {
             openAddAgentTrigger(rpcClient, agent.name, "ballerina", "durable");
