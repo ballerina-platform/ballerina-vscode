@@ -1106,8 +1106,7 @@ export function PackageOverview(props: PackageOverviewProps) {
     };
 
     const handleAmpTracing = (ampEnabled: boolean) => {
-        // Not optimistic: enabling can be cancelled by the tracing-provider-conflict warning,
-        // so the checkbox must reflect the actual post-command status rather than the click.
+        // Not optimistic: the conflict warning can cancel enabling, so this reflects the real status.
         rpcClient.getCommonRpcClient()
             .executeCommand({ commands: ampEnabled ? ["ballerina.enableTracing", true] : ["ballerina.disableTracing"] })
             .then(checkAmpTracingStatus)

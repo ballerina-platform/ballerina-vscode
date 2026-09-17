@@ -593,8 +593,7 @@ const ChatInterface: React.FC = () => {
         const checkTracingStatus = async () => {
             try {
                 const status = await rpcClient.getAgentChatRpcClient().getTracingStatus();
-                // enabled is also true when Agent Manager is the active provider; this view only
-                // has local trace details (executionSteps/traceId) to show for idetraceprovider.
+                // Local trace details only exist for idetraceprovider, not Agent Manager.
                 setIsTracingEnabled(status.enabled && status.provider !== 'amp');
             } catch (error) {
                 console.error('Failed to get tracing status:', error);
