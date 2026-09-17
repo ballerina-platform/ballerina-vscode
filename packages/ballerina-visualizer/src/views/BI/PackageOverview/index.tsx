@@ -1420,12 +1420,6 @@ export function PackageOverview(props: PackageOverviewProps) {
                                             </div>
                                         </>
                                     )}
-                                    {(projectStructure?.directoryMap?.[DIRECTORY_MAP.AGENT]?.length ?? 0) > 0 && (
-                                        <>
-                                            <Divider sx={{ margin: "16px 0" }} />
-                                            <AgentManagerTracing enabled={ampTracingEnabled} handleAmpTracing={handleAmpTracing} />
-                                        </>
-                                    )}
                                     {(projectStructure?.directoryMap?.[DIRECTORY_MAP.WORKFLOW]?.length ?? 0) > 0 && (
                                         <>
                                             <Divider sx={{ margin: "16px 0" }} />
@@ -1444,6 +1438,12 @@ export function PackageOverview(props: PackageOverviewProps) {
                                     goToDevant={goToDevant}
                                 />
                             }
+                            {(projectStructure?.directoryMap?.[DIRECTORY_MAP.AGENT]?.length ?? 0) > 0 && (
+                                <>
+                                    <Divider sx={{ margin: "16px 0" }} />
+                                    <AgentManagerTracing enabled={ampTracingEnabled} handleAmpTracing={handleAmpTracing} />
+                                </>
+                            )}
                         </SidePanel>
                     )}
                 </MainContent>

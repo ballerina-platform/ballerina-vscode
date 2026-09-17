@@ -36,6 +36,7 @@ import { selectIntegrationOrPrompt } from "../../utils/command-utils";
 import { refreshDefaultProviderToken } from "../ai/utils";
 
 const UNUSED_IMPORT_ERR_CODE = "BCE2002";
+const AMP_CONFIG_WARNING_SHOWN_PREFIX = "ballerina.ampConfigWarningShown:";
 
 export async function prepareAndGenerateConfig(
     ballerinaExtInstance: BallerinaExtension,
@@ -168,8 +169,15 @@ export async function checkConfigUpdateRequired(
 
         // Publishing traces to Agent Manager requires otelEndpoint/apiKey in [ballerinax.amp] of Config.toml
         const ampConfigMissing = getActiveTracingProvider(projectPath) === 'amp' && isAmpConfigIncomplete(projectPath);
+        const ampWarningKey = `${AMP_CONFIG_WARNING_SHOWN_PREFIX}${projectPath}`;
         if (ampConfigMissing) {
-            hasWarnings = true;
+            // Only block Run the first time; cleared below once fixed, so a later regression re-warns.
+            if (!ballerinaExtInstance.context?.globalState.get<boolean>(ampWarningKey, false)) {
+                hasWarnings = true;
+                await ballerinaExtInstance.context?.globalState.update(ampWarningKey, true);
+            }
+        } else {
+            await ballerinaExtInstance.context?.globalState.update(ampWarningKey, undefined);
         }
 
         return { hasWarnings, ampConfigMissing };

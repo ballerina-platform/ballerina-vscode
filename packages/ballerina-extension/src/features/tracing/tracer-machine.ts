@@ -94,6 +94,18 @@ function resolveProvider(event?: any): TracingProvider {
     return event?.useAmpProvider === true ? 'amp' : 'idetraceprovider';
 }
 
+// No ENABLE event on (re)init to read useAmpProvider from, so read the active provider from disk instead.
+function resolveInitialProvider(context: TracerMachineContext): TracingProvider {
+    const projectPaths = [context.currentProjectPath, ...(context.childProjectPaths ?? [])];
+    for (const projectPath of projectPaths) {
+        const provider = projectPath && getActiveTracingProvider(projectPath);
+        if (provider) {
+            return provider;
+        }
+    }
+    return 'idetraceprovider';
+}
+
 function enableTracingInProject(context: TracerMachineContext, event?: any): void {
     if (!event?.projectPath) {
         return;
@@ -210,7 +222,10 @@ function createTracerMachine(projectPath?: string, childProjectPaths?: string[])
                                 cond: (context, event) => {
                                     const traceEnabled = (event as any).data?.isTraceEnabledInProject;
                                     return traceEnabled === true;
-                                }
+                                },
+                                actions: assign({
+                                    provider: (context) => resolveInitialProvider(context),
+                                }),
                             },
                             {
                                 target: 'disabled'
@@ -551,6 +566,11 @@ export const TracerMachine = {
     },
 
     startServer: () => {
+        // Agent Manager exports traces remotely; the local OTLP receiver has nothing to catch.
+        const context = ensureInitialized().getSnapshot().context as TracerMachineContext;
+        if (context.provider === 'amp') {
+            return;
+        }
         ensureInitialized().send({ type: 'START_SERVER' });
     },
 
