@@ -180,6 +180,10 @@ function makeRpc(directoryMap: Record<string, unknown[]>) {
         getICPRpcClient: () => ({ isIcpEnabled: async () => ({ enabled: false }) }),
         getWorkflowManagementRpcClient: () => ({ isWorkflowManagementEnabled: async () => ({ enabled: false }) }),
         getAiPanelRpcClient: () => ({ showSignInAlert: async () => false }),
+        getAgentChatRpcClient: () => ({
+            getTracingStatus: async () => ({ enabled: false, provider: undefined }),
+            onTracingStatusChanged: jest.fn(),
+        }),
         onProjectContentUpdated: jest.fn(() => (): void => undefined),
     };
     return { rpcClient, openView };
