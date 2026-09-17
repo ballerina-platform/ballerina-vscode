@@ -37,6 +37,7 @@ import { AlertBoxWithClose } from "../../AIPanel/AlertBoxWithClose";
 import { PackageListView } from "./PackageListView";
 import { getWorkspaceDeploymentState, validateWorkspaceTitle, useProjectContentRefresh } from "../PackageOverview/utils";
 import { usePlatformExtContext } from "../../../providers/platform-ext-ctx-provider";
+import { DeploymentOptionContainer, DeploymentHeader, DeploymentBody, DeploymentOption } from "../../../components/DeploymentControl";
 
 const SpinnerContainer = styled.div`
     display: flex;
@@ -231,150 +232,12 @@ const Title = styled(Typography)`
     margin: 8px 0;
 `;
 
-interface DeploymentOptionContainerProps {
-    isExpanded: boolean;
-}
-
-const DeploymentOptionContainer = styled.div<DeploymentOptionContainerProps>`
-    cursor: pointer;
-    border: ${(props: DeploymentOptionContainerProps) => props.isExpanded ? '1px solid var(--vscode-welcomePage-tileBorder)' : 'none'};
-    background: ${(props: DeploymentOptionContainerProps) => props.isExpanded ? 'var(--vscode-welcomePage-tileBackground)' : 'transparent'};
-    border-radius: 6px;
-    display: flex;
-    overflow: hidden;
-    width: 100%;
-    padding: 10px;
-    flex-direction: column;
-    margin-bottom: 8px;
-
-    &:hover {
-        background: var(--vscode-welcomePage-tileHoverBackground);
-    }
-`;
-
 const DeploymentTitleWrap = styled.div`
     display: flex;
     align-items: center;
     justify-content: space-between;
     width: 100%;
 `;
-
-const DeploymentHeader = styled.div`
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    h3 {
-        font-size: 13px;
-        font-weight: 600;
-        margin: 0;
-        width: 100%;
-    }
-`;
-
-interface DeploymentBodyProps {
-    isExpanded: boolean;
-}
-
-const DeploymentBody = styled.div<DeploymentBodyProps>`
-    max-height: ${(props: DeploymentBodyProps) => props.isExpanded ? '200px' : '0'};
-    overflow: hidden;
-    transition: max-height 0.3s ease-in-out;
-    margin-top: ${(props: DeploymentBodyProps) => props.isExpanded ? '8px' : '0'};
-`;
-
-interface DeploymentOptionProps {
-    title: React.ReactNode;
-    description: string;
-    buttonText: string;
-    isExpanded: boolean;
-    onToggle: () => void;
-    onDeploy: () => void;
-    learnMoreLink?: string;
-    hasDeployableIntegration?: boolean;
-    disabledTooltip?: string;
-    secondaryAction?: {
-        description: string;
-        buttonText: string;
-        onClick: () => void;
-    };
-}
-
-function DeploymentOption({
-    title,
-    description,
-    buttonText,
-    isExpanded,
-    onToggle,
-    onDeploy,
-    learnMoreLink,
-    hasDeployableIntegration,
-    disabledTooltip,
-    secondaryAction
-}: DeploymentOptionProps) {
-    const { rpcClient } = useRpcContext();
-
-    const openLearnMoreURL = () => {
-        rpcClient.getCommonRpcClient().openExternalUrl({
-            url: learnMoreLink
-        })
-    };
-
-    return (
-        <DeploymentOptionContainer
-            isExpanded={isExpanded}
-            onClick={onToggle}
-        >
-            <DeploymentHeader>
-                {isExpanded ? (
-                    <Codicon
-                        name={'triangle-down'}
-                        sx={{ color: 'var(--vscode-textLink-foreground)' }}
-                    />
-                ) : (
-                    <Codicon
-                        name={'triangle-right'}
-                        sx={{ color: 'inherit' }}
-                    />
-                )}
-                <h3>{title}</h3>
-            </DeploymentHeader>
-            <DeploymentBody isExpanded={isExpanded}>
-                <p style={{ marginTop: 8 }}>
-                    {description}
-                    {learnMoreLink && (
-                        <VSCodeLink onClick={openLearnMoreURL} style={{ marginLeft: '4px' }}>Learn more</VSCodeLink>
-                    )}
-                </p>
-                <Button
-                    appearance="secondary"
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        onDeploy();
-                    }}
-                    disabled={!hasDeployableIntegration}
-                    tooltip={hasDeployableIntegration ? "" : (disabledTooltip ?? "No deployable integration found")}
-                >
-                    {buttonText}
-                </Button>
-                {secondaryAction && (
-                    <>
-                        <p>{secondaryAction.description}</p>
-                        <Button
-                            appearance="primary"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                secondaryAction.onClick();
-                            }}
-                            sx={{ marginTop: 8 }}
-                        >
-                            {secondaryAction.buttonText}
-                        </Button>
-                    </>
-                )}
-            </DeploymentBody>
-        </DeploymentOptionContainer>
-    );
-}
 
 interface DeploymentOptionsProps {
     handleDockerBuild: () => void;
