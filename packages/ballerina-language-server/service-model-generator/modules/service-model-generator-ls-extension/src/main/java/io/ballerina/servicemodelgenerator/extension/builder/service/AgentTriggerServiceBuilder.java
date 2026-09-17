@@ -111,7 +111,7 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
         if (durable) {
             initModel.addProperty(AGENT_KIND_PROPERTY, hiddenValue(context.agentKind()));
         }
-        if (durable && context.isEventTrigger()) {
+        if (context.isEventTrigger()) {
             addEventChannelValues(initModel, context);
         }
         channel.ifPresent(c -> {

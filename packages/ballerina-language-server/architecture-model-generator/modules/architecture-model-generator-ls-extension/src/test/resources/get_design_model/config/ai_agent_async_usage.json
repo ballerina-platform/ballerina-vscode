@@ -7,7 +7,7 @@
         {
           "symbol": "chatAgent",
           "location": {
-            "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode.worktrees/agent-builder-agents-overview/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_18/agents.bal",
+            "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode.worktrees/pr-1104-review-fixes/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_18/agents.bal",
             "startLine": {
               "line": 4,
               "offset": 0
@@ -21,7 +21,7 @@
           "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png",
           "dependentFunctions": [],
           "dependentConnection": [
-            "2f51c9e7-57de-6987-efbb-65162e0ca27c"
+            "768915fa-b20a-d3ca-200e-32ea6435ad3d"
           ],
           "kind": "Agent",
           "role": "Assistant",
@@ -31,14 +31,14 @@
             "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png?wso2_icon"
           },
           "typeName": "Agent",
-          "uuid": "103ea043-8b9a-6a2d-5500-97de1e20b3e8",
+          "uuid": "affd5920-8d9e-81bc-bce4-807846035b9f",
           "enableFlowModel": false,
           "sortText": "agents.bal4"
         },
         {
           "symbol": "typedAgent",
           "location": {
-            "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode.worktrees/agent-builder-agents-overview/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_18/typedagent.bal",
+            "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode.worktrees/pr-1104-review-fixes/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_18/typedagent.bal",
             "startLine": {
               "line": 31,
               "offset": 0
@@ -57,20 +57,20 @@
           "dependentConnection": [],
           "kind": "Agent",
           "toolConnections": [
-            "1894f6ba-23ad-3a68-66cf-4c51a83f55e5"
+            "5bf3954b-6592-2d31-7086-aa556181dca8"
           ],
           "typeName": "CustomSupportAgent",
           "mcpToolKits": [
             "kit"
           ],
-          "uuid": "9889ee55-77f4-4fe8-cc73-fec587782897",
+          "uuid": "c4e297e3-0c3c-3be5-7c46-9523fd0dbf5d",
           "enableFlowModel": false,
           "sortText": "typedagent.bal31"
         },
         {
           "symbol": "billingClient",
           "location": {
-            "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode.worktrees/agent-builder-agents-overview/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_18/tools.bal",
+            "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode.worktrees/pr-1104-review-fixes/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_18/tools.bal",
             "startLine": {
               "line": 3,
               "offset": 0
@@ -85,14 +85,14 @@
           "dependentFunctions": [],
           "dependentConnection": [],
           "kind": "Connection",
-          "uuid": "1894f6ba-23ad-3a68-66cf-4c51a83f55e5",
+          "uuid": "5bf3954b-6592-2d31-7086-aa556181dca8",
           "enableFlowModel": true,
           "sortText": "tools.bal3"
         },
         {
           "symbol": "chatModel",
           "location": {
-            "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode.worktrees/agent-builder-agents-overview/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_18/agents.bal",
+            "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode.worktrees/pr-1104-review-fixes/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_18/agents.bal",
             "startLine": {
               "line": 2,
               "offset": 0
@@ -107,7 +107,8 @@
           "dependentFunctions": [],
           "dependentConnection": [],
           "kind": "Model Provider",
-          "uuid": "2f51c9e7-57de-6987-efbb-65162e0ca27c",
+          "typeName": "Wso2ModelProvider",
+          "uuid": "768915fa-b20a-d3ca-200e-32ea6435ad3d",
           "enableFlowModel": true,
           "sortText": "agents.bal2"
         }
@@ -116,65 +117,7 @@
         {
           "symbol": "ANON",
           "location": {
-            "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode.worktrees/agent-builder-agents-overview/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_18/services.bal",
-            "startLine": {
-              "line": 10,
-              "offset": 0
-            },
-            "endLine": {
-              "line": 14,
-              "offset": 1
-            }
-          },
-          "attachedServices": [
-            "85a5fc9f-d84e-4f20-58bf-33d8f2f5073f"
-          ],
-          "kind": "ANON",
-          "type": "http:Listener",
-          "args": [
-            {
-              "key": "port",
-              "value": "8081"
-            }
-          ],
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.17.1.png",
-          "uuid": "4eae034b-5cd4-753e-bbb5-cb27992e1abb",
-          "enableFlowModel": false,
-          "sortText": "services.bal10"
-        },
-        {
-          "symbol": "ANON",
-          "location": {
-            "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode.worktrees/agent-builder-agents-overview/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_18/services.bal",
-            "startLine": {
-              "line": 17,
-              "offset": 0
-            },
-            "endLine": {
-              "line": 21,
-              "offset": 1
-            }
-          },
-          "attachedServices": [
-            "6c8e58f0-7e20-5ac7-33f0-d0f707564462"
-          ],
-          "kind": "ANON",
-          "type": "http:Listener",
-          "args": [
-            {
-              "key": "port",
-              "value": "8082"
-            }
-          ],
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.17.1.png",
-          "uuid": "7f12dbdf-46b2-c988-dcf3-e3488bfbd8af",
-          "enableFlowModel": false,
-          "sortText": "services.bal17"
-        },
-        {
-          "symbol": "ANON",
-          "location": {
-            "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode.worktrees/agent-builder-agents-overview/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_18/services.bal",
+            "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode.worktrees/pr-1104-review-fixes/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_18/services.bal",
             "startLine": {
               "line": 3,
               "offset": 0
@@ -185,7 +128,7 @@
             }
           },
           "attachedServices": [
-            "fed02362-b0e7-8c18-b961-4f891fb8a44b"
+            "b0d22258-60c3-241d-0f66-98b72db11925"
           ],
           "kind": "ANON",
           "type": "http:Listener",
@@ -196,15 +139,73 @@
             }
           ],
           "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.17.1.png",
-          "uuid": "cb1b453c-8957-4d51-cb9e-c10aca60c6d2",
+          "uuid": "34fd0c6d-8209-071a-83c9-599e8d3fbdbc",
           "enableFlowModel": false,
           "sortText": "services.bal3"
+        },
+        {
+          "symbol": "ANON",
+          "location": {
+            "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode.worktrees/pr-1104-review-fixes/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_18/services.bal",
+            "startLine": {
+              "line": 10,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 14,
+              "offset": 1
+            }
+          },
+          "attachedServices": [
+            "3c8dab79-163c-6e7e-2c73-19567a0008c3"
+          ],
+          "kind": "ANON",
+          "type": "http:Listener",
+          "args": [
+            {
+              "key": "port",
+              "value": "8081"
+            }
+          ],
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.17.1.png",
+          "uuid": "b7f6da13-7638-44d0-9e21-c7baec38eb0f",
+          "enableFlowModel": false,
+          "sortText": "services.bal10"
+        },
+        {
+          "symbol": "ANON",
+          "location": {
+            "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode.worktrees/pr-1104-review-fixes/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_18/services.bal",
+            "startLine": {
+              "line": 17,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 21,
+              "offset": 1
+            }
+          },
+          "attachedServices": [
+            "b0f44a3f-33eb-0555-e2e7-0f5e8cdc40fd"
+          ],
+          "kind": "ANON",
+          "type": "http:Listener",
+          "args": [
+            {
+              "key": "port",
+              "value": "8082"
+            }
+          ],
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.17.1.png",
+          "uuid": "a584555d-5e6b-5033-956d-78094d52f385",
+          "enableFlowModel": false,
+          "sortText": "services.bal17"
         }
       ],
       "services": [
         {
           "location": {
-            "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode.worktrees/agent-builder-agents-overview/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_18/services.bal",
+            "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode.worktrees/pr-1104-review-fixes/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_18/services.bal",
             "startLine": {
               "line": 17,
               "offset": 0
@@ -215,7 +216,7 @@
             }
           },
           "attachedListeners": [
-            "7f12dbdf-46b2-c988-dcf3-e3488bfbd8af"
+            "a584555d-5e6b-5033-956d-78094d52f385"
           ],
           "connections": [],
           "workflows": [],
@@ -226,7 +227,7 @@
               "accessor": "get",
               "path": "status",
               "location": {
-                "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode.worktrees/agent-builder-agents-overview/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_18/services.bal",
+                "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode.worktrees/pr-1104-review-fixes/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_18/services.bal",
                 "startLine": {
                   "line": 18,
                   "offset": 4
@@ -246,13 +247,13 @@
           "absolutePath": "/healthService ",
           "type": "http:Service",
           "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.17.1.png",
-          "uuid": "6c8e58f0-7e20-5ac7-33f0-d0f707564462",
+          "uuid": "b0f44a3f-33eb-0555-e2e7-0f5e8cdc40fd",
           "enableFlowModel": true,
           "sortText": "services.bal17"
         },
         {
           "location": {
-            "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode.worktrees/agent-builder-agents-overview/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_18/services.bal",
+            "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode.worktrees/pr-1104-review-fixes/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_18/services.bal",
             "startLine": {
               "line": 3,
               "offset": 0
@@ -263,11 +264,11 @@
             }
           },
           "attachedListeners": [
-            "cb1b453c-8957-4d51-cb9e-c10aca60c6d2"
+            "34fd0c6d-8209-071a-83c9-599e8d3fbdbc"
           ],
           "connections": [
-            "2f51c9e7-57de-6987-efbb-65162e0ca27c",
-            "103ea043-8b9a-6a2d-5500-97de1e20b3e8"
+            "affd5920-8d9e-81bc-bce4-807846035b9f",
+            "768915fa-b20a-d3ca-200e-32ea6435ad3d"
           ],
           "workflows": [],
           "functions": [],
@@ -277,7 +278,7 @@
               "accessor": "post",
               "path": "webhook",
               "location": {
-                "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode.worktrees/agent-builder-agents-overview/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_18/services.bal",
+                "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode.worktrees/pr-1104-review-fixes/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_18/services.bal",
                 "startLine": {
                   "line": 4,
                   "offset": 4
@@ -288,15 +289,15 @@
                 }
               },
               "connections": [
-                "2f51c9e7-57de-6987-efbb-65162e0ca27c",
-                "103ea043-8b9a-6a2d-5500-97de1e20b3e8"
+                "affd5920-8d9e-81bc-bce4-807846035b9f",
+                "768915fa-b20a-d3ca-200e-32ea6435ad3d"
               ],
               "workflows": [],
               "workflowSendData": {},
               "invalidWorkflowSendData": [],
               "agentCalls": [
                 {
-                  "connection": "103ea043-8b9a-6a2d-5500-97de1e20b3e8",
+                  "connection": "affd5920-8d9e-81bc-bce4-807846035b9f",
                   "line": 5,
                   "groups": []
                 }
@@ -306,13 +307,13 @@
           "absolutePath": "/asyncService ",
           "type": "http:Service",
           "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.17.1.png",
-          "uuid": "fed02362-b0e7-8c18-b961-4f891fb8a44b",
+          "uuid": "b0d22258-60c3-241d-0f66-98b72db11925",
           "enableFlowModel": true,
           "sortText": "services.bal3"
         },
         {
           "location": {
-            "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode.worktrees/agent-builder-agents-overview/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_18/services.bal",
+            "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode.worktrees/pr-1104-review-fixes/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_18/services.bal",
             "startLine": {
               "line": 10,
               "offset": 0
@@ -323,11 +324,11 @@
             }
           },
           "attachedListeners": [
-            "4eae034b-5cd4-753e-bbb5-cb27992e1abb"
+            "b7f6da13-7638-44d0-9e21-c7baec38eb0f"
           ],
           "connections": [
-            "2f51c9e7-57de-6987-efbb-65162e0ca27c",
-            "103ea043-8b9a-6a2d-5500-97de1e20b3e8"
+            "affd5920-8d9e-81bc-bce4-807846035b9f",
+            "768915fa-b20a-d3ca-200e-32ea6435ad3d"
           ],
           "workflows": [],
           "functions": [],
@@ -337,7 +338,7 @@
               "accessor": "post",
               "path": "chat",
               "location": {
-                "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode.worktrees/agent-builder-agents-overview/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_18/services.bal",
+                "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode.worktrees/pr-1104-review-fixes/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_18/services.bal",
                 "startLine": {
                   "line": 11,
                   "offset": 4
@@ -348,15 +349,15 @@
                 }
               },
               "connections": [
-                "2f51c9e7-57de-6987-efbb-65162e0ca27c",
-                "103ea043-8b9a-6a2d-5500-97de1e20b3e8"
+                "affd5920-8d9e-81bc-bce4-807846035b9f",
+                "768915fa-b20a-d3ca-200e-32ea6435ad3d"
               ],
               "workflows": [],
               "workflowSendData": {},
               "invalidWorkflowSendData": [],
               "agentCalls": [
                 {
-                  "connection": "103ea043-8b9a-6a2d-5500-97de1e20b3e8",
+                  "connection": "affd5920-8d9e-81bc-bce4-807846035b9f",
                   "line": 12,
                   "groups": []
                 }
@@ -366,7 +367,7 @@
           "absolutePath": "/directService ",
           "type": "http:Service",
           "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.17.1.png",
-          "uuid": "85a5fc9f-d84e-4f20-58bf-33d8f2f5073f",
+          "uuid": "3c8dab79-163c-6e7e-2c73-19567a0008c3",
           "enableFlowModel": true,
           "sortText": "services.bal10"
         }
