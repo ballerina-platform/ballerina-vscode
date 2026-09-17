@@ -637,6 +637,30 @@ function IntegrationControlPlane({ enabled, handleICP }: IntegrationControlPlane
     );
 }
 
+interface AgentManagerTracingProps {
+    enabled: boolean;
+    handleAmpTracing: (checked: boolean) => void;
+}
+
+function AgentManagerTracing({ enabled, handleAmpTracing }: AgentManagerTracingProps) {
+    return (
+        <div>
+            <Title variant="h3">Agent Manager</Title>
+            <p>
+                {"Publish agent traces to WSO2 Agent Manager. Enabling it instruments this "
+                    + "integration to send traces to Agent Manager."}
+            </p>
+            <div style={{ paddingLeft: 10 }}>
+                <CheckBox
+                    checked={enabled}
+                    onChange={handleAmpTracing}
+                    label="Enable Agent Manager instrumentation"
+                />
+            </div>
+        </div>
+    );
+}
+
 interface WorkflowManagementProps {
     enabled: boolean;
     handleWorkflowManagement: (checked: boolean) => void;
@@ -892,6 +916,7 @@ export function PackageOverview(props: PackageOverviewProps) {
     const { platformExtState } = usePlatformExtContext();
     const [enabled, setEnableICP] = useState(false);
     const [workflowMgmtEnabled, setWorkflowMgmtEnabled] = useState(false);
+    const [ampTracingEnabled, setAmpTracingEnabled] = useState(false);
     const [showAlert, setShowAlert] = React.useState(false);
     const [projectStructure, setProjectStructure] = useState<ProjectStructure>();
     const [isInProject, setIsInProject] = useState(false);
@@ -965,6 +990,25 @@ export function PackageOverview(props: PackageOverviewProps) {
     }, [projectPath, fetchContext]);
 
     useProjectContentRefresh(rpcClient, fetchContext);
+
+    const checkAmpTracingStatus = useCallback(async () => {
+        try {
+            const status = await rpcClient.getAgentChatRpcClient().getTracingStatus({ projectPath });
+            setAmpTracingEnabled(status.enabled && status.provider === 'amp');
+        } catch (err) {
+            setAmpTracingEnabled(false);
+        }
+    }, [rpcClient, projectPath]);
+
+    useEffect(() => {
+        checkAmpTracingStatus();
+    }, [checkAmpTracingStatus]);
+
+    useEffect(() => {
+        rpcClient.getAgentChatRpcClient().onTracingStatusChanged(() => {
+            checkAmpTracingStatus();
+        });
+    }, [rpcClient, checkAmpTracingStatus]);
 
     const deployableIntegrationTypes = useMemo(() => {
         return getIntegrationTypes(projectStructure);
@@ -1059,6 +1103,18 @@ export function PackageOverview(props: PackageOverviewProps) {
                 .then((res) => setWorkflowMgmtEnabled(res.errorMsg ? true : (res.enabled ?? false)))
                 .catch(() => setWorkflowMgmtEnabled(true));
         }
+    };
+
+    const handleAmpTracing = (ampEnabled: boolean) => {
+        // Not optimistic: enabling can be cancelled by the tracing-provider-conflict warning,
+        // so the checkbox must reflect the actual post-command status rather than the click.
+        rpcClient.getCommonRpcClient()
+            .executeCommand({ commands: ampEnabled ? ["ballerina.enableTracing", true] : ["ballerina.disableTracing"] })
+            .then(checkAmpTracingStatus)
+            .catch((err) => {
+                console.error('Failed to toggle Agent Manager tracing:', err);
+                checkAmpTracingStatus();
+            });
     };
 
     const handleGenerateWithReadme = () => {
@@ -1363,6 +1419,12 @@ export function PackageOverview(props: PackageOverviewProps) {
                                             <div style={{ marginTop: 8 }}>
                                                 <LocalICPDeployment />
                                             </div>
+                                        </>
+                                    )}
+                                    {(projectStructure?.directoryMap?.[DIRECTORY_MAP.AGENT]?.length ?? 0) > 0 && (
+                                        <>
+                                            <Divider sx={{ margin: "16px 0" }} />
+                                            <AgentManagerTracing enabled={ampTracingEnabled} handleAmpTracing={handleAmpTracing} />
                                         </>
                                     )}
                                     {(projectStructure?.directoryMap?.[DIRECTORY_MAP.WORKFLOW]?.length ?? 0) > 0 && (

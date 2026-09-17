@@ -92,7 +92,8 @@ export function useTracingStatus(rpcClient: BallerinaRpcClient, projectPath: str
     const checkTracingStatus = useCallback(async () => {
         try {
             const status = await rpcClient.getAgentChatRpcClient().getTracingStatus({ projectPath });
-            setIsTracingEnabled(status.enabled);
+            // This button reflects dev-time tracing only, not Agent Manager instrumentation.
+            setIsTracingEnabled(status.enabled && status.provider !== 'amp');
         } catch (error) {
             setIsTracingEnabled(false);
         }
