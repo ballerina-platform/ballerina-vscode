@@ -403,6 +403,8 @@ export type ChatNotify = (
     | CompactionStartEvent
     | CompactionEndEvent
     | CompactionDisabledEvent
+    | ContextOverflowEvent
+    | ContextPressureEvent
     | ConfigChangeEvent
     | MigrationProgressEvent
     | FollowupSuggestionsEvent
@@ -676,6 +678,28 @@ export interface CompactionEndEvent {
 /** Fired once per session when compaction is disabled because the codebase floor exceeds the trigger */
 export interface CompactionDisabledEvent {
     type: 'compaction_disabled';
+}
+
+/**
+ * Fired when the request no longer fits the context window even after server-side compaction
+ * (`model_context_window_exceeded`). Unlike the output limit, which shares the unified
+ * `finishReason: 'length'`, this is not resumable — without the event the turn ends producing
+ * nothing at all, and so does every later turn in the thread.
+ */
+export interface ContextOverflowEvent {
+    type: 'context_overflow';
+    /** Raw provider stop reason, when the provider supplied one. For diagnostics only. */
+    rawFinishReason?: string;
+}
+
+/**
+ * Fired once per thread when a turn's input passes most of the context window, so the user can
+ * start a new chat deliberately rather than hitting the wall mid-task.
+ */
+export interface ContextPressureEvent {
+    type: 'context_pressure';
+    /** Share of the window used, 0-1. */
+    fraction: number;
 }
 
 /** Fired when a VS Code configuration setting relevant to the AI panel changes */

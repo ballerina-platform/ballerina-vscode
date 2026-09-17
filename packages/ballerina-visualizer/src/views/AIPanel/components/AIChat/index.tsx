@@ -94,7 +94,7 @@ import { backTooltipFor, PanelRoute } from "./utils/panelNav";
 import { upsertToolResult,
     serializeStream, parseStream, appendToLastEntry, upsertComponent, upsertRequestCard,
     buildRequestCardData, buildPlanItem, applyPlanApprovalResolution, appendAbortMarker, applyTaskWriteResult,
-    COMPACTION_DISABLED_NOTICE,
+    COMPACTION_DISABLED_NOTICE, CONTEXT_OVERFLOW_NOTICE, CONTEXT_PRESSURE_NOTICE,
 } from "./utils/streamSerialization";
 
 import FeedbackBar from "./../FeedbackBar";
@@ -1640,6 +1640,25 @@ const AIChat: React.FC = () => {
                 const targetIndex = ensureAssistantMessage(msgs);
                 const last = msgs[targetIndex];
                 msgs[targetIndex] = { ...last, content: last.content + COMPACTION_DISABLED_NOTICE };
+                return msgs;
+            });
+
+        } else if (type === "context_pressure") {
+            setMessages(prevMessages => {
+                const msgs = [...prevMessages];
+                const targetIndex = ensureAssistantMessage(msgs);
+                const last = msgs[targetIndex];
+                msgs[targetIndex] = { ...last, content: last.content + CONTEXT_PRESSURE_NOTICE };
+                return msgs;
+            });
+
+        } else if (type === "context_overflow") {
+            setIsCompacting(false);
+            setMessages(prevMessages => {
+                const msgs = [...prevMessages];
+                const targetIndex = ensureAssistantMessage(msgs);
+                const last = msgs[targetIndex];
+                msgs[targetIndex] = { ...last, content: last.content + CONTEXT_OVERFLOW_NOTICE };
                 return msgs;
             });
 

@@ -56,6 +56,7 @@ import {
     TaskWriteTask,
     ABORT_MARKER_TEXT,
     COMPACTION_DISABLED_NOTICE,
+    CONTEXT_OVERFLOW_NOTICE,
 } from "./streamSerialization";
 
 const floating = (items: StreamItem[] = []): StreamEntry => ({ description: "", items });
@@ -84,6 +85,22 @@ describe("serializeStream / parseStream", () => {
         const next = serializeStream([floating([{ kind: "text", text: "b" }])], content);
         expect(next.endsWith(COMPACTION_DISABLED_NOTICE)).toBe(true);
         expect(parseStream(next)[0].items).toEqual([{ kind: "text", text: "b" }]);
+    });
+
+    it("preserves the context-overflow notice across re-serialization", () => {
+        // Appended OUTSIDE the blob, so a later serialize must not eat it — it is the only thing
+        // telling the user why the turn produced nothing.
+        const withBlob = serializeStream([floating([{ kind: "text", text: "a" }])], "");
+        const content = withBlob + CONTEXT_OVERFLOW_NOTICE;
+        const next = serializeStream([floating([{ kind: "text", text: "b" }])], content);
+        expect(next.endsWith(CONTEXT_OVERFLOW_NOTICE)).toBe(true);
+        expect(parseStream(next)[0].items).toEqual([{ kind: "text", text: "b" }]);
+    });
+
+    it("renders the context-overflow notice through the shared <compaction> tag", () => {
+        // Both renderers fold `<compaction>` into a notice row; another tag would render as raw
+        // markup.
+        expect(CONTEXT_OVERFLOW_NOTICE).toMatch(/^\n<compaction>[\s\S]+<\/compaction>$/);
     });
 
     it("returns [] for absent or malformed blobs instead of throwing", () => {

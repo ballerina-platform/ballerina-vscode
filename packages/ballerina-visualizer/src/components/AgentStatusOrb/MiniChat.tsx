@@ -37,6 +37,8 @@ import { upsertToolResult,
     appendAbortMarker,
     applyTaskWriteResult,
     COMPACTION_DISABLED_NOTICE,
+    CONTEXT_OVERFLOW_NOTICE,
+    CONTEXT_PRESSURE_NOTICE,
 } from "../../views/AIPanel/components/AIChat/utils/streamSerialization";
 import { getToolResultDisplay, isToolResultInProgress, subagentName } from "../../views/AIPanel/components/AgentStreamView/toolDisplay";
 import {
@@ -129,7 +131,7 @@ type FoldableNotify = Extract<ChatNotify, {
     | "content_block" | "content_replace" | "tool_call" | "tool_result" | "chat_component"
     | "task_approval_request" | "plan_approval_resolved" | "connector_generation_notification"
     | "configuration_collection_event" | "clarify_event" | "skill_enable_event"
-    | "abort" | "compaction_disabled";
+    | "abort" | "compaction_disabled" | "context_overflow" | "context_pressure";
 }>;
 
 type UnmodelledNotifyType =
@@ -301,6 +303,13 @@ function applyContentEvent(prevContent: string, evt: FoldableNotify): string {
     if (evt.type === "compaction_disabled") {
         // Raw-content append (outside the blob), matching the panel.
         return prevContent + COMPACTION_DISABLED_NOTICE;
+    }
+    if (evt.type === "context_overflow") {
+        // Raw-content append (outside the blob), matching the panel.
+        return prevContent + CONTEXT_OVERFLOW_NOTICE;
+    }
+    if (evt.type === "context_pressure") {
+        return prevContent + CONTEXT_PRESSURE_NOTICE;
     }
     // Second tripwire, guarding the OTHER direction from the one in `applyEvent`.
     // Routing and folding live in two separate dispatch tables, so adding a case to
@@ -812,6 +821,8 @@ export function MiniChat({ anchor, onClose, takeInitialPrompt }: MiniChatProps) 
             case "clarify_event":
             case "skill_enable_event":
             case "compaction_disabled":
+            case "context_overflow":
+            case "context_pressure":
                 setMsgs((prev) => reduceEvent(prev, evt, gen));
                 break;
             default: {

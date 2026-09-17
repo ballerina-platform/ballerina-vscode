@@ -41,6 +41,7 @@ import {
 } from "@wso2/ballerina-core";
 import { ModelMessage } from "ai";
 import { MessageRole } from "./ai-types";
+import { historyCharLength, pruneReplayedHistory } from "../agent/history-pruning";
 import { USAGE_LIMIT_EXCEEDED_MESSAGE } from "./ai-client";
 import { RPCLayer } from "../../../RPCLayer";
 import { AiPanelWebview } from "../../../views/ai-panel/webview";
@@ -85,7 +86,20 @@ export function populateHistoryForAgent(chatHistory: any[]): ModelMessage[] {
     }
     // Keep replayed history provider-valid (coerce malformed tool-call inputs in place).
     sanitizeMessages(messages);
-    return messages;
+
+    // Chiefly the codebase dump every user message carries, which is what grows a long thread
+    // out of the context window (#2317). Safe here: the caller appends the live turn's own dump.
+    const pruned = pruneReplayedHistory(messages);
+    const before = historyCharLength(messages);
+    const after = historyCharLength(pruned);
+    if (after < before) {
+        console.log(
+            `[populateHistoryForAgent] Pruned replayed history: ` +
+            `${before.toLocaleString()} -> ${after.toLocaleString()} chars ` +
+            `(-${Math.round((1 - after / before) * 100)}%)`
+        );
+    }
+    return pruned;
 }
 
 /**

@@ -250,6 +250,12 @@ const RESTRICTED_READ_FILES = ['Config.toml'];
 const MAX_LINE_LENGTH = 2000;
 const PREVIEW_LENGTH = 200;
 
+/**
+ * Total cap on one read, matching `migration-source-reader.ts`. Long-line truncation bounds
+ * nothing on its own, and a read stays in context for the rest of the thread (#2317).
+ */
+const MAX_READ_BYTES = 80_000;
+
 // ============================================================================
 // Error Messages
 // ============================================================================
@@ -346,6 +352,15 @@ function countOccurrences(text: string, searchString: string): number {
   }
 
   return count;
+}
+
+/** Caps read size, pointing the model at offset/limit for the rest. */
+function capReadSize(content: string): string {
+  if (Buffer.byteLength(content, 'utf-8') <= MAX_READ_BYTES) {
+    return content;
+  }
+  return content.substring(0, MAX_READ_BYTES) +
+    `\n\n... [truncated at ${MAX_READ_BYTES} characters — re-read with offset/limit for the rest]`;
 }
 
 function truncateLongLines(content: string, maxLength: number = MAX_LINE_LENGTH): string {
@@ -892,7 +907,7 @@ export function createReadExecute(
       const startIndex = offset - 1; // Convert to 0-based index
       const endIndex = Math.min(startIndex + limit, totalLines);
       const rangedLines = lines.slice(startIndex, endIndex);
-      const rangedContent = truncateLongLines(rangedLines.join('\n'));
+      const rangedContent = capReadSize(truncateLongLines(rangedLines.join('\n')));
 
       console.log(`[FileReadTool] Read lines ${offset} to ${endIndex} from file: ${file_path}`);
       const result = {
@@ -904,7 +919,7 @@ export function createReadExecute(
     }
 
     // Return full content
-    const truncatedContent = truncateLongLines(content);
+    const truncatedContent = capReadSize(truncateLongLines(content));
 
     console.log(`[FileReadTool] Read entire file: ${file_path}, total lines: ${totalLines}`);
     const result = {

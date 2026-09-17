@@ -61,6 +61,12 @@ import {
     SUMMARIZATION_PROMPT,
 } from '@wso2/copilot-utilities/context-management';
 import { sanitizeMessages } from './resilience';
+import {
+    CONTEXT_PRESSURE_WARN_FRACTION,
+    DEFAULT_COMPACT_TRIGGER_TOKENS,
+    contextWindowFraction,
+    resolveCompactionTrigger,
+} from './compaction-policy';
 import { getLoginMethod } from '../../../utils/ai/auth';
 import {
     sendTelemetryEvent,
@@ -91,9 +97,13 @@ const TRUNCATION_RECOVERY_NOTE = buildTruncationRecoveryNote(
  */
 const compactionDisabledWarnedThreads = new Set<string>();
 
+/** Threads already warned. Once per thread: the condition holds for every turn afterwards. */
+const contextPressureWarnedThreads = new Set<string>();
+
 /** Called by clearChat to reset the warned state for a workspace. */
 export function clearCompactionDisabledWarning(projectRootPath: string, threadId: string): void {
     compactionDisabledWarnedThreads.delete(`${projectRootPath}:${threadId}`);
+    contextPressureWarnedThreads.delete(`${projectRootPath}:${threadId}`);
 }
 
 function supportsCompaction(loginMethod: LoginMethod): boolean {
@@ -106,27 +116,29 @@ function supportsCompaction(loginMethod: LoginMethod): boolean {
 }
 
 /**
- * Server-side compaction trigger, in input tokens. Higher than MI's 200K because BI re-sends
- * the whole project source each turn; 500K sits well within Claude Sonnet's 1M window.
- */
-const COMPACT_TRIGGER_TOKENS = 500_000;
-
-/**
  * Builds providerOptions.anthropic.contextManagement: compaction only, no `clear_tool_uses`
  * (which deletes tool results without summarizing). Mirrors MI.
+ *
+ * The trigger is raised to clear the per-turn floor rather than disabling compaction when the
+ * floor is large — see `resolveCompactionTrigger`.
  */
 function buildCompactionProviderOptions(loginMethod: LoginMethod, floorTokens: number) {
     if (!supportsCompaction(loginMethod)) { return undefined; }
-    // Disable when the fixed per-turn floor (system prompt + whole-codebase dump) already
-    // exceeds the trigger — compaction would otherwise fire every turn against empty history.
-    if (floorTokens >= COMPACT_TRIGGER_TOKENS) { return undefined; }
+    const trigger = resolveCompactionTrigger(floorTokens);
+    if (trigger === null) { return undefined; }
+    if (trigger !== DEFAULT_COMPACT_TRIGGER_TOKENS) {
+        console.log(
+            `[AgentExecutor] Compaction trigger raised to ${trigger} tokens ` +
+            `to clear a per-turn floor of ~${floorTokens} tokens`
+        );
+    }
     return {
         anthropic: {
             contextManagement: {
                 edits: [
                     {
                         type: 'compact_20260112' as const,
-                        trigger: { type: 'input_tokens' as const, value: COMPACT_TRIGGER_TOKENS },
+                        trigger: { type: 'input_tokens' as const, value: trigger },
                         instructions: SUMMARIZATION_PROMPT,
                     },
                 ],
@@ -153,9 +165,8 @@ function msgCharLen(msg: ModelMessage): number {
  * actual API-reported inputTokens total. The grand total is always exact; per-category
  * values are ~75-85% accurate.
  *
- * codebaseCharsPerTurn: char length of the codebase structure block injected as the first
- * content block of each user message. Multiplied by user message count to estimate total
- * file content across the full conversation history.
+ * codebaseChars: char length of the live turn's codebase structure block. Counted once, not per
+ * user message: `pruneReplayedHistory` placeholders the superseded dumps in earlier ones.
  */
 function computeTokenBreakdown(
     baseMessages: ModelMessage[],
@@ -163,7 +174,7 @@ function computeTokenBreakdown(
     accToolCallChars: number,
     accToolResultChars: number,
     inputTokens: number,
-    codebaseCharsPerTurn: number,
+    codebaseChars: number,
 ): { systemInstructions: number; toolDefinitions: number; reservedOutput: number; files: number; messages: number; toolResults: number } {
     const systemChars = baseMessages.filter(m => m.role === 'system').reduce((s, m) => s + msgCharLen(m), 0);
     const baseConvChars = baseMessages.filter(m => m.role === 'user' || m.role === 'assistant').reduce((s, m) => s + msgCharLen(m), 0);
@@ -174,9 +185,8 @@ function computeTokenBreakdown(
     const toolDefsChars = JSON.stringify(tools ?? {}).length;
     const totalChars = systemChars + convChars + toolChars + toolDefsChars || 1;
 
-    // Estimate total file content chars: codebase block appears in every user message turn
-    const userMsgCount = baseMessages.filter(m => m.role === 'user').length;
-    const totalCodebaseChars = Math.min(codebaseCharsPerTurn * userMsgCount, convChars);
+    // Only the live turn carries a real codebase dump; earlier ones are placeholders.
+    const totalCodebaseChars = Math.min(codebaseChars, convChars);
     const pureConvChars = convChars - totalCodebaseChars;
 
     const systemInstructions = Math.round(inputTokens * systemChars / totalChars);
@@ -398,6 +408,11 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
                 loadSkillsContext(projectRootPath || null);
 
             const userMessageContent = getUserPrompt(params, tempProjectPath, projects, projectSkills, agentsMd.text);
+            // By tag, not index: an AGENTS.md block can precede the codebase block, in which
+            // case [0] measured the wrong part and the widget reported ~0 files.
+            const codebaseBlockChars = (userMessageContent as Array<{ type?: string; text?: string }>)
+                .find(part => part.type === 'text' && part.text?.startsWith('<codebase_structure>'))
+                ?.text?.length ?? 0;
 
             // Estimate fixed overhead (system prompt + codebase) to decide if compaction is viable
             // TODO(auto-memory): memory-augmented prompt disabled for this release — using base system prompt.
@@ -607,6 +622,17 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
 
                             if (step.usage) {
                                 const inputTokens = step.usage.inputTokens || 0;
+                                // Every provider, including those without compaction — they have
+                                // no ceiling, so this is their only notice before a turn fails.
+                                const pressureKey = `${projectRootPath}:${threadId}`;
+                                if (contextWindowFraction(inputTokens) >= CONTEXT_PRESSURE_WARN_FRACTION
+                                    && !contextPressureWarnedThreads.has(pressureKey)) {
+                                    contextPressureWarnedThreads.add(pressureKey);
+                                    this.config.eventHandler({
+                                        type: 'context_pressure',
+                                        fraction: contextWindowFraction(inputTokens),
+                                    });
+                                }
                                 const cacheReadTokens = step.usage.inputTokenDetails?.cacheReadTokens || 0;
                                 const cacheWriteTokens = step.usage.inputTokenDetails?.cacheWriteTokens || 0;
                                 const outputTokens = step.usage.outputTokens || 0;
@@ -626,7 +652,7 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
                                         cacheReadInputTokens: cacheReadTokens,
                                         outputTokens,
                                     },
-                                    breakdown: computeTokenBreakdown(allMessages, tools, accToolCallChars, accToolResultChars, inputTokens, (userMessageContent[0] as any)?.text?.length ?? 0),
+                                    breakdown: computeTokenBreakdown(allMessages, tools, accToolCallChars, accToolResultChars, inputTokens, codebaseBlockChars),
                                 });
                             }
                         },
@@ -1034,6 +1060,9 @@ Generation stopped by user. The last in-progress task was not saved. Any complet
         // object that the SDK flattens, and an upgrade that stopped flattening it would make
         // this silently false forever. This way it fails the build instead.
         const endedTruncated = finishReason === 'length';
+        // The context window, not the output limit: both unify to 'length', but only this one is
+        // unrecoverable, and it otherwise ends the turn producing nothing at all (#2317).
+        const overflowedContext = endedTruncated && !isResumableTruncation(finishReason, rawFinishReason);
         if (endedTruncated) {
             const why = isResumableTruncation(finishReason, rawFinishReason)
                 ? `after ${truncationRetries} automatic resume(s)`
@@ -1137,11 +1166,20 @@ Generation stopped by user. The last in-progress task was not saved. Any complet
             }
         }
 
+        // Before the review card, so the notice closes the streamed text rather than trailing it.
+        // Review state is left alone — the turn has usually written edits worth reverting.
+        if (overflowedContext) {
+            this.config.eventHandler({ type: 'context_overflow', rawFinishReason });
+        }
+
         // Emit UI events
         await this.emitReviewActions(context);
 
-        // Follow-up suggestions — best-effort, non-blocking.
-        this.maybeScheduleFollowups(context, assistantMessages, 'completed');
+        // Follow-up suggestions — best-effort, non-blocking. Skipped on overflow: every chip would re-send
+        // the same oversized thread, and generating them costs another call that cannot fit.
+        if (!overflowedContext) {
+            this.maybeScheduleFollowups(context, assistantMessages, 'completed');
+        }
 
         // TODO(auto-memory): auto-dream consolidation temporarily disabled for this release.
         // // autoDream consolidation — skipped on compaction turns (no real user activity)

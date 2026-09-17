@@ -46,6 +46,26 @@ function getProviderToolFactory(candidateNames: string[]): ((args: Record<string
     return null;
 }
 
+/**
+ * A library lookup goes through a Librarian subagent and returns a capped report; a web fetch
+ * lands in the caller's own tool results and stays there for the rest of the thread. One
+ * reference page can be tens of thousands of tokens (#2317).
+ */
+const WEB_FETCH_MAX_CONTENT_TOKENS = 20_000;
+
+/**
+ * Backstop on what we return, since `max_content_tokens` only bounds the provider's document —
+ * not the JSON-stringified shapes `extractToolOutput` can produce, or a variant that ignores it.
+ */
+const WEB_FETCH_MAX_CHARS = 80_000;
+function capFetchedContent(content: string): string {
+    if (typeof content !== 'string' || content.length <= WEB_FETCH_MAX_CHARS) {
+        return content;
+    }
+    console.warn(`[WebTools] fetch | truncated ${content.length} chars to ${WEB_FETCH_MAX_CHARS}`);
+    return `${content.slice(0, WEB_FETCH_MAX_CHARS)}\n\n[content truncated at ${WEB_FETCH_MAX_CHARS} characters \u2014 fetch a more specific URL if you need the rest]`;
+}
+
 function extractToolOutput(result: any): string {
     try {
         for (const step of result.steps ?? []) {
@@ -229,6 +249,7 @@ async function executeWebFetch(
             tools: {
                 web_fetch: fetchFactory({
                     maxUses: 3,
+                    maxContentTokens: WEB_FETCH_MAX_CONTENT_TOKENS,
                     ...(allowedDomains ? { allowedDomains } : {}),
                     ...(blockedDomains ? { blockedDomains } : {}),
                 }),
@@ -237,7 +258,7 @@ async function executeWebFetch(
             stopWhen: hasToolCall('web_fetch'),
         });
 
-        const content = extractToolOutput(result);
+        const content = capFetchedContent(extractToolOutput(result));
         console.log(`[WebTools] fetch | done | length: ${content?.length ?? 0}`);
 
         eventHandler({ type: "tool_result", toolName: WEB_FETCH_TOOL_NAME, toolOutput: { url: input.url }, toolCallId });

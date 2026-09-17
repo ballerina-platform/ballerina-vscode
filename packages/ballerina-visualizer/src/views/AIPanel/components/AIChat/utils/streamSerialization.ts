@@ -317,3 +317,19 @@ export function appendAbortMarker(entries: StreamEntry[]): StreamEntry[] {
 export const COMPACTION_DISABLED_NOTICE =
     "\n<compaction>Your project is large — automatic context compaction is disabled. " +
     "You may hit the context limit on long sessions. Start a new thread if that happens.</compaction>";
+
+/**
+ * Context-window-exceeded notice, appended like {@link COMPACTION_DISABLED_NOTICE}. Reuses the
+ * `<compaction>` tag both the segment parser and `StreamEntry` already render, so it needs no new
+ * transcript item kind.
+ */
+/** Early warning that the thread is filling up, while there is still room to act on it. */
+export const CONTEXT_PRESSURE_NOTICE =
+    "\n<compaction>This conversation is using most of the available context. " +
+    "Finish what you are working on, then start a new chat — long threads eventually stop " +
+    "fitting and requests begin to fail.</compaction>";
+
+export const CONTEXT_OVERFLOW_NOTICE =
+    "\n<compaction>This conversation has outgrown the model's context window, so this request " +
+    "could not be answered. Earlier changes in this thread are unaffected. " +
+    "Start a new chat to continue — later messages in this thread will fail the same way.</compaction>";
