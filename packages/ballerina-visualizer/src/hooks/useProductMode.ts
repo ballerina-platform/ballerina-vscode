@@ -79,23 +79,26 @@ export function useShortAssistantName(): string {
     return shortAssistantName(useProductMode());
 }
 
+export const AGENT_MANAGER_TRACING_PROVIDER = "amp";
+
 export interface TracingStatus {
     isTracingEnabled: boolean;
+    ampTracingEnabled: boolean;
     isToggling: boolean;
     toggleTracing: () => Promise<void>;
+    setAmpTracingEnabled: (enabled: boolean) => Promise<void>;
 }
 
 export function useTracingStatus(rpcClient: BallerinaRpcClient, projectPath: string): TracingStatus {
-    const [isTracingEnabled, setIsTracingEnabled] = useState(false);
+    const [activeProvider, setActiveProvider] = useState<string | undefined>(undefined);
     const [isToggling, setIsToggling] = useState(false);
 
     const checkTracingStatus = useCallback(async () => {
         try {
             const status = await rpcClient.getAgentChatRpcClient().getTracingStatus({ projectPath });
-            // This button reflects dev-time tracing only, not Agent Manager instrumentation.
-            setIsTracingEnabled(status.enabled && status.provider !== 'amp');
+            setActiveProvider(status.enabled ? status.provider ?? "idetraceprovider" : undefined);
         } catch (error) {
-            setIsTracingEnabled(false);
+            setActiveProvider(undefined);
         }
     }, [rpcClient, projectPath]);
 
@@ -109,24 +112,37 @@ export function useTracingStatus(rpcClient: BallerinaRpcClient, projectPath: str
         });
     }, [rpcClient, checkTracingStatus]);
 
-    const toggleTracing = useCallback(async () => {
+    const setProvider = useCallback(async (provider: string | undefined) => {
         if (isToggling) {
             return;
         }
         setIsToggling(true);
         try {
-            const command = isTracingEnabled ? "ballerina.disableTracing" : "ballerina.enableTracing";
-            await rpcClient.getCommonRpcClient().executeCommand({ commands: [command] });
+            const commands = provider === undefined
+                ? ["ballerina.disableTracing"]
+                : ["ballerina.enableTracing", provider === AGENT_MANAGER_TRACING_PROVIDER];
+            await rpcClient.getCommonRpcClient().executeCommand({ commands });
             await checkTracingStatus();
         } catch (error) {
-            console.error("Failed to toggle tracing:", error);
+            console.error("Failed to update tracing:", error);
             throw error;
         } finally {
             setIsToggling(false);
         }
-    }, [isToggling, isTracingEnabled, rpcClient, checkTracingStatus]);
+    }, [isToggling, rpcClient, checkTracingStatus]);
 
-    return { isTracingEnabled, isToggling, toggleTracing };
+    const isTracingEnabled = activeProvider === "idetraceprovider";
+    const ampTracingEnabled = activeProvider === AGENT_MANAGER_TRACING_PROVIDER;
+
+    const toggleTracing = useCallback(async () => {
+        await setProvider(isTracingEnabled ? undefined : "idetraceprovider");
+    }, [setProvider, isTracingEnabled]);
+
+    const setAmpTracingEnabled = useCallback(async (enabled: boolean) => {
+        await setProvider(enabled ? AGENT_MANAGER_TRACING_PROVIDER : undefined);
+    }, [setProvider]);
+
+    return { isTracingEnabled, ampTracingEnabled, isToggling, toggleTracing, setAmpTracingEnabled };
 }
 
 export function useAssistantTagline(): string {
