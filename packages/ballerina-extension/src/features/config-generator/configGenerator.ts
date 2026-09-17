@@ -316,7 +316,7 @@ export async function handleOnUnSetValues(packageName: string, packagePath: stri
 
 
 async function executeRunCommand(ballerinaExtInstance: BallerinaExtension, filePath: string, isBi?: boolean) {
-    TracerMachine.startServer();
+    TracerMachine.startServer(filePath);
     if (ballerinaExtInstance.enabledRunFast() || isBi) {
         filePath = (await getCurrentBallerinaProject(filePath)).path;
         const projectHasErrors = await cleanAndValidateProject(ballerinaExtInstance.langClient, filePath);

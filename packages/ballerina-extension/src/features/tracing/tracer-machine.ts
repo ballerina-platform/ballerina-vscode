@@ -163,6 +163,23 @@ function hasOtherEnabledProjects(context: TracerMachineContext, event?: any): bo
     return false;
 }
 
+// True when another known project still relies on the shared local dev-time server.
+function hasOtherIdeTracingProjects(context: TracerMachineContext, event?: any): boolean {
+    const targetPath = event?.projectPath;
+    const candidates = new Set<string>();
+    if (context.currentProjectPath) {
+        candidates.add(context.currentProjectPath);
+    }
+    context.childProjectPaths?.forEach(p => candidates.add(p));
+    candidates.delete(targetPath);
+    for (const projectPath of candidates) {
+        if (getActiveTracingProvider(projectPath) === 'idetraceprovider') {
+            return true;
+        }
+    }
+    return false;
+}
+
 function startServer(context: TracerMachineContext, event?: any): Thenable<vscode.TaskExecution> {
     const task = createTraceServerTask();
     return vscode.tasks.executeTask(task);
@@ -408,7 +425,21 @@ function createTracerMachine(projectPath?: string, childProjectPaths?: string[])
                                             taskExecution: undefined,
                                         }),
                                     ],
-                                }
+                                },
+                                // amp needs no local receiver, unless another project still depends on it.
+                                ENABLE: {
+                                    target: "serverStopping",
+                                    cond: (context, event) =>
+                                        resolveProvider(event) === 'amp'
+                                        && context.provider !== 'amp'
+                                        && !hasOtherIdeTracingProjects(context, event),
+                                    actions: [
+                                        enableTracingInProject,
+                                        assign({
+                                            provider: (context, event) => resolveProvider(event),
+                                        }),
+                                    ],
+                                },
                             }
                         },
 
@@ -565,10 +596,12 @@ export const TracerMachine = {
         return ensureInitialized().getSnapshot().value;
     },
 
-    startServer: () => {
+    // projectPath scopes the amp check per-project; context.provider is machine-wide.
+    startServer: (projectPath?: string) => {
         // Agent Manager exports traces remotely; the local OTLP receiver has nothing to catch.
         const context = ensureInitialized().getSnapshot().context as TracerMachineContext;
-        if (context.provider === 'amp') {
+        const provider = projectPath ? getActiveTracingProvider(projectPath) : context.provider;
+        if (provider === 'amp') {
             return;
         }
         ensureInitialized().send({ type: 'START_SERVER' });

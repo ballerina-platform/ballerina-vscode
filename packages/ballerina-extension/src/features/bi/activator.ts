@@ -387,8 +387,8 @@ async function handleCommandWithContext(
 
 /** Handles the debug command based on current workspace context. */
 async function handleDebugCommandWithContext() {
-    TracerMachine.startServer();
     const { workspacePath, view, projectPath, projectInfo } = StateMachine.context();
+    TracerMachine.startServer(projectPath);
     const isWebviewOpen = VisualizerWebview.currentPanel !== undefined;
     const hasActiveTextEditor = !!window.activeTextEditor;
 

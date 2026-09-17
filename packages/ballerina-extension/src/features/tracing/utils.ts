@@ -372,7 +372,7 @@ export function isAmpConfigIncomplete(workspaceDir: string): boolean {
         const content = fs.readFileSync(configFilePath, 'utf-8');
         const parsedConfig: any = parse(content);
         const amp = parsedConfig?.ballerinax?.amp;
-        return !amp?.otelEndpoint || !amp?.apiKey;
+        return !amp?.otelEndpoint?.trim() || !amp?.apiKey?.trim();
     } catch (error) {
         console.error('Failed to parse Config.toml while checking amp configuration:', error);
         return true;
