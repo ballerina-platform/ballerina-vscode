@@ -164,35 +164,25 @@ public class DesignModelGeneratorTest extends AbstractLSTest {
             if (actualService.hashCode() != expectedService.hashCode() && !actualService.equals(expectedService)) {
                 return false;
             }
-            if (!assertFunctionListAgentCalls(actualService.getFunctions(), expectedService.getFunctions())
-                    || !assertFunctionListAgentCalls(actualService.getRemoteFunctions(),
-                            expectedService.getRemoteFunctions())
-                    || !assertResourceFunctionAgentCalls(actualService.getResourceFunctions(),
-                            expectedService.getResourceFunctions())) {
+            if (!assertAgentCallsList(actualService.getFunctions(), expectedService.getFunctions(),
+                    Function::agentCalls)
+                    || !assertAgentCallsList(actualService.getRemoteFunctions(),
+                            expectedService.getRemoteFunctions(), Function::agentCalls)
+                    || !assertAgentCallsList(actualService.getResourceFunctions(),
+                            expectedService.getResourceFunctions(), ResourceFunction::agentCalls)) {
                 return false;
             }
         }
         return true;
     }
 
-    private boolean assertFunctionListAgentCalls(List<Function> actual, List<Function> expected) {
+    private <T> boolean assertAgentCallsList(List<T> actual, List<T> expected,
+                                             java.util.function.Function<T, List<AgentCall>> agentCallsOf) {
         if (sizeOf(actual) != sizeOf(expected)) {
             return false;
         }
         for (int i = 0; i < actual.size(); i++) {
-            if (!assertAgentCalls(actual.get(i).agentCalls(), expected.get(i).agentCalls())) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    private boolean assertResourceFunctionAgentCalls(List<ResourceFunction> actual, List<ResourceFunction> expected) {
-        if (sizeOf(actual) != sizeOf(expected)) {
-            return false;
-        }
-        for (int i = 0; i < actual.size(); i++) {
-            if (!assertAgentCalls(actual.get(i).agentCalls(), expected.get(i).agentCalls())) {
+            if (!assertAgentCalls(agentCallsOf.apply(actual.get(i)), agentCallsOf.apply(expected.get(i)))) {
                 return false;
             }
         }
