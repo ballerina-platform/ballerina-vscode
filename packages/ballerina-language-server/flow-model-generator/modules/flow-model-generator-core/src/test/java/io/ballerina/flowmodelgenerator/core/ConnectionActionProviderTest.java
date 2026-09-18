@@ -313,6 +313,19 @@ public class ConnectionActionProviderTest {
         }
     }
 
+    @Test(description = "Verifies getActions(Codedata, ...) returns an empty list, not an error, for "
+            + "incomplete codedata (the getLibraryActions RPC's main failure path).")
+    public void testGetActionsWithIncompleteCodedataReturnsEmptyList() {
+        Codedata missingOrg = new Codedata.Builder<Void>(null)
+                .node(NodeKind.KNOWLEDGE_BASE_CALL)
+                .object("VectorKnowledgeBase")
+                .symbol("retrieve")
+                .build();
+
+        Assert.assertEquals(provider.getActions(missingOrg, null, null), List.of());
+        Assert.assertEquals(provider.getActions(null, null, null), List.of());
+    }
+
     private static AvailableNode availableNode(String symbol, String parentSymbol, Map<String, Object> data) {
         return new AvailableNode(
                 new Metadata(symbol, symbol + " description", null, "icon-" + symbol, null, null, null, null),
