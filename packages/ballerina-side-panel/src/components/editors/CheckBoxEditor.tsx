@@ -23,11 +23,19 @@ import { useFormContext } from "../../context";
 import styled from "@emotion/styled";
 import { FieldFactory } from "./FieldFactory";
 import { withHeldValue } from "./utils";
+import { indentedFieldStyles } from "../Form/styles";
 
 const Container = styled.div`
     display: grid;
     gap: 20px;
     width: 100%;
+`;
+
+// The fields of the box's current state sit indented under it, marked as belonging to it.
+const StateFields = styled.div`
+    display: grid;
+    gap: 20px;
+    ${indentedFieldStyles}
 `;
 
 const Label = styled.div`
@@ -121,9 +129,13 @@ export function CheckBoxEditor(props: TextEditorProps) {
                     </LabelGroup>
                 </BoxGroup>
             </CheckBoxGroup>
-            {stateFields.map((stateField) => (
-                <FieldFactory key={stateField.key} field={stateField} />
-            ))}
+            {stateFields.length > 0 && (
+                <StateFields>
+                    {stateFields.map((stateField) => (
+                        <FieldFactory key={stateField.key} field={stateField} />
+                    ))}
+                </StateFields>
+            )}
         </Container>
     );
 }

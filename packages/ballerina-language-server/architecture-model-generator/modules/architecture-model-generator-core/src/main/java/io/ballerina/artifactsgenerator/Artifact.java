@@ -92,7 +92,7 @@ public record Artifact(String id, LineRange location, String type, String name, 
             Map.entry(Type.AGENT_DEFINITION.name(), CATEGORY_AGENT_DEFINITIONS),
             Map.entry(Type.VARIABLE.name(), CATEGORY_VARIABLES),
             Map.entry(Type.WORKFLOW.name(), CATEGORY_WORKFLOWS),
-            Map.entry(Type.DURABLE_AGENT.name(), CATEGORY_WORKFLOWS),
+            Map.entry(Type.DURABLE_AGENT.name(), CATEGORY_AGENTS),
             Map.entry(Type.ACTIVITY.name(), CATEGORY_WORKFLOWS));
 
     private static final Map<String, String> entryPointMap = Map.ofEntries(

@@ -1,6 +1,6 @@
 {
   "source": "workflow_function/functions.bal",
-  "description": "Generate activity call with ManualRetry policy (retryPolicy = workflow:ManualRetry)",
+  "description": "Generate activity call with a Human Review policy scoped to a role (retryPolicy = workflow:ManualRetry)",
   "diagram": {
     "id": "1",
     "metadata": {
@@ -86,6 +86,29 @@
         "editable": true,
         "advanced": false,
         "hidden": false
+      },
+      "retryUserRoles": {
+        "metadata": {
+          "label": "Reviewer Roles"
+        },
+        "valueType": "TEXT",
+        "value": "manager",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": true,
+        "types": [
+          {
+            "fieldType": "TEXT",
+            "ballerinaType": "string",
+            "selected": true
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string|string[]",
+            "selected": false
+          }
+        ]
       }
     },
     "flags": 1
@@ -103,7 +126,7 @@
             "character": 0
           }
         },
-        "newText": "\nint result = check context->callActivity(sendNotification, {time: 10, input: {message: \"Hello\", recipient: \"user@example.com\"}}, retryPolicy = {userRoles: []});"
+        "newText": "\nint result = check context->callActivity(sendNotification, {time: 10, input: {message: \"Hello\", recipient: \"user@example.com\"}}, retryPolicy = {userRoles: \"manager\"});"
       }
     ]
   }

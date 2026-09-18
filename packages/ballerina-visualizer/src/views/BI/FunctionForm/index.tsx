@@ -18,7 +18,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { FunctionNode, LineRange, NodeKind, NodeProperties, NodePropertyKey, DIRECTORY_MAP, EVENT_TYPE, getPrimaryInputType, isTemplateType, RecordTypeField } from "@wso2/ballerina-core";
-import { Button, Codicon, Typography, View, ViewContent } from "@wso2/ui-toolkit";
+import { Button, Codicon, Icon, ThemeColors, Typography, View, ViewContent } from "@wso2/ui-toolkit";
 import styled from "@emotion/styled";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { FormField, FormImports, FormValues, Parameter } from "@wso2/ballerina-side-panel";
@@ -26,12 +26,18 @@ import ArtifactForm from "../Forms/ArtifactForm";
 import { TitleBar } from "../../../components/TitleBar";
 import { TopNavigationBar } from "../../../components/TopNavigationBar";
 import { FormHeader } from "../../../components/FormHeader";
+import { DownloadIcon } from "../../../components/DownloadIcon";
 import { convertConfig, getImportsForProperty, orderFormFields, DURABLE_AGENT_FORM_ORDER } from "../../../utils/bi";
 import { BodyText, LoadingContainer, TopBar } from "../../styles";
 import { LoadingRing } from "../../../components/Loader";
 
 // Default (auto-numbered) name offered by the Durable Agentic Workflow creation form.
 const DURABLE_AGENT_DEFAULT_NAME = "durableAgenticWorkflow";
+
+// How long the plain loader is shown before switching to the "package is being pulled" status.
+// A cached package responds well within this, so the message only appears on an actual pull.
+// Matches ServiceCreationView / useServiceInitModel.
+const PACKAGE_PULL_MESSAGE_DELAY = 3000;
 
 const FormContainer = styled.div`
     display: flex;
@@ -44,6 +50,15 @@ const Container = styled.div`
     display: "flex";
     flex-direction: "column";
     gap: 10;
+`;
+
+const StatusCard = styled.div`
+    padding: 16px;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 16px;
 `;
 
 
@@ -71,11 +86,18 @@ export function FunctionForm(props: FunctionFormProps) {
     const [formSubtitle, setFormSubtitle] = useState<string>("");
     const [saving, setSaving] = useState<boolean>(false);
     const [isLoading, setIsLoading] = useState<boolean>(false);
+    const [isPullingPackage, setIsPullingPackage] = useState<boolean>(false);
+    const [loadError, setLoadError] = useState<boolean>(false);
+    const [loadAttempt, setLoadAttempt] = useState<number>(0);
     const [recordTypeFields] = useState<RecordTypeField[]>([]);
 
     const fileName = filePath.split(/[\\/]/).pop();
     const formType = useRef("Function");
     const isMountedRef = useRef(true);
+    // Identifies the latest template load. If the effect re-fires while a request is in flight,
+    // only the newest attempt may write state — otherwise a slow failure can raise the error card
+    // over an already-loaded form. Mirrors `useServiceInitModel`'s `cancelled` flag.
+    const loadSeqRef = useRef(0);
     const functionNodeRef = useRef<FunctionNode>();
 
     useEffect(() => {
@@ -85,9 +107,27 @@ export function FunctionForm(props: FunctionFormProps) {
         };
     }, []);
 
+    /** Whether a load that started with `seq` may still write state: it must be the newest one,
+     *  and the component must still be mounted (the file's existing post-await convention). */
+    const isCurrentLoad = (seq: number) => isMountedRef.current && seq === loadSeqRef.current;
+
     useEffect(() => {
         functionNodeRef.current = functionNode;
     }, [functionNode]);
+
+    // Building the node template for a workflow artifact pulls ballerina/workflow from Central the
+    // first time, which leaves the user on a bare spinner for a long while. Tell them what the wait
+    // is, the same way the service artifacts do.
+    // Only creating pulls: opening an existing workflow resolves a package the project already has.
+    const pullsWorkflowPackage = !functionName && (isWorkflow || isDurableAgent || isActivity);
+    useEffect(() => {
+        if (!isLoading || !pullsWorkflowPackage) {
+            setIsPullingPackage(false);
+            return;
+        }
+        const timer = setTimeout(() => setIsPullingPackage(true), PACKAGE_PULL_MESSAGE_DELAY);
+        return () => clearTimeout(timer);
+    }, [isLoading, pullsWorkflowPackage]);
 
     const hideTypeDescriptionField = (flowNode: FunctionNode): FunctionNode => {
         if (flowNode?.properties?.typeDescription) {
@@ -139,7 +179,7 @@ export function FunctionForm(props: FunctionFormProps) {
         } else {
             getFunctionNode(nodeKind);
         }
-    }, [isDataMapper, isNpFunction, isWorkflow, isDurableAgent, isActivity, isAutomation, functionName]);
+    }, [isDataMapper, isNpFunction, isWorkflow, isDurableAgent, isActivity, isAutomation, functionName, loadAttempt]);
 
     useEffect(() => {
         let fields = functionNode ? convertConfig(functionNode.properties) : [];
@@ -217,9 +257,10 @@ export function FunctionForm(props: FunctionFormProps) {
             if (!isMountedRef.current || !response?.length) return;
             console.log("Identifier Updated: ", response);
 
-            const artifact = response.length > 1
-                ? response.find(res => res.name === functionName || res.context === functionName)
-                : response[0];
+            // Only this function's own update matters: rebuilding the fields for another artifact,
+            // such as a type just created from the input type field, would discard what was typed.
+            if (!functionName) return;
+            const artifact = response.find(res => res.name === functionName || res.context === functionName);
             if (!artifact?.name) return;
 
             const changedFunctionNode = await rpcClient
@@ -252,75 +293,96 @@ export function FunctionForm(props: FunctionFormProps) {
     }, [rpcClient, functionName, fileName, projectPath]);
 
     const getFunctionNode = async (kind: NodeKind) => {
+        const seq = ++loadSeqRef.current;
         setIsLoading(true);
-        const filePath = (await rpcClient.getVisualizerRpcClient().joinProjectPath({ segments: [fileName] })).filePath;
+        setLoadError(false);
+        try {
+            const filePath = (await rpcClient.getVisualizerRpcClient().joinProjectPath({ segments: [fileName] })).filePath;
 
-        const res = await rpcClient.getBIDiagramRpcClient().getNodeTemplate({
-            position: { line: 0, offset: 0 },
-            filePath: filePath,
-            id: { node: kind },
-        });
-        let flowNode = res.flowNode;
-        if (isNpFunction) {
-            /* 
-            * TODO: Remove this once the LS is updated
-            * HACK: Add the advanced fields under parameters.advanceProperties
-            */
-            // Get all the advanced fields
-            let properties = flowNode.properties as NodeProperties;
-            const advancedProperties = Object.fromEntries(
-                Object.entries(properties).filter(([_, property]) => property.advanced)
-            );
-            // Remove the advanced fields from properties
-            properties = Object.fromEntries(
-                Object.entries(properties).filter(([_, property]) => !property.advanced)
-            );
-            flowNode.properties = properties;
+            const res = await rpcClient.getBIDiagramRpcClient().getNodeTemplate({
+                position: { line: 0, offset: 0 },
+                filePath: filePath,
+                id: { node: kind },
+            });
+            let flowNode = res.flowNode;
+            if (isNpFunction) {
+                /* 
+                * TODO: Remove this once the LS is updated
+                * HACK: Add the advanced fields under parameters.advanceProperties
+                */
+                // Get all the advanced fields
+                let properties = flowNode.properties as NodeProperties;
+                const advancedProperties = Object.fromEntries(
+                    Object.entries(properties).filter(([_, property]) => property.advanced)
+                );
+                // Remove the advanced fields from properties
+                properties = Object.fromEntries(
+                    Object.entries(properties).filter(([_, property]) => !property.advanced)
+                );
+                flowNode.properties = properties;
 
-            // Add the all the advanced fields to advanceProperties
-            flowNode.properties.parameters = {
-                ...flowNode.properties.parameters,
-                advanceProperties: advancedProperties
-            }
-        }
-
-        // Workflow creation form: keep it minimal and capture only what the user needs up front
-        // (Name, Description, Input Type). Hide Public (shareable workflows are not encouraged yet),
-        // Return Type and Return Type Description. The return type defaults to `error?` (set by the
-        // LS WorkflowBuilder) and can be edited later from the workflow function definition.
-        if (isWorkflow || isDurableAgent) {
-            if (flowNode.properties?.isPublic) {
-                flowNode.properties.isPublic.hidden = true;
-            }
-            if (flowNode.properties?.type) {
-                flowNode.properties.type.hidden = true;
-            }
-            if (flowNode.properties?.typeDescription) {
-                flowNode.properties.typeDescription.hidden = true;
-            }
-        }
-
-        // Durable Agentic Workflow creation: prefill the name with a workspace-unique
-        // default (durableAgenticWorkflow, durableAgenticWorkflow2, ...).
-        if (isDurableAgent && flowNode.properties?.functionName) {
-            try {
-                const taken = new Set((await rpcClient.getBIDiagramRpcClient().getFunctionNames()).mentions);
-                let defaultName = DURABLE_AGENT_DEFAULT_NAME;
-                for (let suffix = 2; taken.has(defaultName); suffix++) {
-                    defaultName = `${DURABLE_AGENT_DEFAULT_NAME}${suffix}`;
+                // Add the all the advanced fields to advanceProperties
+                flowNode.properties.parameters = {
+                    ...flowNode.properties.parameters,
+                    advanceProperties: advancedProperties
                 }
-                flowNode.properties.functionName.value = defaultName;
-            } catch (error) {
-                console.error("Failed to compute a default durable agentic workflow name:", error);
+            }
+
+            // Workflow creation form: keep it minimal and capture only what the user needs up front
+            // (Name, Description, Input Type). Hide Public (shareable workflows are not encouraged yet),
+            // Return Type and Return Type Description. The return type defaults to `error?` (set by the
+            // LS WorkflowBuilder) and can be edited later from the workflow function definition.
+            if (isWorkflow || isDurableAgent) {
+                if (flowNode.properties?.isPublic) {
+                    flowNode.properties.isPublic.hidden = true;
+                }
+                if (flowNode.properties?.type) {
+                    flowNode.properties.type.hidden = true;
+                }
+                if (flowNode.properties?.typeDescription) {
+                    flowNode.properties.typeDescription.hidden = true;
+                }
+            }
+
+            // Durable Agentic Workflow creation: prefill the name with a workspace-unique
+            // default (durableAgenticWorkflow, durableAgenticWorkflow2, ...).
+            if (isDurableAgent && flowNode.properties?.functionName) {
+                try {
+                    const taken = new Set((await rpcClient.getBIDiagramRpcClient().getFunctionNames()).mentions);
+                    let defaultName = DURABLE_AGENT_DEFAULT_NAME;
+                    for (let suffix = 2; taken.has(defaultName); suffix++) {
+                        defaultName = `${DURABLE_AGENT_DEFAULT_NAME}${suffix}`;
+                    }
+                    flowNode.properties.functionName.value = defaultName;
+                } catch (error) {
+                    console.error("Failed to compute a default durable agentic workflow name:", error);
+                }
+            }
+
+            if (!isCurrentLoad(seq)) {
+                return;
+            }
+            setFunctionNode(flowNode);
+            console.log("Function Node: ", flowNode);
+        } catch (error) {
+            // Resolving the template pulls the package from Central, so this is the offline /
+            // unresolvable-version path. Surface it instead of leaving the loader up forever.
+            console.error(`>>> Error fetching the ${kind} node template`, error);
+            if (isCurrentLoad(seq)) {
+                setLoadError(true);
+            }
+        } finally {
+            if (isCurrentLoad(seq)) {
+                setIsLoading(false);
             }
         }
-
-        setFunctionNode(flowNode);
-        setIsLoading(false);
-        console.log("Function Node: ", flowNode);
     }
 
     const getExistingFunctionNode = async () => {
+        // Claims the load, superseding any in-flight create-path one so its result cannot land on
+        // top of this one's. Rejection handling is deliberately left as it was: only the create
+        // path, where the package pull happens, reports failures.
+        const seq = ++loadSeqRef.current;
         setIsLoading(true);
         const res = await rpcClient
             .getBIDiagramRpcClient()
@@ -366,6 +428,9 @@ export function FunctionForm(props: FunctionFormProps) {
             flowNode = { ...flowNode, codedata: { ...flowNode.codedata, node: 'ACTIVITY' as NodeKind } };
         }
 
+        if (!isCurrentLoad(seq)) {
+            return;
+        }
         setFunctionNode(flowNode);
         setIsLoading(false);
         console.log("Existing Function Node: ", flowNode);
@@ -678,7 +743,34 @@ export function FunctionForm(props: FunctionFormProps) {
                     />
                     {(isLoading || (saving && !functionName)) && (
                         <LoadingContainer>
-                            <LoadingRing message={saving ? `Creating the ${formType.current.toLowerCase()}...` : undefined} />
+                            {isPullingPackage && !saving ? (
+                                <StatusCard>
+                                    <DownloadIcon color={ThemeColors.ON_SURFACE} />
+                                    <Typography variant="body2">
+                                        Please wait while the workflow package is being pulled...
+                                    </Typography>
+                                </StatusCard>
+                            ) : (
+                                <LoadingRing message={saving ? `Creating the ${formType.current.toLowerCase()}...` : undefined} />
+                            )}
+                        </LoadingContainer>
+                    )}
+                    {loadError && !isLoading && (
+                        <LoadingContainer>
+                            <StatusCard>
+                                <Icon
+                                    name="bi-error"
+                                    sx={{ color: ThemeColors.ERROR, fontSize: "18px", width: "18px", height: "18px" }}
+                                />
+                                {/* Both loaders share this card, and only the create path resolves a node
+                                    template, so the message names neither the template nor the package. */}
+                                <Typography variant="body2">
+                                    {`Failed to load the ${formType.current.toLowerCase()}. Please try again.`}
+                                </Typography>
+                                <Button appearance="secondary" onClick={() => setLoadAttempt((attempt) => attempt + 1)}>
+                                    Retry
+                                </Button>
+                            </StatusCard>
                         </LoadingContainer>
                     )}
                     {/* While a new artifact is being created the form is replaced by the loader:

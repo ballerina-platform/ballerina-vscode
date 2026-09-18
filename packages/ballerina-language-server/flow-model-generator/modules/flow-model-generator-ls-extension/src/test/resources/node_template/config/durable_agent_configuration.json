@@ -1,0 +1,229 @@
+{
+  "source": "durable_agent_module.bal",
+  "position": {
+    "line": 16,
+    "offset": 0
+  },
+  "description": "Durable agent configuration form: the declaration's own fields (role, instructions, model, input type, iterations, event timeout, event waits) and none of a run's arguments",
+  "codedata": {
+    "node": "DURABLE_AGENT_RUN",
+    "org": "ballerina",
+    "module": "workflow",
+    "object": "DurableAgent",
+    "symbol": "run"
+  },
+  "output": {
+    "id": "31",
+    "metadata": {
+      "label": "Configure Agent",
+      "description": "Configure the agent's role, instructions, model and reasoning limit"
+    },
+    "codedata": {
+      "node": "DURABLE_AGENT_RUN",
+      "org": "ballerina",
+      "module": "workflow",
+      "object": "DurableAgent",
+      "symbol": "buildAndRunAgent",
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "role": {
+        "metadata": {
+          "label": "Role",
+          "description": "Define the agent's primary function"
+        },
+        "types": [
+          {
+            "fieldType": "PROMPT",
+            "ballerinaType": "string",
+            "selected": true
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string",
+            "selected": false
+          }
+        ],
+        "value": "",
+        "placeholder": "e.g., Customer Support Assistant",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED"
+        },
+        "defaultValue": ""
+      },
+      "instructions": {
+        "metadata": {
+          "label": "Instructions",
+          "description": "Detailed instructions for the agent"
+        },
+        "types": [
+          {
+            "fieldType": "PROMPT",
+            "ballerinaType": "string",
+            "selected": true
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string",
+            "selected": false
+          }
+        ],
+        "value": "",
+        "placeholder": "e.g., You are a friendly assistant. Your goal is to...",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED"
+        },
+        "defaultValue": ""
+      },
+      "model": {
+        "metadata": {
+          "label": "Model",
+          "description": "The model provider used for the agent's LLM calls"
+        },
+        "types": [
+          {
+            "fieldType": "SINGLE_SELECT",
+            "ballerinaType": "ai:ModelProvider",
+            "options": [
+              {
+                "label": "supportModel",
+                "value": "supportModel"
+              }
+            ],
+            "selected": true
+          }
+        ],
+        "value": "supportModel",
+        "placeholder": "Select a model provider",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": true,
+        "codedata": {
+          "kind": "REQUIRED",
+          "originalName": "model"
+        }
+      },
+      "inputType": {
+        "metadata": {
+          "label": "Input Type",
+          "description": "The structured input a run is given, e.g. json or a record type"
+        },
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "typedesc<json>",
+            "selected": true
+          }
+        ],
+        "value": "",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "DEFAULTABLE",
+          "originalName": "inputType"
+        }
+      },
+      "resultType": {
+        "metadata": {
+          "label": "Result Type",
+          "description": "The type a run produces, e.g. a record type; empty leaves the result untyped"
+        },
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "typedesc<anydata>",
+            "selected": true
+          }
+        ],
+        "value": "",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "DEFAULTABLE",
+          "originalName": "resultType"
+        }
+      },
+      "maxIter": {
+        "metadata": {
+          "label": "Maximum Iterations",
+          "description": "Maximum LLM reasoning iterations per turn (default 16)"
+        },
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "int",
+            "selected": true
+          }
+        ],
+        "value": "",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "DEFAULTABLE",
+          "originalName": "maxIter"
+        }
+      },
+      "eventTimeout": {
+        "metadata": {
+          "label": "Event Timeout",
+          "description": "How long the agent waits for an event, in days, hours and minutes, e.g. {days: 1, hours: 2, minutes: 30}; empty waits indefinitely"
+        },
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "workflow:Duration",
+            "selected": true
+          }
+        ],
+        "value": "",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "DEFAULTABLE",
+          "originalName": "eventTimeout"
+        }
+      },
+      "maxEventWaits": {
+        "metadata": {
+          "label": "Maximum Event Waits",
+          "description": "How many events a run may wait for before it fails (default 50)"
+        },
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "int",
+            "selected": true
+          }
+        ],
+        "value": "",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "DEFAULTABLE",
+          "originalName": "maxEventWaits"
+        }
+      }
+    },
+    "flags": 0
+  }
+}

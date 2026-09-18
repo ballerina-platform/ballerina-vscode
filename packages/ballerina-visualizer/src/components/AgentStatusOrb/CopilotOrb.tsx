@@ -72,6 +72,13 @@ const Aura = styled.div<AuraProps>`
     );
     filter: blur(8px);
     opacity: ${(props: AuraProps) => (props.state === "idle" ? 0.45 : props.state === "running" ? 1 : 0.85)};
+    // The same saturated glow that reads as a soft shadow on a light ground turns into a hot ring
+    // against near-black.
+    body.vscode-dark &,
+    body.vscode-high-contrast & {
+        opacity: ${(props: AuraProps) => (props.state === "idle" ? 0.26 : props.state === "running" ? 0.7 : 0.55)};
+        filter: blur(11px);
+    }
     ${(props: AuraProps) =>
         props.state === "running"
             ? css`animation: ${rotate} 2.8s linear infinite;`

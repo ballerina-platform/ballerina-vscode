@@ -82,13 +82,6 @@ public class DurableAgentAddActivityBuilder extends CallBuilder {
     public static final String ACTIVITY_DESCRIPTION_DOC =
             "Tells the model what this activity does and when to use it";
 
-    public static final String REQUIRES_APPROVAL_KEY = "requiresApproval";
-    public static final String USER_ROLES_KEY = "userRoles";
-    public static final String REQUIRES_APPROVAL_DOC =
-            "Gate this tool: before the agent runs it, a review activity is created and the agent suspends "
-            + "durably until a reviewer proceeds (optionally editing the arguments) or rejects.";
-
-
 
     @Override
     protected NodeKind getFunctionNodeKind() {
@@ -144,9 +137,10 @@ public class DurableAgentAddActivityBuilder extends CallBuilder {
                 .hidden(!preSelected.isEmpty())
                 .stepOut()
                 .addProperty(ACTIVITY_KEY);
-        addBindingProperties(context, preSelected);
+        // The fields follow the ActivityDecl record: activity, name, description, bindings, then the policies.
         addActivityIdentityProperties();
-        addRequiresApprovalProperty();
+        addBindingProperties(context, preSelected);
+        addPolicyProperties();
         properties().checkError(true);
     }
 
@@ -231,9 +225,8 @@ public class DurableAgentAddActivityBuilder extends CallBuilder {
         return options;
     }
 
-    // The declaration's optional name/description. The activity's own identity is enough for the
-    // common case, so they sit in the advanced section — but they are the model's view of the
-    // activity, and an entry declared with them in source must round-trip through an edit-save.
+    // The declaration's optional name/description: the model's view of the activity, and an entry
+    // declared with them in source must round-trip through an edit-save.
     private void addActivityIdentityProperties() {
         properties().custom()
                 .metadata()
@@ -248,7 +241,6 @@ public class DurableAgentAddActivityBuilder extends CallBuilder {
                 .value("")
                 .editable(true)
                 .optional(true)
-                .advanced(true)
                 .stepOut()
                 .addProperty(ACTIVITY_NAME_KEY);
         properties().custom()
@@ -264,18 +256,17 @@ public class DurableAgentAddActivityBuilder extends CallBuilder {
                 .value("")
                 .editable(true)
                 .optional(true)
-                .advanced(true)
                 .stepOut()
                 .addProperty(ACTIVITY_DESCRIPTION_KEY);
     }
 
-    // A FLAG that, when true, emits `requiresApproval = true` so the activity is gated by a review activity.
-    private void addRequiresApprovalProperty() {
-        WorkflowUtil.addApprovalGateProperties(this, REQUIRES_APPROVAL_KEY, REQUIRES_APPROVAL_DOC, USER_ROLES_KEY,
-                "Role(s) permitted to decide the approval review of this activity, "
-                        + "e.g. \"support-lead\" or [\"finance\", \"manager\"].");
-        // Feature parity with workflow Call Activity: agent-declared activities can be
-        // auto-retried by the engine or gated by a human review on failure.
+    // The two policy dropdowns, as the workflow Call Activity form has them: an approval before the
+    // activity runs, and the engine's retry or review when it fails.
+    private void addPolicyProperties() {
+        // Expressions only, still: a dropdown's sub-fields are seeded through withHeldValue, which
+        // copies the value alone, so the mode this PR restores does not reach them yet.
+        ApprovalPolicyForm.addFormProperties(this, ApprovalPolicyForm.NO_APPROVAL_VALUE,
+                ActivityCallBuilder.ReviewFormValues.empty(), false);
         ActivityCallBuilder.addRetryPolicyFormProperties(this, ActivityCallBuilder.NO_RETRY_VALUE,
                 "", "", "", "");
     }
@@ -296,9 +287,7 @@ public class DurableAgentAddActivityBuilder extends CallBuilder {
                 .map(p -> p.value() == null ? "" : p.value().toString().trim()).orElse("");
         String activityDescription = sourceBuilder.getProperty(ACTIVITY_DESCRIPTION_KEY)
                 .map(p -> p.value() == null ? "" : p.value().toString().trim()).orElse("");
-        String userRoles = sourceBuilder.getProperty(USER_ROLES_KEY)
-                .map(WorkflowUtil::roleSource).orElse("");
-        boolean requiresApproval = isRequiresApproval(sourceBuilder);
+        String approvalPolicy = ApprovalPolicyForm.literal(sourceBuilder.flowNode.properties());
         String retryPolicyValue = ActivityCallBuilder.retryPolicyEntryValue(
                 sourceBuilder.flowNode.properties());
         List<String> bindings = new ArrayList<>();
@@ -311,8 +300,8 @@ public class DurableAgentAddActivityBuilder extends CallBuilder {
                     + property.value().toString().trim());
         });
         String entry;
-        if (activityName.isBlank() && activityDescription.isBlank() && !requiresApproval
-                && userRoles.isBlank() && retryPolicyValue == null && bindings.isEmpty()) {
+        if (activityName.isBlank() && activityDescription.isBlank() && approvalPolicy == null
+                && retryPolicyValue == null && bindings.isEmpty()) {
             entry = activityRef;
         } else {
             StringBuilder mapping = new StringBuilder("{activity: ").append(activityRef);
@@ -322,11 +311,8 @@ public class DurableAgentAddActivityBuilder extends CallBuilder {
             if (!activityDescription.isBlank()) {
                 mapping.append(", description: ").append(WorkflowUtil.quoteIfPlain(activityDescription));
             }
-            if (requiresApproval) {
-                mapping.append(", requiresApproval: true");
-            }
-            if (!userRoles.isBlank()) {
-                mapping.append(", userRoles: ").append(userRoles);
+            if (approvalPolicy != null) {
+                mapping.append(", ").append(ApprovalPolicyForm.KEY).append(": ").append(approvalPolicy);
             }
             if (retryPolicyValue != null) {
                 mapping.append(", retryPolicy: ").append(retryPolicyValue);
@@ -337,12 +323,6 @@ public class DurableAgentAddActivityBuilder extends CallBuilder {
             entry = mapping.append("}").toString();
         }
         return WorkflowUtil.upsertAgentCapabilityEntry(sourceBuilder, "activities", entry);
-    }
-
-    private static boolean isRequiresApproval(SourceBuilder sourceBuilder) {
-        return sourceBuilder.getProperty(REQUIRES_APPROVAL_KEY)
-                .map(p -> p.value() != null && "true".equals(p.value().toString()))
-                .orElse(false);
     }
 
     private List<Option> getActivityFunctions(TemplateContext context) {
