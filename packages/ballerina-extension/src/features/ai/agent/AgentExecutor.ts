@@ -25,6 +25,7 @@ import { populateHistoryForAgent, getErrorMessage, getErrorCode, buildChatError 
 import { seedAiBaselines } from '../utils/project/ls-schema-notifications';
 import { mapWithConcurrency } from '../utils/concurrency';
 import { getSystemPrompt, getUserPrompt } from './prompts';
+import { shouldFailForMissingCompaction } from './compaction-gate';
 import { FollowupSituation, startFollowupSuggestions } from './followups';
 import { prepareAgentsMdForTurn } from './agents-md';
 import { resolveChatStoreKey } from './chatStoreKey';
@@ -109,7 +110,7 @@ function supportsCompaction(loginMethod: LoginMethod): boolean {
  * Server-side compaction trigger, in input tokens. Higher than MI's 200K because BI re-sends
  * the whole project source each turn; 500K sits well within Claude Sonnet's 1M window.
  */
-const COMPACT_TRIGGER_TOKENS = 500_000;
+export const COMPACT_TRIGGER_TOKENS = 500_000;
 
 /**
  * Builds providerOptions.anthropic.contextManagement: compaction only, no `clear_tool_uses`
@@ -397,7 +398,10 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
             const { allDisabled, projectSkills, userSkills, disabledSkillMetas } =
                 loadSkillsContext(projectRootPath || null);
 
-            const userMessageContent = getUserPrompt(params, tempProjectPath, projects, projectSkills, agentsMd.text);
+            const userMessageContent = getUserPrompt(params, tempProjectPath, projects, projectSkills, agentsMd.text, {
+                omitCodebaseDump: this.config.toolOptions?.omitCodebaseDump,
+                codebaseMapText: this.config.toolOptions?.codebaseMapText,
+            });
 
             // Estimate fixed overhead (system prompt + codebase) to decide if compaction is viable
             // TODO(auto-memory): memory-augmented prompt disabled for this release — using base system prompt.
@@ -406,6 +410,13 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
 
 
             const compactionOptions = buildCompactionProviderOptions(loginMethod, floorTokens);
+            if (shouldFailForMissingCompaction(supportsCompaction(loginMethod), compactionOptions, this.config.toolOptions?.failWhenCompactionUnavailable)) {
+                throw new Error(
+                    `This stage's prompt floor is ~${floorTokens.toLocaleString()} tokens, at or above the ` +
+                    `${COMPACT_TRIGGER_TOKENS.toLocaleString()}-token compaction trigger, and compaction is unavailable — ` +
+                    `split the project into smaller packages and retry.`
+                );
+            }
             if (supportsCompaction(loginMethod) && compactionOptions === undefined) {
                 warnCompactionDisabledOnce(projectRootPath, this.config.eventHandler);
             }

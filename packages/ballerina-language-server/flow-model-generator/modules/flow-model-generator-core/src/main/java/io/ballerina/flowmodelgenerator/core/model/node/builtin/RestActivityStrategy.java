@@ -47,6 +47,8 @@ public class RestActivityStrategy implements BuiltinActivityStrategy {
     public static final String METHOD_KEY = "method";
     public static final String PATH_KEY = "path";
     public static final String MESSAGE_KEY = "message";
+    public static final String MESSAGE_LABEL = "Message";
+    public static final String MESSAGE_DESCRIPTION = "Request body, sent with POST, PUT, PATCH and DELETE";
     public static final String HEADERS_KEY = "headers";
 
     // HTTP method options
@@ -73,11 +75,13 @@ public class RestActivityStrategy implements BuiltinActivityStrategy {
                 new Option(METHOD_PATCH, METHOD_PATCH)
         );
 
-        // Message sub-property shown inside the method dropdown for POST/PUT/PATCH
+        // The body, shown under every method the module passes it to. GET is the one method whose
+        // dispatch ignores it (`connection->get(path, headers)`), so it is not offered there and a
+        // body typed under another method is not carried into it.
         Property messageSubProp = new Property.Builder<Void>(null)
                 .metadata()
-                    .label("Message")
-                    .description("Request body payload (for POST, PUT, PATCH)")
+                    .label(MESSAGE_LABEL)
+                    .description(MESSAGE_DESCRIPTION)
                     .stepOut()
                 .type().fieldType(Property.ValueType.EXPRESSION)
                     .ballerinaType("http:RequestMessage").selected(true).stepOut()
@@ -89,7 +93,7 @@ public class RestActivityStrategy implements BuiltinActivityStrategy {
         methodDynamicFields.put(METHOD_GET, Map.of());
         methodDynamicFields.put(METHOD_POST, Map.of(MESSAGE_KEY, messageSubProp));
         methodDynamicFields.put(METHOD_PUT, Map.of(MESSAGE_KEY, messageSubProp));
-        methodDynamicFields.put(METHOD_DELETE, Map.of());
+        methodDynamicFields.put(METHOD_DELETE, Map.of(MESSAGE_KEY, messageSubProp));
         methodDynamicFields.put(METHOD_PATCH, Map.of(MESSAGE_KEY, messageSubProp));
 
         nodeBuilder.properties().custom()
@@ -128,8 +132,8 @@ public class RestActivityStrategy implements BuiltinActivityStrategy {
         // Hidden top-level message property — stores saved value; visible sub-field lives in dynamicFormFields
         nodeBuilder.properties().custom()
                 .metadata()
-                    .label("Message")
-                    .description("Request body payload (for POST, PUT, PATCH)")
+                    .label(MESSAGE_LABEL)
+                    .description(MESSAGE_DESCRIPTION)
                     .stepOut()
                 .type().fieldType(Property.ValueType.EXPRESSION)
                     .ballerinaType("http:RequestMessage").selected(true).stepOut()
@@ -199,7 +203,7 @@ public class RestActivityStrategy implements BuiltinActivityStrategy {
         // path — quote if TEXT-typed; only emit when non-default
         BuiltinActivityStrategy.addQuotedArg(args, "path", properties, PATH_KEY);
 
-        // message — only meaningful for POST/PUT/PATCH
+        // message — every method but GET, whose dispatch in the module ignores it
         if (isPayloadMethod(method)) {
             String message = BuiltinActivityStrategy.getPropertyValue(properties, MESSAGE_KEY, "");
             if (!message.isEmpty()) {
@@ -231,8 +235,11 @@ public class RestActivityStrategy implements BuiltinActivityStrategy {
         return STRATEGY_DESCRIPTION;
     }
 
+    // `activity:callRestAPI` forwards the body on POST, PUT, PATCH and DELETE, and calls
+    // `connection->get(path, headers)` without it. Written as the enumeration rather than "not
+    // GET", so a method added to the module does not silently acquire a body here.
     private boolean isPayloadMethod(String method) {
         return METHOD_POST.equalsIgnoreCase(method) || METHOD_PUT.equalsIgnoreCase(method)
-                || METHOD_PATCH.equalsIgnoreCase(method);
+                || METHOD_PATCH.equalsIgnoreCase(method) || METHOD_DELETE.equalsIgnoreCase(method);
     }
 }

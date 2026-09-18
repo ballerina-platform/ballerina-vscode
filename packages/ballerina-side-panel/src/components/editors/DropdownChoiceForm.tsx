@@ -26,6 +26,7 @@ import { buildRequiredRule, capitalize, getValueForDropdown, withHeldValue } fro
 import { useFormContext } from "../../context";
 import styled from "@emotion/styled";
 import { FieldFactory } from "./FieldFactory";
+import { indentedFieldStyles } from "../Form/styles";
 
 interface DropdownChoiceFormProps {
     field: FormField;
@@ -43,10 +44,12 @@ const ChoiceSection = styled.div`
     width: 100%;
 `;
 
+// The selected option's fields sit indented under the dropdown, so they read as belonging to it
+// rather than as siblings of the fields around it.
 const FormSection = styled.div`
     display: grid;
     gap: 20px;
-    width: 100%;
+    ${indentedFieldStyles}
 `;
 
 export function DropdownChoiceForm(props: DropdownChoiceFormProps) {
@@ -95,7 +98,11 @@ export function DropdownChoiceForm(props: DropdownChoiceFormProps) {
                     }}
                 />
             </ChoiceSection>
-            <FormSection>
+            {dynamicFields.some(dfield =>
+                !dfield.hidden
+                && (dfield.type === "GROUP_SECTION"
+                    ? (dfield.advanceProps?.length ?? 0) > 0
+                    : !dfield.advanced)) && <FormSection>
                 {dynamicFields
                     // An optional field of the selected branch still belongs to it — optional only means
                     // it carries no required marker, so it renders like the rest.
@@ -142,7 +149,7 @@ export function DropdownChoiceForm(props: DropdownChoiceFormProps) {
                         );
                     })
                 }
-            </FormSection>
+            </FormSection>}
         </FormContainer>
     );
 }

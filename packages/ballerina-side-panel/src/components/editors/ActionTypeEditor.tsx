@@ -44,6 +44,7 @@ import { debounce } from "lodash";
 import styled from "@emotion/styled";
 import ReactMarkdown from "react-markdown";
 import { getFieldTypeLabel, NodeProperties, PropertyModel } from "@wso2/ballerina-core";
+import { canOfferTypeCreation } from "./typeCreationGate";
 
 const isGraphQLScalarType = (type: string): boolean => {
     const scalarTypes = [
@@ -94,7 +95,7 @@ const isGraphQLScalarType = (type: string): boolean => {
 
 interface ActionTypeEditorProps {
     field: FormField;
-    openRecordEditor: (open: boolean, newType?: string | NodeProperties) => void;
+    openRecordEditor?: (open: boolean, newType?: string | NodeProperties) => void;
     handleOnFieldFocus?: (key: string) => void;
     handleOnTypeChange?: (value?: string) => void;
     handleNewTypeSelected?: (type: string | CompletionItem) => void;
@@ -353,7 +354,7 @@ export function ActionTypeEditor(props: ActionTypeEditorProps) {
     }
 
     const handleDefaultCompletionSelect = (value: string | NodeProperties) => {
-        openRecordEditor(true, value);
+        openRecordEditor?.(true, value);
         handleCancel();
     }
 
@@ -618,7 +619,7 @@ export function ActionTypeEditor(props: ActionTypeEditorProps) {
                                 name={name}
                                 startAdornment={<EditorRibbon onClick={toggleTypeHelperPaneState} />}
                                 completions={types}
-                                showDefaultCompletion={showDefaultCompletion}
+                                showDefaultCompletion={canOfferTypeCreation(showDefaultCompletion, openRecordEditor)}
                                 getDefaultCompletion={() => getDefaultCompletion(value)}
                                 value={value}
                                 ariaLabel={field.label}

@@ -28,7 +28,6 @@ import io.ballerina.compiler.api.symbols.TypeReferenceTypeSymbol;
 import io.ballerina.compiler.api.symbols.TypeSymbol;
 import io.ballerina.compiler.syntax.tree.ArrayTypeDescriptorNode;
 import io.ballerina.compiler.syntax.tree.FunctionDefinitionNode;
-import io.ballerina.compiler.syntax.tree.ImportDeclarationNode;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
 import io.ballerina.compiler.syntax.tree.Node;
 import io.ballerina.compiler.syntax.tree.RecordFieldNode;
@@ -987,31 +986,7 @@ public final class DatabindUtil {
         }
 
         String typeDefinition = generateTypeDefinition(typeName, baseType, dataBindingType, payloadFieldName);
-
-        // Determine insertion point: always after the last existing declaration (member, else the
-        // last import), never above pre-existing imports — a members-empty file can still have
-        // imports (imports() and members() are separate lists), so that alone doesn't mean "empty".
-        LinePosition insertPosition;
-        String typeDefPrefix;
         ModulePartNode modulePartNode = context.modulePartNode();
-
-        if (!modulePartNode.members().isEmpty()) {
-            // Insert at the end of the file
-            Node lastMember = modulePartNode.members().get(modulePartNode.members().size() - 1);
-            insertPosition = lastMember.lineRange().endLine();
-            typeDefPrefix = "\n\n";
-        } else if (!modulePartNode.imports().isEmpty()) {
-            // No type/function members yet, but the file already has imports — anchor after the
-            // last one so the type definition doesn't land above them.
-            ImportDeclarationNode lastImport = modulePartNode.imports().get(modulePartNode.imports().size() - 1);
-            insertPosition = lastImport.lineRange().endLine();
-            typeDefPrefix = "\n\n";
-        } else {
-            // Truly empty — anchor at the module-part start, which skips leading minutiae
-            // (license/doc comments) so the type definition lands below them.
-            insertPosition = modulePartNode.lineRange().startLine();
-            typeDefPrefix = "";
-        }
 
         List<TextEdit> edits = new ArrayList<>();
 
@@ -1021,9 +996,7 @@ public final class DatabindUtil {
             edits.add(new TextEdit(Utils.toRange(modulePartNode.lineRange().startLine()), importsText + "\n"));
         }
 
-        // Add the type definition
-        TextEdit typeEdit = new TextEdit(Utils.toRange(insertPosition), typeDefPrefix + typeDefinition);
-        edits.add(typeEdit);
+        edits.add(Utils.appendAtEndOfModule(modulePartNode, typeDefinition));
 
         // Construct the path to types.bal
         Path typesFilePath = getFilePathForFile(contextFilePath, workspaceManager, TYPES_BAL);

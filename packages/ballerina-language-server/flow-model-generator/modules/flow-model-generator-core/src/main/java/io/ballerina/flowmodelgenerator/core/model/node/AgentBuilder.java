@@ -117,6 +117,7 @@ public class AgentBuilder extends CallBuilder {
         if (context.codedata().org().equals(BALLERINA)) {
             functionKind = FunctionData.Kind.CLASS_INIT;
         }
+        properties().reserveProperty(AgentCallBuilder.ROLE).reserveProperty(AgentCallBuilder.INSTRUCTIONS);
         super.setConcreteTemplateData(context);
         properties().scope(Property.GLOBAL_SCOPE);
 

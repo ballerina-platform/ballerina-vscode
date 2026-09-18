@@ -1,0 +1,104 @@
+{
+  "source": "workflow_function/agent.bal",
+  "description": "A gated tool whose review title names a variable: the reference is written as it stands, not quoted into a literal of the same spelling",
+  "diagram": {
+    "id": "1",
+    "metadata": {
+      "label": "searchClaimDocs",
+      "description": "Register an AI tool the agent can call"
+    },
+    "codedata": {
+      "node": "DURABLE_AGENT_REGISTER_TOOL",
+      "org": "ballerina",
+      "module": "workflow",
+      "object": "DurableAgent",
+      "symbol": "registerAgentTool",
+      "parentSymbol": "claimAgent",
+      "lineRange": {
+        "fileName": "agent.bal",
+        "startLine": {
+          "line": 21,
+          "offset": 0
+        },
+        "endLine": {
+          "line": 21,
+          "offset": 0
+        }
+      },
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "tool": {
+        "metadata": {
+          "label": "Tool"
+        },
+        "valueType": "SINGLE_SELECT",
+        "value": "searchClaimDocs",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "approvalPolicy": {
+        "metadata": {
+          "label": "Approval Policy",
+          "description": "Whether a person approves before this runs"
+        },
+        "valueType": "DROPDOWN_CHOICE",
+        "value": "HumanApproval",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "approvalUserRoles": {
+        "metadata": {
+          "label": "Reviewer Roles"
+        },
+        "valueType": "EXPRESSION",
+        "value": "finance",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false
+      },
+      "approvalTitle": {
+        "metadata": {
+          "label": "Title"
+        },
+        "valueType": "EXPRESSION",
+        "value": "refundTitle",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": true,
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string",
+            "selected": true
+          }
+        ]
+      }
+    },
+    "flags": 0
+  },
+  "output": {
+    "workflow_function/agent.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 20,
+            "character": 5
+          },
+          "end": {
+            "line": 20,
+            "character": 5
+          }
+        },
+        "newText": "\n,\n    tools: [{tool: searchClaimDocs, approvalPolicy: {userRoles: \"finance\", title: refundTitle}}]"
+      }
+    ]
+  }
+}

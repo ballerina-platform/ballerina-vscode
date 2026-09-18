@@ -15,7 +15,7 @@
       "metadata": {
         "label": "Agent",
         "description": "Represents an agent.",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png",
         "data": {
           "agentInfo": {
             "systemPrompt": {
@@ -25,7 +25,7 @@
             "modelProvider": {
               "presentation": {
                 "name": "_salesAgentModel",
-                "path": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png",
+                "path": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png",
                 "type": "Wso2ModelProvider"
               }
             },
@@ -40,7 +40,7 @@
         "packageName": "ai",
         "object": "Agent",
         "symbol": "init",
-        "version": "1.13.0",
+        "version": "1.15.0",
         "lineRange": {
           "fileName": "agent.bal",
           "startLine": {
@@ -68,7 +68,7 @@
               "typeMembers": [
                 {
                   "type": "SystemPrompt",
-                  "packageInfo": "ballerina:ai:1.13.0",
+                  "packageInfo": "ballerina:ai:1.15.0",
                   "packageName": "ai",
                   "kind": "RECORD_TYPE",
                   "selected": true
@@ -135,7 +135,7 @@
                     "typeMembers": [
                       {
                         "type": "ToolConfig",
-                        "packageInfo": "ballerina:ai:1.13.0",
+                        "packageInfo": "ballerina:ai:1.15.0",
                         "packageName": "ai",
                         "kind": "RECORD_TYPE",
                         "selected": false
@@ -340,7 +340,7 @@
               "typeMembers": [
                 {
                   "type": "Credential",
-                  "packageInfo": "ballerina:ai:1.13.0",
+                  "packageInfo": "ballerina:ai:1.15.0",
                   "packageName": "ai",
                   "kind": "RECORD_TYPE",
                   "selected": false

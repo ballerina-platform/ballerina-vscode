@@ -147,4 +147,89 @@ describe("applyFormValuesToModel", () => {
         expect(timeoutProperty.value).toBe("30s");
         expect(timeoutProperty.values).toBeUndefined();
     });
+
+    it("escapes a hyphenated basePath supplied as a top-level field (e.g. an MCP service)", () => {
+        const basePathProperty: any = {
+            value: undefined,
+            enabled: true,
+            editable: true,
+            optional: false,
+            types: [{ fieldType: "SERVICE_PATH", selected: true }],
+        };
+
+        const model = {
+            properties: { basePath: basePathProperty },
+        } as unknown as ServiceInitModel;
+
+        const basePathField: FormField = {
+            key: "basePath",
+            label: "Base Path",
+            type: "SERVICE_PATH",
+            optional: false,
+            editable: true,
+            documentation: "",
+            value: undefined,
+            types: [{ fieldType: "SERVICE_PATH", selected: true } as any],
+            enabled: true,
+        };
+
+        applyFormValuesToModel([basePathField], model, { basePath: "/mcp-foo" }, {});
+
+        expect(basePathProperty.value).toBe("/mcp\\-foo");
+    });
+
+    it("still escapes a hyphenated basePath nested inside a CHOICE field (e.g. an HTTP service)", () => {
+        const basePathProperty: any = {
+            value: undefined,
+            enabled: true,
+            editable: true,
+            optional: false,
+            types: [{ fieldType: "TEXT", selected: true }],
+        };
+
+        const choiceField: FormField = {
+            key: "listenerConfig",
+            label: "Listener protocol",
+            type: "CHOICE",
+            optional: false,
+            editable: true,
+            documentation: "",
+            value: undefined,
+            enabled: true,
+            choices: [
+                {
+                    enabled: false,
+                    properties: { basePath: basePathProperty },
+                } as any,
+            ],
+        } as unknown as FormField;
+
+        const model = { properties: {} } as unknown as ServiceInitModel;
+
+        applyFormValuesToModel([choiceField], model, { listenerConfig: 0, basePath: "/api-v1" }, {});
+
+        expect(basePathProperty.value).toBe("/api\\-v1");
+    });
+
+    it("leaves other top-level fields unescaped", () => {
+        const model = {
+            properties: { serviceName: { value: undefined } },
+        } as unknown as ServiceInitModel;
+
+        const serviceNameField: FormField = {
+            key: "serviceName",
+            label: "Service Name",
+            type: "TEXT",
+            optional: false,
+            editable: true,
+            documentation: "",
+            value: undefined,
+            types: [{ fieldType: "TEXT", selected: true } as any],
+            enabled: true,
+        };
+
+        applyFormValuesToModel([serviceNameField], model, { serviceName: "my-service" }, {});
+
+        expect(model.properties.serviceName.value).toBe("my-service");
+    });
 });
