@@ -34,6 +34,7 @@ import java.util.Map;
  * @param listenerVarName the listener the service attaches to
  * @param agentVarName    the agent variable the trigger is wired to
  * @param agentOrgName    the agent's publishing org, deciding {@code .run} vs {@code ->run}
+ * @param agentKind       {@code "durable"} for a {@code workflow:DurableAgent}, else {@code null}
  * @param formValues      the filled creation form, flattened to leaf key -> value
  * @param initForm        the filled creation form itself
  * @param triggerModel    the connector's schema
@@ -64,6 +65,7 @@ public record AgentTriggerContext(String emitAlias, String listenerVarName, Stri
                 }
 
                 function instanceFor(string sessionKey) returns string|error {
+                    // Serializes every session's first turn; a slow `run` here delays other sessions too.
                     lock {
                         string? existing = self.durableSessions[sessionKey];
                         if existing is string {

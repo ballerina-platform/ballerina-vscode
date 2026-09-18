@@ -326,7 +326,7 @@ public class ConnectionFinder {
     // An agent's tools list: functions by name, MCP toolkits by their variable, class field or server URL.
     private void recordToolListEntries(Connection connection, ListConstructorExpressionNode list) {
         for (Node expr : list.expressions()) {
-            if (isMcpToolKit(expr)) {
+            if (isMcpToolKit(this.semanticModel, expr)) {
                 connection.addMcpToolKit(mcpToolKitLabel(expr));
                 continue;
             }
@@ -337,8 +337,8 @@ public class ConnectionFinder {
         }
     }
 
-    private boolean isMcpToolKit(Node expr) {
-        return this.semanticModel.typeOf(expr).map(CommonUtils::isAiMcpToolKit).orElse(false);
+    static boolean isMcpToolKit(SemanticModel semanticModel, Node expr) {
+        return semanticModel.typeOf(expr).map(CommonUtils::isAiMcpToolKit).orElse(false);
     }
 
     // A named toolkit reads by its variable or class field; an inline `new ai:McpToolKit("url")` by its server URL.

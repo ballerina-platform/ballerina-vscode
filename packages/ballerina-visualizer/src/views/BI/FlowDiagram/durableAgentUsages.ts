@@ -48,10 +48,11 @@ export function sameUsages(a: AgentUsage[] | undefined, b: AgentUsage[]): boolea
 }
 
 export function withDurableUsages(flow: Flow, usages: AgentUsage[], animate = true): Flow {
+    const box = findDurableAgentBox(flow);
     return {
         ...flow,
         nodes: flow.nodes.map((node): FlowNode =>
-            node === findDurableAgentBox(flow)
+            node === box
                 ? { ...node, metadata: { ...node.metadata, data: { ...boxData(node), usages, animateUsages: animate } as FlowNode["metadata"]["data"] } }
                 : node
         ),
@@ -113,7 +114,13 @@ export function useDurableAgentUsages(enabled: boolean, flow: Flow | undefined, 
         timerRef.current = setTimeout(async () => {
             try {
                 const response = await rpcClient.getBIDiagramRpcClient().getDesignModel({ projectPath });
-                if (requestId !== requestIdRef.current || !response?.designModel) {
+                if (requestId !== requestIdRef.current) {
+                    return;
+                }
+                if (!response?.designModel) {
+                    if (shown === undefined) {
+                        show([]);
+                    }
                     return;
                 }
                 const usages = findDurableAgentUsages(response.designModel, durableAgentRefOf(flow, box));

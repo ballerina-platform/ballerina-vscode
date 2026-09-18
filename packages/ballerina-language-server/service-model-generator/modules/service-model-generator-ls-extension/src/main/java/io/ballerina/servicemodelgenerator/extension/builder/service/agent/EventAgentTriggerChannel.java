@@ -265,7 +265,7 @@ public class EventAgentTriggerChannel implements AgentTriggerChannel {
         String promptExpression = AgentPromptBuilder.promptExpression(context.formValue(INSTRUCTIONS),
                 DEFAULT_INSTRUCTIONS, SOLE_PAYLOAD_LABEL, parameters);
         String resultLog = context.isDurable() ? INSTANCE_LOG : RESULT_LOG;
-        return AgentTriggerChannel.indent(REPLY_METHOD.replace("{{resultLog}}", AgentTriggerChannel.indent(resultLog)))
+        return AgentTriggerChannel.indent(REPLY_METHOD.replace("{{resultLog}}", resultLog))
                 .replace("{{method}}", methodName)
                 .replace("{{params}}", parameters.stream()
                         .map(parameter -> parameter.type() + SPACE + parameter.name())

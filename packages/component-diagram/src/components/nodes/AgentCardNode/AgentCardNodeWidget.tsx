@@ -662,7 +662,6 @@ export function AgentCardNodeWidget(props: AgentCardNodeWidgetProps) {
     return (
         <Card
             hovered={hovered}
-            orphan={node.orphan}
             receded={focus !== undefined && !focus.nodes.has(model.getID())}
             readonly={readonly}
             railless={isWorkflow}

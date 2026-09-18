@@ -348,30 +348,9 @@ export namespace NodeStyles {
         border-radius: 5px;
     `;
 
-    export type AffordanceAnchorName =
-        | "leftMiddleUpper"
-        | "leftMiddleLower"
-        | "rightMiddleUpper"
-        | "rightMiddleLower"
-        | "bottomLeftOuter"
-        | "bottomLeftInner"
-        | "bottomRightOuter"
-        | "bottomRightInner"
-        | "topRight";
+    export type AffordanceAnchorName = "topRight";
 
-    // The capability affordances sit in vertically stacked pairs at the box's left and
-    // right middles (people-facing capabilities left, execution capabilities right), so
-    // they are all visible at a glance; the model configuration stays top-right. A side
-    // with no capabilities yet parks its pair at the bottom corner instead.
     const anchorPosition: Record<AffordanceAnchorName, string> = {
-        leftMiddleUpper: "top: calc(50% - 32px); left: -14px;",
-        leftMiddleLower: "top: calc(50% + 4px); left: -14px;",
-        rightMiddleUpper: "top: calc(50% - 32px); right: -14px;",
-        rightMiddleLower: "top: calc(50% + 4px); right: -14px;",
-        bottomLeftOuter: "bottom: -14px; left: -14px;",
-        bottomLeftInner: "bottom: -14px; left: 22px;",
-        bottomRightOuter: "bottom: -14px; right: -14px;",
-        bottomRightInner: "bottom: -14px; right: 22px;",
         topRight: "top: -14px; right: -14px;",
     };
 

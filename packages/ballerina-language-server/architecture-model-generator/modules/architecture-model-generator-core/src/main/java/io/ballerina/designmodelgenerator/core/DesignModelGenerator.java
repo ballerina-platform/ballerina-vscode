@@ -68,7 +68,6 @@ import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -432,7 +431,8 @@ public class DesignModelGenerator {
     }
 
     private void populateModuleLevelWorkflows(IntermediateModel intermediateModel) {
-        Map<Workflow, LineRange> durableAgents = new LinkedHashMap<>();
+        // A list, not a map: capability population below mutates fields that Workflow's hashCode is derived from.
+        List<Map.Entry<Workflow, LineRange>> durableAgents = new ArrayList<>();
         for (Symbol symbol : this.semanticModel.moduleSymbols()) {
             if (symbol.getName().isEmpty() || symbol.getLocation().isEmpty()) {
                 continue;
@@ -457,12 +457,13 @@ public class DesignModelGenerator {
                 String sortText = lineRange.fileName() + lineRange.startLine().line();
                 Workflow agent = new Workflow(symbol.getName().get(), sortText, getLocation(lineRange),
                         Workflow.KIND_DURABLE_AGENT);
-                durableAgents.put(agent, lineRange);
+                durableAgents.add(Map.entry(agent, lineRange));
                 intermediateModel.workflowMap.put(symbol.getName().get(), agent);
                 intermediateModel.uuidToWorkflowMap.put(agent.getUuid(), agent);
             }
         }
-        durableAgents.forEach((agent, range) -> populateAgentDeclaredCapabilities(intermediateModel, agent, range));
+        durableAgents.forEach(entry ->
+                populateAgentDeclaredCapabilities(intermediateModel, entry.getKey(), entry.getValue()));
     }
 
     /**
@@ -592,7 +593,7 @@ public class DesignModelGenerator {
             return;
         }
         for (Node item : list.expressions()) {
-            if (isMcpToolKit(item)) {
+            if (ConnectionFinder.isMcpToolKit(this.semanticModel, item)) {
                 agent.addMcpToolKit(ConnectionFinder.mcpToolKitLabel(item));
                 continue;
             }
@@ -602,10 +603,6 @@ public class DesignModelGenerator {
                 agent.addTool(toolName);
             }
         }
-    }
-
-    private boolean isMcpToolKit(Node expr) {
-        return this.semanticModel.typeOf(expr).map(CommonUtils::isAiMcpToolKit).orElse(false);
     }
 
     private void populateAgentPeers(IntermediateModel intermediateModel, Workflow agent, ExpressionNode peers) {
