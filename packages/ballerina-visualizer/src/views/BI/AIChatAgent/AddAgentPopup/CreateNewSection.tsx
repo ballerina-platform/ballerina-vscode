@@ -54,20 +54,6 @@ function OptionCard({ icon, title, description, onClick }: OptionCardProps) {
     );
 }
 
-const agentIcon = <Icon name="bi-ai-agent" sx={{ fontSize: 24, width: 24, height: 24, color: getNodeChartColor("AGENT") }} />;
-
-const durableAgentIcon = (
-    <>
-        <Icon
-            name="bi-ai-agent"
-            sx={{ fontSize: 24, width: 24, height: 24, color: getNodeChartColor("DURABLE_AGENT_RUN"), display: "flex", alignItems: "center", justifyContent: "center" }}
-        />
-        <AgentOptionIconBadge>
-            <Icon name="bi-flowchart" sx={{ width: 11, height: 11, fontSize: 11, display: "flex", alignItems: "center", justifyContent: "center" }} />
-        </AgentOptionIconBadge>
-    </>
-);
-
 const definitionIcon = (
     <Icon
         isCodicon={true}
@@ -87,6 +73,20 @@ export interface CreateNewSectionProps {
 
 export function CreateNewSection(props: CreateNewSectionProps) {
     const { dependencyMode, onCreateAgent, onCreateDurableAgent, onCreateDefinition, onGenericAgent } = props;
+
+    const agentIcon = <Icon name="bi-ai-agent" sx={{ fontSize: 24, width: 24, height: 24, color: getNodeChartColor("AGENT") }} />;
+
+    const durableAgentIcon = (
+        <>
+            <Icon
+                name="bi-ai-agent"
+                sx={{ fontSize: 24, width: 24, height: 24, color: getNodeChartColor("DURABLE_AGENT_RUN"), display: "flex", alignItems: "center", justifyContent: "center" }}
+            />
+            <AgentOptionIconBadge>
+                <Icon name="bi-flowchart" sx={{ width: 11, height: 11, fontSize: 11, display: "flex", alignItems: "center", justifyContent: "center" }} />
+            </AgentOptionIconBadge>
+        </>
+    );
 
     if (dependencyMode) {
         return (
@@ -117,7 +117,7 @@ export function CreateNewSection(props: CreateNewSectionProps) {
                         <OptionCard
                             icon={durableAgentIcon}
                             title="Create Durable Agent"
-                            description="Runs as a workflow. Can wait days for a person or an event and resumes after a restart."
+                            description="Runs as a workflow. Can wait days for a person or an event and resume after a restart."
                             onClick={onCreateDurableAgent}
                         />
                     )}

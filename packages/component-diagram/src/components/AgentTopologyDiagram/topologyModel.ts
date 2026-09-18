@@ -204,11 +204,12 @@ function isDurableWorkflow(workflow: CDWorkflow): boolean {
 }
 
 function findDurableWorkflow(workflows: CDWorkflow[], artifact: TopologyAgentArtifact): CDWorkflow | undefined {
-    const byLocation = workflows.find(
+    const durableWorkflows = workflows.filter(isDurableWorkflow);
+    const byLocation = durableWorkflows.find(
         (workflow) =>
             samePath(workflow.location?.filePath ?? "", artifact.path) && workflow.location?.startLine?.line === artifact.startLine
     );
-    return byLocation ?? workflows.find((workflow) => workflow.symbol === artifact.name);
+    return byLocation ?? durableWorkflows.find((workflow) => workflow.symbol === artifact.name);
 }
 
 function durableToolFacts(workflow: CDWorkflow | undefined): ToolFacts {

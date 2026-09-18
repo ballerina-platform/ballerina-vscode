@@ -228,6 +228,7 @@ export function AgentBuilderOverview({ projectPath }: AgentBuilderOverviewProps)
     const [deployAnchor, setDeployAnchor] = useState<HTMLElement | null>(null);
     const [canvasReady, setCanvasReady] = useState(false);
     // Only true once the empty state has actually been on screen, so opening a
+    // package that already has agents never mounts it — it just fades out once shown.
     const [emptyMounted, setEmptyMounted] = useState(false);
     const compactHeader = useCompactHeader();
     const { isTracingEnabled, toggleTracing } = useTracingStatus(rpcClient, projectPath);

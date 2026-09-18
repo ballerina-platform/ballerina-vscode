@@ -3979,12 +3979,6 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         }
     };
 
-    // Opens the agent's configuration form from the gear button in the agent box header.
-    const handleOnConfigureAgentIdentifier = async (node: FlowNode) => {
-        // The gear edits the declaration (role/instructions/model) through the box's node form.
-        return handleOnEditNode(node);
-    };
-
     const handleOnEditDurableAgentModel = (agentCallNode: FlowNode) => {
         const superseded = beginPanelNav();
         selectedNodeRef.current = agentCallNode;
@@ -4221,7 +4215,6 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 onAddEventTrigger: agentOnlyView ? (node: FlowNode, event: ToolData) => startAddDurableEventTrigger(node, event, rpcClient) : undefined,
                 onEditCapability: handleOnEditDurableCapability,
                 onDeleteCapability: handleOnDeleteDurableCapability,
-                onConfigureAgent: handleOnConfigureAgentIdentifier,
                 // Outside the declaration canvas the durable agent box is a read-only
                 // reference; clicks navigate to the agent's own model.
                 durableAgentReference: !agentOnlyView,

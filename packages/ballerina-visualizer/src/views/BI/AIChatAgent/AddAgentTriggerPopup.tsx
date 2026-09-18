@@ -45,7 +45,7 @@ const subtitleFor = (agentName: string, channel: CentralChannel | null, agentEve
     if (agentEvent) {
         return channel
             ? `Configure the endpoint that will deliver ${agentEvent.name} data to a running ${agentName} instance`
-            : `Deliver ${agentEvent.name} data to a ${agentName} instance that is already running.`;
+            : `Deliver ${agentEvent.name} data to a ${agentName} instance that is already running`;
     }
     return channel
         ? `Configure the trigger that will call ${agentName}`

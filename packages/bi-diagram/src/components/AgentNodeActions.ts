@@ -41,7 +41,6 @@ export interface AgentNodeActions {
     onAddEvent?: (node: FlowNode) => void;
     onEditCapability?: (node: FlowNode, capability: any) => void;
     onDeleteCapability?: (node: FlowNode, capability: any) => void;
-    onConfigureAgent?: (node: FlowNode) => void;
     // Durable agentic workflow box: when true the box is a read-only reference (a run()
     // call site) — capability editing is disabled and clicks navigate to the agent's
     // own model via onGoToAgent. The declaration canvas leaves this unset.
