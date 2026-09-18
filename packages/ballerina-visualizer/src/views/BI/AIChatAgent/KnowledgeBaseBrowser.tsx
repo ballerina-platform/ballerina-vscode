@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import styled from "@emotion/styled";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Category as PanelCategory, Node as PanelNode } from "@wso2/ballerina-side-panel";
@@ -24,12 +24,15 @@ import { AvailableNode, Category, CodeData, LinePosition } from "@wso2/ballerina
 import { convertBICategoriesToSidePanelCategories, convertKnowledgeBaseCategoriesToSidePanelCategories } from "../../../utils/bi";
 import { RelativeLoader } from "../../../components/RelativeLoader";
 import { ActionSelection, ConnectorActionList, ConnectorList, WizardStep } from "../Connection/ConnectorBrowser";
+import { AI_COMPONENT_PROGRESS_MESSAGE, AI_COMPONENT_PROGRESS_MESSAGE_TIMEOUT, LOADING_MESSAGE } from "../../../constants";
 
 const LoaderWrapper = styled.div`
     display: flex;
     align-items: center;
     justify-content: center;
     height: calc(100vh - 140px);
+    padding: 16px;
+    text-align: center;
 `;
 
 interface KnowledgeBaseBrowserProps {
@@ -47,15 +50,23 @@ export function KnowledgeBaseBrowser(props: KnowledgeBaseBrowserProps) {
     const [instanceCategories, setInstanceCategories] = useState<PanelCategory[]>([]);
     const [typeCategories, setTypeCategories] = useState<PanelCategory[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
+    const [progressMessage, setProgressMessage] = useState<string>(LOADING_MESSAGE);
     const [searchText, setSearchText] = useState<string>("");
 
     const [selectedKnowledgeBase, setSelectedKnowledgeBase] = useState<AvailableNode>();
     const [selectedInstanceName, setSelectedInstanceName] = useState<string>();
     const [actions, setActions] = useState<AvailableNode[]>([]);
     const [loadingActions, setLoadingActions] = useState<boolean>(false);
+    const progressTimeoutRef = useRef<number | null>(null);
 
     useEffect(() => {
         void loadKnowledgeBases();
+        return () => {
+            if (progressTimeoutRef.current) {
+                clearTimeout(progressTimeoutRef.current);
+                progressTimeoutRef.current = null;
+            }
+        };
     }, []);
 
     const goToList = () => {
@@ -74,6 +85,10 @@ export function KnowledgeBaseBrowser(props: KnowledgeBaseBrowserProps) {
     }, [step]);
 
     const loadKnowledgeBases = async () => {
+        progressTimeoutRef.current = setTimeout(() => {
+            setProgressMessage(AI_COMPONENT_PROGRESS_MESSAGE);
+            progressTimeoutRef.current = null;
+        }, AI_COMPONENT_PROGRESS_MESSAGE_TIMEOUT);
         try {
             const [instancesResponse, typesResponse] = await Promise.all([
                 rpcClient.getBIDiagramRpcClient().getAvailableVectorKnowledgeBases({
@@ -152,7 +167,7 @@ export function KnowledgeBaseBrowser(props: KnowledgeBaseBrowserProps) {
     if (loading) {
         return (
             <LoaderWrapper>
-                <RelativeLoader />
+                <RelativeLoader message={progressMessage} />
             </LoaderWrapper>
         );
     }
