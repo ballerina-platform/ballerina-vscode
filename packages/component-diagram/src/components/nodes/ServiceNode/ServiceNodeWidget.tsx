@@ -37,10 +37,7 @@ import { EntrySelection, TopologyEntryNode, TopologyHandler } from "../../AgentT
 import { useOpenableNode } from "../../AgentTopologyDiagram/useOpenableNode";
 import { rowPortOffset } from "../../AgentTopologyDiagram/topologyLayout";
 import { TriggerGlyph } from "../../AgentTopologyDiagram/TriggerGlyph";
-import { colors as methodColors } from "../EntryNode/components/styles";
-
-const DEFAULT_METHOD_COLOR = "#876036";
-const methodColor = (accessor: string) => methodColors[accessor?.toUpperCase() as keyof typeof methodColors] ?? DEFAULT_METHOD_COLOR;
+import { methodColor } from "../EntryNode/components/styles";
 
 const Card = styled.div<{ receded: boolean }>`
     width: ${ENTRY_CARD_WIDTH}px;

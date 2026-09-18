@@ -23,10 +23,7 @@ import { NodeIcon } from "@wso2/bi-diagram";
 import { TriggerGlyph } from "./TriggerGlyph";
 import { buildFindFacets, buildFindRows, FindFacet, FindRow } from "./findRows";
 import { TopologyGraph } from "./types";
-import { colors as methodColors } from "../nodes/EntryNode/components/styles";
-
-const DEFAULT_METHOD_COLOR = "#876036";
-const methodColor = (accessor: string) => methodColors[accessor.toUpperCase() as keyof typeof methodColors] ?? DEFAULT_METHOD_COLOR;
+import { methodColor } from "../nodes/EntryNode/components/styles";
 
 const Panel = styled.div`
     display: flex;
