@@ -431,6 +431,7 @@ function createTracerMachine(projectPath?: string, childProjectPaths?: string[])
                                     target: "serverStopping",
                                     cond: (context, event) =>
                                         resolveProvider(event) === 'amp'
+                                        && !!(event as any)?.projectPath
                                         && getActiveTracingProvider((event as any).projectPath) !== 'amp'
                                         && !hasOtherIdeTracingProjects(context, event),
                                     actions: [
