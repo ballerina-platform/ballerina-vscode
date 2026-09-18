@@ -129,9 +129,10 @@ public class IntermediateModel {
         }
 
         // Belt-and-suspenders against a node being visited twice (see the FunctionBodyBlockNode
-        // traversal note in CodeAnalyzer): a duplicate call at the same source line is dropped.
+        // traversal note in CodeAnalyzer): a duplicate call to the same connection on the same line is dropped.
         protected void addAgentCall(AgentCall agentCall) {
-            boolean alreadyRecorded = agentCalls.stream().anyMatch(existing -> existing.line() == agentCall.line());
+            boolean alreadyRecorded = agentCalls.stream().anyMatch(existing -> existing.line() == agentCall.line()
+                    && existing.connection().equals(agentCall.connection()));
             if (!alreadyRecorded) {
                 agentCalls.add(agentCall);
             }
