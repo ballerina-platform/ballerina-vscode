@@ -362,6 +362,7 @@ export function IntegrationTypeStep({ triggers, selection, onSelect, compact = f
                                 active={selection?.id === card.id}
                                 truncate={true}
                                 onClick={() => onSelect(card)}
+                                tooltip={card.tooltip}
                             />
                         ))}
                     </CardGrid>

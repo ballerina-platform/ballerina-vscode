@@ -112,7 +112,7 @@ export function AIAgentPanel(props: AIAgentPanelProps) {
                         title={AI_CHAT_AGENT_CARD.displayName}
                         onClick={handleClick}
                         disabled={isDisabled}
-                        tooltip={isDisabled ? OutOfScopeComponentTooltip : ""}
+                        tooltip={isDisabled ? OutOfScopeComponentTooltip : AI_CHAT_AGENT_CARD.tooltip}
                     />
                 )}
                 {durableAgentMatches && (
@@ -133,7 +133,7 @@ export function AIAgentPanel(props: AIAgentPanelProps) {
                         icon={getEntryNodeIcon(item)}
                         onClick={() => handleMcpClick(DIRECTORY_MAP.SERVICE, item)}
                         disabled={isDisabled}
-                        tooltip={isDisabled ? OutOfScopeComponentTooltip : ""}
+                        tooltip={isDisabled ? OutOfScopeComponentTooltip : (item.documentation || `An MCP tool provider service using the ${item.name} module.`)}
                         isBeta={isBetaModule(item.moduleName)}
                     />
                 ))}

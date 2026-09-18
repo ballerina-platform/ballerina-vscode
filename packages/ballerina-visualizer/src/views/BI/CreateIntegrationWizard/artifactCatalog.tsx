@@ -93,6 +93,7 @@ function triggerToCard(item: ServiceModel, type: DynamicTriggerType): ArtifactCa
             displayName: item.name,
             icon: getFileIntegrationIcon(item),
             artifactInfo,
+            tooltip: item.documentation || `A service triggered by the availability of files via ${item.name}.`,
         };
     }
 
@@ -103,6 +104,11 @@ function triggerToCard(item: ServiceModel, type: DynamicTriggerType): ArtifactCa
         icon: getEntryNodeIcon(item),
         isBeta: isBetaModule(item.moduleName),
         artifactInfo,
+        tooltip:
+            item.documentation ||
+            (type === "mcp"
+                ? `An MCP tool provider service using the ${item.name} module.`
+                : `A service triggered by ${item.name} events.`),
     };
 }
 
