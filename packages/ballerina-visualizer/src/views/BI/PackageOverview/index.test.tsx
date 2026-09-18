@@ -29,6 +29,7 @@
 import React from "react";
 import { createRoot, Root } from "react-dom/client";
 import { act } from "react-dom/test-utils";
+import type { TraceStatus } from "@wso2/ballerina-core";
 
 // The core barrel pulls in ESM-only LS transport modules that jest cannot load. Only the
 // enum-like values this view reads are needed; DIRECTORY_MAP keys must match the real ones
@@ -180,6 +181,10 @@ function makeRpc(directoryMap: Record<string, unknown[]>) {
         getICPRpcClient: () => ({ isIcpEnabled: async () => ({ enabled: false }) }),
         getWorkflowManagementRpcClient: () => ({ isWorkflowManagementEnabled: async () => ({ enabled: false }) }),
         getAiPanelRpcClient: () => ({ showSignInAlert: async () => false }),
+        getAgentChatRpcClient: () => ({
+            getTracingStatus: async (): Promise<TraceStatus> => ({ enabled: false, provider: undefined }),
+            onTracingStatusChanged: jest.fn(),
+        }),
         onProjectContentUpdated: jest.fn(() => (): void => undefined),
     };
     return { rpcClient, openView };

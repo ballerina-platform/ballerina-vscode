@@ -20,7 +20,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import styled from "@emotion/styled";
 import {
     BI_COMMANDS,
-    BuildMode,
     DIRECTORY_MAP,
     EVENT_TYPE,
     FOCUS_FLOW_DIAGRAM_VIEW,
@@ -30,11 +29,12 @@ import {
     isSamePath,
 } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { Button, Codicon, Icon, Menu, MenuItem, Popover, ProgressRing, ThemeColors } from "@wso2/ui-toolkit";
+import { Button, Codicon, Icon, ProgressRing, ThemeColors } from "@wso2/ui-toolkit";
 import { PageHeader } from "../components/PageHeader";
 import { TopNavigationBar } from "../../../components/TopNavigationBar";
-import { usePlatformExtContext } from "../../../providers/platform-ext-ctx-provider";
-import { getIntegrationTypes, validateComponentName, useProjectContentRefresh } from "../PackageOverview/utils";
+import { DeploymentPanel, SidePanel } from "../../../components/DeploymentControl";
+import { useDeploymentControl } from "../../../hooks/useDeploymentControl";
+import { getIntegrationTypes, hasWorkflowArtifacts, validateComponentName, useProjectContentRefresh } from "../PackageOverview/utils";
 import { useTracingStatus } from "../../../hooks/useProductMode";
 import { AgentTabs, agentKey } from "./AgentTabs";
 import { EmptyState } from "./EmptyState";
@@ -148,22 +148,6 @@ function useCompactHeader() {
     return compact;
 }
 
-const MenuItemLabel = styled.div`
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 2px 4px;
-    min-width: 180px;
-`;
-
-function menuLabel(icon: string, text: string) {
-    return (
-        <MenuItemLabel>
-            <Codicon name={icon} /> {text}
-        </MenuItemLabel>
-    );
-}
-
 export interface AgentFocusRequest {
     path: string;
     startLine: number;
@@ -172,27 +156,48 @@ export interface AgentFocusRequest {
 
 const rememberedKeys = new Map<string, string>();
 
+const DEPLOY_PANEL_COLLAPSED_KEY = "ballerina.agentBuilderOverview.deployPanelCollapsed";
+
+// Unlike the integrator overview, the drawer starts collapsed here until the user opens it once.
+// Storage may be unavailable/quota-restricted in the webview — fall back to that same default.
+function loadDeployCollapsed(): boolean {
+    try {
+        return localStorage.getItem(DEPLOY_PANEL_COLLAPSED_KEY) !== "false";
+    } catch {
+        return true;
+    }
+}
+
+function storeDeployCollapsed(collapsed: boolean): void {
+    try {
+        localStorage.setItem(DEPLOY_PANEL_COLLAPSED_KEY, String(collapsed));
+    } catch {
+        return;
+    }
+}
+
 interface AgentBuilderOverviewProps {
     projectPath: string;
     agentFocus?: AgentFocusRequest;
+    isInDevant: boolean;
+    isICPSupported?: boolean;
 }
 
-export function AgentBuilderOverview({ projectPath, agentFocus }: AgentBuilderOverviewProps) {
+export function AgentBuilderOverview({ projectPath, agentFocus, isInDevant, isICPSupported }: AgentBuilderOverviewProps) {
     const { rpcClient } = useRpcContext();
-    const { platformExtState } = usePlatformExtContext();
     const [projectStructure, setProjectStructure] = useState<ProjectStructure>();
+    const [deployCollapsed, setDeployCollapsed] = useState<boolean>(loadDeployCollapsed);
     const [isInProject, setIsInProject] = useState(false);
     const [selectedKey, setSelectedKeyState] = useState<string | undefined>(() => rememberedKeys.get(projectPath));
     const pendingRenameRef = useRef<{ artifact: ProjectStructureArtifactResponse; agentsAtStash: ProjectStructureArtifactResponse[] }>();
     const [showAddAgent, setShowAddAgent] = useState(false);
     const [showAddLibraryArtifact, setShowAddLibraryArtifact] = useState(false);
-    const [deployAnchor, setDeployAnchor] = useState<HTMLElement | null>(null);
     const [canvasReady, setCanvasReady] = useState(false);
     // Only true once the empty state has actually been on screen, so opening a
     // project that already has an agent never flashes it.
     const [emptyMounted, setEmptyMounted] = useState(false);
     const compactHeader = useCompactHeader();
-    const { isTracingEnabled, toggleTracing } = useTracingStatus(rpcClient, projectPath);
+    const { isTracingEnabled, toggleTracing, ampTracingEnabled, setAmpTracingEnabled } = useTracingStatus(rpcClient, projectPath);
     const revealTimerRef = useRef<ReturnType<typeof setTimeout>>();
     const sawEmptyRef = useRef(false);
 
@@ -219,6 +224,7 @@ export function AgentBuilderOverview({ projectPath, agentFocus }: AgentBuilderOv
         () => projectStructure?.directoryMap?.[DIRECTORY_MAP.AGENT] ?? [],
         [projectStructure]
     );
+    const hasAgents = agents.length > 0;
 
     const setSelectedKey = useCallback((key: string) => {
         rememberedKeys.set(projectPath, key);
@@ -313,6 +319,13 @@ export function AgentBuilderOverview({ projectPath, agentFocus }: AgentBuilderOv
     const integrationTitle = projectStructure?.projectTitle || projectStructure?.projectName;
     const deployableIntegrationTypes = useMemo(() => getIntegrationTypes(projectStructure), [projectStructure]);
     const hasDeployable = deployableIntegrationTypes.length > 0;
+    const hasWorkflows = hasWorkflowArtifacts(projectStructure);
+    const deploymentControl = useDeploymentControl(rpcClient, projectPath, {
+        isICPSupported,
+        deployableIntegrationTypes,
+        ampTracingEnabled,
+        setAmpTracingEnabled,
+    });
 
     const validateTitle = useCallback((value: string): string => {
         return validateComponentName(value.trim(), isLibrary) ?? "";
@@ -337,37 +350,12 @@ export function AgentBuilderOverview({ projectPath, agentFocus }: AgentBuilderOv
         rpcClient.getCommonRpcClient().executeCommand({ commands: [BI_COMMANDS.BI_RUN_PROJECT] });
     };
 
-    const deployMenuItems = useMemo(() => {
-        const items = [
-            {
-                id: "docker",
-                label: menuLabel("package", "Build Docker Image"),
-                disabled: !hasDeployable,
-                onClick: () => {
-                    rpcClient.getBIDiagramRpcClient().buildProject(BuildMode.DOCKER);
-                },
-            },
-            {
-                id: "vm",
-                label: menuLabel("server", "Build Executable"),
-                disabled: !hasDeployable,
-                onClick: () => {
-                    rpcClient.getBIDiagramRpcClient().buildProject(BuildMode.JAR);
-                },
-            },
-        ];
-        if (platformExtState.isExtInstalled) {
-            items.unshift({
-                id: "cloud",
-                label: menuLabel("cloud-upload", "Deploy to WSO2 Cloud"),
-                disabled: !hasDeployable,
-                onClick: () => {
-                    rpcClient.getBIDiagramRpcClient().deployProject({ integrationTypes: deployableIntegrationTypes });
-                },
-            });
-        }
-        return items;
-    }, [platformExtState.isExtInstalled, hasDeployable, deployableIntegrationTypes, rpcClient]);
+    const handleToggleDeployPanel = () => {
+        setDeployCollapsed((collapsed) => {
+            storeDeployCollapsed(!collapsed);
+            return !collapsed;
+        });
+    };
 
     const headerActions = (
         <>
@@ -413,35 +401,18 @@ export function AgentBuilderOverview({ projectPath, agentFocus }: AgentBuilderOv
                     </Button>
                     <Button
                         appearance="icon"
-                        onClick={(e: React.MouseEvent<HTMLElement | SVGSVGElement>) =>
-                            setDeployAnchor(e.currentTarget as HTMLElement)
-                        }
-                        tooltip={compactHeader ? "Deploy" : undefined}
+                        onClick={handleToggleDeployPanel}
+                        tooltip={deployCollapsed ? "Show deployment panel" : "Hide deployment panel"}
+                        aria-label={deployCollapsed ? "Show deployment panel" : "Hide deployment panel"}
+                        aria-expanded={!deployCollapsed}
                         buttonSx={{ padding: "4px 8px" }}
                     >
-                        <Codicon name="cloud-upload" sx={{ marginRight: compactHeader ? 0 : 5 }} />
-                        {!compactHeader && " Deploy"}
-                        <Codicon name="chevron-down" sx={{ marginLeft: 4, fontSize: 12 }} />
+                        <Codicon
+                            name={deployCollapsed ? "layout-sidebar-right-off" : "layout-sidebar-right"}
+                            sx={{ marginRight: compactHeader ? 0 : 5 }}
+                        />
+                        {!compactHeader && "Deployment"}
                     </Button>
-                    <Popover
-                        open={Boolean(deployAnchor)}
-                        anchorEl={deployAnchor}
-                        handleClose={() => setDeployAnchor(null)}
-                        sx={{ padding: 0, borderRadius: 4 }}
-                        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-                        transformOrigin={{ vertical: "top", horizontal: "right" }}
-                    >
-                        <Menu>
-                            {deployMenuItems.map((item) => (
-                                <MenuItem
-                                    key={item.id}
-                                    item={item.disabled ? { ...item, onClick: () => undefined } : item}
-                                    sx={item.disabled ? { opacity: 0.5 } : undefined}
-                                    onClick={() => setDeployAnchor(null)}
-                                />
-                            ))}
-                        </Menu>
-                    </Popover>
                 </>
             )}
         </>
@@ -519,6 +490,20 @@ export function AgentBuilderOverview({ projectPath, agentFocus }: AgentBuilderOv
                             )}
                         </Stage>
                     </Panel>
+                    {agents.length > 0 && (
+                        <SidePanel collapsed={deployCollapsed} aria-hidden={deployCollapsed}>
+                            <DeploymentPanel
+                                projectPath={projectPath}
+                                projectStructure={projectStructure}
+                                isInDevant={isInDevant}
+                                isICPSupported={isICPSupported}
+                                hasWorkflows={hasWorkflows}
+                                hasAgents={hasAgents}
+                                hasDeployableIntegration={hasDeployable}
+                                {...deploymentControl}
+                            />
+                        </SidePanel>
+                    )}
                 </MainContent>
             </Page>
             {showAddAgent && (

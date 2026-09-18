@@ -593,7 +593,8 @@ const ChatInterface: React.FC = () => {
         const checkTracingStatus = async () => {
             try {
                 const status = await rpcClient.getAgentChatRpcClient().getTracingStatus();
-                setIsTracingEnabled(status.enabled);
+                // Local trace details only exist for idetraceprovider, not Agent Manager.
+                setIsTracingEnabled(status.enabled && status.provider !== 'amp');
             } catch (error) {
                 console.error('Failed to get tracing status:', error);
                 setIsTracingEnabled(false);
@@ -618,7 +619,7 @@ const ChatInterface: React.FC = () => {
     // Listen for tracing status changes pushed from the extension (toggled from the diagram)
     useEffect(() => {
         rpcClient.getAgentChatRpcClient().onTracingStatusChanged((status) => {
-            setIsTracingEnabled(status.enabled);
+            setIsTracingEnabled(status.enabled && status.provider !== 'amp');
         });
     }, [rpcClient]);
 

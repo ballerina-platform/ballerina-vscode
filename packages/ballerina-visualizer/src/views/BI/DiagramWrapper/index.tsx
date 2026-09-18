@@ -241,7 +241,6 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
         })();
     }, [rpcClient]);
 
-
     const handleFunctionClose = () => {
         setFunctionModel(undefined);
     };
