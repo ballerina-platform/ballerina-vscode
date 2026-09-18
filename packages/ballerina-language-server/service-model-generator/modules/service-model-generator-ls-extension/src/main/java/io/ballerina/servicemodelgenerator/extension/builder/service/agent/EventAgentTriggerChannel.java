@@ -71,6 +71,7 @@ public class EventAgentTriggerChannel implements AgentTriggerChannel {
             }""";
 
     private static final String RESULT_LOG = """
+            // TODO: replace this with what should happen with the agent's answer
             log:printInfo("Agent result", result = result);""";
     private static final String INSTANCE_LOG = """
             log:printInfo("Agent started", instanceId = result);""";
