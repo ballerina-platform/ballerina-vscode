@@ -18,6 +18,7 @@
 
 import { ReactNode } from "react";
 import { Icon } from "@wso2/ui-toolkit";
+import { DurableAgentIcon } from "@wso2/bi-diagram";
 import { DIRECTORY_MAP } from "@wso2/ballerina-core";
 
 /**
@@ -132,10 +133,10 @@ export const WORKFLOW_CARD: ArtifactCard = {
 
 export const DURABLE_AGENT_CARD: ArtifactCard = {
     id: "durable-agent",
-    // It produces a workflow artifact like the card above; only the authoring model differs.
+    // An agent that runs as a durable workflow; it lists with the agents.
     kind: "durable_agent",
     displayName: "Durable Agentic Workflow",
-    icon: <Icon name="bi-ai-agent" />,
+    icon: <DurableAgentIcon size={24} />,
     tooltip: "Agentic long-running workflow logic with events, timers, human tasks, and crash recovery."
 };
 

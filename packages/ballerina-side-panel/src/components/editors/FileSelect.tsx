@@ -25,7 +25,7 @@ import { getPrimaryInputType } from "@wso2/ballerina-core";
 import { FormField } from "../Form/types";
 import { buildRequiredRule } from "./utils";
 import { useFormContext } from "../../context";
-import { Controller } from "react-hook-form";
+import { Controller, useFormState } from "react-hook-form";
 
 interface DropdownEditorProps {
     field: FormField;
@@ -35,6 +35,7 @@ export function FileSelect(props: DropdownEditorProps) {
     const { field } = props;
     const { form } = useFormContext();
     const { setValue, control } = form;
+    const { isSubmitted } = useFormState({ control });
 
     const { rpcClient } = useRpcContext();
 
@@ -64,7 +65,7 @@ export function FileSelect(props: DropdownEditorProps) {
                     btnText="Select File"
                     selectedFile={value}
                     required={!field.optional}
-                    errorMsg={error?.message}
+                    errorMsg={isSubmitted ? error?.message : undefined}
                     onSelect={handleFileSelect}
                 />
             )}

@@ -115,9 +115,27 @@ public class DesignModelGeneratorTest extends AbstractLSTest {
                     || actualWorkflow.getAttachedServices().size() != expectedWorkflow.getAttachedServices().size()
                     || actualWorkflow.getAttachedFunctions().size()
                             != expectedWorkflow.getAttachedFunctions().size()
-                    || sizeOf(actualWorkflow.getHumanTasks()) != sizeOf(expectedWorkflow.getHumanTasks())
+                    || !assertHumanTasks(actualWorkflow.getHumanTasks(), expectedWorkflow.getHumanTasks())
                     || sizeOf(actualWorkflow.getActivities()) != sizeOf(expectedWorkflow.getActivities())
                     || !assertWorkflowEvents(actualWorkflow.getEvents(), expectedWorkflow.getEvents())) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean assertHumanTasks(List<Workflow.HumanTask> actual, List<Workflow.HumanTask> expected) {
+        if (sizeOf(actual) != sizeOf(expected)) {
+            return false;
+        }
+        if (actual == null || expected == null) {
+            return true;
+        }
+        for (int i = 0; i < actual.size(); i++) {
+            Workflow.HumanTask actualTask = actual.get(i);
+            Workflow.HumanTask expectedTask = expected.get(i);
+            if (!actualTask.name().equals(expectedTask.name())
+                    || !actualTask.location().equals(expectedTask.location())) {
                 return false;
             }
         }

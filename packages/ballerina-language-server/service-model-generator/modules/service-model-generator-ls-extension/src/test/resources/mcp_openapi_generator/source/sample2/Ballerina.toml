@@ -1,0 +1,4 @@
+[package]
+org = "wso2"
+name = "mcp_openapi_generator_test2"
+version = "0.1.0"

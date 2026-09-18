@@ -31,6 +31,7 @@ import io.ballerina.flowmodelgenerator.core.model.NodeBuilder;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
+import io.ballerina.flowmodelgenerator.core.utils.WorkflowUtil;
 import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.modelgenerator.commons.FileSystemUtils;
 import org.ballerinalang.langserver.common.utils.NameUtil;
@@ -138,6 +139,7 @@ public class ChildWorkflowCallBuilder extends NodeBuilder {
                 .editable(true)
                 .stepOut()
                 .addProperty(Property.VARIABLE_KEY);
+        WorkflowUtil.addStepIdProperty(this);
     }
 
     @Override
@@ -177,6 +179,7 @@ public class ChildWorkflowCallBuilder extends NodeBuilder {
                 .keyword(SyntaxKind.COMMA_TOKEN)
                 .whiteSpace()
                 .name(s));
+        WorkflowUtil.appendStepIdArgument(sourceBuilder);
         sourceBuilder.token()
                 .keyword(SyntaxKind.CLOSE_PAREN_TOKEN)
                 .endOfStatement();

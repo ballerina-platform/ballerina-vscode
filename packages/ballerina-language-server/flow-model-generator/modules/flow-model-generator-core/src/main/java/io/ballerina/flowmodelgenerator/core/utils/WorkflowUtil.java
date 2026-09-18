@@ -43,6 +43,7 @@ import io.ballerina.compiler.syntax.tree.ImplicitNewExpressionNode;
 import io.ballerina.compiler.syntax.tree.ListConstructorExpressionNode;
 import io.ballerina.compiler.syntax.tree.MappingConstructorExpressionNode;
 import io.ballerina.compiler.syntax.tree.MappingFieldNode;
+import io.ballerina.compiler.syntax.tree.Minutiae;
 import io.ballerina.compiler.syntax.tree.ModuleMemberDeclarationNode;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
 import io.ballerina.compiler.syntax.tree.ModuleVariableDeclarationNode;
@@ -376,8 +377,18 @@ public class WorkflowUtil {
             }
             if (specificField.valueExpr().isPresent()
                     && specificField.valueExpr().get() instanceof ListConstructorExpressionNode list) {
-                insertAt = list.closeBracket().lineRange().startLine();
-                newText = (list.expressions().isEmpty() ? "" : ", ") + entryText;
+                if (list.expressions().isEmpty()) {
+                    insertAt = list.closeBracket().lineRange().startLine();
+                    newText = entryText;
+                } else {
+                    // After the last entry: on its own line at the entries' indentation when the list
+                    // is laid out that way, inline otherwise.
+                    Node last = list.expressions().get(list.expressions().size() - 1);
+                    insertAt = last.lineRange().endLine();
+                    LinePosition start = last.lineRange().startLine();
+                    boolean multiLine = start.line() != list.openBracket().lineRange().startLine().line();
+                    newText = (multiLine ? ",\n" + indentOf(last, start) : ", ") + entryText;
+                }
                 break;
             }
             // The field is there but is not a list literal (a reference, or a spread): appending a
@@ -388,8 +399,11 @@ public class WorkflowUtil {
                     + "inline it as a list in the agent declaration and try again");
         }
         if (insertAt == null) {
-            insertAt = config.closeBrace().lineRange().startLine();
-            newText = (config.fields().isEmpty() ? "" : ", ") + fieldName + ": [" + entryText + "]";
+            // A new list field follows the last config field, as any other appended field does.
+            Map<Path, List<org.eclipse.lsp4j.TextEdit>> edits = new HashMap<>();
+            edits.put(declaration.filePath(),
+                    List.of(appendConfigFields(config, Map.of(fieldName, "[" + entryText + "]"))));
+            return edits;
         }
         org.eclipse.lsp4j.Position position =
                 new org.eclipse.lsp4j.Position(insertAt.line(), insertAt.offset());
@@ -507,6 +521,83 @@ public class WorkflowUtil {
             return Optional.empty();
         }
         return Optional.of(config);
+    }
+
+    /**
+     * One declared capability of a durable agent: its name, the mapping that configures it, and the
+     * node it was declared at.
+     *
+     * @param name   the capability's name
+     * @param config the mapping that configures it, {@code null} when the entry's value is not
+     *               written inline as a mapping — a reference to a shared config constant, say
+     * @param node   the declaration node, for a location a reader can navigate to
+     */
+    public record CapabilityEntry(String name, MappingConstructorExpressionNode config, Node node) {
+    }
+
+    /**
+     * The entries of an agent capability field, in whichever form it was declared: a mapping keyed
+     * by capability name — {@code events: {chat: {request: string}}}, what the module documents —
+     * or the list of records that carry their own {@code name} field, which it still accepts.
+     *
+     * <p>Reading only one form leaves the other invisible, and a capability the tooling cannot see
+     * is one it silently drops the next time it writes the declaration back.
+     *
+     * @param value the value of an {@code events}, {@code humanTasks} or similar config field
+     * @return the entries it declares, empty when the value is neither form
+     */
+    public static List<CapabilityEntry> capabilityEntries(ExpressionNode value) {
+        List<CapabilityEntry> entries = new ArrayList<>();
+        if (value instanceof MappingConstructorExpressionNode keyed) {
+            for (MappingFieldNode field : keyed.fields()) {
+                if (!(field instanceof SpecificFieldNode entry) || entry.valueExpr().isEmpty()) {
+                    continue;
+                }
+                String name = capabilityName(entry.fieldName().toSourceCode().trim());
+                if (name.isBlank()) {
+                    continue;
+                }
+                // The key names a capability even when its config is a reference rather than an
+                // inline mapping; dropping the entry would hide a capability that exists.
+                MappingConstructorExpressionNode config =
+                        entry.valueExpr().get() instanceof MappingConstructorExpressionNode inline ? inline : null;
+                entries.add(new CapabilityEntry(name, config, entry));
+            }
+            return entries;
+        }
+        if (value instanceof ListConstructorExpressionNode list) {
+            for (Node item : list.expressions()) {
+                if (!(item instanceof MappingConstructorExpressionNode config)) {
+                    continue;
+                }
+                for (MappingFieldNode field : config.fields()) {
+                    if (field instanceof SpecificFieldNode entry && entry.valueExpr().isPresent()
+                            && "name".equals(entry.fieldName().toSourceCode().trim())) {
+                        String name = capabilityName(entry.valueExpr().get().toSourceCode().trim());
+                        if (!name.isBlank()) {
+                            entries.add(new CapabilityEntry(name, config, item));
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+        return entries;
+    }
+
+    /**
+     * A capability name as the declaration means it, from the source that spells it: a string
+     * literal carries escapes, a quoted identifier a {@code '} prefix. Every reader of a
+     * declaration normalizes the same way, or the same capability reads under two names.
+     *
+     * @param source the key or {@code name} value as written
+     * @return the capability name it denotes
+     */
+    public static String capabilityName(String source) {
+        if (source.length() >= 2 && source.startsWith("\"") && source.endsWith("\"")) {
+            return unescapeLiteralBody(source.substring(1, source.length() - 1));
+        }
+        return source.startsWith("'") ? source.substring(1) : source;
     }
 
     /**
@@ -649,36 +740,18 @@ public class WorkflowUtil {
         return names;
     }
 
-    // Collects the `name` field of each mapping entry in the config's `events` list.
+    // Collects the name of each entry in the config's `events`, in whichever form it was declared.
     private static void collectDeclaredEventNames(
             MappingConstructorExpressionNode config,
             java.util.Set<String> names) {
         for (MappingFieldNode field : config.fields()) {
             if (!(field instanceof SpecificFieldNode specificField)
                     || specificField.valueExpr().isEmpty()
-                    || !"events".equals(specificField.fieldName().toSourceCode().trim())
-                    || !(specificField.valueExpr().get()
-                            instanceof ListConstructorExpressionNode list)) {
+                    || !"events".equals(specificField.fieldName().toSourceCode().trim())) {
                 continue;
             }
-            for (Node item : list.expressions()) {
-                if (item.kind() != SyntaxKind.MAPPING_CONSTRUCTOR) {
-                    continue;
-                }
-                for (MappingFieldNode entryField
-                        : ((MappingConstructorExpressionNode) item).fields()) {
-                    if (entryField instanceof SpecificFieldNode entry
-                            && entry.valueExpr().isPresent()
-                            && "name".equals(entry.fieldName().toSourceCode().trim())) {
-                        String raw = entry.valueExpr().get().toSourceCode().trim();
-                        if (raw.length() >= 2 && raw.startsWith("\"") && raw.endsWith("\"")) {
-                            raw = unescapeLiteralBody(raw.substring(1, raw.length() - 1));
-                        }
-                        if (!raw.isEmpty()) {
-                            names.add(raw);
-                        }
-                    }
-                }
+            for (CapabilityEntry entry : capabilityEntries(specificField.valueExpr().get())) {
+                names.add(entry.name());
             }
         }
     }
@@ -1196,51 +1269,179 @@ public class WorkflowUtil {
         return colon >= 0 ? value.substring(colon + 1) : value;
     }
 
-    /** Label of the approval-gate flag every gated capability form carries. */
-    public static final String REQUIRES_APPROVAL_LABEL = "Requires Approval";
-    /** Label of the reviewer-roles field that accompanies the flag. */
-    public static final String REVIEWER_ROLES_LABEL = "Reviewer Roles";
+    /** Source field carrying a capability's approval policy. */
+    public static final String APPROVAL_POLICY_FIELD = "approvalPolicy";
+    /** Property keys of the audience fields every review definition form carries beside the roles. */
+    public static final String USERS_KEY = "users";
+    public static final String EXCLUDED_USERS_KEY = "excludedUsers";
+    public static final String EXCLUDED_ROLES_KEY = "excludedRoles";
+    public static final String ADMINISTRATOR_ROLES_KEY = "administratorRoles";
+    public static final String ADMINISTRATOR_USERS_KEY = "administratorUsers";
+    /** Property keys of the review details a gate form carries beside its audience. */
+    public static final String APPROVAL_TITLE_KEY = "approvalTitle";
+    public static final String APPROVAL_DESCRIPTION_KEY = "approvalDescription";
+    public static final String APPROVAL_TIMEOUT_KEY = "approvalTimeout";
+    /** The audience fields beside the roles, in the order the literal writes them. */
+    public static final List<String> AUDIENCE_KEYS = List.of(USERS_KEY, EXCLUDED_USERS_KEY, EXCLUDED_ROLES_KEY,
+            ADMINISTRATOR_ROLES_KEY, ADMINISTRATOR_USERS_KEY);
+    private static final String USERS_LABEL = "Users";
+    private static final String USERS_DOC = "User id(s) permitted to decide, whatever their roles, "
+            + "e.g. \"alice\" or [\"alice\", \"bob\"]";
+    private static final String EXCLUDED_USERS_LABEL = "Excluded Users";
+    private static final String EXCLUDED_USERS_DOC = "User id(s) that may not decide, whatever their roles";
+    private static final String EXCLUDED_ROLES_LABEL = "Excluded Roles";
+    private static final String EXCLUDED_ROLES_DOC = "Role(s) that may not decide";
+    private static final String ADMINISTRATOR_ROLES_LABEL = "Administrator Roles";
+    private static final String ADMINISTRATOR_ROLES_DOC =
+            "Role(s) that administer the task: they see it, may reassign it, move its deadline, fail or decide it";
+    private static final String ADMINISTRATOR_USERS_LABEL = "Administrator Users";
+    private static final String ADMINISTRATOR_USERS_DOC = "User id(s) that administer the task, whatever their roles";
 
     /**
-     * Adds the approval-gate pair a durable agent's gated capabilities share — a {@code requiresApproval}
-     * flag and the reviewer roles for the review it creates — as advanced, optional fields. The three
-     * capability forms (activity, tool, peer delegation) differ only in how they describe the thing
-     * being gated, which is what the two descriptions carry.
+     * Adds the audience fields a review definition carries beside its roles — users, excluded users,
+     * excluded roles — as advanced, optional, multi-mode role fields.
      *
-     * @param nodeBuilder     the form being built
-     * @param approvalKey     property key of the flag
-     * @param approvalDoc     what gating means for this capability
-     * @param userRolesKey    property key of the roles field
-     * @param reviewerRolesDoc who may decide the review, with an example
+     * @param nodeBuilder the form being built
      */
-    public static void addApprovalGateProperties(NodeBuilder nodeBuilder, String approvalKey, String approvalDoc,
-                                                 String userRolesKey, String reviewerRolesDoc) {
-        nodeBuilder.properties().custom()
-                .metadata()
-                    .label(REQUIRES_APPROVAL_LABEL)
-                    .description(approvalDoc)
-                    .stepOut()
-                .type().fieldType(Property.ValueType.FLAG).ballerinaType("boolean").selected(true).stepOut()
-                .value("false")
-                .editable(true)
-                .optional(true)
-                .advanced(true)
-                .stepOut()
-                .addProperty(approvalKey);
-        // The reviewer roles field is multi-mode, the same as every other role field — a bare role
-        // typed as text, or an expression naming a list. Staging moved the tool and activity forms
-        // onto addRoleFieldTypes; routing it through here keeps the peer form in step as well.
+    public static void addAudienceProperties(NodeBuilder nodeBuilder) {
+        addAudienceProperty(nodeBuilder, USERS_KEY, USERS_LABEL, USERS_DOC);
+        addAudienceProperty(nodeBuilder, EXCLUDED_USERS_KEY, EXCLUDED_USERS_LABEL, EXCLUDED_USERS_DOC);
+        addAudienceProperty(nodeBuilder, EXCLUDED_ROLES_KEY, EXCLUDED_ROLES_LABEL, EXCLUDED_ROLES_DOC);
+        addAudienceProperty(nodeBuilder, ADMINISTRATOR_ROLES_KEY, ADMINISTRATOR_ROLES_LABEL, ADMINISTRATOR_ROLES_DOC);
+        addAudienceProperty(nodeBuilder, ADMINISTRATOR_USERS_KEY, ADMINISTRATOR_USERS_LABEL, ADMINISTRATOR_USERS_DOC);
+    }
+
+    private static void addAudienceProperty(NodeBuilder nodeBuilder, String key, String label, String doc) {
         addRoleFieldTypes(nodeBuilder.properties().custom()
                 .metadata()
-                    .label(REVIEWER_ROLES_LABEL)
-                    .description(reviewerRolesDoc)
+                    .label(label)
+                    .description(doc)
                     .stepOut())
                 .placeholder("")
                 .editable(true)
                 .optional(true)
                 .advanced(true)
                 .stepOut()
-                .addProperty(userRolesKey);
+                .addProperty(key);
+    }
+
+    /**
+     * The audience fields as {@code name: value} source — {@code userRoles} always ({@code ()} when only
+     * users decide), the others when set — for a literal that leads with other fields.
+     *
+     * @param sourceBuilder the source builder holding the form values
+     * @param userRolesKey  property key of the reviewer roles
+     * @return the rendered fields, {@code userRoles} first
+     */
+    public static List<String> reviewAudienceFields(SourceBuilder sourceBuilder, String userRolesKey) {
+        List<String> fields = new ArrayList<>();
+        String roles = audienceSource(sourceBuilder, userRolesKey);
+        fields.add("userRoles: " + (roles.isBlank() ? "()" : roles));
+        for (String key : AUDIENCE_KEYS) {
+            String value = audienceSource(sourceBuilder, key);
+            if (!value.isBlank()) {
+                fields.add(key + ": " + value);
+            }
+        }
+        return fields;
+    }
+
+    /**
+     * An audience field's value as source: the role helpers already read both its modes.
+     *
+     * @param sourceBuilder the source builder holding the form values
+     * @param key           the property key
+     * @return the source, or {@code ""} when unset
+     */
+    public static String audienceSource(SourceBuilder sourceBuilder, String key) {
+        return sourceBuilder.getProperty(key).map(WorkflowUtil::roleSource).orElse("");
+    }
+
+    /**
+     * What to say when a task names nobody. One wording, because the same rule is checked in the
+     * panel before a save and again here when the source is written, and the person sees whichever
+     * got there first. Mirrored in the designer's own check (workflowAudienceValidation.ts).
+     */
+    public static final String AUDIENCE_REQUIRED_MESSAGE =
+            "Name who may decide this: fill in the roles, the users, or both";
+
+    /** Property key of the step identity a call takes to name itself in the descriptor graph. */
+    public static final String STEP_ID_KEY = "stepId";
+    private static final String STEP_ID_LABEL = "Step Id";
+    private static final String STEP_ID_DOC =
+            "Identity of this step within the workflow, matching a node of the descriptor graph. "
+                    + "A constant string; defaults to one the compiler generates";
+
+    /**
+     * Adds the step id as an advanced field. It is optional and generated when omitted, so it sits
+     * with the advanced configurations rather than among the call's own arguments.
+     *
+     * @param nodeBuilder the form being built
+     */
+    public static void addStepIdProperty(NodeBuilder nodeBuilder) {
+        nodeBuilder.properties().custom()
+                .metadata()
+                    .label(STEP_ID_LABEL)
+                    .description(STEP_ID_DOC)
+                    .stepOut()
+                .type().fieldType(Property.ValueType.TEXT).ballerinaType("string").selected(true).stepOut()
+                .type().fieldType(Property.ValueType.EXPRESSION).ballerinaType("string?").selected(false).stepOut()
+                .codedata().originalName(STEP_ID_KEY).stepOut()
+                .placeholder("")
+                .value("")
+                .editable(true)
+                .optional(true)
+                .advanced(true)
+                .stepOut()
+                .addProperty(STEP_ID_KEY);
+    }
+
+    /**
+     * Moves a signature-derived step id into the advanced configurations, leaving its type and
+     * value as the signature described them.
+     *
+     * @param properties the form's properties, edited in place
+     */
+    public static void markStepIdAdvanced(Map<String, Property> properties) {
+        Property stepId = properties.get(STEP_ID_KEY);
+        if (stepId != null) {
+            properties.put(STEP_ID_KEY, Property.Builder.copyFrom(stepId)
+                    .advanced(true).hidden(false).editable(true).build());
+        }
+    }
+
+    /**
+     * Emits {@code , stepId = <value>} when the form holds one. Written through {@code param} so a
+     * name typed as text is quoted and an expression passes through.
+     *
+     * @param sourceBuilder the source builder, positioned after a preceding argument
+     */
+    public static void appendStepIdArgument(SourceBuilder sourceBuilder) {
+        String source = stepIdSource(sourceBuilder.getProperty(STEP_ID_KEY).orElse(null));
+        if (source.isBlank()) {
+            return;
+        }
+        sourceBuilder.token()
+                .keyword(SyntaxKind.COMMA_TOKEN)
+                .name(STEP_ID_KEY)
+                .whiteSpace()
+                .keyword(SyntaxKind.EQUAL_TOKEN)
+                .name(source);
+    }
+
+    /**
+     * A step id as source: an expression passes through, a name typed as text is quoted. The module
+     * requires a constant string, so an unquoted name would not compile.
+     *
+     * @param stepId the step id property, possibly {@code null}
+     * @return the source, or {@code ""} when the form names no step
+     */
+    public static String stepIdSource(Property stepId) {
+        String value = stepId == null || stepId.value() == null ? "" : stepId.value().toString().trim();
+        if (value.isBlank() || "()".equals(value)) {
+            return "";
+        }
+        return isExpressionModeSelected(stepId) ? value : quoteIfPlain(value);
     }
 
     /** Property key the front end sets to request removal of a capability entry. */
@@ -1349,23 +1550,56 @@ public class WorkflowUtil {
             }
         }
         if (!missing.isEmpty()) {
-            StringBuilder insertion = new StringBuilder();
-            boolean first = config.fields().isEmpty();
-            for (Map.Entry<String, String> entry : missing.entrySet()) {
-                if (!first) {
-                    insertion.append(", ");
-                }
-                insertion.append(entry.getKey()).append(": ").append(entry.getValue());
-                first = false;
-            }
-            LinePosition closeBrace = config.closeBrace().lineRange().startLine();
-            org.eclipse.lsp4j.Position position =
-                    new org.eclipse.lsp4j.Position(closeBrace.line(), closeBrace.offset());
-            edits.add(new org.eclipse.lsp4j.TextEdit(
-                    new org.eclipse.lsp4j.Range(position, position), insertion.toString()));
+            edits.add(appendConfigFields(config, missing));
         }
         Map<Path, List<org.eclipse.lsp4j.TextEdit>> result = new HashMap<>();
         result.put(declaration.filePath(), edits);
         return result;
+    }
+
+    // Missing fields follow the last one, each on its own line at the fields' indentation when the
+    // mapping is laid out that way; an empty or single-line mapping takes them inline.
+    private static org.eclipse.lsp4j.TextEdit appendConfigFields(MappingConstructorExpressionNode config,
+                                                                 Map<String, String> missing) {
+        StringBuilder insertion = new StringBuilder();
+        org.eclipse.lsp4j.Position position;
+        if (config.fields().isEmpty()) {
+            LinePosition closeBrace = config.closeBrace().lineRange().startLine();
+            position = new org.eclipse.lsp4j.Position(closeBrace.line(), closeBrace.offset());
+            appendFields(insertion, missing, ", ", false);
+        } else {
+            MappingFieldNode last = config.fields().get(config.fields().size() - 1);
+            LinePosition end = last.lineRange().endLine();
+            position = new org.eclipse.lsp4j.Position(end.line(), end.offset());
+            LinePosition start = last.lineRange().startLine();
+            boolean multiLine = start.line() != config.openBrace().lineRange().startLine().line();
+            appendFields(insertion, missing, multiLine ? ",\n" + indentOf(last, start) : ", ", true);
+        }
+        return new org.eclipse.lsp4j.TextEdit(new org.eclipse.lsp4j.Range(position, position),
+                insertion.toString());
+    }
+
+    // The indentation a node sits at, read from its own leading whitespace so a tab-indented
+    // declaration keeps its tabs; the column in spaces is the fallback.
+    private static String indentOf(Node node, LinePosition start) {
+        String indent = null;
+        for (Minutiae minutiae : node.leadingMinutiae()) {
+            if (minutiae.kind() == SyntaxKind.WHITESPACE_MINUTIAE) {
+                indent = minutiae.text();
+            }
+        }
+        return indent == null ? " ".repeat(start.offset()) : indent;
+    }
+
+    private static void appendFields(StringBuilder insertion, Map<String, String> fields, String separator,
+                                     boolean leadWithSeparator) {
+        boolean first = !leadWithSeparator;
+        for (Map.Entry<String, String> entry : fields.entrySet()) {
+            if (!first) {
+                insertion.append(separator);
+            }
+            insertion.append(entry.getKey()).append(": ").append(entry.getValue());
+            first = false;
+        }
     }
 }

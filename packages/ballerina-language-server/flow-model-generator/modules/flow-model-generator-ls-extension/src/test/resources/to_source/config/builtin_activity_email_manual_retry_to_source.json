@@ -1,6 +1,6 @@
 {
   "source": "workflow_function/functions.bal",
-  "description": "Create Send Email (SMTP) builtin activity call with ManualRetry policy (retryPolicy = workflow:ManualRetry)",
+  "description": "Create Send Email (SMTP) builtin activity call with a Human Review policy scoped to a role (retryPolicy = workflow:ManualRetry)",
   "diagram": {
     "id": "1",
     "metadata": {
@@ -130,6 +130,29 @@
         "editable": true,
         "advanced": false,
         "hidden": false
+      },
+      "retryUserRoles": {
+        "metadata": {
+          "label": "Reviewer Roles"
+        },
+        "valueType": "TEXT",
+        "value": "manager",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": true,
+        "types": [
+          {
+            "fieldType": "TEXT",
+            "ballerinaType": "string",
+            "selected": true
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string|string[]",
+            "selected": false
+          }
+        ]
       }
     }
   },
@@ -172,7 +195,7 @@
             "character": 0
           }
         },
-        "newText": "\n() _ = check context->callActivity(activity:sendEmail, {connection: smtpClient, to: \"user@example.com\", subject: \"Order update\", body: \"Your order has shipped.\"}, retryPolicy = {userRoles: []});"
+        "newText": "\n() _ = check context->callActivity(activity:sendEmail, {connection: smtpClient, to: \"user@example.com\", subject: \"Order update\", body: \"Your order has shipped.\"}, retryPolicy = {userRoles: \"manager\"});"
       }
     ]
   }

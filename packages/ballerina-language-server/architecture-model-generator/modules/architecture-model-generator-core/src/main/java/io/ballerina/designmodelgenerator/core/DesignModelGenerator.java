@@ -404,13 +404,17 @@ public class DesignModelGenerator {
                     linkAgentModelProvider(intermediateModel, agent, valueExpr);
                     continue;
                 }
-                if (!(valueExpr instanceof ListConstructorExpressionNode list)) {
-                    continue;
-                }
                 switch (fieldName) {
-                    case "events" -> populateAgentEvents(agent, list);
-                    case "humanTasks" -> populateAgentHumanTasks(agent, list);
-                    case "activities" -> linkAgentActivities(intermediateModel, agent, list);
+                    // Declared either keyed by name — `events: {chat: {request: string}}`, what the
+                    // module documents — or as the list of records it still accepts. Both are read:
+                    // a capability the overview cannot see is one the diagram simply omits.
+                    case "events" -> populateAgentEvents(agent, valueExpr);
+                    case "humanTasks" -> populateAgentHumanTasks(agent, valueExpr);
+                    case "activities" -> {
+                        if (valueExpr instanceof ListConstructorExpressionNode list) {
+                            linkAgentActivities(intermediateModel, agent, list);
+                        }
+                    }
                     default -> {
                     }
                 }
@@ -419,30 +423,16 @@ public class DesignModelGenerator {
         }
     }
 
-    private void populateAgentEvents(Workflow agent,
-                                     ListConstructorExpressionNode events) {
-        for (Node item : events.expressions()) {
-            if (!(item instanceof MappingConstructorExpressionNode entry)) {
-                continue;
-            }
-            String name = getMappingStringField(entry, "name");
-            String requestType = getMappingRawField(entry, "request");
-            if (name != null) {
-                agent.addEvent(new Workflow.Event(name, requestType == null ? "anydata" : requestType));
-            }
+    private void populateAgentEvents(Workflow agent, ExpressionNode events) {
+        for (WorkflowUtil.CapabilityEntry entry : WorkflowUtil.capabilityEntries(events)) {
+            String requestType = getMappingRawField(entry.config(), "request");
+            agent.addEvent(new Workflow.Event(entry.name(), requestType == null ? "anydata" : requestType));
         }
     }
 
-    private void populateAgentHumanTasks(Workflow agent,
-                                         ListConstructorExpressionNode tasks) {
-        for (Node item : tasks.expressions()) {
-            if (!(item instanceof MappingConstructorExpressionNode entry)) {
-                continue;
-            }
-            String name = getMappingStringField(entry, "name");
-            if (name != null) {
-                agent.addHumanTask(new Workflow.HumanTask(name, getLocation(item.lineRange())));
-            }
+    private void populateAgentHumanTasks(Workflow agent, ExpressionNode tasks) {
+        for (WorkflowUtil.CapabilityEntry entry : WorkflowUtil.capabilityEntries(tasks)) {
+            agent.addHumanTask(new Workflow.HumanTask(entry.name(), getLocation(entry.node().lineRange())));
         }
     }
 
@@ -491,17 +481,11 @@ public class DesignModelGenerator {
         }
     }
 
-    private static String getMappingStringField(
-            MappingConstructorExpressionNode mapping, String fieldName) {
-        String raw = getMappingRawField(mapping, fieldName);
-        if (raw != null && raw.length() >= 2 && raw.startsWith("\"") && raw.endsWith("\"")) {
-            return raw.substring(1, raw.length() - 1);
-        }
-        return raw;
-    }
-
     private static String getMappingRawField(
             MappingConstructorExpressionNode mapping, String fieldName) {
+        if (mapping == null) {
+            return null;
+        }
         for (MappingFieldNode field : mapping.fields()) {
             if (field instanceof SpecificFieldNode specificField
                     && fieldName.equals(specificField.fieldName().toSourceCode().trim())

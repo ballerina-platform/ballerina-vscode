@@ -1,5 +1,5 @@
 {
-  "description": "Test getting tcp service init model",
+  "description": "Test getting mcp service init model",
   "filePath": "sample1/main.bal",
   "orgName": "ballerina",
   "pkgName": "mcp",
@@ -16,6 +16,83 @@
       "type": "mcp",
       "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_mcp_1.3.0.png",
       "properties": {
+        "designApproach": {
+          "metadata": {
+            "label": "Service Contract",
+            "description": "Create the MCP service from scratch or by importing an OpenAPI specification"
+          },
+          "value": "",
+          "choices": [
+            {
+              "metadata": {
+                "label": "Design From Scratch",
+                "description": "Create an empty MCP service and add tools manually"
+              },
+              "value": "true",
+              "properties": {},
+              "types": [
+                {
+                  "fieldType": "FORM",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": true,
+              "optional": false,
+              "advanced": false
+            },
+            {
+              "metadata": {
+                "label": "Import From OpenAPI Specification",
+                "description": "Generate MCP tools from an OpenAPI specification."
+              },
+              "value": "true",
+              "properties": {
+                "spec": {
+                  "metadata": {
+                    "label": "OpenAPI Specification",
+                    "description": "Provide an OpenAPI specification to generate MCP tools."
+                  },
+                  "codedata": {
+                    "type": "OPENAPI"
+                  },
+                  "value": "",
+                  "types": [
+                    {
+                      "fieldType": "FILE_SELECT",
+                      "ballerinaType": "string",
+                      "selected": true
+                    }
+                  ],
+                  "enabled": true,
+                  "editable": true,
+                  "optional": false,
+                  "advanced": false
+                }
+              },
+              "types": [
+                {
+                  "fieldType": "FORM",
+                  "selected": true
+                }
+              ],
+              "enabled": false,
+              "editable": true,
+              "optional": false,
+              "advanced": false
+            }
+          ],
+          "types": [
+            {
+              "fieldType": "CHOICE",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": false,
+          "advanced": false
+        },
         "serviceName": {
           "metadata": {
             "label": "Service Name",

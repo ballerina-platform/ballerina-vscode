@@ -58,6 +58,8 @@ export interface AICommandConfig<TParams = any> {
         projectRootPath: string;
         threadId: string;
         enabled: boolean;
+        /** Set to `false` to persist generations without replaying prior turns into the prompt. */
+        replayHistory?: boolean;
     };
 
     /**
@@ -110,6 +112,12 @@ export interface AICommandConfig<TParams = any> {
     toolOptions?: {
         /** Absolute path to the original migration source project (Mule, Tibco, etc.). */
         migrationSourcePath?: string;
+        /** Skip inlining the full codebase into the user prompt. */
+        omitCodebaseDump?: boolean;
+        /** Compact codebase map to inline instead of the full dump, when omitCodebaseDump is set. */
+        codebaseMapText?: string;
+        /** Throw instead of silently disabling compaction when the prompt floor is at/over the trigger. */
+        failWhenCompactionUnavailable?: boolean;
     };
 
     /**
@@ -399,7 +407,7 @@ export abstract class AICommandExecutor<TParams = any> {
      * @returns Array of chat messages, or empty array if storage disabled
      */
     protected getChatHistory(): any[] {
-        if (!this.config.chatStorage) {
+        if (!this.config.chatStorage || this.config.chatStorage.replayHistory === false) {
             return [];
         }
         const { projectRootPath, threadId } = this.config.chatStorage;

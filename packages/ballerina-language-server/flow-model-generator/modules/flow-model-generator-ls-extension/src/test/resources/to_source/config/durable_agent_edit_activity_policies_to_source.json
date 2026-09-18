@@ -1,0 +1,174 @@
+{
+  "source": "workflow_function/agent.bal",
+  "description": "Edit an activity entry to carry both policies: a human approval before it runs and retries followed by a review when it fails",
+  "diagram": {
+    "id": "1",
+    "metadata": {
+      "label": "myActivity",
+      "description": "Register a workflow activity as a durable agent activity"
+    },
+    "codedata": {
+      "node": "DURABLE_AGENT_ADD_ACTIVITY",
+      "org": "ballerina",
+      "module": "workflow",
+      "object": "DurableAgent",
+      "symbol": "registerActivity",
+      "parentSymbol": "claimAgent",
+      "lineRange": {
+        "fileName": "agent.bal",
+        "startLine": {
+          "line": 19,
+          "offset": 8
+        },
+        "endLine": {
+          "line": 19,
+          "offset": 18
+        }
+      },
+      "isNew": false
+    },
+    "returning": false,
+    "properties": {
+      "activity": {
+        "metadata": {
+          "label": "Activity"
+        },
+        "valueType": "SINGLE_SELECT",
+        "value": "myActivity",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": true
+      },
+      "name": {
+        "metadata": {
+          "label": "Activity Name"
+        },
+        "valueType": "TEXT",
+        "value": "",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false
+      },
+      "description": {
+        "metadata": {
+          "label": "Activity Description"
+        },
+        "valueType": "DOC_TEXT",
+        "value": "",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false
+      },
+      "approvalPolicy": {
+        "metadata": {
+          "label": "Approval Policy",
+          "description": "Whether a person approves before this runs"
+        },
+        "valueType": "DROPDOWN_CHOICE",
+        "value": "HumanApproval",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "retryPolicy": {
+        "metadata": {
+          "label": "Retry Policy"
+        },
+        "valueType": "DROPDOWN_CHOICE",
+        "value": "RetryBeforeReview",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "maxRetries": {
+        "metadata": {
+          "label": "Max Retries"
+        },
+        "valueType": "EXPRESSION",
+        "value": "2",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": true
+      },
+      "retryDelay": {
+        "metadata": {
+          "label": "Retry Delay"
+        },
+        "valueType": "EXPRESSION",
+        "value": "1.0",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": true
+      },
+      "retryBackoff": {
+        "metadata": {
+          "label": "Retry Backoff"
+        },
+        "valueType": "EXPRESSION",
+        "value": "2.0",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": true
+      },
+      "maxRetryDelay": {
+        "metadata": {
+          "label": "Max Retry Delay"
+        },
+        "valueType": "EXPRESSION",
+        "value": "",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": true
+      },
+      "approvalUserRoles": {
+        "metadata": {
+          "label": "Reviewer Roles"
+        },
+        "valueType": "TEXT",
+        "value": "finance",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false
+      },
+      "retryUserRoles": {
+        "metadata": {
+          "label": "Reviewer Roles"
+        },
+        "valueType": "TEXT",
+        "value": "ops",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false
+      }
+    },
+    "flags": 0
+  },
+  "output": {
+    "workflow_function/agent.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 19,
+            "character": 8
+          },
+          "end": {
+            "line": 19,
+            "character": 18
+          }
+        },
+        "newText": "{activity: myActivity, approvalPolicy: {userRoles: \"finance\"}, retryPolicy: {maxRetries: 2, retryDelay: 1.0, retryBackoff: 2.0, userRoles: \"ops\"}}"
+      }
+    ]
+  }
+}
