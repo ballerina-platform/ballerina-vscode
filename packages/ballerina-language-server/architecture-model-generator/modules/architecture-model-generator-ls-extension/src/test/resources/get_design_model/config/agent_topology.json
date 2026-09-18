@@ -1,6 +1,6 @@
 {
   "description": "Design model of a multi-agent package: agent-as-tool delegation, a tool using an http:Client, sequence/if/match/fork/foreach/while groups (nested, outermost first) on agentCalls, a start-based call, an orphan agent, a typed-agent instance, modelProvider on every agent (named and inline default), memory (named and inline) and the agent's typeName",
-  "projectPath": "project_19",
+  "projectPath": "project_20",
   "output": {
     "designModel": {
       "connections": [
