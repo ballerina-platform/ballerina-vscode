@@ -44,9 +44,9 @@ import java.util.Map;
  */
 public class HumanTaskFormTest {
 
-    @Test(description = "A step id read from source stays in the form — hidden and not editable — so a save "
-            + "re-emits the name the call already had")
-    public void testStepIdIsHiddenNotRemoved() {
+    @Test(description = "A step id read from source renders with the advanced configurations, keeping the "
+            + "name the call already had")
+    public void testStepIdRendersAsAdvanced() {
         Map<String, Property> properties = new LinkedHashMap<>();
         properties.put(HumanTaskBuilder.TASK_NAME_KEY, property("\"approve\"", ParameterData.Kind.REQUIRED));
         properties.put(HumanTaskBuilder.STEP_ID_KEY, property("\"charge-card\"", ParameterData.Kind.DEFAULTABLE));
@@ -56,8 +56,9 @@ public class HumanTaskFormTest {
         Property stepId = properties.get(HumanTaskBuilder.STEP_ID_KEY);
         Assert.assertNotNull(stepId, "stepId must survive the relabel pass");
         Assert.assertEquals(stepId.value(), "\"charge-card\"");
-        Assert.assertTrue(stepId.hidden(), "stepId is not offered in the form");
-        Assert.assertFalse(stepId.editable(), "stepId is not edited in the form");
+        Assert.assertFalse(stepId.hidden(), "stepId is offered in the form");
+        Assert.assertTrue(stepId.editable(), "stepId is edited in the form");
+        Assert.assertTrue(stepId.advanced(), "stepId is an identity, so it sits with the advanced fields");
         Assert.assertEquals(stepId.codedata().kind(), ParameterData.Kind.DEFAULTABLE.name(),
                 "the parameter's own metadata is kept, so the emitter names the argument");
     }

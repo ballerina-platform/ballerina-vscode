@@ -1,0 +1,1512 @@
+{
+  "start": {
+    "line": 8,
+    "offset": 0
+  },
+  "end": {
+    "line": 14,
+    "offset": 1
+  },
+  "source": "workflow_activity_options.bal",
+  "description": "An activity call with every option set loads back into its form: quoted argument keys still fill the parameters, the step id is a plain field, and the approval and retry policies open as their dropdowns with the review fields filled",
+  "diagram": {
+    "fileName": "workflow_activity_options.bal",
+    "nodes": [
+      {
+        "id": "42161",
+        "metadata": {
+          "label": "Start",
+          "data": {
+            "kind": "Workflow",
+            "label": "optionsFlow",
+            "isServiceFunction": false,
+            "parameters": [
+              "workflow:Context ctx",
+              "string claimId"
+            ],
+            "return": "error?"
+          }
+        },
+        "codedata": {
+          "node": "EVENT_START",
+          "lineRange": {
+            "fileName": "workflow_activity_options.bal",
+            "startLine": {
+              "line": 8,
+              "offset": 74
+            },
+            "endLine": {
+              "line": 14,
+              "offset": 1
+            }
+          },
+          "sourceCode": "@workflow:Workflow\nfunction optionsFlow(workflow:Context ctx, string claimId) returns error? {\n    string _ = check ctx->callActivity(notifyOptionsEmployee,\n            {\"claimId\": claimId, \"message\": \"Please submit the supporting bills.\"},\n            stepId = \"notify#1\",\n            approvalPolicy = {userRoles: \"finance\", users: \"alice\", title: \"Approve the notice\", timeout: {hours: 4}},\n            retryPolicy = {maxRetries: 3, retryDelay: 2});\n}"
+        },
+        "returning": false,
+        "flags": 0
+      },
+      {
+        "id": "40978",
+        "metadata": {
+          "label": "notifyOptionsEmployee",
+          "description": "Executes an activity function. A completed activity is never re-executed on replay — its\nrecorded result is reused — but a failed attempt can run again under a retry policy, so keep\nside effects idempotent. `T` comes from the assignment, so bind every call: `() _ = check ...`\nwhen the activity returns only `error?`.\n",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.10.0.png"
+        },
+        "codedata": {
+          "node": "ACTIVITY_CALL",
+          "org": "$anon",
+          "module": ".",
+          "packageName": ".",
+          "object": "Context",
+          "symbol": "notifyOptionsEmployee",
+          "version": "0.0.0",
+          "lineRange": {
+            "fileName": "workflow_activity_options.bal",
+            "startLine": {
+              "line": 9,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 13,
+              "offset": 58
+            }
+          },
+          "sourceCode": "string _ = check ctx->callActivity(notifyOptionsEmployee,\n            {\"claimId\": claimId, \"message\": \"Please submit the supporting bills.\"},\n            stepId = \"notify#1\",\n            approvalPolicy = {userRoles: \"finance\", users: \"alice\", title: \"Approve the notice\", timeout: {hours: 4}},\n            retryPolicy = {maxRetries: 3, retryDelay: 2});"
+        },
+        "returning": false,
+        "properties": {
+          "claimId": {
+            "metadata": {
+              "label": "claimId",
+              "description": ""
+            },
+            "types": [
+              {
+                "fieldType": "TEXT",
+                "ballerinaType": "string",
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string",
+                "selected": true
+              }
+            ],
+            "value": "claimId",
+            "placeholder": "string",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "REQUIRED",
+              "originalName": "claimId"
+            }
+          },
+          "message": {
+            "metadata": {
+              "label": "message",
+              "description": ""
+            },
+            "types": [
+              {
+                "fieldType": "TEXT",
+                "ballerinaType": "string",
+                "selected": true
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string",
+                "selected": false
+              }
+            ],
+            "value": "\"Please submit the supporting bills.\"",
+            "placeholder": "string",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "REQUIRED",
+              "originalName": "message"
+            }
+          },
+          "checkError": {
+            "metadata": {
+              "label": "Check Error",
+              "description": "Add 'check' to propagate errors. Uncheck to handle errors manually."
+            },
+            "types": [
+              {
+                "fieldType": "FLAG",
+                "ballerinaType": "boolean",
+                "selected": true
+              }
+            ],
+            "value": "true",
+            "optional": true,
+            "editable": true,
+            "advanced": true,
+            "hidden": false
+          },
+          "stepId": {
+            "metadata": {
+              "label": "Step Id",
+              "description": "Identity of this step within the workflow, matching a node of the descriptor\ngraph. A constant string; defaults to `<activity>#<ordinal>`"
+            },
+            "types": [
+              {
+                "fieldType": "TEXT",
+                "ballerinaType": "string",
+                "selected": true
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string?",
+                "selected": false
+              }
+            ],
+            "value": "\"notify#1\"",
+            "placeholder": "()",
+            "optional": true,
+            "editable": true,
+            "advanced": true,
+            "hidden": false,
+            "codedata": {
+              "kind": "DEFAULTABLE",
+              "originalName": "stepId"
+            },
+            "defaultValue": "()"
+          },
+          "approvalPolicy": {
+            "metadata": {
+              "label": "Approval Policy",
+              "description": "Whether a person approves before this runs: no approval, or a review a reviewer proceeds with (optionally editing the arguments) or rejects"
+            },
+            "types": [
+              {
+                "fieldType": "DROPDOWN_CHOICE",
+                "options": [
+                  {
+                    "label": "No Approval",
+                    "value": "NoApproval"
+                  },
+                  {
+                    "label": "Human Approval",
+                    "value": "HumanApproval"
+                  }
+                ],
+                "selected": true
+              }
+            ],
+            "value": "HumanApproval",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "dynamicFormFields": {
+              "NoApproval": {},
+              "HumanApproval": {
+                "approvalUserRoles": {
+                  "metadata": {
+                    "label": "Reviewer Roles",
+                    "description": "Role(s) permitted to decide the human review, e.g. \"manager\" or [\"finance\", \"manager\"]. Leave empty to allow any role."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "TEXT",
+                      "ballerinaType": "string",
+                      "selected": false
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "string|string[]",
+                      "selected": false
+                    }
+                  ],
+                  "value": "",
+                  "optional": true,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "approvalUsers": {
+                  "metadata": {
+                    "label": "Reviewers",
+                    "description": "User id(s) permitted to decide the review, whatever their roles"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "TEXT",
+                      "ballerinaType": "string",
+                      "selected": false
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "string|string[]",
+                      "selected": false
+                    }
+                  ],
+                  "value": "",
+                  "optional": true,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "approvalExcludedUsers": {
+                  "metadata": {
+                    "label": "Excluded Reviewers",
+                    "description": "User id(s) that may not decide the review"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "TEXT",
+                      "ballerinaType": "string",
+                      "selected": false
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "string|string[]",
+                      "selected": false
+                    }
+                  ],
+                  "value": "",
+                  "optional": true,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "approvalExcludedRoles": {
+                  "metadata": {
+                    "label": "Excluded Roles",
+                    "description": "Role(s) that may not decide the review"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "TEXT",
+                      "ballerinaType": "string",
+                      "selected": false
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "string|string[]",
+                      "selected": false
+                    }
+                  ],
+                  "value": "",
+                  "optional": true,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "approvalAdministratorRoles": {
+                  "metadata": {
+                    "label": "Administrator Roles",
+                    "description": "Role(s) that administer the review: they see it, may reassign it, move its deadline or decide it"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "TEXT",
+                      "ballerinaType": "string",
+                      "selected": false
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "string|string[]",
+                      "selected": false
+                    }
+                  ],
+                  "value": "",
+                  "optional": true,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "approvalAdministratorUsers": {
+                  "metadata": {
+                    "label": "Administrator Users",
+                    "description": "User id(s) that administer the review"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "TEXT",
+                      "ballerinaType": "string",
+                      "selected": false
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "string|string[]",
+                      "selected": false
+                    }
+                  ],
+                  "value": "",
+                  "optional": true,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "approvalTitle": {
+                  "metadata": {
+                    "label": "Title",
+                    "description": "Short summary shown in the reviewer's inbox. Defaults to a phrase naming what is being approved."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "TEXT",
+                      "ballerinaType": "string",
+                      "selected": true
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "string",
+                      "selected": false
+                    }
+                  ],
+                  "value": "",
+                  "optional": true,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "approvalDescription": {
+                  "metadata": {
+                    "label": "Description",
+                    "description": "Context shown with the decision. Defaults to a description of the call and its arguments."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "TEXT",
+                      "ballerinaType": "string",
+                      "selected": true
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "string",
+                      "selected": false
+                    }
+                  ],
+                  "value": "",
+                  "optional": true,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "approvalTimeout": {
+                  "metadata": {
+                    "label": "Timeout",
+                    "description": "How long to wait for a decision, in days, hours and minutes from when the review opens, e.g. {days: 1, hours: 2, minutes: 30}. Empty waits indefinitely."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "workflow:Duration",
+                      "selected": true
+                    }
+                  ],
+                  "value": "",
+                  "optional": true,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                }
+              }
+            },
+            "itemOptions": [
+              {
+                "id": "NoApproval",
+                "content": "No Approval",
+                "value": "NoApproval"
+              },
+              {
+                "id": "HumanApproval",
+                "content": "Human Approval",
+                "value": "HumanApproval"
+              }
+            ]
+          },
+          "approvalUserRoles": {
+            "metadata": {
+              "label": "Reviewer Roles",
+              "description": "Role(s) permitted to decide the human review, e.g. \"manager\" or [\"finance\", \"manager\"]. Leave empty to allow any role."
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string|string[]",
+                "selected": true
+              }
+            ],
+            "value": "\"finance\"",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "approvalUsers": {
+            "metadata": {
+              "label": "Reviewers",
+              "description": "User id(s) permitted to decide the review, whatever their roles"
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string|string[]",
+                "selected": true
+              }
+            ],
+            "value": "\"alice\"",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "approvalExcludedUsers": {
+            "metadata": {
+              "label": "Excluded Reviewers",
+              "description": "User id(s) that may not decide the review"
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string|string[]",
+                "selected": true
+              }
+            ],
+            "value": "",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "approvalExcludedRoles": {
+            "metadata": {
+              "label": "Excluded Roles",
+              "description": "Role(s) that may not decide the review"
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string|string[]",
+                "selected": true
+              }
+            ],
+            "value": "",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "approvalAdministratorRoles": {
+            "metadata": {
+              "label": "Administrator Roles",
+              "description": "Role(s) that administer the review: they see it, may reassign it, move its deadline or decide it"
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string|string[]",
+                "selected": true
+              }
+            ],
+            "value": "",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "approvalAdministratorUsers": {
+            "metadata": {
+              "label": "Administrator Users",
+              "description": "User id(s) that administer the review"
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string|string[]",
+                "selected": true
+              }
+            ],
+            "value": "",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "approvalTitle": {
+            "metadata": {
+              "label": "Title",
+              "description": "Short summary shown in the reviewer's inbox. Defaults to a phrase naming what is being approved."
+            },
+            "types": [
+              {
+                "fieldType": "TEXT",
+                "ballerinaType": "string",
+                "selected": true
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string",
+                "selected": false
+              }
+            ],
+            "value": "Approve the notice",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "approvalDescription": {
+            "metadata": {
+              "label": "Description",
+              "description": "Context shown with the decision. Defaults to a description of the call and its arguments."
+            },
+            "types": [
+              {
+                "fieldType": "TEXT",
+                "ballerinaType": "string",
+                "selected": true
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string",
+                "selected": false
+              }
+            ],
+            "value": "",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "approvalTimeout": {
+            "metadata": {
+              "label": "Timeout",
+              "description": "How long to wait for a decision, in days, hours and minutes from when the review opens, e.g. {days: 1, hours: 2, minutes: 30}. Empty waits indefinitely."
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "workflow:Duration",
+                "selected": true
+              }
+            ],
+            "value": "{hours: 4}",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "retryPolicy": {
+            "metadata": {
+              "label": "Retry Policy",
+              "description": "Engine retry strategy when the activity fails: no retry (an AI agent may still re-invoke it), automatic backoff retries, a human review, or retries followed by a review"
+            },
+            "types": [
+              {
+                "fieldType": "DROPDOWN_CHOICE",
+                "options": [
+                  {
+                    "label": "No Retry",
+                    "value": "NoRetry"
+                  },
+                  {
+                    "label": "Auto Retry",
+                    "value": "AutoRetry"
+                  },
+                  {
+                    "label": "Human Review",
+                    "value": "ManualRetry"
+                  },
+                  {
+                    "label": "Retry, then Review",
+                    "value": "RetryBeforeReview"
+                  }
+                ],
+                "selected": true
+              }
+            ],
+            "value": "AutoRetry",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "dynamicFormFields": {
+              "NoRetry": {},
+              "AutoRetry": {
+                "maxRetries": {
+                  "metadata": {
+                    "label": "Max Retries",
+                    "description": "Maximum retry attempts (default: 3)"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "int",
+                      "selected": true
+                    }
+                  ],
+                  "value": "",
+                  "optional": true,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "retryDelay": {
+                  "metadata": {
+                    "label": "Retry Delay",
+                    "description": "Initial delay in seconds before the first retry (default: 1.0)"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "decimal",
+                      "selected": true
+                    }
+                  ],
+                  "value": "",
+                  "optional": true,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "retryBackoff": {
+                  "metadata": {
+                    "label": "Retry Backoff",
+                    "description": "Multiplier applied to delay after each retry (default: 2.0)"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "decimal",
+                      "selected": true
+                    }
+                  ],
+                  "value": "",
+                  "optional": true,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "maxRetryDelay": {
+                  "metadata": {
+                    "label": "Max Retry Delay",
+                    "description": "Cap on the delay between retries, in seconds"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "decimal",
+                      "selected": true
+                    }
+                  ],
+                  "value": "",
+                  "optional": true,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                }
+              },
+              "ManualRetry": {
+                "retryUserRoles": {
+                  "metadata": {
+                    "label": "Reviewer Roles",
+                    "description": "Role(s) permitted to decide the human review, e.g. \"manager\" or [\"finance\", \"manager\"]. Leave empty to allow any role."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "TEXT",
+                      "ballerinaType": "string",
+                      "selected": false
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "string|string[]",
+                      "selected": false
+                    }
+                  ],
+                  "value": "",
+                  "optional": true,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "retryUsers": {
+                  "metadata": {
+                    "label": "Reviewers",
+                    "description": "User id(s) permitted to decide the review, whatever their roles"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "TEXT",
+                      "ballerinaType": "string",
+                      "selected": false
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "string|string[]",
+                      "selected": false
+                    }
+                  ],
+                  "value": "",
+                  "optional": true,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "retryExcludedUsers": {
+                  "metadata": {
+                    "label": "Excluded Reviewers",
+                    "description": "User id(s) that may not decide the review"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "TEXT",
+                      "ballerinaType": "string",
+                      "selected": false
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "string|string[]",
+                      "selected": false
+                    }
+                  ],
+                  "value": "",
+                  "optional": true,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "retryExcludedRoles": {
+                  "metadata": {
+                    "label": "Excluded Roles",
+                    "description": "Role(s) that may not decide the review"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "TEXT",
+                      "ballerinaType": "string",
+                      "selected": false
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "string|string[]",
+                      "selected": false
+                    }
+                  ],
+                  "value": "",
+                  "optional": true,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "retryAdministratorRoles": {
+                  "metadata": {
+                    "label": "Administrator Roles",
+                    "description": "Role(s) that administer the review: they see it, may reassign it, move its deadline or decide it"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "TEXT",
+                      "ballerinaType": "string",
+                      "selected": false
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "string|string[]",
+                      "selected": false
+                    }
+                  ],
+                  "value": "",
+                  "optional": true,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "retryAdministratorUsers": {
+                  "metadata": {
+                    "label": "Administrator Users",
+                    "description": "User id(s) that administer the review"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "TEXT",
+                      "ballerinaType": "string",
+                      "selected": false
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "string|string[]",
+                      "selected": false
+                    }
+                  ],
+                  "value": "",
+                  "optional": true,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "retryTitle": {
+                  "metadata": {
+                    "label": "Title",
+                    "description": "Short summary shown in the reviewer's inbox. Defaults to a phrase naming the activity being reviewed."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "TEXT",
+                      "ballerinaType": "string",
+                      "selected": true
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "string",
+                      "selected": false
+                    }
+                  ],
+                  "value": "",
+                  "optional": true,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "retryDescription": {
+                  "metadata": {
+                    "label": "Description",
+                    "description": "Context shown with the decision. Defaults to a description of the failure and the outcomes available."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "TEXT",
+                      "ballerinaType": "string",
+                      "selected": true
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "string",
+                      "selected": false
+                    }
+                  ],
+                  "value": "",
+                  "optional": true,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "retryTimeout": {
+                  "metadata": {
+                    "label": "Timeout",
+                    "description": "How long to wait for a decision, in days, hours and minutes from when the review opens, e.g. {days: 1, hours: 2, minutes: 30}. Empty waits indefinitely."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "workflow:Duration",
+                      "selected": true
+                    }
+                  ],
+                  "value": "",
+                  "optional": true,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                }
+              },
+              "RetryBeforeReview": {
+                "maxRetries": {
+                  "metadata": {
+                    "label": "Max Retries",
+                    "description": "Maximum retry attempts (default: 3)"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "int",
+                      "selected": true
+                    }
+                  ],
+                  "value": "",
+                  "optional": false,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "retryDelay": {
+                  "metadata": {
+                    "label": "Retry Delay",
+                    "description": "Initial delay in seconds before the first retry (default: 1.0)"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "decimal",
+                      "selected": true
+                    }
+                  ],
+                  "value": "",
+                  "optional": true,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "retryBackoff": {
+                  "metadata": {
+                    "label": "Retry Backoff",
+                    "description": "Multiplier applied to delay after each retry (default: 2.0)"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "decimal",
+                      "selected": true
+                    }
+                  ],
+                  "value": "",
+                  "optional": true,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "maxRetryDelay": {
+                  "metadata": {
+                    "label": "Max Retry Delay",
+                    "description": "Cap on the delay between retries, in seconds"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "decimal",
+                      "selected": true
+                    }
+                  ],
+                  "value": "",
+                  "optional": true,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "retryUserRoles": {
+                  "metadata": {
+                    "label": "Reviewer Roles",
+                    "description": "Role(s) permitted to decide the human review, e.g. \"manager\" or [\"finance\", \"manager\"]. Leave empty to allow any role."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "TEXT",
+                      "ballerinaType": "string",
+                      "selected": false
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "string|string[]",
+                      "selected": false
+                    }
+                  ],
+                  "value": "",
+                  "optional": true,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "retryUsers": {
+                  "metadata": {
+                    "label": "Reviewers",
+                    "description": "User id(s) permitted to decide the review, whatever their roles"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "TEXT",
+                      "ballerinaType": "string",
+                      "selected": false
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "string|string[]",
+                      "selected": false
+                    }
+                  ],
+                  "value": "",
+                  "optional": true,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "retryExcludedUsers": {
+                  "metadata": {
+                    "label": "Excluded Reviewers",
+                    "description": "User id(s) that may not decide the review"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "TEXT",
+                      "ballerinaType": "string",
+                      "selected": false
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "string|string[]",
+                      "selected": false
+                    }
+                  ],
+                  "value": "",
+                  "optional": true,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "retryExcludedRoles": {
+                  "metadata": {
+                    "label": "Excluded Roles",
+                    "description": "Role(s) that may not decide the review"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "TEXT",
+                      "ballerinaType": "string",
+                      "selected": false
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "string|string[]",
+                      "selected": false
+                    }
+                  ],
+                  "value": "",
+                  "optional": true,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "retryAdministratorRoles": {
+                  "metadata": {
+                    "label": "Administrator Roles",
+                    "description": "Role(s) that administer the review: they see it, may reassign it, move its deadline or decide it"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "TEXT",
+                      "ballerinaType": "string",
+                      "selected": false
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "string|string[]",
+                      "selected": false
+                    }
+                  ],
+                  "value": "",
+                  "optional": true,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "retryAdministratorUsers": {
+                  "metadata": {
+                    "label": "Administrator Users",
+                    "description": "User id(s) that administer the review"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "TEXT",
+                      "ballerinaType": "string",
+                      "selected": false
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "string|string[]",
+                      "selected": false
+                    }
+                  ],
+                  "value": "",
+                  "optional": true,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "retryTitle": {
+                  "metadata": {
+                    "label": "Title",
+                    "description": "Short summary shown in the reviewer's inbox. Defaults to a phrase naming the activity being reviewed."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "TEXT",
+                      "ballerinaType": "string",
+                      "selected": true
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "string",
+                      "selected": false
+                    }
+                  ],
+                  "value": "",
+                  "optional": true,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "retryDescription": {
+                  "metadata": {
+                    "label": "Description",
+                    "description": "Context shown with the decision. Defaults to a description of the failure and the outcomes available."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "TEXT",
+                      "ballerinaType": "string",
+                      "selected": true
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "string",
+                      "selected": false
+                    }
+                  ],
+                  "value": "",
+                  "optional": true,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "retryTimeout": {
+                  "metadata": {
+                    "label": "Timeout",
+                    "description": "How long to wait for a decision, in days, hours and minutes from when the review opens, e.g. {days: 1, hours: 2, minutes: 30}. Empty waits indefinitely."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "workflow:Duration",
+                      "selected": true
+                    }
+                  ],
+                  "value": "",
+                  "optional": true,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                }
+              }
+            },
+            "itemOptions": [
+              {
+                "id": "NoRetry",
+                "content": "No Retry",
+                "value": "NoRetry"
+              },
+              {
+                "id": "AutoRetry",
+                "content": "Auto Retry",
+                "value": "AutoRetry"
+              },
+              {
+                "id": "ManualRetry",
+                "content": "Human Review",
+                "value": "ManualRetry"
+              },
+              {
+                "id": "RetryBeforeReview",
+                "content": "Retry, then Review",
+                "value": "RetryBeforeReview"
+              }
+            ]
+          },
+          "maxRetries": {
+            "metadata": {
+              "label": "Max Retries",
+              "description": "Maximum retry attempts (default: 3)"
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "int",
+                "selected": true
+              }
+            ],
+            "value": "3",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "retryDelay": {
+            "metadata": {
+              "label": "Retry Delay",
+              "description": "Initial delay in seconds before the first retry (default: 1.0)"
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "decimal",
+                "selected": true
+              }
+            ],
+            "value": "2",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "retryBackoff": {
+            "metadata": {
+              "label": "Retry Backoff",
+              "description": "Multiplier applied to delay after each retry (default: 2.0)"
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "decimal",
+                "selected": true
+              }
+            ],
+            "value": "",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "maxRetryDelay": {
+            "metadata": {
+              "label": "Max Retry Delay",
+              "description": "Cap on the delay between retries, in seconds"
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "decimal",
+                "selected": true
+              }
+            ],
+            "value": "",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "retryUserRoles": {
+            "metadata": {
+              "label": "Reviewer Roles",
+              "description": "Role(s) permitted to decide the human review, e.g. \"manager\" or [\"finance\", \"manager\"]. Leave empty to allow any role."
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string|string[]",
+                "selected": true
+              }
+            ],
+            "value": "",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "retryUsers": {
+            "metadata": {
+              "label": "Reviewers",
+              "description": "User id(s) permitted to decide the review, whatever their roles"
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string|string[]",
+                "selected": true
+              }
+            ],
+            "value": "",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "retryExcludedUsers": {
+            "metadata": {
+              "label": "Excluded Reviewers",
+              "description": "User id(s) that may not decide the review"
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string|string[]",
+                "selected": true
+              }
+            ],
+            "value": "",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "retryExcludedRoles": {
+            "metadata": {
+              "label": "Excluded Roles",
+              "description": "Role(s) that may not decide the review"
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string|string[]",
+                "selected": true
+              }
+            ],
+            "value": "",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "retryAdministratorRoles": {
+            "metadata": {
+              "label": "Administrator Roles",
+              "description": "Role(s) that administer the review: they see it, may reassign it, move its deadline or decide it"
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string|string[]",
+                "selected": true
+              }
+            ],
+            "value": "",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "retryAdministratorUsers": {
+            "metadata": {
+              "label": "Administrator Users",
+              "description": "User id(s) that administer the review"
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string|string[]",
+                "selected": true
+              }
+            ],
+            "value": "",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "retryTitle": {
+            "metadata": {
+              "label": "Title",
+              "description": "Short summary shown in the reviewer's inbox. Defaults to a phrase naming the activity being reviewed."
+            },
+            "types": [
+              {
+                "fieldType": "TEXT",
+                "ballerinaType": "string",
+                "selected": true
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string",
+                "selected": false
+              }
+            ],
+            "value": "",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "retryDescription": {
+            "metadata": {
+              "label": "Description",
+              "description": "Context shown with the decision. Defaults to a description of the failure and the outcomes available."
+            },
+            "types": [
+              {
+                "fieldType": "TEXT",
+                "ballerinaType": "string",
+                "selected": true
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string",
+                "selected": false
+              }
+            ],
+            "value": "",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "retryTimeout": {
+            "metadata": {
+              "label": "Timeout",
+              "description": "How long to wait for a decision, in days, hours and minutes from when the review opens, e.g. {days: 1, hours: 2, minutes: 30}. Empty waits indefinitely."
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "workflow:Duration",
+                "selected": true
+              }
+            ],
+            "value": "",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "variable": {
+            "metadata": {
+              "label": "Variable Name",
+              "description": "Name of the variable"
+            },
+            "types": [
+              {
+                "fieldType": "IDENTIFIER",
+                "selected": true
+              }
+            ],
+            "value": "_",
+            "optional": false,
+            "editable": false,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "lineRange": {
+                "fileName": "workflow_activity_options.bal",
+                "startLine": {
+                  "line": 9,
+                  "offset": 11
+                },
+                "endLine": {
+                  "line": 9,
+                  "offset": 12
+                }
+              }
+            }
+          },
+          "type": {
+            "metadata": {
+              "label": "Variable Type",
+              "description": "Type of the variable"
+            },
+            "types": [
+              {
+                "fieldType": "TYPE",
+                "selected": true
+              }
+            ],
+            "value": "string",
+            "placeholder": "var",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {}
+          }
+        },
+        "flags": 1
+      }
+    ],
+    "connections": []
+  }
+}

@@ -49,7 +49,8 @@ public record CommonSourceResponse(Map<String, List<TextEdit>> textEdits, String
     }
 
     public CommonSourceResponse(Throwable e) {
-        this(Map.of(), e.toString(), Arrays.toString(e.getStackTrace()), List.of());
+        this(Map.of(), e.getMessage() != null ? e.getMessage() : e.toString(),
+                Arrays.toString(e.getStackTrace()), List.of());
     }
 
     /** Generation was refused because the model failed validation — no edits are produced. */

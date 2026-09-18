@@ -1,0 +1,215 @@
+{
+  "source": "workflow_function/agent.bal",
+  "description": "The agent box's form writes the declaration's configuration: prompt, model, input type, iterations, event timeout and event waits land on the config literal, existing fields replaced and missing ones appended; the result type is written beside the input type",
+  "diagram": {
+    "id": "1",
+    "metadata": {
+      "label": "myActivity",
+      "description": "Register a workflow activity as a durable agent activity"
+    },
+    "codedata": {
+      "node": "DURABLE_AGENT_RUN",
+      "org": "ballerina",
+      "module": "workflow",
+      "object": "DurableAgent",
+      "symbol": "run",
+      "parentSymbol": "claimAgent",
+      "lineRange": {
+        "fileName": "agent.bal",
+        "startLine": {
+          "line": 15,
+          "offset": 0
+        },
+        "endLine": {
+          "line": 21,
+          "offset": 3
+        }
+      },
+      "isNew": false
+    },
+    "returning": false,
+    "properties": {
+      "role": {
+        "metadata": {
+          "label": "Role",
+          "description": "Role"
+        },
+        "types": [
+          {
+            "fieldType": "PROMPT",
+            "ballerinaType": "string",
+            "selected": true
+          }
+        ],
+        "value": "Claims desk",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "instructions": {
+        "metadata": {
+          "label": "Instructions",
+          "description": "Instructions"
+        },
+        "types": [
+          {
+            "fieldType": "PROMPT",
+            "ballerinaType": "string",
+            "selected": true
+          }
+        ],
+        "value": "Process expense claims carefully.",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "model": {
+        "metadata": {
+          "label": "Model",
+          "description": "Model"
+        },
+        "types": [
+          {
+            "fieldType": "SINGLE_SELECT",
+            "ballerinaType": "ai:ModelProvider",
+            "selected": true
+          }
+        ],
+        "value": "defaultClaimModel",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": true
+      },
+      "inputType": {
+        "metadata": {
+          "label": "Input Type",
+          "description": "Input Type"
+        },
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "typedesc<json>",
+            "selected": true
+          }
+        ],
+        "value": "json",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "maxIter": {
+        "metadata": {
+          "label": "Maximum Iterations",
+          "description": "Maximum Iterations"
+        },
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "int",
+            "selected": true
+          }
+        ],
+        "value": "8",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "eventTimeout": {
+        "metadata": {
+          "label": "Event Timeout",
+          "description": "Event Timeout"
+        },
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "workflow:Duration",
+            "selected": true
+          }
+        ],
+        "value": "{days: 1, hours: 2, minutes: 30}",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "maxEventWaits": {
+        "metadata": {
+          "label": "Maximum Event Waits",
+          "description": "Maximum Event Waits"
+        },
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "int",
+            "selected": true
+          }
+        ],
+        "value": "20",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "resultType": {
+        "metadata": {
+          "label": "Result Type"
+        },
+        "valueType": "EXPRESSION",
+        "value": "ClaimDecision",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      }
+    },
+    "flags": 0
+  },
+  "output": {
+    "workflow_function/agent.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 16,
+            "character": 18
+          },
+          "end": {
+            "line": 16,
+            "character": 92
+          }
+        },
+        "newText": "{role: string `Claims desk`, instructions: string `Process expense claims carefully.`}"
+      },
+      {
+        "range": {
+          "start": {
+            "line": 17,
+            "character": 11
+          },
+          "end": {
+            "line": 17,
+            "character": 21
+          }
+        },
+        "newText": "defaultClaimModel"
+      },
+      {
+        "range": {
+          "start": {
+            "line": 20,
+            "character": 5
+          },
+          "end": {
+            "line": 20,
+            "character": 5
+          }
+        },
+        "newText": "\n,\n    maxIter: 8,\n    inputType: json,\n    resultType: ClaimDecision,\n    eventTimeout: {days: 1, hours: 2, minutes: 30},\n    maxEventWaits: 20"
+      }
+    ]
+  }
+}

@@ -134,15 +134,15 @@ function isRegisteredRunTerminal(candidate: Terminal): boolean {
 
 export function runCommand(file: BallerinaProject | string, executor: string, cmd: BALLERINA_COMMANDS,
     ...args: string[]) {
-    TracerMachine.startServer();
+    TracerMachine.startServer(typeof file === 'string' ? file : file.path);
     runCommandWithConf(file, executor, cmd, '', ...args);
 }
 
 export function runCommandWithConf(file: BallerinaProject | string, executor: string, cmd: BALLERINA_COMMANDS,
     confPath: string, ...args: string[]) {
-    TracerMachine.startServer();
     let filePath = '';
     typeof file === 'string' ? filePath = file : filePath = file.path!;
+    TracerMachine.startServer(filePath);
     const isRun = isRunCommand(cmd);
     if (isRun) {
         // Restarting the same integration replaces its terminal; run terminals

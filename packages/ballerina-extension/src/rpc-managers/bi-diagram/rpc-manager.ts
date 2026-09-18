@@ -454,14 +454,14 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
             case 'ACTIVITY':
                 return { artifactType: DIRECTORY_MAP.ACTIVITY };
             // Durable-agent capability nodes rewrite the agent declaration, whose artifact
-            // publishes as a WORKFLOW entry (durable agents list alongside workflows).
+            // publishes under Agents.
             case 'DURABLE_AGENT':
             case 'DURABLE_AGENT_RUN':
             case 'DURABLE_AGENT_ADD_ACTIVITY':
             case 'DURABLE_AGENT_REGISTER_TOOL':
             case 'DURABLE_AGENT_REGISTER_EVENT':
             case 'DURABLE_AGENT_HUMAN_TASK':
-                return { artifactType: DIRECTORY_MAP.WORKFLOW };
+                return { artifactType: DIRECTORY_MAP.AGENT };
             // Add other cases as needed
             default:
                 return undefined;

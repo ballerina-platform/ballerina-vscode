@@ -63,35 +63,12 @@
             "selected": false
           },
           {
-            "fieldType": "REPEATABLE_LIST",
-            "ballerinaType": "string[]",
-            "template": {
-              "types": [
-                {
-                  "fieldType": "TEXT",
-                  "ballerinaType": "string",
-                  "selected": false
-                },
-                {
-                  "fieldType": "EXPRESSION",
-                  "ballerinaType": "string",
-                  "selected": false
-                }
-              ],
-              "optional": false,
-              "editable": false,
-              "advanced": false,
-              "hidden": false
-            },
-            "selected": false
-          },
-          {
             "fieldType": "EXPRESSION",
-            "ballerinaType": "string|string[]",
+            "ballerinaType": "string|[string, string...]?",
             "selected": false
           }
         ],
-        "placeholder": "\"\"",
+        "placeholder": "()",
         "optional": false,
         "editable": true,
         "advanced": false,
@@ -100,7 +77,7 @@
           "kind": "INCLUDED_FIELD",
           "originalName": "userRoles"
         },
-        "defaultValue": "\"\""
+        "defaultValue": "()"
       },
       "taskInput": {
         "metadata": {
@@ -201,7 +178,7 @@
       "timeout": {
         "metadata": {
           "label": "Timeout",
-          "description": "Maximum time to wait; omit to wait indefinitely"
+          "description": "Maximum time to wait, in days, hours and minutes, e.g. {days: 1, hours: 2, minutes: 30}; omit to wait indefinitely"
         },
         "types": [
           {
@@ -210,7 +187,7 @@
             "typeMembers": [
               {
                 "type": "Duration",
-                "packageInfo": "ballerina:workflow:0.9.0",
+                "packageInfo": "ballerina:workflow:0.10.0",
                 "packageName": "workflow",
                 "kind": "RECORD_TYPE",
                 "selected": false
@@ -262,7 +239,7 @@
       "stepId": {
         "metadata": {
           "label": "Step Id",
-          "description": "Identity of this step within the workflow, as for `callActivity`: name it\nto follow this task across edits, or omit it for a generated\n`<taskName>#<ordinal>`"
+          "description": "Identity of this step within the workflow, as for `callActivity`"
         },
         "types": [
           {
@@ -278,14 +255,154 @@
         ],
         "placeholder": "()",
         "optional": true,
-        "editable": false,
-        "advanced": false,
-        "hidden": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false,
         "codedata": {
           "kind": "DEFAULTABLE",
           "originalName": "stepId"
         },
         "defaultValue": "()"
+      },
+      "users": {
+        "metadata": {
+          "label": "Users",
+          "description": "User id(s) permitted to answer it, whatever their roles"
+        },
+        "types": [
+          {
+            "fieldType": "TEXT",
+            "ballerinaType": "string",
+            "selected": false
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string|[string, string...]",
+            "selected": false
+          }
+        ],
+        "placeholder": "\"\"",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false,
+        "codedata": {
+          "kind": "INCLUDED_FIELD",
+          "originalName": "users"
+        },
+        "defaultValue": "\"\""
+      },
+      "excludedUsers": {
+        "metadata": {
+          "label": "Excluded Users",
+          "description": "User id(s) that may not answer it, whatever their roles"
+        },
+        "types": [
+          {
+            "fieldType": "TEXT",
+            "ballerinaType": "string",
+            "selected": false
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string|[string, string...]",
+            "selected": false
+          }
+        ],
+        "placeholder": "\"\"",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false,
+        "codedata": {
+          "kind": "INCLUDED_FIELD",
+          "originalName": "excludedUsers"
+        },
+        "defaultValue": "\"\""
+      },
+      "excludedRoles": {
+        "metadata": {
+          "label": "Excluded Roles",
+          "description": "Role(s) that may not answer it"
+        },
+        "types": [
+          {
+            "fieldType": "TEXT",
+            "ballerinaType": "string",
+            "selected": false
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string|[string, string...]",
+            "selected": false
+          }
+        ],
+        "placeholder": "\"\"",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false,
+        "codedata": {
+          "kind": "INCLUDED_FIELD",
+          "originalName": "excludedRoles"
+        },
+        "defaultValue": "\"\""
+      },
+      "administratorRoles": {
+        "metadata": {
+          "label": "Administrator Roles",
+          "description": "Role(s) that administer it: they see it, may reassign it, move its deadline,\nfail it, or complete it — a completion by them is recorded as an administrator's"
+        },
+        "types": [
+          {
+            "fieldType": "TEXT",
+            "ballerinaType": "string",
+            "selected": false
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string|[string, string...]",
+            "selected": false
+          }
+        ],
+        "placeholder": "\"\"",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false,
+        "codedata": {
+          "kind": "INCLUDED_FIELD",
+          "originalName": "administratorRoles"
+        },
+        "defaultValue": "\"\""
+      },
+      "administratorUsers": {
+        "metadata": {
+          "label": "Administrator Users",
+          "description": "User id(s) that administer it, whatever their roles"
+        },
+        "types": [
+          {
+            "fieldType": "TEXT",
+            "ballerinaType": "string",
+            "selected": false
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string|[string, string...]",
+            "selected": false
+          }
+        ],
+        "placeholder": "\"\"",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false,
+        "codedata": {
+          "kind": "INCLUDED_FIELD",
+          "originalName": "administratorUsers"
+        },
+        "defaultValue": "\"\""
       },
       "taskInputType": {
         "metadata": {

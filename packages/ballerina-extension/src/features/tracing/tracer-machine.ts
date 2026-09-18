@@ -23,8 +23,9 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { createTraceServerTask } from './trace-server-task';
 import * as vscode from 'vscode';
-import { setTracingConfig, removeTracingConfig } from './utils';
+import { setTracingConfig, removeTracingConfig, getActiveTracingProvider, removeAmpConfig } from './utils';
 import { OTLP_PORT } from './constants';
+import { TracingProvider } from '@wso2/ballerina-core';
 
 
 
@@ -61,6 +62,7 @@ export interface TracerMachineContext {
     traceServer?: TraceServer;
     taskExecution?: vscode.TaskExecution;
     taskTerminationListener?: vscode.Disposable;
+    provider?: TracingProvider;
 }
 
 /**
@@ -88,15 +90,38 @@ function isTraceEnabledInProject(context: TracerMachineContext): Promise<{ isTra
     });
 }
 
+function resolveProvider(event?: any): TracingProvider {
+    return event?.useAmpProvider === true ? 'amp' : 'idetraceprovider';
+}
+
+// No ENABLE event on (re)init to read useAmpProvider from, so read the active provider from disk instead.
+function resolveInitialProvider(context: TracerMachineContext): TracingProvider {
+    const projectPaths = [context.currentProjectPath, ...(context.childProjectPaths ?? [])];
+    for (const projectPath of projectPaths) {
+        const provider = projectPath && getActiveTracingProvider(projectPath);
+        if (provider) {
+            return provider;
+        }
+    }
+    return 'idetraceprovider';
+}
+
 function enableTracingInProject(context: TracerMachineContext, event?: any): void {
     if (!event?.projectPath) {
         return;
     }
 
+    const provider = resolveProvider(event);
+    // Read from disk (not context.provider) so this is correct even after an extension restart.
+    const previousProvider = getActiveTracingProvider(event.projectPath);
     try {
         const traceFilePath = path.join(event.projectPath, 'trace_enabled.bal');
-        fs.writeFileSync(traceFilePath, 'import ballerinax/idetraceprovider as _;');
-        setTracingConfig(event.projectPath);
+        fs.writeFileSync(traceFilePath, `import ballerinax/${provider} as _;`);
+        setTracingConfig(event.projectPath, provider);
+        // Switching away from Agent Manager: drop its Config.toml entries, matching disableTracingInProject.
+        if (previousProvider === 'amp' && provider !== 'amp') {
+            removeAmpConfig(event.projectPath);
+        }
     } catch (error) {
         console.error(`Failed to write trace_enabled.bal to ${event.projectPath}:`, error);
     }
@@ -132,6 +157,23 @@ function hasOtherEnabledProjects(context: TracerMachineContext, event?: any): bo
     candidates.delete(targetPath);
     for (const projectPath of candidates) {
         if (fs.existsSync(path.join(projectPath, 'trace_enabled.bal'))) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// True when another known project still relies on the shared local dev-time server.
+function hasOtherIdeTracingProjects(context: TracerMachineContext, event?: any): boolean {
+    const targetPath = event?.projectPath;
+    const candidates = new Set<string>();
+    if (context.currentProjectPath) {
+        candidates.add(context.currentProjectPath);
+    }
+    context.childProjectPaths?.forEach(p => candidates.add(p));
+    candidates.delete(targetPath);
+    for (const projectPath of candidates) {
+        if (getActiveTracingProvider(projectPath) === 'idetraceprovider') {
             return true;
         }
     }
@@ -197,7 +239,10 @@ function createTracerMachine(projectPath?: string, childProjectPaths?: string[])
                                 cond: (context, event) => {
                                     const traceEnabled = (event as any).data?.isTraceEnabledInProject;
                                     return traceEnabled === true;
-                                }
+                                },
+                                actions: assign({
+                                    provider: (context) => resolveInitialProvider(context),
+                                }),
                             },
                             {
                                 target: 'disabled'
@@ -233,7 +278,12 @@ function createTracerMachine(projectPath?: string, childProjectPaths?: string[])
                     on: {
                         // ENABLE while already enabled: write trace_enabled.bal for the new project, stay in enabled.
                         ENABLE: {
-                            actions: [enableTracingInProject],
+                            actions: [
+                                enableTracingInProject,
+                                assign({
+                                    provider: (context, event) => resolveProvider(event),
+                                }),
+                            ],
                         },
                         DISABLE: [
                             // Other projects still have trace_enabled.bal — remove this project's file and stay in enabled.
@@ -375,7 +425,22 @@ function createTracerMachine(projectPath?: string, childProjectPaths?: string[])
                                             taskExecution: undefined,
                                         }),
                                     ],
-                                }
+                                },
+                                // amp needs no local receiver, unless another project still depends on it.
+                                ENABLE: {
+                                    target: "serverStopping",
+                                    cond: (context, event) =>
+                                        resolveProvider(event) === 'amp'
+                                        && !!(event as any)?.projectPath
+                                        && getActiveTracingProvider((event as any).projectPath) !== 'amp'
+                                        && !hasOtherIdeTracingProjects(context, event),
+                                    actions: [
+                                        enableTracingInProject,
+                                        assign({
+                                            provider: (context, event) => resolveProvider(event),
+                                        }),
+                                    ],
+                                },
                             }
                         },
 
@@ -442,6 +507,7 @@ function createTracerMachine(projectPath?: string, childProjectPaths?: string[])
                                 enableTracingInProject,
                                 assign({
                                     currentProjectPath: (context, event) => (event as any).projectPath,
+                                    provider: (context, event) => resolveProvider(event),
                                 })
                             ]
                         },
@@ -531,7 +597,12 @@ export const TracerMachine = {
         return ensureInitialized().getSnapshot().value;
     },
 
-    startServer: () => {
+    // context.provider is machine-wide and can be stale, so fail open (start) when projectPath is unknown.
+    startServer: (projectPath?: string) => {
+        // Agent Manager exports traces remotely; the local OTLP receiver has nothing to catch.
+        if (projectPath && getActiveTracingProvider(projectPath) === 'amp') {
+            return;
+        }
         ensureInitialized().send({ type: 'START_SERVER' });
     },
 
@@ -539,12 +610,17 @@ export const TracerMachine = {
         ensureInitialized().send({ type: 'STOP_SERVER' });
     },
 
-    enable: (projectPath: string) => {
-        ensureInitialized().send({ type: 'ENABLE', projectPath } as any);
+    enable: (projectPath: string, useAmpProvider?: boolean) => {
+        ensureInitialized().send({ type: 'ENABLE', projectPath, useAmpProvider } as any);
     },
 
     disable: (projectPath: string) => {
         ensureInitialized().send({ type: 'DISABLE', projectPath } as any);
+    },
+
+    getProvider: (): TracingProvider => {
+        const context = ensureInitialized().getSnapshot().context as TracerMachineContext;
+        return context.provider ?? 'idetraceprovider';
     },
 
     refresh: (projectPath?: string, childProjectPaths?: string[]) => {

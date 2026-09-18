@@ -361,7 +361,12 @@ const MainPanel = () => {
                                     ? { path: value.documentUri, startLine: value.position.startLine, requestId: agentFocusIdRef.current }
                                     : undefined;
                                 setViewComponent(
-                                    <AgentBuilderOverview projectPath={value.projectPath} agentFocus={agentFocus} />
+                                    <AgentBuilderOverview
+                                        projectPath={value.projectPath}
+                                        agentFocus={agentFocus}
+                                        isInDevant={value.isInDevant}
+                                        isICPSupported={value.metadata?.isICPSupported}
+                                    />
                                 );
                                 break;
                             }
@@ -915,6 +920,7 @@ const MainPanel = () => {
                                     fileName={configFilePath}
                                     testsConfigTomlPath={testsConfigTomlPath}
                                     org={value?.org}
+                                    initialModuleIdentifier={value?.identifier}
                                 />
                             );
                             break;

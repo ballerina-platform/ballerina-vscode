@@ -319,6 +319,7 @@ export function getUserPrompt(
     projects: ProjectSource[],
     projectSkills: ProjectSkillMeta[],
     agentsMdBlockText?: string,
+    codebase?: { omitCodebaseDump?: boolean; codebaseMapText?: string },
 ) {
     const content = [];
 
@@ -329,10 +330,19 @@ export function getUserPrompt(
         });
     }
 
-    content.push({
-        type: 'text' as const,
-        text: formatCodebaseStructure(projects, tempProjectPath)
-    });
+    if (codebase?.omitCodebaseDump) {
+        if (codebase.codebaseMapText) {
+            content.push({
+                type: 'text' as const,
+                text: codebase.codebaseMapText,
+            });
+        }
+    } else {
+        content.push({
+            type: 'text' as const,
+            text: formatCodebaseStructure(projects, tempProjectPath)
+        });
+    }
 
     const activeFileReminder = formatActiveFileReminder(params.activeFilePath);
     if (activeFileReminder) {

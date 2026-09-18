@@ -30,6 +30,7 @@ import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
 import io.ballerina.flowmodelgenerator.core.utils.FlowNodeUtil;
+import io.ballerina.flowmodelgenerator.core.utils.WorkflowUtil;
 import io.ballerina.modelgenerator.commons.FunctionData;
 import io.ballerina.modelgenerator.commons.FunctionDataBuilder;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
@@ -135,7 +136,8 @@ public class HumanTaskBuilder extends CallBuilder {
     private static final String EMPTY_TASK_INPUT = "{}";
     private static final String TITLE_DOC = "Short summary shown in the inbox";
     private static final String DESCRIPTION_DOC = "Additional context shown alongside the form";
-    private static final String TIMEOUT_DOC = "Maximum time to wait; omit to wait indefinitely";
+    private static final String TIMEOUT_DOC = "Maximum time to wait, in days, hours and minutes, "
+            + "e.g. {days: 1, hours: 2, minutes: 30}; omit to wait indefinitely";
 
     // Ballerina type signatures used by the fallback form fields.
     private static final String STRING_TYPE = "string";
@@ -356,15 +358,11 @@ public class HumanTaskBuilder extends CallBuilder {
      * @param properties the live property map to relabel in place
      */
     public static void relabelHumanTaskFormProperties(Map<String, Property> properties) {
-        // `stepId` identifies this step in the workflow's graph. It is optional and the compiler
-        // generates one when a call omits it, so nothing needs it in the form — and offering it here
-        // would put an identity among the task's business fields, with no advanced group to hold it.
-        // Hide it until this form gains one; Call Activity already shows it under its advanced
-        // configurations. Hidden, not removed: a call that names its step keeps that name through
-        // an edit, because toSource writes every property that holds a value. Both render paths
-        // (the node template and CodeAnalyzer's source re-read) go through here, so doing it once
-        // keeps the two forms identical.
-        hide(properties, STEP_ID_KEY);
+        // `stepId` names this step in the descriptor graph. It is an identity rather than one of the
+        // task's business fields, so it renders with the advanced configurations, as Call Activity
+        // shows it. Both render paths (the node template and CodeAnalyzer's source re-read) go
+        // through here, so doing it once keeps the two forms identical.
+        WorkflowUtil.markStepIdAdvanced(properties);
         // 0.9.0 declares the task through an included record, and two of its fields have no place
         // in this form: resultType is what the Completion Type selector already edits, and
         // taskInputType is derived from the input. Both are hidden the same way as stepId, so a

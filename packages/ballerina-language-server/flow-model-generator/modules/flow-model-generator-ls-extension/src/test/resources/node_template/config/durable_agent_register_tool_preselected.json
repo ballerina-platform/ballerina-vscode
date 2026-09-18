@@ -53,46 +53,403 @@
           "kind": "REQUIRED"
         }
       },
-      "requiresApproval": {
+      "approvalPolicy": {
         "metadata": {
-          "label": "Requires Approval",
-          "description": "Gate this tool: before the agent runs it, a review activity is created and the agent suspends durably until a reviewer proceeds (optionally editing the arguments) or rejects."
+          "label": "Approval Policy",
+          "description": "Whether a person approves before this runs: no approval, or a review a reviewer proceeds with (optionally editing the arguments) or rejects"
         },
         "types": [
           {
-            "fieldType": "FLAG",
-            "ballerinaType": "boolean",
+            "fieldType": "DROPDOWN_CHOICE",
+            "options": [
+              {
+                "label": "No Approval",
+                "value": "NoApproval"
+              },
+              {
+                "label": "Human Approval",
+                "value": "HumanApproval"
+              }
+            ],
             "selected": true
           }
         ],
-        "value": "false",
-        "optional": true,
+        "value": "NoApproval",
+        "optional": false,
         "editable": true,
-        "advanced": true,
-        "hidden": false
+        "advanced": false,
+        "hidden": false,
+        "dynamicFormFields": {
+          "NoApproval": {},
+          "HumanApproval": {
+            "approvalUserRoles": {
+              "metadata": {
+                "label": "Reviewer Roles",
+                "description": "Role(s) permitted to decide the human review, e.g. \"manager\" or [\"finance\", \"manager\"]. Leave empty to allow any role."
+              },
+              "types": [
+                {
+                  "fieldType": "TEXT",
+                  "ballerinaType": "string",
+                  "selected": false
+                },
+                {
+                  "fieldType": "EXPRESSION",
+                  "ballerinaType": "string|string[]",
+                  "selected": false
+                }
+              ],
+              "value": "",
+              "optional": true,
+              "editable": true,
+              "advanced": false,
+              "hidden": false
+            },
+            "approvalUsers": {
+              "metadata": {
+                "label": "Reviewers",
+                "description": "User id(s) permitted to decide the review, whatever their roles"
+              },
+              "types": [
+                {
+                  "fieldType": "TEXT",
+                  "ballerinaType": "string",
+                  "selected": false
+                },
+                {
+                  "fieldType": "EXPRESSION",
+                  "ballerinaType": "string|string[]",
+                  "selected": false
+                }
+              ],
+              "value": "",
+              "optional": true,
+              "editable": true,
+              "advanced": false,
+              "hidden": false
+            },
+            "approvalExcludedUsers": {
+              "metadata": {
+                "label": "Excluded Reviewers",
+                "description": "User id(s) that may not decide the review"
+              },
+              "types": [
+                {
+                  "fieldType": "TEXT",
+                  "ballerinaType": "string",
+                  "selected": false
+                },
+                {
+                  "fieldType": "EXPRESSION",
+                  "ballerinaType": "string|string[]",
+                  "selected": false
+                }
+              ],
+              "value": "",
+              "optional": true,
+              "editable": true,
+              "advanced": false,
+              "hidden": false
+            },
+            "approvalExcludedRoles": {
+              "metadata": {
+                "label": "Excluded Roles",
+                "description": "Role(s) that may not decide the review"
+              },
+              "types": [
+                {
+                  "fieldType": "TEXT",
+                  "ballerinaType": "string",
+                  "selected": false
+                },
+                {
+                  "fieldType": "EXPRESSION",
+                  "ballerinaType": "string|string[]",
+                  "selected": false
+                }
+              ],
+              "value": "",
+              "optional": true,
+              "editable": true,
+              "advanced": false,
+              "hidden": false
+            },
+            "approvalAdministratorRoles": {
+              "metadata": {
+                "label": "Administrator Roles",
+                "description": "Role(s) that administer the review: they see it, may reassign it, move its deadline or decide it"
+              },
+              "types": [
+                {
+                  "fieldType": "TEXT",
+                  "ballerinaType": "string",
+                  "selected": false
+                },
+                {
+                  "fieldType": "EXPRESSION",
+                  "ballerinaType": "string|string[]",
+                  "selected": false
+                }
+              ],
+              "value": "",
+              "optional": true,
+              "editable": true,
+              "advanced": false,
+              "hidden": false
+            },
+            "approvalAdministratorUsers": {
+              "metadata": {
+                "label": "Administrator Users",
+                "description": "User id(s) that administer the review"
+              },
+              "types": [
+                {
+                  "fieldType": "TEXT",
+                  "ballerinaType": "string",
+                  "selected": false
+                },
+                {
+                  "fieldType": "EXPRESSION",
+                  "ballerinaType": "string|string[]",
+                  "selected": false
+                }
+              ],
+              "value": "",
+              "optional": true,
+              "editable": true,
+              "advanced": false,
+              "hidden": false
+            },
+            "approvalTitle": {
+              "metadata": {
+                "label": "Title",
+                "description": "Short summary shown in the reviewer's inbox. Defaults to a phrase naming what is being approved."
+              },
+              "types": [
+                {
+                  "fieldType": "EXPRESSION",
+                  "ballerinaType": "string",
+                  "selected": true
+                }
+              ],
+              "value": "",
+              "optional": true,
+              "editable": true,
+              "advanced": false,
+              "hidden": false
+            },
+            "approvalDescription": {
+              "metadata": {
+                "label": "Description",
+                "description": "Context shown with the decision. Defaults to a description of the call and its arguments."
+              },
+              "types": [
+                {
+                  "fieldType": "EXPRESSION",
+                  "ballerinaType": "string",
+                  "selected": true
+                }
+              ],
+              "value": "",
+              "optional": true,
+              "editable": true,
+              "advanced": false,
+              "hidden": false
+            },
+            "approvalTimeout": {
+              "metadata": {
+                "label": "Timeout",
+                "description": "How long to wait for a decision, in days, hours and minutes from when the review opens, e.g. {days: 1, hours: 2, minutes: 30}. Empty waits indefinitely."
+              },
+              "types": [
+                {
+                  "fieldType": "EXPRESSION",
+                  "ballerinaType": "workflow:Duration",
+                  "selected": true
+                }
+              ],
+              "value": "",
+              "optional": true,
+              "editable": true,
+              "advanced": false,
+              "hidden": false
+            }
+          }
+        },
+        "itemOptions": [
+          {
+            "id": "NoApproval",
+            "content": "No Approval",
+            "value": "NoApproval"
+          },
+          {
+            "id": "HumanApproval",
+            "content": "Human Approval",
+            "value": "HumanApproval"
+          }
+        ]
       },
-      "userRoles": {
+      "approvalUserRoles": {
         "metadata": {
           "label": "Reviewer Roles",
-          "description": "Role(s) permitted to decide the approval review of this tool, e.g. \"support-lead\" or [\"finance\", \"manager\"]."
+          "description": "Role(s) permitted to decide the human review, e.g. \"manager\" or [\"finance\", \"manager\"]. Leave empty to allow any role."
         },
         "types": [
           {
-            "fieldType": "TEXT",
-            "ballerinaType": "string",
-            "selected": false
-          },
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string|string[]",
+            "selected": true
+          }
+        ],
+        "value": "",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": true
+      },
+      "approvalUsers": {
+        "metadata": {
+          "label": "Reviewers",
+          "description": "User id(s) permitted to decide the review, whatever their roles"
+        },
+        "types": [
           {
             "fieldType": "EXPRESSION",
             "ballerinaType": "string|string[]",
-            "selected": false
+            "selected": true
           }
         ],
-        "placeholder": "",
+        "value": "",
         "optional": true,
         "editable": true,
-        "advanced": true,
-        "hidden": false
+        "advanced": false,
+        "hidden": true
+      },
+      "approvalExcludedUsers": {
+        "metadata": {
+          "label": "Excluded Reviewers",
+          "description": "User id(s) that may not decide the review"
+        },
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string|string[]",
+            "selected": true
+          }
+        ],
+        "value": "",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": true
+      },
+      "approvalExcludedRoles": {
+        "metadata": {
+          "label": "Excluded Roles",
+          "description": "Role(s) that may not decide the review"
+        },
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string|string[]",
+            "selected": true
+          }
+        ],
+        "value": "",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": true
+      },
+      "approvalAdministratorRoles": {
+        "metadata": {
+          "label": "Administrator Roles",
+          "description": "Role(s) that administer the review: they see it, may reassign it, move its deadline or decide it"
+        },
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string|string[]",
+            "selected": true
+          }
+        ],
+        "value": "",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": true
+      },
+      "approvalAdministratorUsers": {
+        "metadata": {
+          "label": "Administrator Users",
+          "description": "User id(s) that administer the review"
+        },
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string|string[]",
+            "selected": true
+          }
+        ],
+        "value": "",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": true
+      },
+      "approvalTitle": {
+        "metadata": {
+          "label": "Title",
+          "description": "Short summary shown in the reviewer's inbox. Defaults to a phrase naming what is being approved."
+        },
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string",
+            "selected": true
+          }
+        ],
+        "value": "",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": true
+      },
+      "approvalDescription": {
+        "metadata": {
+          "label": "Description",
+          "description": "Context shown with the decision. Defaults to a description of the call and its arguments."
+        },
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string",
+            "selected": true
+          }
+        ],
+        "value": "",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": true
+      },
+      "approvalTimeout": {
+        "metadata": {
+          "label": "Timeout",
+          "description": "How long to wait for a decision, in days, hours and minutes from when the review opens, e.g. {days: 1, hours: 2, minutes: 30}. Empty waits indefinitely."
+        },
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "workflow:Duration",
+            "selected": true
+          }
+        ],
+        "value": "",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": true
       },
       "checkError": {
         "metadata": {
