@@ -24,10 +24,14 @@ import {
     buildNeedTokenRefetchListner,
     buildOnChangeListner,
     chipPlugin,
+    chipBoundaryClickHandler,
+    activeChipSelectionGuard,
     chipTheme,
     completionTheme,
     tokenField,
+    activeEditableTokenField,
     tokensChangeEffect,
+    chipCommitKeymap,
     expressionEditorKeymap,
     buildCompletionSource,
     buildHelperPaneKeymap,
@@ -301,6 +305,14 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
                 history(),
                 keymap.of([
                     ...helperPaneKeymap,
+                    // chipCommitKeymap's Enter binding must be tried before list continuation's:
+                    // it falls through (returns false) when no chip is active, so list
+                    // continuation still runs exactly as before in that case, but when a chip
+                    // IS active this stops list continuation from swallowing Enter first and
+                    // leaving the chip stuck in edit mode. expressionEditorKeymap's own
+                    // defaultKeymap/historyKeymap tail must stay AFTER list continuation, or
+                    // its unconditional Enter->insertNewlineAndIndent binding would do the same.
+                    ...chipCommitKeymap,
                     ...(props.enableListContinuation ? listContinuationKeymap : []),
                     ...expressionEditorKeymap
                 ]),
@@ -312,7 +324,10 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
                 }),
                 tooltips({ position: "absolute" }),
                 chipPlugin,
+                chipBoundaryClickHandler,
+                activeChipSelectionGuard,
                 tokenField,
+                activeEditableTokenField,
                 placeholder(props.placeholder),
                 chipTheme,
                 completionTheme,

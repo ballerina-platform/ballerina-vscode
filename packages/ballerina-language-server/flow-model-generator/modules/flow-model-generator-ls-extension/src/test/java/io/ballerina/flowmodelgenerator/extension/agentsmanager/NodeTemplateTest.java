@@ -18,6 +18,7 @@
 
 package io.ballerina.flowmodelgenerator.extension.agentsmanager;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import io.ballerina.flowmodelgenerator.extension.request.FlowModelNodeTemplateRequest;
@@ -97,6 +98,33 @@ public class NodeTemplateTest extends AbstractLSTest {
         Assert.assertFalse(response.has("errorMsg"), "Incomplete AGENT codedata must resolve the ai package");
         JsonObject templateCodedata = response.getAsJsonObject("flowNode").getAsJsonObject("codedata");
         Assert.assertEquals(templateCodedata.get("packageName").getAsString(), "ai");
+    }
+
+    @Test
+    public void testAgentCallQueryDefaultsToPromptForBlankTemplate() throws IOException {
+        JsonObject codedata = new JsonObject();
+        codedata.addProperty("node", "AGENT_CALL");
+        codedata.addProperty("org", "ballerina");
+        codedata.addProperty("module", "ai");
+        codedata.addProperty("packageName", "ai");
+        codedata.addProperty("object", "Agent");
+        codedata.addProperty("symbol", "run");
+        codedata.addProperty("parentSymbol", "chatAgent");
+
+        String source = "agent_14/agents.bal";
+        String filePath = sourceDir.resolve(source).toAbsolutePath().toString();
+        FlowModelNodeTemplateRequest request =
+                new FlowModelNodeTemplateRequest(filePath, LinePosition.from(0, 0), codedata);
+        JsonObject response = getResponseAndCloseFile(request, source);
+
+        JsonArray queryTypes = response.getAsJsonObject("flowNode").getAsJsonObject("properties")
+                .getAsJsonObject("query").getAsJsonArray("types");
+        for (JsonElement typeElement : queryTypes) {
+            JsonObject type = typeElement.getAsJsonObject();
+            boolean expectedSelected = "PROMPT".equals(type.get("fieldType").getAsString());
+            Assert.assertEquals(type.get("selected").getAsBoolean(), expectedSelected,
+                    "Unexpected selection for type: " + type.get("fieldType").getAsString());
+        }
     }
 
     @Override

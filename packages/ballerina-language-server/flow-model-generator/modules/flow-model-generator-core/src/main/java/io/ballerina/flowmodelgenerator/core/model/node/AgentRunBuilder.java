@@ -23,6 +23,7 @@ import io.ballerina.flowmodelgenerator.core.AiUtils;
 import io.ballerina.flowmodelgenerator.core.model.Codedata;
 import io.ballerina.flowmodelgenerator.core.model.FlowNode;
 import io.ballerina.flowmodelgenerator.core.model.Metadata;
+import io.ballerina.flowmodelgenerator.core.model.NodeBuilder;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
@@ -88,6 +89,7 @@ public class AgentRunBuilder extends CallBuilder {
     public void setConcreteTemplateData(TemplateContext context) {
         FlowNode callTemplate = getOrCreateCallFunctionTemplate(context);
         restoreFromTemplate(callTemplate);
+        fixQueryPromptType(this, true);
 
         Codedata contextCd = context.codedata();
         codedata().lineRange(contextCd.lineRange()).sourceCode(contextCd.sourceCode());
@@ -111,6 +113,14 @@ public class AgentRunBuilder extends CallBuilder {
 
     void callSuperSetConcreteTemplateData(TemplateContext context) {
         super.setConcreteTemplateData(context);
+    }
+
+    /** Adds PROMPT to the query property on an AGENT_RUN node builder; no-op for any other builder. */
+    public static void fixQueryPromptType(NodeBuilder nodeBuilder, boolean defaultToPrompt) {
+        if (!(nodeBuilder instanceof AgentRunBuilder builder) || builder.formBuilder == null) {
+            return;
+        }
+        AiUtils.fixQueryPromptType(builder.formBuilder.build(), defaultToPrompt);
     }
 
     private void restoreFromTemplate(FlowNode template) {

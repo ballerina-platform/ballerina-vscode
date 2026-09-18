@@ -50,7 +50,7 @@ import static io.ballerina.flowmodelgenerator.core.model.node.ActivityCallBuilde
 import static io.ballerina.flowmodelgenerator.core.model.node.ActivityCallBuilder.DEFAULT_RETURN_TYPE;
 import static io.ballerina.flowmodelgenerator.core.model.node.ActivityCallBuilder.addContextParameterToFunction;
 import static io.ballerina.flowmodelgenerator.core.model.node.ActivityCallBuilder.getContextParamName;
-import static io.ballerina.flowmodelgenerator.core.model.node.ActivityCallBuilder.populateAdvancedArgs;
+import static io.ballerina.flowmodelgenerator.core.model.node.ActivityCallBuilder.populateOptionArgs;
 import static io.ballerina.flowmodelgenerator.core.model.node.FunctionCreationBuilder.PARAMETERS_DOC;
 import static io.ballerina.flowmodelgenerator.core.model.node.FunctionCreationBuilder.PARAMETERS_LABEL;
 import static io.ballerina.flowmodelgenerator.core.model.node.FunctionCreationBuilder.getParameterSchema;
@@ -98,7 +98,7 @@ public class ActivityCreationBuilder extends CallBuilder {
                         PARAMETERS_DOC, getParameterSchema(), false, false)
                 .data(ACTIVITY_RESULT, context.getAllVisibleSymbolNames(), Property.RESULT_NAME, Property.RESULT_DOC,
                         false);
-        ActivityCallBuilder.addAdvancedParameters(context, moduleInfo, this);
+        ActivityCallBuilder.addOptionParameters(context, moduleInfo, this);
     }
 
     @Override
@@ -188,7 +188,7 @@ public class ActivityCreationBuilder extends CallBuilder {
             }
         }
         sourceBuilder.token().keyword(SyntaxKind.CLOSE_BRACE_TOKEN);
-        populateAdvancedArgs(sourceBuilder, sourceBuilder.flowNode.properties());
+        populateOptionArgs(sourceBuilder, sourceBuilder.flowNode.properties());
 
         sourceBuilder.token()
                 .keyword(SyntaxKind.CLOSE_PAREN_TOKEN)

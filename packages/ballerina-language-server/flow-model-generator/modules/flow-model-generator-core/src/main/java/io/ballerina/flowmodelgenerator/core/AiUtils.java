@@ -193,6 +193,7 @@ public class AiUtils {
 
     public static final String MEMORY_DEFAULT_VALUE = "10";
     public static final String AI_PROMPT_TYPE = "ai:Prompt";
+    private static final String QUERY_KEY = "query";
 
     private static final String AGENT_INFO_KEY = "agentInfo";
     private static final String CONNECTION_DATA_KEY = "connection";
@@ -434,6 +435,71 @@ public class AiUtils {
                 original.dynamicFormFields(),
                 original.itemOptions()
         );
+    }
+
+    // Takes the raw property map, not a NodeBuilder, since formBuilder needs a same-class cast to reach.
+    public static void fixQueryPromptType(Map<String, Property> props, boolean defaultToPrompt) {
+        Property prop = props.get(QUERY_KEY);
+        if (prop == null) {
+            return;
+        }
+        props.put(QUERY_KEY, addPromptTypeIfUnionMember(prop, defaultToPrompt));
+    }
+
+    /**
+     * Adds PROMPT to a property whose type is a union containing {@code ai:Prompt}
+     * (e.g. {@code anydata|ai:Prompt|ai:Resume}), which the generic type resolution misses.
+     *
+     * @param defaultToPrompt selects PROMPT regardless of {@code original}'s value; used for a blank
+     *                        template where the value is just a generic placeholder, not real source
+     */
+    public static Property addPromptTypeIfUnionMember(Property original, boolean defaultToPrompt) {
+        if (original.types() == null) {
+            return original;
+        }
+        boolean alreadyHasPrompt = original.types().stream().anyMatch(t -> t.fieldType() == Property.ValueType.PROMPT);
+        boolean unionHasPrompt = original.types().stream().anyMatch(t -> t.ballerinaType() != null
+                && List.of(t.ballerinaType().split("\\|")).contains(AI_PROMPT_TYPE));
+        if (alreadyHasPrompt || !unionHasPrompt) {
+            return original;
+        }
+        boolean isPromptValue = defaultToPrompt || isBacktickTemplateValue(original.value());
+        List<PropertyType> updatedTypes = new ArrayList<>();
+        updatedTypes.add(new PropertyType(Property.ValueType.PROMPT, AI_PROMPT_TYPE, null, null, null, null,
+                null, isPromptValue));
+        for (PropertyType type : original.types()) {
+            updatedTypes.add(new PropertyType(type.fieldType(), type.ballerinaType(), type.scope(), type.options(),
+                    type.template(), type.typeMembers(), type.recordSelectorType(),
+                    isPromptValue ? false : type.selected()));
+        }
+        return new Property(
+                original.metadata(),
+                updatedTypes,
+                original.value(),
+                original.oldValue(),
+                isPromptValue ? null : original.placeholder(),
+                original.optional(),
+                original.editable(),
+                original.advanced(),
+                original.hidden(),
+                original.modified(),
+                original.diagnostics(),
+                original.codedata(),
+                original.advancedValue(),
+                original.imports(),
+                original.defaultValue(),
+                original.comment(),
+                original.dynamicFormFields(),
+                original.itemOptions()
+        );
+    }
+
+    private static boolean isBacktickTemplateValue(Object value) {
+        if (!(value instanceof String str)) {
+            return false;
+        }
+        String trimmed = str.trim();
+        return trimmed.startsWith("`") || trimmed.matches("(?s)^string\\s*`.*`$");
     }
 
     /**

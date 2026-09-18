@@ -17,10 +17,24 @@
  */
 
 import { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
-import { Attachment, SHARED_COMMANDS } from "@wso2/ballerina-core";
+import { AIPanelView, Attachment, SHARED_COMMANDS } from "@wso2/ballerina-core";
 
 export function openCopilotPanel(rpcClient: BallerinaRpcClient | undefined): void {
     rpcClient?.getCommonRpcClient().executeCommand({ commands: [SHARED_COMMANDS.OPEN_AI_PANEL] });
+}
+
+/** Opens the panel straight onto one of its surfaces rather than the chat. */
+export function openCopilotPanelAt(rpcClient: BallerinaRpcClient | undefined, view: AIPanelView): void {
+    rpcClient?.getCommonRpcClient().executeCommand({
+        commands: [SHARED_COMMANDS.OPEN_AI_PANEL, { type: "view", view }],
+    });
+}
+
+/** Opens the panel on an existing conversation. */
+export function openCopilotThread(rpcClient: BallerinaRpcClient | undefined, threadId: string): void {
+    rpcClient?.getCommonRpcClient().executeCommand({
+        commands: [SHARED_COMMANDS.OPEN_AI_PANEL, { type: "thread", threadId }],
+    });
 }
 
 export interface CopilotPromptOptions {

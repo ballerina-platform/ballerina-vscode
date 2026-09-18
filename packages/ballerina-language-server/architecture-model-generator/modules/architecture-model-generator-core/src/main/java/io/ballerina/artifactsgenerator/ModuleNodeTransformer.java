@@ -208,8 +208,8 @@ public class ModuleNodeTransformer extends NodeTransformer<Optional<Artifact>> {
 
         Artifact.Visibility varVisibility = determineVisibility(moduleVariableDeclarationNode);
         if (WorkflowUtil.isDurableAgentDeclaration(moduleVariableDeclarationNode, semanticModel)) {
-            // A `workflow:DurableAgent` declaration is a durable agentic workflow — a first-class
-            // artifact listed alongside durable workflows, opening the agent model on click.
+            // A `workflow:DurableAgent` declaration is a first-class artifact listed under Agents,
+            // opening the agent model on click.
             variableBuilder
                     .type(Artifact.Type.DURABLE_AGENT)
                     .visibility(varVisibility);
