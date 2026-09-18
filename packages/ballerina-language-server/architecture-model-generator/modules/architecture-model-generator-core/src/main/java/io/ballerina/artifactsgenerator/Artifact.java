@@ -74,6 +74,7 @@ public record Artifact(String id, LineRange location, String type, String name, 
     private static final String CATEGORY_AGENT_DEFINITIONS = "Agent Definitions";
     private static final String CATEGORY_VARIABLES = "Variables";
     private static final String CATEGORY_WORKFLOWS = "Workflows";
+    private static final String CATEGORY_AGENT_TOOLS = "Agent Tools";
     private static final String CATEGORY_DEFAULT = "Others";
 
     private static final Map<String, String> typeCategoryMap = Map.ofEntries(
@@ -93,7 +94,8 @@ public record Artifact(String id, LineRange location, String type, String name, 
             Map.entry(Type.VARIABLE.name(), CATEGORY_VARIABLES),
             Map.entry(Type.WORKFLOW.name(), CATEGORY_WORKFLOWS),
             Map.entry(Type.DURABLE_AGENT.name(), CATEGORY_WORKFLOWS),
-            Map.entry(Type.ACTIVITY.name(), CATEGORY_WORKFLOWS));
+            Map.entry(Type.ACTIVITY.name(), CATEGORY_WORKFLOWS),
+            Map.entry(Type.AGENT_TOOL.name(), CATEGORY_AGENT_TOOLS));
 
     private static final Map<String, String> entryPointMap = Map.ofEntries(
             Map.entry("ai", "AI Agent Services"),
@@ -186,7 +188,8 @@ public record Artifact(String id, LineRange location, String type, String name, 
         VARIABLE,
         WORKFLOW,
         DURABLE_AGENT,
-        ACTIVITY
+        ACTIVITY,
+        AGENT_TOOL
     }
 
     public enum Scope {

@@ -2751,6 +2751,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
 
         // When editorConfig is absent, derive the artifact type from the EVENT_START node's metadata.
         //   kind="Function" + label="main" → AUTOMATION
+        //   kind="Function" + @ai:AgentTool → AGENT_TOOL
         //   kind="Function" + other label  → FUNCTION
         //   isServiceFunction              → SERVICE
         if (!editorConfig) {
@@ -2761,6 +2762,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 if (!isServiceFunction && kind === "Function") {
                     if (label?.toLowerCase() === "main") {
                         return { artifactType: DIRECTORY_MAP.AUTOMATION };
+                    }
+                    if (/@ai:AgentTool\b/.test(eventStartNode?.codedata?.sourceCode ?? "")) {
+                        return { artifactType: DIRECTORY_MAP.AGENT_TOOL };
                     }
                     return { artifactType: DIRECTORY_MAP.FUNCTION };
                 }

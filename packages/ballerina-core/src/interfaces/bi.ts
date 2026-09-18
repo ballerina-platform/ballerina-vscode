@@ -496,6 +496,7 @@ export type ProjectDirectoryMap = {
     [DIRECTORY_MAP.LOCAL_CONNECTORS]: ProjectStructureArtifactResponse[];
     [DIRECTORY_MAP.WORKFLOW]?: ProjectStructureArtifactResponse[];
     [DIRECTORY_MAP.ACTIVITY]?: ProjectStructureArtifactResponse[];
+    [DIRECTORY_MAP.AGENT_TOOL]?: ProjectStructureArtifactResponse[];
 };
 
 /**

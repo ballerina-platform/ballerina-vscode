@@ -2288,7 +2288,8 @@ export enum ARTIFACT_TYPE {
     NaturalFunctions = "Natural Functions",
     DataMappers = "Data Mappers",
     Configurations = "Configurations",
-    Variables = "Variables"
+    Variables = "Variables",
+    AgentTools = "Agent Tools"
 }
 
 export enum PROJECT_KIND {
@@ -2308,6 +2309,7 @@ export interface Artifacts {
     [ARTIFACT_TYPE.NaturalFunctions]: Record<string, BaseArtifact>;
     [ARTIFACT_TYPE.DataMappers]: Record<string, BaseArtifact>;
     [ARTIFACT_TYPE.Configurations]: Record<string, BaseArtifact>;
+    [ARTIFACT_TYPE.AgentTools]?: Record<string, BaseArtifact>;
 }
 
 export interface ArtifactsNotification {
