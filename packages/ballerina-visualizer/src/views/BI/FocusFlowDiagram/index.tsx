@@ -1182,7 +1182,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
         }
         const backViews: AgentEditorView[] =
             ["NEW_TOOL_CUSTOM", "NEW_TOOL_CONNECTION", "NEW_TOOL_FUNCTION", "ADD_MCP", "NEW_TOOL_AGENT",
-                "NEW_TOOL_AGENT_FORM"];
+                "NEW_TOOL_AGENT_FORM", "NEW_TOOL_KNOWLEDGE_BASE"];
         return backViews.includes(agentEditor.view) ? agentEditor.back : undefined;
     })();
 

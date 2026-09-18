@@ -19,7 +19,40 @@
 import { NodeProperties } from "@wso2/ballerina-core";
 import { FormField } from "@wso2/ballerina-side-panel";
 import { convertConfig } from "../../utils/node-property-utils";
+import { ConnectionKind } from "./types";
+
+const DEFAULT_CHUNKER_VALUE = "ai:AUTO";
+
+// Knowledge base connectors (e.g. ai:VectorKnowledgeBase) take other connections as
+// constructor args; these must offer the same pick-or-create UX as any other connection field.
+const KNOWLEDGE_BASE_FIELD_KIND: Record<string, ConnectionKind> = {
+    vectorStore: "VECTOR_STORE",
+    embeddingModel: "EMBEDDING_PROVIDER",
+    chunker: "CHUNKER",
+};
 
 export function convertConnectionConfig(properties: NodeProperties): FormField[] {
-    return convertConfig(properties, [], false);
+    const fields = convertConfig(properties, [], false);
+    fields.forEach((field) => {
+        const searchNodesKind = KNOWLEDGE_BASE_FIELD_KIND[field.codedata?.originalName];
+        if (!searchNodesKind) {
+            return;
+        }
+        field.type = "ACTION_EXPRESSION";
+        field.types = [
+            { fieldType: "ACTION_EXPRESSION", selected: true },
+            { fieldType: "EXPRESSION", selected: false },
+        ];
+        field.advanced = false;
+        field.codedata = { ...field.codedata, searchNodesKind };
+        if (searchNodesKind === "CHUNKER") {
+            field.defaultValue = DEFAULT_CHUNKER_VALUE;
+            field.value = field.value || DEFAULT_CHUNKER_VALUE;
+            field.codedata.staticItems = [
+                { id: "auto", label: "AUTO", value: "ai:AUTO" },
+                { id: "disable", label: "DISABLE", value: "ai:DISABLE" },
+            ];
+        }
+    });
+    return fields;
 }

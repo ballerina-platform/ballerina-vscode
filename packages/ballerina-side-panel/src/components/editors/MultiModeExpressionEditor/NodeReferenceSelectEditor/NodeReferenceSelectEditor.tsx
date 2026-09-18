@@ -84,6 +84,44 @@ const AddButtons = styled.div`
 const emptyStateKindWord = (searchNodesKind?: string): string =>
     searchNodesKind && searchNodesKind !== "NEW_CONNECTION" ? formatMethodName(searchNodesKind) : "Connection";
 
+interface ConnectionLabels {
+    createNewLabel: string;
+    emptyTitle: string;
+    emptyAction: string;
+}
+
+const resolveConnectionLabels = (
+    field: FormField,
+    searchNodesKind: string | undefined,
+    showCreateNew: boolean,
+    agentCodeData: CodeData | undefined,
+    creationCodeData: CodeData | undefined
+): ConnectionLabels => {
+    const isAgentReference = !!agentCodeData;
+    const creationName = agentCodeData?.object
+        ?? (creationCodeData?.module ? formatMethodName(creationCodeData.module.split(".").pop() ?? "") : "");
+    const qualifier = creationName ? `${creationName} ` : "";
+    const kindWord = emptyStateKindWord(searchNodesKind);
+
+    const createNewLabel = !showCreateNew
+        ? ""
+        : (field.codedata?.createNewLabel as string | undefined)
+        ?? (agentCodeData?.object
+            ? agentCodeData.object
+            : creationCodeData?.module && creationCodeData?.object
+                ? `${formatMethodName(creationCodeData.module.split(".").pop() ?? "")} ${creationCodeData.object}`
+                : formatMethodName(searchNodesKind));
+
+    const emptyTitle = (field.codedata?.emptyStateTitle as string | undefined) ?? (isAgentReference
+        ? `No ${creationName || "agent"} in this project`
+        : `No ${qualifier}${kindWord.toLowerCase()} in this project`);
+    const emptyAction = (field.codedata?.emptyStateAction as string | undefined) ?? (isAgentReference
+        ? `Create ${creationName || "Agent"}`
+        : `Create ${qualifier}${kindWord}`);
+
+    return { createNewLabel, emptyTitle, emptyAction };
+};
+
 const flattenAvailableNodes = (items: Item[] | undefined): AvailableNode[] => {
     const out: AvailableNode[] = [];
     for (const item of items ?? []) {
@@ -262,25 +300,8 @@ export const NodeReferenceSelectEditor: React.FC<NodeReferenceSelectEditorProps>
 
     const agentCodeData = field.codedata?.data?.agent as CodeData | undefined;
     const creationCodeData = agentCodeData ?? (field.codedata?.data?.connection as CodeData | undefined);
-    const createNewLabel = !showCreateNew
-        ? ""
-        : agentCodeData?.object
-            ? agentCodeData.object
-            : creationCodeData?.module && creationCodeData?.object
-                ? `${formatMethodName(creationCodeData.module.split(".").pop() ?? "")} ${creationCodeData.object}`
-                : formatMethodName(searchNodesKind);
-
-    const creationName = agentCodeData?.object
-        ?? (creationCodeData?.module ? formatMethodName(creationCodeData.module.split(".").pop() ?? "") : "");
-    const isAgentReference = !!agentCodeData;
-    const qualifier = creationName ? `${creationName} ` : "";
-    const kindWord = emptyStateKindWord(searchNodesKind);
-    const emptyTitle = isAgentReference
-        ? `No ${creationName || "agent"} in this project`
-        : `No ${qualifier}${kindWord.toLowerCase()} in this project`;
-    const emptyAction = isAgentReference
-        ? `Create ${creationName || "Agent"}`
-        : `Create ${qualifier}${kindWord}`;
+    const { createNewLabel, emptyTitle, emptyAction } =
+        resolveConnectionLabels(field, searchNodesKind, showCreateNew, agentCodeData, creationCodeData);
     const showEmptyPrompt = showCreateNew && !loading && !field.optional && selectItems.length === 0;
 
     const handleCreateNode = () => onCreateNode(

@@ -80,6 +80,7 @@ export enum SidePanelView {
     NEW_TOOL_FROM_FUNCTION = "NEW_TOOL_FROM_FUNCTION",
     NEW_TOOL_FROM_AGENT = "NEW_TOOL_FROM_AGENT",
     NEW_TOOL_FROM_AGENT_FORM = "NEW_TOOL_FROM_AGENT_FORM",
+    NEW_TOOL_FROM_KNOWLEDGE_BASE = "NEW_TOOL_FROM_KNOWLEDGE_BASE",
     ADD_MCP_SERVER = "ADD_MCP_SERVER",
     EDIT_MCP_SERVER = "EDIT_MCP_SERVER",
     CONNECTION_CONFIG = "CONNECTION_CONFIG",
@@ -604,6 +605,7 @@ export function PanelManager(props: PanelManagerProps) {
             case SidePanelView.NEW_TOOL_FROM_FUNCTION:
             case SidePanelView.NEW_TOOL_FROM_AGENT:
             case SidePanelView.NEW_TOOL_FROM_AGENT_FORM:
+            case SidePanelView.NEW_TOOL_FROM_KNOWLEDGE_BASE:
             case SidePanelView.ADD_MCP_SERVER:
             case SidePanelView.EDIT_MCP_SERVER:
                 return agentEditor ? <AgentEditorPanelContent controller={agentEditor} /> : null;
@@ -715,6 +717,7 @@ export function PanelManager(props: PanelManagerProps) {
             case SidePanelView.NEW_TOOL_FROM_CONNECTION:
             case SidePanelView.NEW_TOOL_FROM_FUNCTION:
             case SidePanelView.NEW_TOOL_FROM_AGENT:
+            case SidePanelView.NEW_TOOL_FROM_KNOWLEDGE_BASE:
             case SidePanelView.ADD_MCP_SERVER:
                 return () => agentEditor ? agentEditor.back() : setSidePanelView(SidePanelView.ADD_TOOL);
             case SidePanelView.NEW_TOOL_FROM_AGENT_FORM:
@@ -738,6 +741,8 @@ export function PanelManager(props: PanelManagerProps) {
             case SidePanelView.NEW_TOOL_FROM_AGENT:
             case SidePanelView.NEW_TOOL_FROM_AGENT_FORM:
                 return addToolTitle("AGENT");
+            case SidePanelView.NEW_TOOL_FROM_KNOWLEDGE_BASE:
+                return addToolTitle("KNOWLEDGE_BASE");
             case SidePanelView.ADD_MCP_SERVER:
                 return addToolTitle("MCP");
             case SidePanelView.EDIT_MCP_SERVER:

@@ -16,8 +16,9 @@
  * under the License.
  */
 
-import { AvailableNode, Category, NodeMetadata, NodeProperties, Property, RecordTypeField, ToolParameters,
-    ValueTypeConstraint, getPrimaryInputType } from "@wso2/ballerina-core";
+import { cloneDeep } from "lodash";
+import { AvailableNode, Category, NodeMetadata, NodeProperties, Property, RecordTypeField, ToolParameterItem,
+    ToolParameters, ToolParametersValue, ValueTypeConstraint, getPrimaryInputType } from "@wso2/ballerina-core";
 import { FormField, FormValues, Parameter } from "@wso2/ballerina-side-panel";
 
 const SQL_PARAMETERIZED_TYPES = ["sql:ParameterizedQuery", "sql:ParameterizedCallQuery"];
@@ -238,6 +239,39 @@ export function createToolParameters(): ToolParameters {
         hidden: false
     };
 }
+
+export const updateToolParameters = (params: ToolParameterItem[], baseParams?: ToolParameters): ToolParameters => {
+    const newToolParameters = baseParams ? cloneDeep(baseParams) : createToolParameters();
+    const paramKeys = params.map((param: ToolParameterItem) => param.formValues.variable);
+
+    if (newToolParameters.value && typeof newToolParameters.value === "object" && !Array.isArray(newToolParameters.value)) {
+        // Remove keys that are no longer present
+        Object.keys(newToolParameters.value).forEach((key) => {
+            if (!paramKeys.includes(key)) {
+                delete (newToolParameters.value as ToolParametersValue)[key];
+            }
+        });
+
+        // Add or update parameters
+        paramKeys.forEach((key: string) => {
+            const paramData = params.find((param: ToolParameterItem) => param.formValues.variable === key)?.formValues;
+            const existingParam = (newToolParameters.value as ToolParametersValue)[key];
+
+            if (existingParam?.value?.variable) {
+                existingParam.value.variable.value = paramData?.variable || key;
+                existingParam.value.parameterDescription.value = paramData?.parameterDescription || "";
+                existingParam.value.type.value = paramData?.type || "";
+            } else {
+                (newToolParameters.value as ToolParametersValue)[key] = createDefaultParameterValue({
+                    value: paramData?.variable || key,
+                    parameterDescription: paramData?.parameterDescription,
+                    type: paramData?.type,
+                });
+            }
+        });
+    }
+    return newToolParameters;
+};
 
 export const cleanServerUrl = (url: string): string | null => {
     if (url === null || url === undefined) return null;

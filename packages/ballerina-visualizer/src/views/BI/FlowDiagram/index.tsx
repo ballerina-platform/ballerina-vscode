@@ -4028,6 +4028,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             NEW_TOOL_FUNCTION: SidePanelView.NEW_TOOL_FROM_FUNCTION,
             NEW_TOOL_AGENT: SidePanelView.NEW_TOOL_FROM_AGENT,
             NEW_TOOL_AGENT_FORM: SidePanelView.NEW_TOOL_FROM_AGENT_FORM,
+            NEW_TOOL_KNOWLEDGE_BASE: SidePanelView.NEW_TOOL_FROM_KNOWLEDGE_BASE,
             ADD_MCP: SidePanelView.ADD_MCP_SERVER,
             EDIT_MCP: SidePanelView.EDIT_MCP_SERVER,
         };
