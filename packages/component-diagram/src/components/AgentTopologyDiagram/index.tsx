@@ -65,6 +65,14 @@ let lastOrientation: TopologyOrientation = "horizontal";
 
 type TopologyNodeModel = AgentCardNodeModel | ServiceNodeModel;
 
+function sameVisibleRows(a: Record<string, number> | undefined, b: Record<string, number>): boolean {
+    if (!a) {
+        return false;
+    }
+    const keys = Object.keys(a);
+    return keys.length === Object.keys(b).length && keys.every((key) => a[key] === b[key]);
+}
+
 function createLink(edge: TopologyEdge, nodeModels: Map<string, TopologyNodeModel>): TopologyLinkModel | null {
     const sourceNode = nodeModels.get(edge.sourceId);
     const targetNode = nodeModels.get(edge.targetId);
@@ -148,6 +156,7 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
     const [hoveredId, setHoveredId] = useState<string>();
     const [entries, setEntries] = useState<TopologyEntryNode[]>([]);
     const [expanded, setExpanded] = useState<Set<string>>(new Set());
+    const [visibleRows, setVisibleRows] = useState<Record<string, number>>();
     const handlerCount = entries.reduce((total, entry) => total + entry.handlers.length, 0);
     const [pinnedId, setPinnedId] = useState<string>();
     const [flowsOpen, setFlowsOpen] = useState(false);
@@ -195,6 +204,7 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
         const layoutOptions = { availableWidth: width, orientation, visibleRows: rowBudget(graph, height, orientation === "vertical") };
         const layout = layoutTopology(graph, layoutOptions);
         layoutRef.current = layout;
+        setVisibleRows((current) => (sameVisibleRows(current, layout.visibleRows) ? current : layout.visibleRows));
         const description = describeTopology(input.model, graph, layout, layoutOptions);
         if (description !== lastDescriptionRef.current) {
             lastDescriptionRef.current = description;
@@ -439,11 +449,11 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
             onDeleteEntry,
             focus: (hoveredId ?? pinnedId) && graphRef.current ? focusAround(graphRef.current, hoveredId ?? pinnedId) : undefined,
             setHovered,
-            visibleRows: layoutRef.current?.visibleRows,
+            visibleRows,
             onExpandEntry: (entryId: string) => setExpanded((current) => new Set(current).add(entryId)),
         }),
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [readonly, orientation, onAgentSelect, onTriggerSelect, onAddTrigger, onConfigureEntry, onDeleteEntry, hoveredId, pinnedId, input, setHovered, expanded]
+        [readonly, orientation, onAgentSelect, onTriggerSelect, onAddTrigger, onConfigureEntry, onDeleteEntry, hoveredId, pinnedId, input, setHovered, expanded, visibleRows]
     );
 
     return (

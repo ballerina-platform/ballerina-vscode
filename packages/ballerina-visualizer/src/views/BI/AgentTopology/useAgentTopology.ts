@@ -25,6 +25,7 @@ import { useProjectContentRefresh } from "../PackageOverview/utils";
 const DEFER_MS = 600;
 
 const inputCache = new Map<string, TopologyInput>();
+const NO_AGENT_DEFINITIONS: ProjectStructureArtifactResponse[] = [];
 
 function toArtifact(agent: ProjectStructureArtifactResponse, isDefinition: boolean): TopologyAgentArtifact {
     return {
@@ -39,7 +40,7 @@ function toArtifact(agent: ProjectStructureArtifactResponse, isDefinition: boole
 export function useAgentTopology(
     projectPath: string,
     agents: ProjectStructureArtifactResponse[],
-    agentDefinitions: ProjectStructureArtifactResponse[] = []
+    agentDefinitions: ProjectStructureArtifactResponse[] = NO_AGENT_DEFINITIONS
 ): TopologyInput | undefined {
     const { rpcClient } = useRpcContext();
     const [input, setInput] = useState<TopologyInput | undefined>(() => inputCache.get(projectPath));
