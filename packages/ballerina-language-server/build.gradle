@@ -16,10 +16,12 @@
  */
 
 import groovy.json.JsonSlurper
+import javax.inject.Inject
+import org.gradle.process.ExecOperations
 
 plugins {
     id "com.github.spotbugs-base" version "${spotbugsPluginVersion}"
-    id "com.github.johnrengelman.shadow" version "${shadowJarPluginVersion}"
+    id "com.gradleup.shadow" version "${shadowJarPluginVersion}"
     id "de.undercouch.download" version "${downloadPluginVersion}"
     id "org.cyclonedx.bom" version "${cyclonedxBomPluginVersion}"
     id "java"
@@ -73,6 +75,13 @@ allprojects {
 
 subprojects {
     apply plugin: "java"
+    // Ballerina 2201.14.0 and its libraries are published as Java 25 artifacts, so the
+    // LS cannot target anything lower -- a Java 21 target fails during dependency
+    // resolution, before compilation. The LS runs on the JRE the distribution ships,
+    // which is Java 25 from 2201.14.0 onwards.
+    tasks.withType(JavaCompile).configureEach {
+        options.release = 25
+    }
     configurations {
         ballerinaStdLibs
         jbalTools
@@ -133,6 +142,8 @@ subprojects {
 // sync.
 ext.ballerinaTestHomeDir = file("$buildDir/ballerina_dependencies/home")
 
+def execOps = objects.newInstance(InjectedExecOps).execOps
+
 task resolveBallerinaDependencies {
     description 'Resolves Ballerina dependencies by executing bal build in build-config/ballerina_dependencies'
     group 'build'
@@ -173,7 +184,7 @@ task resolveBallerinaDependencies {
 
             // Execute bal build in the copied directory
             def errOutput = new ByteArrayOutputStream()
-            def result = exec {
+            def result = execOps.exec {
                 ignoreExitValue = true
                 workingDir targetDir
                 environment "BALLERINA_HOME_DIR", ballerinaTestHomeDir.absolutePath
@@ -341,6 +352,10 @@ task pack(type: com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar) {
     dependsOn subprojects.collect { it.path + ':build' }
     dependsOn generatePackPom
 
+    filesMatching('META-INF/services/**') {
+        duplicatesStrategy = DuplicatesStrategy.INCLUDE
+    }
+
     archiveBaseName = project.name
     archiveClassifier = ''
     archiveVersion = project.version
@@ -348,10 +363,17 @@ task pack(type: com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar) {
 
     configurations = [project.configurations.externalJarDeps]
 
-    // Include the compiled classes and resources from all submodules
+    // Include the compiled classes and resources from all submodules. These must be
+    // unpacked into the fat jar, not embedded as nested jars: the extension puts this
+    // jar on a plain -cp, where a nested jar is invisible. Shadow 9 stopped expanding
+    // jars passed to from(), so zipTree them explicitly.
     subprojects.each { subproject ->
-        if (subproject.tasks.findByName('jar')) {
-            from subproject.tasks.jar.outputs
+        def subprojectJar = subproject.tasks.findByName('jar')
+        if (subprojectJar) {
+            dependsOn subprojectJar
+            // Resolved lazily: ':checkstyle' disables its jar task in its own build file,
+            // which has not been evaluated yet while the root project is configuring.
+            from { subprojectJar.enabled ? zipTree(subprojectJar.archiveFile) : [] }
         }
     }
 
@@ -561,3 +583,9 @@ build.dependsOn resolveBallerinaDependencies
 build.doNotTrackState("build needs to run every time")
 publishToMavenLocal.dependsOn build
 publish.dependsOn build
+
+// Gradle 9 removed Project.exec(); ExecOperations has to be injected instead.
+interface InjectedExecOps {
+    @Inject
+    ExecOperations getExecOps()
+}

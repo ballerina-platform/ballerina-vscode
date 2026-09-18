@@ -25,7 +25,7 @@ import { debounce } from "lodash";
 import { WebViewOptions, getComposerWebViewOptions, getLibraryWebViewContent } from "../../utils/webview-utils";
 import { extension } from "../../BalExtensionContext";
 import { StateMachine, undoRedoManager, updateView } from "../../stateMachine";
-import { LANGUAGE } from "../../core";
+import { EXTENSION_ID, LANGUAGE } from "../../core";
 import { MACHINE_VIEW, isPathInside, getIntegrationCreationCopy } from "@wso2/ballerina-core";
 import { refreshDataMapper } from "../../rpc-managers/data-mapper/utils";
 import { AiPanelWebview } from "../ai-panel/webview";
@@ -61,6 +61,11 @@ export class VisualizerWebview {
     public static readonly viewType = "ballerina.visualizer";
     public static readonly ballerinaTitle = "Ballerina Visualizer";
     public static readonly biTitle = "WSO2 Integrator";
+    /**
+     * Set when the language server cannot be started because the distribution's JRE is too
+     * old. The panel then explains why instead of showing a loader that would spin forever.
+     */
+    public static jdkIncompatibility: { ballerinaVersion: string; jdkMajorVersion: number; requiredJdkMajorVersion: number; requiredBallerinaVersion: string; } | undefined;
     private _panel: vscode.WebviewPanel | undefined;
     private _disposables: vscode.Disposable[] = [];
     private _pendingProjectInfoRefresh = false;
@@ -216,6 +221,16 @@ export class VisualizerWebview {
                 retainContextWhenHidden: true,
             }
         );
+        // The blocked-startup panel posts these; the React app is never loaded in that state,
+        // so its own messaging is not available.
+        panel.webview.onDidReceiveMessage(async (message) => {
+            if (message?.command === 'jdkIncompatibility.updateBallerina') {
+                await vscode.commands.executeCommand('ballerina.update-ballerina-visually');
+            } else if (message?.command === 'jdkIncompatibility.installPreviousVersion') {
+                await vscode.commands.executeCommand('extension.open', EXTENSION_ID);
+            }
+        });
+
         const biExtension = isInWI() || vscode.extensions.getExtension('wso2.ballerina-integrator');
         panel.iconPath = {
             light: vscode.Uri.file(path.join(extension.context.extensionPath, 'resources', 'icons', biExtension ? 'wso2-dark.svg' : 'ballerina.svg')),
@@ -226,6 +241,26 @@ export class VisualizerWebview {
 
     public getWebview(): vscode.WebviewPanel | undefined {
         return this._panel;
+    }
+
+    /**
+     * Records that the language server cannot start on this distribution's JRE, and re-renders
+     * the panel if it is already open. The panel's HTML is produced once when it is created,
+     * so a panel opened before this point would otherwise keep showing the loading frame.
+     * Storing the state also covers the reverse order, where the panel opens later.
+     */
+    public static showJdkIncompatibility(info: {
+        ballerinaVersion: string;
+        jdkMajorVersion: number;
+        requiredJdkMajorVersion: number;
+        requiredBallerinaVersion: string;
+    }): void {
+        VisualizerWebview.jdkIncompatibility = info;
+        const current = VisualizerWebview.currentPanel;
+        const panel = current?.getWebview();
+        if (current && panel) {
+            panel.webview.html = current.getWebviewContent(panel.webview);
+        }
     }
 
     public static isVisualizerActive(): boolean {
@@ -248,7 +283,34 @@ export class VisualizerWebview {
         const subtitle = creationCopy
             ? escapeHtml(creationCopy.subtitle)
             : "Your project is being prepared. This may take a few moments.";
-        const body = `<div class="container" id="webview-container">
+        const incompatibility = VisualizerWebview.jdkIncompatibility;
+        const body = incompatibility
+            ? `<div class="container" id="webview-container">
+                <div class="loader-wrapper">
+                    <div class="welcome-content">
+                        <h1 class="welcome-title">${escapeHtml(productTitle)} cannot start</h1>
+                        <p class="welcome-subtitle">
+                            This version of the extension requires Ballerina
+                            ${escapeHtml(incompatibility.requiredBallerinaVersion)} or later.
+                            Your distribution (${escapeHtml(incompatibility.ballerinaVersion)})
+                            runs on Java ${incompatibility.jdkMajorVersion}, and the language
+                            server requires Java ${incompatibility.requiredJdkMajorVersion}.
+                        </p>
+                        <div class="action-row">
+                            <button class="action-button" id="update-ballerina">Update Ballerina</button>
+                            <button class="action-button secondary" id="install-previous">Install Previous Extension Version</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <script>
+                const vscodeApi = acquireVsCodeApi();
+                document.getElementById('update-ballerina').addEventListener('click', () =>
+                    vscodeApi.postMessage({ command: 'jdkIncompatibility.updateBallerina' }));
+                document.getElementById('install-previous').addEventListener('click', () =>
+                    vscodeApi.postMessage({ command: 'jdkIncompatibility.installPreviousVersion' }));
+            </script>`
+            : `<div class="container" id="webview-container">
                 <div class="loader-wrapper">
                     <div class="welcome-content">
                         <div class="logo-container">
@@ -309,6 +371,33 @@ export class VisualizerWebview {
             .logo-container {
                 display: flex;
                 justify-content: center;
+            }
+            .action-row {
+                display: flex;
+                gap: 8px;
+                justify-content: center;
+                margin-top: 20px;
+                flex-wrap: wrap;
+            }
+            .action-button {
+                background-color: var(--vscode-button-background);
+                color: var(--vscode-button-foreground);
+                border: none;
+                padding: 6px 14px;
+                border-radius: 2px;
+                cursor: pointer;
+                font-family: inherit;
+                font-size: inherit;
+            }
+            .action-button:hover {
+                background-color: var(--vscode-button-hoverBackground);
+            }
+            .action-button.secondary {
+                background-color: var(--vscode-button-secondaryBackground);
+                color: var(--vscode-button-secondaryForeground);
+            }
+            .action-button.secondary:hover {
+                background-color: var(--vscode-button-secondaryHoverBackground);
             }
             .welcome-title {
                 color: var(--vscode-foreground);

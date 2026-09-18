@@ -31,7 +31,7 @@ import {
 import { join, sep } from 'path';
 import { exec, spawnSync, execSync } from 'child_process';
 import { LanguageClientOptions, State as LS_STATE, RevealOutputChannelOn, ServerOptions } from "vscode-languageclient/node";
-import { getServerOptions } from '../utils/server/server';
+import { getServerOptions, getJdkMajorVersion, resolveLanguageServerJdkDir, usesBundledLanguageServer, REQUIRED_JDK_MAJOR_VERSION } from '../utils/server/server';
 import { ExtendedLangClient } from './extended-language-client';
 import {
     debug,
@@ -89,6 +89,9 @@ import { VisualizerWebview } from "../views/visualizer/webview";
 const SWAN_LAKE_REGEX = /(s|S)wan( |-)(l|L)ake/g;
 
 export const EXTENSION_ID = 'wso2.ballerina';
+// First distribution built on Java 25; earlier ones ship a JRE that cannot load the
+// bundled language server. Shown to the user, not used for comparison.
+const REQUIRED_BALLERINA_VERSION = '2201.14.0';
 const PREV_EXTENSION_ID = 'ballerina.ballerina';
 export enum LANGUAGE {
     BALLERINA = 'ballerina',
@@ -553,6 +556,20 @@ export class BallerinaExtension {
                 } catch (error) {
                     debug(`[INIT] Error checking version compatibility: ${error}`);
                     throw error;
+                }
+
+                // The bundled language server is compiled against the Ballerina compiler
+                // libraries, which are Java 25 artifacts from 2201.14.0 onwards. On an older
+                // distribution the JRE cannot load it, so stop before spawning a JVM that
+                // would only die with UnsupportedClassVersionError.
+                try {
+                    if (!await this.checkLanguageServerJdkCompatibility()) {
+                        debug("[INIT] Returning early: distribution JRE cannot run the bundled language server");
+                        return;
+                    }
+                } catch (error) {
+                    // Never block startup on the check itself; let the server attempt to start.
+                    debug(`[INIT] Error checking language server JDK compatibility: ${error}`);
                 }
 
                 // Set up and start Language Server
@@ -1676,6 +1693,87 @@ export class BallerinaExtension {
         } else {
             this.sdkVersion.text = text;
         }
+    }
+
+    /**
+     * Verifies that the JRE the language server would be launched with is new enough to load
+     * it. Returns true when the server may start, false when the user has been told why it
+     * cannot and startup should be abandoned.
+     *
+     * Only applies to the bundled server: when the distribution's own server is used, our jar
+     * is never loaded and the JRE version is irrelevant.
+     */
+    private async checkLanguageServerJdkCompatibility(): Promise<boolean> {
+        if (!usesBundledLanguageServer(this)) {
+            return true;
+        }
+
+        // The requirement belongs to the bundled jar. getServerOptionsUsingJava launches a
+        // configured jar instead when one is set, and that jar's Java version is the user's
+        // own concern -- blocking it here would reject a server that runs perfectly well.
+        if (this.getConfiguredLangServerPath()?.trim()) {
+            debug('[INIT] Custom language server path configured; skipping the JDK check');
+            return true;
+        }
+
+        const jdkDir = resolveLanguageServerJdkDir(this);
+        if (!jdkDir) {
+            // No JDK resolved. getServerOptions raises a clearer error for this case.
+            return true;
+        }
+
+        const jdkMajorVersion = getJdkMajorVersion(jdkDir);
+        if (jdkMajorVersion === null) {
+            // Version could not be determined; do not block on a guess.
+            debug(`[INIT] Could not determine the Java version of ${jdkDir}; continuing`);
+            return true;
+        }
+
+        debug(`[INIT] Language server JDK: ${jdkDir} (Java ${jdkMajorVersion})`);
+        if (jdkMajorVersion >= REQUIRED_JDK_MAJOR_VERSION) {
+            return true;
+        }
+
+        const message = `This version of the extension requires Ballerina ${REQUIRED_BALLERINA_VERSION} or later.`;
+        sendTelemetryEvent(this, TM_EVENT_EXTENSION_INI_FAILED, CMP_EXTENSION_CORE, getMessageObject(message));
+
+        // The modal is transient; once dismissed the visualizer would otherwise sit on its
+        // loading frame forever. Give the panel the same explanation and the same actions.
+        VisualizerWebview.showJdkIncompatibility({
+            ballerinaVersion: this.ballerinaVersion,
+            jdkMajorVersion,
+            requiredJdkMajorVersion: REQUIRED_JDK_MAJOR_VERSION,
+            requiredBallerinaVersion: REQUIRED_BALLERINA_VERSION
+        });
+
+        const UPDATE_BALLERINA = 'Update Ballerina';
+        const INSTALL_PREVIOUS = 'Install Previous Extension Version';
+        const selection = await window.showWarningMessage(
+            message,
+            {
+                modal: true,
+                detail: `Your Ballerina distribution (${this.ballerinaVersion}) runs on Java `
+                    + `${jdkMajorVersion}, and the language server requires Java `
+                    + `${REQUIRED_JDK_MAJOR_VERSION}.\n\n`
+                    + `Update Ballerina to continue using this version of the extension, or to `
+                    + `stay on your current distribution, open the extension page and choose `
+                    + `"Install Another Version..." from the gear menu.`
+            },
+            UPDATE_BALLERINA,
+            INSTALL_PREVIOUS
+        );
+
+        if (selection === UPDATE_BALLERINA) {
+            await commands.executeCommand('ballerina.update-ballerina-visually');
+        } else if (selection === INSTALL_PREVIOUS) {
+            // VS Code has no command that opens the version picker for a given extension:
+            // 'install.specificVersion' takes no arguments and starts from a list of every
+            // installed extension, and 'install.anotherVersion' acts on whatever the Extensions
+            // view has selected. Opening the extension page puts the user one gear-menu click
+            // away from "Install Another Version...".
+            await commands.executeCommand('extension.open', EXTENSION_ID);
+        }
+        return false;
     }
 
     showPluginActivationError(): any {

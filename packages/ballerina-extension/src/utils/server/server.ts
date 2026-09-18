@@ -222,11 +222,70 @@ export function findHighestVersionJdk(directory: string): string | null {
     }
 }
 
+/**
+ * The minimum Java major version the bundled language server can run on. The LS is compiled
+ * against the Ballerina compiler libraries, which are published as Java 25 artifacts from
+ * 2201.14.0 onwards, so its class files cannot be loaded by an older JRE.
+ */
+export const REQUIRED_JDK_MAJOR_VERSION = 25;
+
+/**
+ * Resolves the JDK directory the language server would be launched with. Mirrors the lookup
+ * getServerOptionsUsingJava performs: the distribution keeps its JREs in a 'dependencies'
+ * folder beside 'distributions', shared across every installed distribution.
+ */
+export function resolveLanguageServerJdkDir(extension: BallerinaExtension): string | null {
+    const home = extension?.getBallerinaHome();
+    if (!home) {
+        return null;
+    }
+    const ballerinaHome = isWindows() ? fs.realpathSync.native(home) : home;
+    const baseHome = ballerinaHome.includes('distributions')
+        ? ballerinaHome.substring(0, ballerinaHome.indexOf('distributions'))
+        : ballerinaHome;
+
+    return findHighestVersionJdk(join(baseHome, 'dependencies'))
+        ?? findHighestVersionJdk(join(path.dirname(baseHome), 'dependencies'));
+}
+
+/**
+ * Major Java version of the given JDK directory. Reads the 'release' file rather than parsing
+ * the directory name, so it also works for a JAVA_HOME fallback that does not follow the
+ * distribution's 'jdk-<version>-jre' naming.
+ */
+export function getJdkMajorVersion(jdkDir: string): number | null {
+    try {
+        const releaseFile = path.join(jdkDir, 'release');
+        if (fs.existsSync(releaseFile)) {
+            const match = fs.readFileSync(releaseFile, 'utf8').match(/^JAVA_VERSION="?([0-9]+)/m);
+            if (match) {
+                return parseInt(match[1], 10);
+            }
+        }
+        // Fall back to the directory name, e.g. 'jdk-25.0.4+1-jre'.
+        const nameMatch = path.basename(jdkDir).match(/^jdk-([0-9]+)/);
+        return nameMatch ? parseInt(nameMatch[1], 10) : null;
+    } catch (error) {
+        debug(`Could not determine the Java version of ${jdkDir}: ${error}`);
+        return null;
+    }
+}
+
+/**
+ * Whether the bundled language server jar will be launched, as opposed to the one shipped
+ * inside the Ballerina distribution. Only the bundled jar imposes a JRE requirement, since
+ * the distribution's own server runs on whatever the distribution supports.
+ */
+export function usesBundledLanguageServer(extension: BallerinaExtension): boolean {
+    const BI_SUPPORTED_MINIMUM_VERSION = createVersionNumber(2201, 12, 3); // Version 2201.12.3
+    return !extension?.useDistributionLanguageServer()
+        && isSupportedSLVersion(extension, BI_SUPPORTED_MINIMUM_VERSION);
+}
+
 export function getServerOptions(extension: BallerinaExtension): ServerOptions {
     debug('Getting server options.');
     // Check if user wants to use Ballerina CLI language server or if version requires it
-    const BI_SUPPORTED_MINIMUM_VERSION = createVersionNumber(2201, 12, 3); // Version 2201.12.3
-    if (extension?.useDistributionLanguageServer() || !isSupportedSLVersion(extension, BI_SUPPORTED_MINIMUM_VERSION)) {
+    if (!usesBundledLanguageServer(extension)) {
         return getServerOptionsUsingCLI(extension);
     } else {
         return getServerOptionsUsingJava(extension);
@@ -382,21 +441,13 @@ function getServerOptionsUsingJava(extension: BallerinaExtension): ServerOptions
 
     const classpath = customPaths.join(delimiter);
 
-    // Find any JDK in the dependencies directory
-    const dependenciesDir = join(baseHome, 'dependencies');
-    let jdkDir = findHighestVersionJdk(dependenciesDir);
+    // Shared with the pre-flight compatibility check in BallerinaExtension.init, so the JDK
+    // reported to the user is the one actually used here.
+    const jdkDir = resolveLanguageServerJdkDir(extension);
     debug(`JDK Directory: ${jdkDir}`);
 
-    // If no JDK found in dependencies directory, try to find in the parent dependencies directory
     if (!jdkDir) {
-        const baseHomeParentDir = path.dirname(baseHome);
-        const parentDependenciesDir = join(baseHomeParentDir, 'dependencies');
-        debug(`No JDK found in dependencies directory: ${dependenciesDir}. Retrying with parent dependencies directory: ${parentDependenciesDir}`);
-        jdkDir = findHighestVersionJdk(parentDependenciesDir);
-        debug(`JDK Directory from parent dependencies directory: ${jdkDir}`);
-    }
-
-    if (!jdkDir) {
+        const dependenciesDir = join(baseHome, 'dependencies');
         const parentDependenciesDir = join(path.dirname(baseHome), 'dependencies');
         debug(`No JDK found in dependencies directory: ${dependenciesDir} or parent dependencies directory: ${parentDependenciesDir}`);
         throw new Error(`JDK not found in ${dependenciesDir} or ${parentDependenciesDir}`);
