@@ -431,7 +431,7 @@ function createTracerMachine(projectPath?: string, childProjectPaths?: string[])
                                     target: "serverStopping",
                                     cond: (context, event) =>
                                         resolveProvider(event) === 'amp'
-                                        && context.provider !== 'amp'
+                                        && getActiveTracingProvider((event as any).projectPath) !== 'amp'
                                         && !hasOtherIdeTracingProjects(context, event),
                                     actions: [
                                         enableTracingInProject,
@@ -596,12 +596,10 @@ export const TracerMachine = {
         return ensureInitialized().getSnapshot().value;
     },
 
-    // projectPath scopes the amp check per-project; context.provider is machine-wide.
+    // context.provider is machine-wide and can be stale, so fail open (start) when projectPath is unknown.
     startServer: (projectPath?: string) => {
         // Agent Manager exports traces remotely; the local OTLP receiver has nothing to catch.
-        const context = ensureInitialized().getSnapshot().context as TracerMachineContext;
-        const provider = projectPath ? getActiveTracingProvider(projectPath) : context.provider;
-        if (provider === 'amp') {
+        if (projectPath && getActiveTracingProvider(projectPath) === 'amp') {
             return;
         }
         ensureInitialized().send({ type: 'START_SERVER' });

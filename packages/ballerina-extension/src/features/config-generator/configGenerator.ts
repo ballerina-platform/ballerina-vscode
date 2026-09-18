@@ -170,9 +170,12 @@ export async function checkConfigUpdateRequired(
         // Publishing traces to Agent Manager requires otelEndpoint/apiKey in [ballerinax.amp] of Config.toml
         const ampConfigMissing = getActiveTracingProvider(projectPath) === 'amp' && isAmpConfigIncomplete(projectPath);
         const ampWarningKey = `${AMP_CONFIG_WARNING_SHOWN_PREFIX}${projectPath}`;
+        // True only when amp is the sole reason we're prompting, so other unset configurables aren't hidden.
+        let ampIsSoleWarning = false;
         if (ampConfigMissing) {
             // Only block Run the first time; cleared below once fixed, so a later regression re-warns.
             if (!ballerinaExtInstance.context?.globalState.get<boolean>(ampWarningKey, false)) {
+                ampIsSoleWarning = !hasWarnings;
                 hasWarnings = true;
                 await ballerinaExtInstance.context?.globalState.update(ampWarningKey, true);
             }
@@ -180,7 +183,7 @@ export async function checkConfigUpdateRequired(
             await ballerinaExtInstance.context?.globalState.update(ampWarningKey, undefined);
         }
 
-        return { hasWarnings, ampConfigMissing };
+        return { hasWarnings, ampConfigMissing: ampIsSoleWarning };
     } catch (error) {
         console.error('Error while checking config update requirement:', error);
         return { hasWarnings: false };
