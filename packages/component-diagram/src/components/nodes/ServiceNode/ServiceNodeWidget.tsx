@@ -255,7 +255,9 @@ export function ServiceNodeWidget(props: ServiceNodeWidgetProps) {
     const shown = Math.min(visibleRows?.[entry.id] ?? entry.handlers.length, entry.handlers.length);
     const hidden = entry.handlers.length - shown;
     const rows = entry.handlers.slice(0, shown);
+    const foldedHandlers = entry.handlers.slice(shown);
     const isService = entry.kind === "service";
+    const centerOffset = vertical ? ENTRY_CARD_WIDTH / 2 : ENTRY_HEADER_HEIGHT / 2;
 
     const target = isService ? entry : entry.handlers[0];
     const openHeader = () => onTriggerSelect({ filePath: target.filePath, position: target.position, endPosition: target.endPosition });
@@ -298,7 +300,18 @@ export function ServiceNodeWidget(props: ServiceNodeWidgetProps) {
                         vertical={vertical}
                     />
                 ))}
-            <RowPort port={model.getOutPort()!} engine={engine} offset={vertical ? ENTRY_CARD_WIDTH / 2 : ENTRY_HEADER_HEIGHT / 2} vertical={vertical} />
+            {isService &&
+                // A folded row still needs a mounted port, or its link never reports a position and silently drops.
+                foldedHandlers.map((handler) => (
+                    <RowPort
+                        key={`port-${handler.id}`}
+                        port={model.getPort(rowPortName(handler.id))!}
+                        engine={engine}
+                        offset={centerOffset}
+                        vertical={vertical}
+                    />
+                ))}
+            <RowPort port={model.getOutPort()!} engine={engine} offset={centerOffset} vertical={vertical} />
         </Card>
     );
 }
