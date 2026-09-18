@@ -260,9 +260,7 @@ const OrbButton = styled.button<{ state: AgentRunState; agentBuilder: boolean }>
     cursor: grab;
     outline-offset: 4px;
     touch-action: none;
-    opacity: ${(props: Pick<OrbStyleProps, "state" | "agentBuilder">) =>
-        !props.agentBuilder && props.state === "idle" ? 0.85 : 1};
-    transition: opacity 0.3s ease, transform 0.2s ease;
+    transition: transform 0.2s ease;
     &:hover {
         transform: scale(1.06);
     }
