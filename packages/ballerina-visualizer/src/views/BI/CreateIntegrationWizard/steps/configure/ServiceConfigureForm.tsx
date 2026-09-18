@@ -18,11 +18,10 @@
 
 import { useEffect, useState } from "react";
 import styled from "@emotion/styled";
-import { Icon, ThemeColors, Typography } from "@wso2/ui-toolkit";
 import { LineRange, RecordTypeField, ServiceInitModel } from "@wso2/ballerina-core";
 import { FormField, FormImports, FormValues } from "@wso2/ballerina-side-panel";
 import { FormHeader } from "../../../../../components/FormHeader";
-import { DownloadIcon } from "../../../../../components/DownloadIcon";
+import { PackagePullStatus } from "../../../../../components/PackagePullStatus";
 import { RelativeLoader } from "../../../../../components/RelativeLoader";
 import ArtifactForm from "../../../Forms/ArtifactForm";
 import {
@@ -41,20 +40,6 @@ const StatusContainer = styled.div`
     justify-content: center;
     align-items: center;
     padding: 48px 0;
-`;
-
-const StatusCard = styled.div`
-    padding: 16px;
-    border-radius: 8px;
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 16px;
-
-    & > svg {
-        font-size: 24px;
-        color: ${ThemeColors.ON_SURFACE};
-    }
 `;
 
 /** Fills the step's full height so the nested ArtifactForm's `footerActionButton`
@@ -155,20 +140,16 @@ export function ServiceConfigureForm({ wsClient, projectRoot, selection, isSubmi
                 <StatusContainer>
                     {pullingStatus === PullingStatus.FETCHING && <RelativeLoader message="Loading package..." />}
                     {pullingStatus === PullingStatus.PULLING && (
-                        <StatusCard>
-                            <DownloadIcon color={ThemeColors.ON_SURFACE} />
-                            <Typography variant="body2">
-                                Please wait while the {packageName} package is being pulled...
-                            </Typography>
-                        </StatusCard>
+                        <PackagePullStatus
+                            kind="pulling"
+                            message={`Please wait while the ${packageName} package is being pulled...`}
+                        />
                     )}
                     {pullingStatus === PullingStatus.ERROR && (
-                        <StatusCard>
-                            <Icon name="bi-error" sx={{ color: ThemeColors.ERROR, fontSize: "18px" }} />
-                            <Typography variant="body2">
-                                Failed to load the {packageName} package. Please go back and try again.
-                            </Typography>
-                        </StatusCard>
+                        <PackagePullStatus
+                            kind="error"
+                            message={`Failed to load the ${packageName} package. Please go back and try again.`}
+                        />
                     )}
                 </StatusContainer>
             )}

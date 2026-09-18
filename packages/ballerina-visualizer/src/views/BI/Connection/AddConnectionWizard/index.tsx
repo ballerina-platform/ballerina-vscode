@@ -37,11 +37,11 @@ import ConnectorView from "../ConnectorView";
 import ConnectionConfigView from "../ConnectionConfigView";
 import { getFormProperties } from "../../../../utils/bi";
 import { ExpressionFormField, FormField, FormValues, PanelContainer } from "@wso2/ballerina-side-panel";
-import { Icon, Overlay, ThemeColors, Typography } from "@wso2/ui-toolkit";
+import { Overlay, ThemeColors } from "@wso2/ui-toolkit";
 import { RelativeLoader } from "../../../../components/RelativeLoader";
 import { HelperView } from "../../HelperView";
 import { BodyText } from "../../../styles";
-import { DownloadIcon } from "../../../../components/DownloadIcon";
+import { PackagePullStatus } from "../../../../components/PackagePullStatus";
 import ArtifactForm from "../../Forms/ArtifactForm";
 import { FormSubmitOptions } from "../../FlowDiagram";
 
@@ -64,33 +64,12 @@ const PopupContainer = styled.div`
     overflow: hidden;
 `;
 
-const StatusCard = styled.div`
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 16px;
-
-    & > svg {
-        font-size: 32px;
-        width: 32px;
-        height: 32px;
-        color: ${ThemeColors.ON_SURFACE};
-    }
-`;
-
 const StatusContainer = styled.div`
     display: flex;
     justify-content: center;
     align-items: center;
     height: 100%;
     padding: 40px;
-`;
-
-const StatusText = styled(Typography)`
-    margin-top: 16px;
-    color: ${ThemeColors.ON_SURFACE_VARIANT};
-    font-size: 14px;
-    text-align: center;
 `;
 
 enum WizardStep {
@@ -422,42 +401,25 @@ export function AddConnectionWizard(props: AddConnectionWizardProps) {
                                     <RelativeLoader message="Loading connector package..." />
                                 )}
                                 {pullingStatus === PullingStatus.PULLING && (
-                                    <StatusCard>
-                                        <DownloadIcon color="var(--vscode-progressBar-background)" />
-                                        <StatusText variant="body2">
-                                            Please wait while the connector is being pulled.
-                                        </StatusText>
-                                    </StatusCard>
+                                    <PackagePullStatus
+                                        layout="column"
+                                        kind="pulling"
+                                        message="Please wait while the connector is being pulled."
+                                    />
                                 )}
                                 {pullingStatus === PullingStatus.SUCCESS && (
-                                    <StatusCard>
-                                        <Icon
-                                            name="bi-success"
-                                            sx={{
-                                                color: ThemeColors.PRIMARY,
-                                                fontSize: "28px",
-                                                width: "28px",
-                                                height: "28px",
-                                            }}
-                                        />
-                                        <StatusText variant="body2">Connector pulled successfully.</StatusText>
-                                    </StatusCard>
+                                    <PackagePullStatus
+                                        layout="column"
+                                        kind="success"
+                                        message="Connector pulled successfully."
+                                    />
                                 )}
                                 {pullingStatus === PullingStatus.ERROR && (
-                                    <StatusCard>
-                                        <Icon
-                                            name="bi-error"
-                                            sx={{
-                                                color: ThemeColors.ERROR,
-                                                fontSize: "28px",
-                                                width: "28px",
-                                                height: "28px",
-                                            }}
-                                        />
-                                        <StatusText variant="body2">
-                                            Failed to pull the connector. Please try again.
-                                        </StatusText>
-                                    </StatusCard>
+                                    <PackagePullStatus
+                                        layout="column"
+                                        kind="error"
+                                        message="Failed to pull the connector. Please try again."
+                                    />
                                 )}
                             </StatusContainer>
                         )}

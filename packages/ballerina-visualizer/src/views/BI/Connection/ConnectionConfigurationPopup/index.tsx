@@ -30,14 +30,14 @@ import {
     SubPanelView,
 } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { Codicon, Icon, ThemeColors, Typography } from "@wso2/ui-toolkit";
+import { Codicon, ThemeColors, Typography } from "@wso2/ui-toolkit";
 import { ConnectorIcon } from "@wso2/bi-diagram";
 import ConnectionConfigView from "../ConnectionConfigView";
 import { getFormProperties } from "../../../../utils/bi";
 import { ExpressionEditorDevantProps, ExpressionFormField, FormValues, MarkdownDescription } from "@wso2/ballerina-side-panel";
 import { RelativeLoader } from "../../../../components/RelativeLoader";
 import { HelperView } from "../../HelperView";
-import { DownloadIcon } from "../../../../components/DownloadIcon";
+import { PackagePullStatus } from "../../../../components/PackagePullStatus";
 import { FormSubmitOptions } from "../../FlowDiagram";
 import { cloneDeep } from "lodash";
 import { URI, Utils } from "vscode-uri";
@@ -175,27 +175,6 @@ const StatusContainer = styled.div`
     align-items: center;
     height: 100%;
     padding: 40px;
-`;
-
-const StatusCard = styled.div`
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 16px;
-
-    & > svg {
-        font-size: 32px;
-        width: 32px;
-        height: 32px;
-        color: ${ThemeColors.ON_SURFACE};
-    }
-`;
-
-const StatusText = styled(Typography)`
-    margin-top: 16px;
-    color: ${ThemeColors.ON_SURFACE_VARIANT};
-    font-size: 14px;
-    text-align: center;
 `;
 
 enum PullingStatus {
@@ -492,42 +471,25 @@ export function ConnectionConfigurationForm(props: ConnectionConfigurationFormPr
                             <RelativeLoader message="Loading connector package..." />
                         )}
                         {pullingStatus === PullingStatus.PULLING && (
-                            <StatusCard>
-                                <DownloadIcon color="var(--vscode-progressBar-background)" />
-                                <StatusText variant="body2">
-                                    Please wait while the connector is being pulled.
-                                </StatusText>
-                            </StatusCard>
+                            <PackagePullStatus
+                                layout="column"
+                                kind="pulling"
+                                message="Please wait while the connector is being pulled."
+                            />
                         )}
                         {pullingStatus === PullingStatus.SUCCESS && (
-                            <StatusCard>
-                                <Icon
-                                    name="bi-success"
-                                    sx={{
-                                        color: ThemeColors.PRIMARY,
-                                        fontSize: "28px",
-                                        width: "28px",
-                                        height: "28px",
-                                    }}
-                                />
-                                <StatusText variant="body2">Connector pulled successfully.</StatusText>
-                            </StatusCard>
+                            <PackagePullStatus
+                                layout="column"
+                                kind="success"
+                                message="Connector pulled successfully."
+                            />
                         )}
                         {pullingStatus === PullingStatus.ERROR && (
-                            <StatusCard>
-                                <Icon
-                                    name="bi-error"
-                                    sx={{
-                                        color: ThemeColors.ERROR,
-                                        fontSize: "28px",
-                                        width: "28px",
-                                        height: "28px",
-                                    }}
-                                />
-                                <StatusText variant="body2">
-                                    Failed to pull the connector. Please try again.
-                                </StatusText>
-                            </StatusCard>
+                            <PackagePullStatus
+                                layout="column"
+                                kind="error"
+                                message="Failed to pull the connector. Please try again."
+                            />
                         )}
                     </StatusContainer>
                 )}

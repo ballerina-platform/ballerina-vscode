@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { Button, Icon, ThemeColors, Typography, View, ViewContent } from "@wso2/ui-toolkit";
+import { Button, View, ViewContent } from "@wso2/ui-toolkit";
 import { TopNavigationBar } from "../../../components/TopNavigationBar";
 import { useEffect, useRef, useState } from "react";
 import { TitleBar } from "../../../components/TitleBar";
@@ -27,7 +27,7 @@ import { EVENT_TYPE, hasBlockingValidationErrors, LineRange, ModelResolutionIssu
 import { FormHeader } from "../../../components/FormHeader";
 import ArtifactForm from "../Forms/ArtifactForm";
 import styled from "@emotion/styled";
-import { DownloadIcon } from "../../../components/DownloadIcon";
+import { PackagePullStatus } from "../../../components/PackagePullStatus";
 import { RelativeLoader } from "../../../components/RelativeLoader";
 import {
     applyFormValuesToModel,
@@ -64,23 +64,9 @@ const StatusContainer = styled.div`
     height: 100%;
 `;
 
-const StatusCard = styled.div`
+/** The shared card, nudged in from the container edges as this view has always had it. */
+const StatusCard = styled(PackagePullStatus)`
     margin: 16px 16px 0 16px;
-    padding: 16px;
-    border-radius: 8px;
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 16px;
-
-    & > svg {
-        font-size: 24px;
-        color: ${ThemeColors.ON_SURFACE};
-    }
-`;
-
-const StatusText = styled(Typography)`
-    color: ${ThemeColors.ON_SURFACE};
 `;
 
 
@@ -329,55 +315,44 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
                         <RelativeLoader message="Loading package..." />
                     )}
                     {pullingStatus === PullingStatus.PULLING && (
-                        <StatusCard>
-                            {isLocalRepository ? (
-                                <Icon name="bi-spinner" sx={{ color: ThemeColors.ON_SURFACE, fontSize: "18px" }} />
-                            ) : (
-                                <DownloadIcon color={ThemeColors.ON_SURFACE} />
-                            )}
-                            <StatusText variant="body2">
-                                {isLocalRepository
+                        <StatusCard
+                            kind={isLocalRepository ? "working" : "pulling"}
+                            message={
+                                isLocalRepository
                                     ? `Please wait while the ${packageName} package is being loaded from your `
                                         + "local repository..."
-                                    : `Please wait while the ${packageName} package is being pulled...`}
-                            </StatusText>
-                        </StatusCard>
+                                    : `Please wait while the ${packageName} package is being pulled...`
+                            }
+                        />
                     )}
                     {pullingStatus === PullingStatus.SUCCESS && (
-                        <StatusCard>
-                            <Icon name="bi-success" sx={{ color: ThemeColors.PRIMARY, fontSize: "18px" }} />
-                            <StatusText variant="body2">
-                                {isLocalRepository ? "Package loaded successfully." : "Package pulled successfully."}
-                            </StatusText>
-                        </StatusCard>
+                        <StatusCard
+                            kind="success"
+                            message={
+                                isLocalRepository ? "Package loaded successfully." : "Package pulled successfully."
+                            }
+                        />
                     )}
                     {pullingStatus === PullingStatus.ERROR && (
-                        <StatusCard>
-                            <Icon name="bi-error" sx={{ color: ThemeColors.ERROR, fontSize: "18px" }} />
-                            <StatusText variant="body2">
-                                {isLocalRepository
+                        <StatusCard
+                            kind="error"
+                            message={
+                                isLocalRepository
                                     ? "Failed to load the package from your local repository. Please try again."
-                                    : "Failed to pull the package. Please try again."}
-                            </StatusText>
-                            <Button appearance="secondary" onClick={fetchData}>Retry</Button>
-                        </StatusCard>
+                                    : "Failed to pull the package. Please try again."
+                            }
+                            action={<Button appearance="secondary" onClick={fetchData}>Retry</Button>}
+                        />
                     )}
                     {pullingStatus === PullingStatus.UNSUPPORTED_VERSION && upgradeIssue && (
-                        <StatusCard>
-                            <Icon name="bi-error" sx={{ color: ThemeColors.ERROR, fontSize: "18px" }} />
-                            <StatusText variant="body2">
-                                A newer version is required to use this feature..
-                            </StatusText>
-                            <Button appearance="primary" onClick={handleUpdateNow}>Update Now</Button>
-                        </StatusCard>
+                        <StatusCard
+                            kind="error"
+                            message="A newer version is required to use this feature.."
+                            action={<Button appearance="primary" onClick={handleUpdateNow}>Update Now</Button>}
+                        />
                     )}
                     {pullingStatus === PullingStatus.UPDATING && (
-                        <StatusCard>
-                            <Icon name="bi-spinner" sx={{ color: ThemeColors.ON_SURFACE, fontSize: "18px" }} />
-                            <StatusText variant="body2">
-                                {`Updating ${packageName}...`}
-                            </StatusText>
-                        </StatusCard>
+                        <StatusCard kind="working" message={`Updating ${packageName}...`} />
                     )}
                 </StatusContainer>
             )}
