@@ -60,7 +60,7 @@ import { traverseComponents, traverseUpdatedComponents } from "../utils/project-
 
 const PROJECT_PATH = "/workspace/durable_claims";
 
-function artifact(name: string, type: DIRECTORY_MAP, module?: string): BaseArtifact {
+function artifact(name: string, type: DirectoryMap, module?: string): BaseArtifact {
     return {
         id: name,
         name,
