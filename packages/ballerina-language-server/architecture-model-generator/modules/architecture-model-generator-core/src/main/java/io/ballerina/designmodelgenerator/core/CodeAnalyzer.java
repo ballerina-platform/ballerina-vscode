@@ -132,8 +132,6 @@ public class CodeAnalyzer extends NodeVisitor {
     private IntermediateModel.ServiceClassModel currentServiceClass;
     private String serviceClassName;
     private Workflow currentWorkflow;
-    // Nearest enclosing if/match/fork construct a call site is in, so agent calls in different
-    // branches or workers can be told apart on the overview; null outside any such construct.
     // Enclosing if/match/fork/loop constructs of the statement being visited, outermost first.
     private final Deque<AgentCall.Group> agentCallGroups = new ArrayDeque<>();
     private static final String SELF = "self";
@@ -977,7 +975,7 @@ public class CodeAnalyzer extends NodeVisitor {
 
         if (expressionNode instanceof FieldAccessExpressionNode fieldAccessExpressionNode) {
             // Check if agent is defined at service scope
-            if (fieldAccessExpressionNode.expression().toSourceCode().trim().equals("self")) {
+            if (fieldAccessExpressionNode.expression().toSourceCode().trim().equals(SELF)) {
                 NameReferenceNode fieldName = fieldAccessExpressionNode.fieldName();
                 Optional<Symbol> fieldSymbol = semanticModel.symbol(fieldName);
 

@@ -233,15 +233,9 @@ public class DesignModelGenerator {
                 .build();
     }
 
-    /**
-     * For every agent connection, resolves its tool functions' own connections and splits them into
-     * {@code delegatesTo} (other agents, the agent-as-tool pattern) and {@code toolConnections} (everything
-     * else, e.g. an HTTP client a tool calls) so the overview can draw both without a per-agent flow read.
-     * Runs over every agent regardless of whether it is reached from an entry point, so an otherwise
-     * unreachable agent still resolves its own delegation edges.
-     */
     // A function's agent calls in source order, each helper call replaced by the helper's own calls at the call
-    // site, under the caller's constructs. A helper's own list is expanded once and reused by every caller.
+    // site, under the caller's constructs. A helper's own list is expanded once and memoized for the rest of
+    // that entry point's expansion, so a helper called more than once from the same entry point is walked once.
     private List<AgentCall> expandedAgentCalls(IntermediateModel intermediateModel,
                                                IntermediateModel.FunctionModel functionModel,
                                                IntermediateModel.ServiceModel serviceModel) {
@@ -284,6 +278,13 @@ public class DesignModelGenerator {
         return intermediateModel.functionModelMap.get(helperCall.name());
     }
 
+    /**
+     * For every agent connection, resolves its tool functions' own connections and splits them into
+     * {@code delegatesTo} (other agents, the agent-as-tool pattern) and {@code toolConnections} (everything
+     * else, e.g. an HTTP client a tool calls) so the overview can draw both without a per-agent flow read.
+     * Runs over every agent regardless of whether it is reached from an entry point, so an otherwise
+     * unreachable agent still resolves its own delegation edges.
+     */
     private void linkAgentToolTargets(IntermediateModel intermediateModel) {
         for (Connection connection : intermediateModel.uuidToConnectionMap.values()) {
             if (!ConnectionKind.AGENT.toString().equals(connection.getKind())) {
