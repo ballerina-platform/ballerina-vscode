@@ -348,7 +348,7 @@ describe("AgentTopologyDiagram - Find", () => {
         expect(dom.getAllByText("billingAgent").length).toBeGreaterThan(0);
         expect(dom.getByRole("button", { name: "Clear the pin" })).toBeInTheDocument();
 
-        fireEvent.click(dom.getByRole("button", { name: "Unpin" }));
+        fireEvent.click(dom.getByRole("button", { name: /Unpin/ }));
         expect(dom.queryByRole("status")).toBeNull();
     });
 

@@ -1131,9 +1131,9 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the durable claims shape:
 .css-19 {top: 0; left: 0; right: 0; bottom: 0; position: absolute; pointer-events: none; transform-origin: 0 0; width: 100%; height: 100%; overflow: visible;}
 .css-40 {display: inline-flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 3px; position: relative;}
 .css-28 {min-width: 0; display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column;}
-.css-68 >* {height: 100%; min-height: 100%; width: 100%;}
-.css-68 svg:first-child {z-index: 1;}
-.css-68 {height: 100%; -webkit-background-size: 16px 16px; background-size: 16px 16px; display: flex; background-image: radial-gradient(var(--vscode-editor-inactiveSelectionBackground) 10%, transparent 0px); font-family: "GilmerRegular";}
+.css-69 >* {height: 100%; min-height: 100%; width: 100%;}
+.css-69 svg:first-child {z-index: 1;}
+.css-69 {height: 100%; -webkit-background-size: 16px 16px; background-size: 16px 16px; display: flex; background-image: radial-gradient(var(--vscode-editor-inactiveSelectionBackground) 10%, transparent 0px); font-family: "GilmerRegular";}
 .css-3 {height: 16px; width: 16px; cursor: pointer; font-size: 16px; -webkit-transform: rotate(90deg); -moz-transform: rotate(90deg); -ms-transform: rotate(90deg); transform: rotate(90deg);}
 .css-59 {font-family: var(--vscode-editor-font-family, monospace); font-size: 11px; line-height: 15px; color: var(--vscode-descriptionForeground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
 .css-23 {position: absolute; right: -6px; top: 50%; -webkit-transform: translateY(-50%); -moz-transform: translateY(-50%); -ms-transform: translateY(-50%); transform: translateY(-50%);}
@@ -1181,7 +1181,7 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the durable claims shape:
 .css-24 {position: absolute; display: inline-flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 4px; height: 16px; box-sizing: border-box; padding: 0 6px 0 5px; border-radius: 8px; border: 1px solid var(--topology-event-color, var(--vscode-terminal-ansiBrightMagenta)); background-color: var(--vscode-sideBar-background); color: var(--topology-event-color, var(--vscode-terminal-ansiBrightMagenta)); font-family: var(--vscode-editor-font-family, monospace); font-size: 9.5px; white-space: nowrap; opacity: 1; -webkit-transition: opacity 260ms ease; transition: opacity 260ms ease; left: 0; top: 66px; -webkit-transform: translate(calc(-100% + 7px), -50%); -moz-transform: translate(calc(-100% + 7px), -50%); -ms-transform: translate(calc(-100% + 7px), -50%); transform: translate(calc(-100% + 7px), -50%);}
 .css-65 {position: absolute; right: -6px; top: 110px; -webkit-transform: translateY(-50%); -moz-transform: translateY(-50%); -ms-transform: translateY(-50%); transform: translateY(-50%);}
 .css-42 svg {fill: var(--vscode-foreground);}
-.css-70::part(indeterminate-indicator-1) {stroke: var(--vscode-contrastBorder, var(--vscode-button-background));}
+.css-71::part(indeterminate-indicator-1) {stroke: var(--vscode-contrastBorder, var(--vscode-button-background));}
 .css-27 {height: 10px; width: 10px; cursor: pointer; font-size: 10px; color: var(--topology-event-color, var(--vscode-terminal-ansiBrightMagenta));}
 .css-45 {color: var(--vscode-foreground); white-space: nowrap;}
 .css-15 {font-family: var(--vscode-editor-font-family); font-size: 10px; line-height: 16px; padding: 0 4px; margin-right: 4px; border: 1px solid var(--vscode-dropdown-border); border-radius: 3px; color: var(--vscode-descriptionForeground);}
@@ -1192,12 +1192,12 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the durable claims shape:
 .css-25 {position: absolute; left: -6px; top: 50%; -webkit-transform: translateY(-50%); -moz-transform: translateY(-50%); -ms-transform: translateY(-50%); transform: translateY(-50%);}
 .css-0 {position: relative; width: 100%; height: 100%;}
 .css-58 {font-family: var(--vscode-editor-font-family, monospace); font-size: 13.5px; line-height: 18px; color: var(--vscode-foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
-.css-69 {-webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; height: 100%; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; width: 100%; background-color: var(--vscode-menu-background); z-index: 1000;}
+.css-70 {-webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; height: 100%; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; width: 100%; background-color: var(--vscode-menu-background); z-index: 1000;}
 .css-7 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; gap: 6px; padding: 8px 10px; border-radius: 6px; background-color: var(--vscode-sideBar-background); border: 1px solid var(--vscode-dropdown-border); font-family: "GilmerRegular"; font-size: 11px; color: var(--vscode-foreground);}
 .css-54 {width: 232px; box-sizing: border-box; border-radius: 10px; border: 1.5px solid var(--vscode-contrastBorder, color-mix(in srgb, var(--vscode-foreground) 45%, transparent)); background-color: var(--vscode-menu-background); opacity: 1; -webkit-transition: opacity 260ms ease; transition: opacity 260ms ease; overflow: hidden; position: relative;}
 .css-10 {display: inline-block; margin: 0 auto; width: 8px; height: 8px; border-radius: 50%; background-color: var(--vscode-contrastActiveBorder, var(--vscode-editorLightBulb-foreground));}
 .css-56 {height: 22px; width: 22px; cursor: pointer; font-size: 22px; display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center;}
-.css-67 {position: absolute; right: -6px; top: 28px; -webkit-transform: translateY(-50%); -moz-transform: translateY(-50%); -ms-transform: translateY(-50%); transform: translateY(-50%);}
+.css-68 {position: absolute; right: -6px; top: 28px; -webkit-transform: translateY(-50%); -moz-transform: translateY(-50%); -ms-transform: translateY(-50%); transform: translateY(-50%);}
 .css-41 svg,.css-41 img {width: 14px; height: 14px; object-fit: contain;}
 .css-41 {display: inline-flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-flex: none; -ms-flex: none; flex: none; width: 22px; height: 22px; box-sizing: border-box; border-radius: 50%; border: 1.5px solid var(--vscode-dropdown-border); background-color: var(--vscode-editor-background); color: var(--vscode-foreground); font-size: 12px; overflow: hidden;}
 .css-55 {height: 56px; box-sizing: border-box; display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 10px; padding: 0 8px 0 12px; cursor: pointer; background-color: transparent; -webkit-transition: background-color 0.15s ease; transition: background-color 0.15s ease;}
@@ -1206,6 +1206,7 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the durable claims shape:
 .css-35 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; min-width: 0;}
 .css-12 {display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 4px; height: 32px; padding: 0 6px 0 12px; border-radius: 6px; background-color: var(--vscode-sideBar-background); border: 1px solid var(--vscode-dropdown-border); font-family: "GilmerMedium"; font-size: 12px; color: var(--vscode-foreground);}
 .css-50 {display: grid; justify-items: center; gap: 4px; min-width: 0;}
+.css-67 {position: absolute; right: -6px; top: 28px; -webkit-transform: translateY(-50%); -moz-transform: translateY(-50%); -ms-transform: translateY(-50%); transform: translateY(-50%);}
 .css-20 {position: absolute; -webkit-touch-callout: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; cursor: move; pointer-events: all;}
 .css-60 {height: 36px; box-sizing: border-box; display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 9px; padding: 0 12px; cursor: pointer; position: relative; border-top: 1px solid var(--vscode-dropdown-border); opacity: 1; background-color: transparent; -webkit-transition: opacity 260ms ease,background-color 0.15s ease; transition: opacity 260ms ease,background-color 0.15s ease;}
 .css-16 .node {-webkit-transition: none; transition: none;}
@@ -1861,6 +1862,10 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the durable claims shape:
                 />
                 <div
                   class="port css-67"
+                  data-name="out::/proj/services.bal::12"
+                />
+                <div
+                  class="port css-68"
                   data-name="out"
                 />
               </div>
@@ -1870,15 +1875,15 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the durable claims shape:
             class="css-19"
           >
             <div
-              class="css-68"
+              class="css-69"
               color="var(--vscode-foreground)"
             >
               <div
-                class="css-69"
+                class="css-70"
               >
                 <vscode-progress-ring
                   aria-live="assertive"
-                  class="css-70"
+                  class="css-71"
                   color="var(--vscode-contrastBorder, var(--vscode-button-background))"
                   role="alert"
                 />
