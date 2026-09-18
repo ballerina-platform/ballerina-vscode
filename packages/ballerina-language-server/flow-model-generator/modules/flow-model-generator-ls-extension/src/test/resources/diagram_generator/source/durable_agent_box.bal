@@ -58,6 +58,9 @@ function reconcileFlow(workflow:Context ctx, string billId) returns error? {
     json bill = check ctx->callActivity(lookupBooking, {api: deskApi, bookingId: billId}, retryPolicy = {maxRetries: int:max(2, 3), retryDelay: 1.5});
     json receipt = check ctx->callActivity(lookupBooking, {api: deskApi, bookingId: billId}, retryPolicy = opsNoRetryReviewers);
     string childId = check ctx->runChildWorkflow(childWorkflow = childFlow, input = billId);
+    json tuned = check ctx->callActivity(lookupBooking, {api: deskApi, bookingId: billId}, retryPolicy = {retryDelay: 5.0, retryBackoff: 3.0});
+    json reviewed = check ctx->callActivity(lookupBooking, {api: deskApi, bookingId: billId}, retryPolicy = {retryDelay: 1.5, userRoles: "ops"});
+    json bare = check ctx->callActivity(lookupBooking, {api: deskApi, bookingId: billId}, retryPolicy = {});
 }
 
 // The agent's input type, named: a type descriptor such as `map<json>` is not an expression, and the

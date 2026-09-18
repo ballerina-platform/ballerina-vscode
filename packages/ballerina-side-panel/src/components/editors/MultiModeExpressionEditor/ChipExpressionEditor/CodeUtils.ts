@@ -38,7 +38,8 @@ import {
     getTokenIconClass,
     getTokenTypeColor,
     getChipDisplayContent,
-    shouldRenderAsEmptySpace
+    shouldRenderAsEmptySpace,
+    isEditableValueChip
 } from "./chipStyles";
 import React from "react";
 
@@ -59,6 +60,42 @@ export const ProgrammerticSelectionChange = Annotation.define<boolean>();
 
 export const SyncDocValueWithPropValue = Annotation.define<boolean>();
 
+// Marks a value chip as "in edit mode": its chip decoration is suppressed so the underlying
+// text renders as normal, directly-typable editor content (selectable, completable, etc.)
+// instead of being hidden behind a Decoration.replace widget. Holds the document position of
+// the chip's start (not an id - ids from a fresh LS token refresh aren't stable across edits),
+// mapped through every transaction so it keeps pointing at the same logical value.
+export const setActiveEditableTokenEffect = StateEffect.define<number | undefined>();
+
+export const activeEditableTokenField = StateField.define<number | undefined>({
+    create: () => undefined,
+    update(value, tr) {
+        // An external prop-value sync replaces the whole document out from under whatever was
+        // locally being edited - mapping the old position through that wholesale replace would
+        // produce a meaningless number, so treat the sync as authoritative and drop it instead.
+        if (tr.annotation(SyncDocValueWithPropValue)) return undefined;
+
+        // assoc=-1 so typing right at the tracked start extends the active chip backwards
+        // (mirrors tokenField's start mapping below) instead of excluding the new leading
+        // text from the highlighted box until the next LS-backed refresh.
+        let mapped = value === undefined ? undefined : tr.changes.mapPos(value, -1);
+        for (const effect of tr.effects) {
+            if (effect.is(setActiveEditableTokenEffect)) {
+                mapped = effect.value;
+            }
+        }
+        return mapped;
+    }
+});
+
+// Visual "box" styling applied (via a non-replacing mark, so the text stays live/editable)
+// to the value chip currently in edit mode.
+const activeChipMark = Decoration.mark({
+    class: "cm-active-chip-box",
+    attributes: {
+        style: "border:1px solid var(--vscode-focusBorder, #007acc); border-radius:4px; padding:0 4px; margin:0 2px; background:var(--vscode-input-background);"
+    }
+});
 
 export function createChip(text: string, type: TokenType, start: number, end: number, view: EditorView, metadata?: TokenMetadata) {
     class ChipWidget extends WidgetType {
@@ -74,14 +111,20 @@ export function createChip(text: string, type: TokenType, start: number, end: nu
         }
         toDOM() {
             const span = document.createElement("span");
+            span.dataset.chipWidget = "true";
             this.createChip(span);
 
-            // Add click handler to select the chip text
+            // Add click handler to select the chip text. Value chips also enter edit mode:
+            // the chip decoration steps aside so the (now-selected) underlying text is directly
+            // editable, and typing replaces the selection like any normal text edit.
             span.addEventListener("click", (event) => {
                 event.preventDefault();
                 event.stopPropagation();
                 this.view.dispatch({
-                    selection: { anchor: this.start, head: this.end }
+                    selection: { anchor: this.start, head: this.end },
+                    ...(isEditableValueChip(this.type)
+                        ? { effects: setActiveEditableTokenEffect.of(this.start) }
+                        : {})
                 });
                 this.view.focus();
             });
@@ -229,21 +272,55 @@ export const tokenField = StateField.define<TokenFieldState>({
         return { tokens: [], compounds: [] };
     },
     update(oldState, tr) {
-        // Map existing positions through changes
-        let tokens = oldState.tokens.map(token => ({
-            ...token,
-            start: tr.changes.mapPos(token.start, 1),
-            end: tr.changes.mapPos(token.end, -1)
-        }));
+        // Map existing positions through changes. For the chip currently in edit mode (and
+        // only that one - see below), the end boundary uses assoc=1 so that typing right at
+        // its end (e.g. continuing to fill in a chip you just started editing) extends its
+        // range instead of leaving each new character just outside it, and the start boundary
+        // uses assoc=-1 so typing at its very start (e.g. after pressing Home) is likewise kept
+        // inside the tracked range instead of excluded. Every other token/compound keeps the
+        // opposite, non-absorbing assoc (start=1, end=-1) so boundary typing next to a chip
+        // that ISN'T being edited lands beside it as plain text instead of silently merging
+        // into - and then, on the next Backspace, deleting along with - that chip's content.
+        // The active token/compound's mapping must stay in sync with activeEditableTokenField's
+        // own mapping above so the "is this the active chip" comparisons in buildDecorations
+        // keep matching.
+        const activeStartBeforeChange = tr.startState.field(activeEditableTokenField, false);
 
+        let tokens = oldState.tokens.map(token => {
+            const isActive = activeStartBeforeChange !== undefined && token.start === activeStartBeforeChange;
+            return {
+                ...token,
+                start: tr.changes.mapPos(token.start, isActive ? -1 : 1),
+                end: tr.changes.mapPos(token.end, isActive ? 1 : -1)
+            };
+        });
+
+        // Compounds are never individually editable today - CompoundTokenSequence.tokenType is
+        // TokenType.VARIABLE | TokenType.DOCUMENT, and isEditableValueChip only allows PARAMETER
+        // and VALUE - so a compound's start can never equal activeStartBeforeChange, and it
+        // always gets the plain, non-absorbing assoc.
         let compounds = oldState.compounds.map(compound => ({
             ...compound,
             start: tr.changes.mapPos(compound.start, 1),
             end: tr.changes.mapPos(compound.end, -1)
         }));
 
+        // A chip is actively being edited: its containing expression is typically mid-edit
+        // (often syntactically incomplete), so an LS-backed token refresh landing right now
+        // would recompute the *whole* token stream from that transient/invalid parse - which
+        // can misclassify or drop tokens for chips the user isn't even touching. Ignore it and
+        // keep the locally-mapped tokens/compounds; the real refresh runs once editing commits
+        // (Enter/blur, see buildNeedTokenRefetchListner and buildOnFocusOutListner). An external
+        // prop-value sync overrides this: it replaces the whole document out from under any
+        // local edit, so the locally-mapped positions are meaningless anyway and the refresh it
+        // carries must be applied instead of skipped, or the token stream is stuck describing a
+        // document that no longer exists until the next Enter/blur.
+        const isEditingChip = activeStartBeforeChange !== undefined && !tr.annotation(SyncDocValueWithPropValue);
+
         for (let effect of tr.effects) {
             if (effect.is(tokensChangeEffect)) {
+                if (isEditingChip) continue;
+
                 const payload = effect.value;
                 const currentValue = tr.newDoc.toString();
 
@@ -341,6 +418,40 @@ export const iterateTokenStream = (
     }
 };
 
+// All editable value-chip token ranges that actually get rendered as their own chip/box -
+// i.e. the same set iterateTokenStream hands to buildDecorations below, not the raw
+// tokenField.tokens array. A token absorbed into a compound sequence (e.g. one of several
+// tokens inside a ${...} interpolation), an orphan token inside an unclosed interpolation, or
+// a multi-line span never gets its own decoration, so it must also never be an activation
+// target for boundary clicks or Tab/Shift-Tab - otherwise the editor can silently enter edit
+// mode (and start suppressing LS token refreshes) for a token with no on-screen active box to
+// show for it.
+//
+// Compounds are never individually editable today - CompoundTokenSequence.tokenType is
+// TokenType.VARIABLE | TokenType.DOCUMENT, and isEditableValueChip only allows PARAMETER and
+// VALUE - so onCompound never contributes a range here. If compound editing is ever supported,
+// widen CompoundTokenSequence.tokenType and this function (and buildDecorations' onCompound
+// branch below) need to be revisited together.
+const getEditableChipRanges = (view: EditorView): { start: number; end: number }[] => {
+    const tokenState = view.state.field(tokenField, false);
+    if (!tokenState) return [];
+
+    const docContent = view.state.doc.toString();
+    const ranges: { start: number; end: number }[] = [];
+
+    iterateTokenStream(tokenState.tokens, tokenState.compounds, docContent, {
+        onCompound: () => { /* compounds are never individually editable today - see above */ },
+        onToken: (token, text) => {
+            if (text.includes('\n')) return;
+            if (isEditableValueChip(token.type) && token.start < token.end) {
+                ranges.push({ start: token.start, end: token.end });
+            }
+        }
+    });
+
+    return ranges.sort((a, b) => a.start - b.start);
+};
+
 export const chipPlugin = ViewPlugin.fromClass(
     class {
         decorations: RangeSet<Decoration>;
@@ -351,14 +462,18 @@ export const chipPlugin = ViewPlugin.fromClass(
             const hasTokensChangeEffect = update.transactions.some(tr =>
                 tr.effects.some(e => e.is(tokensChangeEffect))
             );
+            const hasActiveTokenEffect = update.transactions.some(tr =>
+                tr.effects.some(e => e.is(setActiveEditableTokenEffect))
+            );
             const hasDocOrViewportChange = update.docChanged || update.viewportChanged;
-            if (hasDocOrViewportChange || hasTokensChangeEffect) {
+            if (hasDocOrViewportChange || hasTokensChangeEffect || hasActiveTokenEffect) {
                 this.decorations = this.buildDecorations(update.view);
             }
         }
         buildDecorations(view: EditorView) {
             const widgets: any[] = []; // Type as any[] to allow pushing Range<Decoration>
             const { tokens, compounds } = view.state.field(tokenField);
+            const activeStart = view.state.field(activeEditableTokenField, false);
             const docContent = view.state.doc.toString();
 
             iterateTokenStream(tokens, compounds, docContent, {
@@ -368,6 +483,9 @@ export const chipPlugin = ViewPlugin.fromClass(
                         return;
                     }
 
+                    // Compounds are never individually editable today (see the note on
+                    // getEditableChipRanges above), so they always render as a plain chip -
+                    // never the live/editable activeChipMark box the branch below gives tokens.
                     widgets.push(
                         createChip(
                             compound.displayText,
@@ -381,6 +499,15 @@ export const chipPlugin = ViewPlugin.fromClass(
                 },
                 onToken: (token, text) => {
                     if (text.includes('\n')) {
+                        return;
+                    }
+
+                    if (
+                        isEditableValueChip(token.type) &&
+                        token.start === activeStart &&
+                        token.start < token.end
+                    ) {
+                        widgets.push(activeChipMark.range(token.start, token.end));
                         return;
                     }
 
@@ -404,7 +531,138 @@ export const chipPlugin = ViewPlugin.fromClass(
     }
 );
 
+// A click that just misses a value chip's widget (lands on the sliver of plain text/gap right
+// before or after it) resolves to a position exactly at that chip's start/end boundary but
+// never reaches the widget's own click handler, so the click falls through to plain cursor
+// placement and anything typed next lands beside the chip instead of inside it. This catches
+// that case and activates the chip anyway, same as a direct hit.
+export const chipBoundaryClickHandler = EditorView.domEventHandlers({
+    click: (event, view) => {
+        if (event.button !== 0) return false;
+        if ((event.target as HTMLElement)?.closest('[data-chip-widget]')) return false;
+
+        const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
+        if (pos == null) return false;
+
+        // Only match against ranges that actually render as their own chip (see
+        // getEditableChipRanges) - a raw token list would also match a token absorbed into a
+        // compound sequence, which never gets its own decoration to activate.
+        const hit = getEditableChipRanges(view).find(range => {
+            if (pos === range.start) return true;
+            if (pos !== range.end) return false;
+
+            // A click resolving to a chip's end can also mean "well past it, in blank
+            // space" - e.g. a trailing chip at the end of the document/line, where posAtCoords
+            // clamps every click past it to this same position. Only treat it as a boundary
+            // hit when the click is still on/at the chip's own rendered box; otherwise a chip
+            // at the end of a field could never be clicked-past to place the caret after it.
+            const endCoords = view.coordsAtPos(range.end, -1);
+            return endCoords != null && event.clientX <= endCoords.right;
+        });
+        if (!hit) return false;
+
+        event.preventDefault();
+        view.dispatch({
+            selection: { anchor: hit.start, head: hit.end },
+            effects: setActiveEditableTokenEffect.of(hit.start)
+        });
+        view.focus();
+        return true;
+    }
+});
+
+// A chip only stays "active" (live, directly-editable text) while the selection remains
+// inside its tracked range. If the selection moves elsewhere - a click on plain text, on a
+// different non-editable chip, or arrow-key navigation past the chip's boundary - without an
+// explicit commit (Enter) or the whole editor losing focus, neither of which fires here,
+// clear the active state so the chip re-collapses and tokenField.update stops skipping
+// LS-backed token refreshes on its account (see the isEditingChip check above).
+export const activeChipSelectionGuard = EditorView.updateListener.of((update) => {
+    if (!update.selectionSet || update.docChanged) return;
+
+    const activeStart = update.state.field(activeEditableTokenField, false);
+    if (activeStart === undefined) return;
+
+    const tokenState = update.state.field(tokenField, false);
+    if (!tokenState) return;
+
+    const activeRange = tokenState.tokens.find(token => token.start === activeStart)
+        ?? tokenState.compounds.find(compound => compound.start === activeStart);
+    if (!activeRange) {
+        // The tracked chip no longer exists - clear instead of leaving isEditingChip stuck
+        // true, which would otherwise keep suppressing LS-backed token refreshes until an
+        // unrelated Enter/blur happens to come along and clear it.
+        update.view.dispatch({ effects: setActiveEditableTokenEffect.of(undefined) });
+        return;
+    }
+
+    const { from, to } = update.state.selection.main;
+    if (from < activeRange.start || to > activeRange.end) {
+        update.view.dispatch({ effects: setActiveEditableTokenEffect.of(undefined) });
+    }
+});
+
+const activateChipRange = (view: EditorView, range: { start: number; end: number }): boolean => {
+    view.dispatch({
+        selection: { anchor: range.start, head: range.end },
+        effects: setActiveEditableTokenEffect.of(range.start)
+    });
+    view.focus();
+    return true;
+};
+
+// Commits the chip currently in edit mode (re-collapses it back into a chip); falls through
+// (returns false) when no chip is being edited. Kept separate from expressionEditorKeymap
+// (and registered ahead of listContinuationKeymap - see ChipExpressionEditor.tsx) so
+// committing a chip always takes priority over a host editor's own Enter handling, e.g. the
+// prompt editor's list-continuation, instead of the chip getting stuck in edit mode while an
+// unrelated Enter behavior fires first.
+export const chipCommitKeymap = [
+    {
+        key: "Enter",
+        run: (view: EditorView) => {
+            const activeStart = view.state.field(activeEditableTokenField, false);
+            if (activeStart === undefined) return false;
+            view.dispatch({ effects: setActiveEditableTokenEffect.of(undefined) });
+            return true;
+        }
+    }
+];
+
 export const expressionEditorKeymap = [
+    {
+        // While a chip is in edit mode, jumps to (and activates) the next editable chip after
+        // it, so a multi-argument function call's placeholders can be filled without ever
+        // touching the mouse. Only handles Tab while a chip is already active, and never wraps
+        // past the last one - falling through (returning false) otherwise so Tab keeps its
+        // normal job of moving focus out of the editor. Without both of those, a document that
+        // merely contains a value/parameter chip (active or not) would permanently capture Tab
+        // and trap keyboard focus inside the editor (WCAG 2.1.2).
+        key: "Tab",
+        run: (view: EditorView) => {
+            const activeStart = view.state.field(activeEditableTokenField, false);
+            if (activeStart === undefined) return false;
+
+            const nextChip = getEditableChipRanges(view).find(chip => chip.start > activeStart);
+            if (!nextChip) return false;
+
+            return activateChipRange(view, nextChip);
+        }
+    },
+    {
+        // Mirror of Tab above: jumps to the previous editable chip. Same guards apply - only
+        // while a chip is active, and never wraps past the first one.
+        key: "Shift-Tab",
+        run: (view: EditorView) => {
+            const activeStart = view.state.field(activeEditableTokenField, false);
+            if (activeStart === undefined) return false;
+
+            const prevChip = [...getEditableChipRanges(view)].reverse().find(chip => chip.start < activeStart);
+            if (!prevChip) return false;
+
+            return activateChipRange(view, prevChip);
+        }
+    },
     {
         key: "Backspace",
         run: (view: EditorView) => {
@@ -414,12 +672,16 @@ export const expressionEditorKeymap = [
 
             const { tokens, compounds } = tokenState;
             const cursor = state.selection.main.head;
+            const activeStart = state.field(activeEditableTokenField, false);
 
             // Check if cursor is within a compound token
             const affectedCompound = compounds.find(
                 compound => compound.start < cursor && compound.end >= cursor
             );
 
+            // Compounds are never individually editable today (see the note on
+            // getEditableChipRanges above), so Backspace always removes the whole sequence -
+            // there's no "compound is being edited, delete one character instead" case yet.
             if (affectedCompound) {
                 // Delete all tokens in the compound sequence
                 const effects = [];
@@ -434,10 +696,10 @@ export const expressionEditorKeymap = [
                 return true;
             }
 
-            // Check for individual tokens
+            // Check for individual tokens (skip the one currently in edit mode - see above)
             const affectedToken = tokens.find((token: ParsedToken) => token.start < cursor && token.end >= cursor);
 
-            if (affectedToken) {
+            if (affectedToken && affectedToken.start !== activeStart) {
                 view.dispatch({
                     effects: removeChipEffect.of(affectedToken.id),
                     changes: { from: affectedToken.start, to: affectedToken.end, insert: '' }
@@ -546,6 +808,10 @@ export const buildOnFocusOutListner = (onTrigger: () => void) => {
     const shouldOpenHelperPaneListner = EditorView.updateListener.of((update) => {
         if (update.focusChanged) {
             if (update.view.hasFocus) return;
+            // Losing focus on the whole editor commits whichever chip was in edit mode.
+            if (update.view.state.field(activeEditableTokenField, false) !== undefined) {
+                update.view.dispatch({ effects: setActiveEditableTokenEffect.of(undefined) });
+            }
             onTrigger();
         }
     });
@@ -556,12 +822,27 @@ export const buildNeedTokenRefetchListner = (onTrigger: () => void) => {
     const needTokenRefetchListner = EditorView.updateListener.of((update) => {
         const userEvent = update.transactions[0]?.annotation(Transaction.userEvent);
 
+        // A chip was just committed (Enter) - the token refresh was held back while it was
+        // being edited (see tokenField.update), so ask for a fresh one now.
+        const chipJustCommitted = update.transactions.some(tr =>
+            tr.effects.some(e => e.is(setActiveEditableTokenEffect) && e.value === undefined)
+        );
+        if (chipJustCommitted) {
+            onTrigger();
+            return;
+        }
+
         if (update.docChanged && (userEvent === "undo" || userEvent === "redo")) {
             onTrigger();
             return;
         }
 
-        if (update.docChanged && (
+        // While a chip is active, tokenField.update discards any tokensChangeEffect anyway
+        // (see the isEditingChip check there), so triggering a refetch here would just be a
+        // wasted LS round-trip for a response that's thrown away the moment it lands.
+        const isEditingChip = update.state.field(activeEditableTokenField, false) !== undefined;
+
+        if (!isEditingChip && update.docChanged && (
             userEvent === "input.type" ||
             userEvent === "input.paste" ||
             userEvent === "delete.backward" ||

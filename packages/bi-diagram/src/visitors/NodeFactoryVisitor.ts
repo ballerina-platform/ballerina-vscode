@@ -951,30 +951,23 @@ export class NodeFactoryVisitor implements BaseVisitor {
         }
         const nodeModel = new DurableAgentRunNodeModel(node);
         this.nodes.push(nodeModel);
-        // The synthetic agent-box copy (metadata.data.agentBox) floats above the chain:
-        // skip updateNodeLinks so it gets no incoming link and does not become the link
-        // source for the following start pill (which would render an edge plus an
-        // add-button between the box and the pill). The pill still becomes lastNodeModel
-        // itself and links downward to the first statement.
-        //
-        // Exception — the agent-only view: there the flow model is just
-        // [Start, agent box], so a start node has already been visited. Link it to the
-        // box with a non-editable edge (no add-button).
+        // Two nodes carry the agentBox marker. One is the real `agent.run(...)` statement, which
+        // links like any other node. The other is the synthetic copy the agent-only view is built
+        // from, which floats above the chain: it takes no incoming link and must not become the
+        // link source for the start pill below it, or an edge and an add-button appear between
+        // them. Only the synthetic one is marked agentDeclarationCanvas, so that is what tells
+        // them apart — a statement has no marker of its own to test.
         const nodeData = node.metadata?.data as { agentBox?: boolean; agentDeclarationCanvas?: boolean };
         const isAgentBox = nodeData?.agentBox === true;
-        // Only the synthetic declaration-canvas copy (agent-only view) gets the non-editable
-        // Start edge — an in-chain `agent.run(...)` statement also carries the agentBox marker
-        // but is a real statement, so its edges keep the add-button. The LS marks the synthetic
-        // copy explicitly; node ids are generated, so they cannot be matched on.
         const isDeclarationCanvasBox = nodeData?.agentDeclarationCanvas === true;
-        if (!isAgentBox) {
+        if (!isAgentBox || !isDeclarationCanvasBox) {
+            // A real statement. It has to become the chain's tail even when it opens a block and
+            // has nothing to link from, or nothing links down from it and the block loses its
+            // terminator too (wso2/product-integrator#2472).
             this.updateNodeLinks(node, nodeModel);
-        } else if (isDeclarationCanvasBox && this.lastNodeModel instanceof StartNodeModel) {
+        } else if (this.lastNodeModel instanceof StartNodeModel) {
+            // The agent-only view is just [Start, box]: join them with a non-editable edge.
             this.updateNodeLinks(node, nodeModel, { showAddButton: false });
-        } else if (this.lastNodeModel) {
-            // Object-model agent box rendered in-chain (an `agent.run(...)` statement inside a
-            // workflow function or resource): keep the normal chain links.
-            this.updateNodeLinks(node, nodeModel);
         }
         this.addSuggestionsButton(node);
     }

@@ -30,8 +30,8 @@ import {
     isDevantUserLoggedIn,
     getPlatformStsToken,
     exchangeStsToCopilotToken,
-    storeAuthCredentials,
     NO_AUTH_CREDENTIALS_FOUND,
+    storeBiIntelCredentials,
     getAccessToken,
     isNotLoggedInError
 } from '../../utils/ai/auth';
@@ -39,7 +39,7 @@ import { AIStateMachine } from '../../views/ai-panel/aiMachine';
 import { AIMachineEventType } from '@wso2/ballerina-core/lib/state-machine-types';
 import { CONFIG_FILE_NAME, CONFIGURE_DEFAULT_PROVIDER_ACTION, DEFAULT_PROVIDER_ADDED, DEFAULT_PROVIDER_NOT_CONFIGURED_PROMPT, DEFAULT_PROVIDER_TOKEN_REFRESH_FAILED, ERROR_NO_BALLERINA_SOURCES, LLM_API_BASE_PATH, LOGIN_REQUIRED_WARNING_FOR_DEFAULT_MODEL, PROGRESS_BAR_MESSAGE_FROM_WSO2_DEFAULT_EMBEDDING, PROGRESS_BAR_MESSAGE_FROM_WSO2_DEFAULT_MODEL, RUN_CANCELLED_DEFAULT_PROVIDER_NOT_CONFIGURED, SIGN_IN_BI_COPILOT } from './constants';
 import { getCurrentBallerinaProjectFromContext } from '../config-generator/configGenerator';
-import { BallerinaProject, LoginMethod, AuthCredentials, DefaultProviderKind, GET_DEFAULT_MODEL_PROVIDER, GET_DEFAULT_EMBEDDING_PROVIDER } from '@wso2/ballerina-core';
+import { BallerinaProject, LoginMethod, DefaultProviderKind, GET_DEFAULT_MODEL_PROVIDER, GET_DEFAULT_EMBEDDING_PROVIDER } from '@wso2/ballerina-core';
 import { BallerinaExtension } from 'src/core';
 
 const config = workspace.getConfiguration('ballerina');
@@ -48,15 +48,53 @@ const PLATFORM_ENV_SETTING = "WSO2.WSO2-Platform.Advanced.ChoreoEnvironment";
 const devantEnv = (process.env.CHOREO_ENV || process.env.CLOUD_ENV
     || workspace.getConfiguration().get<string>(PLATFORM_ENV_SETTING) || "").trim().toLowerCase();
 const COPILOT_ROOT_URLS = new Map<string, string>([
-    ["dev", process.env.COPILOT_DEV_ROOT_URL],
-    ["stage", process.env.COPILOT_STAGE_ROOT_URL || process.env.COPILOT_DEV_ROOT_URL],
+    ["us", process.env.COPILOT_ROOT_URL],
+    ["us-prod", process.env.COPILOT_ROOT_URL],
+    ["us-dev", process.env.COPILOT_DEV_ROOT_URL],
+    ["us-stage", process.env.COPILOT_STAGE_ROOT_URL],
+    ["eu", process.env.COPILOT_EU_ROOT_URL],
+    ["eu-prod", process.env.COPILOT_EU_ROOT_URL],
+    ["eu-dev", process.env.COPILOT_EU_DEV_ROOT_URL],
+    ["eu-stage", process.env.COPILOT_EU_STAGE_ROOT_URL],
 ]);
-export const BACKEND_URL: string = config.get('rootUrl') || COPILOT_ROOT_URLS.get(devantEnv) || process.env.COPILOT_ROOT_URL;
 
-export const DEVANT_TOKEN_EXCHANGE_URL: string = BACKEND_URL + "/auth-api/v1.0/auth/token-exchange";
+const defaultRegionKey = devantEnv ? `us-${devantEnv}` : "us";
+const _defaultBackendUrl: string = config.get('rootUrl') || COPILOT_ROOT_URLS.get(defaultRegionKey) || process.env.COPILOT_ROOT_URL;
+
+export let BACKEND_URL: string = _defaultBackendUrl;
+
+export let DEVANT_TOKEN_EXCHANGE_URL: string = _defaultBackendUrl + "/auth-api/v1.0/auth/token-exchange";
 
 // This refers to old backend before FE Migration. We need to eventually remove this.
-export const OLD_BACKEND_URL: string = BACKEND_URL + "/v2.0";
+export let OLD_BACKEND_URL: string = _defaultBackendUrl + "/v2.0";
+
+export const setBackendRegion = (region: string): boolean => {
+    if (config.get('rootUrl')) {
+        return true;
+    }
+    const normalized = region?.trim().toLowerCase();
+    const key = devantEnv ? `${normalized}-${devantEnv}` : normalized;
+    let regionalUrl = COPILOT_ROOT_URLS.get(key);
+    if (!regionalUrl && devantEnv && devantEnv == "stage") {
+        const devKey = `${normalized}-dev`;
+        const devUrl = COPILOT_ROOT_URLS.get(devKey);
+        if (devUrl) {
+            vscode.window.showWarningMessage(
+                `Copilot: No backend URL configured for '${devantEnv}', falling back to dev.`
+            );
+            regionalUrl = devUrl;
+        }
+    }
+    if (!regionalUrl) {
+        console.error(`No backend URL configured for region '${normalized}'`);
+        return false;
+    }
+    BACKEND_URL = regionalUrl;
+    DEVANT_TOKEN_EXCHANGE_URL = regionalUrl + "/auth-api/v1.0/auth/token-exchange";
+    OLD_BACKEND_URL = regionalUrl + "/v2.0";
+    console.log(`[Region] ${region} → BACKEND_URL: ${BACKEND_URL}`);
+    return true;
+};
 
 export async function closeAllBallerinaFiles(dirPath: string): Promise<void> {
     // Check if the directory exists
@@ -176,11 +214,7 @@ export async function getTokenForDefaultModel() {
             const stsToken = await getPlatformStsToken();
             if (stsToken) {
                 const secrets = await exchangeStsToCopilotToken(stsToken);
-                const newCredentials: AuthCredentials = {
-                    loginMethod: LoginMethod.BI_INTEL,
-                    secrets
-                };
-                await storeAuthCredentials(newCredentials);
+                await storeBiIntelCredentials(secrets);
                 return secrets.accessToken;
             }
         }

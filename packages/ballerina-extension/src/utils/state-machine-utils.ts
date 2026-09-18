@@ -561,6 +561,33 @@ function findViewByArtifact(
                     dataMapperDepth: 0
                 };
             case DIRECTORY_MAP.AGENT:
+                if (StateMachine.productMode() === ProductMode.AGENT_BUILDER) {
+                    return {
+                        location: {
+                            view: MACHINE_VIEW.PackageOverview,
+                            projectPath,
+                            documentUri: dir.path,
+                            position: dir.position,
+                        },
+                        dataMapperDepth: 0
+                    };
+                }
+                // A durable agent shares the Agents section but opens its own model canvas.
+                if (dir.kind === DIRECTORY_MAP.DURABLE_AGENT) {
+                    return {
+                        location: {
+                            view: MACHINE_VIEW.BIDiagram,
+                            documentUri: currentDocumentUri,
+                            identifier: dir.name,
+                            position: dir.position,
+                            artifactType: DIRECTORY_MAP.DURABLE_AGENT,
+                            metadata: {
+                                enableSequenceDiagram: extension.ballerinaExtInstance.enableSequenceDiagramView(),
+                            }
+                        },
+                        dataMapperDepth: 0
+                    };
+                }
                 return {
                     location: {
                         view: MACHINE_VIEW.BIDiagram,

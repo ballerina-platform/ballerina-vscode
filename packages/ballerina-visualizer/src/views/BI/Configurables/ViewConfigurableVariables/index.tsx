@@ -84,6 +84,7 @@ export interface ConfigProps {
     testsConfigTomlPath?: string;
     org: string;
     addNew?: boolean;
+    initialModuleIdentifier?: string;
 }
 
 interface CategoryWithModules {
@@ -137,6 +138,12 @@ export function ViewConfigurableVariables(props?: ConfigProps) {
     const selectedModuleRef = useRef<PackageModuleState>(null);
     const [testConfigVariables, setTestConfigVariables] = useState<ConfigVariablesState>({});
     const [testCategoriesWithModules, setTestCategoriesWithModules] = useState<CategoryWithModules[]>([]);
+
+    useEffect(() => {
+        if (props.initialModuleIdentifier) {
+            setSelectedModule({ category: props.initialModuleIdentifier, module: '' });
+        }
+    }, []);
 
     useEffect(() => {
         rpcClient

@@ -1,0 +1,85 @@
+{
+  "source": "workflow_function/agent.bal",
+  "description": "A peer entry with allowed events: the agent, its description and the events it may be sent",
+  "diagram": {
+    "id": "1",
+    "metadata": {
+      "label": "askClaimDesk",
+      "description": "Another durable agent this agent can delegate to, advertised to the model as a tool"
+    },
+    "codedata": {
+      "node": "DURABLE_AGENT_PEER",
+      "org": "ballerina",
+      "module": "workflow",
+      "object": "DurableAgent",
+      "symbol": "agent",
+      "parentSymbol": "claimAgent",
+      "lineRange": {
+        "fileName": "agent.bal",
+        "startLine": {
+          "line": 21,
+          "offset": 0
+        },
+        "endLine": {
+          "line": 21,
+          "offset": 0
+        }
+      },
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "agent": {
+        "metadata": {
+          "label": "Peer Agent"
+        },
+        "valueType": "SINGLE_SELECT",
+        "value": "claimAgent",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "description": {
+        "metadata": {
+          "label": "Description"
+        },
+        "valueType": "TEXT",
+        "value": "Asks the claim desk",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "allowedEvents": {
+        "metadata": {
+          "label": "Allowed Events"
+        },
+        "valueType": "EXPRESSION",
+        "value": "[\"claimResults\"]",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false
+      }
+    },
+    "flags": 0
+  },
+  "output": {
+    "workflow_function/agent.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 20,
+            "character": 5
+          },
+          "end": {
+            "line": 20,
+            "character": 5
+          }
+        },
+        "newText": "\n,\n    peers: [{agent: claimAgent, description: \"Asks the claim desk\", allowedEvents: [\"claimResults\"]}]"
+      }
+    ]
+  }
+}

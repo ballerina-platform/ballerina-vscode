@@ -104,6 +104,14 @@ export const shouldRenderAsEmptySpace = (tokenType: TokenType, content: string):
     return tokenType === TokenType.PARAMETER && /^\$\d+$/.test(content);
 };
 
+// Value-holding chips (function arguments, literal values) are click-to-edit: clicking one
+// exposes its underlying text as a normal editable region instead of the read-only chip.
+// Reference chips (variables, properties, documents) stay click-to-select/replace, since
+// they're normally set by picking a new one from the helper pane rather than free-typed.
+export const isEditableValueChip = (tokenType: TokenType): boolean => {
+    return tokenType === TokenType.PARAMETER || tokenType === TokenType.VALUE;
+};
+
 export const getChipDisplayContent = (tokenType: TokenType, content: string): string => {
     return shouldRenderAsEmptySpace(tokenType, content) ? ' ' : content;
 };
