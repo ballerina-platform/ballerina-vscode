@@ -94,10 +94,15 @@ public class ModuleNodeTransformer extends NodeTransformer<Optional<Artifact>> {
         String functionName = functionDefinitionNode.functionName().text();
 
         Optional<Symbol> functionSymbol = semanticModel.symbol(functionDefinitionNode);
-        // Hide agent tools from being rendered under "Functions" in the artifact tree
+        // Own artifact kind (not FUNCTION) so it stays out of the Functions category while
+        // still getting a trackable identity for position updates after a save.
         if (functionDefinitionNode.kind() == SyntaxKind.FUNCTION_DEFINITION
                 && functionSymbol.isPresent() && AiUtils.isAgentToolFunction(functionSymbol.get())) {
-            return Optional.empty();
+            functionBuilder
+                    .name(functionName)
+                    .type(Artifact.Type.AGENT_TOOL)
+                    .visibility(determineVisibility(functionDefinitionNode));
+            return Optional.of(functionBuilder.build());
         }
         if (functionName.equals(MAIN_FUNCTION_NAME)) {
             functionBuilder
