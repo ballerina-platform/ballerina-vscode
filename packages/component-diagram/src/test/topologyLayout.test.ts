@@ -41,14 +41,7 @@ import { defaultVisibleRows, entryCardHeight, estimateAgentCardHeight, inletCros
 
 const ONE_ROW_CARD = ENTRY_HEADER_HEIGHT + ENTRY_ROW_HEIGHT;
 import { TopologyAgentNode, TopologyEdge, TopologyEntryNode, TopologyGraph, TopologyHandler } from "../components/AgentTopologyDiagram/types";
-
-function agent(id: string, extra: Partial<TopologyAgentNode> = {}): TopologyAgentNode {
-    return {
-        id, name: id, kind: "agent", typeName: "AI Agent", role: "", toolCount: 0, functionTools: 0, agentTools: 0, mcpTools: 0, tools: [], chips: [],
-        typed: false, orphan: false, filePath: "/proj/agents.bal", position: { line: 1, offset: 0 },
-        channels: [], people: [], activities: 0, gatedActivities: 0, humanTasks: [], peers: [], ...extra,
-    };
-}
+import { agent } from "./topologyFixtures";
 
 function handler(id: string, extra: Partial<TopologyHandler> = {}): TopologyHandler {
     return { id, label: id, filePath: "/proj/services.bal", position: { line: 1, offset: 0 }, logic: [], ordered: false, wired: true, ...extra };
@@ -330,7 +323,7 @@ describe("layoutTopology", () => {
         expect(second.y).toBeGreaterThan(first.y);
     });
 
-    it("gives a row's edge no lane left to right", () => {
+    it("assigns no lanes left to right, since edges only step into a lane top to bottom", () => {
         const graph = graphOf([agent("a1")], [trigger("svc", ["h1"])], [{ id: "h1->a1", sourceId: "svc", targetId: "a1", kind: "trigger", handlerId: "h1" }]);
         expect(layoutTopology(graph).edgeLanes).toEqual({});
     });

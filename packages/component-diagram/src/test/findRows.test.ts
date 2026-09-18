@@ -17,16 +17,8 @@
  */
 
 import { buildFindFacets, buildFindRows, entryKind, findableCount, focusKind } from "../components/AgentTopologyDiagram/findRows";
-import { TopologyAgentNode, TopologyEdge, TopologyEntryNode, TopologyGraph } from "../components/AgentTopologyDiagram/types";
-
-function agent(id: string, extra: Partial<TopologyAgentNode> = {}): TopologyAgentNode {
-    return {
-        id, name: id, kind: "agent", typeName: "AI Agent", role: "", toolCount: 0, functionTools: 0, agentTools: 0, mcpTools: 0, tools: [], chips: [],
-        typed: false, orphan: false, filePath: "/proj/agents.bal", position: { line: 1, offset: 0 },
-        channels: [], people: [], activities: 0, gatedActivities: 0, humanTasks: [], peers: [],
-        ...extra,
-    };
-}
+import { TopologyEdge, TopologyEntryNode, TopologyGraph } from "../components/AgentTopologyDiagram/types";
+import { agent } from "./topologyFixtures";
 
 function entry(id: string, handlers: { id: string; label: string; accessor?: string; wired?: boolean }[], extra: Partial<TopologyEntryNode> = {}): TopologyEntryNode {
     return {

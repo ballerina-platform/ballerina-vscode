@@ -18,17 +18,10 @@
 
 import { focusAround, inletFocusId, isolateGraph } from "../components/AgentTopologyDiagram/topologyFocus";
 import { TopologyAgentNode, TopologyEdge, TopologyEntryNode, TopologyGraph } from "../components/AgentTopologyDiagram/types";
+import { agent } from "./topologyFixtures";
 
 // Which ids in these fixtures are triggers, so `edge` knows to source from a card row.
 const triggerIds = new Set(["draft", "intakeT", "main", "t1", "t2", "t", "other"]);
-
-function agent(id: string): TopologyAgentNode {
-    return {
-        id, name: id, kind: "agent", typeName: "AI Agent", role: "", toolCount: 0, functionTools: 0, agentTools: 0, mcpTools: 0, tools: [], chips: [],
-        typed: false, orphan: false, filePath: "/proj/agents.bal", position: { line: 1, offset: 0 },
-        channels: [], people: [], activities: 0, gatedActivities: 0, humanTasks: [], peers: [],
-    };
-}
 
 // One card per trigger in these tests, so a handler id and its card's id are the same thing.
 function trigger(id: string): TopologyEntryNode {

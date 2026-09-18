@@ -149,4 +149,24 @@ describe("useDurableAgentUsages", () => {
         expect(getDesignModel).toHaveBeenCalledTimes(2);
         expect(boxUsages()).toEqual([usage]);
     });
+
+    it("shows an empty usage list when the design-model fetch fails, instead of hanging the skeleton", async () => {
+        const errorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+        getDesignModel.mockRejectedValueOnce(new Error("boom"));
+        const freshBox = node("box", "DURABLE_AGENT_RUN", { agentBox: true, agentName: `agent-${Date.now()}-fail` });
+        const initial = { fileName: "/proj/main.bal", nodes: [start, freshBox] } as unknown as Flow;
+        act(() => root.render(React.createElement(Probe, { initial })));
+        await flush(0);
+        expect(boxUsages()).toEqual([]);
+        errorSpy.mockRestore();
+    });
+
+    it("shows an empty usage list when the design model isn't ready yet, instead of hanging the skeleton", async () => {
+        getDesignModel.mockResolvedValueOnce({ designModel: undefined });
+        const freshBox = node("box", "DURABLE_AGENT_RUN", { agentBox: true, agentName: `agent-${Date.now()}-nomodel` });
+        const initial = { fileName: "/proj/main.bal", nodes: [start, freshBox] } as unknown as Flow;
+        act(() => root.render(React.createElement(Probe, { initial })));
+        await flush(0);
+        expect(boxUsages()).toEqual([]);
+    });
 });

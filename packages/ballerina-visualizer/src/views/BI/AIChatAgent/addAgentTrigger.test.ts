@@ -21,8 +21,12 @@ import type { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
 
 const EVENT_TYPE = { OPEN_VIEW: "OPEN_VIEW" };
 const MACHINE_VIEW = { BIAddAgentTrigger: "Add Agent Trigger" };
+const isAgentDeclarationNode = (kind?: string) => kind === "AGENT" || kind === "TYPED_AGENT";
 jest.mock("@wso2/ballerina-core", () =>
-    new Proxy({ EVENT_TYPE, MACHINE_VIEW, TRIGGER_CHARACTERS: [], __esModule: true }, { get: (target, key) => (key in target ? target[key as keyof typeof target] : {}) })
+    new Proxy(
+        { EVENT_TYPE, MACHINE_VIEW, TRIGGER_CHARACTERS: [], isAgentDeclarationNode, __esModule: true },
+        { get: (target, key) => (key in target ? target[key as keyof typeof target] : {}) }
+    )
 );
 jest.mock("../../../constants", () => ({ BALLERINA: "ballerina" }));
 jest.mock("@wso2/ballerina-rpc-client", () => ({}));
@@ -30,7 +34,7 @@ jest.mock("@wso2/ballerina-side-panel", () => ({}));
 jest.mock("../../../utils/bi", () => ({ convertNodePropertyToFormField: jest.fn() }));
 jest.mock("./toolForm", () => ({ OAUTH_GROUP: "oauth" }));
 
-import { agentKindOf, agentVarNameOf, openAddAgentTrigger, startAddDurableEventTrigger } from "./utils";
+import { agentKindOf, agentVarNameOf, openAddAgentTrigger, startAddAgentTrigger, startAddDurableEventTrigger } from "./utils";
 
 function rpcWithOpenView() {
     const openView = jest.fn();
@@ -76,5 +80,47 @@ describe("openAddAgentTrigger", () => {
         const box = { codedata: { node: "DURABLE_AGENT_RUN" }, metadata: { data: { agentBox: true, agentName: "claimAgent" } } } as unknown as FlowNode;
         expect(agentVarNameOf(box)).toBe("claimAgent");
         expect(agentVarNameOf({ codedata: { node: "DURABLE_AGENT_RUN" }, metadata: { data: {} } } as unknown as FlowNode)).toBe("");
+    });
+});
+
+describe("startAddAgentTrigger", () => {
+    it("forces the durable agent's org to ballerina, ignoring the node's own org", () => {
+        const { rpcClient, openView } = rpcWithOpenView();
+        const box = {
+            codedata: { node: "DURABLE_AGENT_RUN", org: "someOtherOrg" },
+            metadata: { data: { agentBox: true, agentName: "claimAgent" } },
+        } as unknown as FlowNode;
+        startAddAgentTrigger(box, rpcClient);
+        expect(openView.mock.calls[0][0].location.artifactInfo).toEqual({
+            agentName: "claimAgent",
+            agentOrgName: "ballerina",
+            agentKind: "durable",
+            agentEvent: undefined,
+        });
+    });
+
+    it("uses the node's own org for a non-durable agent", () => {
+        const { rpcClient, openView } = rpcWithOpenView();
+        const node = {
+            codedata: { node: "AGENT", org: "wso2" },
+            properties: { variable: { value: "faqAgent" } },
+        } as unknown as FlowNode;
+        startAddAgentTrigger(node, rpcClient);
+        expect(openView.mock.calls[0][0].location.artifactInfo).toEqual({
+            agentName: "faqAgent",
+            agentOrgName: "wso2",
+            agentKind: undefined,
+            agentEvent: undefined,
+        });
+    });
+
+    it("does nothing when the agent variable name can't be resolved", () => {
+        const errorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+        const { rpcClient, openView } = rpcWithOpenView();
+        const node = { codedata: { node: "AGENT", org: "wso2" }, properties: {} } as unknown as FlowNode;
+        startAddAgentTrigger(node, rpcClient);
+        expect(openView).not.toHaveBeenCalled();
+        expect(errorSpy).toHaveBeenCalled();
+        errorSpy.mockRestore();
     });
 });

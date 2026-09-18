@@ -62,6 +62,7 @@ describe("fitAgentFocus", () => {
         expect(tall.targetZoomPct).toBe(100);
         expect(tall.targetOffsetY).toBe(AGENT_FOCUS_FIT_PADDING_Y);
         const short = fitAgentFocus({ ...node, embedded: false, contentHeight: 300, canvasWidth: 1900, canvasHeight: 900 });
-        expect(short.targetOffsetY).toBeCloseTo(900 / 2 - 40 - 150);
+        const verticalBias = 40; // fitAgentFocus's un-exported bias for a non-embedded view
+        expect(short.targetOffsetY).toBeCloseTo(900 / 2 - verticalBias - 150);
     });
 });

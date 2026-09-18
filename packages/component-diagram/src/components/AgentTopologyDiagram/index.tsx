@@ -589,7 +589,7 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
             )}
             {diagramEngine && diagramModel && (
                 <TopologyContextProvider value={context}>
-                    <Glide settling={settling} onClick={onCanvasClick}>
+                    <Glide settling={settling} onClick={onCanvasClick} data-testid="diagram-canvas">
                         <DiagramCanvas>
                             <CanvasWidget engine={diagramEngine} />
                         </DiagramCanvas>

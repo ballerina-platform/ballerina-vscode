@@ -744,7 +744,7 @@ describe("buildTopology", () => {
         expect(graph.legendKinds).toEqual(["trigger", "event", "delegation", "gate"]);
     });
 
-    it("still draws a durable workflow the artifact list does not know, keyed by its own location", () => {
+    it("still draws a durable workflow the artifact list does not list, keyed by its own location", () => {
         const input = claimsInput();
         input.agents = [];
         const [card] = buildTopology(input).agents;

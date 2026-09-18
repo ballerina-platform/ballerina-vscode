@@ -224,6 +224,7 @@ async function renderAndCheckSnapshot(input: TopologyInput, testName: string) {
         ? `/* Emotion Styles */\n${normalizedStyles}\n\n/* DOM */\n${sanitizedDom}`
         : sanitizedDom;
     expect(snapshot).toMatchSnapshot(testName);
+    return dom;
 }
 
 describe("AgentTopologyDiagram - Snapshot Tests", () => {
@@ -236,8 +237,8 @@ describe("AgentTopologyDiagram - Snapshot Tests", () => {
     }, 15000);
 
     test("renders the durable claims shape: inlet, people line and a three-row legend", async () => {
-        await renderAndCheckSnapshot(durableClaimsInput(), "durable-claims-shape");
-        const view = within(render(<AgentTopologyDiagram input={durableClaimsInput()} onAgentSelect={jest.fn()} onTriggerSelect={jest.fn()} />).container);
+        const dom = await renderAndCheckSnapshot(durableClaimsInput(), "durable-claims-shape");
+        const view = within(dom.container);
         expect(view.getByText("Durable Agent")).toBeInTheDocument();
         expect(view.getAllByText("chat")).toHaveLength(1);
         expect(view.queryByText(/Manager|Accountant/)).toBeNull();
@@ -245,7 +246,9 @@ describe("AgentTopologyDiagram - Snapshot Tests", () => {
         expect(view.queryByText("Delegates to")).toBeNull();
         expect(view.queryByText("Add Trigger")).toBeNull();
     }, 15000);
+});
 
+describe("AgentTopologyDiagram - Capability Popovers", () => {
     test("opens a list per capability circle: the people circle names the human task, the events circle the channel", () => {
         const view = within(render(<AgentTopologyDiagram input={durableClaimsInput()} onAgentSelect={jest.fn()} onTriggerSelect={jest.fn()} />).container);
         const [people, channels] = view.getAllByText("1").map((count) => count.parentElement);
@@ -255,7 +258,7 @@ describe("AgentTopologyDiagram - Snapshot Tests", () => {
         expect(document.body).not.toHaveTextContent("managerApproval");
         fireEvent.mouseEnter(channels);
         expect(within(document.body).getAllByText("chat")).toHaveLength(2);
-    }, 15000);
+    });
 });
 
 describe("AgentTopologyDiagram - Find", () => {
@@ -363,7 +366,7 @@ describe("AgentTopologyDiagram - Find", () => {
         expect(document.activeElement).toBe(field);
 
         fireEvent.click(rows[1]);
-        fireEvent.click(dom.container.querySelector("[data-testid='diagram-canvas']") ?? dom.container.firstElementChild!);
+        fireEvent.click(dom.getByTestId("diagram-canvas"));
         expect(dom.getByRole("status")).toHaveTextContent("Pinned");
     });
 
