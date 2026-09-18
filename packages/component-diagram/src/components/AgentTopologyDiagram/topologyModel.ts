@@ -135,7 +135,8 @@ function buildToolChips(toolConnections: string[] | undefined, uuidToConnection:
             continue;
         }
         seen.add(uuid);
-        chips.push({ key: uuid, label: toolConnection.symbol, icon: toolConnection.icon });
+        // The uuid is regenerated on every design-model request; the symbol is what stays stable across refetches.
+        chips.push({ key: toolConnection.symbol, label: toolConnection.symbol, icon: toolConnection.icon });
     }
     return chips;
 }
