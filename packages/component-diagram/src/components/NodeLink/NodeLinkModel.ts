@@ -45,6 +45,17 @@ const LINK_CURVATURE = 0.5;
  */
 const LINK_MIN_CURVE_OFFSET = 20;
 
+/**
+ * Below this vertical gap between a plain link's two ports, the curve's natural bow (however
+ * gentle) reads as a faint, pointless wobble rather than a real S-curve - especially over a long
+ * horizontal span, where even a few px of Y difference stays visible the whole way across.
+ *
+ * Kept small (not, say, 8px) so this only ever absorbs the kind of sub-pixel/rounding drift real
+ * anchor math can leave behind, rather than also masking an actual few-px anchor bug - a wider
+ * tolerance here would hide exactly the class of misalignment getPortAnchorY exists to prevent.
+ */
+const STRAIGHT_TOLERANCE = 2;
+
 /** One cubic-bezier segment of a link's path, in draw order. */
 interface BezierSegment {
     start: Point2D;
@@ -80,6 +91,21 @@ function buildBezierSegment(p0: Point2D, p1: Point2D): BezierSegment {
 }
 
 /**
+ * A plain port-to-port link (no avoidLinkObstructions detour) whose two ends are already
+ * near-level: flattens both ends to their shared average Y so the curve skips the bow entirely,
+ * rather than drawing it through their own slightly different Y's - see STRAIGHT_TOLERANCE. A
+ * multi-point detour's bend points are deliberately curved regardless of how close together they
+ * land, so this only ever applies to the 2-point case (identity otherwise).
+ */
+function flattenIfNearLevel(points: Point2D[]): Point2D[] {
+    if (points.length !== 2 || Math.abs(points[0].y - points[1].y) >= STRAIGHT_TOLERANCE) {
+        return points;
+    }
+    const flatY = (points[0].y + points[1].y) / 2;
+    return [{ x: points[0].x, y: flatY }, { x: points[1].x, y: flatY }];
+}
+
+/**
  * The cubic-bezier segments a link through `points` (length >= 2) is drawn as - one per
  * consecutive pair. This is the single source of truth for a link's rendered shape: `buildBezierPath`
  * serializes exactly these segments, and `sampleBezierPath` samples exactly these segments, so
@@ -106,7 +132,8 @@ function buildBezierSegment(p0: Point2D, p1: Point2D): BezierSegment {
  * numeric checks of all three claims.
  */
 function getBezierSegments(points: Point2D[]): BezierSegment[] {
-    return points.slice(1).map((point, index) => buildBezierSegment(points[index], point));
+    const effectivePoints = flattenIfNearLevel(points);
+    return effectivePoints.slice(1).map((point, index) => buildBezierSegment(effectivePoints[index], point));
 }
 
 /**
@@ -115,10 +142,21 @@ function getBezierSegments(points: Point2D[]): BezierSegment[] {
  * detour `avoidLinkObstructions` (utils/diagram.ts) routed around an obstruction.
  */
 export function buildBezierPath(points: Point2D[]): string {
-    const commands = getBezierSegments(points).map(
+    if (points.length === 0) {
+        return "";
+    }
+    const segments = getBezierSegments(points);
+    // Read the start back off the first segment - not the raw `points[0]` - so the "M" always
+    // matches whatever getBezierSegments actually drew from (its own near-level flattening
+    // included), rather than the two silently disagreeing on where the path begins. `segments` is
+    // only ever empty for a 1-point `points` here (the 0-point case is handled above), in which
+    // case there's nothing to have flattened - falling back to `points[0]` keeps this total rather
+    // than throwing on that input.
+    const start = segments[0]?.start ?? points[0];
+    const commands = segments.map(
         ({ control1, control2, end }) => `C ${control1.x} ${control1.y} ${control2.x} ${control2.y} ${end.x} ${end.y}`
     );
-    return [`M ${points[0].x} ${points[0].y}`, ...commands].join(" ");
+    return [`M ${start.x} ${start.y}`, ...commands].join(" ");
 }
 
 /** The point at parameter `t` (0..1) on one cubic-bezier segment. */
@@ -144,8 +182,15 @@ function pointOnSegment({ start, control1, control2, end }: BezierSegment, t: nu
  * a link crosses a node it should be routed around.
  */
 export function sampleBezierPath(points: Point2D[], samplesPerSegment: number): Point2D[] {
-    const samples: Point2D[] = [points[0]];
-    getBezierSegments(points).forEach((segment) => {
+    if (points.length === 0) {
+        return [];
+    }
+    const segments = getBezierSegments(points);
+    // Same reasoning as buildBezierPath's start point - read off the first segment rather than
+    // the raw `points[0]`, so a near-level flattening is reflected here too, with the same 1-point
+    // fallback (segments is only ever empty then; the 0-point case is handled above).
+    const samples: Point2D[] = [segments[0]?.start ?? points[0]];
+    segments.forEach((segment) => {
         for (let step = 1; step <= samplesPerSegment; step++) {
             samples.push(pointOnSegment(segment, step / samplesPerSegment));
         }

@@ -18,9 +18,8 @@
 
 import React, { useState } from "react";
 import { PortWidget } from "@projectstorm/react-diagrams-core";
-import { CDAutomation, CDService, CDWorkflow, CDWorkflowEvent, CDWorkflowHumanTask, toIconDescriptor, toThemedSvgDataUri } from "@wso2/ballerina-core";
+import { CDAutomation, CDService, CDWorkflow, CDWorkflowEvent, CDWorkflowHumanTask, toIconDescriptor } from "@wso2/ballerina-core";
 import { Item, Menu, MenuItem, Popover, ImageWithFallback, Icon } from "@wso2/ui-toolkit";
-import { DurableAgentIcon } from "@wso2/bi-diagram";
 import { useDiagramContext } from "../../../DiagramContext";
 import { HttpIcon, TaskIcon } from "../../../../resources";
 import { MoreVertIcon } from "../../../../resources/icons/nodes/MoreVertIcon";
@@ -37,8 +36,6 @@ import {
     Description,
     IconWrapper,
     MenuButton,
-    TopPortWidget,
-    BottomPortWidget,
     ViewAllButton,
     ViewAllButtonWrapper,
     FunctionBoxWrapper,
@@ -103,30 +100,16 @@ export function getColorByMethod(method: string) {
     }
 }
 
-const HTTP_SERVICE_TYPE = "http:Service";
-
-/**
- * Renders a service's icon following the descriptor's representation order: the theme-specific SVG
- * pair first, then the single `url` image, then the generic HTTP glyph. Each step falls through on a
- * load failure, so a connector shipping an SVG the browser refuses still gets its `url` image rather
- * than an empty icon slot.
- *
- * HTTP is drawn with the diagram's own bundled glyph rather than the descriptor, the way `ai` and
- * `graphql` get their own widgets in {@link EntryNodeWidget}: it's the diagram's most common node
- * and the one the canvas already has an icon designed for, so it should not depend on a remote
- * package image that the theme can't follow and the webview may not be able to reach.
- */
 function getServiceIcon(service: CDService) {
-    if (service.type === HTTP_SERVICE_TYPE) {
-        return <HttpIcon />;
-    }
     const descriptor = toIconDescriptor(service.icon);
-    const svgDataUri = toThemedSvgDataUri(descriptor);
-    const urlIcon = <ImageWithFallback imageUrl={descriptor?.url ?? ""} fallbackEl={<HttpIcon />} />;
-    if (svgDataUri) {
-        return <ImageWithFallback imageUrl={svgDataUri} fallbackEl={urlIcon} />;
+    const lightTheme = typeof document !== "undefined" && (document.body.classList.contains("vscode-light")
+        || document.body.classList.contains("vscode-high-contrast-light"));
+    const svg = lightTheme ? descriptor?.light : descriptor?.dark;
+    if (svg) {
+        const tinted = descriptor?.color ? svg.replace(/currentColor/g, descriptor.color) : svg;
+        return <img src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(tinted)}`} alt="" />;
     }
-    return urlIcon;
+    return <ImageWithFallback imageUrl={descriptor?.url ?? ""} fallbackEl={<HttpIcon />} />;
 }
 
 export function FunctionBox(props: { func: any; model: EntryNodeModel; engine: any; readonly?: boolean }) {
@@ -276,7 +259,7 @@ export function GeneralServiceWidget({ model, engine }: BaseNodeWidgetProps) {
         switch (model.type) {
             case "workflow":
                 return isDurableAgentWorkflow(model)
-                    ? <DurableAgentIcon size={24} />
+                    ? <Icon name="bi-ai-agent" sx={{ fontSize: 24, width: 24, height: 24 }} />
                     : <Icon name="bi-flowchart" sx={{ fontSize: 24, width: 24, height: 24 }} />;
             case "automation":
                 return <TaskIcon />;
@@ -289,7 +272,12 @@ export function GeneralServiceWidget({ model, engine }: BaseNodeWidgetProps) {
 
     return (
         <Node>
-            {model.type !== "workflow" && <TopPortWidget port={model.getPort("in")!} engine={engine} />}
+            {/* PortWidget itself renders a bare, zero-height div, so its reported link-anchor
+                position is exactly wherever the flex row centers it - no margin nudge here, or
+                "in"/"out" would sit off that center by different amounts (see getPortAnchorY,
+                which assumes dead center for both) and every link's straight leg would render
+                with a small, otherwise-unexplained slope. */}
+            {model.type !== "workflow" && <PortWidget port={model.getPort("in")!} engine={engine} />}
             <Box hovered={!readonly && isHovered}>
                 {model.type === "workflow" && (
                     // Explicit "run workflow" target: workflow:run edges point at this play button
@@ -374,7 +362,8 @@ export function GeneralServiceWidget({ model, engine }: BaseNodeWidgetProps) {
                     ))}
                 </Menu>
             </Popover>
-            <BottomPortWidget port={model.getPort("out")!} engine={engine} />
+            {/* Same bare-div reasoning as the "in" port above. */}
+            <PortWidget port={model.getPort("out")!} engine={engine} />
         </Node>
     );
 }
