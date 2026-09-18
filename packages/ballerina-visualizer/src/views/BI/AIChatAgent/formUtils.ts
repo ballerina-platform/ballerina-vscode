@@ -27,7 +27,7 @@ const isSqlParameterizedField = (field: FormField): boolean =>
 
 export function createToolInputFields(filteredNodeParameterFields: FormField[]): FormField[] {
     const paramManagerValues = filteredNodeParameterFields
-        .filter(field => !(field.optional && field.advanced) && field.key !== "targetType"
+        .filter(field => !field.optional && field.key !== "targetType"
             && !isSqlParameterizedField(field))
         .map((field, idx) => {
             const cleanKey = field.key.replace(/^\$/, '');

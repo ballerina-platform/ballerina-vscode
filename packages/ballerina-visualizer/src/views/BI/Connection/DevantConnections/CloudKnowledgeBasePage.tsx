@@ -72,15 +72,13 @@ export function CloudKnowledgeBasePage(props: CloudKnowledgeBasePageProps) {
     return (
         <>
             <Section>
-                <ConnectorsGrid>
-                    <ButtonCard
-                        id="create-new-cloud-kb"
-                        title="Manually Config WSO2 Cloud Knowledge Base"
-                        description="Add configurations for the Knowledge Base connection."
-                        icon={<Codicon name="add" />}
-                        onClick={onCreateNew}
-                    />
-                </ConnectorsGrid>
+                <ButtonCard
+                    id="create-new-cloud-kb"
+                    title="Manually Config WSO2 Cloud Knowledge Base"
+                    description="Add configurations for the Knowledge Base connection."
+                    icon={<Codicon name="add" />}
+                    onClick={onCreateNew}
+                />
             </Section>
 
             <div style={{ height: 16 }} />

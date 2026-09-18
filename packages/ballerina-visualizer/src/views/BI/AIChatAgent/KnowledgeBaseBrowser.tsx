@@ -35,6 +35,9 @@ const LoaderWrapper = styled.div`
     text-align: center;
 `;
 
+// Ingest/deleteByFilter aren't supported as agent tools yet; only offer retrieve for now.
+const isSupportedAction = (node: AvailableNode) => node.codedata?.symbol === "retrieve";
+
 interface KnowledgeBaseBrowserProps {
     filePath: string;
     target: LinePosition;
@@ -116,7 +119,7 @@ export function KnowledgeBaseBrowser(props: KnowledgeBaseBrowserProps) {
     };
 
     const handleSelectInstance = (instanceName: string, instanceActions: PanelNode[]) => {
-        const actionNodes = instanceActions.map((item) => item.metadata as AvailableNode).filter(Boolean);
+        const actionNodes = instanceActions.map((item) => item.metadata as AvailableNode).filter(Boolean).filter(isSupportedAction);
         const first = actionNodes.at(0);
         setSelectedKnowledgeBase({
             metadata: {
@@ -156,7 +159,7 @@ export function KnowledgeBaseBrowser(props: KnowledgeBaseBrowserProps) {
                 filePath,
                 codedata: node.codedata,
             });
-            setActions(response.actions ?? []);
+            setActions((response.actions ?? []).filter(isSupportedAction));
         } catch (error) {
             console.error(">>> Error loading knowledge base actions", error);
         } finally {

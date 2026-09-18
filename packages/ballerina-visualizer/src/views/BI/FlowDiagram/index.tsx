@@ -82,7 +82,7 @@ import { cloneDeep, debounce } from "lodash";
 import { ConnectionKind } from "../../../components/ConnectionSelector";
 import AddAgentPopup from "../AIChatAgent/AddAgentPopup";
 import { DiagramSkeleton } from "../../../components/Skeletons";
-import { AI_COMPONENT_PROGRESS_MESSAGE, AI_COMPONENT_PROGRESS_MESSAGE_TIMEOUT, FORM_LOADING_MESSAGE, LOADING_MESSAGE } from "../../../constants";
+import { AI_COMPONENT_PROGRESS_MESSAGE, AI_COMPONENT_PROGRESS_MESSAGE_TIMEOUT, FORM_LOADING_MESSAGE, LOADING_MESSAGE, WSO2_CLOUD_KNOWLEDGE_BASE_PACKAGE } from "../../../constants";
 import { ConnectionListItem, MarketplaceItem } from "@wso2/wso2-platform-core";
 import { usePlatformExtContext } from "../../../providers/platform-ext-ctx-provider";
 import { requestMiniChatOpen } from "../../../components/AgentStatusOrb/shared";
@@ -1877,7 +1877,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         // + create new) instead of the generic form.
         if (
             sidePanelView === SidePanelView.KNOWLEDGE_BASES &&
-            node.codedata.packageName === "ai.wso2.integration"
+            node.codedata.packageName === WSO2_CLOUD_KNOWLEDGE_BASE_PACKAGE
         ) {
             cloudKbNodeRef.current = node; // reuse this codedata for the list/create flows
             setSidePanelView(SidePanelView.WSO2_CLOUD_KB_LIST);

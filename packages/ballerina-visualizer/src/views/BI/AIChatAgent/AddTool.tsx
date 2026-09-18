@@ -182,19 +182,6 @@ export function AddTool(props: AddToolProps): JSX.Element {
                     </OptionDescription>
                 </OptionCard>
 
-                <OptionCard onClick={handleUseKnowledgeBase}>
-                    <OptionHeader>
-                        <OptionIcon>
-                            <Icon name="bi-db-kb" sx={{ fontSize: 14, width: 14, height: 14 }} />
-                        </OptionIcon>
-                        <OptionTitle>{TOOL_OPTION_LABELS.KNOWLEDGE_BASE}</OptionTitle>
-                    </OptionHeader>
-                    <OptionDescription>
-                        Search or add documents to a knowledge base in your integration, wrapped as a
-                        retrieve or ingest tool.
-                    </OptionDescription>
-                </OptionCard>
-
                 <OptionCard onClick={handleUseMcpServer}>
                     <OptionHeader>
                         <OptionIcon>
@@ -205,6 +192,19 @@ export function AddTool(props: AddToolProps): JSX.Element {
                     <OptionDescription>
                         Connect to a Model Context Protocol (MCP) server for pre-built tools and
                         standardized access to external systems.
+                    </OptionDescription>
+                </OptionCard>
+
+                <OptionCard onClick={handleUseKnowledgeBase}>
+                    <OptionHeader>
+                        <OptionIcon>
+                            <Icon name="bi-db-kb" sx={{ fontSize: 14, width: 14, height: 14 }} />
+                        </OptionIcon>
+                        <OptionTitle>{TOOL_OPTION_LABELS.KNOWLEDGE_BASE}</OptionTitle>
+                    </OptionHeader>
+                    <OptionDescription>
+                        Search or add documents to a knowledge base in your integration, wrapped as a
+                        retrieve or ingest tool.
                     </OptionDescription>
                 </OptionCard>
 
