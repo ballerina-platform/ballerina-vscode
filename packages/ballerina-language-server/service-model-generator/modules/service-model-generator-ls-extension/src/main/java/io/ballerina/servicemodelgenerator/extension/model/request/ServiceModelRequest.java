@@ -33,6 +33,9 @@ package io.ballerina.servicemodelgenerator.extension.model.request;
  *                          from). Defaults to {@code false} for every existing/older client.
  * @param agentName         the agent variable this trigger is created for, or {@code null}
  * @param agentOrgName      the publishing org of that agent; absent defaults to {@code ballerina}
+ * @param agentKind         {@code "durable"} for a {@code workflow:DurableAgent}, else {@code null}
+ * @param eventChannel      the data-event channel an event trigger sends on, or {@code null}
+ * @param eventResponse     the declared type of an event trigger's response, or {@code null}
  */
 public record ServiceModelRequest(String filePath, String orgName, String pkgName, String moduleName,
                                   String listenerName, String version, boolean isLocalRepository,

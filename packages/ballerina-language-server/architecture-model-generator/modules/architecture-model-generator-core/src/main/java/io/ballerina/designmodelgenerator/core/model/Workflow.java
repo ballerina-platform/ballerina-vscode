@@ -294,7 +294,13 @@ public final class Workflow extends DesignGraphNode {
     }
 
     /**
-     * Represents a human task awaited inside a workflow function via {@code ctx->awaitHumanTask(...)}.
+     * A human task, either awaited inside a workflow function via {@code ctx->awaitHumanTask(...)} or declared
+     * in a {@code workflow:DurableAgent}'s {@code humanTasks} mapping.
+     *
+     * @param name      the task's name
+     * @param location  where the task is declared or awaited
+     * @param userRoles the roles that may complete the task, or {@code null} if not gated
+     * @param title     the task's display title, or {@code null} when awaited rather than declared
      */
     public record HumanTask(String name, Location location, List<String> userRoles, String title) {
 
@@ -303,9 +309,24 @@ public final class Workflow extends DesignGraphNode {
         }
     }
 
+    /**
+     * A {@code workflow:DurableAgent} activity declared in its {@code activities} mapping.
+     *
+     * @param name             the activity's name
+     * @param requiresApproval whether a human must approve the activity's result
+     * @param userRoles        the roles that may approve it, or {@code null} if not gated
+     */
     public record ActivityDecl(String name, boolean requiresApproval, List<String> userRoles) {
     }
 
+    /**
+     * A {@code workflow:DurableAgent} peer declared in its {@code peers} mapping.
+     *
+     * @param name             the peer's name
+     * @param agentUuid        the uuid of the agent connection the peer hands off to
+     * @param requiresApproval whether a human must approve the hand-off
+     * @param userRoles        the roles that may approve it, or {@code null} if not gated
+     */
     public record PeerDecl(String name, String agentUuid, boolean requiresApproval, List<String> userRoles) {
     }
 

@@ -396,7 +396,8 @@ public class HttpAgentTriggerChannel implements AgentTriggerChannel {
     }
 
     private static String shapedResource(AgentTriggerContext context, Function shaped) {
-        Answer answer = context.isDurable() ? Answer.text(answer(shaped).wrapped()) : answer(shaped);
+        // A durable `run` returns the instance id, not the answer, so it can't be mapped to the shaped response.
+        Answer answer = context.isDurable() ? new Answer(STRING_TYPE, false, false) : answer(shaped);
         return body(context, shapedHeader(context, shaped), answer, promptParameters(shaped));
     }
 
@@ -436,7 +437,9 @@ public class HttpAgentTriggerChannel implements AgentTriggerChannel {
             throw new GenerationRefusedException(INSTANCE_PARAM,
                     "Add a path parameter for the instance id, such as [string instanceId].");
         }
-        return pathParameters.getFirst().name();
+        // Prefer a path parameter literally named "instanceId" over the first, e.g. a leading tenant id.
+        return pathParameters.stream().filter(parameter -> INSTANCE_PARAM.equals(parameter.name())).findFirst()
+                .orElse(pathParameters.getFirst()).name();
     }
 
     private static String dataExpression(Function shaped) {
