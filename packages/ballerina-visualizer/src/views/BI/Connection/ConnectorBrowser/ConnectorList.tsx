@@ -173,6 +173,7 @@ interface ConnectorListProps {
     onSelect: (nodeId: string, metadata?: any) => void;
     onSelectConnection?: (connectionName: string, actions: PanelNode[]) => void;
     description?: string;
+    searchPlaceholder?: string;
 }
 
 const nodesOf = (category: PanelCategory): PanelNode[] =>
@@ -231,6 +232,7 @@ export function ConnectorList(props: ConnectorListProps) {
         onSelect,
         onSelectConnection,
         description,
+        searchPlaceholder = "Search connectors",
     } = props;
 
     const [category, setCategory] = useState<string>("");
@@ -351,7 +353,7 @@ export function ConnectorList(props: ConnectorListProps) {
                 <SearchWrap onKeyDown={handleSearchKeyDown}>
                     <SearchBox
                         value={searchText}
-                        placeholder="Search connectors"
+                        placeholder={searchPlaceholder}
                         autoFocus={true}
                         onChange={onSearchTextChange}
                         sx={{ height: 30, width: "100%" }}

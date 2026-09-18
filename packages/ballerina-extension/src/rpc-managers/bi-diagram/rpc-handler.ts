@@ -40,6 +40,7 @@ import {
     InlineAgentChatRequest,
     BIAiSuggestionsRequest,
     BIAvailableNodesRequest,
+    BILibraryActionsRequest,
     BIDeleteByComponentInfoRequest,
     BIDesignModelRequest,
     BIFlowModelRequest,
@@ -116,6 +117,7 @@ import {
     getAllData,
     getFunctionNames,
     getFunctionNode,
+    getLibraryActions,
     getModuleNodes,
     getNodeTemplate,
     getOpenApiGeneratedModules,
@@ -203,6 +205,7 @@ export function registerBiDiagramRpcHandlers(messenger: Messenger) {
     messenger.onRequest(getAvailableVectorStores, (args: BIAvailableNodesRequest) => rpcManger.getAvailableVectorStores(args));
     messenger.onRequest(getAvailableEmbeddingProviders, (args: BIAvailableNodesRequest) => rpcManger.getAvailableEmbeddingProviders(args));
     messenger.onRequest(getAvailableVectorKnowledgeBases, (args: BIAvailableNodesRequest) => rpcManger.getAvailableVectorKnowledgeBases(args));
+    messenger.onRequest(getLibraryActions, (args: BILibraryActionsRequest) => rpcManger.getLibraryActions(args));
     messenger.onRequest(getAvailableDataLoaders, (args: BIAvailableNodesRequest) => rpcManger.getAvailableDataLoaders(args));
     messenger.onRequest(getAvailableChunkers, (args: BIAvailableNodesRequest) => rpcManger.getAvailableChunkers(args));
     messenger.onRequest(getEnclosedFunction, (args: BIGetEnclosedFunctionRequest) => rpcManger.getEnclosedFunction(args));

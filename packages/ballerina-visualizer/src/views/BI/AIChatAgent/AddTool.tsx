@@ -87,6 +87,7 @@ export const TOOL_OPTION_LABELS = {
     CONNECTION: "Use Connection",
     FUNCTION: "Use Function",
     AGENT: "Use Agent",
+    KNOWLEDGE_BASE: "Use Knowledge Base",
     MCP: "Use MCP Server",
     CUSTOM: "Create Custom Tool",
 } as const;
@@ -103,12 +104,13 @@ interface AddToolProps {
     onUseFunction?: () => void;
     onUseMcpServer?: () => void;
     onUseAgent?: () => void;
+    onUseKnowledgeBase?: () => void;
     onSave?: () => void;
     onBack?: () => void;
 }
 
 export function AddTool(props: AddToolProps): JSX.Element {
-    const { onCreateCustomTool, onUseConnection, onUseFunction, onUseMcpServer, onUseAgent } = props;
+    const { onCreateCustomTool, onUseConnection, onUseFunction, onUseMcpServer, onUseAgent, onUseKnowledgeBase } = props;
 
     const handleCreateCustomTool = () => {
         onCreateCustomTool?.();
@@ -128,6 +130,10 @@ export function AddTool(props: AddToolProps): JSX.Element {
 
     const handleUseAgent = () => {
         onUseAgent?.();
+    };
+
+    const handleUseKnowledgeBase = () => {
+        onUseKnowledgeBase?.();
     };
 
     return (
@@ -173,6 +179,19 @@ export function AddTool(props: AddToolProps): JSX.Element {
                     <OptionDescription>
                         Delegate to another agent in your integration. It is wrapped as a tool, so this
                         agent can hand off requests and use the response.
+                    </OptionDescription>
+                </OptionCard>
+
+                <OptionCard onClick={handleUseKnowledgeBase}>
+                    <OptionHeader>
+                        <OptionIcon>
+                            <Icon name="bi-db-kb" sx={{ fontSize: 14, width: 14, height: 14 }} />
+                        </OptionIcon>
+                        <OptionTitle>{TOOL_OPTION_LABELS.KNOWLEDGE_BASE}</OptionTitle>
+                    </OptionHeader>
+                    <OptionDescription>
+                        Search or add documents to a knowledge base in your integration, wrapped as a
+                        retrieve or ingest tool.
                     </OptionDescription>
                 </OptionCard>
 

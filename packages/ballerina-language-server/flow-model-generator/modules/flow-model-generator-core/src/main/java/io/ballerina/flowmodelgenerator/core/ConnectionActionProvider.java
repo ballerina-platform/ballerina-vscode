@@ -158,6 +158,19 @@ public class ConnectionActionProvider {
         getOrBuildTemplates(context);
     }
 
+    public List<Item> getActions(Codedata codedata, WorkspaceManager workspaceManager, Path filePath) {
+        if (codedata == null || codedata.object() == null || codedata.org() == null || codedata.module() == null) {
+            return List.of();
+        }
+
+        Project project = PackageUtil.loadProject(workspaceManager, filePath);
+        ConnectorContext context = createContext(codedata, project);
+        if (context == null) {
+            return List.of();
+        }
+        return bindForParentSymbol(getOrBuildTemplates(context), null, Map.of(), Map.of(), Map.of());
+    }
+
     public void invalidate(String cacheKey) {
         cache.invalidate(cacheKey);
         deleteFromDisk(cacheKey);

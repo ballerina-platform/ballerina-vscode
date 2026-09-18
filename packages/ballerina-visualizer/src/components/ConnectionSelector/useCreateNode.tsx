@@ -18,6 +18,7 @@
 
 import { Suspense, lazy, useContext } from "react";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
+import { formatMethodName } from "@wso2/ballerina-side-panel";
 import { CodeData, FlowNode, isAgentDeclarationNode, LineRange } from "@wso2/ballerina-core";
 import { PanelOverlayContext } from "../../views/BI/FlowDiagram/context/PanelOverlayContext";
 import { getNodeTemplateForConnection } from "../../views/BI/FlowDiagram/utils";
@@ -55,7 +56,9 @@ export function useCreateNode(
     };
 
     const createGenericConnection = async (connectorCodeData: CodeData, onCreated: (variableName: string) => void) => {
-        const title = "Create Connection";
+        const title = connectorCodeData.object
+            ? `Create ${formatMethodName(connectorCodeData.object)}`
+            : "Create Connection";
         const dummyNode = { codedata: {}, properties: {} } as unknown as FlowNode;
         const renderCreator = (flowNode: FlowNode, close: () => void) => (
             <ConnectionCreator
@@ -104,7 +107,7 @@ export function useCreateNode(
         const modalId = `create-connection-${connectorCodeData.org}-${connectorCodeData.object}`;
         try {
             const flowNode = await fetchTemplate();
-            addModal(renderCreator(flowNode, () => closeModal(modalId)), modalId, title, 600, 520);
+            addModal(renderCreator(flowNode, () => closeModal(modalId)), modalId, title, 780, 520);
         } catch (error) {
             console.error("Error fetching connector template", error);
             await rpcClient.getCommonRpcClient().showErrorMessage({
