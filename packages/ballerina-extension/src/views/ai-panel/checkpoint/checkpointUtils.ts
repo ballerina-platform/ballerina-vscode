@@ -20,7 +20,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import { Checkpoint } from '@wso2/ballerina-core/lib/state-machine-types';
-import { isPathInside } from '@wso2/ballerina-core/lib/utils/path-utils';
+import { isPathInside, isSamePath } from '@wso2/ballerina-core/lib/utils/path-utils';
 import { getCheckpointConfig } from './checkpointConfig';
 import { ArtifactUpdateWait, startArtifactUpdateWait } from '../../../utils/project-artifacts-handler';
 import { VisualizerRpcManager } from '../../../rpc-managers/visualizer/rpc-manager';
@@ -44,11 +44,29 @@ function isLosslessUtf8(bytes: Buffer): boolean {
     return Buffer.from(bytes.toString('utf8'), 'utf8').equals(bytes);
 }
 
+function realPathOfNearestAncestor(target: string): string {
+    let current = target;
+    for (;;) {
+        try {
+            return path.join(fs.realpathSync(current), path.relative(current, target));
+        } catch {
+            const parent = path.dirname(current);
+            if (parent === current) {
+                return target;
+            }
+            current = parent;
+        }
+    }
+}
+
 // Snapshot keys are relative paths from a previous session, so they are only as trustworthy as the
-// file they were persisted in: resolve first, then refuse anything that lands outside the workspace.
+// file they were persisted in. Both sides are resolved through their real paths before comparing:
+// a lexical check alone passes a path that leaves the workspace through a directory symlink, and
+// resolving only the target would reject legitimate roots, which are themselves often symlinked.
 function resolveInsideWorkspace(workspaceRoot: vscode.Uri, filePath: string): vscode.Uri | null {
     const target = path.resolve(workspaceRoot.fsPath, filePath);
-    return isPathInside(workspaceRoot.fsPath, target) ? vscode.Uri.file(target) : null;
+    const realRoot = realPathOfNearestAncestor(workspaceRoot.fsPath);
+    return isPathInside(realRoot, realPathOfNearestAncestor(target)) ? vscode.Uri.file(target) : null;
 }
 
 function openDocumentText(fileUri: vscode.Uri): string | undefined {
@@ -133,7 +151,8 @@ export async function captureWorkspaceSnapshot(messageId: string): Promise<Check
             timestamp: Date.now(),
             workspaceSnapshot,
             fileList,
-            snapshotSize: totalSize
+            snapshotSize: totalSize,
+            workspaceRoot: workspaceRoot.fsPath
         };
 
         return checkpoint;
@@ -157,6 +176,18 @@ export async function restoreWorkspaceSnapshot(checkpoint: Checkpoint, skipArtif
     }
 
     const workspaceRoot = workspaceFolders[0].uri;
+
+    // Paths in a snapshot mean nothing without the root they were taken against: re-rooting one
+    // into a different workspace rewrites files that never belonged to it and deletes everything
+    // the snapshot does not list. Checkpoints captured before the root was recorded carry none,
+    // and are let through rather than making every existing one unrevertible.
+    if (checkpoint.workspaceRoot && !isSamePath(checkpoint.workspaceRoot, workspaceRoot.fsPath)) {
+        const reason = `This checkpoint was taken in a different workspace (${checkpoint.workspaceRoot}), so it cannot be restored here.`;
+        console.error(`[Checkpoint] Refusing a cross-root restore: ${reason}`);
+        vscode.window.showErrorMessage(`Cannot restore checkpoint: ${reason}`);
+        return false;
+    }
+
     let artifactWait: ArtifactUpdateWait | undefined;
     const notRestored: string[] = [];
 

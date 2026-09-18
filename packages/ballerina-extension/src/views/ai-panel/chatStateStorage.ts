@@ -237,6 +237,9 @@ function fromPersistedThread(pt: PersistedThread): ChatThread {
     };
 }
 
+// workspaceRoot rides along unchecked by PersistedCheckpoint, which the shared library owns:
+// saveCheckpoint spreads what it is handed and migrateCheckpoint returns the parsed object as-is,
+// so the field survives the round trip without the shared type having to know about it.
 function toPersistedCheckpoint(checkpoint: Checkpoint): Omit<PersistedCheckpoint, 'schemaVersion'> {
     return {
         id: checkpoint.id,
@@ -245,7 +248,8 @@ function toPersistedCheckpoint(checkpoint: Checkpoint): Omit<PersistedCheckpoint
         fileList: checkpoint.fileList,
         snapshotSize: checkpoint.snapshotSize,
         workspaceSnapshot: checkpoint.workspaceSnapshot,
-    };
+        workspaceRoot: checkpoint.workspaceRoot,
+    } as Omit<PersistedCheckpoint, 'schemaVersion'>;
 }
 
 function fromPersistedCheckpoint(pc: PersistedCheckpoint): Checkpoint {
@@ -256,6 +260,7 @@ function fromPersistedCheckpoint(pc: PersistedCheckpoint): Checkpoint {
         fileList: pc.fileList,
         snapshotSize: pc.snapshotSize,
         workspaceSnapshot: pc.workspaceSnapshot,
+        workspaceRoot: (pc as { workspaceRoot?: string }).workspaceRoot,
     };
 }
 

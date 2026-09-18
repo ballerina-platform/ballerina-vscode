@@ -379,6 +379,47 @@ describe("what a checkpoint restore is allowed to touch", () => {
 
         expect(fs.readFileSync(at("Config.toml"), "utf8")).toBe(ORIGINAL_CONFIG);
     });
+    it("records the root it captured against", async () => {
+        const captured: any = await captureWorkspaceSnapshot("msg-1");
+
+        expect(captured.workspaceRoot).toBe(root);
+    });
+
+    it("refuses a checkpoint captured against a different workspace root", async () => {
+        checkpoint.workspaceRoot = path.join(path.dirname(root), "some-other-workspace");
+
+        await expect(restoreWorkspaceSnapshot(checkpoint, true)).resolves.toBe(false);
+
+        // Nothing was touched: the paths in it describe a tree this workspace does not own.
+        expect(fs.readFileSync(at("Config.toml"), "utf8")).not.toBe(ORIGINAL_CONFIG);
+        expect(applied).toEqual([]);
+    });
+
+    it("still restores a checkpoint captured before the root was recorded", async () => {
+        delete checkpoint.workspaceRoot;
+
+        await expect(restoreWorkspaceSnapshot(checkpoint, true)).resolves.toBe(true);
+
+        expect(fs.readFileSync(at("Config.toml"), "utf8")).toBe(ORIGINAL_CONFIG);
+    });
+
+    it("refuses a snapshot path that leaves the workspace through a directory symlink", async () => {
+        const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), "checkpoint-outside-"));
+        fs.writeFileSync(path.join(outsideDir, "secret.txt"), "not the checkpoint's business\n");
+        fs.symlinkSync(outsideDir, at("linked"), "dir");
+        // Listed, so the deletion pass leaves the link itself alone and the write is what gets tested.
+        checkpoint.fileList.push("linked", "linked/secret.txt");
+        checkpoint.workspaceSnapshot["linked/secret.txt"] = "written through a symlink\n";
+
+        try {
+            await expect(restoreWorkspaceSnapshot(checkpoint, true)).resolves.toBe(true);
+            expect(fs.readFileSync(path.join(outsideDir, "secret.txt"), "utf8"))
+                .toBe("not the checkpoint's business\n");
+        } finally {
+            fs.rmSync(outsideDir, { recursive: true, force: true });
+        }
+    });
+
     it("refuses a snapshot path that resolves outside the workspace", async () => {
         const outside = path.join(path.dirname(root), "outside-the-workspace.txt");
         fs.writeFileSync(outside, "not the checkpoint's business\n");

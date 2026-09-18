@@ -827,6 +827,8 @@ export interface Checkpoint {
     workspaceSnapshot: { [filePath: string]: string };
     fileList: string[];
     snapshotSize: number;
+    /** Absolute root the paths above are relative to. Absent on checkpoints captured before it was recorded. */
+    workspaceRoot?: string;
 }
 
 // ==================================
