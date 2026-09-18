@@ -1,4 +1,8 @@
 import ballerina/ai;
+import ballerina/http;
+
+final http:Client billingClient = check new ("http://localhost:9090");
+final ai:Wso2ModelProvider supportModel = check ai:getDefaultModelProvider();
 
 // A typed-agent instance -- exercises the kind:"Agent" fix for isAiFixedTypedAgent classes.
 class CustomSupportAgent {

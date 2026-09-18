@@ -25,7 +25,7 @@ import { CardGrid, PanelViewMore, Title, TitleWrapper } from '../ComponentListVi
 import { BodyText } from '../../styles';
 import ButtonCard from '../../../components/ButtonCard';
 import { RelativeLoader } from '../../../components/RelativeLoader';
-import { getEntryNodeIcon } from '../ComponentListView/EventIntegrationPanel';
+import { getIntegrationIcon } from '../ComponentListView/integrationIcon';
 import { cardMatchesSearch, isBetaModule } from '../ComponentListView/componentListUtils';
 import { CentralSearchPanel } from '../ComponentListView/CentralSearchPanel';
 import {
@@ -90,7 +90,7 @@ const channelIcon = (channel: ServiceModel) =>
                 iconSx={{ fontSize: "24px", width: "24px", height: "24px" }}
             />
         )
-        : getEntryNodeIcon(channel);
+        : getIntegrationIcon(channel);
 
 export function AddAgentTriggerPopup(props: AddAgentTriggerPopupProps) {
     const { agentName, agentOrgName, projectPath, onClose } = props;

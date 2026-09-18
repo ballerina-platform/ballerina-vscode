@@ -1,0 +1,4 @@
+[package]
+org = "test"
+name = "durable_weather"
+version = "0.1.0"

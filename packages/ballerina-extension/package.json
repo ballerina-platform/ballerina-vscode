@@ -511,7 +511,7 @@
             {
                 "command": "ballerina.reset.bi",
                 "title": "Reset Auth",
-                "category": "Ballerina"
+                "category": "WSO2 Integrator"
             },
             {
                 "command": "ballerina.project.doc",
@@ -583,17 +583,17 @@
             {
                 "command": "ballerina.verifyDocs",
                 "title": "Check drift between code and documentation (Experimental)",
-                "category": "Ballerina"
+                "category": "WSO2 Integrator"
             },
             {
                 "command": "ballerina.configureWso2DefaultModelProvider",
                 "title": "Configure default WSO2 model provider",
-                "category": "Ballerina"
+                "category": "WSO2 Integrator"
             },
             {
                 "command": "ballerina.configureDefaultModelForNaturalFunctions",
                 "title": "Configure default model for natural functions (Experimental)",
-                "category": "Ballerina"
+                "category": "WSO2 Integrator"
             },
             {
                 "command": "ballerina.pasteXMLAsRecord",
@@ -660,7 +660,7 @@
             {
                 "command": "ballerina.open.ai.panel",
                 "title": "Open WSO2 Integrator Copilot",
-                "category": "Ballerina",
+                "category": "WSO2 Integrator",
                 "icon": {
                     "dark": "./resources/icons/light-ai-chat.svg",
                     "light": "./resources/icons/dark-ai-chat.svg"

@@ -10,7 +10,7 @@ distribution-version = "2201.13.4"
 [[package]]
 org = "ballerina"
 name = "ai"
-version = "1.13.0"
+version = "1.15.0"
 dependencies = [
 	{org = "ballerina", name = "cache"},
 	{org = "ballerina", name = "constraint"},
@@ -688,7 +688,7 @@ modules = [
 [[package]]
 org = "ballerina"
 name = "workflow"
-version = "0.9.0"
+version = "0.10.0"
 dependencies = [
 	{org = "ballerina", name = "ai"},
 	{org = "ballerina", name = "email"},
@@ -700,6 +700,7 @@ dependencies = [
 	{org = "ballerina", name = "lang.runtime"},
 	{org = "ballerina", name = "log"},
 	{org = "ballerina", name = "mime"},
+	{org = "ballerina", name = "observe"},
 	{org = "ballerina", name = "soap"},
 	{org = "ballerina", name = "test"},
 	{org = "ballerina", name = "time"}
@@ -709,7 +710,8 @@ modules = [
 	{org = "ballerina", packageName = "workflow", moduleName = "workflow.activity"},
 	{org = "ballerina", packageName = "workflow", moduleName = "workflow.internal"},
 	{org = "ballerina", packageName = "workflow", moduleName = "workflow.management"},
-	{org = "ballerina", packageName = "workflow", moduleName = "workflow.management.rest"}
+	{org = "ballerina", packageName = "workflow", moduleName = "workflow.management.rest"},
+	{org = "ballerina", packageName = "workflow", moduleName = "workflow.observe"}
 ]
 
 [[package]]

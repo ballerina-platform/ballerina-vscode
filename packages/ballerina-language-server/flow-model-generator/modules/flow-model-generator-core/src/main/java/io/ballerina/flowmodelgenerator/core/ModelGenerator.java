@@ -109,8 +109,9 @@ public class ModelGenerator {
     private final WorkspaceManager workspaceManager;
 
     private static final Comparator<FlowNode> FLOW_NODE_COMPARATOR = Comparator.comparing(
-            node -> Optional.ofNullable(node.properties().get(Property.VARIABLE_KEY))
-                    .map(property -> property.value().toString())
+            node -> node.getProperty(Property.VARIABLE_KEY)
+                    .map(Property::value)
+                    .map(Object::toString)
                     .orElse("")
     );
     private static final String TYPE_MATCH_SUBTYPE = "subtype";
@@ -176,10 +177,7 @@ public class ModelGenerator {
         List<FlowNode> moduleConnections =
                 semanticModel.visibleSymbols(document, canvasNode.lineRange().startLine()).stream()
                         .flatMap(symbol -> buildConnection(symbol).stream())
-                        .sorted(Comparator.comparing(
-                                node -> Optional.ofNullable(node.properties().get(Property.VARIABLE_KEY))
-                                        .map(property -> property.value().toString())
-                                        .orElse("")))
+                        .sorted(FLOW_NODE_COMPARATOR)
                         .toList();
 
         // Obtain the data mapping function names

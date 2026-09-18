@@ -46,7 +46,7 @@
         "metadata": {
           "label": "run",
           "description": "Executes the agent for a given user query.",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png",
           "data": {
             "agentInfo": {
               "systemPrompt": {
@@ -63,7 +63,7 @@
           "packageName": "ai",
           "object": "Agent",
           "symbol": "run",
-          "version": "1.13.0",
+          "version": "1.15.0",
           "lineRange": {
             "fileName": "agents.bal",
             "startLine": {
@@ -85,7 +85,7 @@
               "packageName": "ai",
               "object": "Agent",
               "symbol": "init",
-              "version": "1.13.0",
+              "version": "1.15.0",
               "lineRange": {
                 "fileName": "agents.bal",
                 "startLine": {
@@ -107,6 +107,62 @@
         },
         "returning": false,
         "properties": {
+          "role": {
+            "metadata": {
+              "label": "Role",
+              "description": "Define the agent's primary function"
+            },
+            "types": [
+              {
+                "fieldType": "PROMPT",
+                "ballerinaType": "string",
+                "selected": true
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string",
+                "selected": false
+              }
+            ],
+            "value": "Assistant",
+            "placeholder": "e.g., Customer Support Assistant, Sales Advisor, Data Analyst",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "DEFAULTABLE"
+            },
+            "defaultValue": ""
+          },
+          "instructions": {
+            "metadata": {
+              "label": "Instructions",
+              "description": "Detailed instructions for the agent"
+            },
+            "types": [
+              {
+                "fieldType": "PROMPT",
+                "ballerinaType": "string",
+                "selected": true
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string",
+                "selected": false
+              }
+            ],
+            "value": "Help users with weather and time queries.",
+            "placeholder": "e.g., You are a friendly assistant. Your goal is to...",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "DEFAULTABLE"
+            },
+            "defaultValue": ""
+          },
           "systemPrompt": {
             "metadata": {
               "label": "System Prompt",
@@ -119,7 +175,7 @@
                 "typeMembers": [
                   {
                     "type": "SystemPrompt",
-                    "packageInfo": "ballerina:ai:1.13.0",
+                    "packageInfo": "ballerina:ai:1.15.0",
                     "packageName": "ai",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -185,7 +241,7 @@
                       "typeMembers": [
                         {
                           "type": "ToolConfig",
-                          "packageInfo": "ballerina:ai:1.13.0",
+                          "packageInfo": "ballerina:ai:1.15.0",
                           "packageName": "ai",
                           "kind": "RECORD_TYPE",
                           "selected": false
@@ -389,7 +445,7 @@
                 "typeMembers": [
                   {
                     "type": "Credential",
-                    "packageInfo": "ballerina:ai:1.13.0",
+                    "packageInfo": "ballerina:ai:1.15.0",
                     "packageName": "ai",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -497,62 +553,6 @@
             "advanced": true,
             "hidden": true
           },
-          "role": {
-            "metadata": {
-              "label": "Role",
-              "description": "Define the agent's primary function"
-            },
-            "types": [
-              {
-                "fieldType": "PROMPT",
-                "ballerinaType": "string",
-                "selected": true
-              },
-              {
-                "fieldType": "EXPRESSION",
-                "ballerinaType": "string",
-                "selected": false
-              }
-            ],
-            "value": "Assistant",
-            "placeholder": "e.g., Customer Support Assistant, Sales Advisor, Data Analyst",
-            "optional": true,
-            "editable": true,
-            "advanced": false,
-            "hidden": false,
-            "codedata": {
-              "kind": "DEFAULTABLE"
-            },
-            "defaultValue": ""
-          },
-          "instructions": {
-            "metadata": {
-              "label": "Instructions",
-              "description": "Detailed instructions for the agent"
-            },
-            "types": [
-              {
-                "fieldType": "PROMPT",
-                "ballerinaType": "string",
-                "selected": true
-              },
-              {
-                "fieldType": "EXPRESSION",
-                "ballerinaType": "string",
-                "selected": false
-              }
-            ],
-            "value": "Help users with weather and time queries.",
-            "placeholder": "e.g., You are a friendly assistant. Your goal is to...",
-            "optional": true,
-            "editable": true,
-            "advanced": false,
-            "hidden": false,
-            "codedata": {
-              "kind": "DEFAULTABLE"
-            },
-            "defaultValue": ""
-          },
           "connection": {
             "metadata": {
               "label": "Object",
@@ -610,9 +610,9 @@
             },
             "types": [
               {
-                "fieldType": "TEXT",
-                "ballerinaType": "string",
-                "selected": true
+                "fieldType": "PROMPT",
+                "ballerinaType": "ai:Prompt",
+                "selected": false
               },
               {
                 "fieldType": "RECORD_MAP_EXPRESSION",
@@ -620,7 +620,7 @@
                 "typeMembers": [
                   {
                     "type": "Resume",
-                    "packageInfo": "ballerina:ai:1.13.0",
+                    "packageInfo": "ballerina:ai:1.15.0",
                     "packageName": "ai",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -630,12 +630,12 @@
               },
               {
                 "fieldType": "EXPRESSION",
-                "ballerinaType": "string|ai:Prompt|ai:Resume",
+                "ballerinaType": "anydata|ai:Prompt|ai:Resume",
                 "selected": false
               }
             ],
             "value": "\"What's the weather in London?\"",
-            "placeholder": "\"\"",
+            "placeholder": "{}",
             "optional": false,
             "editable": true,
             "advanced": false,
@@ -706,7 +706,7 @@
         "metadata": {
           "label": "Agent",
           "description": "Represents an agent.",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png",
           "data": {
             "agentInfo": {
               "systemPrompt": {
@@ -723,7 +723,7 @@
           "packageName": "ai",
           "object": "Agent",
           "symbol": "init",
-          "version": "1.13.0",
+          "version": "1.15.0",
           "lineRange": {
             "fileName": "agents.bal",
             "startLine": {
@@ -739,6 +739,62 @@
         },
         "returning": false,
         "properties": {
+          "role": {
+            "metadata": {
+              "label": "Role",
+              "description": "Define the agent's primary function"
+            },
+            "types": [
+              {
+                "fieldType": "PROMPT",
+                "ballerinaType": "string",
+                "selected": true
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string",
+                "selected": false
+              }
+            ],
+            "value": "Assistant",
+            "placeholder": "e.g., Customer Support Assistant, Sales Advisor, Data Analyst",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "REQUIRED"
+            },
+            "defaultValue": ""
+          },
+          "instructions": {
+            "metadata": {
+              "label": "Instructions",
+              "description": "Detailed instructions for the agent"
+            },
+            "types": [
+              {
+                "fieldType": "PROMPT",
+                "ballerinaType": "string",
+                "selected": true
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string",
+                "selected": false
+              }
+            ],
+            "value": "Help users with weather and time queries.",
+            "placeholder": "e.g., You are a friendly assistant. Your goal is to...",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "REQUIRED"
+            },
+            "defaultValue": ""
+          },
           "systemPrompt": {
             "metadata": {
               "label": "System Prompt",
@@ -751,7 +807,7 @@
                 "typeMembers": [
                   {
                     "type": "SystemPrompt",
-                    "packageInfo": "ballerina:ai:1.13.0",
+                    "packageInfo": "ballerina:ai:1.15.0",
                     "packageName": "ai",
                     "kind": "RECORD_TYPE",
                     "selected": true
@@ -817,7 +873,7 @@
                       "typeMembers": [
                         {
                           "type": "ToolConfig",
-                          "packageInfo": "ballerina:ai:1.13.0",
+                          "packageInfo": "ballerina:ai:1.15.0",
                           "packageName": "ai",
                           "kind": "RECORD_TYPE",
                           "selected": false
@@ -1021,7 +1077,7 @@
                 "typeMembers": [
                   {
                     "type": "Credential",
-                    "packageInfo": "ballerina:ai:1.13.0",
+                    "packageInfo": "ballerina:ai:1.15.0",
                     "packageName": "ai",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -1079,62 +1135,6 @@
             "editable": true,
             "advanced": true,
             "hidden": true
-          },
-          "role": {
-            "metadata": {
-              "label": "Role",
-              "description": "Define the agent's primary function"
-            },
-            "types": [
-              {
-                "fieldType": "PROMPT",
-                "ballerinaType": "string",
-                "selected": true
-              },
-              {
-                "fieldType": "EXPRESSION",
-                "ballerinaType": "string",
-                "selected": false
-              }
-            ],
-            "value": "Assistant",
-            "placeholder": "e.g., Customer Support Assistant, Sales Advisor, Data Analyst",
-            "optional": false,
-            "editable": true,
-            "advanced": false,
-            "hidden": false,
-            "codedata": {
-              "kind": "REQUIRED"
-            },
-            "defaultValue": ""
-          },
-          "instructions": {
-            "metadata": {
-              "label": "Instructions",
-              "description": "Detailed instructions for the agent"
-            },
-            "types": [
-              {
-                "fieldType": "PROMPT",
-                "ballerinaType": "string",
-                "selected": true
-              },
-              {
-                "fieldType": "EXPRESSION",
-                "ballerinaType": "string",
-                "selected": false
-              }
-            ],
-            "value": "Help users with weather and time queries.",
-            "placeholder": "e.g., You are a friendly assistant. Your goal is to...",
-            "optional": false,
-            "editable": true,
-            "advanced": false,
-            "hidden": false,
-            "codedata": {
-              "kind": "REQUIRED"
-            },
-            "defaultValue": ""
           },
           "variable": {
             "metadata": {

@@ -34,11 +34,8 @@ import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
 import io.ballerina.flowmodelgenerator.core.utils.TypeUtils;
 import io.ballerina.flowmodelgenerator.core.utils.WorkflowUtil;
 import io.ballerina.modelgenerator.commons.FunctionData;
-import io.ballerina.modelgenerator.commons.FunctionDataBuilder;
-import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.modelgenerator.commons.ParameterData;
-import io.ballerina.projects.Module;
 import io.ballerina.projects.Package;
 import org.eclipse.lsp4j.TextEdit;
 
@@ -49,7 +46,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.AGENT_CONTEXT_CLASS_NAME;
 import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.DURABLE_AGENT_OBJECT_CLASS_NAME;
 import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.RUN_DURABLE_AGENT_DESCRIPTION;
 import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.RUN_DURABLE_AGENT_LABEL;
@@ -75,6 +71,22 @@ public class DurableAgentRunBuilder extends CallBuilder {
     public static final String INSTRUCTIONS_KEY = "instructions";
     public static final String MODEL_KEY = "model";
     public static final String MAX_ITER_KEY = "maxIter";
+    public static final String INPUT_TYPE_KEY = "inputType";
+    public static final String EVENT_TIMEOUT_KEY = "eventTimeout";
+    public static final String MAX_EVENT_WAITS_KEY = "maxEventWaits";
+    public static final String MAX_ITER_LABEL = "Maximum Iterations";
+    public static final String MAX_ITER_DOC = "Maximum LLM reasoning iterations per turn (default 16)";
+    public static final String INPUT_TYPE_LABEL = "Input Type";
+    public static final String INPUT_TYPE_DOC = "The structured input a run is given, e.g. json or a record type";
+    public static final String RESULT_TYPE_KEY = "resultType";
+    public static final String RESULT_TYPE_LABEL = "Result Type";
+    public static final String RESULT_TYPE_DOC =
+            "The type a run produces, e.g. a record type; empty leaves the result untyped";
+    public static final String EVENT_TIMEOUT_LABEL = "Event Timeout";
+    public static final String EVENT_TIMEOUT_DOC = "How long the agent waits for an event, in days, hours and "
+            + "minutes, e.g. {days: 1, hours: 2, minutes: 30}; empty waits indefinitely";
+    public static final String MAX_EVENT_WAITS_LABEL = "Maximum Event Waits";
+    public static final String MAX_EVENT_WAITS_DOC = "How many events a run may wait for before it fails (default 50)";
     public static final String VERBOSE_KEY = "verbose";
 
     public static final String ROLE_LABEL = "Role";
@@ -85,8 +97,8 @@ public class DurableAgentRunBuilder extends CallBuilder {
     public static final String INSTRUCTIONS_PLACEHOLDER = "e.g., You are a friendly assistant. Your goal is to...";
 
     // The order the form fields appear in: agent identity first, then the query and capabilities.
-    private static final List<String> FORM_ORDER =
-            List.of(ROLE_KEY, INSTRUCTIONS_KEY, QUERY_KEY, MODEL_KEY, MAX_ITER_KEY);
+    private static final List<String> FORM_ORDER = List.of(ROLE_KEY, INSTRUCTIONS_KEY, MODEL_KEY, INPUT_TYPE_KEY,
+            RESULT_TYPE_KEY, MAX_ITER_KEY, EVENT_TIMEOUT_KEY, MAX_EVENT_WAITS_KEY);
 
     private static final String STRING_TYPE = "string";
     private static final String MODEL_TYPE = "ai:ModelProvider";
@@ -118,46 +130,14 @@ public class DurableAgentRunBuilder extends CallBuilder {
     @Override
     public void setConcreteTemplateData(TemplateContext context) {
         setConcreteConstData();
-
-        boolean fallbackTemplate = false;
-        try {
-            ModuleInfo workflowModuleInfo = new ModuleInfo(WORKFLOW_ORG, WORKFLOW_MODULE, WORKFLOW_MODULE, null);
-            FunctionData functionData = new FunctionDataBuilder()
-                    .name(RUN_DURABLE_AGENT_METHOD_NAME)
-                    .moduleInfo(workflowModuleInfo)
-                    .parentSymbolType(AGENT_CONTEXT_CLASS_NAME)
-                    .functionResultKind(FunctionData.Kind.FUNCTION)
-                    .project(PackageUtil.loadProject(context.workspaceManager(), context.filePath()))
-                    .userModuleInfo(moduleInfo)
-                    .workspaceManager(context.workspaceManager())
-                    .filePath(context.filePath())
-                    .build();
-
-            if (functionData == null || functionData.parameters() == null || functionData.parameters().isEmpty()) {
-                fallbackTemplate = true;
-            } else {
-                LinkedHashMap<String, ParameterData> params = new LinkedHashMap<>(functionData.parameters());
-                params.remove(CONTEXT_KEY);
-                functionData.setParameters(params);
-
-                Module module = context.workspaceManager().module(context.filePath()).orElse(null);
-                setParameterProperties(functionData, module);
-            }
-        } catch (RuntimeException e) {
-            // runDurableAgent may not be resolvable yet (module not pulled); fall back to a
-            // stable static form so the node still opens.
-            fallbackTemplate = true;
-        }
-
-        if (fallbackTemplate) {
-            setFallbackProperties();
-        }
-
+        // The box's form is the agent's configuration, the fields of the declaration's config literal
+        // that are not capabilities; a run's own arguments belong to the run statement's form.
+        setConfigurationProperties();
         applyAgentFormShape(this, Map.of());
         List<Option> providerOptions = getModelProviderVariables(context);
         convertModelToSelect(this, providerOptions);
         // The model field is hidden (configured via the agent box circle); prefill it with
-        // an existing provider so a fresh buildAndRun form saves without touching it.
+        // an existing provider so a fresh form saves without touching it.
         if (!providerOptions.isEmpty()) {
             Map<String, Property> templateProps = properties().build();
             Property model = templateProps.get(MODEL_KEY);
@@ -166,18 +146,8 @@ public class DurableAgentRunBuilder extends CallBuilder {
                         Property.Builder.copyFrom(model).value(providerOptions.get(0).value()).build());
             }
         }
-        properties().checkError(true);
     }
 
-    /**
-     * Reshapes the raw signature-derived properties into the agent form: the record-typed
-     * {@code systemPrompt} field is replaced by Role and Instructions prompt fields (same shape as
-     * the regular AI agent node), the reserved/unused parameters are dropped, and the fields are
-     * reordered. Shared with CodeAnalyzer's source re-read path so both render the same form.
-     *
-     * @param nodeBuilder the builder holding raw properties
-     * @param promptValues optional parsed values keyed by {@link #ROLE_KEY}/{@link #INSTRUCTIONS_KEY}
-     */
     public static void applyAgentFormShape(NodeBuilder nodeBuilder,
                                            Map<String, AiUtils.AgentPropertyValue> promptValues) {
         Map<String, Property> props = nodeBuilder.properties().build();
@@ -208,14 +178,15 @@ public class DurableAgentRunBuilder extends CallBuilder {
         props.putAll(ordered);
     }
 
-    // Static form used when the workflow module signature is unavailable.
-    private void setFallbackProperties() {
-        addCustomProperty(QUERY_KEY, "Query", "The initial user query; when omitted the agent waits for the "
-                + "first chat event", STRING_TYPE, false, "");
+    // The declaration's configuration fields, in the record's terms; capabilities have their own forms.
+    private void setConfigurationProperties() {
         addCustomProperty(MODEL_KEY, "Model", "The model provider used for the agent's LLM calls",
                 MODEL_TYPE, true, "");
-        addCustomProperty(MAX_ITER_KEY, "Maximum Iterations", "Maximum LLM reasoning iterations per turn",
-                "int", false, "");
+        addCustomProperty(INPUT_TYPE_KEY, INPUT_TYPE_LABEL, INPUT_TYPE_DOC, "typedesc<json>", false, "");
+        addCustomProperty(RESULT_TYPE_KEY, RESULT_TYPE_LABEL, RESULT_TYPE_DOC, "typedesc<anydata>", false, "");
+        addCustomProperty(MAX_ITER_KEY, MAX_ITER_LABEL, MAX_ITER_DOC, "int", false, "");
+        addCustomProperty(EVENT_TIMEOUT_KEY, EVENT_TIMEOUT_LABEL, EVENT_TIMEOUT_DOC, "workflow:Duration", false, "");
+        addCustomProperty(MAX_EVENT_WAITS_KEY, MAX_EVENT_WAITS_LABEL, MAX_EVENT_WAITS_DOC, "int", false, "");
     }
 
     private void addCustomProperty(String key, String label, String doc, String ballerinaType, boolean required,
@@ -397,6 +368,14 @@ public class DurableAgentRunBuilder extends CallBuilder {
                     .orElse("");
             if (!maxIterValue.isBlank()) {
                 fields.put(MAX_ITER_KEY, maxIterValue);
+            }
+            for (String key : List.of(INPUT_TYPE_KEY, RESULT_TYPE_KEY, EVENT_TIMEOUT_KEY, MAX_EVENT_WAITS_KEY)) {
+                String value = sourceBuilder.getProperty(key)
+                        .map(property -> property.value() == null ? "" : property.value().toString().trim())
+                        .orElse("");
+                if (!value.isBlank()) {
+                    fields.put(key, value);
+                }
             }
             return WorkflowUtil.setAgentConfigFields(sourceBuilder, agentVarName, fields);
         }

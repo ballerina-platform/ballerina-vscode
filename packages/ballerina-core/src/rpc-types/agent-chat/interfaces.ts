@@ -75,8 +75,11 @@ export interface ExecutionStep {
     hasError?: boolean;
 }
 
+export type TracingProvider = 'idetraceprovider' | 'amp';
+
 export interface TraceStatus {
     enabled: boolean;
+    provider?: TracingProvider;
 }
 
 export interface TraceStatusRequest {
