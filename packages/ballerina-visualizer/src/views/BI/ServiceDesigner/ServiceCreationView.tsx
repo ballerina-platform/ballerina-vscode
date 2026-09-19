@@ -597,11 +597,25 @@ function seedAgentEndpoint(shaped: FunctionModel): FunctionModel {
         />
     );
 
+    const mcpImportWizard = mcpImport && (
+        <McpOpenApiImportWizard
+            initialModel={mcpImport.model}
+            specPath={mcpImport.specPath}
+            filePath={filePath}
+            targetLineRange={targetLineRange}
+            recordTypeFields={recordTypeFields}
+            isSaving={isSaving}
+            serverValidationErrors={serverValidationErrors}
+            onBack={() => setMcpImport(null)}
+            onCreate={createService}
+        />
+    );
+
     if (isPopup) {
         return (
             <>
                 {statusView}
-                {form && <FormReveal>{form}</FormReveal>}
+                {mcpImportWizard || (form && <FormReveal>{form}</FormReveal>)}
             </>
         );
     }
@@ -622,19 +636,7 @@ function seedAgentEndpoint(shaped: FunctionModel): FunctionModel {
                     )}
                     <ViewContent>
                         <Container>
-                            {mcpImport ? (
-                                <McpOpenApiImportWizard
-                                    initialModel={mcpImport.model}
-                                    specPath={mcpImport.specPath}
-                                    filePath={filePath}
-                                    targetLineRange={targetLineRange}
-                                    recordTypeFields={recordTypeFields}
-                                    isSaving={isSaving}
-                                    serverValidationErrors={serverValidationErrors}
-                                    onBack={() => setMcpImport(null)}
-                                    onCreate={createService}
-                                />
-                            ) : (
+                            {mcpImportWizard || (
                                 visibleFormFields && visibleFormFields.length > 0 && (
                                     <FormContainer>
                                         <HeaderWrapper>
