@@ -22,7 +22,9 @@ import { NodeTypes } from "../../../resources/constants";
 import { BaseAgentNodeModel } from "../BaseAgentNodeModel";
 
 export const AGENT_FOCUS_MIN_ZOOM = 25;
+export const AGENT_FOCUS_READABLE_ZOOM = 65;
 export const AGENT_FOCUS_FIT_PADDING = 5;
+export const AGENT_FOCUS_FIT_PADDING_Y = 32;
 export const AGENT_FOCUS_FIT_ANIMATION_MS = 300;
 const MIN_FITTABLE_CANVAS = 50;
 
@@ -81,6 +83,32 @@ export interface AgentFocusFitTarget {
     targetOffsetY: number;
 }
 
+export interface AgentFocusFitInput {
+    canvasWidth: number;
+    canvasHeight: number;
+    contentWidth: number;
+    contentHeight: number;
+    contentLeft: number;
+    contentTop: number;
+    embedded: boolean;
+}
+
+export function fitAgentFocus(input: AgentFocusFitInput): AgentFocusFitTarget {
+    const { canvasWidth, canvasHeight, contentWidth, contentHeight, contentLeft, contentTop, embedded } = input;
+    const fitWidthPct = ((canvasWidth - AGENT_FOCUS_FIT_PADDING * 2) / contentWidth) * 100;
+    const fitHeightPct = ((canvasHeight - AGENT_FOCUS_FIT_PADDING_Y * 2) / contentHeight) * 100;
+    const wanted = Math.min(fitWidthPct, Math.max(fitHeightPct, AGENT_FOCUS_READABLE_ZOOM));
+    const targetZoomPct = Math.min(100, Math.max(AGENT_FOCUS_MIN_ZOOM, wanted));
+    const zoom = targetZoomPct / 100;
+    const targetOffsetX = canvasWidth / 2 - (contentLeft + contentWidth / 2) * zoom;
+    const overflows = contentHeight * zoom > canvasHeight - AGENT_FOCUS_FIT_PADDING_Y * 2;
+    const verticalBias = embedded ? 0 : 40;
+    const targetOffsetY = overflows
+        ? AGENT_FOCUS_FIT_PADDING_Y - contentTop * zoom
+        : canvasHeight / 2 - verticalBias - (contentTop + contentHeight / 2) * zoom;
+    return { targetZoomPct, targetOffsetX, targetOffsetY };
+}
+
 /** Fits the agent node's painted width into the canvas, capped at 100% zoom, and centers it. */
 export function computeAgentFocusFit(
     canvas: HTMLElement,
@@ -100,14 +128,12 @@ export function computeAgentFocusFit(
     const nodeRect = nodeElement.getBoundingClientRect();
     const topLeft = diagramEngine.getRelativeMousePoint({ clientX: nodeRect.left, clientY: nodeRect.top });
     const contentHeight = nodeRect.height / currentZoom;
-    const contentCenterY = topLeft.y + contentHeight / 2;
 
     const ink = measureAgentNodeInkX(nodeElement);
     const contentWidth = (ink ? ink.right - ink.left : nodeRect.width) / currentZoom;
-    const inkLeftX = ink
+    const contentLeft = ink
         ? diagramEngine.getRelativeMousePoint({ clientX: ink.left, clientY: nodeRect.top }).x
         : topLeft.x;
-    const contentCenterX = inkLeftX + contentWidth / 2;
 
     const { width: canvasWidth, height: canvasHeight } = canvas.getBoundingClientRect();
 
@@ -115,15 +141,7 @@ export function computeAgentFocusFit(
         return null;
     }
 
-    const fitZoomPct = ((canvasWidth - AGENT_FOCUS_FIT_PADDING * 2) / contentWidth) * 100;
-    const targetZoomPct = Math.min(100, Math.max(AGENT_FOCUS_MIN_ZOOM, fitZoomPct));
-    const zoom = targetZoomPct / 100;
-
-    const verticalBias = embedded ? 0 : 40;
-    const targetOffsetX = canvasWidth / 2 - contentCenterX * zoom;
-    const targetOffsetY = canvasHeight / 2 - verticalBias - contentCenterY * zoom;
-
-    return { targetZoomPct, targetOffsetX, targetOffsetY };
+    return fitAgentFocus({ canvasWidth, canvasHeight, contentWidth, contentHeight, contentLeft, contentTop: topLeft.y, embedded });
 }
 
 /** CSS-transform animation instead of per-frame setZoomLevel/setOffset, which desyncs link routing. */

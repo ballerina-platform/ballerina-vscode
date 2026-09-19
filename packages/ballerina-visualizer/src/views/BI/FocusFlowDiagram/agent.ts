@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { AgentData, AgentUsage, FlowNode, MemoryData, NodeMetadata, ToolData, unwrapBallerinaString } from "@wso2/ballerina-core";
+import { AgentData, AgentToolTarget, AgentUsage, FlowNode, MemoryData, NodeMetadata, ToolData, unwrapBallerinaString } from "@wso2/ballerina-core";
 import { parseToolsString } from "../AIChatAgent/utils";
 
 function parseSystemPrompt(systemPrompt: unknown): { role: string; instructions: string } {
@@ -28,15 +28,21 @@ function parseSystemPrompt(systemPrompt: unknown): { role: string; instructions:
     return { role: unwrapBallerinaString(roleMatch?.[1]), instructions: unwrapBallerinaString(instrMatch?.[1]) };
 }
 
-export function withAgentUsages(node: FlowNode, usages: AgentUsage[], animate = true): FlowNode {
+export function withAgentUsages(
+    node: FlowNode,
+    usages: AgentUsage[],
+    animate = true,
+    toolTargets: Record<string, AgentToolTarget> = {}
+): FlowNode {
     const data = (node.metadata?.data || {}) as NodeMetadata;
+    const tools = (data.agentInfo?.tools ?? []).map((tool) => (toolTargets[tool.name] ? { ...tool, targetAgent: toolTargets[tool.name] } : tool));
     return {
         ...node,
         metadata: {
             ...node.metadata,
             data: {
                 ...data,
-                agentInfo: { ...(data.agentInfo || {}), usages, animateUsages: animate },
+                agentInfo: { ...(data.agentInfo || {}), tools, usages, animateUsages: animate },
             },
         },
     } as FlowNode;
