@@ -28,7 +28,7 @@ import { sendVisualizerMigrationNotification, sendAIPanelNotification, getErrorM
 import { getEnhancementStages, getPerProjectEnhancementStages, getWorkspaceValidationStage, getResumePreamble, EnhancementStage } from "./prompts";
 import { MigrationDebugLogger } from "./debug-logger";
 import { TranscriptWriter } from "./transcript-writer";
-import { getWorkspaceTomlValues } from "../../../utils";
+import { copilotName, getWorkspaceTomlValues } from "../../../utils";
 import { setMigrationEnhancementActive } from "../../../utils/source-utils";
 import { buildMigrationCodebaseMap, extractPreviousStageWorkPlan } from "./project-map";
 
@@ -378,12 +378,13 @@ export async function checkAndRunPendingEnhancement(): Promise<void> {
         // Set session state so other parts of the extension know about the migration
         _activeSession = { isActive: false, aiFeatureUsed: true, fullyEnhanced: false };
 
+        const openCopilot = `Open ${copilotName()}`;
         const action = await window.showInformationMessage(
-            "Migration AI enhancement was paused. You can resume it from 'WSO2 Integrator Copilot'.",
-            "Open WSO2 Integrator Copilot"
+            `Migration AI enhancement was paused. You can resume it from '${copilotName()}'.`,
+            openCopilot
         );
 
-        if (action === "Open WSO2 Integrator Copilot") {
+        if (action === openCopilot) {
             openAIPanelWithPrompt();
         }
     } else {
@@ -391,11 +392,12 @@ export async function checkAndRunPendingEnhancement(): Promise<void> {
         // a "Start AI Enhancement" button, and notify the user.
         _activeSession = { isActive: false, aiFeatureUsed: false, fullyEnhanced: false };
         console.log("[MigrationEnhancement] AI not enabled at wizard – notification shown.");
+        const openCopilot = `Open ${copilotName()}`;
         const action = await window.showInformationMessage(
-            "Your migrated project is ready. Open 'WSO2 Integrator Copilot' to run AI enhancement — it can resolve TODOs, fix build errors, and refine tests.",
-            "Open WSO2 Integrator Copilot"
+            `Your migrated project is ready. Open '${copilotName()}' to run AI enhancement — it can resolve TODOs, fix build errors, and refine tests.`,
+            openCopilot
         );
-        if (action === "Open WSO2 Integrator Copilot") {
+        if (action === openCopilot) {
             openAIPanelWithPrompt();
         }
     }
@@ -850,7 +852,7 @@ function createStageAbortController(userSignal: AbortSignal): { controller: Abor
 }
 
 /** Module-level selected model ID (set by the UI's model selector). */
-let _selectedModelId: string = "wso2"; // default to WSO2 Integrator Copilot
+let _selectedModelId: string = "wso2"; // default to the WSO2-hosted Copilot model
 
 /**
  * Update the selected model ID from the webview.
@@ -1123,7 +1125,7 @@ async function ensureAuthenticated(): Promise<boolean> {
     }
 
     // Tell the wizard UI we're signing in
-    const signingInMsg = { type: "content_block" as const, content: "Signing in to WSO2 Integrator Copilot...\n\n" };
+    const signingInMsg = { type: "content_block" as const, content: `Signing in to ${copilotName()}...\n\n` };
     sendVisualizerMigrationNotification(signingInMsg);
     _wizardChatEmitter.fire(signingInMsg);
 
@@ -1193,7 +1195,7 @@ export function isAIAuthenticated(): boolean {
 }
 
 /**
- * Triggers the WSO2 Integrator Copilot browser sign-in flow and waits until the user is
+ * Triggers the Copilot browser sign-in flow and waits until the user is
  * authenticated, cancels, or the 2-minute timeout elapses.
  *
  * Unlike `ensureAuthenticated`, this function does NOT emit any messages to a
@@ -1455,7 +1457,7 @@ export async function runWizardMigrationEnhancement(): Promise<void> {
     if (!isAuthenticated) {
         eventHandler({
             type: "error",
-            content: "Please sign in to WSO2 Integrator Copilot to use AI enhancement. Please retry the AI Enhancement step.",
+            content: `Please sign in to ${copilotName()} to use AI enhancement. Please retry the AI Enhancement step.`,
         });
         return;
     }

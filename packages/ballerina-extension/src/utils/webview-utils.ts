@@ -19,6 +19,7 @@
 import { Uri, ExtensionContext, WebviewOptions, WebviewPanelOptions, Webview } from "vscode";
 import { join, sep } from "path";
 import { extension } from "../BalExtensionContext";
+import { getProductMode } from "./config";
 
 export const RESOURCES_CDN = `https://choreo-shared-codeserver-cdne.azureedge.net/ballerina-low-code-resources@${process.env.BALLERINA_LOW_CODE_RESOURCES_VERSION}`;
 const isDevMode = process.env.WEB_VIEW_WATCH_MODE === "true";
@@ -115,6 +116,7 @@ export function getLibraryWebViewContent(options: WebViewOptions, webView: Webvi
             <body class="${bodyCss}" style="background: ${background}; padding: ${padding};">
                 ${body}
                 <script>
+                    window.productMode = ${JSON.stringify(getProductMode())};
                     ${scripts}
                 </script>
                 <script charset="UTF-8" src="${resourceRoot}/jslibs/webviewCommons.js"></script>

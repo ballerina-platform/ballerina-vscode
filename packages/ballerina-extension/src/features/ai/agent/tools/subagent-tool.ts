@@ -65,7 +65,7 @@ function isModelError(error: unknown): boolean {
 function describeFailure(error: unknown): string {
     const message = error instanceof Error ? error.message : String(error);
     if (isModelError(error)) {
-        return `The model used by this extension may be outdated or unavailable. Please update the WSO2 Integrator: BI extension to the latest version. (Error: ${message})`;
+        return `The model used by this extension may be outdated or unavailable. Please update the extension to the latest version. (Error: ${message})`;
     }
     return `Subagent execution failed: ${message}`;
 }

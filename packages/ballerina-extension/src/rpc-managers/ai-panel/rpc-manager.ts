@@ -103,7 +103,7 @@ import * as fs from 'fs';
 import path from "path";
 import * as vscode from 'vscode';
 import { window, workspace } from 'vscode';
-import { LOGIN_REQUIRED_WARNING, SIGN_IN_BI_COPILOT } from '../../features/ai/constants';
+import { loginRequiredWarning, signInToCopilot } from '../../features/ai/constants';
 // TODO(auto-memory): temporarily disabled for this release.
 // import {
 //     getGlobalMemoryDir,
@@ -492,8 +492,9 @@ export class AiPanelRpcManager implements AIPanelAPI {
     }
 
     promptForLogin(): void {
-        window.showWarningMessage(LOGIN_REQUIRED_WARNING, SIGN_IN_BI_COPILOT).then(selection => {
-            if (selection === SIGN_IN_BI_COPILOT) {
+        const signIn = signInToCopilot();
+        window.showWarningMessage(loginRequiredWarning(), signIn).then(selection => {
+            if (selection === signIn) {
                 AIStateMachine.service().send(AIMachineEventType.LOGIN);
             }
         });

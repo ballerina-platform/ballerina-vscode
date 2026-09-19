@@ -50,6 +50,7 @@ import { GenerationType } from "./libs/libraries";
 import { sanitizeMessages } from "../agent/resilience";
 import { runEventStore } from "./run-event-store";
 import { agentStatusManager } from "../state/AgentStatusManager";
+import { copilotName } from "../../../utils/config";
 // import { REQUIREMENTS_DOCUMENT_KEY } from "./code/np_prompts";
 
 export function populateHistory(chatHistory: ChatEntry[]): ModelMessage[] {
@@ -453,7 +454,7 @@ export function getErrorMessage(error: unknown): string {
             return "The AI service returned an invalid response. Please try again.";
         }
         if (msg.includes("Unsupported login method")) {
-            return "Please sign in to WSO2 Integrator Copilot to use AI features.";
+            return `Please sign in to ${copilotName()} to use AI features.`;
         }
 
         return msg;

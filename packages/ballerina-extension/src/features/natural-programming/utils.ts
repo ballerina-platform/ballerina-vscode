@@ -34,7 +34,7 @@ import {
     MISSING_REQUIREMENT_FILE, MISSING_API_DOCS, API_DOCUMENTATION_IS_MISSING,
     PROGRESS_BAR_MESSAGE_FOR_NP_TOKEN,
     ERROR_NO_BALLERINA_SOURCES,
-    LOGIN_REQUIRED_WARNING
+    loginRequiredWarning
 } from "./constants";
 import { isNumber } from 'lodash';
 import { HttpStatusCode } from 'axios';
@@ -576,13 +576,13 @@ export async function getTokenForNaturalFunction() {
     try {
         const token = await getRefreshedAccessToken();
         if (!token) {
-            vscode.window.showWarningMessage(LOGIN_REQUIRED_WARNING);
+            vscode.window.showWarningMessage(loginRequiredWarning());
             return null;
         }
         return token;
     } catch (error) {
         if ((error as Error).message === TOKEN_NOT_AVAILABLE_ERROR_MESSAGE || (error as Error).message === TOKEN_REFRESH_ONLY_SUPPORTED_FOR_BI_INTEL) {
-            vscode.window.showWarningMessage(LOGIN_REQUIRED_WARNING);
+            vscode.window.showWarningMessage(loginRequiredWarning());
         }
         throw error;
     }

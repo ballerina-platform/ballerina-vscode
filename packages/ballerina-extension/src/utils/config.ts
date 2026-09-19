@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { SemanticVersion, PackageTomlValues, SCOPE, WorkspaceTomlValues, ProjectInfo, isSamePath } from '@wso2/ballerina-core';
+import { SemanticVersion, PackageTomlValues, SCOPE, WorkspaceTomlValues, ProjectInfo, ProductMode, assistantName, isSamePath } from '@wso2/ballerina-core';
 import { BallerinaExtension } from '../core';
 import { WorkspaceConfiguration, workspace, Uri, RelativePattern, extensions } from 'vscode';
 import * as fs from 'fs';
@@ -231,6 +231,26 @@ export function checkIsBI(uri: Uri): boolean {
 
 export function isInWI(): boolean {
     return !!extensions.getExtension(WI_EXTENSION_ID);
+}
+
+/**
+ * The product this extension is running inside. The Integrator app exports `WSO2_PRODUCT_MODE`;
+ * outside it we go by whether the Integrator extension is installed alongside us, so a plain
+ * Ballerina install never claims the Integrator branding.
+ *
+ * Not cached: the Integrator extension can be installed from the login panel without a reload.
+ */
+export function getProductMode(): ProductMode {
+    const declared = process.env.WSO2_PRODUCT_MODE;
+    if (declared === ProductMode.INTEGRATOR || declared === ProductMode.BALLERINA) {
+        return declared;
+    }
+    return isInWI() ? ProductMode.INTEGRATOR : ProductMode.BALLERINA;
+}
+
+/** The assistant's user-facing name, e.g. "Ballerina Copilot". */
+export function copilotName(): string {
+    return assistantName(getProductMode());
 }
 
 /**
