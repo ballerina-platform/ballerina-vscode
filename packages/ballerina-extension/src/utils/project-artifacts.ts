@@ -385,10 +385,8 @@ async function getEntryValue(artifact: BaseArtifact, projectPath: string, icon: 
         id: artifact.id,
         name: artifact.name,
         path: targetFile,
-        moduleName: artifact.module,
-        // The WSO2 Integrator shell's explorer renders a section's children only when the entry
-        // type matches the section, so a durable agent presents as an AGENT entry; `kind` keeps
-        // what it is, which click routing uses to open the agent model instead of the AI agent.
+        // A durable agent presents as an AGENT entry (see `type` below) with moduleName "workflow", the discriminator other agent-kind checks already key on.
+        moduleName: artifact.type === DIRECTORY_MAP.DURABLE_AGENT ? "workflow" : artifact.module,
         type: artifact.type === DIRECTORY_MAP.DURABLE_AGENT ? DIRECTORY_MAP.AGENT : artifact.type,
         kind: artifact.type === DIRECTORY_MAP.DURABLE_AGENT ? DIRECTORY_MAP.DURABLE_AGENT : undefined,
         icon: artifact.module ? `bi-${artifact.module}` : icon,
