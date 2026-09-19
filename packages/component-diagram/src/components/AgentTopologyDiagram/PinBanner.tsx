@@ -117,7 +117,7 @@ export function PinBanner({ row, isolated, onIsolate, onExitIsolation, onUnpin }
             <Dot>·</Dot>
             <Name>
                 {rowGlyph(row, 14)}
-                {row.accessor && <MethodPill method={row.accessor}>{row.accessor}</MethodPill>}
+                {row.accessor && <MethodPill method={row.accessor}>{row.accessor}</MethodPill>}{row.accessor && " "}
                 <span>{row.label}</span>
             </Name>
             <Actions>

@@ -24,6 +24,7 @@ import {
     deleteEachResolved,
     findAgentToolTargets,
     findAgentUsages,
+    findDurableAgentUsages,
     findListenerPosition,
     findServiceHelperPosition,
     namesHelper,
@@ -1095,7 +1096,7 @@ describe("agents used as tools", () => {
         expect(rows).toEqual([
             expect.objectContaining({
                 label: "ceoAgent",
-                serviceLabel: "uses as a tool",
+                serviceLabel: "used as a tool by",
                 parentAgent: true,
                 documentUri: AGENTS_BAL,
                 position: expect.objectContaining({ startLine: 2 }),
@@ -1135,5 +1136,69 @@ describe("agents used as tools", () => {
         } as unknown as CDModel;
         expect(findAgentUsages(helperOnly, { filePath: AGENTS_BAL, startLine: 6 }).map((row) => row.label)).toEqual(["ceoAgent"]);
         expect(findAgentUsages(helperOnly, { filePath: AGENTS_BAL, startLine: 2 }).map((row) => row.label)).toEqual(["Agent Chat"]);
+    });
+});
+
+describe("findDurableAgentUsages", () => {
+    const CLAIM = "claim-uuid";
+    const PAY = "pay-uuid";
+    const durableModel = {
+        automation: {
+            name: "automation",
+            displayName: "main",
+            location: { filePath: MAIN_BAL, ...range(1) },
+            connections: [],
+            workflows: [CLAIM],
+            uuid: "auto",
+        },
+        connections: [],
+        listeners: [],
+        workflows: [
+            { symbol: "claimAgent", kind: "DURABLE_AGENT", location: { filePath: AGENTS_BAL, ...range(3) }, uuid: CLAIM, attachedServices: [], attachedFunctions: [] },
+            {
+                symbol: "orderAgent", kind: "DURABLE_AGENT", location: { filePath: AGENTS_BAL, ...range(20) }, uuid: PAY, attachedServices: [], attachedFunctions: [],
+                peers: [{ name: "claims", agentUuid: CLAIM, requiresApproval: true }],
+            },
+        ],
+        services: [
+            {
+                location: { filePath: SERVICES_BAL, ...range(1) },
+                absolutePath: "/agent",
+                type: "http:Service",
+                connections: [],
+                attachedListeners: [],
+                functions: [],
+                remoteFunctions: [],
+                resourceFunctions: [
+                    { accessor: "post", path: "conversations", location: { filePath: SERVICES_BAL, ...range(3) }, connections: [], workflows: [CLAIM] },
+                    { accessor: "post", path: "conversations/[string id]/messages", location: { filePath: SERVICES_BAL, ...range(6) }, connections: [], workflowSendData: { [CLAIM]: ["chat"] } },
+                    { accessor: "post", path: "cases/[string caseId]/submit", location: { filePath: SERVICES_BAL, ...range(9) }, connections: [], workflowSendData: { [CLAIM]: ["chat"] } },
+                    { accessor: "get", path: "conversations/[string id]/state", location: { filePath: SERVICES_BAL, ...range(12) }, connections: [] },
+                ],
+                uuid: "svc",
+            },
+        ],
+    } as unknown as CDModel;
+
+    it("lists a run row per running handler, a sends row per channel, main, and the durable agents that use it as a peer", () => {
+        const usages = findDurableAgentUsages(durableModel, { filePath: AGENTS_BAL, startLine: 3, symbol: "claimAgent" });
+        expect(usages.map((usage) => [usage.label, usage.serviceLabel ?? usage.typeLabel, usage.type, usage.channel])).toEqual([
+            ["POST /conversations", "HTTP Service · /agent", "http:Service", undefined],
+            ["POST /conversations/[string id]/messages", "HTTP Service · /agent", "http:Service", "chat"],
+            ["POST /cases/[string caseId]/submit", "HTTP Service · /agent", "http:Service", "chat"],
+            ["main", "Automation", "automation", undefined],
+            ["orderAgent", "used as a peer by", "agent", undefined],
+        ]);
+        expect(usages[1]).toMatchObject({ documentUri: SERVICES_BAL, position: { startLine: 6, startColumn: 0 }, trigger: undefined, tryIt: undefined });
+        expect(usages[4].parentAgent).toBe(true);
+    });
+
+    it("falls back to the symbol when the declaration moved, and returns nothing for an agent the model lacks", () => {
+        expect(findDurableAgentUsages(durableModel, { filePath: AGENTS_BAL, startLine: 99, symbol: "claimAgent" })).toHaveLength(5);
+        expect(findDurableAgentUsages(durableModel, { filePath: AGENTS_BAL, startLine: 99, symbol: "nobody" })).toEqual([]);
+    });
+
+    it("ignores a plain agent's model: durable callers live on workflows, not connections", () => {
+        expect(findDurableAgentUsages(model, { filePath: AGENTS_BAL, startLine: 3, symbol: "mathTutorAgent" })).toEqual([]);
     });
 });

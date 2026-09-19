@@ -21,7 +21,7 @@ import styled from "@emotion/styled";
 import { Icon, ThemeColors } from "@wso2/ui-toolkit";
 import { NodeIcon } from "@wso2/bi-diagram";
 import { TriggerGlyph } from "./TriggerGlyph";
-import { buildFindFacets, buildFindRows, FindFacet, FindRow } from "./findRows";
+import { buildFindFacets, buildFindRows, FindFacet, FindRow, rowFullLabel } from "./findRows";
 import { TopologyGraph } from "./types";
 import { methodColor } from "../nodes/EntryNode/components/styles";
 
@@ -401,13 +401,13 @@ function ResultRow({ row, query, pinned, onPreview, onPin, onOpen, onClose }: Re
                 {rowGlyph(row, 16)}
                 <Labels>
                     <Label>
-                        {row.accessor && <MethodPill method={row.accessor}>{row.accessor}</MethodPill>}
+                        {row.accessor && <MethodPill method={row.accessor}>{row.accessor}</MethodPill>}{row.accessor && " "}
                         <LabelText>{highlight(row.label, query)}</LabelText>
                     </Label>
                     <SubLabel via={Boolean(row.via)}>{highlight(row.via ?? row.sublabel, query)}</SubLabel>
                 </Labels>
             </RowButton>
-            <IconButton type="button" data-open title="Open" aria-label={`Open ${row.label}`} onClick={() => onOpen(row)}>
+            <IconButton type="button" data-open title="Open" aria-label={`Open ${rowFullLabel(row)}`} onClick={() => onOpen(row)}>
                 {openGlyph}
             </IconButton>
             {pinned && (
@@ -458,14 +458,14 @@ function FindChip({ pinned, onOpenPanel, onOpen, onClear }: { pinned?: FindRow; 
         <Chip pinned={Boolean(pinned)}>
             <ChipLabel type="button" aria-expanded={false} aria-label={pinned ? undefined : "Find entry points and agents"} title={pinned ? "Find entry points and agents" : "Find entry points and agents (/)"} onClick={onOpenPanel}>
                 {pinned ? rowGlyph(pinned, 16) : codicon("search", 15)}
-                {pinned?.accessor && <MethodPill method={pinned.accessor}>{pinned.accessor}</MethodPill>}
+                {pinned?.accessor && <MethodPill method={pinned.accessor}>{pinned.accessor}</MethodPill>}{pinned?.accessor && " "}
                 <span>{pinned ? pinned.label : "Find"}</span>
                 {!pinned && <Kbd style={{ marginLeft: 8, marginRight: 0 }}>/</Kbd>}
                 {pinned && codicon("chevron-down", 12)}
             </ChipLabel>
             {pinned && (
                 <>
-                    <IconButton type="button" title="Open" aria-label={`Open ${pinned.label}`} onClick={onOpen}>
+                    <IconButton type="button" title="Open" aria-label={`Open ${rowFullLabel(pinned)}`} onClick={onOpen}>
                         {openGlyph}
                     </IconButton>
                     <IconButton type="button" title="Clear the pin" aria-label="Clear the pin" onClick={onClear}>

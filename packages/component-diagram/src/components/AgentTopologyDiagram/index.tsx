@@ -68,14 +68,6 @@ let lastOrientation: TopologyOrientation = "horizontal";
 
 type TopologyNodeModel = AgentCardNodeModel | ServiceNodeModel;
 
-function sameVisibleRows(a: Record<string, number> | undefined, b: Record<string, number>): boolean {
-    if (!a) {
-        return false;
-    }
-    const keys = Object.keys(a);
-    return keys.length === Object.keys(b).length && keys.every((key) => a[key] === b[key]);
-}
-
 function createLink(edge: TopologyEdge, nodeModels: Map<string, TopologyNodeModel>): TopologyLinkModel | null {
     const sourceNode = nodeModels.get(edge.sourceId);
     const targetNode = nodeModels.get(edge.targetId);
@@ -597,7 +589,7 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
             )}
             {diagramEngine && diagramModel && (
                 <TopologyContextProvider value={context}>
-                    <Glide settling={settling} onClick={onCanvasClick}>
+                    <Glide settling={settling} onClick={onCanvasClick} data-testid="diagram-canvas">
                         <DiagramCanvas>
                             <CanvasWidget engine={diagramEngine} />
                         </DiagramCanvas>

@@ -37,6 +37,7 @@ export function entryRange(entry: EntrySelection) {
     return rangeOf(entry);
 }
 
+// Bare documentUri + position, same as triggerLocation: findViewByArtifact resolves the view, shared with a project-tree click.
 export function agentLocation(agent: ProjectStructureArtifactResponse) {
     return { documentUri: agent.path, position: agent.position };
 }

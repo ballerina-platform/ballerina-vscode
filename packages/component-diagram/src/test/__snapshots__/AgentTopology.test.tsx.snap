@@ -2,40 +2,40 @@
 
 exports[`AgentTopologyDiagram - Snapshot Tests renders an empty package with no agents: no-agents 1`] = `
 "/* Emotion Styles */
-.css-11 {top: 0; left: 0; right: 0; bottom: 0; position: absolute; pointer-events: none; transform-origin: 0 0; width: 100%; height: 100%; overflow: visible;}
-.css-7 {max-width: 320px; padding: 10px 12px; border-radius: 6px; background-color: var(--vscode-sideBar-background); border: 1px solid var(--vscode-dropdown-border); font-family: "GilmerRegular"; font-size: 12px; color: var(--vscode-foreground);}
-.css-12 >* {height: 100%; min-height: 100%; width: 100%;}
-.css-12 svg:first-child {z-index: 1;}
-.css-12 {height: 100%; -webkit-background-size: 16px 16px; background-size: 16px 16px; display: flex; background-image: radial-gradient(var(--vscode-editor-inactiveSelectionBackground) 10%, transparent 0px); font-family: "GilmerRegular";}
+.css-10 {top: 0; left: 0; right: 0; bottom: 0; position: absolute; pointer-events: none; transform-origin: 0 0; width: 100%; height: 100%; overflow: visible;}
+.css-11 >* {height: 100%; min-height: 100%; width: 100%;}
+.css-11 svg:first-child {z-index: 1;}
+.css-11 {height: 100%; -webkit-background-size: 16px 16px; background-size: 16px 16px; display: flex; background-image: radial-gradient(var(--vscode-editor-inactiveSelectionBackground) 10%, transparent 0px); font-family: "GilmerRegular";}
 .css-3 {height: 16px; width: 16px; cursor: pointer; font-size: 16px; -webkit-transform: rotate(90deg); -moz-transform: rotate(90deg); -ms-transform: rotate(90deg); transform: rotate(90deg);}
-.css-10 {position: relative; cursor: move; overflow: hidden;}
+.css-9 {position: relative; cursor: move; overflow: hidden;}
 .css-2 {display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; padding: 8px; border-radius: 4px; background-color: var(--vscode-sideBar-background); fill: var(--vscode-foreground); width: 32px; height: 32px; cursor: pointer;}
 .css-2:active {background-color: var(--vscode-editor-inactiveSelectionBackground);}
 .css-2:hover {background-color: var(--vscode-editor-inactiveSelectionBackground);}
-.css-9 >* {height: 100%; min-height: 100%; width: 100%;}
-.css-9 {height: 100%; -webkit-background-size: 16px 16px; background-size: 16px 16px; display: flex; background-image: radial-gradient(var(--vscode-editor-inactiveSelectionBackground) 10%, transparent 0px); font-family: "GilmerRegular";}
+.css-8 >* {height: 100%; min-height: 100%; width: 100%;}
+.css-8 {height: 100%; -webkit-background-size: 16px 16px; background-size: 16px 16px; display: flex; background-image: radial-gradient(var(--vscode-editor-inactiveSelectionBackground) 10%, transparent 0px); font-family: "GilmerRegular";}
 .css-5 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; gap: 0;}
 .css-5>*:first-child {border-bottom-left-radius: 0; border-bottom-right-radius: 0;}
 .css-5>*:last-child {border-top-left-radius: 0; border-top-right-radius: 0;}
 .css-5>*:not(:first-child):not(:last-child) {border-radius: 0;}
 .css-5>*:not(:last-child) {border-bottom: 1px solid var(--vscode-dropdown-border);}
-.css-14::part(indeterminate-indicator-1) {stroke: var(--vscode-contrastBorder, var(--vscode-button-background));}
+.css-13::part(indeterminate-indicator-1) {stroke: var(--vscode-contrastBorder, var(--vscode-button-background));}
 .css-0 {position: relative; width: 100%; height: 100%;}
-.css-13 {-webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; height: 100%; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; width: 100%; background-color: var(--vscode-menu-background); z-index: 1000;}
+.css-12 {-webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; height: 100%; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; width: 100%; background-color: var(--vscode-menu-background); z-index: 1000;}
 .css-4 {height: 16px; width: 16px; cursor: pointer; font-size: 16px;}
 .css-6 {position: absolute; top: 12px; left: 12px; z-index: 3; display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-align-items: flex-start; -webkit-box-align: flex-start; -ms-flex-align: flex-start; align-items: flex-start; gap: 8px;}
-.css-8 .node {-webkit-transition: none; transition: none;}
-.css-8 {height: 100%;}
-.css-8>div>div>* {-webkit-transition: none; transition: none;}
-.css-8>div>div>svg,.css-8>div>div>div:first-child {opacity: 1; -webkit-transition: opacity 160ms ease-out; transition: opacity 160ms ease-out;}
-.css-8>div>div>svg:first-of-type {z-index: 1;}
-.css-8>div>div>svg:nth-of-type(2) {z-index: 2; pointer-events: none;}
+.css-7 .node {-webkit-transition: none; transition: none;}
+.css-7 {height: 100%;}
+.css-7>div>div>* {-webkit-transition: none; transition: none;}
+.css-7>div>div>svg,.css-7>div>div>div:first-child {opacity: 1; -webkit-transition: opacity 160ms ease-out; transition: opacity 160ms ease-out;}
+.css-7>div>div>svg:first-of-type {z-index: 1;}
+.css-7>div>div>svg:nth-of-type(2) {z-index: 2; pointer-events: none;}
 .css-1 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; gap: 8px; position: absolute; left: 12px; bottom: 12px; z-index: 1000;}
 
 /* DOM */
 <div>
   <div
     class="css-0"
+    style="--topology-event-color: var(--vscode-terminal-ansiMagenta);"
   >
     <div
       class="css-1"
@@ -94,25 +94,20 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders an empty package with no 
     </div>
     <div
       class="css-6"
-    >
-      <div
-        class="css-7"
-      >
-        No triggers yet. Agents only run when a trigger calls them. Select Add Trigger on an agent card.
-      </div>
-    </div>
+    />
     <div
-      class="css-8"
+      class="css-7"
+      data-testid="diagram-canvas"
     >
       <div
-        class="css-9"
+        class="css-8"
         color="var(--vscode-foreground)"
       >
         <div
-          class="css-10"
+          class="css-9"
         >
           <svg
-            class="css-11"
+            class="css-10"
             style="transform: translate(
 				0px,
 				0px)
@@ -121,7 +116,7 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders an empty package with no 
 			);"
           />
           <div
-            class="css-11"
+            class="css-10"
             style="transform: translate(
 				0px,
 				0px)
@@ -130,18 +125,18 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders an empty package with no 
 			);"
           />
           <div
-            class="css-11"
+            class="css-10"
           >
             <div
-              class="css-12"
+              class="css-11"
               color="var(--vscode-foreground)"
             >
               <div
-                class="css-13"
+                class="css-12"
               >
                 <vscode-progress-ring
                   aria-live="assertive"
-                  class="css-14"
+                  class="css-13"
                   color="var(--vscode-contrastBorder, var(--vscode-button-background))"
                   role="alert"
                 />
@@ -166,8 +161,8 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the Help Desk shape: help
 .css-42 {font-family: var(--vscode-editor-font-family, monospace); font-size: 11px; line-height: 15px; color: var(--vscode-descriptionForeground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
 .css-22 {position: absolute; right: -6px; top: 50%; -webkit-transform: translateY(-50%); -moz-transform: translateY(-50%); -ms-transform: translateY(-50%); transform: translateY(-50%);}
 .css-17 {position: relative; cursor: move; overflow: hidden;}
-.css-14 {height: 16px; width: 16px; cursor: pointer; display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; font-size: 12px;}
 .css-9 {width: 24px; display: flex; -webkit-box-pack: start; -ms-flex-pack: start; -webkit-justify-content: flex-start; justify-content: flex-start; -webkit-flex: none; -ms-flex: none; flex: none;}
+.css-46 {position: absolute; right: -6px; top: 74px; -webkit-transform: translateY(-50%); -moz-transform: translateY(-50%); -ms-transform: translateY(-50%); transform: translateY(-50%);}
 .css-2 {display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; padding: 8px; border-radius: 4px; background-color: var(--vscode-sideBar-background); fill: var(--vscode-foreground); width: 32px; height: 32px; cursor: pointer;}
 .css-2:active {background-color: var(--vscode-editor-inactiveSelectionBackground);}
 .css-2:hover {background-color: var(--vscode-editor-inactiveSelectionBackground);}
@@ -178,13 +173,16 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the Help Desk shape: help
 .css-5>*:last-child {border-top-left-radius: 0; border-top-right-radius: 0;}
 .css-5>*:not(:first-child):not(:last-child) {border-radius: 0;}
 .css-5>*:not(:last-child) {border-bottom: 1px solid var(--vscode-dropdown-border);}
-.css-44 {font-family: var(--vscode-editor-font-family, monospace); font-size: 9.5px; letter-spacing: 0.04em; color: var(--vscode-foreground); background-color: var(--vscode-editor-inactiveSelectionBackground); border: 1px solid var(--vscode-dropdown-border); border-radius: 3px; padding: 1px 5px; -webkit-flex: none; -ms-flex: none; flex: none;}
+.css-44 {font-family: var(--vscode-editor-font-family, monospace); font-size: 9.5px; letter-spacing: 0.04em; color: #fff; background-color: #49cc90; border-radius: 3px; padding: 1px 5px; -webkit-flex: none; -ms-flex: none; flex: none;}
 .css-30 {display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 6px; margin-top: auto; padding-top: 12px; min-width: 0; height: 22px; box-sizing: content-box; font-family: "GilmerRegular"; font-size: 12px; color: var(--vscode-descriptionForeground);}
 .css-20 {display: grid; grid-template-columns: 1fr 56px; gap: 12px; width: 280px; min-height: 112px; box-sizing: border-box; padding: 14px 10px 12px 16px; border-radius: 10px; border-width: 1.5px; border-style: solid; border-color: var(--vscode-contrastBorder, color-mix(in srgb, var(--vscode-foreground) 45%, transparent)); background-color: var(--vscode-menu-background); box-shadow: none; color: var(--vscode-foreground); cursor: pointer; position: relative; opacity: 1; -webkit-transition: border-color 0.2s ease-out,background-color 0.2s ease-out,box-shadow 0.2s ease-out,opacity 260ms ease; transition: border-color 0.2s ease-out,background-color 0.2s ease-out,box-shadow 0.2s ease-out,opacity 260ms ease;}
 .css-20:focus-visible {outline: 2px solid var(--vscode-contrastActiveBorder, var(--vscode-button-background)); outline-offset: 2px;}
 .css-28 {font-family: "GilmerRegular"; font-size: 11px; line-height: 14px; color: var(--vscode-descriptionForeground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
 .css-25 svg {fill: var(--vscode-terminal-ansiCyan);}
 .css-33 {display: grid; -webkit-align-content: start; -ms-flex-line-pack: start; align-content: start; gap: 10px; padding-left: 10px; border-left: 1px solid var(--vscode-dropdown-border);}
+.css-12 {display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 4px; height: 100%; max-width: 260px; padding: 0; border: none; background: transparent; color: inherit; font: inherit; cursor: pointer;}
+.css-12:focus-visible {outline: 2px solid var(--vscode-contrastActiveBorder, var(--vscode-button-background)); outline-offset: 1px;}
+.css-12>span {white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
 .css-31 {display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 6px;}
 .css-8 {display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 8px;}
 .css-45 {min-width: 0; font-family: var(--vscode-editor-font-family, monospace); font-size: 12.5px; color: var(--vscode-foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
@@ -194,14 +192,11 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the Help Desk shape: help
 .css-29 {font-family: var(--vscode-editor-font-family, monospace); font-size: 13px; font-weight: 500; line-height: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
 .css-50::part(indeterminate-indicator-1) {stroke: var(--vscode-contrastBorder, var(--vscode-button-background));}
 .css-32 {color: var(--vscode-foreground); white-space: nowrap;}
+.css-14 {font-family: var(--vscode-editor-font-family); font-size: 10px; line-height: 16px; padding: 0 4px; margin-right: 4px; border: 1px solid var(--vscode-dropdown-border); border-radius: 3px; color: var(--vscode-descriptionForeground);}
 .css-40 {min-width: 0; -webkit-flex: 1; -ms-flex: 1; flex: 1;}
 .css-0 {position: relative; width: 100%; height: 100%;}
 .css-41 {font-family: var(--vscode-editor-font-family, monospace); font-size: 13.5px; line-height: 18px; color: var(--vscode-foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
-.css-46 {position: absolute; right: -6px; top: 74px; -webkit-transform: translateY(-50%); -moz-transform: translateY(-50%); -ms-transform: translateY(-50%); transform: translateY(-50%);}
-.css-12 {display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 6px; height: 100%; padding: 0; border: none; background: transparent; color: inherit; font: inherit; cursor: pointer;}
-.css-12:focus-visible {outline: 2px solid var(--vscode-contrastActiveBorder, var(--vscode-button-background)); outline-offset: 1px;}
 .css-49 {-webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; height: 100%; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; width: 100%; background-color: var(--vscode-menu-background); z-index: 1000;}
-.css-11 {display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 2px; height: 28px; padding: 0 4px 0 8px; border-radius: 6px; background-color: var(--vscode-sideBar-background); border: 1px solid var(--vscode-dropdown-border); font-family: "GilmerMedium"; font-size: 12px; color: var(--vscode-foreground);}
 .css-7 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; gap: 6px; padding: 8px 10px; border-radius: 6px; background-color: var(--vscode-sideBar-background); border: 1px solid var(--vscode-dropdown-border); font-family: "GilmerRegular"; font-size: 11px; color: var(--vscode-foreground);}
 .css-37 {width: 232px; box-sizing: border-box; border-radius: 10px; border: 1.5px solid var(--vscode-contrastBorder, color-mix(in srgb, var(--vscode-foreground) 45%, transparent)); background-color: var(--vscode-menu-background); opacity: 1; -webkit-transition: opacity 260ms ease; transition: opacity 260ms ease; overflow: hidden; position: relative;}
 .css-39 {height: 22px; width: 22px; cursor: pointer; font-size: 22px; display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center;}
@@ -210,6 +205,7 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the Help Desk shape: help
 .css-4 {height: 16px; width: 16px; cursor: pointer; font-size: 16px;}
 .css-6 {position: absolute; top: 12px; left: 12px; z-index: 3; display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-align-items: flex-start; -webkit-box-align: flex-start; -ms-flex-align: flex-start; align-items: flex-start; gap: 8px;}
 .css-27 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; min-width: 0;}
+.css-11 {display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 4px; height: 32px; padding: 0 6px 0 12px; border-radius: 6px; background-color: var(--vscode-sideBar-background); border: 1px solid var(--vscode-dropdown-border); font-family: "GilmerMedium"; font-size: 12px; color: var(--vscode-foreground);}
 .css-34 {display: grid; justify-items: center; gap: 4px; min-width: 0;}
 .css-19 {position: absolute; -webkit-touch-callout: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; cursor: move; pointer-events: all;}
 .css-43 {height: 36px; box-sizing: border-box; display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 9px; padding: 0 12px; cursor: pointer; position: relative; border-top: 1px solid var(--vscode-dropdown-border); opacity: 1; background-color: transparent; -webkit-transition: opacity 260ms ease,background-color 0.15s ease; transition: opacity 260ms ease,background-color 0.15s ease;}
@@ -221,15 +217,16 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the Help Desk shape: help
 .css-15>div>div>svg:nth-of-type(2) {z-index: 2; pointer-events: none;}
 .css-24 {display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 10px; min-width: 0;}
 .css-1 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; gap: 8px; position: absolute; left: 12px; bottom: 12px; z-index: 1000;}
+.css-13 {height: 16px; width: 16px; cursor: pointer; display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; font-size: 15px;}
 .css-36 svg,.css-36 img {width: 14px; height: 14px; object-fit: contain;}
 .css-36 {display: inline-flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-flex: none; -ms-flex: none; flex: none; width: 22px; height: 22px; box-sizing: border-box; border-radius: 50%; border: 1.5px dashed var(--vscode-dropdown-border); background-color: var(--vscode-editor-background); color: var(--vscode-descriptionForeground); font-size: 12px; overflow: hidden;}
-.css-13 {height: 16px; width: 16px; cursor: pointer; display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; font-size: 14px;}
 .css-26 {height: 24px; width: 24px; cursor: pointer; font-size: 24px; color: var(--vscode-terminal-ansiCyan);}
 
 /* DOM */
 <div>
   <div
     class="css-0"
+    style="--topology-event-color: var(--vscode-terminal-ansiMagenta);"
   >
     <div
       class="css-1"
@@ -364,33 +361,32 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the Help Desk shape: help
         <button
           aria-expanded="false"
           class="css-12"
-          title="Show entry points"
+          title="Find entry points and agents (/)"
           type="button"
         >
           <div
             class="css-13"
           >
             <i
-              class="codicon codicon-list-unordered"
-              style="font-size: 14px; line-height: 1;"
+              class="codicon codicon-search"
+              style="font-size: 15px; line-height: 1;"
             />
           </div>
           <span>
-            Entry points
+            Find
           </span>
-          <div
+          <kbd
             class="css-14"
+            style="margin-left: 8px; margin-right: 0px;"
           >
-            <i
-              class="codicon codicon-chevron-down"
-              style="font-size: 12px; line-height: 1;"
-            />
-          </div>
+            /
+          </kbd>
         </button>
       </div>
     </div>
     <div
       class="css-15"
+      data-testid="diagram-canvas"
     >
       <div
         class="css-16"
@@ -493,41 +489,6 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the Help Desk shape: help
                 <path
                   d="M 400 300 L 400 300"
                   fill="none"
-                  stroke-width="1.5"
-                  style="stroke: var(--vscode-foreground); transition: stroke 260ms ease;"
-                />
-                <defs>
-                  <marker
-                    markerHeight="8"
-                    markerWidth="8"
-                    orient="auto"
-                    refX="7"
-                    refY="4"
-                    viewBox="0 0 8 8"
-                  >
-                    <polygon
-                      points="0,0 0,8 8,4"
-                      style="fill: var(--vscode-foreground); transition: fill 260ms ease;"
-                    />
-                  </marker>
-                </defs>
-              </g>
-            </g>
-            <g
-            >
-              <g
-                pointer-events="stroke"
-                style="opacity: 1; transition: opacity 260ms ease;"
-              >
-                <path
-                  d="M 400 300 L 400 300"
-                  fill="none"
-                  stroke="transparent"
-                  stroke-width="16"
-                />
-                <path
-                  d="M 400 300 L 400 300"
-                  fill="none"
                   stroke-dasharray="6 5"
                   stroke-width="1.5"
                   style="stroke: var(--vscode-foreground); transition: stroke 260ms ease;"
@@ -601,6 +562,41 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the Help Desk shape: help
                   d="M 400 300 L 702 300 Q 712 300 712 310 L 712 310 Q 712 320 702 320 L 400 320"
                   fill="none"
                   stroke-dasharray="6 5"
+                  stroke-width="1.5"
+                  style="stroke: var(--vscode-foreground); transition: stroke 260ms ease;"
+                />
+                <defs>
+                  <marker
+                    markerHeight="8"
+                    markerWidth="8"
+                    orient="auto"
+                    refX="7"
+                    refY="4"
+                    viewBox="0 0 8 8"
+                  >
+                    <polygon
+                      points="0,0 0,8 8,4"
+                      style="fill: var(--vscode-foreground); transition: fill 260ms ease;"
+                    />
+                  </marker>
+                </defs>
+              </g>
+            </g>
+            <g
+            >
+              <g
+                pointer-events="stroke"
+                style="opacity: 1; transition: opacity 260ms ease;"
+              >
+                <path
+                  d="M 400 300 L 400 300"
+                  fill="none"
+                  stroke="transparent"
+                  stroke-width="16"
+                />
+                <path
+                  d="M 400 300 L 400 300"
+                  fill="none"
                   stroke-width="1.5"
                   style="stroke: var(--vscode-foreground); transition: stroke 260ms ease;"
                 />
@@ -1083,6 +1079,7 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the Help Desk shape: help
                 >
                   <span
                     class="css-44"
+                    method="POST"
                   >
                     POST
                   </span>
@@ -1116,6 +1113,777 @@ exports[`AgentTopologyDiagram - Snapshot Tests renders the Help Desk shape: help
                 <vscode-progress-ring
                   aria-live="assertive"
                   class="css-50"
+                  color="var(--vscode-contrastBorder, var(--vscode-button-background))"
+                  role="alert"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>"
+`;
+
+exports[`AgentTopologyDiagram - Snapshot Tests renders the durable claims shape: inlet, people line and a three-row legend: durable-claims-shape 1`] = `
+"/* Emotion Styles */
+.css-19 {top: 0; left: 0; right: 0; bottom: 0; position: absolute; pointer-events: none; transform-origin: 0 0; width: 100%; height: 100%; overflow: visible;}
+.css-40 {display: inline-flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 3px; position: relative;}
+.css-28 {min-width: 0; display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column;}
+.css-69 >* {height: 100%; min-height: 100%; width: 100%;}
+.css-69 svg:first-child {z-index: 1;}
+.css-69 {height: 100%; -webkit-background-size: 16px 16px; background-size: 16px 16px; display: flex; background-image: radial-gradient(var(--vscode-editor-inactiveSelectionBackground) 10%, transparent 0px); font-family: "GilmerRegular";}
+.css-3 {height: 16px; width: 16px; cursor: pointer; font-size: 16px; -webkit-transform: rotate(90deg); -moz-transform: rotate(90deg); -ms-transform: rotate(90deg); transform: rotate(90deg);}
+.css-59 {font-family: var(--vscode-editor-font-family, monospace); font-size: 11px; line-height: 15px; color: var(--vscode-descriptionForeground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
+.css-23 {position: absolute; right: -6px; top: 50%; -webkit-transform: translateY(-50%); -moz-transform: translateY(-50%); -ms-transform: translateY(-50%); transform: translateY(-50%);}
+.css-34 {height: 11px; width: 11px; cursor: pointer; font-size: 11px; display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center;}
+.css-46 {display: flex; gap: 4px; margin-left: auto;}
+.css-18 {position: relative; cursor: move; overflow: hidden;}
+.css-31 svg {fill: var(--vscode-terminal-ansiBrightBlue);}
+.css-9 {width: 24px; display: flex; -webkit-box-pack: start; -ms-flex-pack: start; -webkit-justify-content: flex-start; justify-content: flex-start; -webkit-flex: none; -ms-flex: none; flex: none;}
+.css-32 {height: 24px; width: 24px; cursor: pointer; font-size: 24px; color: var(--vscode-terminal-ansiBrightBlue);}
+.css-64 {position: absolute; right: -6px; top: 74px; -webkit-transform: translateY(-50%); -moz-transform: translateY(-50%); -ms-transform: translateY(-50%); transform: translateY(-50%);}
+.css-2 {display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; padding: 8px; border-radius: 4px; background-color: var(--vscode-sideBar-background); fill: var(--vscode-foreground); width: 32px; height: 32px; cursor: pointer;}
+.css-2:active {background-color: var(--vscode-editor-inactiveSelectionBackground);}
+.css-2:hover {background-color: var(--vscode-editor-inactiveSelectionBackground);}
+.css-17 >* {height: 100%; min-height: 100%; width: 100%;}
+.css-17 {height: 100%; -webkit-background-size: 16px 16px; background-size: 16px 16px; display: flex; background-image: radial-gradient(var(--vscode-editor-inactiveSelectionBackground) 10%, transparent 0px); font-family: "GilmerRegular";}
+.css-5 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; gap: 0;}
+.css-5>*:first-child {border-bottom-left-radius: 0; border-bottom-right-radius: 0;}
+.css-5>*:last-child {border-top-left-radius: 0; border-top-right-radius: 0;}
+.css-5>*:not(:first-child):not(:last-child) {border-radius: 0;}
+.css-5>*:not(:last-child) {border-bottom: 1px solid var(--vscode-dropdown-border);}
+.css-61 {font-family: var(--vscode-editor-font-family, monospace); font-size: 9.5px; letter-spacing: 0.04em; color: #fff; background-color: #49cc90; border-radius: 3px; padding: 1px 5px; -webkit-flex: none; -ms-flex: none; flex: none;}
+.css-26 svg {fill: var(--topology-event-color, var(--vscode-terminal-ansiBrightMagenta));}
+.css-38 {display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 6px; margin-top: auto; padding-top: 12px; min-width: 0; height: 22px; box-sizing: content-box; font-family: "GilmerRegular"; font-size: 12px; color: var(--vscode-descriptionForeground);}
+.css-30 {position: relative; display: inline-flex; -webkit-flex: none; -ms-flex: none; flex: none; width: 24px; height: 24px;}
+.css-63 {height: 30px; box-sizing: border-box; display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; border-top: 1px solid var(--vscode-dropdown-border); font-family: "GilmerRegular"; font-size: 11.5px; color: var(--vscode-descriptionForeground); cursor: pointer; -webkit-transition: color 0.15s ease,background-color 0.15s ease; transition: color 0.15s ease,background-color 0.15s ease;}
+.css-63:hover {color: var(--vscode-contrastBorder, var(--vscode-button-background)); background-color: var(--vscode-sideBar-background);}
+.css-21 {display: grid; grid-template-columns: 1fr 56px; gap: 12px; width: 280px; min-height: 112px; box-sizing: border-box; padding: 14px 10px 12px 16px; border-radius: 10px; border-width: 1.5px; border-style: solid; border-color: var(--vscode-contrastBorder, color-mix(in srgb, var(--vscode-foreground) 45%, transparent)); background-color: var(--vscode-menu-background); box-shadow: none; color: var(--vscode-foreground); cursor: pointer; position: relative; opacity: 1; -webkit-transition: border-color 0.2s ease-out,background-color 0.2s ease-out,box-shadow 0.2s ease-out,opacity 260ms ease; transition: border-color 0.2s ease-out,background-color 0.2s ease-out,box-shadow 0.2s ease-out,opacity 260ms ease;}
+.css-21:focus-visible {outline: 2px solid var(--vscode-contrastActiveBorder, var(--vscode-button-background)); outline-offset: 2px;}
+.css-36 {font-family: "GilmerRegular"; font-size: 11px; line-height: 14px; color: var(--vscode-descriptionForeground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
+.css-52 svg {fill: var(--vscode-terminal-ansiCyan);}
+.css-49 {display: grid; -webkit-align-content: start; -ms-flex-line-pack: start; align-content: start; gap: 10px; padding-left: 10px; border-left: 1px solid var(--vscode-dropdown-border);}
+.css-33 {position: absolute; right: -8px; bottom: -4px; display: flex; line-height: 0; color: var(--vscode-descriptionForeground); opacity: 0.8;}
+.css-13 {display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 4px; height: 100%; max-width: 260px; padding: 0; border: none; background: transparent; color: inherit; font: inherit; cursor: pointer;}
+.css-13:focus-visible {outline: 2px solid var(--vscode-contrastActiveBorder, var(--vscode-button-background)); outline-offset: 1px;}
+.css-13>span {white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
+.css-48 {height: 14px; width: 14px; cursor: pointer; font-size: 14px;}
+.css-39 {display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 6px;}
+.css-8 {display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 8px;}
+.css-44 {position: absolute; left: 15px; top: 15px; width: 8px; height: 8px; border-radius: 50%; background-color: var(--vscode-contrastActiveBorder, var(--vscode-editorLightBulb-foreground)); border: 1.5px solid var(--vscode-menu-background); box-sizing: content-box;}
+.css-62 {min-width: 0; font-family: var(--vscode-editor-font-family, monospace); font-size: 12.5px; color: var(--vscode-foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
+.css-11 {position: absolute; top: 12px; right: 12px; z-index: 3;}
+.css-22 {position: absolute; left: -6px; top: 30px; -webkit-transform: translateY(-50%); -moz-transform: translateY(-50%); -ms-transform: translateY(-50%); transform: translateY(-50%);}
+.css-51 {font-family: "GilmerRegular"; font-size: 10px; line-height: 12px; color: var(--vscode-descriptionForeground);}
+.css-37 {font-family: var(--vscode-editor-font-family, monospace); font-size: 13px; font-weight: 500; line-height: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
+.css-24 {position: absolute; display: inline-flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 4px; height: 16px; box-sizing: border-box; padding: 0 6px 0 5px; border-radius: 8px; border: 1px solid var(--topology-event-color, var(--vscode-terminal-ansiBrightMagenta)); background-color: var(--vscode-sideBar-background); color: var(--topology-event-color, var(--vscode-terminal-ansiBrightMagenta)); font-family: var(--vscode-editor-font-family, monospace); font-size: 9.5px; white-space: nowrap; opacity: 1; -webkit-transition: opacity 260ms ease; transition: opacity 260ms ease; left: 0; top: 66px; -webkit-transform: translate(calc(-100% + 7px), -50%); -moz-transform: translate(calc(-100% + 7px), -50%); -ms-transform: translate(calc(-100% + 7px), -50%); transform: translate(calc(-100% + 7px), -50%);}
+.css-65 {position: absolute; right: -6px; top: 110px; -webkit-transform: translateY(-50%); -moz-transform: translateY(-50%); -ms-transform: translateY(-50%); transform: translateY(-50%);}
+.css-42 svg {fill: var(--vscode-foreground);}
+.css-71::part(indeterminate-indicator-1) {stroke: var(--vscode-contrastBorder, var(--vscode-button-background));}
+.css-27 {height: 10px; width: 10px; cursor: pointer; font-size: 10px; color: var(--topology-event-color, var(--vscode-terminal-ansiBrightMagenta));}
+.css-45 {color: var(--vscode-foreground); white-space: nowrap;}
+.css-15 {font-family: var(--vscode-editor-font-family); font-size: 10px; line-height: 16px; padding: 0 4px; margin-right: 4px; border: 1px solid var(--vscode-dropdown-border); border-radius: 3px; color: var(--vscode-descriptionForeground);}
+.css-43 {height: 14px; width: 14px; cursor: pointer; font-size: 14px; color: var(--vscode-foreground);}
+.css-47 img {width: 14px; height: 14px; object-fit: contain;}
+.css-47 {display: inline-flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-flex: none; -ms-flex: none; flex: none; width: 22px; height: 22px; box-sizing: border-box; border-radius: 6px; border: 1px solid var(--vscode-dropdown-border); background-color: var(--vscode-editor-background); color: var(--vscode-descriptionForeground); font-family: "GilmerMedium"; font-size: 10px; overflow: hidden;}
+.css-57 {min-width: 0; -webkit-flex: 1; -ms-flex: 1; flex: 1;}
+.css-25 {position: absolute; left: -6px; top: 50%; -webkit-transform: translateY(-50%); -moz-transform: translateY(-50%); -ms-transform: translateY(-50%); transform: translateY(-50%);}
+.css-0 {position: relative; width: 100%; height: 100%;}
+.css-58 {font-family: var(--vscode-editor-font-family, monospace); font-size: 13.5px; line-height: 18px; color: var(--vscode-foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
+.css-70 {-webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; height: 100%; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; width: 100%; background-color: var(--vscode-menu-background); z-index: 1000;}
+.css-7 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; gap: 6px; padding: 8px 10px; border-radius: 6px; background-color: var(--vscode-sideBar-background); border: 1px solid var(--vscode-dropdown-border); font-family: "GilmerRegular"; font-size: 11px; color: var(--vscode-foreground);}
+.css-54 {width: 232px; box-sizing: border-box; border-radius: 10px; border: 1.5px solid var(--vscode-contrastBorder, color-mix(in srgb, var(--vscode-foreground) 45%, transparent)); background-color: var(--vscode-menu-background); opacity: 1; -webkit-transition: opacity 260ms ease; transition: opacity 260ms ease; overflow: hidden; position: relative;}
+.css-10 {display: inline-block; margin: 0 auto; width: 8px; height: 8px; border-radius: 50%; background-color: var(--vscode-contrastActiveBorder, var(--vscode-editorLightBulb-foreground));}
+.css-56 {height: 22px; width: 22px; cursor: pointer; font-size: 22px; display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center;}
+.css-68 {position: absolute; right: -6px; top: 28px; -webkit-transform: translateY(-50%); -moz-transform: translateY(-50%); -ms-transform: translateY(-50%); transform: translateY(-50%);}
+.css-41 svg,.css-41 img {width: 14px; height: 14px; object-fit: contain;}
+.css-41 {display: inline-flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-flex: none; -ms-flex: none; flex: none; width: 22px; height: 22px; box-sizing: border-box; border-radius: 50%; border: 1.5px solid var(--vscode-dropdown-border); background-color: var(--vscode-editor-background); color: var(--vscode-foreground); font-size: 12px; overflow: hidden;}
+.css-55 {height: 56px; box-sizing: border-box; display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 10px; padding: 0 8px 0 12px; cursor: pointer; background-color: transparent; -webkit-transition: background-color 0.15s ease; transition: background-color 0.15s ease;}
+.css-4 {height: 16px; width: 16px; cursor: pointer; font-size: 16px;}
+.css-6 {position: absolute; top: 12px; left: 12px; z-index: 3; display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-align-items: flex-start; -webkit-box-align: flex-start; -ms-flex-align: flex-start; align-items: flex-start; gap: 8px;}
+.css-35 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; min-width: 0;}
+.css-12 {display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 4px; height: 32px; padding: 0 6px 0 12px; border-radius: 6px; background-color: var(--vscode-sideBar-background); border: 1px solid var(--vscode-dropdown-border); font-family: "GilmerMedium"; font-size: 12px; color: var(--vscode-foreground);}
+.css-50 {display: grid; justify-items: center; gap: 4px; min-width: 0;}
+.css-67 {position: absolute; right: -6px; top: 28px; -webkit-transform: translateY(-50%); -moz-transform: translateY(-50%); -ms-transform: translateY(-50%); transform: translateY(-50%);}
+.css-20 {position: absolute; -webkit-touch-callout: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; cursor: move; pointer-events: all;}
+.css-60 {height: 36px; box-sizing: border-box; display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 9px; padding: 0 12px; cursor: pointer; position: relative; border-top: 1px solid var(--vscode-dropdown-border); opacity: 1; background-color: transparent; -webkit-transition: opacity 260ms ease,background-color 0.15s ease; transition: opacity 260ms ease,background-color 0.15s ease;}
+.css-16 .node {-webkit-transition: none; transition: none;}
+.css-16 {height: 100%;}
+.css-16>div>div>* {-webkit-transition: none; transition: none;}
+.css-16>div>div>svg,.css-16>div>div>div:first-child {opacity: 1; -webkit-transition: opacity 160ms ease-out; transition: opacity 160ms ease-out;}
+.css-16>div>div>svg:first-of-type {z-index: 1;}
+.css-16>div>div>svg:nth-of-type(2) {z-index: 2; pointer-events: none;}
+.css-29 {display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 10px; min-width: 0;}
+.css-53 {height: 14px; width: 14px; cursor: pointer; font-size: 14px; color: var(--vscode-terminal-ansiCyan);}
+.css-1 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; gap: 8px; position: absolute; left: 12px; bottom: 12px; z-index: 1000;}
+.css-14 {height: 16px; width: 16px; cursor: pointer; display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; font-size: 15px;}
+.css-66 {position: absolute; right: -6px; top: 146px; -webkit-transform: translateY(-50%); -moz-transform: translateY(-50%); -ms-transform: translateY(-50%); transform: translateY(-50%);}
+
+/* DOM */
+<div>
+  <div
+    class="css-0"
+    style="--topology-event-color: var(--vscode-terminal-ansiMagenta);"
+  >
+    <div
+      class="css-1"
+    >
+      <div
+        class="css-2"
+        data-testid="topology-orientation-toggle"
+        title="Lay out top to bottom"
+      >
+        <div
+          class="css-3"
+        >
+          <i
+            class="codicon codicon-arrow-swap"
+            style="font-size: 16px;"
+          />
+        </div>
+      </div>
+      <div
+        class="css-2"
+      >
+        <div
+          class="css-4"
+        >
+          <i
+            class="fw-bi-fit-screen"
+          />
+        </div>
+      </div>
+      <div
+        class="css-5"
+      >
+        <div
+          class="css-2"
+        >
+          <div
+            class="css-4"
+          >
+            <i
+              class="fw-bi-plus"
+            />
+          </div>
+        </div>
+        <div
+          class="css-2"
+        >
+          <div
+            class="css-4"
+          >
+            <i
+              class="fw-bi-minus"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+    <div
+      class="css-6"
+    >
+      <div
+        class="css-7"
+      >
+        <div
+          class="css-8"
+          title="A trigger (an HTTP resource, a remote function, or main) runs this agent."
+        >
+          <div
+            class="css-9"
+          >
+            <svg
+              height="16"
+              style="flex: 0 0 auto; overflow: visible;"
+              width="24"
+            >
+              <line
+                stroke="currentColor"
+                stroke-width="1.5"
+                x1="0"
+                x2="18"
+                y1="8"
+                y2="8"
+              />
+              <polygon
+                fill="currentColor"
+                points="18,5 24,8 18,11"
+              />
+            </svg>
+          </div>
+          <span>
+            Runs the agent
+          </span>
+        </div>
+        <div
+          class="css-8"
+          title="A trigger sends an event into one of this durable agent's channels while it runs."
+        >
+          <div
+            class="css-9"
+          >
+            <svg
+              height="16"
+              style="flex: 0 0 auto; overflow: visible;"
+              width="24"
+            >
+              <line
+                stroke="var(--topology-event-color, var(--vscode-terminal-ansiBrightMagenta))"
+                stroke-dasharray="2 3"
+                stroke-width="1.5"
+                x1="0"
+                x2="18"
+                y1="8"
+                y2="8"
+              />
+              <polygon
+                fill="var(--topology-event-color, var(--vscode-terminal-ansiBrightMagenta))"
+                points="18,5 24,8 18,11"
+              />
+            </svg>
+          </div>
+          <span>
+            Sends an event
+          </span>
+        </div>
+        <div
+          class="css-8"
+          title="This durable agent waits for a person to release the marked call; hover the circle to see who."
+        >
+          <div
+            class="css-9"
+          >
+            <span
+              class="css-10"
+            />
+          </div>
+          <span>
+            Stops for a person
+          </span>
+        </div>
+      </div>
+    </div>
+    <div
+      class="css-11"
+    >
+      <div
+        class="css-12"
+      >
+        <button
+          aria-expanded="false"
+          class="css-13"
+          title="Find entry points and agents (/)"
+          type="button"
+        >
+          <div
+            class="css-14"
+          >
+            <i
+              class="codicon codicon-search"
+              style="font-size: 15px; line-height: 1;"
+            />
+          </div>
+          <span>
+            Find
+          </span>
+          <kbd
+            class="css-15"
+            style="margin-left: 8px; margin-right: 0px;"
+          >
+            /
+          </kbd>
+        </button>
+      </div>
+    </div>
+    <div
+      class="css-16"
+      data-testid="diagram-canvas"
+    >
+      <div
+        class="css-17"
+        color="var(--vscode-foreground)"
+      >
+        <div
+          class="css-18"
+        >
+          <svg
+            class="css-19"
+            style="transform: translate(
+				0px,
+				0px)
+			scale(
+				1
+			);"
+          >
+            <g
+            >
+              <g
+                pointer-events="stroke"
+                style="opacity: 1; transition: opacity 260ms ease;"
+              >
+                <path
+                  d="M 400 300 L 400 300"
+                  fill="none"
+                  stroke="transparent"
+                  stroke-width="16"
+                />
+                <path
+                  d="M 400 300 L 400 300"
+                  fill="none"
+                  stroke-width="1.5"
+                  style="stroke: var(--vscode-foreground); transition: stroke 260ms ease;"
+                />
+                <defs>
+                  <marker
+                    markerHeight="8"
+                    markerWidth="8"
+                    orient="auto"
+                    refX="7"
+                    refY="4"
+                    viewBox="0 0 8 8"
+                  >
+                    <polygon
+                      points="0,0 0,8 8,4"
+                      style="fill: var(--vscode-foreground); transition: fill 260ms ease;"
+                    />
+                  </marker>
+                </defs>
+              </g>
+            </g>
+            <g
+            >
+              <g
+                pointer-events="stroke"
+                style="opacity: 1; transition: opacity 260ms ease;"
+              >
+                <path
+                  d="M 400 300 L 400 300"
+                  fill="none"
+                  stroke="transparent"
+                  stroke-width="16"
+                />
+                <path
+                  d="M 400 300 L 400 300"
+                  fill="none"
+                  stroke-dasharray="2 4"
+                  stroke-width="1.5"
+                  style="stroke: var(--topology-event-color, var(--vscode-terminal-ansiBrightMagenta)); transition: stroke 260ms ease;"
+                />
+                <defs>
+                  <marker
+                    markerHeight="8"
+                    markerWidth="8"
+                    orient="auto"
+                    refX="7"
+                    refY="4"
+                    viewBox="0 0 8 8"
+                  >
+                    <polygon
+                      points="0,0 0,8 8,4"
+                      style="fill: var(--topology-event-color, var(--vscode-terminal-ansiBrightMagenta)); transition: fill 260ms ease;"
+                    />
+                  </marker>
+                </defs>
+              </g>
+            </g>
+            <g
+            >
+              <g
+                pointer-events="stroke"
+                style="opacity: 1; transition: opacity 260ms ease;"
+              >
+                <path
+                  d="M 400 300 L 400 300"
+                  fill="none"
+                  stroke="transparent"
+                  stroke-width="16"
+                />
+                <path
+                  d="M 400 300 L 400 300"
+                  fill="none"
+                  stroke-dasharray="2 4"
+                  stroke-width="1.5"
+                  style="stroke: var(--topology-event-color, var(--vscode-terminal-ansiBrightMagenta)); transition: stroke 260ms ease;"
+                />
+                <defs>
+                  <marker
+                    markerHeight="8"
+                    markerWidth="8"
+                    orient="auto"
+                    refX="7"
+                    refY="4"
+                    viewBox="0 0 8 8"
+                  >
+                    <polygon
+                      points="0,0 0,8 8,4"
+                      style="fill: var(--topology-event-color, var(--vscode-terminal-ansiBrightMagenta)); transition: fill 260ms ease;"
+                    />
+                  </marker>
+                </defs>
+              </g>
+            </g>
+          </svg>
+          <div
+            class="css-19"
+            style="transform: translate(
+				0px,
+				0px)
+			scale(
+				1
+			);"
+          >
+            <div
+              class="node css-20"
+              style="top: 41px; left: 392px;"
+            >
+              <div
+                class="css-21"
+                tabindex="0"
+              >
+                <div
+                  class="port css-22"
+                  data-name="in"
+                />
+                <div
+                  class="port css-23"
+                  data-name="out"
+                />
+                <div
+                  class="css-24"
+                  offset="66"
+                >
+                  <div
+                    class="port css-25"
+                    data-name="in::chat"
+                  />
+                  <div
+                    class="css-26"
+                    color="var(--topology-event-color, var(--vscode-terminal-ansiBrightMagenta))"
+                  >
+                    <div
+                      class="css-27"
+                    >
+                      <i
+                        class="fw-bi-import"
+                      />
+                    </div>
+                  </div>
+                  chat
+                </div>
+                <div
+                  class="css-28"
+                >
+                  <div
+                    class="css-29"
+                  >
+                    <span
+                      class="css-30"
+                      size="24"
+                    >
+                      <div
+                        class="css-31"
+                        color="var(--vscode-terminal-ansiBrightBlue)"
+                      >
+                        <div
+                          class="css-32"
+                        >
+                          <i
+                            class="fw-bi-ai-agent"
+                          />
+                        </div>
+                      </div>
+                      <span
+                        class="css-33"
+                      >
+                        <div
+                          class="css-34"
+                        >
+                          <i
+                            class="fw-bi-flowchart"
+                          />
+                        </div>
+                      </span>
+                    </span>
+                    <div
+                      class="css-35"
+                      title="claimAgent"
+                    >
+                      <div
+                        class="css-36"
+                      >
+                        Durable Agent
+                      </div>
+                      <div
+                        class="css-37"
+                      >
+                        claimAgent
+                      </div>
+                    </div>
+                  </div>
+                  <div
+                    class="css-38"
+                  >
+                    <div
+                      class="css-39"
+                    >
+                      <span
+                        class="css-40"
+                      >
+                        <span
+                          class="css-41"
+                        >
+                          <div
+                            class="css-42"
+                            color="var(--vscode-foreground)"
+                          >
+                            <div
+                              class="css-43"
+                            >
+                              <i
+                                class="fw-bi-task"
+                              />
+                            </div>
+                          </div>
+                        </span>
+                        <span
+                          class="css-44"
+                        />
+                        <span
+                          class="css-45"
+                        >
+                          4
+                        </span>
+                      </span>
+                      <span
+                        class="css-40"
+                      >
+                        <span
+                          class="css-41"
+                        >
+                          <div
+                            class="css-42"
+                            color="var(--vscode-foreground)"
+                          >
+                            <div
+                              class="css-43"
+                            >
+                              <i
+                                class="fw-bi-user"
+                              />
+                            </div>
+                          </div>
+                        </span>
+                        <span
+                          class="css-45"
+                        >
+                          1
+                        </span>
+                      </span>
+                      <span
+                        class="css-40"
+                      >
+                        <span
+                          class="css-41"
+                        >
+                          <div
+                            class="css-42"
+                            color="var(--vscode-foreground)"
+                          >
+                            <div
+                              class="css-43"
+                            >
+                              <i
+                                class="fw-bi-import"
+                              />
+                            </div>
+                          </div>
+                        </span>
+                        <span
+                          class="css-45"
+                        >
+                          1
+                        </span>
+                      </span>
+                    </div>
+                    <div
+                      class="css-46"
+                    >
+                      <span
+                        class="css-47"
+                      >
+                        <div
+                          class="css-48"
+                        >
+                          <i
+                            class="fw-bi-connection"
+                            style="font-size: 14px;"
+                          />
+                        </div>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div
+                  class="css-49"
+                >
+                  <div
+                    class="css-50"
+                  >
+                    <span
+                      class="css-51"
+                    >
+                      Model
+                    </span>
+                    <span
+                      class="css-41"
+                    >
+                      <div
+                        class="css-52"
+                        color="var(--vscode-terminal-ansiCyan)"
+                      >
+                        <div
+                          class="css-53"
+                        >
+                          <i
+                            class="fw-bi-ai-model"
+                          />
+                        </div>
+                      </div>
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div
+              class="node css-20"
+              style="top: 0px; left: 0px;"
+            >
+              <div
+                class="css-54"
+              >
+                <div
+                  class="css-55"
+                  tabindex="0"
+                  title="Open /agent"
+                >
+                  <div
+                    class="css-56"
+                  >
+                    <i
+                      class="fw-bi-globe"
+                      style="font-size: 22px; line-height: 1;"
+                    />
+                  </div>
+                  <div
+                    class="css-57"
+                  >
+                    <div
+                      class="css-58"
+                    >
+                      /agent
+                    </div>
+                    <div
+                      class="css-59"
+                    >
+                      http:Service
+                    </div>
+                  </div>
+                </div>
+                <div
+                  class="css-60"
+                  tabindex="0"
+                  title="Open POST /conversations"
+                >
+                  <span
+                    class="css-61"
+                    method="POST"
+                  >
+                    POST
+                  </span>
+                  <span
+                    class="css-62"
+                  >
+                    /conversations
+                  </span>
+                </div>
+                <div
+                  class="css-60"
+                  tabindex="0"
+                  title="Open POST /conversations/[string id]/messages"
+                >
+                  <span
+                    class="css-61"
+                    method="POST"
+                  >
+                    POST
+                  </span>
+                  <span
+                    class="css-62"
+                  >
+                    /conversations/[string id]/messages
+                  </span>
+                </div>
+                <div
+                  class="css-60"
+                  tabindex="0"
+                  title="Open POST /cases/[string caseId]/submit"
+                >
+                  <span
+                    class="css-61"
+                    method="POST"
+                  >
+                    POST
+                  </span>
+                  <span
+                    class="css-62"
+                  >
+                    /cases/[string caseId]/submit
+                  </span>
+                </div>
+                <div
+                  class="css-63"
+                >
+                  Show 1 more
+                </div>
+                <div
+                  class="port css-64"
+                  data-name="out::/proj/services.bal::3"
+                />
+                <div
+                  class="port css-65"
+                  data-name="out::/proj/services.bal::6"
+                />
+                <div
+                  class="port css-66"
+                  data-name="out::/proj/services.bal::9"
+                />
+                <div
+                  class="port css-67"
+                  data-name="out::/proj/services.bal::12"
+                />
+                <div
+                  class="port css-68"
+                  data-name="out"
+                />
+              </div>
+            </div>
+          </div>
+          <div
+            class="css-19"
+          >
+            <div
+              class="css-69"
+              color="var(--vscode-foreground)"
+            >
+              <div
+                class="css-70"
+              >
+                <vscode-progress-ring
+                  aria-live="assertive"
+                  class="css-71"
                   color="var(--vscode-contrastBorder, var(--vscode-button-background))"
                   role="alert"
                 />

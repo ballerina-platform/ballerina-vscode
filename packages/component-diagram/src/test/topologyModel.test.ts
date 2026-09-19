@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { CDAgentCall, CDAutomation, CDConnection, CDModel, CDResourceFunction, CDService } from "@wso2/ballerina-core";
+import { CDAgentCall, CDAutomation, CDConnection, CDModel, CDResourceFunction, CDService, CDWorkflow } from "@wso2/ballerina-core";
 import { buildTopology } from "../components/AgentTopologyDiagram/topologyModel";
 import { focusAround } from "../components/AgentTopologyDiagram/topologyFocus";
 import { TopologyAgentArtifact, TopologyInput } from "../components/AgentTopologyDiagram/types";
@@ -82,6 +82,50 @@ function service(filePath: string, line: number, type: string, absolutePath: str
 
 function modelOf(connections: CDConnection[], services: CDService[], automation?: CDAutomation): CDModel {
     return { connections, listeners: [], services, automation };
+}
+
+function durableWorkflow(uuid: string, symbol: string, filePath: string, line: number, extra: Partial<CDWorkflow> = {}): CDWorkflow {
+    return {
+        symbol,
+        location: { filePath, ...range(line) },
+        kind: "DURABLE_AGENT",
+        attachedServices: [],
+        attachedFunctions: [],
+        uuid,
+        enableFlowModel: true,
+        sortText: `${filePath}${line}`,
+        ...extra,
+    };
+}
+
+function durableFn(accessor: string, path: string, line: number, workflows: string[], sendData?: Record<string, string[]>): CDResourceFunction {
+    return { accessor, path, location: { filePath: SERVICES_BAL, ...range(line) }, connections: [], workflows, workflowSendData: sendData };
+}
+
+function durableArtifact(name: string, line: number): TopologyAgentArtifact {
+    return artifact(name, AGENTS_BAL, line, { moduleName: "workflow", kind: "durable" });
+}
+
+function claimsInput(): TopologyInput {
+    const claimAgent = durableWorkflow("claim", "claimAgent", AGENTS_BAL, 3, {
+        role: "Smart Claim assistant",
+        events: [{ name: "chat", type: "string", attachedServices: [], attachedFunctions: [] }],
+        humanTasks: [{ name: "managerApproval", location: { filePath: AGENTS_BAL, ...range(8) }, userRoles: ["MANAGER"] }],
+        activityDecls: [{ name: "fileClaim" }, { name: "executePayment", requiresApproval: true, userRoles: ["ACCOUNTANT"] }],
+        toolConnections: ["notif"],
+        connections: ["model"],
+    });
+    const notifications = connection("notif", "notifications", AGENTS_BAL, 20);
+    const model = connection("model", "claimModel", AGENTS_BAL, 1, "Model Provider");
+    const start = durableFn("post", "conversations", 3, ["claim"]);
+    const message = durableFn("post", "conversations/[string id]/messages", 6, [], { claim: ["chat"] });
+    const submit = durableFn("post", "cases/[string caseId]/submit", 9, [], { claim: ["chat"] });
+    const state = durableFn("get", "conversations/[string id]/state", 12, []);
+    const agentService = service(SERVICES_BAL, 1, "http:Service", "/agent", [], [start, message, submit, state]);
+    return {
+        model: { ...modelOf([notifications, model], [agentService]), workflows: [claimAgent] },
+        agents: [durableArtifact("claimAgent", 3)],
+    };
 }
 
 describe("buildTopology", () => {
@@ -214,8 +258,29 @@ describe("buildTopology", () => {
         expect(graph.edges.map((edge) => edge.sourceId)).toEqual([triggerId, triggerId]);
     });
 
-    // A chain would have to come back to the same card and would lose a step, so the whole handler fans.
-    it("fans a handler that calls one agent twice, even with no construct around the calls", () => {
+    it("chains a handler whose calls sit inside a loop but nothing else, and still records the loop", () => {
+        const generator = agentConnection("g", "generatorAgent", AGENTS_BAL, 1);
+        const evaluator = agentConnection("e", "evaluatorAgent", AGENTS_BAL, 5);
+        const loop = { kind: "while" as const, id: "W", label: "score < 90" };
+        const slogan = resourceFn("post", "slogan", SERVICES_BAL, 1, ["g", "e"], [
+            { connection: "g", line: 3, groups: [loop] },
+            { connection: "e", line: 4, groups: [loop] },
+        ]);
+        const svc = service(SERVICES_BAL, 1, "http:Service", "/studio", ["g", "e"], [slogan]);
+        const graph = buildTopology({
+            model: modelOf([generator, evaluator], [svc]),
+            agents: [artifact("generatorAgent", AGENTS_BAL, 1), artifact("evaluatorAgent", AGENTS_BAL, 5)],
+        });
+
+        const triggerId = graph.entries[0].id;
+        expect(graph.handlers[0]).toMatchObject({ ordered: true, logic: ["loop"] });
+        expect(graph.edges.map((edge) => [edge.sourceId, edge.targetId])).toEqual([
+            [triggerId, agentId(AGENTS_BAL, 1)],
+            [agentId(AGENTS_BAL, 1), agentId(AGENTS_BAL, 5)],
+        ]);
+    });
+
+    it("chains a handler that calls one agent twice along the first calls, and draws the repeat nowhere", () => {
         const notify = agentConnection("not", "notifyAgent", AGENTS_BAL, 1);
         const refund = agentConnection("ref", "refundAgent", AGENTS_BAL, 5);
         const twice = resourceFn("post", "twice", SERVICES_BAL, 1, ["not", "ref"], [
@@ -230,10 +295,34 @@ describe("buildTopology", () => {
         });
 
         const triggerId = graph.entries[0].id;
-        expect(graph.handlers[0]).toMatchObject({ ordered: false, logic: [] });
+        expect(graph.handlers[0]).toMatchObject({ ordered: true, logic: [] });
         expect(graph.edges.map((edge) => [edge.sourceId, edge.targetId])).toEqual([
             [triggerId, agentId(AGENTS_BAL, 1)],
-            [triggerId, agentId(AGENTS_BAL, 5)],
+            [agentId(AGENTS_BAL, 1), agentId(AGENTS_BAL, 5)],
+        ]);
+    });
+
+    it("chains the first calls when only a repeat sits under a branch", () => {
+        const translator = agentConnection("t", "translatorAgent", AGENTS_BAL, 1);
+        const quality = agentConnection("q", "qualityAgent", AGENTS_BAL, 5);
+        const loop = { kind: "foreach" as const, id: "L", label: "language in languages" };
+        const retry = { kind: "if" as const, id: "I", label: "score < 90" };
+        const translate = resourceFn("post", "translate", SERVICES_BAL, 1, ["t", "q"], [
+            { connection: "t", line: 3, groups: [loop] },
+            { connection: "q", line: 4, groups: [loop] },
+            { connection: "t", line: 6, groups: [loop, retry] },
+        ]);
+        const svc = service(SERVICES_BAL, 1, "http:Service", "/studio", ["t", "q"], [translate]);
+        const graph = buildTopology({
+            model: modelOf([translator, quality], [svc]),
+            agents: [artifact("translatorAgent", AGENTS_BAL, 1), artifact("qualityAgent", AGENTS_BAL, 5)],
+        });
+
+        const triggerId = graph.entries[0].id;
+        expect(graph.handlers[0]).toMatchObject({ ordered: true, logic: ["branch", "loop"] });
+        expect(graph.edges.map((edge) => [edge.sourceId, edge.targetId])).toEqual([
+            [triggerId, agentId(AGENTS_BAL, 1)],
+            [agentId(AGENTS_BAL, 1), agentId(AGENTS_BAL, 5)],
         ]);
     });
 
@@ -559,6 +648,109 @@ describe("buildTopology", () => {
         expect(graph.edges[0].sourceId).toBe(graph.entries[0].id);
     });
 
+    it("draws a durable agent from its workflow and artifact, keyed by (file, line), with its capabilities", () => {
+        const graph = buildTopology(claimsInput());
+        const card = graph.agents.find((agent) => agent.name === "claimAgent");
+        expect(card).toMatchObject({
+            id: agentId(AGENTS_BAL, 3),
+            kind: "durable",
+            typeName: "Durable Agent",
+            role: "Smart Claim assistant",
+            moduleName: "workflow",
+            activities: 2,
+            gatedActivities: 1,
+            humanTasks: ["managerApproval"],
+            peers: [],
+            orphan: false,
+        });
+        expect(card.channels.map((channel) => channel.name)).toEqual(["chat"]);
+        expect(card.tools).toEqual([{ name: "fileClaim", kind: "activity" }, { name: "executePayment", kind: "activity" }]);
+        expect(card.chips.map((chip) => chip.label)).toEqual(["notifications"]);
+        expect(card.modelProvider?.label).toBe("claimModel");
+        expect(card.memory).toBeUndefined();
+    });
+
+    it("draws a run from fn.workflows as a trigger edge and each sendData as an event edge into the channel", () => {
+        const graph = buildTopology(claimsInput());
+        const claim = agentId(AGENTS_BAL, 3);
+        const runs = graph.edges.filter((edge) => edge.kind === "trigger");
+        const events = graph.edges.filter((edge) => edge.kind === "event");
+        expect(runs).toHaveLength(1);
+        expect(runs[0]).toMatchObject({ targetId: claim, handlerId: agentId(SERVICES_BAL, 3) });
+        expect(events).toHaveLength(2);
+        expect(new Set(events.map((edge) => edge.id)).size).toBe(2);
+        events.forEach((edge) => expect(edge).toMatchObject({ targetId: claim, channel: "chat" }));
+        expect(graph.handlers.map((handler) => handler.label)).toEqual(["/conversations", "/conversations/[string id]/messages", "/cases/[string caseId]/submit", "/conversations/[string id]/state"]);
+        expect(graph.handlers.map((handler) => handler.sends)).toEqual([undefined, ["chat"], ["chat"], undefined]);
+        expect(graph.handlers.map((handler) => handler.wired)).toEqual([true, true, true, false]);
+        expect(graph.agents[0].channels[0].senders).toEqual(["POST /conversations/[string id]/messages", "POST /cases/[string caseId]/submit"]);
+        expect(graph.legendKinds).toEqual(["trigger", "event", "people"]);
+    });
+
+    it("derives the people line: a task's role decides, a gated activity's role releases, and a gate wins on a shared role", () => {
+        const input = claimsInput();
+        input.model.workflows[0].humanTasks.push({ name: "payout", location: { filePath: AGENTS_BAL, ...range(9) }, userRoles: ["ACCOUNTANT"] });
+        const [card] = buildTopology(input).agents;
+        expect(card.people).toEqual([
+            { role: "MANAGER", gate: false, decides: ["managerApproval"], releases: [] },
+            { role: "ACCOUNTANT", gate: true, decides: ["payout"], releases: ["executePayment"] },
+        ]);
+    });
+
+    it("keeps a durable agent that only receives events an orphan: nothing runs it, and the canvas says so", () => {
+        const input = claimsInput();
+        input.model.services[0].resourceFunctions = input.model.services[0].resourceFunctions.slice(1);
+        const graph = buildTopology(input);
+        expect(graph.agents[0].orphan).toBe(true);
+        expect(graph.edges.map((edge) => edge.kind)).toEqual(["event", "event"]);
+        expect(graph.entries).toHaveLength(1);
+        expect(graph.wiredNothing).toBe(true);
+        expect(graph.legendKinds).toEqual(["event", "people"]);
+    });
+
+    it("draws a gated peer as a locked delegation and an agent tool as a plain one, and keeps the tool's agent off the trigger", () => {
+        const orderAgent = durableWorkflow("order", "orderAgent", AGENTS_BAL, 3, {
+            events: [{ name: "shipping", type: "ShippingUpdate", attachedServices: [], attachedFunctions: [] }],
+            tools: ["askStock"],
+            agentTools: { askStock: "stock" },
+            delegatesTo: ["pay", "stock"],
+            peers: [{ name: "pay", agentUuid: "pay", requiresApproval: true, userRoles: ["FINANCE"] }],
+        });
+        const paymentAgent = durableWorkflow("pay", "paymentAgent", AGENTS_BAL, 12, {
+            humanTasks: [{ name: "release", location: { filePath: AGENTS_BAL, ...range(14) }, userRoles: ["FINANCE"] }],
+        });
+        const stockAgent = agentConnection("stock", "stockAgent", AGENTS_BAL, 20);
+        const orders = { ...durableFn("post", "orders", 3, ["order"]), connections: ["stock"] };
+        const events = durableFn("post", "orders/[string id]/events", 6, [], { order: ["shipping"] });
+        const desk = service(SERVICES_BAL, 1, "http:Service", "/order-desk", ["stock"], [orders, events]);
+        const graph = buildTopology({
+            model: { ...modelOf([stockAgent], [desk]), workflows: [orderAgent, paymentAgent] },
+            agents: [durableArtifact("orderAgent", 3), durableArtifact("paymentAgent", 12), artifact("stockAgent", AGENTS_BAL, 20)],
+        });
+        const order = agentId(AGENTS_BAL, 3);
+        const delegations = graph.edges.filter((edge) => edge.kind === "delegation");
+        expect(delegations).toEqual(expect.arrayContaining([
+            expect.objectContaining({ sourceId: order, targetId: agentId(AGENTS_BAL, 12), gated: true, gatedBy: ["FINANCE"] }),
+            expect.objectContaining({ sourceId: order, targetId: agentId(AGENTS_BAL, 20), gated: undefined }),
+        ]));
+        expect(graph.edges.filter((edge) => edge.kind === "trigger").map((edge) => edge.targetId)).toEqual([order]);
+        expect(graph.agents.find((agent) => agent.name === "orderAgent")).toMatchObject({
+            people: [{ role: "FINANCE", gate: true, decides: [], releases: ["pay"] }],
+            tools: [{ name: "askStock", kind: "agent" }],
+            peers: ["pay"],
+        });
+        expect(graph.agents.find((agent) => agent.name === "paymentAgent")).toMatchObject({ people: [{ role: "FINANCE", gate: false, decides: ["release"], releases: [] }], orphan: false });
+        expect(graph.agents.find((agent) => agent.name === "stockAgent").orphan).toBe(false);
+        expect(graph.legendKinds).toEqual(["trigger", "event", "delegation", "gate"]);
+    });
+
+    it("still draws a durable workflow the artifact list does not list, keyed by its own location", () => {
+        const input = claimsInput();
+        input.agents = [];
+        const [card] = buildTopology(input).agents;
+        expect(card).toMatchObject({ id: agentId(AGENTS_BAL, 3), name: "claimAgent", kind: "durable", moduleName: "workflow" });
+    });
+
     it("does not hang or crash on a delegation cycle with no trigger reaching it", () => {
         const a = agentConnection("a", "agentA", AGENTS_BAL, 1, { delegatesTo: ["b"] });
         const b = agentConnection("b", "agentB", AGENTS_BAL, 5, { delegatesTo: ["a"] });
@@ -569,5 +761,34 @@ describe("buildTopology", () => {
         });
 
         expect(graph.agents.every((agent) => agent.orphan)).toBe(true);
+    });
+
+    it("keeps a service's idle handlers as rows after the ones that run agents, so the card shows the whole service", () => {
+        const agent = agentConnection("a1", "helpAgent", AGENTS_BAL, 1);
+        const health = resourceFn("get", "health", SERVICES_BAL, 2, []);
+        const ask = resourceFn("post", "ask", SERVICES_BAL, 5, ["a1"]);
+        const status = resourceFn("get", "status", SERVICES_BAL, 8, []);
+        const svc = service(SERVICES_BAL, 1, "http:Service", "/help", ["a1"], [health, ask, status]);
+
+        const graph = buildTopology({ model: modelOf([agent], [svc]), agents: [artifact("helpAgent", AGENTS_BAL, 1)] });
+
+        expect(graph.handlers.map((handler) => [handler.label, handler.wired])).toEqual([["/ask", true], ["/health", false], ["/status", false]]);
+        expect(graph.edges).toHaveLength(1);
+        expect(graph.edges[0].handlerId).toBe(agentId(SERVICES_BAL, 5));
+    });
+
+    it("draws a service none of whose handlers runs an agent, and an automation that runs none, as idle cards", () => {
+        const agent = agentConnection("a1", "helpAgent", AGENTS_BAL, 1);
+        const ask = resourceFn("post", "ask", SERVICES_BAL, 2, ["a1"]);
+        const wired = service(SERVICES_BAL, 1, "http:Service", "/help", ["a1"], [ask]);
+        const ping = resourceFn("get", "ping", SERVICES_BAL, 11, []);
+        const idle = service(SERVICES_BAL, 10, "http:Service", "/ops", [], [ping]);
+        const automation: CDAutomation = { name: "automation", displayName: "main", location: { filePath: MAIN_BAL, ...range(1) }, connections: [], uuid: "auto1" };
+
+        const graph = buildTopology({ model: modelOf([agent], [wired, idle], automation), agents: [artifact("helpAgent", AGENTS_BAL, 1)] });
+
+        expect(graph.entries.map((entry) => [entry.title, entry.handlers.some((handler) => handler.wired)])).toEqual([["main", false], ["/help", true], ["/ops", false]]);
+        expect(graph.edges).toHaveLength(1);
+        expect(graph.wiredNothing).toBe(false);
     });
 });

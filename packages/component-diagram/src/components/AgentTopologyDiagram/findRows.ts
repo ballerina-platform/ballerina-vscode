@@ -40,6 +40,11 @@ export interface FindRow {
     agent?: TopologyAgentNode;
 }
 
+// The accessor renders as its own pill next to the label, so a plain-text context needs it spelled back in.
+export function rowFullLabel(row: Pick<FindRow, "accessor" | "label">): string {
+    return row.accessor ? `${row.accessor} ${row.label}` : row.label;
+}
+
 const PROTOCOLS = new Set(["http", "https", "grpc", "tcp", "udp", "ftp", "sftp", "smtp", "imap", "mqtt", "nats", "jms", "amqp", "asb"]);
 
 export function entryKind(entry: TopologyEntryNode): string {
