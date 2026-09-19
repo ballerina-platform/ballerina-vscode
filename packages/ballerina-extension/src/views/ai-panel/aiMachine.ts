@@ -27,9 +27,9 @@ import {
     isDevantUserLoggedIn,
     getPlatformStsToken,
     exchangeStsToCopilotToken,
-    storeAuthCredentials,
     getAuthCredentials,
-    getPlatformExtensionAPI
+    getPlatformExtensionAPI,
+    storeBiIntelCredentials
 } from '../../utils/ai/auth';
 import * as vscode from 'vscode';
 import { notifyAiPromptUpdated } from '../../RPCLayer';
@@ -65,6 +65,9 @@ export const closeAIWebview = () => {
  * @param prompt - Optional prompt configuration for the AI Panel. Can be:
  *   - `{ type: 'command-template', ... }` - Opens with a specific command template
  *   - `{ type: 'text', text: string, planMode: boolean }` - Opens with raw text input
+ *   - `{ type: 'skill', ... }` - Opens with a skill invocation
+ *   - `{ type: 'view', view }` - Opens straight onto a panel surface
+ *   - `{ type: 'thread', threadId }` - Opens on an existing conversation
  *   - `undefined` - Opens without any default prompt
  *
  * @example
@@ -493,7 +496,7 @@ const completeSsoSignIn = async (): Promise<void> => {
         throw new Error('Failed to get STS token from platform extension');
     }
     const secrets = await exchangeStsToCopilotToken(stsToken);
-    await storeAuthCredentials({ loginMethod: LoginMethod.BI_INTEL, secrets });
+    await storeBiIntelCredentials(secrets);
     aiStateService.send(AIMachineEventType.COMPLETE_AUTH);
 };
 

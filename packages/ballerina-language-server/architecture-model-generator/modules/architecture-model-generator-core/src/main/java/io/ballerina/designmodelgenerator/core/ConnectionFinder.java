@@ -439,11 +439,10 @@ public class ConnectionFinder {
     }
 
     // A named variable resolves through its type; an inline `ai:getDefaultModelProvider()` has no variable
-    // and a union return type, so it is recognised by name.
+    // and a union return type, so it is recognised by resolving the called function itself.
     private void setModelProvider(Connection connection, ExpressionNode expression) {
         ExpressionNode expr = unwrapCheck(expression);
-        if (expr instanceof FunctionCallExpressionNode call
-                && call.functionName().toSourceCode().trim().endsWith(DEFAULT_MODEL_PROVIDER_FUNCTION)) {
+        if (expr instanceof FunctionCallExpressionNode call && isDefaultModelProviderCall(call)) {
             connection.setModelProvider(new Connection.ModelProvider(null, WSO2_MODEL_PROVIDER, null));
             return;
         }
@@ -458,6 +457,15 @@ public class ConnectionFinder {
         String symbol = expr instanceof SimpleNameReferenceNode varRef ? varRef.name().text() : null;
         connection.setModelProvider(new Connection.ModelProvider(symbol, CommonUtils.getTypeName(rawType),
                 CommonUtils.generateIcon(rawType)));
+    }
+
+    private boolean isDefaultModelProviderCall(FunctionCallExpressionNode call) {
+        Optional<Symbol> symbol = this.semanticModel.symbol(call.functionName());
+        return symbol.isPresent()
+                && symbol.get().getName().filter(DEFAULT_MODEL_PROVIDER_FUNCTION::equals).isPresent()
+                && symbol.get().getModule().map(ModuleSymbol::id)
+                        .filter(id -> CommonUtils.isAiModule(id.orgName(), id.packageName()))
+                        .isPresent();
     }
 
     // handleInitMethodArgs walks every connection's init args generically, agent or not, so this is the one place

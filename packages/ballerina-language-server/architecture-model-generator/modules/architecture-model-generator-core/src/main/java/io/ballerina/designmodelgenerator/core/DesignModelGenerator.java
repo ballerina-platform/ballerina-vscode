@@ -235,15 +235,9 @@ public class DesignModelGenerator {
                 .build();
     }
 
-    /**
-     * For every agent connection, resolves its tool functions' own connections and splits them into
-     * {@code delegatesTo} (other agents, the agent-as-tool pattern) and {@code toolConnections} (everything
-     * else, e.g. an HTTP client a tool calls) so the overview can draw both without a per-agent flow read.
-     * Runs over every agent regardless of whether it is reached from an entry point, so an otherwise
-     * unreachable agent still resolves its own delegation edges.
-     */
     // A function's agent calls in source order, each helper call replaced by the helper's own calls at the call
-    // site, under the caller's constructs. A helper's own list is expanded once and reused by every caller.
+    // site, under the caller's constructs. A helper's own list is expanded once and memoized for the rest of
+    // that entry point's expansion, so a helper called more than once from the same entry point is walked once.
     private List<AgentCall> expandedAgentCalls(IntermediateModel intermediateModel,
                                                IntermediateModel.FunctionModel functionModel,
                                                IntermediateModel.ServiceModel serviceModel) {
@@ -286,6 +280,13 @@ public class DesignModelGenerator {
         return intermediateModel.functionModelMap.get(helperCall.name());
     }
 
+    /**
+     * For every agent connection, resolves its tool functions' own connections and splits them into
+     * {@code delegatesTo} (other agents, the agent-as-tool pattern) and {@code toolConnections} (everything
+     * else, e.g. an HTTP client a tool calls) so the overview can draw both without a per-agent flow read.
+     * Runs over every agent regardless of whether it is reached from an entry point, so an otherwise
+     * unreachable agent still resolves its own delegation edges.
+     */
     private void linkAgentToolTargets(IntermediateModel intermediateModel) {
         for (Connection connection : intermediateModel.uuidToConnectionMap.values()) {
             if (!ConnectionKind.AGENT.toString().equals(connection.getKind())) {
@@ -574,17 +575,16 @@ public class DesignModelGenerator {
     }
 
     private void populateAgentEvents(Workflow agent, ExpressionNode events) {
-        for (DeclaredEntry entry : declaredEntries(events)) {
-            String requestType = entry.config() == null ? null : getMappingRawField(entry.config(), "request");
+        for (WorkflowUtil.CapabilityEntry entry : WorkflowUtil.capabilityEntries(events)) {
+            String requestType = getMappingRawField(entry.config(), "request");
             agent.addEvent(new Workflow.Event(entry.name(), requestType == null ? "anydata" : requestType));
         }
     }
 
     private void populateAgentHumanTasks(Workflow agent, ExpressionNode tasks) {
-        for (DeclaredEntry entry : declaredEntries(tasks)) {
-            String title = entry.config() == null ? null : getMappingStringField(entry.config(), "title");
+        for (WorkflowUtil.CapabilityEntry entry : WorkflowUtil.capabilityEntries(tasks)) {
             agent.addHumanTask(new Workflow.HumanTask(entry.name(), getLocation(entry.node().lineRange()),
-                    rolesOf(entry.config()), title));
+                    rolesOf(entry.config()), getMappingStringField(entry.config(), "title")));
         }
     }
 
@@ -622,45 +622,6 @@ public class DesignModelGenerator {
                     isGated(config), rolesOf(config)));
             agent.addDelegatesTo(target.getUuid());
         }
-    }
-
-    private record DeclaredEntry(String name, Node node, MappingConstructorExpressionNode config) {
-    }
-
-    private static List<DeclaredEntry> declaredEntries(ExpressionNode value) {
-        if (value instanceof MappingConstructorExpressionNode keyed) {
-            return keyedEntries(keyed);
-        }
-        if (value instanceof ListConstructorExpressionNode list) {
-            return listedEntries(list);
-        }
-        return List.of();
-    }
-
-    private static List<DeclaredEntry> keyedEntries(MappingConstructorExpressionNode keyed) {
-        List<DeclaredEntry> entries = new ArrayList<>();
-        for (MappingFieldNode field : keyed.fields()) {
-            if (!(field instanceof SpecificFieldNode entry) || entry.valueExpr().isEmpty()) {
-                continue;
-            }
-            MappingConstructorExpressionNode config =
-                    entry.valueExpr().get() instanceof MappingConstructorExpressionNode mapping ? mapping : null;
-            entries.add(new DeclaredEntry(stripQuotes(entry.fieldName().toSourceCode().trim()), entry, config));
-        }
-        return entries;
-    }
-
-    private static List<DeclaredEntry> listedEntries(ListConstructorExpressionNode list) {
-        List<DeclaredEntry> entries = new ArrayList<>();
-        for (Node item : list.expressions()) {
-            if (item instanceof MappingConstructorExpressionNode config) {
-                String name = getMappingStringField(config, "name");
-                if (name != null) {
-                    entries.add(new DeclaredEntry(name, item, config));
-                }
-            }
-        }
-        return entries;
     }
 
     private static List<String> rolesOf(MappingConstructorExpressionNode config) {
@@ -759,7 +720,11 @@ public class DesignModelGenerator {
         return value == null ? null : value.toSourceCode().trim();
     }
 
+    // Some capability entries (a bare name with no `{...}` config) have no mapping to read.
     private static ExpressionNode getMappingFieldExpr(MappingConstructorExpressionNode mapping, String fieldName) {
+        if (mapping == null) {
+            return null;
+        }
         for (MappingFieldNode field : mapping.fields()) {
             if (field instanceof SpecificFieldNode specificField
                     && fieldName.equals(specificField.fieldName().toSourceCode().trim())

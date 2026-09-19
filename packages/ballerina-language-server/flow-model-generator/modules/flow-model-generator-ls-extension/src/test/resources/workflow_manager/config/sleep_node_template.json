@@ -36,7 +36,7 @@
             "typeMembers": [
               {
                 "type": "Duration",
-                "packageInfo": "ballerina:workflow:0.9.0",
+                "packageInfo": "ballerina:workflow:0.10.0",
                 "packageName": "workflow",
                 "kind": "RECORD_TYPE",
                 "selected": false
@@ -63,7 +63,7 @@
       "stepId": {
         "metadata": {
           "label": "Step Id",
-          "description": "Identity of this step within the workflow, as for `callActivity`: name it to follow\nthis sleep across edits, or omit it for a generated `sleep#<ordinal>`. Recorded as\nthe timer's summary, so an instance diagram can tell two sleeps apart"
+          "description": "Identity of this step within the workflow, as for `callActivity`"
         },
         "types": [
           {
@@ -80,7 +80,7 @@
         "placeholder": "()",
         "optional": true,
         "editable": true,
-        "advanced": false,
+        "advanced": true,
         "hidden": false,
         "codedata": {
           "kind": "DEFAULTABLE",

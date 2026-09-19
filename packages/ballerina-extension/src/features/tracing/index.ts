@@ -19,3 +19,4 @@
 export { activateTracing, TRACE_WINDOW_COMMAND, ENABLE_TRACING_COMMAND, TRACE_VIEW_ID } from './activate';
 export { TracerMachine } from './tracer-machine';
 export { TraceServer } from './trace-server';
+export { getActiveTracingProvider, isAmpConfigIncomplete } from './utils';

@@ -1,0 +1,619 @@
+{
+  "source": "agent_explicit_new",
+  "description": "Agent created with explicit-new syntax (check new ai:Agent(...))",
+  "flowModel": {
+    "fileName": "agent_explicit_new",
+    "nodes": [],
+    "connections": [
+      {
+        "id": "33813",
+        "metadata": {
+          "label": "Model Provider",
+          "description": "Creates a default model provider based on the provided `wso2ProviderConfig`.",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png"
+        },
+        "codedata": {
+          "node": "MODEL_PROVIDER",
+          "org": "ballerina",
+          "module": "ai",
+          "symbol": "getDefaultModelProvider",
+          "lineRange": {
+            "fileName": "main.bal",
+            "startLine": {
+              "line": 2,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 2,
+              "offset": 85
+            }
+          },
+          "sourceCode": "final ai:Wso2ModelProvider customerSupportModel = check ai:getDefaultModelProvider();"
+        },
+        "returning": false,
+        "properties": {
+          "checkError": {
+            "metadata": {
+              "label": "Check Error",
+              "description": "Terminate on error"
+            },
+            "types": [
+              {
+                "fieldType": "FLAG",
+                "selected": true
+              }
+            ],
+            "value": true,
+            "optional": false,
+            "editable": false,
+            "advanced": true,
+            "hidden": true
+          },
+          "scope": {
+            "metadata": {
+              "label": "Connection Scope",
+              "description": "Scope of the connection, Global or Local"
+            },
+            "types": [
+              {
+                "fieldType": "ENUM",
+                "selected": true
+              }
+            ],
+            "value": "Global",
+            "optional": false,
+            "editable": true,
+            "advanced": true,
+            "hidden": true
+          },
+          "variable": {
+            "metadata": {
+              "label": "Variable Name",
+              "description": "Name of the variable"
+            },
+            "types": [
+              {
+                "fieldType": "IDENTIFIER",
+                "selected": true
+              }
+            ],
+            "value": "customerSupportModel",
+            "optional": false,
+            "editable": false,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "lineRange": {
+                "fileName": "main.bal",
+                "startLine": {
+                  "line": 2,
+                  "offset": 27
+                },
+                "endLine": {
+                  "line": 2,
+                  "offset": 47
+                }
+              }
+            }
+          },
+          "type": {
+            "metadata": {
+              "label": "Variable Type",
+              "description": "Type of the variable"
+            },
+            "types": [
+              {
+                "fieldType": "TYPE",
+                "selected": true
+              }
+            ],
+            "value": "ai:Wso2ModelProvider",
+            "placeholder": "var",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {}
+          }
+        },
+        "flags": 1
+      },
+      {
+        "id": "35869",
+        "metadata": {
+          "label": "Agent",
+          "description": "Represents an agent.",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png",
+          "data": {
+            "agentInfo": {
+              "systemPrompt": {
+                "instructions": "You are a helpful assistant",
+                "role": "Customer Support Assistant"
+              },
+              "modelProvider": {
+                "presentation": {
+                  "name": "customerSupportModel",
+                  "path": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png",
+                  "type": "Wso2ModelProvider"
+                }
+              }
+            }
+          }
+        },
+        "codedata": {
+          "node": "AGENT",
+          "org": "ballerina",
+          "module": "ai",
+          "packageName": "ai",
+          "object": "Agent",
+          "symbol": "init",
+          "version": "1.15.0",
+          "lineRange": {
+            "fileName": "main.bal",
+            "startLine": {
+              "line": 4,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 9,
+              "offset": 2
+            }
+          },
+          "sourceCode": "final ai:Agent mathTutorAgent = check new ai:Agent(\n    systemPrompt = {\n        role: string `Customer Support Assistant`,\n        instructions: string `You are a helpful assistant`\n    }, model = customerSupportModel\n);"
+        },
+        "returning": false,
+        "properties": {
+          "role": {
+            "metadata": {
+              "label": "Role",
+              "description": "Define the agent's primary function"
+            },
+            "types": [
+              {
+                "fieldType": "PROMPT",
+                "ballerinaType": "string",
+                "selected": true
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string",
+                "selected": false
+              }
+            ],
+            "value": "Customer Support Assistant",
+            "placeholder": "e.g., Customer Support Assistant, Sales Advisor, Data Analyst",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "REQUIRED"
+            },
+            "defaultValue": ""
+          },
+          "instructions": {
+            "metadata": {
+              "label": "Instructions",
+              "description": "Detailed instructions for the agent"
+            },
+            "types": [
+              {
+                "fieldType": "PROMPT",
+                "ballerinaType": "string",
+                "selected": true
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string",
+                "selected": false
+              }
+            ],
+            "value": "You are a helpful assistant",
+            "placeholder": "e.g., You are a friendly assistant. Your goal is to...",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "REQUIRED"
+            },
+            "defaultValue": ""
+          },
+          "systemPrompt": {
+            "metadata": {
+              "label": "System Prompt",
+              "description": "The system prompt assigned to the agent"
+            },
+            "types": [
+              {
+                "fieldType": "RECORD_MAP_EXPRESSION",
+                "ballerinaType": "ai:SystemPrompt",
+                "typeMembers": [
+                  {
+                    "type": "SystemPrompt",
+                    "packageInfo": "ballerina:ai:1.15.0",
+                    "packageName": "ai",
+                    "kind": "RECORD_TYPE",
+                    "selected": true
+                  }
+                ],
+                "selected": true
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "ai:SystemPrompt",
+                "selected": false
+              }
+            ],
+            "value": "{\n        role: string `Customer Support Assistant`,\n        instructions: string `You are a helpful assistant`\n    }",
+            "placeholder": "{role: \"\", instructions: \"\"}",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": true,
+            "codedata": {
+              "kind": "INCLUDED_FIELD",
+              "originalName": "systemPrompt"
+            },
+            "defaultValue": "{role: \"\", instructions: \"\"}"
+          },
+          "model": {
+            "metadata": {
+              "label": "Model",
+              "description": "The model used by the agent"
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "ai:ModelProvider",
+                "selected": true
+              }
+            ],
+            "value": "customerSupportModel",
+            "placeholder": "object {}",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "INCLUDED_FIELD",
+              "originalName": "model"
+            },
+            "defaultValue": "object {}"
+          },
+          "tools": {
+            "metadata": {
+              "label": "Tools",
+              "description": "The tools available for the agent"
+            },
+            "types": [
+              {
+                "fieldType": "REPEATABLE_LIST",
+                "ballerinaType": "(ai:BaseToolKit|ai:ToolConfig|ai:FunctionTool)[]",
+                "template": {
+                  "types": [
+                    {
+                      "fieldType": "RECORD_MAP_EXPRESSION",
+                      "ballerinaType": "ai:ToolConfig",
+                      "typeMembers": [
+                        {
+                          "type": "ToolConfig",
+                          "packageInfo": "ballerina:ai:1.15.0",
+                          "packageName": "ai",
+                          "kind": "RECORD_TYPE",
+                          "selected": false
+                        }
+                      ],
+                      "selected": false
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "ai:BaseToolKit|ai:ToolConfig|ai:FunctionTool",
+                      "selected": false
+                    }
+                  ],
+                  "optional": false,
+                  "editable": false,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "(ai:BaseToolKit|ai:ToolConfig|ai:FunctionTool)[]",
+                "selected": false
+              }
+            ],
+            "placeholder": "[]",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true,
+            "codedata": {
+              "kind": "INCLUDED_FIELD",
+              "originalName": "tools"
+            },
+            "defaultValue": "[]"
+          },
+          "maxIter": {
+            "metadata": {
+              "label": "Maximum Iterations",
+              "description": "The maximum number of reasoning-action cycles the agent performs to complete the task.\nA single cycle is one LLM call plus the execution of every tool call returned in\nthat response, so multiple tool calls from one response count as one iteration.\nDefaults to `max(number of tools, 10)` — i.e., at least 10, or more if the\nagent has more tools available."
+            },
+            "types": [
+              {
+                "fieldType": "SINGLE_SELECT",
+                "options": [
+                  {
+                    "label": "INFER_TOOL_COUNT",
+                    "value": "\"INFER_TOOL_COUNT\""
+                  }
+                ],
+                "selected": false
+              },
+              {
+                "fieldType": "NUMBER",
+                "ballerinaType": "int",
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "\"INFER_TOOL_COUNT\"|int",
+                "selected": false
+              }
+            ],
+            "placeholder": "\"INFER_TOOL_COUNT\"",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "INCLUDED_FIELD",
+              "originalName": "maxIter"
+            },
+            "defaultValue": "\"INFER_TOOL_COUNT\""
+          },
+          "verbose": {
+            "metadata": {
+              "label": "Verbose",
+              "description": "Specifies whether verbose logging is enabled"
+            },
+            "types": [
+              {
+                "fieldType": "FLAG",
+                "ballerinaType": "boolean",
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "boolean",
+                "selected": false
+              }
+            ],
+            "placeholder": "false",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "INCLUDED_FIELD",
+              "originalName": "verbose"
+            },
+            "defaultValue": "false"
+          },
+          "memory": {
+            "metadata": {
+              "label": "Memory",
+              "description": "The memory used by the agent to store and manage conversation history.\nDefaults to use an in-memory message store that trims on overflow, if unspecified."
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "ai:Memory?",
+                "selected": false
+              }
+            ],
+            "placeholder": "()",
+            "optional": true,
+            "editable": true,
+            "advanced": true,
+            "hidden": true,
+            "codedata": {
+              "kind": "INCLUDED_FIELD",
+              "originalName": "memory"
+            },
+            "defaultValue": "()"
+          },
+          "toolLoadingStrategy": {
+            "metadata": {
+              "label": "Tool Loading Strategy",
+              "description": "Defines the strategies for loading tool schemas into an Agent.\nBy default, all tools are loaded without any filtering."
+            },
+            "types": [
+              {
+                "fieldType": "SINGLE_SELECT",
+                "options": [
+                  {
+                    "label": "NO_FILTER",
+                    "value": "\"NO_FILTER\""
+                  },
+                  {
+                    "label": "LLM_FILTER",
+                    "value": "\"LLM_FILTER\""
+                  }
+                ],
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "ai:ToolLoadingStrategy",
+                "selected": false
+              }
+            ],
+            "placeholder": "\"LLM_FILTER\"",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "INCLUDED_FIELD",
+              "originalName": "toolLoadingStrategy"
+            },
+            "defaultValue": "\"LLM_FILTER\""
+          },
+          "executeToolCallsInParallel": {
+            "metadata": {
+              "label": "Execute Tool Calls In Parallel",
+              "description": "Specifies whether multiple tool calls returned in a single LLM response are executed in parallel.\nIf `true`, all tool calls from one LLM response are executed concurrently;\notherwise, they are executed sequentially, one after another."
+            },
+            "types": [
+              {
+                "fieldType": "FLAG",
+                "ballerinaType": "boolean",
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "boolean",
+                "selected": false
+              }
+            ],
+            "placeholder": "false",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "INCLUDED_FIELD",
+              "originalName": "executeToolCallsInParallel"
+            },
+            "defaultValue": "false"
+          },
+          "credential": {
+            "metadata": {
+              "label": "Agent Credential",
+              "description": "Optional authentication details of the agent."
+            },
+            "types": [
+              {
+                "fieldType": "RECORD_MAP_EXPRESSION",
+                "ballerinaType": "ai:Credential",
+                "typeMembers": [
+                  {
+                    "type": "Credential",
+                    "packageInfo": "ballerina:ai:1.15.0",
+                    "packageName": "ai",
+                    "kind": "RECORD_TYPE",
+                    "selected": false
+                  }
+                ],
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "ai:Credential",
+                "selected": false
+              }
+            ],
+            "placeholder": "{id: \"\", secret: \"\"}",
+            "optional": true,
+            "editable": true,
+            "advanced": true,
+            "hidden": false,
+            "codedata": {
+              "kind": "INCLUDED_FIELD",
+              "originalName": "credential"
+            },
+            "defaultValue": "{id: \"\", secret: \"\"}"
+          },
+          "checkError": {
+            "metadata": {
+              "label": "Check Error",
+              "description": "Terminate on error"
+            },
+            "types": [
+              {
+                "fieldType": "FLAG",
+                "selected": true
+              }
+            ],
+            "value": true,
+            "optional": false,
+            "editable": false,
+            "advanced": true,
+            "hidden": true
+          },
+          "scope": {
+            "metadata": {
+              "label": "Connection Scope",
+              "description": "Scope of the connection, Global or Local"
+            },
+            "types": [
+              {
+                "fieldType": "ENUM",
+                "selected": true
+              }
+            ],
+            "value": "Global",
+            "optional": false,
+            "editable": true,
+            "advanced": true,
+            "hidden": true
+          },
+          "variable": {
+            "metadata": {
+              "label": "Variable Name",
+              "description": "Name of the variable"
+            },
+            "types": [
+              {
+                "fieldType": "IDENTIFIER",
+                "selected": true
+              }
+            ],
+            "value": "mathTutorAgent",
+            "optional": false,
+            "editable": false,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "lineRange": {
+                "fileName": "main.bal",
+                "startLine": {
+                  "line": 4,
+                  "offset": 15
+                },
+                "endLine": {
+                  "line": 4,
+                  "offset": 29
+                }
+              }
+            }
+          },
+          "type": {
+            "metadata": {
+              "label": "Variable Type",
+              "description": "Type of the variable"
+            },
+            "types": [
+              {
+                "fieldType": "TYPE",
+                "selected": true
+              }
+            ],
+            "value": "ai:Agent",
+            "placeholder": "var",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {}
+          }
+        },
+        "flags": 1
+      }
+    ],
+    "variables": []
+  }
+}

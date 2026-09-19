@@ -30,10 +30,15 @@ import {
 export { validateComponentName } from "../ProjectForm/utils";
 export { findScopeByModule, findScope };
 
+// Durable agents list under Agents, yet still run on the workflow engine the workflow scope and card configure.
 export function hasWorkflowArtifacts(projectStructure?: ProjectStructure): boolean {
     const workflows = projectStructure?.directoryMap?.[DIRECTORY_MAP.WORKFLOW] ?? [];
     const agents = projectStructure?.directoryMap?.[DIRECTORY_MAP.AGENT] ?? [];
     return workflows.length > 0 || agents.some((agent) => agent.moduleName === "workflow");
+}
+
+export function hasAgentArtifacts(projectStructure?: ProjectStructure): boolean {
+    return (projectStructure?.directoryMap?.[DIRECTORY_MAP.AGENT] ?? []).length > 0;
 }
 
 /**

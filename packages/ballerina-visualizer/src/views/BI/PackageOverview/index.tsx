@@ -16,30 +16,30 @@
  * under the License.
  */
 
-import React, { ReactNode, useCallback, useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
     ProjectStructure,
     EVENT_TYPE,
     MACHINE_VIEW,
-    BuildMode,
     BI_COMMANDS,
     DIRECTORY_MAP,
     isSamePath,
 } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { Typography, Codicon, ProgressRing, Button, Icon, Divider, CheckBox, ProgressIndicator, Overlay, Dropdown } from "@wso2/ui-toolkit";
+import { Typography, Codicon, ProgressRing, Button, Icon, ProgressIndicator, Overlay, Dropdown } from "@wso2/ui-toolkit";
 import styled from "@emotion/styled";
 import { ThemeColors } from "@wso2/ui-toolkit";
 import { VSCodeLink } from "@vscode/webview-ui-toolkit/react";
 import { Markdown } from "../../../components/Markdown";
-import { IOpenInConsoleCmdParams, WICommandIds } from "@wso2/wso2-platform-core";
 import { AlertBoxWithClose } from "../../AIPanel/AlertBoxWithClose";
-import { getIntegrationTypes, hasWorkflowArtifacts, validateComponentName, useProjectContentRefresh } from "./utils";
+import { getIntegrationTypes, hasWorkflowArtifacts, hasAgentArtifacts, validateComponentName, useProjectContentRefresh } from "./utils";
 import { usePlatformExtContext } from "../../../providers/platform-ext-ctx-provider";
 import { TopNavigationBar } from "../../../components/TopNavigationBar";
 import { TitleBar } from "../../../components/TitleBar";
 import { PageHeader } from "../components/PageHeader";
+import { DeploymentPanel } from "../../../components/DeploymentControl";
+import { useDeploymentControl } from "../../../hooks/useDeploymentControl";
+import { useTracingStatus } from "../../../hooks/useProductMode";
 import { PublishToCentralButton } from "./PublishToCentralButton";
 import { LibraryOverview } from "./LibraryOverview";
 import { CopilotComposer } from "./CopilotComposer";
@@ -56,10 +56,6 @@ const SpinnerContainer = styled.div`
     justify-content: center;
     align-items: center;
     height: 100%;
-`;
-
-const Title = styled(Typography)`
-    margin: 8px 0;
 `;
 
 const Description = styled(Typography)`
@@ -332,539 +328,6 @@ const DeployButton = styled.div`
     flex-direction: column;
 `;
 
-interface DeploymentOptionContainerProps {
-    isExpanded: boolean;
-}
-
-const DeploymentOptionContainer = styled.div<DeploymentOptionContainerProps>`
-    cursor: pointer;
-    border: ${(props: DeploymentOptionContainerProps) => props.isExpanded ? '1px solid var(--vscode-welcomePage-tileBorder)' : 'none'};
-    background: ${(props: DeploymentOptionContainerProps) => props.isExpanded ? 'var(--vscode-welcomePage-tileBackground)' : 'transparent'};
-    border-radius: 6px;
-    display: flex;
-    overflow: hidden;
-    width: 100%;
-    padding: 10px;
-    flex-direction: column;
-    margin-bottom: 8px;
-
-    &:hover {
-        background: var(--vscode-welcomePage-tileHoverBackground);
-    }
-`;
-
-const DeploymentHeader = styled.div`
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    h3 {
-        font-size: 13px;
-        font-weight: 600;
-        margin: 0;
-        width: 100%;
-    }
-`;
-
-const DevantHeaderWrap = styled.div`
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-`;
-
-interface DeploymentBodyProps {
-    isExpanded: boolean;
-}
-
-const DeploymentBody = styled.div<DeploymentBodyProps>`
-    max-height: ${(props: DeploymentBodyProps) => props.isExpanded ? '200px' : '0'};
-    overflow: hidden;
-    transition: max-height 0.3s ease-in-out;
-    margin-top: ${(props: DeploymentBodyProps) => props.isExpanded ? '8px' : '0'};
-`;
-
-interface DeploymentOptionProps {
-    title: ReactNode;
-    description: string;
-    buttonText: string;
-    isExpanded: boolean;
-    onToggle: () => void;
-    onDeploy: () => void;
-    learnMoreLink?: string;
-    hasDeployableIntegration?: boolean;
-    secondaryAction?: {
-        description: string;
-        buttonText: string;
-        onClick: () => void;
-    };
-}
-
-function DeploymentOption({
-    title,
-    description,
-    buttonText,
-    isExpanded,
-    onToggle,
-    onDeploy,
-    learnMoreLink,
-    secondaryAction,
-    hasDeployableIntegration
-}: DeploymentOptionProps) {
-    const { rpcClient } = useRpcContext();
-
-    const openLearnMoreURL = () => {
-        rpcClient.getCommonRpcClient().openExternalUrl({
-            url: learnMoreLink
-        })
-    };
-
-    return (
-        <DeploymentOptionContainer
-            isExpanded={isExpanded}
-            onClick={onToggle}
-        >
-            <DeploymentHeader>
-                {isExpanded ? (
-                    <Codicon
-                        name={'triangle-down'}
-                        sx={{ color: 'var(--vscode-textLink-foreground)' }}
-                    />
-                ) : (
-                    <Codicon
-                        name={'triangle-right'}
-                        sx={{ color: 'inherit' }}
-                    />
-                )}
-                <h3>{title}</h3>
-            </DeploymentHeader>
-            <DeploymentBody isExpanded={isExpanded}>
-                <p style={{ marginTop: 8 }}>
-                    {description}
-                    {learnMoreLink && (
-                        <VSCodeLink onClick={openLearnMoreURL} style={{ marginLeft: '4px' }}>Learn more</VSCodeLink>
-                    )}
-                </p>
-                <Button
-                    appearance="secondary"
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        onDeploy();
-                    }}
-                    disabled={!hasDeployableIntegration}
-                    tooltip={hasDeployableIntegration ? "" : "No deployable integration found"}
-                >
-                    {buttonText}
-                </Button>
-                {secondaryAction && (
-                    <>
-                        <p>{secondaryAction.description}</p>
-                        <Button appearance="primary" onClick={(e) => {
-                            e.stopPropagation();
-                            secondaryAction.onClick()
-                        }}>
-                            {secondaryAction.buttonText}
-                        </Button>
-                    </>
-                )}
-            </DeploymentBody>
-        </DeploymentOptionContainer>
-    );
-}
-
-interface DeploymentOptionsProps {
-    handleDockerBuild: () => void;
-    handleJarBuild: () => void;
-    handleDeploy: () => Promise<void>;
-    goToDevant: () => void;
-    hasDeployableIntegration: boolean;
-    projectPath: string;
-}
-
-function DeploymentOptions({
-    handleDockerBuild,
-    handleJarBuild,
-    handleDeploy,
-    goToDevant,
-    hasDeployableIntegration,
-    projectPath
-}: DeploymentOptionsProps) {
-    const [expandedOptions, setExpandedOptions] = useState<Set<string>>(new Set(['cloud', 'devant']));
-    const [isRefreshing, setIsRefreshing] = useState(false);
-    const { rpcClient } = useRpcContext();
-    const { platformExtState } = usePlatformExtContext();
-
-    const toggleOption = (option: string) => {
-        setExpandedOptions(prev => {
-            const newSet = new Set(prev);
-            if (newSet.has(option)) {
-                newSet.delete(option);
-            } else {
-                newSet.add(option);
-            }
-            return newSet;
-        });
-    };
-
-    const { data: devantMetadata, isLoading: isDevantLoading, refetch: refetchDevantMetadata } = useQuery({
-        queryKey: ["project-devant-metadata", projectPath],
-        queryFn: () => rpcClient.getBIDiagramRpcClient().getWorkspaceDevantMetadata(),
-        enabled: platformExtState.isExtInstalled,
-        refetchInterval: 5000,
-    });
-    const currentProjectMeta = devantMetadata?.projectsMetadata?.find(p => isSamePath(p.projectPath, projectPath));
-    const isDeployed = devantMetadata?.isLoggedIn
-        ? (currentProjectMeta?.hasComponent ?? false)
-        : false;
-
-    const stopRefreshing = useCallback(() => {
-        setIsRefreshing(false);
-    }, []);
-
-    const handleRefreshDeploymentStatus = async (e: React.MouseEvent) => {
-        e.stopPropagation();
-        setIsRefreshing(true);
-        try {
-            await rpcClient.getCommonRpcClient().executeCommand({
-                commands: [WICommandIds.RefreshDirectoryContext],
-            });
-            await refetchDevantMetadata();
-        } finally {
-            stopRefreshing();
-        }
-    };
-
-    return (
-        <>
-            <div>
-                <Title variant="h3">Deployment Options</Title>
-
-                {platformExtState.isExtInstalled && !isDevantLoading && (
-                    <DeploymentOption
-                        title={
-                            isDeployed ? (
-                                <DevantHeaderWrap>
-                                    <span>Deployed in WSO2 Cloud</span>
-                                    {isRefreshing ? (
-                                        <ProgressRing sx={{ width: 16, height: 16 }} />
-                                    ) : (
-                                        <Button appearance="icon" tooltip="Refresh deployment status" onClick={handleRefreshDeploymentStatus}>
-                                            <Codicon name="refresh" />
-                                        </Button>
-                                    )}
-                                </DevantHeaderWrap>
-                            ) : (
-                                "Deploy to WSO2 Cloud"
-                            )
-                        }
-                        description={
-                            isDeployed
-                                ? "This integration is already deployed in WSO2 Cloud."
-                                : "Deploy your integration to WSO2 Cloud."
-                        }
-                        buttonText={isDeployed ? "View in Console" : "Deploy"}
-                        isExpanded={expandedOptions.has("devant")}
-                        onToggle={() => toggleOption("devant")}
-                        onDeploy={isDeployed ? () => goToDevant() : handleDeploy}
-                        learnMoreLink={"https://wso2.com/integration-platform/docs/deploy/cloud/push-from-ide/"}
-                        hasDeployableIntegration={hasDeployableIntegration && !isRefreshing}
-                        secondaryAction={
-                            isDeployed && currentProjectMeta?.hasLocalChanges
-                                ? {
-                                    description: "To redeploy in WSO2 Cloud, please commit and push your changes.",
-                                    buttonText: "Open Source Control",
-                                    onClick: () =>
-                                        rpcClient
-                                            .getCommonRpcClient()
-                                            .executeCommand({ commands: ["workbench.scm.focus"] }),
-                                }
-                                : undefined
-                        }
-                    />
-                )}
-
-                <DeploymentOption
-                    title="Deploy with Docker"
-                    description="Create a Docker image of your integration and deploy it to any Docker-enabled system."
-                    buttonText="Create Docker Image"
-                    isExpanded={expandedOptions.has('docker')}
-                    onToggle={() => toggleOption('docker')}
-                    onDeploy={handleDockerBuild}
-                    hasDeployableIntegration={hasDeployableIntegration}
-                />
-
-                <DeploymentOption
-                    title="Deploy on a VM"
-                    description="Create a self-contained Ballerina executable and run it on any system with Java installed."
-                    buttonText="Create Executable"
-                    isExpanded={expandedOptions.has('vm')}
-                    onToggle={() => toggleOption('vm')}
-                    onDeploy={handleJarBuild}
-                    hasDeployableIntegration={hasDeployableIntegration}
-                />
-            </div>
-        </>
-    );
-}
-
-interface IntegrationControlPlaneProps {
-    enabled: boolean;
-    handleICP: (checked: boolean) => void;
-}
-
-function IntegrationControlPlane({ enabled, handleICP }: IntegrationControlPlaneProps) {
-    const { rpcClient } = useRpcContext();
-
-    const openLearnMoreURL = () => {
-        rpcClient.getCommonRpcClient().openExternalUrl({
-            url: "https://wso2.com/integrator/integration-control-plane/"
-        })
-    };
-
-    return (
-        <div>
-            <Title variant="h3">Integration Control Plane</Title>
-            <p>
-                {"Monitor and manage your integration deployments using a single enhanced interface, and streamline operations and increase efficiency."}
-                <VSCodeLink onClick={openLearnMoreURL} style={{ marginLeft: '4px' }}> Learn More </VSCodeLink>
-            </p>
-            <div style={{ paddingLeft: 10 }}>
-                <CheckBox
-                    checked={enabled}
-                    onChange={handleICP}
-                    label="Enable ICP monitoring"
-                />
-            </div>
-        </div>
-    );
-}
-
-interface WorkflowManagementProps {
-    enabled: boolean;
-    handleWorkflowManagement: (checked: boolean) => void;
-}
-
-function WorkflowManagement({ enabled, handleWorkflowManagement }: WorkflowManagementProps) {
-    return (
-        <div>
-            <Title variant="h3">Workflow</Title>
-            <p>
-                {"Expose the workflow management REST API from this integration — to list, inspect and act on "
-                    + "workflow instances, human tasks and reviews. Enabling it imports "
-                    + "ballerina/workflow.management.rest in main.bal; the API's port, TLS and CORS settings "
-                    + "are configured in the configuration editor."}
-            </p>
-            <div style={{ paddingLeft: 10 }}>
-                <CheckBox
-                    checked={enabled}
-                    onChange={handleWorkflowManagement}
-                    label="Enable Workflow Management REST API"
-                />
-            </div>
-        </div>
-    );
-}
-
-const LocalICPBody = styled.div<DeploymentBodyProps>`
-    max-height: ${(props: DeploymentBodyProps) => props.isExpanded ? '400px' : '0'};
-    visibility: ${(props: DeploymentBodyProps) => props.isExpanded ? 'visible' : 'hidden'};
-    overflow: hidden;
-    transition: max-height 0.3s ease-in-out,
-        visibility 0s linear ${(props: DeploymentBodyProps) => props.isExpanded ? '0s' : '0.3s'};
-    margin-top: ${(props: DeploymentBodyProps) => props.isExpanded ? '8px' : '0'};
-`;
-
-function LocalICPDeployment() {
-    const { rpcClient } = useRpcContext();
-    const [isExpanded, setIsExpanded] = useState(false);
-    const [serverRunning, setServerRunning] = useState(false);
-    const [serverBusy, setServerBusy] = useState(false);
-
-    const refreshStatus = async () => {
-        try {
-            const res = await rpcClient.getICPRpcClient().isICPServerRunning({ projectPath: '' });
-            setServerRunning(!!res.enabled);
-        } catch (err) {
-            console.error('[ICP] Failed to refresh ICP server status:', err);
-        }
-    };
-
-    useEffect(() => {
-        refreshStatus();
-        const interval = setInterval(refreshStatus, 3000);
-        return () => clearInterval(interval);
-    }, []);
-
-    useEffect(() => {
-        if (serverRunning) {
-            setIsExpanded(true);
-        }
-    }, [serverRunning]);
-
-    const handleServerToggle = async (e: React.MouseEvent) => {
-        e.stopPropagation();
-        setServerBusy(true);
-        try {
-            await rpcClient.getCommonRpcClient().executeCommand({
-                commands: [serverRunning ? 'ballerina.icp.stop' : 'ballerina.icp.start']
-            });
-            await refreshStatus();
-        } catch (err) {
-            console.error('[ICP] Failed to toggle ICP server:', err);
-        } finally {
-            setServerBusy(false);
-        }
-    };
-
-    const handleViewInICP = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        rpcClient.getICPRpcClient().viewInICP({ projectPath: '' }).catch((err) => {
-            console.error('[ICP] Failed to open ICP dashboard:', err);
-        });
-    };
-
-    const toggleExpanded = () => setIsExpanded(prev => !prev);
-
-    const handleHeaderKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            toggleExpanded();
-        }
-    };
-
-    return (
-        <DeploymentOptionContainer
-            isExpanded={isExpanded}
-            onClick={toggleExpanded}
-            onKeyDown={handleHeaderKeyDown}
-            role="button"
-            tabIndex={0}
-            aria-expanded={isExpanded}
-        >
-            <DeploymentHeader>
-                {isExpanded ? (
-                    <Codicon name={'triangle-down'} sx={{ color: 'var(--vscode-textLink-foreground)' }} />
-                ) : (
-                    <Codicon name={'triangle-right'} sx={{ color: 'inherit' }} />
-                )}
-                <h3>Publish to local ICP</h3>
-            </DeploymentHeader>
-            <LocalICPBody isExpanded={isExpanded}>
-                <p style={{ marginTop: 8 }}>Publish to a local ICP server to try it out.</p>
-                <ol style={{ marginTop: 0, paddingLeft: 20 }}>
-                    <li>Start the ICP server</li>
-                    <li>Enable ICP for the integration</li>
-                    <li>Run the integration — traces will be published to the local ICP server</li>
-                </ol>
-                <ButtonContainer>
-                    <Button
-                        appearance="secondary"
-                        onClick={handleServerToggle}
-                        disabled={serverBusy}
-                    >
-                        <Codicon
-                            name={serverRunning ? "debug-stop" : "play"}
-                            sx={{ marginRight: 8 }}
-                        />
-                        {serverRunning ? "Stop ICP Server" : "Start ICP Server"}
-                    </Button>
-                    {serverRunning && (
-                        <Button appearance="secondary" onClick={handleViewInICP}>
-                            <Codicon name="link-external" sx={{ marginRight: 8 }} />
-                            View in ICP
-                        </Button>
-                    )}
-                </ButtonContainer>
-            </LocalICPBody>
-        </DeploymentOptionContainer>
-    );
-}
-
-function DevantDashboard({ projectStructure, handleDeploy, goToDevant }: { projectStructure: ProjectStructure, handleDeploy: () => void, goToDevant: () => void }) {
-    const { rpcClient } = useRpcContext();
-    const { platformExtState } = usePlatformExtContext();
-
-    const handleSaveAndDeployToDevant = () => {
-        handleDeploy();
-    }
-
-    const handlePushChanges = () => {
-        rpcClient.getCommonRpcClient().executeCommand({ commands: [BI_COMMANDS.DEVANT_PUSH_TO_CLOUD] });
-    }
-
-    // Check if integration has automation or service.
-    const hasAutomationOrService = projectStructure?.directoryMap && (
-        (projectStructure.directoryMap.AUTOMATION && projectStructure.directoryMap.AUTOMATION.length > 0) ||
-        (projectStructure.directoryMap.SERVICE && projectStructure.directoryMap.SERVICE.length > 0)
-    );
-
-    return (
-        <React.Fragment>
-            {platformExtState?.selectedComponent ? <Title variant="h3">Deployed in WSO2 Cloud</Title> : <Title variant="h3">Deploy to WSO2 Cloud</Title>}
-            {!hasAutomationOrService ? (
-                <Typography sx={{ color: "var(--vscode-descriptionForeground)" }}>
-                    Before you can deploy your integration to WSO2 Cloud, please add an artifact (such as a Service or Automation) to your integration.
-                </Typography>
-            ) : (
-                <>
-                    {platformExtState?.selectedComponent ? (
-                        <>
-                            <Typography sx={{ color: "var(--vscode-descriptionForeground)" }}>
-                                This integration is deployed in WSO2 Cloud.
-                            </Typography>
-                            <Button
-                                appearance="secondary"
-                                disabled={!platformExtState?.hasLocalChanges}
-                                onClick={handlePushChanges}
-                                sx={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    marginTop: "10px",
-                                    mx: "auto"
-                                }}
-                            >
-                                <Codicon name="save" sx={{ marginRight: 8 }} /> Push Changes to WSO2 Cloud
-                            </Button>
-                            <Button
-                                appearance="icon"
-                                onClick={goToDevant}
-                                sx={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    marginTop: "10px",
-                                    mx: "auto"
-                                }}
-                            >
-                                <Codicon name="link" sx={{ marginRight: 8 }} /> Open in Console
-                            </Button>
-                        </>
-                    ) : (
-                        <React.Fragment>
-                            <Typography sx={{ color: "var(--vscode-descriptionForeground)" }}>
-                                Deploy your integration in WSO2 Cloud.
-                            </Typography>
-                            <Button
-                                appearance="primary"
-                                onClick={handleSaveAndDeployToDevant}
-                                sx={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    marginTop: "10px",
-                                    mx: "auto"
-                                }}
-                            >
-                                <Codicon name="save" sx={{ marginRight: 8 }} /> Save and Deploy
-                            </Button>
-                        </React.Fragment>
-                    )}
-                </>
-            )}
-        </React.Fragment>
-    );
-}
-
-
 interface PackageOverviewProps {
     projectPath: string;
     isInDevant: boolean;
@@ -890,11 +353,10 @@ export function PackageOverview(props: PackageOverviewProps) {
     const { rpcClient } = useRpcContext();
     const [readmeContent, setReadmeContent] = React.useState<string>("");
     const { platformExtState } = usePlatformExtContext();
-    const [enabled, setEnableICP] = useState(false);
-    const [workflowMgmtEnabled, setWorkflowMgmtEnabled] = useState(false);
     const [showAlert, setShowAlert] = React.useState(false);
     const [projectStructure, setProjectStructure] = useState<ProjectStructure>();
     const hasWorkflows = hasWorkflowArtifacts(projectStructure);
+    const hasAgents = hasAgentArtifacts(projectStructure);
     const [isInProject, setIsInProject] = useState(false);
     const [isLibrary, setIsLibrary] = useState<boolean>(false);
     const [isNPSupported, setIsNPSupported] = useState<boolean>(false);
@@ -940,23 +402,7 @@ export function PackageOverview(props: PackageOverviewProps) {
             .then((res) => {
                 setReadmeContent(res.content);
             });
-
-        if (isICPSupported) {
-            rpcClient
-                .getICPRpcClient()
-                .isIcpEnabled({ projectPath: '' })
-                .then((res) => {
-                    setEnableICP(res.enabled);
-                });
-        }
-
-        rpcClient
-            .getWorkflowManagementRpcClient()
-            .isWorkflowManagementEnabled({ projectPath })
-            .then((res) => {
-                setWorkflowMgmtEnabled(res.enabled);
-            });
-    }, [rpcClient, projectPath, isICPSupported]);
+    }, [rpcClient, projectPath]);
 
     useEffect(() => {
         fetchContext();
@@ -970,6 +416,15 @@ export function PackageOverview(props: PackageOverviewProps) {
     const deployableIntegrationTypes = useMemo(() => {
         return getIntegrationTypes(projectStructure);
     }, [projectStructure]);
+    // No tracing toggle button on this page, but useTracingStatus still owns the single live
+    // subscription to the backend's tracing-status notification (see useDeploymentControl).
+    const { ampTracingEnabled, setAmpTracingEnabled } = useTracingStatus(rpcClient, projectPath);
+    const deploymentControl = useDeploymentControl(rpcClient, projectPath, {
+        isICPSupported,
+        deployableIntegrationTypes,
+        ampTracingEnabled,
+        setAmpTracingEnabled,
+    });
 
     const integrationTitle = useMemo(() => {
         return projectStructure?.projectTitle || projectStructure?.projectName;
@@ -1026,42 +481,6 @@ export function PackageOverview(props: PackageOverviewProps) {
         });
     };
 
-    const handleDeploy = async () => {
-        await rpcClient.getBIDiagramRpcClient().deployProject({
-            integrationTypes: deployableIntegrationTypes
-        });
-    };
-
-    const handleICP = (icpEnabled: boolean) => {
-        // Update the checkbox state optimistically so it doesn't flicker while the RPC is in flight.
-        setEnableICP(icpEnabled);
-        if (icpEnabled) {
-            rpcClient.getICPRpcClient().addICP({ projectPath: '' })
-                .then(() => setEnableICP(true))
-                .catch(() => setEnableICP(false));
-        } else {
-            rpcClient.getICPRpcClient().disableICP({ projectPath: '' })
-                .then(() => setEnableICP(false))
-                .catch(() => setEnableICP(true));
-        }
-    };
-
-    const handleWorkflowManagement = (wfEnabled: boolean) => {
-        // Optimistic update to avoid checkbox flicker during the RPC round-trip.
-        setWorkflowMgmtEnabled(wfEnabled);
-        if (wfEnabled) {
-            rpcClient.getWorkflowManagementRpcClient().addWorkflowManagement({ projectPath })
-                // The RPC reports failures via errorMsg (it resolves rather than rejects), so roll
-                // back to the pre-toggle state instead of trusting enabled on a reported failure.
-                .then((res) => setWorkflowMgmtEnabled(res.errorMsg ? false : (res.enabled ?? true)))
-                .catch(() => setWorkflowMgmtEnabled(false));
-        } else {
-            rpcClient.getWorkflowManagementRpcClient().disableWorkflowManagement({ projectPath })
-                .then((res) => setWorkflowMgmtEnabled(res.errorMsg ? true : (res.enabled ?? false)))
-                .catch(() => setWorkflowMgmtEnabled(true));
-        }
-    };
-
     const handleGenerateWithReadme = () => {
         rpcClient.getBIDiagramRpcClient().openAIChat({
             readme: true,
@@ -1089,26 +508,6 @@ export function PackageOverview(props: PackageOverviewProps) {
             },
         });
     }
-
-    const handleDockerBuild = () => {
-        rpcClient.getBIDiagramRpcClient().buildProject(BuildMode.DOCKER);
-    };
-
-    const handleJarBuild = () => {
-        rpcClient.getBIDiagramRpcClient().buildProject(BuildMode.JAR);
-    };
-
-    const goToDevant = () => {
-        rpcClient.getCommonRpcClient().executeCommand({
-            commands: [
-                WICommandIds.OpenInConsole,
-                {
-                    componentFsPath: projectPath,
-                    component: platformExtState?.selectedComponent,
-                    newComponentParams: { buildPackLang: "ballerina" }
-                } as IOpenInConsoleCmdParams]
-        })
-    };
 
     function handleSettings() {
         rpcClient.getAiPanelRpcClient().openAIPanel({
@@ -1347,43 +746,16 @@ export function PackageOverview(props: PackageOverviewProps) {
                     </LeftContent>
                     {!isLibrary && (
                         <SidePanel collapsed={deployCollapsed} aria-hidden={deployCollapsed}>
-                            {!isInDevant &&
-                                <>
-                                    <DeploymentOptions
-                                        handleDockerBuild={handleDockerBuild}
-                                        handleJarBuild={handleJarBuild}
-                                        handleDeploy={handleDeploy}
-                                        goToDevant={goToDevant}
-                                        hasDeployableIntegration={deployableIntegrationTypes.length > 0}
-                                        projectPath={projectPath}
-                                    />
-                                    {isICPSupported && (
-                                        <>
-                                            <Divider sx={{ margin: "16px 0" }} />
-                                            <IntegrationControlPlane enabled={enabled} handleICP={handleICP} />
-                                            <div style={{ marginTop: 8 }}>
-                                                <LocalICPDeployment />
-                                            </div>
-                                        </>
-                                    )}
-                                    {hasWorkflows && (
-                                        <>
-                                            <Divider sx={{ margin: "16px 0" }} />
-                                            <WorkflowManagement
-                                                enabled={workflowMgmtEnabled}
-                                                handleWorkflowManagement={handleWorkflowManagement}
-                                            />
-                                        </>
-                                    )}
-                                </>
-                            }
-                            {isInDevant &&
-                                <DevantDashboard
-                                    projectStructure={projectStructure}
-                                    handleDeploy={handleDeploy}
-                                    goToDevant={goToDevant}
-                                />
-                            }
+                            <DeploymentPanel
+                                projectPath={projectPath}
+                                projectStructure={projectStructure}
+                                isInDevant={isInDevant}
+                                isICPSupported={isICPSupported}
+                                hasWorkflows={hasWorkflows}
+                                hasAgents={hasAgents}
+                                hasDeployableIntegration={deployableIntegrationTypes.length > 0}
+                                {...deploymentControl}
+                            />
                         </SidePanel>
                     )}
                 </MainContent>

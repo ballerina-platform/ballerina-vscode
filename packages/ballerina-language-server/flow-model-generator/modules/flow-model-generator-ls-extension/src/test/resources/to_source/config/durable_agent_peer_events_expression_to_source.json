@@ -1,6 +1,6 @@
 {
   "source": "workflow_function/agent.bal",
-  "description": "A gated async peer entry: 'wait/callbackChannel plus PeerDecl approval gating are all emitted",
+  "description": "A peer whose Allowed Events is a reference: the expression is written through as-is",
   "diagram": {
     "id": "1",
     "metadata": {
@@ -40,17 +40,6 @@
         "advanced": false,
         "hidden": false
       },
-      "name": {
-        "metadata": {
-          "label": "Tool Name"
-        },
-        "valueType": "TEXT",
-        "value": "askClaimDesk",
-        "optional": false,
-        "editable": true,
-        "advanced": false,
-        "hidden": false
-      },
       "description": {
         "metadata": {
           "label": "Description"
@@ -62,45 +51,12 @@
         "advanced": false,
         "hidden": false
       },
-      "wait": {
+      "allowedEvents": {
         "metadata": {
-          "label": "Wait for the Answer"
-        },
-        "valueType": "FLAG",
-        "value": "false",
-        "optional": true,
-        "editable": true,
-        "advanced": false,
-        "hidden": false
-      },
-      "callbackChannel": {
-        "metadata": {
-          "label": "Callback Channel"
-        },
-        "valueType": "TEXT",
-        "value": "claimResults",
-        "optional": true,
-        "editable": true,
-        "advanced": false,
-        "hidden": false
-      },
-      "requiresApproval": {
-        "metadata": {
-          "label": "Requires Approval"
-        },
-        "valueType": "FLAG",
-        "value": "true",
-        "optional": true,
-        "editable": true,
-        "advanced": true,
-        "hidden": false
-      },
-      "userRoles": {
-        "metadata": {
-          "label": "Reviewer Roles"
+          "label": "Allowed Events"
         },
         "valueType": "EXPRESSION",
-        "value": "finance",
+        "value": "claimEvents",
         "optional": true,
         "editable": true,
         "advanced": true,
@@ -114,15 +70,15 @@
       {
         "range": {
           "start": {
-            "line": 21,
-            "character": 0
+            "line": 20,
+            "character": 5
           },
           "end": {
-            "line": 21,
-            "character": 0
+            "line": 20,
+            "character": 5
           }
         },
-        "newText": "\n, peers: [{agent: claimAgent, name: \"askClaimDesk\", description: \"Asks the claim desk\", 'wait: false, callbackChannel: \"claimResults\", requiresApproval: true, userRoles: \"finance\"}]"
+        "newText": "\n,\n    peers: [{agent: claimAgent, description: \"Asks the claim desk\", allowedEvents: claimEvents}]"
       }
     ]
   }

@@ -362,7 +362,7 @@
             "character": 0
           }
         },
-        "newText": "\nstring orderResult = check ctx->callActivity(processOrder, {orderId: orderId, amount: amount}, retryOnError = true, maxRetries = 3);"
+        "newText": "\nstring orderResult = check ctx->callActivity(processOrder, {orderId: orderId, amount: amount});"
       },
       {
         "range": {

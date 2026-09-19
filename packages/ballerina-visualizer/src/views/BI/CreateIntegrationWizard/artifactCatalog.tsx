@@ -28,8 +28,7 @@ import {
     DURABLE_AGENT_CARD,
 } from "../components/artifactCards";
 import { isBetaModule } from "../ComponentListView/componentListUtils";
-import { getEntryNodeIcon } from "../ComponentListView/EventIntegrationPanel";
-import { getFileIntegrationIcon } from "../ComponentListView/FileIntegrationPanel";
+import { getIntegrationIcon } from "../ComponentListView/integrationIcon";
 import { effectiveTriggerKind } from "../ComponentListView/triggerKind";
 
 /**
@@ -64,9 +63,9 @@ export interface ArtifactCategory {
  * Converts trigger models into artifact cards, replicating the per-panel
  * filtering, icon resolution, and beta badging:
  * - `event` mirrors EventIntegrationPanel, `mcp` mirrors the trigger cards in AIAgentPanel
- *   (dotted module names dashed in ids, `getEntryNodeIcon`, `isBetaModule` badges).
+ *   (dotted module names dashed in ids, `getIntegrationIcon`, `isBetaModule` badges).
  * - `file` mirrors FileIntegrationPanel (raw module name in ids,
- *   `getFileIntegrationIcon`, no beta badge).
+ *   `getIntegrationIcon`, no beta badge).
  *
  * @param triggers The trigger models fetched via `getTriggerModels`.
  * @param type The trigger type to include.
@@ -91,7 +90,7 @@ function triggerToCard(item: ServiceModel, type: DynamicTriggerType): ArtifactCa
             id: `trigger-${item.moduleName}`,
             kind: "service",
             displayName: item.name,
-            icon: getFileIntegrationIcon(item),
+            icon: getIntegrationIcon(item),
             artifactInfo,
         };
     }
@@ -100,7 +99,7 @@ function triggerToCard(item: ServiceModel, type: DynamicTriggerType): ArtifactCa
         id: `trigger-${item.moduleName.replace(/\./g, "-")}`,
         kind: "service",
         displayName: item.name,
-        icon: getEntryNodeIcon(item),
+        icon: getIntegrationIcon(item),
         isBeta: isBetaModule(item.moduleName),
         artifactInfo,
     };
@@ -118,12 +117,12 @@ function category(key: ArtifactCategoryKey, cards: (ArtifactCard | DynamicCardSo
  */
 export const ARTIFACT_CATEGORIES: ArtifactCategory[] = [
     category("automation", [AUTOMATION_CARD]),
-    category("workflow", [WORKFLOW_CARD, DURABLE_AGENT_CARD]),
+    category("workflow", [WORKFLOW_CARD]),
     // TODO: Re-add `AI_CHAT_AGENT_CARD` (from ../components/artifactCards) as the
     // first card here once creating an AI chat agent from the pre-project wizard is
     // fully supported. It stays available on the in-project Add-Artifact screen
     // (ComponentListView/AIAgentPanel), which is why the card itself is untouched.
-    category("ai-integration", ["dynamic:mcp"]),
+    category("ai-integration", [DURABLE_AGENT_CARD, "dynamic:mcp"]),
     category("integration-as-api", [...INTEGRATION_API_CARDS]),
     category("event-integration", ["dynamic:event"]),
     category("file-integration", ["dynamic:file"]),

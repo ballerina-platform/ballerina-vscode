@@ -861,10 +861,11 @@ User reverted the last made changes. The files have been restored to the state b
         return chatStateStorage.listThreadsSummary(projectRootPath);
     }
 
-    async switchThread(params: SwitchThreadRequest): Promise<void> {
+    async switchThread(params: SwitchThreadRequest): Promise<boolean> {
         const projectRootPath = resolveProjectRootPath();
-        if (refuseWhileBusy(projectRootPath, 'switchThread')) { return; }
+        if (refuseWhileBusy(projectRootPath, 'switchThread')) { return false; }
         chatStateStorage.switchToThread(projectRootPath, params.threadId);
+        return true;
     }
 
     async deleteThread(params: DeleteThreadRequest): Promise<void> {

@@ -30,10 +30,10 @@ import {
 import { CardGrid, PanelViewMore, Title, TitleWrapper } from "./styles";
 import { BodyText } from "../../styles";
 import ButtonCard from "../../../components/ButtonCard";
-import { AI_CHAT_AGENT_CARD, ARTIFACT_CATEGORY_META } from "../components/artifactCards";
+import { AI_CHAT_AGENT_CARD, ARTIFACT_CATEGORY_META, DURABLE_AGENT_CARD } from "../components/artifactCards";
 import { cardMatchesSearch, isBetaModule, OutOfScopeComponentTooltip } from "./componentListUtils";
 import { RelativeLoader } from "../../../components/RelativeLoader";
-import { getEntryNodeIcon } from "./EventIntegrationPanel";
+import { getIntegrationIcon } from "./integrationIcon";
 import { effectiveTriggerKind } from "./triggerKind";
 
 interface AIAgentPanelProps {
@@ -54,6 +54,7 @@ export function AIAgentPanel(props: AIAgentPanelProps) {
         [props.triggers, q]
     );
     const agentMatches = cardMatchesSearch(AI_CHAT_AGENT_CARD.displayName, q);
+    const durableAgentMatches = cardMatchesSearch(DURABLE_AGENT_CARD.displayName, q);
 
     const handleMcpClick = async (key: DIRECTORY_MAP, model: ServiceModel) => {
         console.log(">>>>> Model: ", model);
@@ -80,13 +81,25 @@ export function AIAgentPanel(props: AIAgentPanelProps) {
         });
     };
 
+    const handleDurableAgentClick = () => {
+        rpcClient.getVisualizerRpcClient().openView({
+            type: EVENT_TYPE.OPEN_VIEW,
+            location: {
+                view: MACHINE_VIEW.BIDurableAgentForm,
+            },
+        });
+    };
+
     // While searching, hide the whole panel when nothing here matches.
-    if (q?.trim() && !agentMatches && mcpTriggers.length === 0) {
+    if (q?.trim() && !agentMatches && !durableAgentMatches && mcpTriggers.length === 0) {
         return null;
     }
 
+    // The cards carry the scope gating themselves, so the panel is never dimmed as a whole: a
+    // durable agent is a workflow as much as an agent and stays creatable in any scope, while the
+    // chat agent and the MCP cards keep the disabled state and the out-of-scope tooltip they had.
     return (
-        <PanelViewMore disabled={isDisabled}>
+        <PanelViewMore>
             <TitleWrapper>
                 <Title variant="h2">{CATEGORY.title}</Title>
                 <BodyText>{CATEGORY.description}</BodyText>
@@ -102,13 +115,22 @@ export function AIAgentPanel(props: AIAgentPanelProps) {
                         tooltip={isDisabled ? OutOfScopeComponentTooltip : ""}
                     />
                 )}
+                {durableAgentMatches && (
+                    <ButtonCard
+                        id={DURABLE_AGENT_CARD.id}
+                        icon={DURABLE_AGENT_CARD.icon}
+                        title={DURABLE_AGENT_CARD.displayName}
+                        onClick={handleDurableAgentClick}
+                        tooltip={DURABLE_AGENT_CARD.tooltip}
+                    />
+                )}
                 {props.triggers.local.length === 0 && <RelativeLoader />}
                 {mcpTriggers.map((item) => (
                     <ButtonCard
                         id={`trigger-${item.moduleName.replace(/\./g, "-")}`}
                         key={item.id}
                         title={item.name}
-                        icon={getEntryNodeIcon(item)}
+                        icon={getIntegrationIcon(item)}
                         onClick={() => handleMcpClick(DIRECTORY_MAP.SERVICE, item)}
                         disabled={isDisabled}
                         tooltip={isDisabled ? OutOfScopeComponentTooltip : ""}

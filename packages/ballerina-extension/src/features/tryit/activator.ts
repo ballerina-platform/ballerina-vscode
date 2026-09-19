@@ -168,7 +168,7 @@ async function openTryItView(withNotice: boolean = false, resourceMetadata?: Res
             fs.mkdirSync(targetDir);
         }
 
-        TracerMachine.startServer();
+        TracerMachine.startServer(projectPath);
 
         if (selectedService.type === ServiceType.HTTP) {
             const openapiSpec: OAISpec = await getOpenAPIDefinition(selectedService);
