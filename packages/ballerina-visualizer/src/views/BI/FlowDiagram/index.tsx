@@ -83,7 +83,7 @@ import { cloneDeep, debounce } from "lodash";
 import { ConnectionKind } from "../../../components/ConnectionSelector";
 import AddAgentPopup from "../AIChatAgent/AddAgentPopup";
 import { DiagramSkeleton } from "../../../components/Skeletons";
-import { AI_COMPONENT_PROGRESS_MESSAGE, AI_COMPONENT_PROGRESS_MESSAGE_TIMEOUT, FORM_LOADING_MESSAGE, LOADING_MESSAGE } from "../../../constants";
+import { AI_COMPONENT_PROGRESS_MESSAGE, AI_COMPONENT_PROGRESS_MESSAGE_TIMEOUT, FORM_LOADING_MESSAGE, LOADING_MESSAGE, WSO2_CLOUD_KNOWLEDGE_BASE_PACKAGE } from "../../../constants";
 import { ConnectionListItem, MarketplaceItem } from "@wso2/wso2-platform-core";
 import { usePlatformExtContext } from "../../../providers/platform-ext-ctx-provider";
 import { requestMiniChatOpen } from "../../../components/AgentStatusOrb/shared";
@@ -1878,7 +1878,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         // + create new) instead of the generic form.
         if (
             sidePanelView === SidePanelView.KNOWLEDGE_BASES &&
-            node.codedata.packageName === "ai.wso2.integration"
+            node.codedata.packageName === WSO2_CLOUD_KNOWLEDGE_BASE_PACKAGE
         ) {
             cloudKbNodeRef.current = node; // reuse this codedata for the list/create flows
             setSidePanelView(SidePanelView.WSO2_CLOUD_KB_LIST);
@@ -2759,6 +2759,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
 
         // When editorConfig is absent, derive the artifact type from the EVENT_START node's metadata.
         //   kind="Function" + label="main" → AUTOMATION
+        //   kind="Function" + @ai:AgentTool → AGENT_TOOL
         //   kind="Function" + other label  → FUNCTION
         //   isServiceFunction              → SERVICE
         if (!editorConfig) {
@@ -2769,6 +2770,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 if (!isServiceFunction && kind === "Function") {
                     if (label?.toLowerCase() === "main") {
                         return { artifactType: DIRECTORY_MAP.AUTOMATION };
+                    }
+                    if (/@ai:AgentTool\b/.test(eventStartNode?.codedata?.sourceCode ?? "")) {
+                        return { artifactType: DIRECTORY_MAP.AGENT_TOOL };
                     }
                     return { artifactType: DIRECTORY_MAP.FUNCTION };
                 }
@@ -4040,6 +4044,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             NEW_TOOL_FUNCTION: SidePanelView.NEW_TOOL_FROM_FUNCTION,
             NEW_TOOL_AGENT: SidePanelView.NEW_TOOL_FROM_AGENT,
             NEW_TOOL_AGENT_FORM: SidePanelView.NEW_TOOL_FROM_AGENT_FORM,
+            NEW_TOOL_KNOWLEDGE_BASE: SidePanelView.NEW_TOOL_FROM_KNOWLEDGE_BASE,
             ADD_MCP: SidePanelView.ADD_MCP_SERVER,
             EDIT_MCP: SidePanelView.EDIT_MCP_SERVER,
         };

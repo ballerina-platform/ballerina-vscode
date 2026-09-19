@@ -18,16 +18,19 @@
 
 import { Suspense, lazy, useContext } from "react";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { CodeData, FlowNode, isAgentDeclarationNode, LineRange } from "@wso2/ballerina-core";
+import { formatMethodName } from "@wso2/ballerina-side-panel";
+import { CodeData, FlowNode, ProjectStructureArtifactResponse, isAgentDeclarationNode, LineRange } from "@wso2/ballerina-core";
 import { PanelOverlayContext } from "../../views/BI/FlowDiagram/context/PanelOverlayContext";
 import { getNodeTemplateForConnection } from "../../views/BI/FlowDiagram/utils";
 import { useModalStack } from "../../Context";
+import { WSO2_CLOUD_KNOWLEDGE_BASE_PACKAGE } from "../../constants";
 
 const CreateMemoryForm = lazy(() => import("../../views/BI/AIChatAgent/AddAgentPopup/CreateMemoryForm"));
 const CreateAgentForm = lazy(() => import("../../views/BI/AIChatAgent/AddAgentPopup/CreateAgentForm"));
 import { ConnectionSelectionList } from "./ConnectionSelectionList";
 import { ConnectionCreator } from "./ConnectionCreator";
 import { ConnectionCreateWizard } from "./ConnectionCreateWizard";
+import { CloudKnowledgeBaseCreator } from "./CloudKnowledgeBaseCreator";
 import { getConnectionKindDisplayName } from "./config";
 import { ConnectionKind } from "./types";
 import { RelativeLoader } from "../RelativeLoader";
@@ -54,21 +57,59 @@ export function useCreateNode(
         onCreated(variableName);
     };
 
+    const buildOnSave = (close: () => void, onCreated: (variableName: string) => void) =>
+        (node: FlowNode, artifacts?: ProjectStructureArtifactResponse[]) => {
+            const variableName = readCreatedVariable(node) || artifacts?.find((artifact) => artifact.isNew)?.name;
+            if (variableName) {
+                handleCreated(variableName, onCreated);
+            }
+            close();
+        };
+
+    // The WSO2 Cloud Knowledge Base type routes through the same "manually config or pick an
+    // existing Devant service" step the flow diagram's own Add Knowledge Base panel shows, instead
+    // of a blank form.
+    const createCloudKnowledgeBaseConnection = (connectorCodeData: CodeData, onCreated: (variableName: string) => void) => {
+        const title = "WSO2 Cloud Knowledge Bases";
+        const renderCreator = (close: () => void) => (
+            <CloudKnowledgeBaseCreator
+                connectorCodeData={connectorCodeData}
+                fileName={fileName}
+                targetLineRange={targetLineRange}
+                onSave={buildOnSave(close, onCreated)}
+            />
+        );
+
+        if (panelOverlay) {
+            panelOverlay.openOverlay({
+                title,
+                content: renderCreator(panelOverlay.clearAllOverlays),
+                onBack: panelOverlay.closeTopOverlay,
+            });
+            return;
+        }
+
+        // Narrower than the generic connection modal so ConnectorsGrid's minmax(200px, 1fr) columns
+        // fall back to one per row, matching the flow diagram's own (narrower) side panel.
+        const modalId = `create-cloud-kb-${connectorCodeData.org}-${connectorCodeData.object}`;
+        addModal(renderCreator(() => closeModal(modalId)), modalId, title, 780, 420);
+    };
+
     const createGenericConnection = async (connectorCodeData: CodeData, onCreated: (variableName: string) => void) => {
-        const title = "Create Connection";
+        if (connectorCodeData.packageName === WSO2_CLOUD_KNOWLEDGE_BASE_PACKAGE) {
+            createCloudKnowledgeBaseConnection(connectorCodeData, onCreated);
+            return;
+        }
+        const title = connectorCodeData.object
+            ? `Create ${formatMethodName(connectorCodeData.object)}`
+            : "Create Connection";
         const dummyNode = { codedata: {}, properties: {} } as unknown as FlowNode;
         const renderCreator = (flowNode: FlowNode, close: () => void) => (
             <ConnectionCreator
                 connectionKind={(connectorCodeData.node || "NEW_CONNECTION") as ConnectionKind}
                 selectedNode={dummyNode}
                 nodeFormTemplate={flowNode}
-                onSave={(node, artifacts) => {
-                    const variableName = readCreatedVariable(node) || artifacts?.find((artifact) => artifact.isNew)?.name;
-                    if (variableName) {
-                        handleCreated(variableName, onCreated);
-                    }
-                    close();
-                }}
+                onSave={buildOnSave(close, onCreated)}
             />
         );
         const fetchTemplate = async (): Promise<FlowNode> => {
@@ -104,7 +145,7 @@ export function useCreateNode(
         const modalId = `create-connection-${connectorCodeData.org}-${connectorCodeData.object}`;
         try {
             const flowNode = await fetchTemplate();
-            addModal(renderCreator(flowNode, () => closeModal(modalId)), modalId, title, 600, 520);
+            addModal(renderCreator(flowNode, () => closeModal(modalId)), modalId, title, 780, 520);
         } catch (error) {
             console.error("Error fetching connector template", error);
             await rpcClient.getCommonRpcClient().showErrorMessage({

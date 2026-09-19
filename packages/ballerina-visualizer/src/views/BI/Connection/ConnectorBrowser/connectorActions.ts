@@ -203,7 +203,8 @@ export function normalizeConnectorSearchCategories(
 export function buildConnectionSelectField(
     connectorCodeData: CodeData,
     ballerinaType: string | undefined,
-    value: string
+    value: string,
+    variant: "connection" | "knowledgeBase" = "connection"
 ): Record<string, unknown> {
     const targetType = connectorCodeData.module && connectorCodeData.object
         ? {
@@ -214,11 +215,14 @@ export function buildConnectionSelectField(
             name: connectorCodeData.object,
         }
         : undefined;
+    const isKnowledgeBase = variant === "knowledgeBase";
 
     return {
         key: "connection",
-        label: "Connection",
-        documentation: "The connection this tool runs on.",
+        label: isKnowledgeBase ? "Knowledge Base Instance" : "Connection",
+        documentation: isKnowledgeBase
+            ? "The knowledge base instance this tool runs on."
+            : "The connection this tool runs on.",
         type: "ACTION_EXPRESSION",
         optional: false,
         editable: true,
@@ -234,7 +238,13 @@ export function buildConnectionSelectField(
         codedata: {
             kind: "REQUIRED",
             originalName: "connection",
-            searchNodesKind: "NEW_CONNECTION",
+            // ai:KnowledgeBase isn't a client class, so the LS reports it as KNOWLEDGE_BASE, not NEW_CONNECTION.
+            searchNodesKind: isKnowledgeBase ? "KNOWLEDGE_BASE" : "NEW_CONNECTION",
+            ...(isKnowledgeBase && {
+                emptyStateTitle: "No knowledge bases in this project",
+                emptyStateAction: "Create knowledge base",
+                createNewLabel: "Knowledge Base",
+            }),
             ...(targetType && { targetType }),
             data: { connection: connectorCodeData },
         },

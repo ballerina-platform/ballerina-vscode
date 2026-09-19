@@ -51,7 +51,9 @@ export const RESOURCE_ACTION_CALL = "RESOURCE_ACTION_CALL";
 export const REMOTE_ACTION_CALL = "REMOTE_ACTION_CALL";
 export const FUNCTION_CALL = "FUNCTION_CALL";
 export const METHOD_CALL = "METHOD_CALL";
+export const KNOWLEDGE_BASE_CALL = "KNOWLEDGE_BASE_CALL";
 export const NEW_CONNECTION = "NEW_CONNECTION";
+export const WSO2_CLOUD_KNOWLEDGE_BASE_PACKAGE = "ai.wso2.integration";
 
 export const LOADING_MESSAGE = "Loading...";
 export const FORM_LOADING_MESSAGE = "Loading form...";
