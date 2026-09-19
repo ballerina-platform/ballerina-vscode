@@ -30,20 +30,21 @@ import {
     ENTRY_HEADER_HEIGHT,
     ENTRY_ROW_HEIGHT,
 } from "../resources/constants";
-import { estimateAgentCardHeight, layoutTopology } from "../components/AgentTopologyDiagram/topologyLayout";
+import { layoutTopology } from "../components/AgentTopologyDiagram/topologyLayout";
 
 const ONE_ROW_CARD = ENTRY_HEADER_HEIGHT + ENTRY_ROW_HEIGHT;
 import { TopologyAgentNode, TopologyEdge, TopologyEntryNode, TopologyGraph, TopologyHandler } from "../components/AgentTopologyDiagram/types";
 
 function agent(id: string, extra: Partial<TopologyAgentNode> = {}): TopologyAgentNode {
     return {
-        id, name: id, typeName: "AI Agent", role: "", toolCount: 0, functionTools: 0, agentTools: 0, mcpTools: 0, tools: [], chips: [],
-        typed: false, orphan: false, filePath: "/proj/agents.bal", position: { line: 1, offset: 0 }, ...extra,
+        id, name: id, kind: "agent", typeName: "AI Agent", role: "", toolCount: 0, functionTools: 0, agentTools: 0, mcpTools: 0, tools: [], chips: [],
+        typed: false, orphan: false, filePath: "/proj/agents.bal", position: { line: 1, offset: 0 },
+        channels: [], people: [], activities: 0, gatedActivities: 0, humanTasks: [], peers: [], ...extra,
     };
 }
 
 function handler(id: string, extra: Partial<TopologyHandler> = {}): TopologyHandler {
-    return { id, label: id, filePath: "/proj/services.bal", position: { line: 1, offset: 0 }, logic: [], ordered: false, ...extra };
+    return { id, label: id, filePath: "/proj/services.bal", position: { line: 1, offset: 0 }, logic: [], ordered: false, wired: true, ...extra };
 }
 
 // An entry card with one row per handler id; the card's own id is what edges and ranks use.
@@ -435,9 +436,6 @@ describe("layoutTopology", () => {
     });
 
     it("grows the card height once tool chips overflow the first row, and stacks the next card below it", () => {
-        expect(estimateAgentCardHeight()).toBe(AGENT_CARD_MIN_HEIGHT);
-        expect(estimateAgentCardHeight(true)).toBeGreaterThan(AGENT_CARD_MIN_HEIGHT);
-
         const tall = agent("tall", { chips: Array.from({ length: 7 }, (_, i) => ({ key: String(i), label: `c${i}` })) });
         const short = agent("short");
         const graph = graphOf(
