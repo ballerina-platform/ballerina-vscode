@@ -17,7 +17,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ProjectStructureArtifactResponse } from "@wso2/ballerina-core";
+import { DIRECTORY_MAP, ProjectStructureArtifactResponse } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { TopologyAgentArtifact, TopologyInput } from "@wso2/component-diagram";
 import { useProjectContentRefresh } from "../PackageOverview/utils";
@@ -34,7 +34,7 @@ function toArtifact(agent: ProjectStructureArtifactResponse, isDefinition: boole
         startLine: agent.position?.startLine ?? 0,
         moduleName: agent.moduleName,
         isDefinition,
-        kind: agent.moduleName === "workflow" ? "durable" : undefined,
+        kind: agent.kind === DIRECTORY_MAP.DURABLE_AGENT ? "durable" : undefined,
     };
 }
 
