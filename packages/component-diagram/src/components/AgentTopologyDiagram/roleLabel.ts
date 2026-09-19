@@ -16,12 +16,7 @@
  * under the License.
  */
 
-import { NodeTypes } from "../../../resources/constants";
-import { FlowNode } from "../../../utils/types";
-import { BaseAgentNodeModel } from "../BaseAgentNodeModel";
-
-export class DurableAgentRunNodeModel extends BaseAgentNodeModel {
-    constructor(node: FlowNode) {
-        super(node, NodeTypes.DURABLE_AGENT_RUN_NODE);
-    }
+export function roleLabel(role: string): string {
+    const rest = role === role.toUpperCase() ? role.slice(1).toLowerCase() : role.slice(1);
+    return role.charAt(0).toUpperCase() + rest;
 }

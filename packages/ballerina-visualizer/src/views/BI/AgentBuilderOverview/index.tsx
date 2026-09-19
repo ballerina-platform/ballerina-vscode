@@ -223,6 +223,14 @@ interface AgentBuilderOverviewProps {
     isICPSupported?: boolean;
 }
 
+function hasTriggerArtifacts(directoryMap: ProjectStructure["directoryMap"] | undefined): boolean {
+    return (
+        (directoryMap?.[DIRECTORY_MAP.SERVICE]?.length ?? 0) > 0 ||
+        (directoryMap?.[DIRECTORY_MAP.WORKFLOW]?.length ?? 0) > 0 ||
+        (directoryMap?.[DIRECTORY_MAP.AUTOMATION]?.length ?? 0) > 0
+    );
+}
+
 export function AgentBuilderOverview({ projectPath, agentFocus, isInDevant, isICPSupported }: AgentBuilderOverviewProps) {
     const { rpcClient } = useRpcContext();
     const [projectStructure, setProjectStructure] = useState<ProjectStructure>();
@@ -232,7 +240,7 @@ export function AgentBuilderOverview({ projectPath, agentFocus, isInDevant, isIC
     const [showAddLibraryArtifact, setShowAddLibraryArtifact] = useState(false);
     const [canvasReady, setCanvasReady] = useState(false);
     // Only true once the empty state has actually been on screen, so opening a
-    // project that already has an agent never flashes it.
+    // package that already has agents never mounts it — it just fades out once shown.
     const [emptyMounted, setEmptyMounted] = useState(false);
     const compactHeader = useCompactHeader();
     const { isTracingEnabled, toggleTracing, ampTracingEnabled, setAmpTracingEnabled } = useTracingStatus(rpcClient, projectPath);
@@ -267,6 +275,7 @@ export function AgentBuilderOverview({ projectPath, agentFocus, isInDevant, isIC
         [projectStructure]
     );
     const hasAgents = agents.length > 0;
+    const hasContent = hasAgents || hasTriggerArtifacts(projectStructure?.directoryMap);
 
     const isLibrary = projectStructure?.isLibrary ?? false;
 
@@ -289,7 +298,7 @@ export function AgentBuilderOverview({ projectPath, agentFocus, isInDevant, isIC
         openAgent(rpcClient, match);
     }, [agents, agentFocus, rpcClient]);
 
-    if (projectStructure && !hasAgents) {
+    if (projectStructure && !hasContent) {
         sawEmptyRef.current = true;
     }
     const canvasVisible = canvasReady || !sawEmptyRef.current;
@@ -305,7 +314,7 @@ export function AgentBuilderOverview({ projectPath, agentFocus, isInDevant, isIC
         if (!projectStructure) {
             return;
         }
-        if (!hasAgents) {
+        if (!hasContent) {
             clearTimeout(revealTimerRef.current);
             setCanvasReady(false);
             setEmptyMounted(true);
@@ -316,7 +325,7 @@ export function AgentBuilderOverview({ projectPath, agentFocus, isInDevant, isIC
         }
         const fallback = setTimeout(() => setCanvasReady(true), READY_FALLBACK_MS);
         return () => clearTimeout(fallback);
-    }, [projectStructure, hasAgents]);
+    }, [projectStructure, hasContent]);
 
     useEffect(() => {
         if (!canvasVisible) {
@@ -355,7 +364,9 @@ export function AgentBuilderOverview({ projectPath, agentFocus, isInDevant, isIC
         );
         if (match) {
             openAgent(rpcClient, match);
+            return;
         }
+        openTrigger(rpcClient, { filePath: agent.path, position: { line: agent.startLine, offset: 0 } });
     }, [agents, rpcClient]);
 
     const handleOpenTrigger = useCallback((trigger: TriggerSelection) => {
@@ -384,6 +395,10 @@ export function AgentBuilderOverview({ projectPath, agentFocus, isInDevant, isIC
     }, [rpcClient]);
 
     const handleAddTriggerFromCanvas = useCallback(async (agent: AgentSelection) => {
+        if (agent.moduleName === "workflow") {
+            openAddAgentTrigger(rpcClient, agent.name, "ballerina", "durable");
+            return;
+        }
         const isPlainAgent = !agent.moduleName || agent.moduleName === "ai";
         const toml = isPlainAgent ? undefined : await rpcClient.getCommonRpcClient().getCurrentProjectTomlValues();
         openAddAgentTrigger(rpcClient, agent.name, isPlainAgent ? "ballerina" : toml?.package?.org);
@@ -494,7 +509,7 @@ export function AgentBuilderOverview({ projectPath, agentFocus, isInDevant, isIC
                 <MainContent>
                     <Panel bordered={canvasVisible}>
                         <Stage>
-                            {hasAgents && (
+                            {hasContent && (
                                 <Layer $show={canvasVisible}>
                                     <Strip>
                                         <BreadcrumbLabel>{OVERVIEW_TITLE}</BreadcrumbLabel>
@@ -526,7 +541,7 @@ export function AgentBuilderOverview({ projectPath, agentFocus, isInDevant, isIC
                                     </CanvasSlot>
                                 </Layer>
                             )}
-                            {(!hasAgents || emptyMounted) && (
+                            {(!hasContent || emptyMounted) && (
                                 <Layer $show={!canvasVisible}>
                                     <EmptyState
                                         isLibrary={isLibrary}

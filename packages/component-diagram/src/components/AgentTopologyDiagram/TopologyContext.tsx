@@ -30,7 +30,8 @@ export interface TopologyContextState {
     focus?: TopologyFocus;
     setHovered?: (id?: string) => void;
     visibleRows?: Record<string, number>;
-    onExpandEntry?: (entryId: string) => void;
+    unfolded?: Set<string>;
+    onToggleEntry?: (entryId: string) => void;
 }
 
 export const TopologyContext = React.createContext<TopologyContextState>({

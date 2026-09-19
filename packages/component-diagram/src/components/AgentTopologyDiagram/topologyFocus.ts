@@ -37,7 +37,29 @@ function handlerResolver(): (edge: TopologyEdge) => Handlers {
     };
 }
 
+export function inletFocusId(nodeId: string, channel: string): string {
+    return `inlet|${nodeId}|${channel}`;
+}
+
+function focusInlet(graph: TopologyGraph, id: string): TopologyFocus | undefined {
+    const [tag, nodeId, channel] = id.split("|");
+    if (tag !== "inlet") {
+        return undefined;
+    }
+    const edges = graph.edges.filter((edge) => edge.kind === "event" && edge.targetId === nodeId && edge.channel === channel);
+    const senders = edges.flatMap((edge) => [edge.sourceId, edge.handlerId ?? edge.sourceId]);
+    return { nodes: new Set([nodeId, ...senders]), edges: new Set(edges.map((edge) => edge.id)), inlets: new Set([id]) };
+}
+
+function litInlets(graph: TopologyGraph, edges: Set<string>): Set<string> {
+    return new Set(graph.edges.filter((edge) => edge.kind === "event" && edges.has(edge.id)).map((edge) => inletFocusId(edge.targetId, edge.channel)));
+}
+
 export function focusAround(graph: TopologyGraph, id: string): TopologyFocus {
+    const inlet = focusInlet(graph, id);
+    if (inlet) {
+        return inlet;
+    }
     const entry = graph.entries.find((candidate) => candidate.id === id || candidate.handlers.some((handler) => handler.id === id));
     const seedHandlers = entry ? (entry.id === id ? entry.handlers.map((handler) => handler.id) : [id]) : [];
     const start = entry ? entry.id : id;
@@ -95,5 +117,16 @@ export function focusAround(graph: TopologyGraph, id: string): TopologyFocus {
     });
     down(start, reached);
     reached.forEach((handlerId) => nodes.add(handlerId));
-    return { nodes, edges };
+    return { nodes, edges, inlets: litInlets(graph, edges) };
+}
+
+export function isolateGraph(graph: TopologyGraph, focus: TopologyFocus): TopologyGraph {
+    const entries = graph.entries.filter((entry) => focus.nodes.has(entry.id));
+    return {
+        ...graph,
+        agents: graph.agents.filter((agent) => focus.nodes.has(agent.id)),
+        entries,
+        handlers: entries.flatMap((entry) => entry.handlers),
+        edges: graph.edges.filter((edge) => focus.edges.has(edge.id)),
+    };
 }

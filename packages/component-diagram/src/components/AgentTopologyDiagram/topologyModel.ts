@@ -17,6 +17,7 @@
  */
 
 import {
+    CDActivity,
     CDAgentCall,
     CDAgentCallGroup,
     CDAutomation,
@@ -25,6 +26,7 @@ import {
     CDModel,
     CDResourceFunction,
     CDService,
+    CDWorkflow,
     toIconDescriptor,
 } from "@wso2/ballerina-core";
 import {
@@ -36,6 +38,7 @@ import {
     TopologyAgentNode,
     TopologyMemoryStore,
     TopologyModelProvider,
+    TopologyRole,
     TopologyTool,
     TopologyEdge,
     TopologyEdgeKind,
@@ -47,7 +50,13 @@ import {
 
 const AI_MODULE = "ai";
 const AGENT_KIND = "Agent";
+const DURABLE_AGENT_KIND = "DURABLE_AGENT";
+const DURABLE_AGENT_LABEL = "Durable Agent";
+const WORKFLOW_LABEL = "Workflow";
 const GENERATED_CHAT_SERVICE_FILE = "_agent_chat.bal";
+
+type Capabilities = Pick<TopologyAgentNode, "channels" | "people" | "activities" | "gatedActivities" | "humanTasks" | "peers">;
+const NO_CAPABILITIES: Capabilities = { channels: [], people: [], activities: 0, gatedActivities: 0, humanTasks: [], peers: [] };
 
 function samePath(a: string, b: string): boolean {
     if (!a || !b) {
@@ -102,30 +111,32 @@ function typeLabel(connection: CDConnection | undefined): string {
     return typeName && typeName !== PLAIN_AGENT_TYPE ? typeName : PLAIN_AGENT_LABEL;
 }
 
-function toolFacts(connection: CDConnection | undefined): Pick<TopologyAgentNode, "toolCount" | "functionTools" | "agentTools" | "mcpTools" | "tools"> {
-    const handoffs = new Set(Object.keys(connection?.agentTools ?? {}));
-    const tools: TopologyTool[] = [
-        ...(connection?.dependentFunctions ?? []).map((name): TopologyTool => ({ name, kind: handoffs.has(name) ? "agent" : "function" })),
-        ...(connection?.mcpToolKits ?? []).map((name): TopologyTool => ({ name, kind: "mcp" })),
-    ];
+type ToolFacts = Pick<TopologyAgentNode, "toolCount" | "functionTools" | "agentTools" | "mcpTools" | "tools">;
+
+function toolCounts(tools: TopologyTool[]): ToolFacts {
     const count = (kind: TopologyTool["kind"]): number => tools.filter((tool) => tool.kind === kind).length;
     return { toolCount: tools.length, functionTools: count("function"), agentTools: count("agent"), mcpTools: count("mcp"), tools };
 }
 
-function buildToolChips(connection: CDConnection | undefined, uuidToConnection: Map<string, CDConnection>): ToolChip[] {
+function toolFacts(connection: CDConnection | undefined): ToolFacts {
+    const handoffs = new Set(Object.keys(connection?.agentTools ?? {}));
+    return toolCounts([
+        ...(connection?.dependentFunctions ?? []).map((name): TopologyTool => ({ name, kind: handoffs.has(name) ? "agent" : "function" })),
+        ...(connection?.mcpToolKits ?? []).map((name): TopologyTool => ({ name, kind: "mcp" })),
+    ]);
+}
+
+function buildToolChips(toolConnections: string[] | undefined, uuidToConnection: Map<string, CDConnection>): ToolChip[] {
     const chips: ToolChip[] = [];
     const seen = new Set<string>();
-    for (const uuid of connection?.toolConnections ?? []) {
+    for (const uuid of toolConnections ?? []) {
         const toolConnection = uuidToConnection.get(uuid);
-        if (!toolConnection || toolConnection.kind === MODEL_PROVIDER_KIND) {
+        if (!toolConnection || toolConnection.kind === MODEL_PROVIDER_KIND || seen.has(uuid)) {
             continue;
         }
-        const key = toolConnection.icon || toolConnection.symbol;
-        if (seen.has(key)) {
-            continue;
-        }
-        seen.add(key);
-        chips.push({ key, label: toolConnection.symbol, icon: toolConnection.icon });
+        seen.add(uuid);
+        // The uuid is regenerated on every design-model request; the symbol is what stays stable across refetches.
+        chips.push({ key: toolConnection.symbol, label: toolConnection.symbol, icon: toolConnection.icon });
     }
     return chips;
 }
@@ -144,10 +155,11 @@ function agentNodeFromArtifact(
     return {
         id,
         name: artifact.name,
+        kind: "agent",
         typeName: typeLabel(connection),
         role: connection?.role ?? "",
         ...toolFacts(connection),
-        chips: buildToolChips(connection, uuidToConnection),
+        chips: buildToolChips(connection?.toolConnections, uuidToConnection),
         modelProvider: buildModelProvider(connection),
         memory: buildMemory(connection),
         typed: artifact.moduleName != null && artifact.moduleName !== AI_MODULE,
@@ -155,6 +167,7 @@ function agentNodeFromArtifact(
         filePath: artifact.path,
         position: connection?.location?.startLine ?? { line: artifact.startLine, offset: 0 },
         moduleName: artifact.moduleName,
+        ...NO_CAPABILITIES,
     };
 }
 
@@ -172,17 +185,129 @@ function agentNodeFromConnection(
     return {
         id,
         name: connection.symbol,
+        kind: "agent",
         typeName: typeLabel(connection),
         role: connection.role ?? "",
         ...toolFacts(connection),
-        chips: buildToolChips(connection, uuidToConnection),
+        chips: buildToolChips(connection.toolConnections, uuidToConnection),
         modelProvider: buildModelProvider(connection),
         memory: buildMemory(connection),
         typed: false,
         orphan: false,
         filePath: connection.location.filePath,
         position: connection.location.startLine,
+        ...NO_CAPABILITIES,
     };
+}
+
+function isDurableWorkflow(workflow: CDWorkflow): boolean {
+    return workflow.kind === DURABLE_AGENT_KIND;
+}
+
+function findDurableWorkflow(workflows: CDWorkflow[], artifact: TopologyAgentArtifact): CDWorkflow | undefined {
+    const durableWorkflows = workflows.filter(isDurableWorkflow);
+    const byLocation = durableWorkflows.find(
+        (workflow) =>
+            samePath(workflow.location?.filePath ?? "", artifact.path) && workflow.location?.startLine?.line === artifact.startLine
+    );
+    return byLocation ?? durableWorkflows.find((workflow) => workflow.symbol === artifact.name);
+}
+
+function durableToolFacts(workflow: CDWorkflow | undefined): ToolFacts {
+    const handoffs = new Set(Object.keys(workflow?.agentTools ?? {}));
+    return toolCounts([
+        ...(workflow?.tools ?? []).map((name): TopologyTool => ({ name, kind: handoffs.has(name) ? "agent" : "function" })),
+        ...(workflow?.mcpToolKits ?? []).map((name): TopologyTool => ({ name, kind: "mcp" })),
+        ...(workflow?.activityDecls ?? []).map((decl): TopologyTool => ({ name: decl.name, kind: "activity" })),
+    ]);
+}
+
+function durableModelProvider(workflow: CDWorkflow | undefined, uuidToConnection: Map<string, CDConnection>): TopologyModelProvider | undefined {
+    const provider = (workflow?.connections ?? []).map((uuid) => uuidToConnection.get(uuid)).find((connection) => connection?.kind === MODEL_PROVIDER_KIND);
+    return provider ? { label: provider.symbol, type: provider.typeName ?? "", icon: provider.icon } : undefined;
+}
+
+function durablePeople(workflow: CDWorkflow | undefined): TopologyRole[] {
+    const roles = new Map<string, TopologyRole>();
+    const add = (role: string, target: string, gate: boolean): void => {
+        const entry = roles.get(role) ?? { role, gate: false, decides: [], releases: [] };
+        (gate ? entry.releases : entry.decides).push(target);
+        entry.gate = entry.gate || gate;
+        roles.set(role, entry);
+    };
+    (workflow?.humanTasks ?? []).forEach((task) => (task.userRoles ?? []).forEach((role) => add(role, task.name, false)));
+    (workflow?.activityDecls ?? []).filter((decl) => decl.requiresApproval).forEach((decl) => (decl.userRoles ?? []).forEach((role) => add(role, decl.name, true)));
+    (workflow?.peers ?? []).filter((peer) => peer.requiresApproval).forEach((peer) => (peer.userRoles ?? []).forEach((role) => add(role, peer.name ?? "peer", true)));
+    return [...roles.values()];
+}
+
+function durableCapabilities(workflow: CDWorkflow | undefined): Capabilities {
+    const decls = workflow?.activityDecls ?? [];
+    return {
+        channels: (workflow?.events ?? []).map((event) => ({ name: event.name, request: event.type, senders: [] })),
+        people: durablePeople(workflow),
+        activities: decls.length || (workflow?.activities?.length ?? 0),
+        gatedActivities: decls.filter((decl) => decl.requiresApproval).length,
+        humanTasks: (workflow?.humanTasks ?? []).map((task) => task.name),
+        peers: (workflow?.peers ?? []).map((peer) => peer.name ?? "peer"),
+    };
+}
+
+function workflowKindLabel(isDurable: boolean): Pick<TopologyAgentNode, "kind" | "typeName"> {
+    return isDurable ? { kind: "durable", typeName: DURABLE_AGENT_LABEL } : { kind: "workflow", typeName: WORKFLOW_LABEL };
+}
+
+function workflowConnectionUuids(workflow: CDWorkflow | undefined, activities: CDActivity[]): string[] {
+    const activityUuids = new Set(workflow?.activities ?? []);
+    const viaActivities = activities.filter((activity) => activityUuids.has(activity.uuid)).flatMap((activity) => activity.connections ?? []);
+    return [...(workflow?.connections ?? []), ...viaActivities];
+}
+
+function durableAgentNode(
+    workflow: CDWorkflow | undefined,
+    artifact: TopologyAgentArtifact | undefined,
+    uuidToConnection: Map<string, CDConnection>,
+    uuidToNodeId: Map<string, string>,
+    activities: CDActivity[]
+): TopologyAgentNode {
+    const filePath = artifact?.path ?? workflow.location.filePath;
+    const line = artifact?.startLine ?? workflow.location.startLine.line;
+    const id = agentNodeId(filePath, line);
+    if (workflow) {
+        uuidToNodeId.set(workflow.uuid, id);
+    }
+    const isDurable = artifact !== undefined || workflow?.kind === DURABLE_AGENT_KIND;
+    const chipConnections = isDurable ? workflow?.toolConnections : workflowConnectionUuids(workflow, activities);
+    return {
+        id,
+        name: artifact?.name ?? workflow.symbol,
+        ...workflowKindLabel(isDurable),
+        role: workflow?.role ?? "",
+        ...durableToolFacts(workflow),
+        chips: buildToolChips(chipConnections, uuidToConnection),
+        modelProvider: durableModelProvider(workflow, uuidToConnection),
+        typed: false,
+        orphan: false,
+        filePath,
+        position: workflow?.location?.startLine ?? { line, offset: 0 },
+        moduleName: artifact?.moduleName ?? "workflow",
+        ...durableCapabilities(workflow),
+    };
+}
+
+function buildWorkflowNodes(
+    model: CDModel,
+    artifacts: TopologyAgentArtifact[],
+    uuidToConnection: Map<string, CDConnection>,
+    uuidToNodeId: Map<string, string>
+): TopologyAgentNode[] {
+    const workflows = model.workflows ?? [];
+    const activities = model.activities ?? [];
+    const nodes = artifacts.map((artifact) => durableAgentNode(findDurableWorkflow(workflows, artifact), artifact, uuidToConnection, uuidToNodeId, activities));
+    workflows
+        .filter((workflow) => !uuidToNodeId.has(workflow.uuid))
+        .forEach((workflow) => nodes.push(durableAgentNode(workflow, undefined, uuidToConnection, uuidToNodeId, activities)));
+    return nodes;
 }
 
 function buildAgentNodes(
@@ -194,12 +319,14 @@ function buildAgentNodes(
     const uuidToNodeId = new Map<string, string>();
 
     const nodes = agents
-        .filter((artifact) => !artifact.isDefinition)
+        .filter((artifact) => !artifact.isDefinition && artifact.kind !== "durable")
         .map((artifact) => agentNodeFromArtifact(artifact, connections, uuidToConnection, uuidToNodeId));
 
     connections
         .filter((connection) => connection.kind === AGENT_KIND && isModuleLevel(connection) && !uuidToNodeId.has(connection.uuid))
         .forEach((connection) => nodes.push(agentNodeFromConnection(connection, uuidToConnection, uuidToNodeId)));
+
+    nodes.push(...buildWorkflowNodes(model, agents.filter((artifact) => artifact.kind === "durable"), uuidToConnection, uuidToNodeId));
 
     return { nodes, uuidToNodeId };
 }
@@ -242,11 +369,17 @@ function handlerLabelFor(fn: CDFunction | CDResourceFunction, isResource: boolea
     return { label: resourcePath(resourceFn.path), accessor: resourceFn.accessor.toUpperCase() };
 }
 
+interface Sent {
+    agentId: string;
+    channel: string;
+}
+
 interface Handler {
     entryId: string;
     node: TopologyHandler;
-    calls: string[];
+    spine: string[];
     reached: string[];
+    sends: Sent[];
 }
 
 function logicOf(kind: CDAgentCallGroup["kind"]): HandlerLogic {
@@ -263,8 +396,20 @@ function logicIn(calls: CDAgentCall[]): HandlerLogic[] {
     return LOGIC_ORDER.filter((kind) => found.has(kind));
 }
 
-function chainable(handler: Handler): boolean {
-    return handler.node.logic.length === 0 && new Set(handler.calls).size === handler.calls.length;
+function underAlternative(call: CDAgentCall): boolean {
+    return (call.groups ?? []).some((group) => logicOf(group.kind) !== "loop");
+}
+
+function spineOf(calls: CDAgentCall[], uuidToNodeId: Map<string, string>): CDAgentCall[] {
+    const seen = new Set<string>();
+    return (calls ?? []).filter((call) => {
+        const id = uuidToNodeId.get(call.connection);
+        if (id === undefined || seen.has(id)) {
+            return false;
+        }
+        seen.add(id);
+        return true;
+    });
 }
 
 function chainPairs(calls: string[]): string[] {
@@ -275,7 +420,7 @@ function resolveOrderConflicts(handlers: Handler[]): void {
     const owners = new Map<string, Handler[]>();
     handlers.forEach((handler) => {
         if (handler.node.ordered) {
-            chainPairs(handler.calls).forEach((pair) => owners.set(pair, [...(owners.get(pair) ?? []), handler]));
+            chainPairs(handler.spine).forEach((pair) => owners.set(pair, [...(owners.get(pair) ?? []), handler]));
         }
     });
     owners.forEach((holders, pair) => {
@@ -295,6 +440,10 @@ function rowEdge(entryId: string, handlerId: string, targetId: string, step?: Ha
     return { id: `${handlerId}->${targetId}`, sourceId: entryId, targetId, kind: "trigger", handlerId, handlers: step ? [step] : undefined };
 }
 
+function eventEdge(entryId: string, handlerId: string, sent: Sent): TopologyEdge {
+    return { id: `${handlerId}~>${sent.agentId}#${sent.channel}`, sourceId: entryId, targetId: sent.agentId, kind: "event", handlerId, channel: sent.channel };
+}
+
 function mergeDuplicateEdges(edges: TopologyEdge[]): TopologyEdge[] {
     const byId = new Map<string, TopologyEdge>();
     edges.forEach((link) => {
@@ -306,6 +455,7 @@ function mergeDuplicateEdges(edges: TopologyEdge[]): TopologyEdge[] {
         if (link.handlers) {
             existing.handlers = [...(existing.handlers ?? []), ...link.handlers];
         }
+        existing.gated = existing.gated || link.gated;
     });
     return [...byId.values()];
 }
@@ -313,7 +463,7 @@ function mergeDuplicateEdges(edges: TopologyEdge[]): TopologyEdge[] {
 function handlerEdges(handler: Handler): TopologyEdge[] {
     const { entryId } = handler;
     const triggerId = handler.node.id;
-    const steps = [...new Set(handler.calls)];
+    const steps = handler.spine;
     const fromRow = (agentId: string, order: number) => rowEdge(entryId, triggerId, agentId, { triggerId, order });
     const drawn = handler.node.ordered
         ? steps.map((agentId, index) => (index === 0 ? fromRow(agentId, 1) : edge(steps[index - 1], agentId, "trigger", { triggerId, order: index + 1 })))
@@ -321,17 +471,29 @@ function handlerEdges(handler: Handler): TopologyEdge[] {
     const helped = handler.reached
         .filter((agentId) => !steps.includes(agentId))
         .map((agentId) => rowEdge(entryId, triggerId, agentId));
-    return [...drawn, ...helped];
+    const sent = handler.sends.map((send) => eventEdge(entryId, triggerId, send));
+    return [...drawn, ...helped, ...sent];
 }
 
-function collectAgentUuids(fn: { connections?: string[] }, uuidToNodeId: Map<string, string>): string[] {
-    return (fn.connections ?? []).filter((uuid) => uuidToNodeId.has(uuid));
+function collectAgentUuids(fn: { connections?: string[]; workflows?: string[] }, uuidToNodeId: Map<string, string>): string[] {
+    return [...(fn.connections ?? []), ...(fn.workflows ?? [])].filter((uuid) => uuidToNodeId.has(uuid));
 }
 
 function triggeredAgentUuids(fn: AgentCallSite, uuidToNodeId: Map<string, string>, delegated: Set<string>): string[] {
     const called = (fn.agentCalls ?? []).map((call) => call.connection).filter((uuid) => uuidToNodeId.has(uuid));
     const reached = collectAgentUuids(fn, uuidToNodeId).filter((uuid) => !delegated.has(uuid));
     return [...new Set([...called, ...reached])];
+}
+
+function sentChannels(fn: AgentCallSite, uuidToNodeId: Map<string, string>): Sent[] {
+    return Object.entries(fn.workflowSendData ?? {}).flatMap(([uuid, channels]) => {
+        const agentId = uuidToNodeId.get(uuid);
+        return agentId ? channels.map((channel) => ({ agentId, channel })) : [];
+    });
+}
+
+function durableWorkflows(model: CDModel): CDWorkflow[] {
+    return (model.workflows ?? []).filter(isDurableWorkflow);
 }
 
 function delegatedAgentUuids(model: CDModel): Set<string> {
@@ -341,6 +503,7 @@ function delegatedAgentUuids(model: CDModel): Set<string> {
             (connection.delegatesTo ?? []).forEach((uuid) => delegated.add(uuid));
         }
     }
+    durableWorkflows(model).forEach((workflow) => (workflow.delegatesTo ?? []).forEach((uuid) => delegated.add(uuid)));
     return delegated;
 }
 
@@ -348,6 +511,8 @@ interface AgentCallSite {
     location: { startLine: { line: number; offset: number }; endLine?: { line: number; offset: number } };
     connections?: string[];
     agentCalls?: CDAgentCall[];
+    workflows?: string[];
+    workflowSendData?: Record<string, string[]>;
 }
 
 function buildHandler(
@@ -357,11 +522,10 @@ function buildHandler(
     fn: AgentCallSite,
     uuidToNodeId: Map<string, string>,
     delegated: Set<string>
-): Handler | undefined {
+): Handler {
     const agentUuids = triggeredAgentUuids(fn, uuidToNodeId, delegated);
-    if (agentUuids.length === 0) {
-        return undefined;
-    }
+    const sends = sentChannels(fn, uuidToNodeId);
+    const spine = spineOf(fn.agentCalls, uuidToNodeId);
     const node: TopologyHandler = {
         id: agentNodeId(filePath, fn.location.startLine.line),
         label: labels.label,
@@ -370,16 +534,17 @@ function buildHandler(
         position: fn.location.startLine,
         endPosition: fn.location.endLine,
         logic: logicIn(fn.agentCalls),
-        ordered: false,
+        ordered: !spine.some(underAlternative),
+        sends: sends.length ? [...new Set(sends.map((send) => send.channel))] : undefined,
+        wired: agentUuids.length > 0 || sends.length > 0,
     };
-    const handler: Handler = {
+    return {
         entryId,
         node,
-        calls: (fn.agentCalls ?? []).map((call) => uuidToNodeId.get(call.connection)).filter((id): id is string => id !== undefined),
+        spine: spine.map((call) => uuidToNodeId.get(call.connection) as string),
         reached: agentUuids.map((uuid) => uuidToNodeId.get(uuid)),
+        sends,
     };
-    node.ordered = chainable(handler);
-    return handler;
 }
 
 function buildServiceEntries(model: CDModel, uuidToNodeId: Map<string, string>): { entries: TopologyEntryNode[]; handlers: Handler[] } {
@@ -395,12 +560,8 @@ function buildServiceEntries(model: CDModel, uuidToNodeId: Map<string, string>):
             ...(service.remoteFunctions ?? []).map((fn) => ({ fn, isResource: false as const })),
         ];
         const entryId = `service::${agentNodeId(service.location.filePath, service.location.startLine.line)}`;
-        const own = functions
-            .map(({ fn, isResource }) => buildHandler(entryId, handlerLabelFor(fn, isResource), service.location.filePath, fn, uuidToNodeId, delegated))
-            .filter((handler): handler is Handler => handler !== undefined);
-        if (own.length === 0) {
-            continue;
-        }
+        const built = functions.map(({ fn, isResource }) => buildHandler(entryId, handlerLabelFor(fn, isResource), service.location.filePath, fn, uuidToNodeId, delegated));
+        const own = [...built.filter((handler) => handler.node.wired), ...built.filter((handler) => !handler.node.wired)];
         const labels = entryLabelsFor(service);
         entries.push({
             id: entryId,
@@ -423,9 +584,6 @@ function buildAutomationEntry(model: CDModel, uuidToNodeId: Map<string, string>)
     }
     const entryId = `automation::${agentNodeId(automation.location.filePath, automation.location.startLine.line)}`;
     const handler = buildHandler(entryId, { label: "main" }, automation.location.filePath, automation, uuidToNodeId, delegatedAgentUuids(model));
-    if (!handler) {
-        return undefined;
-    }
     return {
         entry: {
             id: entryId,
@@ -461,12 +619,31 @@ function buildDelegationEdges(model: CDModel, uuidToNodeId: Map<string, string>)
             edges.push(edge(sourceId, targetId, "delegation"));
         }
     }
+    return [...edges, ...durableDelegationEdges(model, uuidToNodeId)];
+}
+
+function durableDelegationEdges(model: CDModel, uuidToNodeId: Map<string, string>): TopologyEdge[] {
+    const edges: TopologyEdge[] = [];
+    for (const workflow of durableWorkflows(model)) {
+        const sourceId = uuidToNodeId.get(workflow.uuid);
+        if (!sourceId) {
+            continue;
+        }
+        const peers = workflow.peers ?? [];
+        const gatedBy = new Map(peers.filter((peer) => peer.requiresApproval).map((peer) => [peer.agentUuid, peer.userRoles ?? []]));
+        for (const uuid of new Set([...(workflow.delegatesTo ?? []), ...peers.map((peer) => peer.agentUuid)])) {
+            const targetId = uuidToNodeId.get(uuid);
+            if (targetId) {
+                edges.push({ ...edge(sourceId, targetId, "delegation"), gated: gatedBy.has(uuid) || undefined, gatedBy: gatedBy.get(uuid) });
+            }
+        }
+    }
     return edges;
 }
 
 function markReachability(agents: TopologyAgentNode[], entries: TopologyEntryNode[], edges: TopologyEdge[]): void {
     const adjacency = new Map<string, string[]>();
-    edges.forEach((edge) => {
+    edges.filter((edge) => edge.kind !== "event").forEach((edge) => {
         if (!adjacency.has(edge.sourceId)) {
             adjacency.set(edge.sourceId, []);
         }
@@ -487,15 +664,36 @@ function markReachability(agents: TopologyAgentNode[], entries: TopologyEntryNod
     });
 }
 
-function computeLegendKinds(handlers: TopologyHandler[], edges: TopologyEdge[]): LegendKind[] {
+function computeLegendKinds(agents: TopologyAgentNode[], edges: TopologyEdge[]): LegendKind[] {
     const kinds: LegendKind[] = [];
-    if (handlers.length > 0) {
+    if (edges.some((link) => link.kind === "trigger")) {
         kinds.push("trigger");
+    }
+    if (edges.some((link) => link.kind === "event")) {
+        kinds.push("event");
     }
     if (edges.some((link) => link.kind === "delegation")) {
         kinds.push("delegation");
     }
+    if (edges.some((link) => link.kind === "delegation" && link.gated)) {
+        kinds.push("gate");
+    }
+    if (agents.some((agent) => agent.gatedActivities > 0)) {
+        kinds.push("people");
+    }
     return kinds;
+}
+
+function fillChannelSenders(agents: TopologyAgentNode[], handlers: TopologyHandler[], edges: TopologyEdge[]): void {
+    const labels = new Map(handlers.map((handler) => [handler.id, [handler.accessor, handler.label].filter(Boolean).join(" ")]));
+    const byId = new Map(agents.map((agent) => [agent.id, agent]));
+    edges.filter((link) => link.kind === "event").forEach((link) => {
+        const channel = byId.get(link.targetId)?.channels.find((candidate) => candidate.name === link.channel);
+        const label = labels.get(link.handlerId ?? "");
+        if (channel && label && !channel.senders.includes(label)) {
+            channel.senders.push(label);
+        }
+    });
 }
 
 export function buildTopology(input: TopologyInput): TopologyGraph {
@@ -512,18 +710,39 @@ export function buildTopology(input: TopologyInput): TopologyGraph {
     }
     resolveOrderConflicts(built);
 
-    const handlers = built.map((handler) => handler.node);
     const delegationEdges = buildDelegationEdges(model, uuidToNodeId);
-    const edges = mergeDuplicateEdges([...built.flatMap(handlerEdges), ...delegationEdges]);
+    const graph = canonical(agentNodes, entries, mergeDuplicateEdges([...built.flatMap(handlerEdges), ...delegationEdges]));
 
-    markReachability(agentNodes, entries, edges);
+    markReachability(graph.agents, graph.entries, graph.edges);
+    fillChannelSenders(graph.agents, graph.handlers, graph.edges);
 
     return {
-        agents: agentNodes,
-        entries,
-        handlers,
-        edges,
-        wiredNothing: entries.length === 0,
-        legendKinds: computeLegendKinds(handlers, edges),
+        ...graph,
+        wiredNothing: !graph.edges.some((link) => link.kind === "trigger"),
+        legendKinds: computeLegendKinds(graph.agents, graph.edges),
     };
+}
+
+type Declared = Pick<TopologyAgentNode, "filePath" | "position">;
+
+function declarationOrder(a: Declared, b: Declared): number {
+    return a.filePath.localeCompare(b.filePath) || a.position.line - b.position.line;
+}
+
+function canonical(agents: TopologyAgentNode[], entries: TopologyEntryNode[], edges: TopologyEdge[]): Pick<TopologyGraph, "agents" | "entries" | "handlers" | "edges"> {
+    const sortedAgents = [...agents].sort(declarationOrder);
+    const sortedEntries = [...entries].sort(declarationOrder);
+    const handlers = sortedEntries.flatMap((entry) => entry.handlers);
+    const nodeOrder = new Map([...sortedEntries, ...sortedAgents].map((node, index) => [node.id, index]));
+    const rowOrder = new Map(handlers.map((handler, index) => [handler.id, index]));
+    const key = (edge: TopologyEdge): [number, number] => [
+        nodeOrder.get(edge.sourceId) ?? 0,
+        edge.handlerId ? rowOrder.get(edge.handlerId) ?? 0 : nodeOrder.get(edge.targetId) ?? 0,
+    ];
+    const sortedEdges = [...edges].sort((a, b) => {
+        const [aNode, aRow] = key(a);
+        const [bNode, bRow] = key(b);
+        return aNode - bNode || aRow - bRow;
+    });
+    return { agents: sortedAgents, entries: sortedEntries, handlers, edges: sortedEdges };
 }

@@ -24,6 +24,7 @@ export interface TopologyAgentArtifact {
     startLine: number;
     moduleName?: string;
     isDefinition: boolean;
+    kind?: "durable";
 }
 
 export interface TopologyInput {
@@ -37,7 +38,7 @@ export interface ToolChip {
     icon?: string;
 }
 
-export type TopologyEdgeKind = "trigger" | "delegation";
+export type TopologyEdgeKind = "trigger" | "event" | "delegation";
 
 export type HandlerLogic = "branch" | "fork" | "loop";
 
@@ -53,6 +54,9 @@ export interface TopologyEdge {
     kind: TopologyEdgeKind;
     handlerId?: string;
     handlers?: HandlerStep[];
+    channel?: string;
+    gated?: boolean;
+    gatedBy?: string[];
 }
 
 export interface TopologyModelProvider {
@@ -68,12 +72,28 @@ export interface TopologyMemoryStore {
 
 export interface TopologyTool {
     name: string;
-    kind: "function" | "agent" | "mcp";
+    kind: "function" | "agent" | "mcp" | "activity";
+}
+
+export interface TopologyChannel {
+    name: string;
+    request?: string;
+    response?: string;
+    cardinality?: string;
+    senders: string[];
+}
+
+export interface TopologyRole {
+    role: string;
+    gate: boolean;
+    decides: string[];
+    releases: string[];
 }
 
 export interface TopologyAgentNode {
     id: string;
     name: string;
+    kind: "agent" | "durable" | "workflow";
     typeName: string;
     role: string;
     toolCount: number;
@@ -89,6 +109,12 @@ export interface TopologyAgentNode {
     filePath: string;
     position: LinePosition;
     moduleName?: string;
+    channels: TopologyChannel[];
+    people: TopologyRole[];
+    activities: number;
+    gatedActivities: number;
+    humanTasks: string[];
+    peers: string[];
 }
 
 export interface TopologyHandler {
@@ -100,6 +126,8 @@ export interface TopologyHandler {
     endPosition?: LinePosition;
     logic: HandlerLogic[];
     ordered: boolean;
+    sends?: string[];
+    wired: boolean;
 }
 
 export interface TopologyEntryNode {
@@ -115,7 +143,7 @@ export interface TopologyEntryNode {
     handlers: TopologyHandler[];
 }
 
-export type LegendKind = "trigger" | "delegation";
+export type LegendKind = "trigger" | "event" | "delegation" | "gate" | "people";
 
 export interface TopologyGraph {
     agents: TopologyAgentNode[];
@@ -137,6 +165,7 @@ export interface TopologyLayout {
     cardHeights: Record<string, number>;
     edgeVias: Record<string, NodePosition[]>;
     edgeBows: Record<string, number>;
+    edgeLanes: Record<string, number>;
     visibleRows: Record<string, number>;
     left: number;
     width: number;
@@ -146,6 +175,7 @@ export interface TopologyLayout {
 export interface TopologyFocus {
     nodes: Set<string>;
     edges: Set<string>;
+    inlets: Set<string>;
 }
 
 export type TopologyOrientation = "horizontal" | "vertical";
@@ -154,6 +184,7 @@ export interface LayoutOptions {
     availableWidth?: number;
     orientation?: TopologyOrientation;
     visibleRows?: Record<string, number>;
+    unfolded?: Set<string>;
 }
 
 export interface AgentSelection {

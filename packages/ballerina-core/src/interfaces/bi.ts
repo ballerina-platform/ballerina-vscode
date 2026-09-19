@@ -180,6 +180,7 @@ export type AgentUsage = {
     trigger?: AgentUsageTrigger;
     tryIt?: AgentUsageTryIt;
     parentAgent?: boolean;
+    channel?: string;
 };
 
 export type AgentUsageTryIt = {

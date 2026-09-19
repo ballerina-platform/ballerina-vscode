@@ -235,7 +235,7 @@ export async function updateProjectArtifacts(publishedArtifacts: ArtifactsNotifi
     }
 }
 
-async function traverseComponents(artifacts: Artifacts, projectPath: string, response: ProjectStructure) {
+export async function traverseComponents(artifacts: Artifacts, projectPath: string, response: ProjectStructure) {
     response.directoryMap[DIRECTORY_MAP.AUTOMATION].push(...await getComponents(artifacts[ARTIFACT_TYPE.EntryPoints], projectPath, DIRECTORY_MAP.AUTOMATION, "task"));
     response.directoryMap[DIRECTORY_MAP.SERVICE].push(...await getComponents(artifacts[ARTIFACT_TYPE.EntryPoints], projectPath, DIRECTORY_MAP.SERVICE, "http-service"));
     response.directoryMap[DIRECTORY_MAP.LISTENER].push(...await getComponents(artifacts[ARTIFACT_TYPE.Listeners], projectPath, DIRECTORY_MAP.LISTENER, "http-service"));
@@ -387,10 +387,8 @@ async function getEntryValue(artifact: BaseArtifact, projectPath: string, icon: 
         id: artifact.id,
         name: artifact.name,
         path: targetFile,
-        moduleName: artifact.module,
-        // The WSO2 Integrator shell's explorer renders a section's children only when the entry
-        // type matches the section, so a durable agent presents as an AGENT entry; `kind` keeps
-        // what it is, which click routing uses to open the agent model instead of the AI agent.
+        // A durable agent presents as an AGENT entry (see `type` below) with moduleName "workflow", the discriminator other agent-kind checks already key on.
+        moduleName: artifact.type === DIRECTORY_MAP.DURABLE_AGENT ? "workflow" : artifact.module,
         type: artifact.type === DIRECTORY_MAP.DURABLE_AGENT ? DIRECTORY_MAP.AGENT : artifact.type,
         kind: artifact.type === DIRECTORY_MAP.DURABLE_AGENT ? DIRECTORY_MAP.DURABLE_AGENT : undefined,
         icon: artifact.module ? `bi-${artifact.module}` : icon,
@@ -680,7 +678,7 @@ function resolveOwningProjectPath(changedUri: string, projectStructure: ProjectS
     return best;
 }
 
-async function traverseUpdatedComponents(publishedArtifacts: Artifacts, currentProjectStructure: ProjectStructureResponse, activeProjectPath: string): Promise<ProjectStructureArtifactResponse[]> {
+export async function traverseUpdatedComponents(publishedArtifacts: Artifacts, currentProjectStructure: ProjectStructureResponse, activeProjectPath: string): Promise<ProjectStructureArtifactResponse[]> {
     const entryLocations: ProjectStructureArtifactResponse[] = [];
     const promises: Promise<ProjectStructureArtifactResponse | undefined>[] = [];
 

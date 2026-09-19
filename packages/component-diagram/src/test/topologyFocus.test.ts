@@ -24,8 +24,9 @@ const triggerIds = new Set(["draft", "intakeT", "main", "t1", "t2", "t", "other"
 
 function agent(id: string): TopologyAgentNode {
     return {
-        id, name: id, typeName: "AI Agent", role: "", toolCount: 0, functionTools: 0, agentTools: 0, mcpTools: 0, tools: [], chips: [],
+        id, name: id, kind: "agent", typeName: "AI Agent", role: "", toolCount: 0, functionTools: 0, agentTools: 0, mcpTools: 0, tools: [], chips: [],
         typed: false, orphan: false, filePath: "/proj/agents.bal", position: { line: 1, offset: 0 },
+        channels: [], people: [], activities: 0, gatedActivities: 0, humanTasks: [], peers: [],
     };
 }
 
@@ -39,7 +40,7 @@ function trigger(id: string): TopologyEntryNode {
         glyphType: "http",
         filePath: "/proj/services.bal",
         position: { line: 1, offset: 0 },
-        handlers: [{ id, label: id, filePath: "/proj/services.bal", position: { line: 1, offset: 0 }, logic: [], ordered: false }],
+        handlers: [{ id, label: id, filePath: "/proj/services.bal", position: { line: 1, offset: 0 }, logic: [], ordered: false, wired: true }],
     };
 }
 

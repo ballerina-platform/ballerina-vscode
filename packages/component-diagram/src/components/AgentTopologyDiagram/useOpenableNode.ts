@@ -37,6 +37,7 @@ export function useOpenableNode(open: () => void, { readonly, onHoverChange }: O
 
     return {
         hovered: !readonly && hovered,
+        setHovered,
         handlers: {
             tabIndex: 0,
             onMouseEnter: () => setHoveredState(true),

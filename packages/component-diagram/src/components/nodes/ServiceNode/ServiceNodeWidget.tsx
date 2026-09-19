@@ -35,8 +35,9 @@ import {
 import { useTopologyContext } from "../../AgentTopologyDiagram/TopologyContext";
 import { EntrySelection, TopologyEntryNode, TopologyHandler } from "../../AgentTopologyDiagram/types";
 import { useOpenableNode } from "../../AgentTopologyDiagram/useOpenableNode";
-import { rowCrossOffset } from "../../AgentTopologyDiagram/topologyLayout";
+import { rowPortOffset } from "../../AgentTopologyDiagram/topologyLayout";
 import { TriggerGlyph } from "../../AgentTopologyDiagram/TriggerGlyph";
+import { methodColor } from "../EntryNode/components/styles";
 
 const Card = styled.div<{ receded: boolean }>`
     width: ${ENTRY_CARD_WIDTH}px;
@@ -102,13 +103,12 @@ const RowBox = styled.div<{ hovered: boolean; dimmed: boolean }>`
     transition: opacity ${FOCUS_FADE_MS}ms ease, background-color 0.15s ease;
 `;
 
-const Accessor = styled.span`
+const Accessor = styled.span<{ method: string }>`
     font-family: var(--vscode-editor-font-family, monospace);
     font-size: 9.5px;
     letter-spacing: 0.04em;
-    color: ${ThemeColors.ON_SURFACE};
-    background-color: ${ThemeColors.SURFACE_CONTAINER};
-    border: 1px solid ${ThemeColors.OUTLINE_VARIANT};
+    color: #fff;
+    background-color: ${(props) => methodColor(props.method)};
     border-radius: 3px;
     padding: 1px 5px;
     flex: none;
@@ -133,13 +133,25 @@ const Footer = styled.div`
     border-top: 1px solid ${ThemeColors.OUTLINE_VARIANT};
     font-family: "GilmerRegular";
     font-size: 11.5px;
-    color: ${ThemeColors.PRIMARY};
+    color: ${ThemeColors.ON_SURFACE_VARIANT};
     cursor: pointer;
+    transition: color 0.15s ease, background-color 0.15s ease;
+    &:hover {
+        color: ${ThemeColors.PRIMARY};
+        background-color: ${NODE_BG_HOVER_COLOR};
+    }
 `;
 
-const RowPort = styled(PortWidget)<{ offset: number; vertical: boolean }>`
+const RowPort = styled(PortWidget)<{ offset: number }>`
     position: absolute;
-    ${(props) => (props.vertical ? `bottom: -6px; left: ${props.offset}px;` : `right: -6px; top: ${props.offset}px;`)}
+    right: -6px;
+    top: ${(props) => props.offset}px;
+    transform: translateY(-50%);
+`;
+
+const CardPort = styled(PortWidget)<{ vertical: boolean }>`
+    position: absolute;
+    ${(props) => (props.vertical ? `bottom: -6px; left: ${ENTRY_CARD_WIDTH / 2}px;` : `right: -6px; top: ${ENTRY_HEADER_HEIGHT / 2}px;`)}
     transform: ${(props) => (props.vertical ? "translateX(-50%)" : "translateY(-50%)")};
 `;
 
@@ -172,10 +184,17 @@ function HandlerRow({ handler, dimmed }: RowProps) {
             title={`Open ${handler.accessor ? `${handler.accessor} ` : ""}${handler.label}`}
             {...handlers}
         >
-            {handler.accessor && <Accessor>{handler.accessor}</Accessor>}
+            {handler.accessor && <Accessor method={handler.accessor}>{handler.accessor}</Accessor>}
             <RowLabel hovered={hovered}>{handler.label}</RowLabel>
         </RowBox>
     );
+}
+
+function footerLabel(hidden: number, unfolded: boolean | undefined): string | undefined {
+    if (hidden > 0) {
+        return `Show ${hidden} more`;
+    }
+    return unfolded ? "Show fewer" : undefined;
 }
 
 function entrySelection(entry: TopologyEntryNode): EntrySelection {
@@ -249,12 +268,13 @@ function CardMenuPopover({ menu }: { menu: CardMenuState }) {
 
 export function ServiceNodeWidget(props: ServiceNodeWidgetProps) {
     const { model, engine } = props;
-    const { onTriggerSelect, readonly, orientation, focus, setHovered, visibleRows, onExpandEntry } = useTopologyContext();
+    const { onTriggerSelect, readonly, orientation, focus, setHovered, visibleRows, unfolded, onToggleEntry } = useTopologyContext();
     const vertical = orientation === "vertical";
     const entry = model.node;
     const shown = Math.min(visibleRows?.[entry.id] ?? entry.handlers.length, entry.handlers.length);
     const hidden = entry.handlers.length - shown;
     const rows = entry.handlers.slice(0, shown);
+    const footer = footerLabel(hidden, unfolded?.has(entry.id));
     const foldedHandlers = entry.handlers.slice(shown);
     const isService = entry.kind === "service";
     const centerOffset = vertical ? ENTRY_CARD_WIDTH / 2 : ENTRY_HEADER_HEIGHT / 2;
@@ -289,16 +309,10 @@ export function ServiceNodeWidget(props: ServiceNodeWidgetProps) {
             {isService && <CardMenuPopover menu={menu} />}
             {isService &&
                 rows.map((handler) => <HandlerRow key={handler.id} handler={handler} dimmed={rowDimmed(handler)} />)}
-            {hidden > 0 && <Footer onClick={() => onExpandEntry?.(entry.id)}>{`Show ${hidden} more`}</Footer>}
+            {footer && <Footer onClick={() => onToggleEntry?.(entry.id)}>{footer}</Footer>}
             {isService &&
                 rows.map((handler, index) => (
-                    <RowPort
-                        key={`port-${handler.id}`}
-                        port={model.getPort(rowPortName(handler.id))!}
-                        engine={engine}
-                        offset={rowCrossOffset(index, rows.length, vertical)}
-                        vertical={vertical}
-                    />
+                    <RowPort key={`port-${handler.id}`} port={model.getPort(rowPortName(handler.id))!} engine={engine} offset={rowPortOffset(index)} />
                 ))}
             {isService &&
                 // A folded row still needs a mounted port, or its link never reports a position and silently drops.
@@ -308,10 +322,9 @@ export function ServiceNodeWidget(props: ServiceNodeWidgetProps) {
                         port={model.getPort(rowPortName(handler.id))!}
                         engine={engine}
                         offset={centerOffset}
-                        vertical={vertical}
                     />
                 ))}
-            <RowPort port={model.getOutPort()!} engine={engine} offset={centerOffset} vertical={vertical} />
+            <CardPort port={model.getOutPort()!} engine={engine} vertical={vertical} />
         </Card>
     );
 }

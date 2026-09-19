@@ -26,25 +26,28 @@ import { OverlayLayerModel } from "../OverlayLayer";
 import { TopologyLinkModel } from "../NodeLink";
 import { AgentCardNodeModel } from "../nodes/AgentCardNode";
 import { ServiceNodeModel } from "../nodes/ServiceNode";
+import { getNodeChartColor } from "@wso2/bi-diagram";
 import { generateTopologyEngine } from "./engine";
 import { buildTopology } from "./topologyModel";
-import { layoutTopology } from "./topologyLayout";
+import { defaultVisibleRows, layoutTopology } from "./topologyLayout";
 import { describeTopology } from "./topologyDescribe";
-import { focusAround } from "./topologyFocus";
+import { focusAround, isolateGraph } from "./topologyFocus";
 import { TopologyContextProvider } from "./TopologyContext";
 import { Legend } from "./Legend";
-import { FlowList } from "./FlowList";
+import { FindPanel } from "./FindPanel";
+import { PinBanner } from "./PinBanner";
+import { buildFindRows, FindFacet, FindRow, findableCount, focusKind } from "./findRows";
 import { Bounds, focusBounds } from "./topologyBounds";
 import {
     ENTRY_FOOTER_HEIGHT,
     ENTRY_HEADER_HEIGHT,
-    ENTRY_MIN_ROWS,
     ENTRY_ROW_BAND,
     ENTRY_ROW_HEIGHT,
+    EVENT_COLOR_VAR,
     LAYOUT_FIT_MARGIN,
     TOPOLOGY_GAP_Y,
 } from "../../resources/constants";
-import { AgentSelection, EntrySelection, TopologyEdge, TopologyEntryNode, TopologyGraph, TopologyInput, TopologyLayout, TopologyOrientation, TriggerSelection } from "./types";
+import { AgentSelection, EntrySelection, TopologyEdge, TopologyFocus, TopologyGraph, TopologyInput, TopologyLayout, TopologyOrientation, TriggerSelection } from "./types";
 
 export interface AgentTopologyDiagramProps {
     input: TopologyInput;
@@ -80,15 +83,20 @@ function createLink(edge: TopologyEdge, nodeModels: Map<string, TopologyNodeMode
         return null;
     }
     const sourcePort = sourceNode instanceof ServiceNodeModel ? sourceNode.getRowPort(edge.handlerId) : sourceNode.getOutPort();
-    const targetPort = targetNode.getInPort();
+    const targetPort = edge.kind === "event" ? targetNode.getInletPort(edge.channel) : targetNode.getInPort();
     if (!sourcePort || !targetPort) {
         return null;
     }
-    const link = new TopologyLinkModel({ edgeId: edge.id, dashed: edge.kind === "delegation" });
+    const link = new TopologyLinkModel({ edgeId: edge.id, kind: edge.kind, gated: edge.gated, gatedBy: edge.gatedBy });
     link.setSourcePort(sourcePort);
     link.setTargetPort(targetPort);
     sourcePort.addLink(link);
     return link;
+}
+
+function sameRows(a: Record<string, number> | undefined, b: Record<string, number>): boolean {
+    const ids = Object.keys(b);
+    return a !== undefined && Object.keys(a).length === ids.length && ids.every((id) => a[id] === b[id]);
 }
 
 const Root = styled.div`
@@ -112,6 +120,14 @@ const TopRight = styled.div`
     position: absolute;
     top: 12px;
     right: 12px;
+    z-index: 3;
+`;
+
+const TopCenter = styled.div`
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
     z-index: 3;
 `;
 
@@ -154,20 +170,25 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
     const [diagramModel, setDiagramModel] = useState<DiagramModel | null>(null);
     const [legendKinds, setLegendKinds] = useState<ReturnType<typeof buildTopology>["legendKinds"]>([]);
     const [hoveredId, setHoveredId] = useState<string>();
-    const [entries, setEntries] = useState<TopologyEntryNode[]>([]);
-    const [expanded, setExpanded] = useState<Set<string>>(new Set());
+    const [graph, setGraph] = useState<TopologyGraph>();
+    const [unfolded, setUnfolded] = useState<Set<string>>(new Set());
     const [visibleRows, setVisibleRows] = useState<Record<string, number>>();
-    const handlerCount = entries.reduce((total, entry) => total + entry.handlers.length, 0);
+    const findable = graph ? findableCount(graph) : 0;
     const [pinnedId, setPinnedId] = useState<string>();
-    const [flowsOpen, setFlowsOpen] = useState(false);
+    const [findOpen, setFindOpen] = useState(false);
+    const [isolated, setIsolated] = useState(false);
+    const [facetFocus, setFacetFocus] = useState<TopologyFocus>();
     const pinnedRef = useRef<string>();
+    const isolatedRef = useRef(false);
     const hoverTimerRef = useRef<ReturnType<typeof setTimeout>>();
     const [wiredNothing, setWiredNothing] = useState(false);
+    const [hasAgentCards, setHasAgentCards] = useState(false);
     const [previousNodeKey, setPreviousNodeKey] = useState<string>("");
     const [orientation, setOrientation] = useState<TopologyOrientation>(lastOrientation);
     const [settling, setSettling] = useState(false);
     const layoutRef = useRef<TopologyLayout>();
     const graphRef = useRef<TopologyGraph>();
+    const shownGraphRef = useRef<TopologyGraph>();
     const graphSignatureRef = useRef<string>();
     const lastDescriptionRef = useRef<string>();
     const nodeModelsRef = useRef(new Map<string, TopologyNodeModel>());
@@ -180,7 +201,7 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
         return { width: rect && rect.width > 0 ? rect.width : undefined, height: rect && rect.height > 0 ? rect.height : undefined };
     }, [diagramEngine]);
 
-    const rowBudget = useCallback((graph: TopologyGraph, height: number | undefined, vertical: boolean): Record<string, number> => {
+    const rowBudget = useCallback((graph: TopologyGraph, height: number | undefined, vertical: boolean, unfoldedNow: Set<string>): Record<string, number> => {
         const budget: Record<string, number> = {};
         const wanting = graph.entries.filter((entry) => entry.handlers.length > 1);
         if (wanting.length === 0) {
@@ -190,21 +211,22 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
         const share = vertical
             ? usable * ENTRY_ROW_BAND - ENTRY_HEADER_HEIGHT - ENTRY_FOOTER_HEIGHT
             : (usable - (wanting.length - 1) * TOPOLOGY_GAP_Y) / wanting.length - ENTRY_HEADER_HEIGHT - ENTRY_FOOTER_HEIGHT;
-        const fits = Math.max(ENTRY_MIN_ROWS, Math.floor(share / ENTRY_ROW_HEIGHT));
-        wanting.forEach((entry) => (budget[entry.id] = expanded.has(entry.id) ? entry.handlers.length : fits));
+        const fits = Math.floor(share / ENTRY_ROW_HEIGHT);
+        wanting.forEach((entry) => (budget[entry.id] = unfoldedNow.has(entry.id) ? entry.handlers.length : defaultVisibleRows(entry, fits)));
         return budget;
-    }, [expanded]);
+    }, []);
 
-    const applyLayout = useCallback(() => {
-        const graph = graphRef.current;
+    const applyLayout = useCallback((unfoldedNow: Set<string> = unfolded) => {
+        const graph = shownGraphRef.current ?? graphRef.current;
         if (!graph) {
             return;
         }
         const { width, height } = canvasSize();
-        const layoutOptions = { availableWidth: width, orientation, visibleRows: rowBudget(graph, height, orientation === "vertical") };
+        const vertical = orientation === "vertical";
+        const layoutOptions = { availableWidth: width, orientation, visibleRows: rowBudget(graph, height, vertical, unfoldedNow), unfolded: unfoldedNow };
         const layout = layoutTopology(graph, layoutOptions);
         layoutRef.current = layout;
-        setVisibleRows((current) => (sameVisibleRows(current, layout.visibleRows) ? current : layout.visibleRows));
+        setVisibleRows((current) => (sameRows(current, layout.visibleRows) ? current : layout.visibleRows));
         const description = describeTopology(input.model, graph, layout, layoutOptions);
         if (description !== lastDescriptionRef.current) {
             lastDescriptionRef.current = description;
@@ -217,9 +239,10 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
         linkModelsRef.current.forEach((link, edgeId) => {
             link.via = layout.edgeVias[edgeId] ?? [];
             link.bow = layout.edgeBows[edgeId] ?? 0;
+            link.lane = layout.edgeLanes[edgeId];
             link.vertical = orientation === "vertical";
         });
-    }, [canvasSize, rowBudget, orientation, input.model]);
+    }, [canvasSize, rowBudget, orientation, input.model, unfolded]);
 
     const fitToBounds = useCallback((bounds: Bounds | undefined) => {
         const canvas = diagramEngine.getCanvas();
@@ -255,23 +278,24 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
         fitToLayout();
     }, [fitToBounds, fitToLayout, orientation]);
 
-    useEffect(() => {
-        const graph = buildTopology(input);
-        const signature = JSON.stringify(graph);
-        if (signature === graphSignatureRef.current) {
-            return;
-        }
-        graphSignatureRef.current = signature;
-        graphRef.current = graph;
-        setLegendKinds(graph.legendKinds);
-        setEntries(graph.entries);
-        setExpanded(new Set());
-        if (pinnedRef.current && !graph.handlers.some((handler) => handler.id === pinnedRef.current)) {
-            pinnedRef.current = undefined;
-            setPinnedId(undefined);
-        }
-        setWiredNothing(graph.wiredNothing);
+    const onToggleEntry = useCallback(
+        (entryId: string) => {
+            const next = new Set(unfolded);
+            if (!next.delete(entryId)) {
+                next.add(entryId);
+            }
+            setUnfolded(next);
+            applyLayout(next);
+            if (!userAdjustedRef.current) {
+                refit();
+            }
+            diagramEngine.repaintCanvas();
+        },
+        [unfolded, applyLayout, refit, diagramEngine]
+    );
 
+    const installGraph = useCallback((graph: TopologyGraph) => {
+        shownGraphRef.current = graph;
         const nodeModels = new Map<string, TopologyNodeModel>();
         graph.agents.forEach((agentNode) => nodeModels.set(agentNode.id, new AgentCardNodeModel(agentNode)));
         graph.entries.forEach((entryNode) => nodeModels.set(entryNode.id, new ServiceNodeModel(entryNode)));
@@ -325,6 +349,30 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
             diagramEngine.repaintCanvas();
         }, 200);
         // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [applyLayout, diagramEngine, previousNodeKey, refit]);
+
+    useEffect(() => {
+        const graph = buildTopology(input);
+        const signature = JSON.stringify(graph);
+        if (signature === graphSignatureRef.current) {
+            return;
+        }
+        graphSignatureRef.current = signature;
+        graphRef.current = graph;
+        setGraph(graph);
+        setLegendKinds(graph.legendKinds);
+        setUnfolded(new Set());
+        const stillThere = (id: string) => graph.handlers.some((handler) => handler.id === id) || graph.agents.some((agent) => agent.id === id);
+        if (pinnedRef.current && !stillThere(pinnedRef.current)) {
+            pinnedRef.current = undefined;
+            setPinnedId(undefined);
+        }
+        isolatedRef.current = false;
+        setIsolated(false);
+        setWiredNothing(graph.wiredNothing);
+        setHasAgentCards(graph.agents.length > 0);
+        installGraph(graph);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [input]);
 
     useEffect(() => {
@@ -352,6 +400,16 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
     }, []);
     useEffect(() => () => clearTimeout(hoverTimerRef.current), []);
 
+    const showEverything = useCallback(() => {
+        if (!isolatedRef.current || !graphRef.current) {
+            return false;
+        }
+        isolatedRef.current = false;
+        setIsolated(false);
+        installGraph(graphRef.current);
+        return true;
+    }, [installGraph]);
+
     const unpin = useCallback(() => {
         if (!pinnedRef.current) {
             return;
@@ -359,12 +417,14 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
         pinnedRef.current = undefined;
         setPinnedId(undefined);
         userAdjustedRef.current = false;
-        fitToLayout();
-    }, [fitToLayout]);
+        if (!showEverything()) {
+            fitToLayout();
+        }
+    }, [fitToLayout, showEverything]);
 
     const pin = useCallback(
         (id: string) => {
-            setFlowsOpen(false);
+            setFindOpen(false);
             setHovered(undefined);
             if (pinnedRef.current === id) {
                 unpin();
@@ -373,38 +433,82 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
             pinnedRef.current = id;
             setPinnedId(id);
             userAdjustedRef.current = false;
-            refit();
+            if (!showEverything()) {
+                refit();
+            }
         },
-        [unpin, refit, setHovered]
+        [unpin, refit, setHovered, showEverything]
+    );
+
+    const isolate = useCallback(
+        (on: boolean) => {
+            const whole = graphRef.current;
+            const pinned = pinnedRef.current;
+            if (!whole || !pinned || isolatedRef.current === on) {
+                return;
+            }
+            setFindOpen(false);
+            if (!on) {
+                showEverything();
+                return;
+            }
+            isolatedRef.current = true;
+            setIsolated(true);
+            installGraph(isolateGraph(whole, focusAround(whole, pinned)));
+        },
+        [installGraph, showEverything]
+    );
+
+    const previewFacet = useCallback((facet?: FindFacet) => {
+        setFacetFocus(facet && graphRef.current ? focusKind(graphRef.current, facet) : undefined);
+    }, []);
+
+    const openRow = useCallback(
+        (row: FindRow) => {
+            if (row.handler) {
+                onTriggerSelect({ filePath: row.handler.filePath, position: row.handler.position, endPosition: row.handler.endPosition });
+            } else if (row.agent) {
+                onAgentSelect({ path: row.agent.filePath, startLine: row.agent.position.line, name: row.agent.name, moduleName: row.agent.moduleName });
+            }
+        },
+        [onTriggerSelect, onAgentSelect]
     );
 
     useEffect(() => {
-        if (!pinnedId && !flowsOpen) {
-            return;
-        }
         const onKeyDown = (event: KeyboardEvent) => {
+            const target = event.target as HTMLElement | null;
+            const typing = Boolean(target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable));
+            if (event.key === "/" && !typing && findable >= 2) {
+                event.preventDefault();
+                setFindOpen(true);
+                return;
+            }
             if (event.key !== "Escape") {
                 return;
             }
-            if (flowsOpen) {
-                setFlowsOpen(false);
-            } else {
+            if (findOpen) {
+                setFindOpen(false);
+            } else if (!showEverything()) {
                 unpin();
             }
         };
         document.addEventListener("keydown", onKeyDown);
         return () => document.removeEventListener("keydown", onKeyDown);
-    }, [pinnedId, flowsOpen, unpin]);
+    }, [findOpen, findable, showEverything, unpin]);
 
-    const onCanvasClick = useCallback(
-        (event: React.MouseEvent<HTMLDivElement>) => {
-            if (!(event.target as HTMLElement).closest(".node, svg, foreignObject")) {
-                setFlowsOpen(false);
-                unpin();
-            }
-        },
-        [unpin]
-    );
+    const onCanvasClick = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+        if (!(event.target as HTMLElement).closest(".node, svg, foreignObject")) {
+            setFindOpen(false);
+        }
+    }, []);
+
+    const pinnedRow = useMemo(() => {
+        if (!graph || !pinnedId) {
+            return undefined;
+        }
+        const rows = buildFindRows(graph, "");
+        return [...rows.entries, ...rows.agents].find((row) => row.id === pinnedId);
+    }, [graph, pinnedId]);
 
 
     const toggleOrientation = useCallback(() => {
@@ -447,34 +551,47 @@ export function AgentTopologyDiagram(props: AgentTopologyDiagramProps) {
             onAddTrigger,
             onConfigureEntry,
             onDeleteEntry,
-            focus: (hoveredId ?? pinnedId) && graphRef.current ? focusAround(graphRef.current, hoveredId ?? pinnedId) : undefined,
+            focus: facetFocus ?? ((hoveredId ?? pinnedId) && graphRef.current ? focusAround(graphRef.current, hoveredId ?? pinnedId) : undefined),
             setHovered,
             visibleRows,
-            onExpandEntry: (entryId: string) => setExpanded((current) => new Set(current).add(entryId)),
+            unfolded,
+            onToggleEntry,
         }),
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [readonly, orientation, onAgentSelect, onTriggerSelect, onAddTrigger, onConfigureEntry, onDeleteEntry, hoveredId, pinnedId, input, setHovered, expanded, visibleRows]
+        [readonly, orientation, onAgentSelect, onTriggerSelect, onAddTrigger, onConfigureEntry, onDeleteEntry, hoveredId, pinnedId, facetFocus, input, setHovered, visibleRows, unfolded, onToggleEntry]
     );
 
     return (
-        <Root>
+        <Root style={{ [EVENT_COLOR_VAR]: getNodeChartColor("WAIT_DATA") } as React.CSSProperties}>
             <Controls engine={diagramEngine} orientation={orientation} onToggleOrientation={toggleOrientation} />
             <TopLeft>
                 <Legend kinds={legendKinds} />
-                {wiredNothing && (
+                {wiredNothing && hasAgentCards && (
                     <EmptyNote>No triggers yet. Agents only run when a trigger calls them. Select Add Trigger on an agent card.</EmptyNote>
                 )}
             </TopLeft>
-            {handlerCount >= 2 && (
+            {graph && pinnedRow && (
+                <TopCenter>
+                    <PinBanner
+                        row={pinnedRow}
+                        isolated={isolated}
+                        onIsolate={() => isolate(true)}
+                        onExitIsolation={() => isolate(false)}
+                        onUnpin={unpin}
+                    />
+                </TopCenter>
+            )}
+            {graph && findable >= 2 && (
                 <TopRight>
-                    <FlowList
-                        entries={entries}
+                    <FindPanel
+                        graph={graph}
                         pinnedId={pinnedId}
-                        open={flowsOpen}
-                        onToggle={setFlowsOpen}
+                        open={findOpen}
+                        onToggle={setFindOpen}
                         onPreview={setHovered}
+                        onPreviewFacet={previewFacet}
                         onPin={pin}
-                        onOpen={(trigger) => onTriggerSelect({ filePath: trigger.filePath, position: trigger.position, endPosition: trigger.endPosition })}
+                        onOpen={openRow}
                     />
                 </TopRight>
             )}

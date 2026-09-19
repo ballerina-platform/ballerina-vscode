@@ -76,11 +76,137 @@ export const AGENT_USAGE_COLUMN_WIDTH = NODE_GAP_X + NODE_HEIGHT + LABEL_HEIGHT 
 
 export type AgentUsageOptions = {
     canAddTrigger?: boolean;
+    canAddEventTrigger?: boolean;
 };
 
 export function getAgentNodeUsages(node: FlowNode): AgentUsage[] {
     const agentInfo = (node.metadata?.data as NodeMetadata | undefined)?.agentInfo;
     return agentInfo?.usages ?? [];
+}
+
+export function getDurableAgentUsages(node: FlowNode): AgentUsage[] {
+    return ((node.metadata?.data as { usages?: AgentUsage[] } | undefined)?.usages) ?? [];
+}
+
+export function durableRunUsages(usages: AgentUsage[]): AgentUsage[] {
+    return usages.filter((usage) => !usage.channel);
+}
+
+export function durableChannelSenders(usages: AgentUsage[], channel: string): AgentUsage[] {
+    return usages.filter((usage) => usage.channel === channel);
+}
+
+export function durableHasSenders(events: { name: string }[], usages: AgentUsage[]): boolean {
+    return events.some((event) => durableChannelSenders(usages, event.name).length > 0);
+}
+
+export function durableChannelRows(usages: AgentUsage[], channel: string, canAddTrigger: boolean): number {
+    return durableUsageRowCount(durableChannelSenders(usages, channel)) + (canAddTrigger ? 1 : 0);
+}
+
+export function durableLeftSenders(humanTasks: number, events: { name: string }[], usages: AgentUsage[], canAddTrigger = false): number[] {
+    return [...Array<number>(humanTasks).fill(0), ...events.map((event) => durableChannelRows(usages, event.name, canAddTrigger))];
+}
+
+export function durableUsageRowCount(usages: AgentUsage[]): number {
+    return Math.min(usages.length, AGENT_USAGE_ROW_LIMIT) + (usages.length > AGENT_USAGE_ROW_LIMIT ? 1 : 0);
+}
+
+export const DURABLE_USAGE_COLUMN_EXTRA_WIDTH = USAGE_LABEL_EXTRA_WIDTH;
+export const DURABLE_LEFT_SECTION_GAP = 30;
+export const DURABLE_SENDER_COLUMN_WIDTH = 80;
+export const DURABLE_CAPTION_HEIGHT = 16;
+
+export function durableLeftColumnWidth(sideColumnWidth: number, triggerRows: number, hasSenders = false): number {
+    return sideColumnWidth + (triggerRows > 0 ? DURABLE_USAGE_COLUMN_EXTRA_WIDTH : 0) + (hasSenders ? DURABLE_SENDER_COLUMN_WIDTH : 0);
+}
+
+export function canAddTrigger(options?: AgentUsageOptions): boolean {
+    return Boolean(options?.canAddTrigger);
+}
+
+export function canAddEventTrigger(options?: AgentUsageOptions): boolean {
+    return Boolean(options?.canAddEventTrigger);
+}
+
+export function durableTriggerRows(usages: AgentUsage[], canAddTrigger: boolean): number {
+    return durableUsageRowCount(usages) + (canAddTrigger ? 1 : 0);
+}
+
+export interface DurableUsageColumn {
+    visible: AgentUsage[];
+    hidden: number;
+    rows: number;
+    triggerRows: number;
+    canAddTrigger: boolean;
+    shift: number;
+}
+
+export function durableUsageColumn(usages: AgentUsage[], canAddTrigger: boolean): DurableUsageColumn {
+    const triggerRows = durableTriggerRows(usages, canAddTrigger);
+    return {
+        visible: usages.slice(0, AGENT_USAGE_ROW_LIMIT),
+        hidden: Math.max(0, usages.length - AGENT_USAGE_ROW_LIMIT),
+        rows: durableUsageRowCount(usages),
+        triggerRows,
+        canAddTrigger,
+        shift: durableLeftColumnWidth(0, triggerRows),
+    };
+}
+
+export function durableColumnHeight(rows: number): number {
+    return NODE_HEIGHT + AGENT_NODE_TOOL_SECTION_GAP + (Math.max(rows, 1) - 1) * CAPABILITY_ROW_PITCH;
+}
+
+const CAPABILITY_ROW_PITCH = NODE_HEIGHT + AGENT_NODE_TOOL_GAP;
+
+export interface DurableBoxRows {
+    triggerRows: number;
+    leftSenders: number[];
+    leftTiles: number;
+    rightRows: number;
+}
+
+export const DURABLE_FOOTER_TILE_PITCH = 36;
+
+export function durableSlotHeight(senderRows: number): number {
+    if (senderRows === 0) {
+        return CAPABILITY_ROW_PITCH;
+    }
+    return Math.max(senderRows * AGENT_USAGE_ROW_PITCH, CAPABILITY_ROW_PITCH + DURABLE_CAPTION_HEIGHT);
+}
+
+export function durableSlotCircleOffset(senderRows: number): number {
+    return senderRows <= 1 ? 0 : ((senderRows - 1) * AGENT_USAGE_ROW_PITCH) / 2;
+}
+
+function groupHeight(slots: number[]): number {
+    return slots.length > 0 ? DURABLE_LEFT_SECTION_GAP + slots.reduce((sum, senderRows) => sum + durableSlotHeight(senderRows), 0) : 0;
+}
+
+function tilesHeight(rows: DurableBoxRows): number {
+    if (rows.leftTiles === 0) {
+        return 0;
+    }
+    const lead = rows.leftSenders.length > 0 ? 0 : DURABLE_LEFT_SECTION_GAP;
+    return lead + NODE_HEIGHT + (rows.leftTiles - 1) * DURABLE_FOOTER_TILE_PITCH;
+}
+
+export function durableLeftColumnHeight(rows: DurableBoxRows): number {
+    return rows.triggerRows * AGENT_USAGE_ROW_PITCH + groupHeight(rows.leftSenders) + tilesHeight(rows);
+}
+
+export function durableAgentBoxHeight(rows: DurableBoxRows): number {
+    return Math.max(durableColumnHeight(rows.rightRows), durableLeftColumnHeight(rows));
+}
+
+export function durableLeftCircleTop(rows: DurableBoxRows, index: number, containerHeight: number): number {
+    const tilesTop = containerHeight - NODE_HEIGHT - (rows.leftTiles - 1) * DURABLE_FOOTER_TILE_PITCH;
+    return tilesTop - rows.leftSenders.slice(index).reduce((sum, senderRows) => sum + durableSlotHeight(senderRows), 0);
+}
+
+export function durableBottomTileY(containerHeight: number, indexFromBottom: number): number {
+    return containerHeight - NODE_HEIGHT + 24 - indexFromBottom * DURABLE_FOOTER_TILE_PITCH;
 }
 
 export function getVisibleAgentUsages(node: FlowNode): AgentUsage[] {
