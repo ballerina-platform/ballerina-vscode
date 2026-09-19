@@ -36,6 +36,7 @@ import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
 import io.ballerina.flowmodelgenerator.core.utils.FlowNodeUtil;
 import io.ballerina.modelgenerator.commons.DefaultValueGeneratorUtil;
+import io.ballerina.modelgenerator.commons.FileSystemUtils;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.projects.Project;
@@ -88,14 +89,7 @@ public class AgentIdAuthConfigBuilder extends NodeBuilder {
         }
 
         ModuleInfo aiModuleInfo = new ModuleInfo(Ai.BALLERINA_ORG, Ai.AI_PACKAGE, Ai.AI_PACKAGE, aiModuleVersion);
-        Optional<SemanticModel> semanticModelOpt = PackageUtil.getSemanticModel(aiModuleInfo);
-        if (semanticModelOpt.isEmpty()) {
-            return;
-        }
-        SemanticModel aiSemanticModel = semanticModelOpt.get();
-
-        Optional<Symbol> typeSymbolOpt = aiSemanticModel.types()
-                .getTypeByName(Ai.BALLERINA_ORG, Ai.AI_PACKAGE, "", AGENT_ID_AUTH_CONFIG_TYPE);
+        Optional<Symbol> typeSymbolOpt = resolveAgentIdAuthConfigType(context, aiModuleInfo);
         if (typeSymbolOpt.isEmpty() || !(typeSymbolOpt.get() instanceof TypeDefinitionSymbol typeDefSymbol)) {
             return;
         }
@@ -142,6 +136,22 @@ public class AgentIdAuthConfigBuilder extends NodeBuilder {
             builder.optional(true).advanced(true);
             builder.stepOut().addProperty(FlowNodeUtil.getPropertyKey(fieldName));
         }
+    }
+
+    // The project already compiles ballerina/ai; the PackageUtil fallback loads and compiles a second copy.
+    private static Optional<Symbol> resolveAgentIdAuthConfigType(TemplateContext context, ModuleInfo aiModuleInfo) {
+        Optional<Symbol> fromProject = findAgentIdAuthConfigType(
+                FileSystemUtils.getSemanticModel(context.workspaceManager(), context.filePath()));
+        if (fromProject.isPresent()) {
+            return fromProject;
+        }
+        return PackageUtil.getSemanticModel(aiModuleInfo)
+                .flatMap(AgentIdAuthConfigBuilder::findAgentIdAuthConfigType);
+    }
+
+    private static Optional<Symbol> findAgentIdAuthConfigType(SemanticModel semanticModel) {
+        return semanticModel.types()
+                .getTypeByName(Ai.BALLERINA_ORG, Ai.AI_PACKAGE, "", AGENT_ID_AUTH_CONFIG_TYPE);
     }
 
     private static String getDisplayLabel(List<AnnotationAttachmentSymbol> annotations, String defaultLabel) {

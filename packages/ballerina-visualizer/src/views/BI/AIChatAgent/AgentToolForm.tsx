@@ -289,7 +289,7 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
             const request: BISearchRequest = {
                 position: { startLine: position, endLine: position },
                 filePath,
-                queryMap: undefined,
+                queryMap: { excludeLibrary: "true" },
                 searchKind: "FUNCTION",
             };
             const response = await rpcClient.getBIDiagramRpcClient().search(request);
@@ -744,9 +744,13 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
                 }
                 response = await rpcClient.getBIDiagramRpcClient().getSourceCode({
                     filePath, flowNode: updatedNode, isFunctionNodeUpdate: true,
+                    artifactData: { artifactType: DIRECTORY_MAP.AGENT_TOOL },
                 });
             } else {
-                response = await rpcClient.getBIDiagramRpcClient().getSourceCode({ filePath, flowNode: updatedNode });
+                response = await rpcClient.getBIDiagramRpcClient().getSourceCode({
+                    filePath, flowNode: updatedNode,
+                    artifactData: { artifactType: DIRECTORY_MAP.AGENT_TOOL },
+                });
             }
             if (!response?.artifacts?.length) {
                 throw new Error("Agent tool source generation returned no artifacts");

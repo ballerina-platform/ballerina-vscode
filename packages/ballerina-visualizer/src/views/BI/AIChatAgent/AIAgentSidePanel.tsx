@@ -757,8 +757,8 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
 
     // Fetch the project's own module-level functions (excluding the tool's own function, when it is
     // one — connection-based tools have no local function to exclude) as approval-predicate
-    // candidates. Reuses the FUNCTION search with an empty queryMap, which returns the current
-    // module's functions; stdlib/imported/agent-tool categories are filtered out by the collector.
+    // candidates. Reuses the FUNCTION search with excludeLibrary set, which returns the current
+    // module's functions; imported/agent-tool categories are filtered out by the collector.
     // Shared by both the "Use Function" and "Use Connection" tool-creation paths. Return-type/
     // signature compatibility is verified by the compiler after generation.
     // Returns `null` (rather than `[]`) when the fetch itself fails, so callers can tell "search
@@ -773,7 +773,7 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                     endLine: targetRef.current.endLine,
                 },
                 filePath: agentFilePath.current,
-                queryMap: undefined,
+                queryMap: { excludeLibrary: "true" },
                 searchKind: "FUNCTION",
             };
             const response = await rpcClient.getBIDiagramRpcClient().search(request);

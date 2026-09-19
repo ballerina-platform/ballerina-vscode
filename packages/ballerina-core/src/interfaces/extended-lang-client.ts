@@ -986,6 +986,8 @@ export type SearchQueryParams = {
     offset?: number;
     orgName?: string;
     includeAvailableFunctions?: string;
+    /** FUNCTION search: "true" returns only the project's own functions, skipping the Central lookup. */
+    excludeLibrary?: string;
     filterByCurrentOrg?: boolean;
     /** ACTIVITY_CALL search: "true" hides the prebuilt (builtin) activities. */
     excludeBuiltins?: string;
