@@ -55,6 +55,13 @@ dependencies {
         transitive = false
     }
     implementation "io.ballerina.openapi:core:${openAPICoreVersion}"
+    implementation "io.ballerina:mcp-core:${mcpCoreVersion}"
+    dist "io.ballerina:mcp-core:${mcpCoreVersion}"
+    // mcp-core publishes without a POM (artifact jar only), so its own runtime deps aren't pulled in transitively.
+    implementation "com.fasterxml.jackson.core:jackson-databind:${jacksonDatabindVersion}"
+    dist "com.fasterxml.jackson.core:jackson-databind:${jacksonDatabindVersion}"
+    implementation "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:${jacksonDataformatYamlVersion}"
+    dist "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:${jacksonDataformatYamlVersion}"
     implementation "io.ballerina.graphql-tool:code-generator:${graphqlToolVersion}"
     dist "io.ballerina.graphql-tool:code-generator:${graphqlToolVersion}"
     implementation("io.swagger.parser.v3:swagger-parser:${swaggerParserVersion}") {

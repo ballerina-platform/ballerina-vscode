@@ -19,12 +19,13 @@
 package io.ballerina.servicemodelgenerator.extension.connector;
 
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
+import io.ballerina.modelgenerator.commons.ImportPrefixReader;
+import io.ballerina.modelgenerator.commons.ModuleAliasResolver;
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerUISchemaModel;
 import io.ballerina.servicemodelgenerator.extension.model.Codedata;
 import io.ballerina.servicemodelgenerator.extension.model.PropertyType;
 import io.ballerina.servicemodelgenerator.extension.model.ServiceInitModel;
 import io.ballerina.servicemodelgenerator.extension.model.Value;
-import io.ballerina.servicemodelgenerator.extension.util.ModuleAliasResolver;
 import io.ballerina.servicemodelgenerator.extension.util.Utils;
 import org.eclipse.lsp4j.TextEdit;
 
@@ -33,6 +34,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 
@@ -111,7 +114,8 @@ public final class SchemaDrivenSourceGenerator {
         String emitAlias = defaultEmitAlias(creationModel.getModuleName());
         requalifyValueQualifiers(creationModel.getProperties(),
                 getProtocol(creationModel.getModuleName()), emitAlias);
-        return renderListenerDeclaration(emitAlias, collectListenerArgs(creationModel));
+        return renderListenerDeclaration(getProtocol(creationModel.getModuleName()), emitAlias,
+                collectListenerArgs(creationModel));
     }
 
     /**
@@ -210,7 +214,7 @@ public final class SchemaDrivenSourceGenerator {
 
         StringBuilder builder = new StringBuilder(NEW_LINE);
         if (collected.declareListener) {
-            builder.append(renderListenerDeclaration(emitAlias, collected)).append(NEW_LINE);
+            builder.append(renderListenerDeclaration(selfPrefix, emitAlias, collected)).append(NEW_LINE);
         }
         for (String annotation : buildServiceAnnotations(filledInitForm, selfPrefix, emitAlias)) {
             builder.append(annotation).append(NEW_LINE);
@@ -238,11 +242,11 @@ public final class SchemaDrivenSourceGenerator {
     }
 
     public static ResolvedListener resolveListener(ServiceInitModel filledInitForm, String emitAlias) {
-        requalifyValueQualifiers(filledInitForm.getProperties(),
-                getProtocol(filledInitForm.getModuleName()), emitAlias);
+        String selfPrefix = getProtocol(filledInitForm.getModuleName());
+        requalifyValueQualifiers(filledInitForm.getProperties(), selfPrefix, emitAlias);
         ListenerArgs collected = collectListenerArgs(filledInitForm);
         return new ResolvedListener(collected.varName,
-                collected.declareListener ? renderListenerDeclaration(emitAlias, collected) : null);
+                collected.declareListener ? renderListenerDeclaration(selfPrefix, emitAlias, collected) : null);
     }
 
     /**
@@ -383,6 +387,15 @@ public final class SchemaDrivenSourceGenerator {
                                                    String selfPrefix, String emitAlias) {
         String fromForm = findServiceType(filledInitForm.getProperties());
         if (fromForm != null && !fromForm.isEmpty()) {
+            TriggerUISchemaModel.ServiceTypeModel selected = selectServiceType(filledInitForm, triggerModel);
+            if (selected != null && fromForm.contains(COLON)) {
+                TriggerUISchemaModel.Codedata cd = selected.codedata();
+                String selectedModule = cd == null ? null : cd.moduleName();
+                boolean ownModule = cd == null || sameModule(cd.orgName(), cd.packageName(), filledInitForm);
+                if (selectedModule != null && !selectedModule.isBlank() && !ownModule) {
+                    return aliasOf(selectedModule) + COLON + simpleName(fromForm);
+                }
+            }
             return qualify(fromForm, selfPrefix, emitAlias);
         }
         TriggerUISchemaModel.ServiceTypeModel serviceType = selectServiceType(filledInitForm, triggerModel);
@@ -391,7 +404,8 @@ public final class SchemaDrivenSourceGenerator {
             if (cd != null && cd.originalName() != null && !cd.originalName().isBlank()) {
                 String module = cd.moduleName() != null && !cd.moduleName().isBlank()
                         ? aliasOf(cd.moduleName()) : selfPrefix;
-                return mapSelfModule(module, selfPrefix, emitAlias) + COLON + cd.originalName();
+                boolean ownModule = sameModule(cd.orgName(), cd.packageName(), filledInitForm);
+                return (ownModule ? emitAlias : module) + COLON + cd.originalName();
             }
             if (serviceType.name() != null && !serviceType.name().isBlank()) {
                 return qualify(serviceType.name(), selfPrefix, emitAlias);
@@ -417,6 +431,11 @@ public final class SchemaDrivenSourceGenerator {
     /** The prefix to emit for a module alias: the connector's own becomes its (possibly aliased) import prefix. */
     private static String mapSelfModule(String module, String selfPrefix, String emitAlias) {
         return selfPrefix.equals(module) ? emitAlias : module;
+    }
+
+    private static boolean sameModule(String org, String packageName, ServiceInitModel initModel) {
+        return org == null || packageName == null || (org.equals(initModel.getOrgName())
+                && packageName.equals(initModel.getPackageName()));
     }
 
     /** @see ModuleAliasResolver#selfPrefix(String) */
@@ -449,14 +468,33 @@ public final class SchemaDrivenSourceGenerator {
     /**
      * The alias to emit for the connector's module in the context of an actual file — an existing
      * import's prefix, else the model/default alias disambiguated against the prefixes the file has
-     * already claimed. See {@link ModuleAliasResolver#resolve}.
+     * already claimed. See {@link ImportPrefixReader#resolve}.
      */
     public static String resolveEmitAlias(ModulePartNode rootNode, ServiceInitModel filledInitForm,
                                           TriggerUISchemaModel triggerModel) {
         String moduleName = filledInitForm.getModuleName();
         String override = triggerModel != null && triggerModel.importPrefix() != null
                 && !triggerModel.importPrefix().isBlank() ? triggerModel.importPrefix() : null;
-        return ModuleAliasResolver.resolve(rootNode, filledInitForm.getOrgName(), moduleName, override);
+        Optional<String> existing = ImportPrefixReader.existingImportPrefix(rootNode, filledInitForm.getOrgName(),
+                moduleName);
+        if (existing.isPresent()) {
+            return existing.get();
+        }
+        Set<String> taken = new java.util.LinkedHashSet<>(ImportPrefixReader.importedPrefixes(rootNode));
+        if (triggerModel != null && triggerModel.importStatements() != null) {
+            for (String moduleRef : triggerModel.importStatements()) {
+                if (moduleRef == null) {
+                    continue;
+                }
+                int slash = moduleRef.indexOf('/');
+                if (slash < 0 || slash == moduleRef.length() - 1) {
+                    continue;
+                }
+                String module = moduleRef.substring(slash + 1).split(" as ", 2)[0].trim();
+                taken.add(ModuleAliasResolver.selfPrefix(module));
+            }
+        }
+        return ModuleAliasResolver.allocate(moduleName, override, taken);
     }
 
     public static String rewriteSelfPrefix(String typeText, String moduleName, String emitAlias) {
@@ -509,7 +547,7 @@ public final class SchemaDrivenSourceGenerator {
         String selected = findServiceType(filledInitForm.getProperties());
         if (selected != null && !selected.isEmpty()) {
             for (TriggerUISchemaModel.ServiceTypeModel st : triggerModel.serviceTypes()) {
-                if (selected.equals(st.name())) {
+                if (selected.equals(st.name()) || selected.equals(serviceTypeIdentity(st))) {
                     return st;
                 }
             }
@@ -520,6 +558,18 @@ public final class SchemaDrivenSourceGenerator {
             }
         }
         return triggerModel.serviceTypes().getFirst();
+    }
+
+    /** Stable selection identity: accept both legacy simple names and qualified L2 values. */
+    private static String serviceTypeIdentity(TriggerUISchemaModel.ServiceTypeModel serviceType) {
+        TriggerUISchemaModel.Codedata codedata = serviceType.codedata();
+        if (codedata == null || codedata.originalName() == null || codedata.originalName().isBlank()) {
+            return serviceType.name();
+        }
+        if (codedata.moduleName() == null || codedata.moduleName().isBlank()) {
+            return codedata.originalName();
+        }
+        return ModuleAliasResolver.selfPrefix(codedata.moduleName()) + COLON + codedata.originalName();
     }
 
     /** Emits the present (enabled, non-optional) handlers of the selected service type. */
@@ -699,16 +749,29 @@ public final class SchemaDrivenSourceGenerator {
         return "returns" + SPACE + type;
     }
 
-    private static String renderListenerDeclaration(String emitAlias, ListenerArgs args) {
+    private static String renderListenerDeclaration(String selfPrefix, String emitAlias, ListenerArgs args) {
         String listenerType;
         if (args.listenerType != null && !args.listenerType.isBlank()) {
-            // The hint's type name is not always "Listener" (e.g. CdcListener); only its simple name is
-            // kept so the emitted prefix is the import alias, not a full dotted module path.
-            listenerType = emitAlias + COLON + simpleName(args.listenerType);
+            // Keep a cross-module listener type qualified (CDC uses cdc:Listener with an mssql.cdc
+            // connector), while rewriting the connector's own natural prefix when it is aliased.
+            listenerType = normalizeQualifiedType(args.listenerType);
+            listenerType = rewriteSelfPrefix(listenerType, selfPrefix, emitAlias);
+            if (!listenerType.contains(COLON)) {
+                listenerType = emitAlias + COLON + simpleName(listenerType);
+            }
         } else {
             listenerType = emitAlias + COLON + LISTENER_TYPE;
         }
         return String.format("%s %s %s = %s (%s);", LISTENER, listenerType, args.varName, NEW, args.render());
+    }
+
+    /** Converts a serialized dotted module path into the legal Ballerina import prefix. */
+    private static String normalizeQualifiedType(String type) {
+        int colon = type.indexOf(COLON);
+        if (colon <= 0) {
+            return type;
+        }
+        return aliasOf(type.substring(0, colon)) + type.substring(colon);
     }
 
     private static ListenerArgs collectListenerArgs(ServiceInitModel creationModel) {

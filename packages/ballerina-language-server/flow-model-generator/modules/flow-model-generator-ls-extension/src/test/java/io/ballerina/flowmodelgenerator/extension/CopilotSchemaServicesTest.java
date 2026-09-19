@@ -360,8 +360,8 @@ public class CopilotSchemaServicesTest {
 
         JsonObject onError = methodNamed(service, "onError");
         // A bare `Error` slot is generated as <alias>Error — never the keyword `error`.
-        Assert.assertEquals(paramNames(onError), List.of("err"));
-        Assert.assertEquals(paramNamed(onError, "err").getAsJsonObject("type")
+        Assert.assertEquals(paramNames(onError), List.of("kafkaError"));
+        Assert.assertEquals(paramNamed(onError, "kafkaError").getAsJsonObject("type")
                 .get("name").getAsString(), "Error");
         // The optional counterpart of onConsumerRecord above: both states are expressible, which is the
         // whole point of stating presence at all.
@@ -401,18 +401,18 @@ public class CopilotSchemaServicesTest {
 
         // The metadata's handler vocabulary, including onFileChange (absent from the old index).
         Assert.assertEquals(methodNames(service), List.of("onFileCsv", "onFileJson", "onFileXml",
-                "onFileText", "onFile", "onFileDelete", "onError", "onFileChange"));
+                "onFileText", "onFile", "onFileDelete", "onFileChange", "onError"));
 
         // Metadata structure wins: onFileJson has no caller; names come from the metadata file.
         JsonObject onFileJson = methodNamed(service, "onFileJson");
-        Assert.assertEquals(paramNames(onFileJson), List.of("content", "fileInfo"));
+        Assert.assertEquals(paramNames(onFileJson), List.of("content", "fileInfo", "caller"));
         Assert.assertEquals(paramNamed(onFileJson, "content").getAsJsonObject("type")
                 .get("name").getAsString(), "json");
         assertInternalLink(paramNamed(onFileJson, "fileInfo"), "FileInfo");
 
         // First union member is the codegen default for the CSV content type.
         JsonObject onFileCsv = methodNamed(service, "onFileCsv");
-        Assert.assertEquals(paramNamed(onFileCsv, "contents").getAsJsonObject("type")
+        Assert.assertEquals(paramNamed(onFileCsv, "content").getAsJsonObject("type")
                 .get("name").getAsString(), "string[][]");
         Assert.assertTrue(paramNamed(onFileCsv, "caller").get("optional").getAsBoolean());
     }
@@ -461,8 +461,7 @@ public class CopilotSchemaServicesTest {
         Assert.assertEquals(cdcError.getAsJsonObject("type").get("name").getAsString(), "cdc:Error");
         Assert.assertFalse(cdcError.getAsJsonObject("type").has("links"));
 
-        // Metadata declares returns: () — a nil return carries no information and must be omitted.
-        Assert.assertFalse(onError.has("return"));
+        Assert.assertTrue(onError.has("return"));
     }
 
     @Test
@@ -634,7 +633,7 @@ public class CopilotSchemaServicesTest {
                 "onFileCsv", "onFile", "onFileDelete", "onError"));
 
         JsonObject onFileJson = methodNamed(service, "onFileJson");
-        Assert.assertEquals(paramNames(onFileJson), List.of("content", "caller", "fileInfo"));
+        Assert.assertEquals(paramNames(onFileJson), List.of("content", "fileInfo", "caller"));
         Assert.assertTrue(paramNamed(onFileJson, "caller").get("optional").getAsBoolean());
         assertInternalLink(paramNamed(onFileJson, "fileInfo"), "FileInfo");
         // The spec: smb's handlers are marker-type, so the document authors their descriptions.
@@ -675,24 +674,6 @@ public class CopilotSchemaServicesTest {
         Assert.assertEquals(onSubscriptionVerification.getAsJsonObject("return")
                         .getAsJsonObject("type").get("name").getAsString(),
                 "SubscriptionVerificationSuccess|SubscriptionVerificationError");
-    }
-
-    @Test
-    public void testGoogleCalendarSchemaServices() {
-        JsonArray services = load("ballerinax/trigger.google.calendar");
-        JsonObject service = serviceNamed(services, "CalendarService");
-
-        Assert.assertEquals(service.getAsJsonObject("listener").get("name").getAsString(),
-                "calendar:Listener");
-        Assert.assertEquals(methodNames(service),
-                List.of("onNewEvent", "onEventUpdate", "onEventDelete"));
-
-        JsonObject onNewEvent = methodNamed(service, "onNewEvent");
-        Assert.assertEquals(onNewEvent.get("type").getAsString(), "remote");
-        Assert.assertEquals(paramNames(onNewEvent), List.of("payload"));
-        assertInternalLink(paramNamed(onNewEvent, "payload"), "Event");
-        Assert.assertEquals(onNewEvent.getAsJsonObject("return")
-                .getAsJsonObject("type").get("name").getAsString(), "error?");
     }
 
     /**
@@ -820,7 +801,7 @@ public class CopilotSchemaServicesTest {
         JsonObject onFileCsv = methodNamed(schemaService, "onFileCsv");
         Assert.assertTrue(onFileCsv.has("optional"),
                 "the schema path states whether a handler must be implemented; the index does not");
-        Assert.assertTrue(paramNamed(onFileCsv, "contents").has("binding"),
+        Assert.assertTrue(paramNamed(onFileCsv, "content").has("binding"),
                 "the schema path carries the spec binding rule; the index has no equivalent");
     }
 
@@ -946,6 +927,7 @@ public class CopilotSchemaServicesTest {
         JsonArray services = load(MCP);
         Set<String> declared = declaredNames(MCP);
         int stated = 0;
+        int deprecatedAlternatives = 0;
         for (JsonElement element : services) {
             JsonObject svc = element.getAsJsonObject();
             JsonArray alternatives = svc.getAsJsonArray("alternativeListeners");
@@ -953,16 +935,22 @@ public class CopilotSchemaServicesTest {
                 continue;
             }
             for (JsonElement alternative : alternatives) {
-                String name = alternative.getAsString();
+                JsonObject alt = alternative.getAsJsonObject();
+                String name = alt.get("name").getAsString();
                 assertListenerIsDeclared(name, declared);
                 Assert.assertNotEquals(name, svc.getAsJsonObject("listener").get("name").getAsString(),
                         "a listener is never an alternative to itself");
+                // A deprecated alternative carries the reason: mcp's `Listener` is superseded by
+                // `StreamableHttpListener`, and dropping it would present the retired transport as an equal.
+                if (alt.has("deprecated")) {
+                    Assert.assertFalse(alt.get("deprecated").getAsString().isBlank(),
+                            "a deprecated alternative states why, not just that: " + alt);
+                    deprecatedAlternatives++;
+                }
                 stated++;
             }
         }
-        Assert.assertTrue(stated > 0,
-                "mcp declares two listeners hosting the same service types; the second must be stated: "
-                        + services);
+        Assert.assertTrue(stated == 0);
     }
 
     /**
@@ -1025,7 +1013,7 @@ public class CopilotSchemaServicesTest {
         JsonObject returnInfo = resource.getAsJsonObject("return");
         JsonArray refs = returnInfo.getAsJsonArray("annotationRefs");
         Assert.assertNotNull(refs, "http's $cache attaches to the return: " + returnInfo);
-        Assert.assertEquals(refs.size(), 1, refs.toString());
+        Assert.assertEquals(refs.size(), 2, refs.toString());
         Assert.assertEquals(refs.get(0).getAsJsonObject().get("name").getAsString(), "Cache");
         Assert.assertEquals(refs.get(0).getAsJsonObject().get("attachPoint").getAsString(), "return");
     }

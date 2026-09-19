@@ -62,15 +62,16 @@
         "advanced": true,
         "hidden": false
       },
-      "requiresApproval": {
+      "approvalPolicy": {
         "metadata": {
-          "label": "Requires Approval"
+          "label": "Approval Policy",
+          "description": "Whether a person approves before this runs"
         },
-        "valueType": "FLAG",
-        "value": "false",
-        "optional": true,
+        "valueType": "DROPDOWN_CHOICE",
+        "value": "NoApproval",
+        "optional": false,
         "editable": true,
-        "advanced": true,
+        "advanced": false,
         "hidden": false
       },
       "retryPolicy": {

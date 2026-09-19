@@ -38,7 +38,9 @@ import java.util.Map;
 public class AnnotationEmitterTest {
 
     private TriggerUISchemaModel.FunctionModel onFileCsv() {
-        TriggerUISchemaModel model = TriggerModelReader.getInstance().getBundledTriggerModel("ftp").orElseThrow();
+        GeneratedTriggerCorpus.Entry entry = GeneratedTriggerCorpus.get("ftp");
+        TriggerUISchemaModel model = TriggerModelReader.getInstance()
+                .getGeneratedTriggerModel(entry.org(), entry.module(), entry.version()).orElseThrow();
         return model.serviceTypes().getFirst().schemaFunctions().stream()
                 .filter(f -> "onFileCsv".equals(f.name())).findFirst().orElseThrow();
     }

@@ -12,9 +12,9 @@
       "orgName": "ballerinax",
       "packageName": "solace.jms",
       "moduleName": "solace.jms",
-      "version": "1.0.0",
+      "version": "1.0.2",
       "type": "solace.jms",
-      "icon": "icon.png",
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_solace.jms_1.0.2.png",
       "properties": {
         "listener": {
           "metadata": {
@@ -31,6 +31,7 @@
                 "label": "Create New Listener",
                 "description": "Define a new listener in the project."
               },
+              "codedata": {},
               "properties": {
                 "listenerConfig": {
                   "metadata": {
@@ -78,8 +79,8 @@
                         "originalName": "url",
                         "position": 1
                       },
-                      "placeholder": "smf://localhost:55555",
-                      "value": "\"smf://localhost:55555\"",
+                      "placeholder": "smfs://localhost:55443",
+                      "value": "\"smfs://localhost:55443\"",
                       "types": [
                         {
                           "fieldType": "TEXT",
@@ -548,7 +549,7 @@
                               "typeMembers": [
                                 {
                                   "type": "SecureSocket",
-                                  "packageInfo": "ballerinax:solace.jms:1.0.0",
+                                  "packageInfo": "ballerinax:solace.jms:1.0.2",
                                   "packageName": "solace.jms",
                                   "kind": "RECORD_TYPE",
                                   "selected": false
@@ -643,7 +644,7 @@
                               "typeMembers": [
                                 {
                                   "type": "RetryConfiguration",
-                                  "packageInfo": "ballerinax:solace.jms:1.0.0",
+                                  "packageInfo": "ballerinax:solace.jms:1.0.2",
                                   "packageName": "solace.jms",
                                   "kind": "RECORD_TYPE",
                                   "selected": false
@@ -703,6 +704,7 @@
                 "label": "Use existing (none available)",
                 "description": "No compatible listener of this type is present in the project."
               },
+              "codedata": {},
               "properties": {
                 "existingListener": {
                   "metadata": {
@@ -712,8 +714,6 @@
                   "codedata": {
                     "type": "KEY_EXISTING_LISTENER"
                   },
-                  "value": "",
-                  "items": [],
                   "types": [
                     {
                       "fieldType": "MULTIPLE_SELECT_LISTENER",

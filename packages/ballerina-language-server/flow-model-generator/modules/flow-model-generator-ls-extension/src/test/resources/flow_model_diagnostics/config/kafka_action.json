@@ -167,7 +167,7 @@
     "metadata": {
       "label": "poll",
       "description": "Polls the external broker to retrieve messages.\n```ballerina\nkafka:AnydataConsumerRecord[] result = check consumer->poll(10);\n```\n",
-      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_kafka_4.6.5.png"
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_kafka_4.6.6.png"
     },
     "codedata": {
       "node": "REMOTE_ACTION_CALL",
@@ -176,7 +176,7 @@
       "packageName": "kafka",
       "object": "Consumer",
       "symbol": "poll",
-      "version": "4.6.5",
+      "version": "4.6.6",
       "lineRange": {
         "fileName": "automation.bal",
         "startLine": {
@@ -265,7 +265,7 @@
           "diagnostics": [
             {
               "severity": "ERROR",
-              "message": "incompatible type for parameter 'T' with inferred typedesc value: expected 'typedesc<ballerinax/kafka:4.6.5:AnydataConsumerRecord[]>', found 'typedesc<wso2/kafka_action:0.1.0:News>'"
+              "message": "incompatible type for parameter 'T' with inferred typedesc value: expected 'typedesc<ballerinax/kafka:4.6.6:AnydataConsumerRecord[]>', found 'typedesc<wso2/kafka_action:0.1.0:News>'"
             }
           ]
         },

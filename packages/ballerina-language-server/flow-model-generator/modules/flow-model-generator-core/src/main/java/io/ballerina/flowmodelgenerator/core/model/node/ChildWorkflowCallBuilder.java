@@ -31,6 +31,7 @@ import io.ballerina.flowmodelgenerator.core.model.NodeBuilder;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
+import io.ballerina.flowmodelgenerator.core.utils.WorkflowUtil;
 import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.modelgenerator.commons.FileSystemUtils;
 import org.ballerinalang.langserver.common.utils.NameUtil;
@@ -73,7 +74,9 @@ public class ChildWorkflowCallBuilder extends NodeBuilder {
 
     @Override
     public void setConcreteConstData() {
-        metadata().label(LABEL).description(DESCRIPTION);
+        // The analysis names the target workflow as the subtitle; build() re-runs this, so
+        // the constants must not overwrite what it derived.
+        metadata().labelIfAbsent(LABEL).descriptionIfAbsent(DESCRIPTION);
         codedata()
                 .node(NodeKind.CHILD_WORKFLOW_CALL)
                 .org(WORKFLOW_ORG)
@@ -136,6 +139,7 @@ public class ChildWorkflowCallBuilder extends NodeBuilder {
                 .editable(true)
                 .stepOut()
                 .addProperty(Property.VARIABLE_KEY);
+        WorkflowUtil.addStepIdProperty(this);
     }
 
     @Override
@@ -175,6 +179,7 @@ public class ChildWorkflowCallBuilder extends NodeBuilder {
                 .keyword(SyntaxKind.COMMA_TOKEN)
                 .whiteSpace()
                 .name(s));
+        WorkflowUtil.appendStepIdArgument(sourceBuilder);
         sourceBuilder.token()
                 .keyword(SyntaxKind.CLOSE_PAREN_TOKEN)
                 .endOfStatement();

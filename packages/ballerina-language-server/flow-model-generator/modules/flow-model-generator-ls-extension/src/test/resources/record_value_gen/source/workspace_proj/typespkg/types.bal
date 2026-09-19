@@ -14,3 +14,9 @@ public type Conn record {|
     string name1;
     Person|Man person;
 |};
+
+public type DestConfig record {|
+    string ashost;
+|};
+
+public type AdvConfig map<string>;

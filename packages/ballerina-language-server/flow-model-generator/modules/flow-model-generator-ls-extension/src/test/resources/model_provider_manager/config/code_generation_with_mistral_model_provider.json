@@ -722,7 +722,7 @@
               "character": 0
             }
           },
-          "newText": "import ballerina/ai;"
+          "newText": "import ballerinax/ai.mistral;"
         },
         {
           "range": {
@@ -748,7 +748,7 @@
               "character": 0
             }
           },
-          "newText": "import ballerinax/ai.mistral;"
+          "newText": "import ballerina/ai;"
         },
         {
           "range": {

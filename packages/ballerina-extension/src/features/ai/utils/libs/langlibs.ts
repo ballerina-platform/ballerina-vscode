@@ -57,9 +57,9 @@ json data = check jsonText.fromJsonString();
 string jsonArray = "[1, 2, 3]";
 int[] numbers = check jsonArray.fromJsonStringWithType();
 
-// Converting JSON to a record type
-string configText = "{\"port\":8080,\"timeout\":60}";
-type Config record {| int port; int timeout; |};
+// Converting JSON to a record type. Config is OPEN (record { ... }) because the payload's exact shape is not known; the extra "region" field still converts. A closed record {| ... |} would fail.
+string configText = "{\"port\":8080,\"timeout\":60,\"region\":\"eu\"}";
+type Config record { int port; int timeout; };
 Config config = check configText.fromJsonStringWithType(Config);
 \`\`\`
 
@@ -86,12 +86,28 @@ copy.push(4);  // original stays [1, 2, 3]
 To convert between types while preserving data, use cloneWithType():
 \`\`\`ballerina
 json cfg = {port: 8080};
-type Config record {| int port; int timeout = 60; |};
+type Config record { int port; int timeout = 60; };
 Config config = check cfg.cloneWithType();
 
 // Converting arrays
 json[] arr = [1, 2, 3];
 int[] numbers = check arr.cloneWithType();
+\`\`\`
+
+Open versus closed records: when you know the exact shape of the value (a schema this code defines), use a closed record \`{| ... |}\`; when you do not (data produced by an external system), use an open record \`{ ... }\` so fields the record does not declare still convert. See "Data binding, type casts and narrowing" for the rules.
+\`\`\`ballerina
+// Shape not fully known (external payload): open, only the fields we use, optional where the producer may omit them.
+type S3EventRecord record {
+    string eventName;
+    string eventTime;
+    string awsRegion?;
+};
+
+// Shape known exactly (owned schema): closed, because this code defines every field.
+type S3EventLogEntry record {|
+    string eventType;
+    string bucketName;
+|};
 \`\`\`
 
 To validate that a value matches a specific type, use ensureType():

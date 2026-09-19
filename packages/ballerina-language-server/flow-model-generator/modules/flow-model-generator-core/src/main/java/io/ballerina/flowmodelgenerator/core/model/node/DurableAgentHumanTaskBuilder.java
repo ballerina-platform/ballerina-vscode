@@ -49,6 +49,7 @@ public class DurableAgentHumanTaskBuilder extends CallBuilder {
     public static final String TASK_NAME_KEY = "taskName";
     // Signature parameters surfaced when a call is re-read from source.
     public static final String RESULT_TYPE_KEY = "resultType";
+    public static final String TASK_INPUT_TYPE_KEY = "taskInputType";
     public static final String TIMEOUT_KEY = "timeout";
     public static final String USER_ROLES_KEY = "userRoles";
     public static final String TITLE_KEY = "title";
@@ -86,7 +87,9 @@ public class DurableAgentHumanTaskBuilder extends CallBuilder {
                 "Identifies the task type; also the tool name advertised to the agent",
                 "approveRequest", true);
         addStringProperty(USER_ROLES_KEY, "User Roles",
-                "Role(s) permitted to complete this task", "MANAGER", true);
+                "Role(s) permitted to complete this task; may be left empty when users are named", "MANAGER",
+                false);
+        WorkflowUtil.addAudienceProperties(this);
         // The completion type drives the task inbox's completion form (schema generation and
         // runtime validation of the submitted payload) — typically a record type.
         // Optional: the module defaults the completion type to anydata (a free-form
@@ -112,6 +115,29 @@ public class DurableAgentHumanTaskBuilder extends CallBuilder {
                 .optional(true)
                 .stepOut()
                 .addProperty(RESULT_TYPE_KEY);
+        // What the agent hands the task when it creates one. The model fills this shape, so naming a
+        // record here is what makes the agent's input checkable rather than free-form.
+        properties().custom()
+                .metadata()
+                    .label("Task Input Type")
+                    .description("The type of the input the agent supplies when it creates this task; "
+                            + "shown to the person deciding it. Defaults to a free-form JSON object")
+                    .stepOut()
+                .type()
+                    .fieldType(Property.ValueType.TYPE)
+                    .ballerinaType("")
+                    .selected(true)
+                    .stepOut()
+                .codedata()
+                    .kind(ParameterData.Kind.DEFAULTABLE.name())
+                    .stepOut()
+                .placeholder("ClaimReview")
+                .value("")
+                .editable(true)
+                .optional(true)
+                .advanced(true)
+                .stepOut()
+                .addProperty(TASK_INPUT_TYPE_KEY);
         addStringProperty(TITLE_KEY, "Title",
                 "Short summary shown in the task inbox", "", false);
         addDocTextProperty(DESCRIPTION_KEY, "Description",
@@ -121,9 +147,9 @@ public class DurableAgentHumanTaskBuilder extends CallBuilder {
         properties().custom()
                 .metadata()
                     .label("Timeout")
-                    .description("Maximum time to wait for completion, e.g. {hours: 4}. On expiry "
-                            + "the agent is told the task timed out so it can react; omit to wait "
-                            + "indefinitely")
+                    .description("Maximum time to wait for completion, in days, hours and minutes, e.g. "
+                            + "{days: 1, hours: 2, minutes: 30}. On expiry the agent is told the task timed out so it "
+                            + "can react; omit to wait indefinitely")
                     .stepOut()
                 .type()
                     .fieldType(Property.ValueType.EXPRESSION)
@@ -141,7 +167,7 @@ public class DurableAgentHumanTaskBuilder extends CallBuilder {
                     .originalName(TIMEOUT_KEY)
                     .stepOut()
                 .imports("ballerina/workflow")
-                .placeholder("{hours: 4}")
+                .placeholder("{days: 1, hours: 2, minutes: 30}")
                 .value("")
                 .editable(true)
                 .optional(true)
@@ -216,12 +242,12 @@ public class DurableAgentHumanTaskBuilder extends CallBuilder {
         if (name.isBlank()) {
             throw new UserFacingException("A human task name is required");
         }
-        String roles = sourceBuilder.getProperty(USER_ROLES_KEY)
-                .map(p -> p.value() == null ? "" : p.value().toString().trim()).orElse("");
+        String roles = WorkflowUtil.audienceSource(sourceBuilder, USER_ROLES_KEY);
+        String users = WorkflowUtil.audienceSource(sourceBuilder, WorkflowUtil.USERS_KEY);
         // Surface the omission rather than picking a role on the user's behalf — same stance as
         // the non-agent HumanTaskBuilder, which never falls back to a privileged role.
-        if (roles.isBlank()) {
-            throw new UserFacingException("At least one user role is required for the human task");
+        if (roles.isBlank() && users.isBlank()) {
+            throw new UserFacingException(WorkflowUtil.AUDIENCE_REQUIRED_MESSAGE);
         }
         String title = sourceBuilder.getProperty(TITLE_KEY)
                 .map(p -> p.value() == null ? "" : p.value().toString().trim()).orElse("");
@@ -229,10 +255,17 @@ public class DurableAgentHumanTaskBuilder extends CallBuilder {
                 .map(p -> p.value() == null ? "" : p.value().toString().trim()).orElse("");
         String resultType = sourceBuilder.getProperty(RESULT_TYPE_KEY)
                 .map(p -> p.value() == null ? "" : p.value().toString().trim()).orElse("");
+        String taskInputType = sourceBuilder.getProperty(TASK_INPUT_TYPE_KEY)
+                .map(p -> p.value() == null ? "" : p.value().toString().trim()).orElse("");
         String timeout = sourceBuilder.getProperty(TIMEOUT_KEY)
                 .map(p -> p.value() == null ? "" : p.value().toString().trim()).orElse("");
-        StringBuilder entry = new StringBuilder("{name: ").append(WorkflowUtil.constantNameLiteral(name))
-                .append(", roles: ").append(WorkflowUtil.quoteIfBareRole(roles));
+        StringBuilder entry = new StringBuilder("{name: ").append(WorkflowUtil.constantNameLiteral(name));
+        for (String field : WorkflowUtil.reviewAudienceFields(sourceBuilder, USER_ROLES_KEY)) {
+            entry.append(", ").append(field);
+        }
+        if (!taskInputType.isBlank()) {
+            entry.append(", taskInputType: ").append(taskInputType);
+        }
         if (!resultType.isBlank()) {
             entry.append(", resultType: ").append(resultType);
         }

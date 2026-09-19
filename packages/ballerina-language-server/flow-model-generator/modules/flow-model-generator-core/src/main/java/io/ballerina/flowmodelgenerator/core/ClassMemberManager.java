@@ -42,6 +42,7 @@ import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.McpToolKitBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.NewConnectionBuilder;
+import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.projects.Document;
 import io.ballerina.tools.text.LinePosition;
 import io.ballerina.tools.text.LineRange;
@@ -166,8 +167,13 @@ public final class ClassMemberManager {
         String assignment = "self." + connectionName + " = " + replacePrefix(declaration.initializer(),
                 importResolution.requestedPrefix(), importResolution.effectivePrefix());
 
-        generatedEdits.removeIf(edit -> edit.getNewText().contains("import " + connection.codedata().org() + "/"
-                + connection.codedata().module()));
+        // NewConnectionBuilder emits its own import for the connection module; drop it here so the import
+        // resolved above is the single source of truth. Match both the raw and escaped (reserved-keyword)
+        // module forms, since the emitted edit escapes reserved segments.
+        String connectionModuleId = connection.codedata().org() + "/" + connection.codedata().module();
+        String escapedConnectionModuleId = CommonUtils.escapeImportStatement(connectionModuleId);
+        generatedEdits.removeIf(edit -> edit.getNewText().contains("import " + connectionModuleId)
+                || edit.getNewText().contains("import " + escapedConnectionModuleId));
         if (generatedEdits.isEmpty()) {
             generated.remove(filePath);
         } else {
@@ -460,8 +466,9 @@ public final class ClassMemberManager {
         for (int suffix = 2; usedPrefixes.contains(effectivePrefix); suffix++) {
             effectivePrefix = requestedPrefix + suffix;
         }
-        String importText = "import " + moduleId
-                + (effectivePrefix.equals(requestedPrefix) ? "" : " as " + effectivePrefix) + ";";
+        // Escape reserved-keyword module segments so the emitted import line is valid Ballerina.
+        String importText = "import " + CommonUtils.escapeImportStatement(moduleId
+                + (effectivePrefix.equals(requestedPrefix) ? "" : " as " + effectivePrefix)) + ";";
         return new ImportResolution(requestedPrefix, effectivePrefix, importText);
     }
 
@@ -475,8 +482,11 @@ public final class ClassMemberManager {
 
     private static String importModuleId(ImportDeclarationNode declaration) {
         String org = declaration.orgName().map(value -> value.orgName().text().trim()).orElse("");
-        String module = declaration.moduleName().stream().map(token -> token.text().trim())
-                .reduce((left, right) -> left + "." + right).orElse("");
+        // Unescape so an import read from source (reserved-keyword segments carry the leading quote) compares
+        // equal to the raw module id the model stores.
+        String module = CommonUtils.unescapeModuleName(declaration.moduleName().stream()
+                .map(token -> token.text().trim())
+                .reduce((left, right) -> left + "." + right).orElse(""));
         return org.isEmpty() ? module : org + "/" + module;
     }
 

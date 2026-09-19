@@ -21,6 +21,7 @@ import { useState } from "react";
 import { DiagramEngine } from "@projectstorm/react-diagrams";
 import { NodeLinkModel } from "./NodeLinkModel";
 import { ThemeColors } from "@wso2/ui-toolkit";
+import { STRUCTURE_OPACITY } from "../../resources/constants";
 interface NodeLinkWidgetProps {
     link: NodeLinkModel;
     engine: DiagramEngine;
@@ -37,6 +38,19 @@ export const NodeLinkWidget: React.FC<NodeLinkWidgetProps> = ({ link, engine }) 
                 : ThemeColors.ON_SURFACE
         : "transparent";
 
+    // Resting links dim ON_SURFACE via stroke-opacity rather than switching to a border token
+    // (e.g. OUTLINE_VARIANT) - the same de-emphasis technique this package already uses for node
+    // subtitles (see Description in EntryNode/components/styles.ts). A border token only has to
+    // read against an adjacent filled surface, which some dark themes render close enough to the
+    // canvas background to make a link spanning open (dotted) canvas nearly invisible. Dimming
+    // the same foreground/background pair VS Code already keeps at a legible contrast for body
+    // text keeps that guarantee in both themes. STRUCTURE_OPACITY is shared with NODE_BORDER_COLOR
+    // (constants.ts) so a node's resting border dims by the same amount - links and borders read
+    // as one consistent line style instead of two unrelated ones. Hover and broken states stay at
+    // full opacity for clear, deliberate feedback.
+    const isResting = link.visible && !link.broken && !isHovered;
+    const linkOpacity = isResting ? STRUCTURE_OPACITY : 1;
+
     return (
         <g pointerEvents={"all"} onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)}>
             <path
@@ -51,6 +65,7 @@ export const NodeLinkWidget: React.FC<NodeLinkWidgetProps> = ({ link, engine }) 
                 d={link.getSVGPath()}
                 fill={"none"}
                 stroke={linkColor}
+                strokeOpacity={linkOpacity}
                 strokeWidth={1.5}
                 strokeDasharray={link.broken || link.dashed ? "5 5" : undefined}
             />

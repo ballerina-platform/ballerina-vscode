@@ -32,6 +32,9 @@ import model5 from '../stories/5-connection-complex.json';
 import model6 from '../stories/6-ai-agent-complex.json';
 import model7 from '../stories/7-graphql-complex.json';
 import model8 from '../stories/8-multiple-connections-complex.json';
+import model9 from '../stories/9-workflow-overlap.json';
+import model10 from '../stories/10-workflow-function-port-overlap.json';
+import model11 from '../stories/11-stacked-workflows-overlap.json';
 
 // Helper function to convert sample data to CDModel format
 function convertToCDModel(sampleData: any): CDModel {
@@ -70,6 +73,26 @@ function convertToCDModel(sampleData: any): CDModel {
             remoteFunctions: service.remoteFunctions || [],
             resourceFunctions: service.resourceFunctions || [],
             location: service.location || {
+                filePath: '',
+                startLine: { line: 0, offset: 0 },
+                endLine: { line: 0, offset: 0 }
+            }
+        })) || [],
+        workflows: sampleData.workflows?.map((workflow: any) => ({
+            symbol: workflow.symbol || workflow.name,
+            kind: workflow.kind,
+            uuid: workflow.uuid || workflow.id,
+            attachedServices: workflow.attachedServices || [],
+            attachedFunctions: workflow.attachedFunctions || [],
+            events: workflow.events || [],
+            humanTasks: workflow.humanTasks || [],
+            activities: workflow.activities || [],
+            connections: workflow.connections || [],
+            invalidSendDataServices: workflow.invalidSendDataServices || [],
+            invalidSendDataFunctions: workflow.invalidSendDataFunctions || [],
+            enableFlowModel: workflow.enableFlowModel !== false,
+            sortText: workflow.sortText || '',
+            location: workflow.location || {
                 filePath: '',
                 startLine: { line: 0, offset: 0 },
                 endLine: { line: 0, offset: 0 }
@@ -233,5 +256,20 @@ describe('Component Diagram - Snapshot Tests', () => {
     test('renders multiple connections complex correctly', async () => {
         const cdModel = convertToCDModel(model8);
         await renderAndCheckSnapshot(cdModel, 'multiple-connections-complex');
+    }, 15000);
+
+    test('renders workflow overlap correctly', async () => {
+        const cdModel = convertToCDModel(model9);
+        await renderAndCheckSnapshot(cdModel, 'workflow-overlap');
+    }, 15000);
+
+    test('renders workflow function-port overlap correctly', async () => {
+        const cdModel = convertToCDModel(model10);
+        await renderAndCheckSnapshot(cdModel, 'workflow-function-port-overlap');
+    }, 15000);
+
+    test('renders stacked workflows overlap correctly', async () => {
+        const cdModel = convertToCDModel(model11);
+        await renderAndCheckSnapshot(cdModel, 'stacked-workflows-overlap');
     }, 15000);
 });

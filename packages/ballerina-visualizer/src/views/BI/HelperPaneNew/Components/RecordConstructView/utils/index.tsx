@@ -21,9 +21,21 @@ import {
     keywords,
 } from "@wso2/ballerina-core";
 
+export { getOptionalityLabel, isOptionalParam } from "@wso2/ballerina-core";
+
 
 export function isRequiredParam(param: FormField): boolean {
     return !(param.optional || param.defaultable);
+}
+
+export function isPromptField(param: FormField): boolean {
+    const typeInfo = param.typeInfo;
+    return typeInfo?.orgName === "ballerina" && typeInfo?.moduleName === "ai" && typeInfo?.name === "Prompt";
+}
+
+export function isModelProviderField(param: FormField): boolean {
+    const typeInfo = param.typeInfo;
+    return typeInfo?.orgName === "ballerina" && typeInfo?.moduleName === "ai" && typeInfo?.name === "ModelProvider";
 }
 
 export function isAllDefaultableFields(recordFields: FormField[]): boolean {

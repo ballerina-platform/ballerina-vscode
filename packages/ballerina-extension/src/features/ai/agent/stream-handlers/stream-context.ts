@@ -16,7 +16,7 @@
 
 import { ExecutionContext, ProjectSource } from "@wso2/ballerina-core";
 import { CopilotEventHandler, ToolModelUsage } from "../../utils/events";
-import { StreamTextResult } from 'ai';
+import { ModelMessage, StreamTextResult } from 'ai';
 
 /**
  * Context object containing all shared state for stream event handlers.
@@ -35,8 +35,15 @@ export interface StreamContext {
     messageId: string;
     userMessageContent: any;
 
-    // Response promise (for message history and abort/finish handling)
+    // Response promise (for message history and abort/finish handling). Current streamText
+    // call only — see `carriedMessages`.
     response: StreamTextResult<any, any>['response'];
+
+    /**
+     * Messages from earlier attempts, when the turn was resumed after a truncation.
+     * `response` is per-attempt, so persisting the full turn means prepending these.
+     */
+    carriedMessages?: ModelMessage[];
 
     // Token usage promise (for telemetry — total across all steps)
     totalUsage: StreamTextResult<any, any>['totalUsage'];

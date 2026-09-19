@@ -21,7 +21,7 @@
 // most often. MCP reached from Settings returning to Settings under a "Back to chat" tooltip is the
 // case that shipped.
 
-import { backTooltipFor, PanelRoute } from "./panelNav";
+import { backTooltipFor, PanelRoute, isNavigationPrompt, routeInitialPrompt } from "./panelNav";
 
 describe("panel back-arrow tooltip", () => {
     it("names the chat one level deep", () => {
@@ -46,5 +46,36 @@ describe("panel back-arrow tooltip", () => {
         const routes: PanelRoute[] = ["settings", "mcp", "skills"];
         const labels = routes.map((parent) => backTooltipFor([parent, "mcp"]));
         expect(labels).toEqual(["Back to Settings", "Back to MCP Servers", "Back to Skills"]);
+    });
+});
+
+// The panel reads these on mount. A payload routed as a prompt instead of navigation fails silently
+// as "the panel just opened", so the discrimination is worth pinning.
+describe("routeInitialPrompt", () => {
+    it("routes a view payload to its surface", () => {
+        expect(routeInitialPrompt({ type: "view", view: "settings" })).toEqual({
+            kind: "view",
+            view: "settings",
+        });
+    });
+
+    it("carries the thread id through", () => {
+        expect(routeInitialPrompt({ type: "thread", threadId: "t7" })).toEqual({
+            kind: "thread",
+            threadId: "t7",
+        });
+    });
+
+    it("leaves every sending payload to the prompt path", () => {
+        expect(routeInitialPrompt({ type: "text", text: "hi", planMode: false }).kind).toBe("prompt");
+        expect(routeInitialPrompt(undefined).kind).toBe("prompt");
+    });
+
+    // The guard is what keeps the later `defaultPrompt.hiddenContext` access typed after the early return.
+    it("recognises only the navigation payloads", () => {
+        expect(isNavigationPrompt({ type: "view", view: "mcp" })).toBe(true);
+        expect(isNavigationPrompt({ type: "thread", threadId: "t1" })).toBe(true);
+        expect(isNavigationPrompt({ type: "text", text: "hi", planMode: false })).toBe(false);
+        expect(isNavigationPrompt(undefined)).toBe(false);
     });
 });

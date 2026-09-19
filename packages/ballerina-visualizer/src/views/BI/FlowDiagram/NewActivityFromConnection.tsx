@@ -545,9 +545,14 @@ export function NewActivityFromConnection(props: NewActivityFromConnectionProps)
         const newProperties = { ...(clonedFlowNode.properties || {}) } as Record<string, Property>;
         for (const param of analysis.params || []) {
             const isChecked = checked[param.name] === true;
+            // A language server older than the escapedName field sends only name, already carrying
+            // the keyword quote, so falling back to it yields the same source either way.
+            const escapedName = param.escapedName ?? param.name;
             if (isChecked) {
                 parametersValue[param.name] = createDefaultParameterValue({
-                    value: param.name,
+                    // Becomes the generated activity's parameter name, so it must carry the quote
+                    // for a keyword ('from) to be valid source.
+                    value: escapedName,
                     type: param.type,
                     // Carried into the generated activity's parameter doc line.
                     parameterDescription: param.description,
@@ -557,8 +562,10 @@ export function NewActivityFromConnection(props: NewActivityFromConnectionProps)
             if (!property) {
                 continue;
             }
+            // The argument passed to the action inside the activity — source text, so the escaped
+            // spelling; the property it is stored under is keyed by the bare name.
             const value = isChecked
-                ? param.name
+                ? escapedName
                 : param.required
                   ? String(data[`${param.name}${DEFAULT_VALUE_SUFFIX}`] ?? "")
                   : "";

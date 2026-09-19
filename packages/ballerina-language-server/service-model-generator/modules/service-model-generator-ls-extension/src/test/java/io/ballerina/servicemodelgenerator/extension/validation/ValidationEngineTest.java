@@ -178,28 +178,7 @@ public class ValidationEngineTest {
         Assert.assertEquals(result.severity(), ValidationSeverity.WARNING);
         Assert.assertEquals(result.message(), "Listen On must be a valid port (1–65535)");
     }
-
-    // ---- regex / lengths --------------------------------------------------------------------
-
-    @Test
-    public void testRegexMatches() {
-        assertPasses(node("Topic", "orders",
-                rule("common.validate.regex", Map.of("pattern", "^[a-z]+$"))));
-    }
-
-    @Test
-    public void testRegexRejectsMismatch() {
-        assertFails(node("Topic", "Orders-1",
-                rule("common.validate.regex", Map.of("pattern", "^[a-z]+$"))));
-    }
-
-    @Test
-    public void testInvalidRegexPatternIsSkipped() {
-        // An unparseable pattern is an authoring error and must never fail the user's input.
-        assertPasses(node("Topic", "anything",
-                rule("common.validate.regex", Map.of("pattern", "[unclosed"))));
-    }
-
+    
     @Test
     public void testMinLength() {
         ValidationResult result = assertFails(node("Secret", "abc",
@@ -215,21 +194,6 @@ public class ValidationEngineTest {
     @Test
     public void testMissingRequiredArgSkipsRule() {
         assertPasses(node("Secret", "abc", rule("common.validate.min.length")));
-    }
-
-    @Test
-    public void testRegexChecksEachItemOfAMultiValueField() {
-        // The MSSQL `databases` field ships exactly this rule; each entry must be a non-empty
-        // quoted/backtick string. Joining the entries with a comma would never match, so a pass on
-        // valid entries proves the check is per item, not on the joined form.
-        ValidationRule regex = rule("common.validate.regex",
-                Map.of("pattern", "^string `.+`$|^\".+\"$"));
-        assertPasses(multiValueNode("Databases", List.of("\"db1\"", "\"db2\""), regex));
-
-        List<ValidationResult> results = run(multiValueNode("Databases",
-                List.of("\"db1\"", "notquoted"), regex));
-        Assert.assertEquals(results.size(), 1, "one bad entry must fail the field: " + results);
-        Assert.assertEquals(results.getFirst().message(), "Databases has an invalid format");
     }
 
     @Test

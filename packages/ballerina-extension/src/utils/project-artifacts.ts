@@ -240,16 +240,12 @@ async function traverseComponents(artifacts: Artifacts, projectPath: string, res
     response.directoryMap[DIRECTORY_MAP.LISTENER].push(...await getComponents(artifacts[ARTIFACT_TYPE.Listeners], projectPath, DIRECTORY_MAP.LISTENER, "http-service"));
     response.directoryMap[DIRECTORY_MAP.FUNCTION].push(...await getComponents(artifacts[ARTIFACT_TYPE.Functions], projectPath, DIRECTORY_MAP.FUNCTION, "function"));
     response.directoryMap[DIRECTORY_MAP.WORKFLOW].push(...await getComponents(artifacts[ARTIFACT_TYPE.Workflows], projectPath, DIRECTORY_MAP.WORKFLOW, "workflow"));
-    // Durable agentic workflows (workflow:DurableAgent declarations) list right after the
-    // durable workflows in the same explorer section, distinguished only by the agent icon.
-    // The WSO2 Integrator shell's explorer renders a section's children only when the entry
-    // type matches the section, so the entries present as WORKFLOW; position-based click
-    // routing still opens the agent model.
-    response.directoryMap[DIRECTORY_MAP.WORKFLOW].push(...await getComponents(artifacts[ARTIFACT_TYPE.Workflows], projectPath, DIRECTORY_MAP.DURABLE_AGENT, "bi-ai-agent"));
     response.directoryMap[DIRECTORY_MAP.ACTIVITY].push(...await getComponents(artifacts[ARTIFACT_TYPE.Workflows], projectPath, DIRECTORY_MAP.ACTIVITY, "task"));
     response.directoryMap[DIRECTORY_MAP.DATA_MAPPER].push(...await getComponents(artifacts[ARTIFACT_TYPE.DataMappers], projectPath, DIRECTORY_MAP.DATA_MAPPER, "dataMapper"));
     response.directoryMap[DIRECTORY_MAP.CONNECTION].push(...await getComponents(artifacts[ARTIFACT_TYPE.Connections], projectPath, DIRECTORY_MAP.CONNECTION, "connection"));
     response.directoryMap[DIRECTORY_MAP.AGENT].push(...await getComponents(artifacts[ARTIFACT_TYPE.Agents], projectPath, DIRECTORY_MAP.AGENT, "bi-ai-agent"));
+    // Durable agents (workflow:DurableAgent declarations) list after the AI agents in the Agents section.
+    response.directoryMap[DIRECTORY_MAP.AGENT].push(...await getComponents(artifacts[ARTIFACT_TYPE.Agents], projectPath, DIRECTORY_MAP.DURABLE_AGENT, "bi-ai-agent"));
     response.directoryMap[DIRECTORY_MAP.AGENT_DEFINITION].push(...await getComponents(artifacts[ARTIFACT_TYPE.AgentDefinitions], projectPath, DIRECTORY_MAP.AGENT_DEFINITION, "bi-ai-agent"));
     response.directoryMap[DIRECTORY_MAP.TYPE].push(...await getComponents(artifacts[ARTIFACT_TYPE.Types], projectPath, DIRECTORY_MAP.TYPE, "type"));
     response.directoryMap[DIRECTORY_MAP.CONFIGURABLE].push(...await getComponents(artifacts[ARTIFACT_TYPE.Configurations], projectPath, DIRECTORY_MAP.CONFIGURABLE, "config"));
@@ -390,11 +386,11 @@ async function getEntryValue(artifact: BaseArtifact, projectPath: string, icon: 
         name: artifact.name,
         path: targetFile,
         moduleName: artifact.module,
-        // The WSO2 Integrator shell's explorer renders a section's children only when the
-        // entry type matches the section, so durable agents present as WORKFLOW entries in
-        // the same list, distinguished only by the agent icon; position-based click routing
-        // still opens the agent model.
-        type: artifact.type === DIRECTORY_MAP.DURABLE_AGENT ? DIRECTORY_MAP.WORKFLOW : artifact.type,
+        // The WSO2 Integrator shell's explorer renders a section's children only when the entry
+        // type matches the section, so a durable agent presents as an AGENT entry; `kind` keeps
+        // what it is, which click routing uses to open the agent model instead of the AI agent.
+        type: artifact.type === DIRECTORY_MAP.DURABLE_AGENT ? DIRECTORY_MAP.AGENT : artifact.type,
+        kind: artifact.type === DIRECTORY_MAP.DURABLE_AGENT ? DIRECTORY_MAP.DURABLE_AGENT : undefined,
         icon: artifact.module ? `bi-${artifact.module}` : icon,
         context: artifact.name === "automation" ? "main" : artifact.name,
         resources: [],
@@ -419,22 +415,19 @@ async function getEntryValue(artifact: BaseArtifact, projectPath: string, icon: 
             entryValue.iconColor = resolveEntryColor(serviceIcon, artifact.module);
             entryValue.iconLight = serviceIcon?.light ?? serviceIcon?.url;
             entryValue.iconDark = serviceIcon?.dark ?? serviceIcon?.url;
+            entryValue.triggerKind = artifact.triggerKind;
             entryValue.kind = serviceIcon?.kind;
-            if (artifact.module === "ai") {
-                entryValue.resources = [];
-                const aiResourceLocation = Object.values(artifact.children).find(child => child.type === DIRECTORY_MAP.RESOURCE)?.location;
-                entryValue.position = {
-                    endColumn: aiResourceLocation.endLine.offset,
-                    endLine: aiResourceLocation.endLine.line,
-                    startColumn: aiResourceLocation.startLine.offset,
-                    startLine: aiResourceLocation.startLine.line
-                };
-            } else {
-                // Get the children of the service
-                const resourceFunctions = await getComponents(artifact.children, projectPath, DIRECTORY_MAP.RESOURCE, icon, artifact.module);
-                const remoteFunctions = await getComponents(artifact.children, projectPath, DIRECTORY_MAP.REMOTE, icon, artifact.module);
-                const privateFunctions = await getComponents(artifact.children, projectPath, DIRECTORY_MAP.FUNCTION, icon, artifact.module);
-                entryValue.resources = [...resourceFunctions, ...remoteFunctions, ...privateFunctions];
+            // Chat agent services (module `ai`) carry their resources (`chat`, and now the
+            // human-in-the-loop `decision` resource) as real children exactly like any other
+            // service, so they're listed the same way — no special-casing needed. Position-based
+            // click routing resolves an individual resource via its own entry in `resources`
+            // below, so the service's own position also stays untouched (its true declaration
+            // range), matching every other module.
+            {
+                const serviceResourceFunctions = await getComponents(artifact.children, projectPath, DIRECTORY_MAP.RESOURCE, icon, artifact.module);
+                const serviceRemoteFunctions = await getComponents(artifact.children, projectPath, DIRECTORY_MAP.REMOTE, icon, artifact.module);
+                const servicePrivateFunctions = await getComponents(artifact.children, projectPath, DIRECTORY_MAP.FUNCTION, icon, artifact.module);
+                entryValue.resources = [...serviceResourceFunctions, ...serviceRemoteFunctions, ...servicePrivateFunctions];
             }
             break;
         case DIRECTORY_MAP.TYPE:
@@ -452,6 +445,7 @@ async function getEntryValue(artifact: BaseArtifact, projectPath: string, icon: 
             entryValue.iconColor = resolveEntryColor(listenerIcon, artifact.module);
             entryValue.iconLight = listenerIcon?.light ?? listenerIcon?.url;
             entryValue.iconDark = listenerIcon?.dark ?? listenerIcon?.url;
+            entryValue.triggerKind = artifact.triggerKind;
             entryValue.kind = listenerIcon?.kind;
             break;
         case DIRECTORY_MAP.CONNECTION:
@@ -536,9 +530,6 @@ function getDirectoryMapKeyAndIcon(artifact: BaseArtifact, artifactCategoryKey: 
         case ARTIFACT_TYPE.Workflows:
             if (artifact.type === DIRECTORY_MAP.ACTIVITY) {
                 return { mapKey: DIRECTORY_MAP.ACTIVITY, icon: "task" };
-            }
-            if (artifact.type === DIRECTORY_MAP.DURABLE_AGENT) {
-                return { mapKey: DIRECTORY_MAP.WORKFLOW, icon: "bi-ai-agent" };
             }
             return { mapKey: DIRECTORY_MAP.WORKFLOW, icon: "workflow" };
         case ARTIFACT_TYPE.DataMappers:
@@ -767,14 +758,22 @@ async function populateLocalConnectors(projectDir: string, response: ProjectStru
  * tree (glyph -> kind default) against the shared brand-icon registry in @wso2/ballerina-core (the
  * single source shared with the Add-Artifact gallery and the component diagram): the LS-declared
  * `icon.glyph`, then the registry brand glyph keyed by module, then the `kind` default.
+ *
+ * A real theme-aware SVG pair (both `icon.light` and `icon.dark` present) is left to render via
+ * `iconLight`/`iconDark` instead: falling through to the kind-default glyph here would give the
+ * consumer a non-empty `icon` it prefers over the colored SVG, silently discarding it.
  */
-function resolveEntryGlyph(icon: IconDescriptor | undefined, module: string | undefined): string {
+function resolveEntryGlyph(icon: IconDescriptor | undefined, module: string | undefined): string | undefined {
+    if (icon?.light && icon?.dark) {
+        return icon?.glyph;
+    }
     return icon?.glyph
-        ?? resolveBrandIcon(module)?.glyph
+        ?? (icon?.source === "trigger-ui-metadata" ? undefined : resolveBrandIcon(module)?.glyph)
         ?? resolveKindDefaultIcon(icon?.kind).glyph;
 }
 
 /** Resolves the glyph tint: the LS-declared `icon.color`, else the shared registry's brand color. */
 function resolveEntryColor(icon: IconDescriptor | undefined, module: string | undefined): string | undefined {
-    return icon?.color ?? resolveBrandIcon(module)?.color;
+    return icon?.color
+        ?? (icon?.source === "trigger-ui-metadata" ? undefined : resolveBrandIcon(module)?.color);
 }

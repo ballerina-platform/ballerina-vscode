@@ -38,9 +38,7 @@ const CHOREO_PROD_API_HOST: Record<"US" | "EU", string> = {
 // Non-production hosts are not listed here; set this to target one.
 const API_HOST_OVERRIDE_VAR = "VSCODE_CHOREO_API_HOST";
 
-// Paths from the service's openapi.yaml. If it ends up fronted by the Choreo gateway under a
-// `/<service>/<version>` prefix like its neighbours, prepend that here.
-const MANAGED_SERVICE_BASE_PATH = "/api/v1";
+const MANAGED_SERVICE_BASE_PATH = "/managed-tokens/v1.0/api/v1";
 const MANAGED_LIBRARIES_PATH = "/managed-libraries";
 const MANAGED_CONNECTIONS_PATH = "/managed-connections";
 

@@ -38,7 +38,7 @@ import {
     DRAFT_NODE_BORDER_WIDTH,
     NODE_GAP_Y,
 } from "../../../resources/constants";
-import { Button, Item, Menu, MenuItem, ThemeColors } from "@wso2/ui-toolkit";
+import { Button, Item, Menu, MenuItem } from "@wso2/ui-toolkit";
 import { FlowNode } from "../../../utils/types";
 import { useDiagramContext } from "../../DiagramContext";
 import { MoreVertIcon } from "../../../resources";
@@ -136,10 +136,10 @@ export namespace NodeStyles {
             props.hasError
                 ? NODE_BORDER_ERROR_COLOR
                 : (props.isSelected || props.selected) && !props.disabled
-                    ? ThemeColors.SECONDARY
+                    ? NODE_BORDER_SELECTED_COLOR
                     : props.hovered && !props.disabled
-                        ? ThemeColors.SECONDARY
-                        : ThemeColors.OUTLINE_VARIANT};
+                        ? NODE_BORDER_SELECTED_COLOR
+                        : NODE_BORDER_COLOR};
         border-radius: 8px;
         background-color: ${(props: NodeStyleProp) =>
             props?.isActiveBreakpoint ? NODE_BG_BREAKPOINT_COLOR : props.hovered && !props.disabled ? NODE_BG_HOVER_COLOR : NODE_BG_COLOR};

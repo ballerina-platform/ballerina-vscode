@@ -1,0 +1,107 @@
+{
+  "source": "durable_agent_activities.bal",
+  "position": {
+    "line": 27,
+    "offset": 0
+  },
+  "description": "Peer Agent template: delegation target, tool identity, wait/callback, and PeerDecl approval gating fields",
+  "codedata": {
+    "node": "DURABLE_AGENT_PEER",
+    "org": "ballerina",
+    "module": "workflow"
+  },
+  "output": {
+    "id": "31",
+    "metadata": {
+      "label": "Peer Agent",
+      "description": "Another durable agent this agent can delegate to, advertised to the model as a tool"
+    },
+    "codedata": {
+      "node": "DURABLE_AGENT_PEER",
+      "org": "ballerina",
+      "module": "workflow",
+      "object": "AgenticWorkflowContext",
+      "symbol": "agent",
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "agent": {
+        "metadata": {
+          "label": "Peer Agent",
+          "description": "The durable agent to delegate to; the model calls the peer by this name"
+        },
+        "types": [
+          {
+            "fieldType": "SINGLE_SELECT",
+            "options": [
+              {
+                "label": "billingAgent",
+                "value": "billingAgent"
+              }
+            ],
+            "selected": true
+          }
+        ],
+        "value": "",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED"
+        }
+      },
+      "description": {
+        "metadata": {
+          "label": "Description",
+          "description": "What the peer does, for the model to decide when to delegate"
+        },
+        "types": [
+          {
+            "fieldType": "TEXT",
+            "ballerinaType": "string",
+            "selected": true
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string",
+            "selected": false
+          }
+        ],
+        "value": "",
+        "placeholder": "Asks the hotel specialist to research and recommend hotels.",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "DEFAULTABLE"
+        }
+      },
+      "allowedEvents": {
+        "metadata": {
+          "label": "Allowed Events",
+          "description": "Events of the peer this agent may send, each advertised as a tool; e.g. [\"reprice\"]"
+        },
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string[]",
+            "selected": true
+          }
+        ],
+        "value": "",
+        "placeholder": "[]",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false,
+        "codedata": {
+          "kind": "DEFAULTABLE"
+        }
+      }
+    },
+    "flags": 0
+  }
+}

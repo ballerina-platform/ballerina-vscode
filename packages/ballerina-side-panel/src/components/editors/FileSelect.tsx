@@ -20,11 +20,12 @@ import React from "react";
 
 import { LocationSelector } from "@wso2/ui-toolkit";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
+import { getPrimaryInputType } from "@wso2/ballerina-core";
 
 import { FormField } from "../Form/types";
 import { buildRequiredRule } from "./utils";
 import { useFormContext } from "../../context";
-import { Controller } from "react-hook-form";
+import { Controller, useFormState } from "react-hook-form";
 
 interface DropdownEditorProps {
     field: FormField;
@@ -34,12 +35,15 @@ export function FileSelect(props: DropdownEditorProps) {
     const { field } = props;
     const { form } = useFormContext();
     const { setValue, control } = form;
+    const { isSubmitted } = useFormState({ control });
 
     const { rpcClient } = useRpcContext();
 
     const handleFileSelect = async () => {
         try {
-            const selection = await rpcClient.getCommonRpcClient().selectFileOrDirPath({ isFile: true });
+            const extensions = getPrimaryInputType(field.types)?.extensions;
+            const filters = extensions?.length ? { [field.label]: extensions } : undefined;
+            const selection = await rpcClient.getCommonRpcClient().selectFileOrDirPath({ isFile: true, filters });
             // A dismissed dialog (and a host that rejected the selection) comes back
             // with an empty path — keep any earlier pick rather than clearing it.
             if (selection?.path) {
@@ -61,7 +65,7 @@ export function FileSelect(props: DropdownEditorProps) {
                     btnText="Select File"
                     selectedFile={value}
                     required={!field.optional}
-                    errorMsg={error?.message}
+                    errorMsg={isSubmitted ? error?.message : undefined}
                     onSelect={handleFileSelect}
                 />
             )}

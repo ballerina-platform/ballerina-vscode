@@ -1,0 +1,123 @@
+{
+  "description": "Type search pagination page 3 of 3 across two indexed modules with different type counts (os=5, time=15), verifying fair-share quotas tile without dropping or duplicating rows",
+  "kind": "TYPE",
+  "source": "type_pagination/main.bal",
+  "queryMap": {
+    "q": "",
+    "limit": "8",
+    "offset": "16"
+  },
+  "categories": [
+    {
+      "metadata": {
+        "label": "Current Integration",
+        "description": "Components defined within the current integration",
+        "keywords": [
+          "Project",
+          "Local",
+          "Function",
+          "Types",
+          "Data Mapper"
+        ]
+      },
+      "items": []
+    },
+    {
+      "metadata": {
+        "label": "Imported Types",
+        "description": "Types imported from other integrations",
+        "keywords": [
+          "Imported",
+          "Type",
+          "Library"
+        ]
+      },
+      "items": [
+        {
+          "metadata": {
+            "label": "time",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "UtcZoneHandling",
+                "description": "Default zone value representation in different formats.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.8.0.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "time",
+                "packageName": "time",
+                "symbol": "UtcZoneHandling",
+                "version": "2.8.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "ZERO_OR_ONE",
+                "description": "Represents the type that can be either zero or one.",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.8.0.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "time",
+                "packageName": "time",
+                "symbol": "ZERO_OR_ONE",
+                "version": "2.8.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "Zone",
+                "description": "Abstract object representation to handle time zones.  ",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.8.0.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "time",
+                "packageName": "time",
+                "symbol": "Zone",
+                "version": "2.8.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "ZoneOffset",
+                "description": "This is closed so it is a subtype of Delta\nFields can negative\nif any of the three fields are > 0, then all must be >= 0\nif any of the three fields are < 0, then all must be <= 0\nSemantic is that durations should be left out",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.8.0.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerina",
+                "module": "time",
+                "packageName": "time",
+                "symbol": "ZoneOffset",
+                "version": "2.8.0"
+              },
+              "enabled": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "label": "Standard Library",
+        "description": "Components supported officially by Ballerina",
+        "keywords": [
+          "Ballerina",
+          "Library"
+        ]
+      },
+      "items": []
+    }
+  ]
+}

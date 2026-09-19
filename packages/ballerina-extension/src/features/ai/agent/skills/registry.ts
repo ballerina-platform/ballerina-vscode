@@ -32,6 +32,7 @@ function loadSkillMd(loadBundled: () => string, dir: string): string {
 const dataMapMd = loadSkillMd(() => require('./data-map/SKILL.md'), 'data-map');
 const skillCreatorMd = loadSkillMd(() => require('./skill-creator/SKILL.md'), 'skill-creator');
 const agentBuilderMd = loadSkillMd(() => require('./agent-builder/SKILL.md'), 'agent-builder');
+const workflowBuilderMd = loadSkillMd(() => require('./workflow-builder/SKILL.md'), 'workflow-builder');
 
 // data-map skill
 const dataMap = parseSkillMd(dataMapMd);
@@ -94,6 +95,20 @@ export const agentBuilderSkill: Skill = {
     name: agentBuilder.name,
     trigger: agentBuilder.description,
     content: agentBuilder.body,
+    optional: true,
+    default: true,
+};
+
+// workflow-builder skill
+const workflowBuilder = parseSkillMd(workflowBuilderMd);
+if (!workflowBuilder.name || !workflowBuilder.description) {
+    throw new Error(`[workflow-builder] SKILL.md is missing required frontmatter fields (name="${workflowBuilder.name}", description="${workflowBuilder.description}")`);
+}
+
+export const workflowBuilderSkill: Skill = {
+    name: workflowBuilder.name,
+    trigger: workflowBuilder.description,
+    content: workflowBuilder.body,
     optional: false,
     default: true,
 };
@@ -102,4 +117,5 @@ export const REGISTERED_SKILLS: Skill[] = [
     dataMapSkill,
     skillCreatorSkill,
     agentBuilderSkill,
+    workflowBuilderSkill,
 ];

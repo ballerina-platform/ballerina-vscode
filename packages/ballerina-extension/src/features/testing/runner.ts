@@ -33,6 +33,7 @@ import { discoverTests, gatherTestItems } from "./discover";
 import { testController, projectRoot } from "./activator";
 import { extension } from "../../BalExtensionContext";
 import { quoteShellPath } from "../../utils/config";
+import { refreshDefaultProviderToken } from "../ai/utils";
 
 enum EXEC_ARG {
     TESTS = '--tests',
@@ -62,6 +63,13 @@ export function runHandler(request: TestRunRequest, cancellation: CancellationTo
 
         try {
             if (request.profile?.kind == TestRunProfileKind.Run) {
+                if (!(await refreshDefaultProviderToken(projectRoot))) {
+                    for (const { test } of queue) {
+                        run.failed(test, new TestMessage('The WSO2 default AI provider is not configured for this project.'));
+                    }
+                    return;
+                }
+
                 let testNames = "";
                 // mark tests as running in test explorer
                 for (const { test, } of queue) {

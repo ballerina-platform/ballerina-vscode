@@ -1,8 +1,8 @@
 {
   "projectPath": "proj4",
-  "description": "Project with both functions.bal and main.bal; import added to functions.bal",
+  "description": "Project with both functions.bal and main.bal: the REST import goes to main.bal",
   "output": {
-    "proj4/functions.bal": [
+    "proj4/main.bal": [
       {
         "range": {
           "start": {
@@ -14,7 +14,7 @@
             "character": 0
           }
         },
-        "newText": "import ballerina/workflow.management as _;\n"
+        "newText": "import ballerina/workflow.management.rest as _;\n"
       }
     ]
   }

@@ -45,12 +45,12 @@ import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.WORKFLOW_O
 
 /**
  * A peer of a durable agent: another agent this one delegates to, advertised to the model as a
- * tool. Edits the {@code peers} list of the agent's declaration.
+ * tool named after the agent variable, plus one tool per allowed event. Edits the {@code peers}
+ * list of the agent's declaration.
  *
  * <p>Generated entry example:
  * <pre>{@code
- * {agent: hotelAgent, name: "askHotelDesk", description: "...", 'wait: false,
- *  callbackChannel: "hotelResults"}
+ * {agent: hotelAgent, description: "...", allowedEvents: ["reprice"]}
  * }</pre>
  *
  * @since 1.9.0
@@ -58,10 +58,8 @@ import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.WORKFLOW_O
 public class DurableAgentPeerBuilder extends CallBuilder {
 
     public static final String AGENT_KEY = "agent";
-    public static final String NAME_KEY = "name";
     public static final String DESCRIPTION_KEY = "description";
-    public static final String WAIT_KEY = "wait";
-    public static final String CALLBACK_CHANNEL_KEY = "callbackChannel";
+    public static final String ALLOWED_EVENTS_KEY = "allowedEvents";
     private static final String STRING_TYPE = "string";
     private static final String LABEL = "Peer Agent";
     private static final String DESCRIPTION =
@@ -93,11 +91,11 @@ public class DurableAgentPeerBuilder extends CallBuilder {
         setConcreteConstData();
 
         // Which agent is delegated to is the entry's whole point, and the choices are the other
-        // durable agents declared in the project.
+        // durable agents declared in the project. The peer is named by this variable.
         properties().custom()
                 .metadata()
                     .label("Peer Agent")
-                    .description("The durable agent to delegate to")
+                    .description("The durable agent to delegate to; the model calls the peer by this name")
                     .stepOut()
                 .type()
                     .fieldType(Property.ValueType.SINGLE_SELECT)
@@ -112,38 +110,33 @@ public class DurableAgentPeerBuilder extends CallBuilder {
                 .stepOut()
                 .addProperty(AGENT_KEY);
 
-        addStringProperty(NAME_KEY, "Tool Name",
-                "The name the model calls this peer by; must be a constant string",
-                "askHotelDesk", true);
         addStringProperty(DESCRIPTION_KEY, "Description",
                 "What the peer does, for the model to decide when to delegate",
                 "Asks the hotel specialist to research and recommend hotels.", false);
 
-        // Waiting inline is the simple case; an async delegation has to say where the answer
-        // lands, which is why the channel sits next to the flag.
+        // Each allowed event becomes a tool of its own — a one-way event acknowledges, a duplex one
+        // waits for the answer. Left empty, only the peer's run entry is advertised.
         properties().custom()
                 .metadata()
-                    .label("Wait for the Answer")
-                    .description("When set, the delegation blocks durably for the peer's result; "
-                            + "otherwise the peer runs async and replies on the callback channel")
+                    .label("Allowed Events")
+                    .description("Events of the peer this agent may send, each advertised as a tool; "
+                            + "e.g. [\"reprice\"]")
                     .stepOut()
                 .type()
-                    .fieldType(Property.ValueType.FLAG)
+                    .fieldType(Property.ValueType.EXPRESSION)
+                    .ballerinaType("string[]")
                     .selected(true)
                     .stepOut()
                 .codedata()
                     .kind(ParameterData.Kind.DEFAULTABLE.name())
                     .stepOut()
-                .value("true")
+                .placeholder("[]")
+                .value("")
                 .editable(true)
                 .optional(true)
+                .advanced(true)
                 .stepOut()
-                .addProperty(WAIT_KEY);
-
-        addStringProperty(CALLBACK_CHANNEL_KEY, "Callback Channel",
-                "The declared data event channel the async peer replies on; required when the "
-                        + "delegation does not wait",
-                "hotelResults", false);
+                .addProperty(ALLOWED_EVENTS_KEY);
     }
 
     private void addStringProperty(String key, String label, String doc, String placeholder, boolean required) {
@@ -208,28 +201,17 @@ public class DurableAgentPeerBuilder extends CallBuilder {
         if (agent.isBlank()) {
             throw new UserFacingException("A peer agent is required");
         }
-        String name = propertyValue(sourceBuilder, NAME_KEY);
-        if (name.isBlank()) {
-            throw new UserFacingException("A peer tool name is required");
-        }
         String description = propertyValue(sourceBuilder, DESCRIPTION_KEY);
-        String callbackChannel = propertyValue(sourceBuilder, CALLBACK_CHANNEL_KEY);
-        boolean waits = !"false".equalsIgnoreCase(propertyValue(sourceBuilder, WAIT_KEY));
-        if (!waits && callbackChannel.isBlank()) {
-            throw new UserFacingException("A peer that does not wait must name the callback "
-                    + "channel its answer arrives on");
-        }
+        String allowedEvents = propertyValue(sourceBuilder, ALLOWED_EVENTS_KEY);
 
-        // 'wait is a keyword, so the field is written quoted; it is only emitted when it differs
-        // from the declaration's default.
-        StringBuilder entry = new StringBuilder("{agent: ").append(agent)
-                .append(", name: ").append(WorkflowUtil.constantNameLiteral(name));
+        StringBuilder entry = new StringBuilder("{agent: ").append(agent);
         if (!description.isBlank()) {
             entry.append(", description: ").append(WorkflowUtil.quoteIfPlain(description));
         }
-        if (!waits) {
-            entry.append(", 'wait: false");
-            entry.append(", callbackChannel: ").append(WorkflowUtil.quoteIfPlain(callbackChannel));
+        // `[ ]` or a line-broken empty list from the expression editor is still no events.
+        boolean noEvents = allowedEvents.replaceAll("[\\[\\]\\s]", "").isEmpty();
+        if (!noEvents) {
+            entry.append(", allowedEvents: ").append(allowedEvents);
         }
         entry.append("}");
         return WorkflowUtil.upsertAgentCapabilityEntry(sourceBuilder, "peers", entry.toString());

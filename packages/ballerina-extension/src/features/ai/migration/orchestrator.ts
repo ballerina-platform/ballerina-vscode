@@ -21,15 +21,19 @@ import { commands, EventEmitter, Uri, window, workspace } from "vscode";
 import { extension } from "../../../BalExtensionContext";
 import { StateMachine } from "../../../stateMachine";
 import { AIStateMachine, openAIPanelWithPrompt } from "../../../views/ai-panel/aiMachine";
-import { AgentExecutor } from "../agent/AgentExecutor";
+import { AgentExecutor, COMPACT_TRIGGER_TOKENS } from "../agent/AgentExecutor";
 import { AICommandConfig } from "../executors/base/AICommandExecutor";
 import { createMigrationEventHandler, createVisualizerMigrationEventHandler, createAIPanelMigrationEventHandler } from "../utils/events";
-import { sendVisualizerMigrationNotification, sendAIPanelNotification } from "../utils/ai-utils";
+import { sendVisualizerMigrationNotification, sendAIPanelNotification, getErrorMessage } from "../utils/ai-utils";
 import { getEnhancementStages, getPerProjectEnhancementStages, getWorkspaceValidationStage, getResumePreamble, EnhancementStage } from "./prompts";
 import { MigrationDebugLogger } from "./debug-logger";
 import { TranscriptWriter } from "./transcript-writer";
 import { getWorkspaceTomlValues } from "../../../utils";
 import { setMigrationEnhancementActive } from "../../../utils/source-utils";
+import { buildMigrationCodebaseMap, extractPreviousStageWorkPlan } from "./project-map";
+
+// Below COMPACT_TRIGGER_TOKENS on purpose: the estimate omits the system prompt and tool schemas.
+const MIGRATION_STAGE_PROMPT_BUDGET_TOKENS = COMPACT_TRIGGER_TOKENS - 100_000;
 
 // ── Wizard streaming emitter – exposed via extension.ts exports ──────────────
 const _wizardChatEmitter = new EventEmitter<ChatNotify>();
@@ -48,6 +52,22 @@ import {
     PendingMigrationEnhancement,
 } from "./types";
 import { aiAssistantName, aiAssistantShortName } from "../../../utils/config";
+
+// ===========================================================================
+// Chat rendering helpers
+// ===========================================================================
+
+/**
+ * Escapes text that is interpolated into a chat content block.
+ *
+ * The chat renderer runs `rehypeRaw`, so raw markup in an error message is parsed as HTML
+ * rather than shown — an agent error mentioning, say, `<html>` would silently vanish from
+ * the block. Only the three markup-significant characters are escaped; quotes are left
+ * alone because the text never lands in an attribute.
+ */
+function escapeChatText(text: string): string {
+    return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
 
 // ===========================================================================
 // Active Session – in-memory state for the current window session
@@ -408,6 +428,18 @@ async function getWorkspacePackagePaths(projectRoot: string): Promise<string[] |
 }
 
 /**
+ * Directory the enhancement stages actually edit when the project holds a single package.
+ *
+ * A migrated integration is a package INSIDE its project (the migration wizard creates the
+ * project and puts the package in it, matching the new-project flow), so the sources live
+ * one level down from the project root. A standalone package — nothing declared in a
+ * `[workspace]` section — is its own root.
+ */
+function resolveSinglePackagePath(projectRoot: string, packagePaths: string[] | null): string {
+    return packagePaths?.length === 1 ? path.join(projectRoot, packagePaths[0]) : projectRoot;
+}
+
+/**
  * Builds a lightweight manifest of all packages in the workspace.
  * For each peer package (i.e. _not_ the currently-being-enhanced package)
  * the manifest lists the package name and its public function / type names
@@ -509,7 +541,7 @@ function emitFinalReport(
     if (failed.length > 0) {
         report += `### Failed packages\n\n`;
         for (const f of failed) {
-            report += `- \`${f.packagePath}\`: ${f.error}\n`;
+            report += `- \`${f.packagePath}\`: ${escapeChatText(f.error ?? "unknown error")}\n`;
         }
         report += `\n`;
     }
@@ -621,6 +653,16 @@ async function runStagesForPackage(opts: StageRunnerOpts): Promise<void> {
             continue;
         }
 
+        // Only the Stage 2 and Stage 4 prompts reference the Stage 1 inventory.
+        let workPlanPreamble: string | undefined;
+        if ((i === 1 || i === 3) && transcriptWriter) {
+            const stage1Transcript = transcriptWriter.readStageTranscript(packageRelPath ?? "", 0, isWorkspaceValidation);
+            const workPlan = stage1Transcript ? extractPreviousStageWorkPlan(stage1Transcript) : undefined;
+            if (workPlan) {
+                workPlanPreamble = `## Work plan from the previous stage\n\n${workPlan}\n\n---\n\n`;
+            }
+        }
+
         // For partially-completed stages, inject transcript content as a resume preamble
         const partialTranscript = transcriptWriter?.readStageTranscript(packageRelPath ?? "", i, isWorkspaceValidation);
         if (partialTranscript) {
@@ -629,8 +671,8 @@ async function runStagesForPackage(opts: StageRunnerOpts): Promise<void> {
             console.log(`[MigrationEnhancement] Injected partial transcript for resume: ${stage.name}`);
         }
 
-        if (transcriptWriter) {
-            transcriptWriter.startStage(packageRelPath ?? "", i, stage.name, isWorkspaceValidation);
+        if (workPlanPreamble) {
+            stages[i] = { ...stages[i], prompt: workPlanPreamble + stages[i].prompt };
         }
 
         // Wrap the event handler to also capture content/tool events to transcript
@@ -649,6 +691,25 @@ async function runStagesForPackage(opts: StageRunnerOpts): Promise<void> {
                 eventHandler(event);
             }
             : eventHandler;
+
+        // Checked before startStage so a failed guard leaves a resumable transcript intact.
+        const codebaseMapText = await buildMigrationCodebaseMap(packagePath);
+        const estimatedPromptTokens = Math.ceil((stages[i].prompt.length + codebaseMapText.length) / 4);
+        if (estimatedPromptTokens > MIGRATION_STAGE_PROMPT_BUDGET_TOKENS) {
+            const reason = `${stage.name} prompt is estimated at ~${estimatedPromptTokens.toLocaleString()} tokens, over the ${MIGRATION_STAGE_PROMPT_BUDGET_TOKENS.toLocaleString()}-token budget — split this project into smaller packages and retry.`;
+            if (debugLogger) {
+                debugLogger.logError(stage.name, new Error(reason));
+            }
+            recordingHandler({
+                type: "content_block",
+                content: `\n\n**${stage.name} — Failed** ❌\n\n${escapeChatText(reason)}\n\n`,
+            });
+            throw new Error(reason);
+        }
+
+        if (transcriptWriter) {
+            transcriptWriter.startStage(packageRelPath ?? "", i, stage.name, isWorkspaceValidation);
+        }
 
         recordingHandler({
             type: "content_block",
@@ -683,18 +744,21 @@ async function runStagesForPackage(opts: StageRunnerOpts): Promise<void> {
             generationId: stageGenId,
             abortController,
             params: {
-                usecase: stage.prompt,
+                usecase: stages[i].prompt,
                 fileAttachmentContents: [],
                 isPlanMode: false,
             },
             chatStorage: fromAIChat
-                ? { projectRootPath: projectRoot, threadId: "default", enabled: true }
+                ? { projectRootPath: projectRoot, threadId: "default", enabled: true, replayHistory: false }
                 : undefined,
             lifecycle: useExistingTempPath
                 ? { existingTempPath: packagePath, skipFreshProjectSetup: true, cleanupStrategy: "review" as const }
                 : { cleanupStrategy: "immediate" as const },
             toolOptions: {
                 migrationSourcePath: sourcePath,
+                omitCodebaseDump: true,
+                codebaseMapText,
+                failWhenCompactionUnavailable: true,
             },
             agentLimits: stage.agentLimits,
             debugLogger,
@@ -704,7 +768,34 @@ async function runStagesForPackage(opts: StageRunnerOpts): Promise<void> {
             debugLogger.logMilestone(`${stage.name} — started (maxSteps: ${stage.agentLimits.maxSteps})`);
         }
         console.log(`[MigrationEnhancement] Running ${stage.name} (maxSteps: ${stage.agentLimits.maxSteps})`);
-        await new AgentExecutor(config).run();
+
+        // `AgentExecutor` reports a non-abort failure through `result.error` rather than
+        // throwing — it has already surfaced the error to the UI. Without inspecting it, a
+        // stage that never ran (a rejected request, say) would be logged as completed and
+        // its transcript stamped `_Completed:`, which makes a resumed run skip it for good.
+        const result = await new AgentExecutor(config).run();
+
+        if (result.error) {
+            const reason = getErrorMessage(result.error);
+            if (debugLogger) {
+                debugLogger.logError(stage.name, result.error);
+                debugLogger.logMilestone(`${stage.name} — failed: ${reason}`);
+            }
+            console.error(`[MigrationEnhancement] ${stage.name} failed:`, result.error);
+
+            recordingHandler({
+                type: "content_block",
+                content: `\n\n**${stage.name} — Failed** ❌\n\n${escapeChatText(reason)}\n\n`,
+            });
+
+            if (transcriptWriter) {
+                transcriptWriter.failStage(reason);
+            }
+            // Stop the pipeline: later stages build on this one's output, and the run is
+            // resumable — the toml and transcripts let a re-run retry from this stage.
+            throw result.error;
+        }
+
         if (debugLogger) {
             debugLogger.logMilestone(`${stage.name} — completed`);
         }
@@ -727,6 +818,39 @@ async function runStagesForPackage(opts: StageRunnerOpts): Promise<void> {
 
 /** Module-level abort controller for the currently running migration agent. */
 let _migrationAbortController: AbortController | undefined;
+
+/**
+ * Whether the current run's abort came from the user pressing stop.
+ *
+ * Only `abortMigrationAgent` sets this, and only `abortMigrationAgent` aborts
+ * `_migrationAbortController`. Stage failures are kept off that controller by
+ * `createStageAbortController` — see there for why the two must stay separate.
+ */
+let _userAbortedMigration = false;
+
+/**
+ * Creates a stage-scoped `AbortController` that follows the user's abort but never the reverse.
+ *
+ * `AgentExecutor` aborts whatever controller it is handed when a stage fails. Passing it the
+ * shared `_migrationAbortController` therefore made one package's failure indistinguishable from
+ * the user pressing stop: the package loop's abort check broke out of the remaining packages —
+ * contradicting the "Continuing to next package" message it had just emitted — and the run ended
+ * without a final report or `markEnhancementComplete()`. Each package (and the workspace
+ * validation pass) gets its own child instead, so a stage failure stays local while a user abort
+ * still propagates inward and cancels in-flight work.
+ *
+ * Call `dispose()` once the stage finishes so the listener does not outlive it.
+ */
+function createStageAbortController(userSignal: AbortSignal): { controller: AbortController; dispose: () => void } {
+    const controller = new AbortController();
+    if (userSignal.aborted) {
+        controller.abort();
+        return { controller, dispose: () => { /* nothing subscribed */ } };
+    }
+    const onUserAbort = () => controller.abort();
+    userSignal.addEventListener("abort", onUserAbort, { once: true });
+    return { controller, dispose: () => userSignal.removeEventListener("abort", onUserAbort) };
+}
 
 /** Module-level selected model ID (set by the UI's model selector). */
 let _selectedModelId: string = "wso2"; // default to the WSO2 model provider
@@ -764,6 +888,7 @@ export async function runMigrationAgent(): Promise<void> {
     const sourcePath = tomlData?.sourcePath;
     const eventHandler = createMigrationEventHandler(Command.Agent);
     _migrationAbortController = new AbortController();
+    _userAbortedMigration = false;
     setMigrationEnhancementActive(true);
     const debugLogger = new MigrationDebugLogger(projectRoot, _selectedModelId);
     const transcriptWriter = new TranscriptWriter(projectRoot);
@@ -809,10 +934,11 @@ export async function runMigrationAgent(): Promise<void> {
                 // Persist progress
                 writeEnhanceToml(projectRoot, tomlData?.aiFeatureUsed ?? true, false, sourcePath, [...completedPackages], pkgRelPath, 0);
 
+                const pkgAbort = createStageAbortController(_migrationAbortController.signal);
                 try {
                     await runStagesForPackage({
                         projectRoot, packagePath: fullPkgPath, sourcePath, stages,
-                        eventHandler, abortController: _migrationAbortController,
+                        eventHandler, abortController: pkgAbort.controller,
                         fromAIChat: false, stageIdPrefix: `migration-${pkgRelPath}`,
                         useExistingTempPath: false, debugLogger,
                         transcriptWriter, packageRelPath: pkgRelPath,
@@ -822,13 +948,15 @@ export async function runMigrationAgent(): Promise<void> {
                     debugLogger.logMilestone(`Package ${pkgIdx + 1}/${packagePaths.length}: ${pkgRelPath} — completed`);
                     writeEnhanceToml(projectRoot, tomlData?.aiFeatureUsed ?? true, false, sourcePath, [...completedPackages]);
                 } catch (pkgError) {
-                    if (_migrationAbortController.signal.aborted) { throw pkgError; }
+                    if (_userAbortedMigration) { throw pkgError; }
                     const errMsg = pkgError instanceof Error ? pkgError.message : String(pkgError);
-                    const safeErrMsg = errMsg.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                    const safeErrMsg = escapeChatText(errMsg);
                     console.error(`[MigrationEnhancement] Package ${pkgRelPath} failed:`, pkgError);
                     debugLogger.logError(`Package ${pkgRelPath}`, pkgError);
                     eventHandler({ type: "content_block", content: `\n\n<errormsg>Package \`${pkgRelPath}\` failed: ${safeErrMsg}. Continuing to next package.</errormsg>\n\n` });
                     results.push({ packagePath: pkgRelPath, success: false, error: errMsg });
+                } finally {
+                    pkgAbort.dispose();
                 }
             }
 
@@ -837,11 +965,12 @@ export async function runMigrationAgent(): Promise<void> {
                 if (results.some(r => r.success)) {
                     eventHandler({ type: "content_block", content: `\n\n## 🔍 Cross-Package Workspace Validation\n\n` });
                     debugLogger.logMilestone("Workspace validation — starting");
+                    const wsAbort = createStageAbortController(_migrationAbortController.signal);
                     try {
                         await runStagesForPackage({
                             projectRoot, packagePath: projectRoot, sourcePath,
                             stages: [getWorkspaceValidationStage(packagePaths.length)],
-                            eventHandler, abortController: _migrationAbortController,
+                            eventHandler, abortController: wsAbort.controller,
                             fromAIChat: false, stageIdPrefix: "migration-workspace-validation",
                             useExistingTempPath: false, debugLogger,
                             transcriptWriter, packageRelPath: "",
@@ -850,10 +979,12 @@ export async function runMigrationAgent(): Promise<void> {
                     } catch (wsError) {
                         if (!_migrationAbortController.signal.aborted) {
                             const errMsg = wsError instanceof Error ? wsError.message : String(wsError);
-                            const safeErrMsg = errMsg.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                            const safeErrMsg = escapeChatText(errMsg);
                             debugLogger.logError("workspace validation", wsError);
                             eventHandler({ type: "content_block", content: `\n\n<errormsg>Workspace validation failed: ${safeErrMsg}</errormsg>\n\n` });
                         }
+                    } finally {
+                        wsAbort.dispose();
                     }
                 }
                 emitFinalReport(eventHandler, results);
@@ -866,22 +997,28 @@ export async function runMigrationAgent(): Promise<void> {
                 }
                 markEnhancementComplete();
             } else {
-                debugLogger.logMilestone("Run aborted by user");
+                debugLogger.logMilestone(_userAbortedMigration ? "Run aborted by user" : "Run stopped early — a package did not complete");
             }
         } else {
             // ── Single-package project ───────────────────────────────────
+            const packagePath = resolveSinglePackagePath(projectRoot, packagePaths);
             const stages = getEnhancementStages(buildMigrationContext(projectRoot));
             injectResumePreamble(projectRoot, stages);
             console.log(`[MigrationEnhancement] Starting migration agent (${stages.length} stages) – model: ${_selectedModelId}, sourcePath: ${sourcePath ?? 'none'}`);
-            debugLogger.logMilestone(`Run start — single package, model: ${_selectedModelId}, projectRoot: ${projectRoot}`);
+            debugLogger.logMilestone(`Run start — single package, model: ${_selectedModelId}, projectRoot: ${projectRoot}, packagePath: ${packagePath}`);
 
-            await runStagesForPackage({
-                projectRoot, packagePath: projectRoot, sourcePath, stages,
-                eventHandler, abortController: _migrationAbortController,
-                fromAIChat: false, stageIdPrefix: "migration",
-                useExistingTempPath: false, debugLogger,
-                transcriptWriter, packageRelPath: "",
-            });
+            const singleAbort = createStageAbortController(_migrationAbortController.signal);
+            try {
+                await runStagesForPackage({
+                    projectRoot, packagePath, sourcePath, stages,
+                    eventHandler, abortController: singleAbort.controller,
+                    fromAIChat: false, stageIdPrefix: "migration",
+                    useExistingTempPath: false, debugLogger,
+                    transcriptWriter, packageRelPath: "",
+                });
+            } finally {
+                singleAbort.dispose();
+            }
 
             if (!_migrationAbortController.signal.aborted) {
                 debugLogger.logMilestone("Run complete — single package succeeded");
@@ -894,24 +1031,32 @@ export async function runMigrationAgent(): Promise<void> {
                 markEnhancementComplete();
                 console.log("[MigrationEnhancement] Migration agent completed all stages successfully.");
             } else {
-                debugLogger.logMilestone("Run aborted by user");
+                debugLogger.logMilestone(_userAbortedMigration ? "Run aborted by user" : "Run stopped early — a stage did not complete");
             }
         }
     } catch (error) {
-        if (_migrationAbortController.signal.aborted) {
+        // A user abort and a stage failure both leave the run resumable, so the summary — which
+        // becomes the resume preamble — has to be written either way. Only the abort path used to
+        // reach here, because a failing stage aborted the shared controller.
+        const partialToml = readEnhanceToml(projectRoot);
+        if (partialToml) {
+            const summary = partialToml.multiProject
+                ? transcriptWriter.generateSummary(partialToml, [])
+                : transcriptWriter.generateSinglePackageSummary(partialToml, true);
+            transcriptWriter.writeSummary(summary);
+        }
+
+        if (_userAbortedMigration) {
             console.log("[MigrationEnhancement] Migration agent was aborted by user.");
             debugLogger.logMilestone("Run aborted by user (outer catch)");
-            // Write summary on abort for resume context
-            const abortToml = readEnhanceToml(projectRoot);
-            if (abortToml) {
-                const summary = abortToml.multiProject
-                    ? transcriptWriter.generateSummary(abortToml, [])
-                    : transcriptWriter.generateSinglePackageSummary(abortToml, true);
-                transcriptWriter.writeSummary(summary);
-            }
         } else {
             console.error("[MigrationEnhancement] Migration agent error:", error);
             debugLogger.logError("run", error);
+            // Mirrors the wizard flow: without a terminal event the panel keeps showing progress.
+            eventHandler({
+                type: "error",
+                content: `An error occurred during AI enhancement: ${escapeChatText(getErrorMessage(error))}`,
+            });
         }
     } finally {
         _migrationAbortController = undefined;
@@ -924,6 +1069,7 @@ export async function runMigrationAgent(): Promise<void> {
  */
 export function abortMigrationAgent(): void {
     if (_migrationAbortController) {
+        _userAbortedMigration = true;
         _migrationAbortController.abort();
         console.log("[MigrationEnhancement] Abort signal sent to migration agent.");
     }
@@ -1324,6 +1470,7 @@ export async function runWizardMigrationEnhancement(): Promise<void> {
     const sourcePath = tomlData?.sourcePath ?? _wizardSourcePath;
 
     _migrationAbortController = new AbortController();
+    _userAbortedMigration = false;
     setMigrationEnhancementActive(true);
     const debugLogger = new MigrationDebugLogger(projectRoot, _selectedModelId);
     const transcriptWriter = new TranscriptWriter(projectRoot);
@@ -1383,10 +1530,11 @@ export async function runWizardMigrationEnhancement(): Promise<void> {
                 );
 
                 const totalStagesOverall = packagePaths.length * stages.length + 1; // stages per pkg + 1 workspace validation
+                const pkgAbort = createStageAbortController(_migrationAbortController.signal);
                 try {
                     await runStagesForPackage({
                         projectRoot, packagePath: fullPkgPath, sourcePath, stages,
-                        eventHandler: stageEventHandler, abortController: _migrationAbortController,
+                        eventHandler: stageEventHandler, abortController: pkgAbort.controller,
                         fromAIChat, stageIdPrefix: `wizard-${pkgRelPath}`,
                         useExistingTempPath: true, debugLogger,
                         transcriptWriter, packageRelPath: pkgRelPath,
@@ -1405,13 +1553,15 @@ export async function runWizardMigrationEnhancement(): Promise<void> {
                         [...completedPackages],
                     );
                 } catch (pkgError) {
-                    if (_migrationAbortController.signal.aborted) { throw pkgError; }
+                    if (_userAbortedMigration) { throw pkgError; }
                     const errMsg = pkgError instanceof Error ? pkgError.message : String(pkgError);
-                    const safeErrMsg = errMsg.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                    const safeErrMsg = escapeChatText(errMsg);
                     console.error(`[MigrationEnhancement] Package ${pkgRelPath} failed:`, pkgError);
                     debugLogger.logError(`Package ${pkgRelPath}`, pkgError);
                     eventHandler({ type: "content_block", content: `\n\n<errormsg>Package \`${pkgRelPath}\` failed: ${safeErrMsg}. Continuing to next package.</errormsg>\n\n` });
                     results.push({ packagePath: pkgRelPath, success: false, error: errMsg });
+                } finally {
+                    pkgAbort.dispose();
                 }
             }
 
@@ -1420,11 +1570,12 @@ export async function runWizardMigrationEnhancement(): Promise<void> {
                 if (results.some(r => r.success)) {
                     eventHandler({ type: "content_block", content: `\n\n## 🔍 Cross-Package Workspace Validation\n\n` });
                     debugLogger.logMilestone("Workspace validation — starting (wizard)");
+                    const wsAbort = createStageAbortController(_migrationAbortController.signal);
                     try {
                         await runStagesForPackage({
                             projectRoot, packagePath: projectRoot, sourcePath,
                             stages: [getWorkspaceValidationStage(packagePaths.length)],
-                            eventHandler: stageEventHandler, abortController: _migrationAbortController,
+                            eventHandler: stageEventHandler, abortController: wsAbort.controller,
                             fromAIChat, stageIdPrefix: "wizard-workspace-validation",
                             useExistingTempPath: true, debugLogger,
                             transcriptWriter, packageRelPath: "",
@@ -1438,10 +1589,12 @@ export async function runWizardMigrationEnhancement(): Promise<void> {
                     } catch (wsError) {
                         if (!_migrationAbortController.signal.aborted) {
                             const errMsg = wsError instanceof Error ? wsError.message : String(wsError);
-                            const safeErrMsg = errMsg.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                            const safeErrMsg = escapeChatText(errMsg);
                             debugLogger.logError("workspace validation (wizard)", wsError);
                             eventHandler({ type: "content_block", content: `\n\n<errormsg>Workspace validation failed: ${safeErrMsg}</errormsg>\n\n` });
                         }
+                    } finally {
+                        wsAbort.dispose();
                     }
                 }
                 emitFinalReport(eventHandler, results);
@@ -1455,15 +1608,16 @@ export async function runWizardMigrationEnhancement(): Promise<void> {
                 console.log("[MigrationEnhancement] Wizard migration agent completed all packages successfully.");
                 eventHandler({ type: "stop", command: Command.Agent });
             } else {
-                debugLogger.logMilestone("Run aborted by user (wizard)");
+                debugLogger.logMilestone(_userAbortedMigration ? "Run aborted by user (wizard)" : "Run stopped early (wizard) — a package did not complete");
                 eventHandler({ type: "abort", command: Command.Agent });
             }
         } else {
             // ── Single-package project ───────────────────────────────────
+            const packagePath = resolveSinglePackagePath(projectRoot, packagePaths);
             const stages = getEnhancementStages(buildMigrationContext(projectRoot));
             injectResumePreamble(projectRoot, stages);
-            console.log(`[MigrationEnhancement] Starting wizard migration agent (${stages.length} stages) – projectRoot: ${projectRoot}, sourcePath: ${sourcePath ?? 'none'}`);
-            debugLogger.logMilestone(`Run start — single package (wizard), model: ${_selectedModelId}, projectRoot: ${projectRoot}`);
+            console.log(`[MigrationEnhancement] Starting wizard migration agent (${stages.length} stages) – projectRoot: ${projectRoot}, packagePath: ${packagePath}, sourcePath: ${sourcePath ?? 'none'}`);
+            debugLogger.logMilestone(`Run start — single package (wizard), model: ${_selectedModelId}, projectRoot: ${projectRoot}, packagePath: ${packagePath}`);
 
             // Suppress per-stage "stop" events emitted by AgentExecutor at the end of each
             // stage — without this, the first stage's stop sets terminalRef=true in the webview
@@ -1474,18 +1628,23 @@ export async function runWizardMigrationEnhancement(): Promise<void> {
                 eventHandler(event);
             };
 
-            await runStagesForPackage({
-                projectRoot, packagePath: projectRoot, sourcePath, stages,
-                eventHandler: singleStageHandler, abortController: _migrationAbortController,
-                fromAIChat, stageIdPrefix: "wizard-migration",
-                useExistingTempPath: true, debugLogger,
-                transcriptWriter, packageRelPath: "",
-                packageIndex: 0,
-                totalPackages: 1,
-                packageName: "",
-                stageOffset: 0,
-                totalStagesOverall: stages.length,
-            });
+            const singleAbort = createStageAbortController(_migrationAbortController.signal);
+            try {
+                await runStagesForPackage({
+                    projectRoot, packagePath, sourcePath, stages,
+                    eventHandler: singleStageHandler, abortController: singleAbort.controller,
+                    fromAIChat, stageIdPrefix: "wizard-migration",
+                    useExistingTempPath: true, debugLogger,
+                    transcriptWriter, packageRelPath: "",
+                    packageIndex: 0,
+                    totalPackages: 1,
+                    packageName: "",
+                    stageOffset: 0,
+                    totalStagesOverall: stages.length,
+                });
+            } finally {
+                singleAbort.dispose();
+            }
 
             if (!_migrationAbortController.signal.aborted) {
                 const data = readEnhanceToml(projectRoot);
@@ -1498,12 +1657,12 @@ export async function runWizardMigrationEnhancement(): Promise<void> {
                 console.log("[MigrationEnhancement] Wizard migration agent completed all stages successfully.");
                 eventHandler({ type: 'stop', command: Command.Agent });
             } else {
-                debugLogger.logMilestone("Run aborted by user (wizard, single-package)");
+                debugLogger.logMilestone(_userAbortedMigration ? "Run aborted by user (wizard, single-package)" : "Run stopped early (wizard, single-package) — a stage did not complete");
                 eventHandler({ type: "abort", command: Command.Agent });
             }
         }
     } catch (error) {
-        if (_migrationAbortController.signal.aborted) {
+        if (_userAbortedMigration) {
             console.log("[MigrationEnhancement] Wizard migration agent was aborted by user.");
             debugLogger.logMilestone("Run aborted by user (wizard, outer catch)");
             if (_runningFromAIChat && projectRoot) {
@@ -1530,10 +1689,12 @@ export async function runWizardMigrationEnhancement(): Promise<void> {
                 });
             }
         } else {
-            const errorMessage = error instanceof Error ? error.message : String(error);
             console.error("[MigrationEnhancement] Wizard migration agent error:", error);
             debugLogger.logError("wizard run", error);
-            eventHandler({ type: "error", content: `An error occurred during AI enhancement: ${errorMessage}` });
+            eventHandler({
+                type: "error",
+                content: `An error occurred during AI enhancement: ${escapeChatText(getErrorMessage(error))}`,
+            });
         }
     } finally {
         _runningFromAIChat = false;

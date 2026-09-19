@@ -26,6 +26,16 @@ public client class LocalClient {
         return {};
     }
 
+    # Converts an amount between two units. Exercises a parameter whose name is a Ballerina
+    # keyword: the derived activity parameter must keep the quote ('from).
+    #
+    # + 'from - The source unit
+    # + to - The target unit
+    # + return - The converted amount
+    remote function convert(string 'from, string to) returns string|error {
+        return 'from + to;
+    }
+
     remote function fetchLines() returns stream<string>|error {
         string[] lines = ["a", "b"];
         return lines.toStream();

@@ -77,6 +77,7 @@ export type FormField = {
     actionLabel?: string | JSX.Element;
     properties?: ConfigProperties;
     actionCallback?: () => void;
+    editCallback?: (value: string) => void;
     onValueChange?: (value: string | boolean) => void;
     isGraphqlId?: boolean;
     sliderProps?: {

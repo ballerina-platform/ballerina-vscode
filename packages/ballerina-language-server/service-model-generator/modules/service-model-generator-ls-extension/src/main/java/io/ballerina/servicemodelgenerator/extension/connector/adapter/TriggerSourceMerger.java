@@ -201,6 +201,11 @@ public final class TriggerSourceMerger {
             template.getReturnType().setValue(source.getReturnType().getValue());
             template.getReturnType().setEnabled(true);
         }
+        if (template.hasDocumentation() && source.hasDocumentation()
+                && source.getDocumentation().getValue() != null && !source.getDocumentation().getValue().isBlank()) {
+            template.getDocumentation().setValue(source.getDocumentation().getValue());
+            template.getDocumentation().setEnabled(true);
+        }
         reconcileParameters(template, source);
         applyAnnotationsFromSource(template, source);
     }
@@ -332,11 +337,13 @@ public final class TriggerSourceMerger {
     }
 
     private static void applyAnnotationsFromSource(Function template, Function source) {
+        Set<String> structuredAnnotationNames = new HashSet<>();
         for (Value tree : template.getProperties().values()) {
             Codedata treeCodedata = tree.getCodedata();
             if (treeCodedata == null || !CD_TYPE_COMPLEX_FUNCTION_ANNOTATION.equals(treeCodedata.getType())) {
                 continue;
             }
+            structuredAnnotationNames.add(treeCodedata.getOriginalName());
             String body = sourceAnnotationBody(source, treeCodedata.getOriginalName());
             if (body == null || body.isBlank()) {
                 continue;
@@ -344,6 +351,35 @@ public final class TriggerSourceMerger {
             if (NodeParser.parseExpression(body) instanceof MappingConstructorExpressionNode mapping) {
                 applyMapping(tree, mapping);
             }
+        }
+        carryUnstructuredAnnotations(template, source, structuredAnnotationNames);
+    }
+
+    /**
+     * An annotation attachment the source carries but the schema has no structured field for (e.g. a
+     * hand-authored {@code @mcp:Tool} on a function whose schema only exposes a plain "Tool
+     * Description" documentation field, not a structured annotation tree). Copied onto the template
+     * as a hidden, disabled-for-editing raw property so a later re-save still emits it verbatim
+     * instead of silently dropping it -- never surfaced to the user, since the schema has no editor
+     * for it. Skips any annotation already handled by the structured loop above, so a schema that
+     * *does* model the annotation keeps using that richer path untouched.
+     */
+    private static void carryUnstructuredAnnotations(Function template, Function source,
+            Set<String> structuredAnnotationNames) {
+        for (Map.Entry<String, Value> entry : source.getProperties().entrySet()) {
+            Value sourceProperty = entry.getValue();
+            Codedata codedata = sourceProperty.getCodedata();
+            if (codedata == null || !CD_TYPE_ANNOTATION_ATTACHMENT.equals(codedata.getType())
+                    || structuredAnnotationNames.contains(codedata.getOriginalName())
+                    || sourceProperty.getValue() == null || sourceProperty.getValue().isBlank()
+                    || template.getProperty(entry.getKey()) != null) {
+                continue;
+            }
+            Value hiddenCopy = new Value(sourceProperty);
+            hiddenCopy.setHidden(true);
+            hiddenCopy.setEditable(false);
+            hiddenCopy.setEnabled(true);
+            template.addProperty(entry.getKey(), hiddenCopy);
         }
     }
 

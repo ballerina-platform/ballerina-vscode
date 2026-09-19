@@ -24,10 +24,14 @@ import {
     buildNeedTokenRefetchListner,
     buildOnChangeListner,
     chipPlugin,
+    chipBoundaryClickHandler,
+    activeChipSelectionGuard,
     chipTheme,
     completionTheme,
     tokenField,
+    activeEditableTokenField,
     tokensChangeEffect,
+    chipCommitKeymap,
     expressionEditorKeymap,
     buildCompletionSource,
     buildHelperPaneKeymap,
@@ -44,7 +48,7 @@ import {
     createTooltipPositioningHandlers,
     AVERAGE_HELPER_PANE_HEIGHT
 } from "../CodeUtils";
-import { correctTokenStreamPositions, normalizeEditorValue } from "../utils";
+import { coerceChipEditorValue, correctTokenStreamPositions, normalizeEditorValue } from "../utils";
 import { history } from "@codemirror/commands";
 import { autocompletion } from "@codemirror/autocomplete";
 import { FloatingButtonContainer, FloatingToggleButton, ChipEditorContainer } from "../styles";
@@ -111,12 +115,13 @@ export type ChipExpressionEditorComponentProps = {
 
 export const ChipExpressionEditorComponent = (props: ChipExpressionEditorComponentProps) => {
     const { configuration = new ChipExpressionEditorConfig() } = props;
+    const normalizedValue = coerceChipEditorValue(props.value);
     const editorRef = useRef<HTMLDivElement>(null);
     const helperPaneRef = useRef<HTMLDivElement>(null);
     const fieldContainerRef = useRef<HTMLDivElement>(null);
     const viewRef = useRef<EditorView | null>(null);
     const [isTokenUpdateScheduled, setIsTokenUpdateScheduled] = useState(true);
-    const [isValueResolving, setIsValueResolving] = useState(() => !!props.value);
+    const [isValueResolving, setIsValueResolving] = useState(() => !!normalizedValue);
 
     useEffect(() => {
         props.onLoadingStateChange?.(isValueResolving);
@@ -294,12 +299,20 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
     useEffect(() => {
         if (!editorRef.current) return;
         const startState = EditorState.create({
-            doc: configuration.serializeValue(props.value ?? ""),
+            doc: configuration.serializeValue(normalizedValue ?? ""),
             extensions: [
                 ...(configuration.getPlugins()),
                 history(),
                 keymap.of([
                     ...helperPaneKeymap,
+                    // chipCommitKeymap's Enter binding must be tried before list continuation's:
+                    // it falls through (returns false) when no chip is active, so list
+                    // continuation still runs exactly as before in that case, but when a chip
+                    // IS active this stops list continuation from swallowing Enter first and
+                    // leaving the chip stuck in edit mode. expressionEditorKeymap's own
+                    // defaultKeymap/historyKeymap tail must stay AFTER list continuation, or
+                    // its unconditional Enter->insertNewlineAndIndent binding would do the same.
+                    ...chipCommitKeymap,
                     ...(props.enableListContinuation ? listContinuationKeymap : []),
                     ...expressionEditorKeymap
                 ]),
@@ -311,7 +324,10 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
                 }),
                 tooltips({ position: "absolute" }),
                 chipPlugin,
+                chipBoundaryClickHandler,
+                activeChipSelectionGuard,
                 tokenField,
+                activeEditableTokenField,
                 placeholder(props.placeholder),
                 chipTheme,
                 completionTheme,
@@ -360,10 +376,10 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
     }, []);
 
     useEffect(() => {
-        if (props.value == null || !viewRef.current) return;
-        const serializedValue = configuration.serializeValue(props.value);
-        const deserializeValue = configuration.deserializeValue(props.value);
-        if (normalizeEditorValue(deserializeValue) !== normalizeEditorValue(props.value)) {
+        if (normalizedValue == null || !viewRef.current) return;
+        const serializedValue = configuration.serializeValue(normalizedValue);
+        const deserializeValue = configuration.deserializeValue(normalizedValue);
+        if (normalizeEditorValue(deserializeValue) !== normalizeEditorValue(normalizedValue)) {
             if (props.onNormalizeValue) {
                 props.onNormalizeValue(deserializeValue);
             } else {
@@ -417,7 +433,7 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
         };
         updateEditorState();
         return () => { cancelled = true; };
-    }, [props.value, props.fileName, props.targetLineRange?.startLine, isTokenUpdateScheduled]);
+    }, [normalizedValue, props.fileName, props.targetLineRange?.startLine, isTokenUpdateScheduled]);
 
     useEffect(() => {
         completionsRef.current = props.completions;
@@ -487,7 +503,7 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
                             left={helperPaneState.left}
                             isFlipped={helperPaneState.isFlipped}
                             getHelperPane={props.getHelperPane}
-                            value={props.value}
+                            value={normalizedValue}
                             onChange={onHelperItemSelect}
                         />
                     }

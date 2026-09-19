@@ -17,7 +17,7 @@
  */
 
 import { Type, ServiceClassModel, ModelFromCodeRequest, FieldType, FunctionModel, NodePosition, STModification, removeStatement, LineRange, EVENT_TYPE, MACHINE_VIEW, DIRECTORY_MAP } from "@wso2/ballerina-core";
-import { Codicon, Typography, ProgressRing, Menu, MenuItem, Popover, Item, ThemeColors, LinkButton, View } from "@wso2/ui-toolkit";
+import { Codicon, Typography, ProgressRing, Menu, MenuItem, Popover, Item, ThemeColors, View } from "@wso2/ui-toolkit";
 import styled from "@emotion/styled";
 import React, { useEffect, useState } from "react";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
@@ -45,12 +45,6 @@ const ScrollableSection = styled.div`
     gap: 16px;
     overflow-y: auto;
     height: 80vh;
-    padding: 15px;
-`;
-
-const InfoContainer = styled.div`
-    display: flex;
-    gap: 20px;
     padding: 15px;
 `;
 
@@ -84,11 +78,6 @@ const EmptyStateText = styled(Typography)`
     color: ${ThemeColors.ON_SURFACE_VARIANT};
     padding: 12px;
     text-align: center;
-`;
-
-const InfoSection = styled.div`
-    display: flex;
-    align-items: center;
 `;
 
 interface ServiceClassDesignerProps {
@@ -392,6 +381,28 @@ export function ServiceClassDesigner(props: ServiceClassDesignerProps) {
     }
 
     const hasInitFunction = serviceClassModel?.functions?.some(func => func.kind === 'INIT');
+    const initFunction = serviceClassModel?.functions?.find(func => func.kind === 'INIT' && func.enabled);
+
+    // `init` is configured through ServiceFunctionForm rather than the inline OperationForm: only its
+    // `getFunctionFromSource` model carries the init guards (non-editable name, disabled return type).
+    const handleConfigureInitFunction = async (func: FunctionModel) => {
+        const lineRange: LineRange = func.codedata.lineRange;
+        const currentFilePath = (await rpcClient.getVisualizerRpcClient().joinProjectPath({ segments: [fileName] })).filePath;
+        await rpcClient.getVisualizerRpcClient().openView({
+            type: EVENT_TYPE.OPEN_VIEW,
+            location: {
+                view: MACHINE_VIEW.ServiceFunctionForm,
+                position: {
+                    startLine: lineRange.startLine.line,
+                    startColumn: lineRange.startLine.offset,
+                    endLine: lineRange.endLine.line,
+                    endColumn: lineRange.endLine.offset,
+                },
+                documentUri: currentFilePath,
+                artifactType: DIRECTORY_MAP.TYPE
+            }
+        });
+    };
 
     const menuItems: Item[] = [
         {
@@ -482,31 +493,24 @@ export function ServiceClassDesigner(props: ServiceClassDesignerProps) {
                 )}
                 {serviceClassModel && (
                     <>
-                        <InfoContainer>
-                            {serviceClassModel.functions?.
-                                filter((func) => func.kind === "INIT" && func.enabled)
-                                .map((functionModel, index) => (
-                                    <InfoSection>
-                                        <Icon
-                                            name={'info'}
-                                            isCodicon
-                                            sx={{ marginRight: "8px" }}
-                                        />
-                                        <Typography key={`${index}-label`} variant="body3">
-                                            Constructor:
-                                        </Typography>
-                                        <Typography key={`${index}-value`} variant="body3">
-                                            <LinkButton
-                                                sx={{ fontSize: 12, padding: 8, gap: 4 }}
-                                                onClick={() => handleOpenDiagram(functionModel)}
-                                            >
-                                                {functionModel.name.value}
-                                            </LinkButton>
-                                        </Typography>
-                                    </InfoSection>
-                                ))}
-                        </InfoContainer>
                         <ScrollableSection>
+                            {initFunction && (
+                                <Section>
+                                    <SectionHeader>
+                                        <SectionTitle>Constructor</SectionTitle>
+                                    </SectionHeader>
+
+                                    <ScrollableContent>
+                                        <FunctionCard
+                                            functionModel={initFunction}
+                                            goToSource={() => { }}
+                                            onEditFunction={() => handleConfigureInitFunction(initFunction)}
+                                            onDeleteFunction={() => handleDeleteFunction(initFunction)}
+                                            onFunctionImplement={() => handleOpenDiagram(initFunction)}
+                                        />
+                                    </ScrollableContent>
+                                </Section>
+                            )}
                             <Section style={{ maxHeight: '40%' }}>
                                 <SectionHeader>
                                     <SectionTitle>Class Variables</SectionTitle>

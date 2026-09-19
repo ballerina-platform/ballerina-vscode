@@ -16,7 +16,7 @@
       "metadata": {
         "label": "Chunker",
         "description": "Initializes a new instance of the `HtmlChunker`.\n",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png"
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png"
       },
       "codedata": {
         "node": "CHUNKER",
@@ -24,7 +24,7 @@
         "module": "ai",
         "packageName": "ai",
         "object": "HtmlChunker",
-        "version": "1.13.0",
+        "version": "1.15.0",
         "isNew": true
       },
       "returning": false,
@@ -88,7 +88,7 @@
           "placeholder": "0",
           "optional": true,
           "editable": true,
-          "advanced": true,
+          "advanced": false,
           "hidden": false,
           "codedata": {
             "kind": "DEFAULTABLE",
@@ -116,7 +116,7 @@
           "placeholder": "0",
           "optional": true,
           "editable": true,
-          "advanced": true,
+          "advanced": false,
           "hidden": false,
           "codedata": {
             "kind": "DEFAULTABLE",
@@ -138,24 +138,24 @@
                   "value": "\"HTML_HEADER\""
                 },
                 {
-                  "label": "CHARACTER",
-                  "value": "\"CHARACTER\""
-                },
-                {
-                  "label": "WORD",
-                  "value": "\"WORD\""
-                },
-                {
-                  "label": "SENTENCE",
-                  "value": "\"SENTENCE\""
+                  "label": "HTML_PARAGRAPH",
+                  "value": "\"HTML_PARAGRAPH\""
                 },
                 {
                   "label": "HTML_LINE",
                   "value": "\"HTML_LINE\""
                 },
                 {
-                  "label": "HTML_PARAGRAPH",
-                  "value": "\"HTML_PARAGRAPH\""
+                  "label": "SENTENCE",
+                  "value": "\"SENTENCE\""
+                },
+                {
+                  "label": "WORD",
+                  "value": "\"WORD\""
+                },
+                {
+                  "label": "CHARACTER",
+                  "value": "\"CHARACTER\""
                 }
               ],
               "selected": false
@@ -166,10 +166,10 @@
               "selected": false
             }
           ],
-          "placeholder": "\"CHARACTER\"",
+          "placeholder": "\"HTML_HEADER\"",
           "optional": true,
           "editable": true,
-          "advanced": true,
+          "advanced": false,
           "hidden": false,
           "codedata": {
             "kind": "DEFAULTABLE",

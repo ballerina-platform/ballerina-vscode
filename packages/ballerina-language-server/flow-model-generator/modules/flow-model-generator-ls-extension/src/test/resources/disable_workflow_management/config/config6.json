@@ -1,0 +1,5 @@
+{
+  "projectPath": "proj6",
+  "description": "Project that refers to the REST module by its prefix: the import stays, since removing it would leave the reference unresolved",
+  "output": {}
+}

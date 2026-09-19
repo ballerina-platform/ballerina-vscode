@@ -30,6 +30,17 @@ import {
 export { validateComponentName } from "../ProjectForm/utils";
 export { findScopeByModule, findScope };
 
+// Durable agents list under Agents, yet still run on the workflow engine the workflow scope and card configure.
+export function hasWorkflowArtifacts(projectStructure?: ProjectStructure): boolean {
+    const workflows = projectStructure?.directoryMap?.[DIRECTORY_MAP.WORKFLOW] ?? [];
+    const agents = projectStructure?.directoryMap?.[DIRECTORY_MAP.AGENT] ?? [];
+    return workflows.length > 0 || agents.some((agent) => agent.moduleName === "workflow");
+}
+
+export function hasAgentArtifacts(projectStructure?: ProjectStructure): boolean {
+    return (projectStructure?.directoryMap?.[DIRECTORY_MAP.AGENT] ?? []).length > 0;
+}
+
 /**
  * Extracts deployable integration types (scopes) from project structure.
  * 
@@ -51,7 +62,7 @@ export function getIntegrationTypes(projectStructure: ProjectStructure | undefin
     // Extract scopes from services based on their module names
     if (services) {
         const svcScopes = services
-            .map(svc => findScope(svc?.kind, svc?.moduleName))
+            .map(svc => findScope(svc?.triggerKind ?? svc?.kind, svc?.moduleName))
             .filter(svc => svc !== undefined);
         scopes = Array.from(new Set(svcScopes)); // Remove duplicates
     }

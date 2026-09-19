@@ -13,13 +13,14 @@
     "id": "0",
     "name": "GitHub Event Integration",
     "type": "trigger.github",
+    "triggerKind": "event",
     "displayName": "GitHub Event Integration",
     "moduleName": "trigger.github",
     "orgName": "ballerinax",
-    "version": "0.10.0",
+    "version": "0.12.0",
     "packageName": "trigger.github",
     "listenerProtocol": "github",
-    "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_trigger.github_0.10.0.png",
+    "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_trigger.github_0.12.0.png",
     "properties": {
       "listener": {
         "metadata": {
@@ -130,13 +131,13 @@
       {
         "metadata": {
           "label": "On Opened",
-          "description": "Triggered when an issue is opened."
+          "description": "The `onOpened` handler."
         },
         "kind": "REMOTE",
         "name": {
           "metadata": {
             "label": "On Opened",
-            "description": "Triggered when an issue is opened."
+            "description": "The `onOpened` handler."
           },
           "placeholder": "onOpened",
           "value": "onOpened",
@@ -155,7 +156,7 @@
           {
             "metadata": {
               "label": "Payload",
-              "description": "The information about the triggered event."
+              "description": ""
             },
             "kind": "REQUIRED",
             "type": {
@@ -179,7 +180,7 @@
             "name": {
               "metadata": {
                 "label": "Payload",
-                "description": "The information about the triggered event."
+                "description": ""
               },
               "placeholder": "payload",
               "value": "payload",
@@ -241,7 +242,7 @@
           "orgName": "ballerinax",
           "packageName": "trigger.github",
           "moduleName": "trigger.github",
-          "version": "0.10.0"
+          "version": "0.12.0"
         },
         "properties": {},
         "group": "onOpened",
@@ -251,13 +252,13 @@
       {
         "metadata": {
           "label": "On Closed",
-          "description": "Triggered when an issue is closed."
+          "description": "The `onClosed` handler."
         },
         "kind": "REMOTE",
         "name": {
           "metadata": {
             "label": "On Closed",
-            "description": "Triggered when an issue is closed."
+            "description": "The `onClosed` handler."
           },
           "placeholder": "onClosed",
           "value": "onClosed",
@@ -276,7 +277,7 @@
           {
             "metadata": {
               "label": "Payload",
-              "description": "The information about the triggered event."
+              "description": ""
             },
             "kind": "REQUIRED",
             "type": {
@@ -300,7 +301,7 @@
             "name": {
               "metadata": {
                 "label": "Payload",
-                "description": "The information about the triggered event."
+                "description": ""
               },
               "placeholder": "payload",
               "value": "payload",
@@ -362,7 +363,7 @@
           "orgName": "ballerinax",
           "packageName": "trigger.github",
           "moduleName": "trigger.github",
-          "version": "0.10.0"
+          "version": "0.12.0"
         },
         "properties": {},
         "group": "onClosed",
@@ -372,13 +373,13 @@
       {
         "metadata": {
           "label": "On Reopened",
-          "description": "Triggered when an issue is reopened."
+          "description": "The `onReopened` handler."
         },
         "kind": "REMOTE",
         "name": {
           "metadata": {
             "label": "On Reopened",
-            "description": "Triggered when an issue is reopened."
+            "description": "The `onReopened` handler."
           },
           "placeholder": "onReopened",
           "value": "onReopened",
@@ -397,7 +398,7 @@
           {
             "metadata": {
               "label": "Payload",
-              "description": "The information about the triggered event."
+              "description": ""
             },
             "kind": "REQUIRED",
             "type": {
@@ -421,7 +422,7 @@
             "name": {
               "metadata": {
                 "label": "Payload",
-                "description": "The information about the triggered event."
+                "description": ""
               },
               "placeholder": "payload",
               "value": "payload",
@@ -483,7 +484,7 @@
           "orgName": "ballerinax",
           "packageName": "trigger.github",
           "moduleName": "trigger.github",
-          "version": "0.10.0"
+          "version": "0.12.0"
         },
         "properties": {},
         "group": "onReopened",
@@ -493,13 +494,13 @@
       {
         "metadata": {
           "label": "On Assigned",
-          "description": "Triggered when an issue is assigned to someone."
+          "description": "The `onAssigned` handler."
         },
         "kind": "REMOTE",
         "name": {
           "metadata": {
             "label": "On Assigned",
-            "description": "Triggered when an issue is assigned to someone."
+            "description": "The `onAssigned` handler."
           },
           "placeholder": "onAssigned",
           "value": "onAssigned",
@@ -518,7 +519,7 @@
           {
             "metadata": {
               "label": "Payload",
-              "description": "The information about the triggered event."
+              "description": ""
             },
             "kind": "REQUIRED",
             "type": {
@@ -542,7 +543,7 @@
             "name": {
               "metadata": {
                 "label": "Payload",
-                "description": "The information about the triggered event."
+                "description": ""
               },
               "placeholder": "payload",
               "value": "payload",
@@ -604,7 +605,7 @@
           "orgName": "ballerinax",
           "packageName": "trigger.github",
           "moduleName": "trigger.github",
-          "version": "0.10.0"
+          "version": "0.12.0"
         },
         "properties": {},
         "group": "onAssigned",
@@ -614,13 +615,13 @@
       {
         "metadata": {
           "label": "On Unassigned",
-          "description": "Triggered when an issue is unassigned."
+          "description": "The `onUnassigned` handler."
         },
         "kind": "REMOTE",
         "name": {
           "metadata": {
             "label": "On Unassigned",
-            "description": "Triggered when an issue is unassigned."
+            "description": "The `onUnassigned` handler."
           },
           "placeholder": "onUnassigned",
           "value": "onUnassigned",
@@ -639,7 +640,7 @@
           {
             "metadata": {
               "label": "Payload",
-              "description": "The information about the triggered event."
+              "description": ""
             },
             "kind": "REQUIRED",
             "type": {
@@ -663,7 +664,7 @@
             "name": {
               "metadata": {
                 "label": "Payload",
-                "description": "The information about the triggered event."
+                "description": ""
               },
               "placeholder": "payload",
               "value": "payload",
@@ -725,7 +726,7 @@
           "orgName": "ballerinax",
           "packageName": "trigger.github",
           "moduleName": "trigger.github",
-          "version": "0.10.0"
+          "version": "0.12.0"
         },
         "properties": {},
         "group": "onUnassigned",
@@ -735,13 +736,13 @@
       {
         "metadata": {
           "label": "On Labeled",
-          "description": "Triggered when an issue is labeled."
+          "description": "The `onLabeled` handler."
         },
         "kind": "REMOTE",
         "name": {
           "metadata": {
             "label": "On Labeled",
-            "description": "Triggered when an issue is labeled."
+            "description": "The `onLabeled` handler."
           },
           "placeholder": "onLabeled",
           "value": "onLabeled",
@@ -760,7 +761,7 @@
           {
             "metadata": {
               "label": "Payload",
-              "description": "The information about the triggered event."
+              "description": ""
             },
             "kind": "REQUIRED",
             "type": {
@@ -784,7 +785,7 @@
             "name": {
               "metadata": {
                 "label": "Payload",
-                "description": "The information about the triggered event."
+                "description": ""
               },
               "placeholder": "payload",
               "value": "payload",
@@ -846,7 +847,7 @@
           "orgName": "ballerinax",
           "packageName": "trigger.github",
           "moduleName": "trigger.github",
-          "version": "0.10.0"
+          "version": "0.12.0"
         },
         "properties": {},
         "group": "onLabeled",
@@ -856,13 +857,13 @@
       {
         "metadata": {
           "label": "On Unlabeled",
-          "description": "Triggered when an issue is unlabeled."
+          "description": "The `onUnlabeled` handler."
         },
         "kind": "REMOTE",
         "name": {
           "metadata": {
             "label": "On Unlabeled",
-            "description": "Triggered when an issue is unlabeled."
+            "description": "The `onUnlabeled` handler."
           },
           "placeholder": "onUnlabeled",
           "value": "onUnlabeled",
@@ -881,7 +882,7 @@
           {
             "metadata": {
               "label": "Payload",
-              "description": "The information about the triggered event."
+              "description": ""
             },
             "kind": "REQUIRED",
             "type": {
@@ -905,7 +906,7 @@
             "name": {
               "metadata": {
                 "label": "Payload",
-                "description": "The information about the triggered event."
+                "description": ""
               },
               "placeholder": "payload",
               "value": "payload",
@@ -967,7 +968,7 @@
           "orgName": "ballerinax",
           "packageName": "trigger.github",
           "moduleName": "trigger.github",
-          "version": "0.10.0"
+          "version": "0.12.0"
         },
         "properties": {},
         "group": "onUnlabeled",
@@ -975,6 +976,1217 @@
         "nameEditable": false
       }
     ],
-    "schemaFunctions": []
+    "schemaFunctions": [
+      {
+        "metadata": {
+          "label": "On Transferred",
+          "description": "The `onTransferred` handler."
+        },
+        "kind": "REMOTE",
+        "name": {
+          "metadata": {
+            "label": "On Transferred",
+            "description": "The `onTransferred` handler."
+          },
+          "placeholder": "onTransferred",
+          "value": "onTransferred",
+          "types": [
+            {
+              "fieldType": "IDENTIFIER",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "advanced": false
+        },
+        "parameters": [
+          {
+            "metadata": {
+              "label": "Payload",
+              "description": ""
+            },
+            "kind": "REQUIRED",
+            "type": {
+              "metadata": {
+                "label": "Parameter Type",
+                "description": "The type of the parameter"
+              },
+              "placeholder": "github:IssuesEvent",
+              "value": "github:IssuesEvent",
+              "types": [
+                {
+                  "fieldType": "TYPE",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": false,
+              "optional": true,
+              "advanced": false
+            },
+            "name": {
+              "metadata": {
+                "label": "Payload",
+                "description": ""
+              },
+              "placeholder": "payload",
+              "value": "payload",
+              "types": [
+                {
+                  "fieldType": "IDENTIFIER",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false
+            },
+            "enabled": true,
+            "editable": false,
+            "optional": false,
+            "advanced": false,
+            "hidden": false,
+            "isGraphqlId": false
+          }
+        ],
+        "returnType": {
+          "hasError": true,
+          "isGraphqlId": false,
+          "metadata": {
+            "label": "Return Type",
+            "description": "The return type of the function."
+          },
+          "placeholder": "error?",
+          "value": "error?",
+          "types": [
+            {
+              "fieldType": "TYPE",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": true,
+          "advanced": false
+        },
+        "enabled": false,
+        "optional": false,
+        "editable": false,
+        "canAddParameters": false,
+        "codedata": {
+          "orgName": "ballerinax",
+          "packageName": "trigger.github",
+          "moduleName": "trigger.github",
+          "version": "0.12.0"
+        },
+        "properties": {},
+        "group": "onTransferred",
+        "repeatable": "FALSE",
+        "nameEditable": false
+      },
+      {
+        "metadata": {
+          "label": "On Unpinned",
+          "description": "The `onUnpinned` handler."
+        },
+        "kind": "REMOTE",
+        "name": {
+          "metadata": {
+            "label": "On Unpinned",
+            "description": "The `onUnpinned` handler."
+          },
+          "placeholder": "onUnpinned",
+          "value": "onUnpinned",
+          "types": [
+            {
+              "fieldType": "IDENTIFIER",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "advanced": false
+        },
+        "parameters": [
+          {
+            "metadata": {
+              "label": "Payload",
+              "description": ""
+            },
+            "kind": "REQUIRED",
+            "type": {
+              "metadata": {
+                "label": "Parameter Type",
+                "description": "The type of the parameter"
+              },
+              "placeholder": "github:IssuesEvent",
+              "value": "github:IssuesEvent",
+              "types": [
+                {
+                  "fieldType": "TYPE",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": false,
+              "optional": true,
+              "advanced": false
+            },
+            "name": {
+              "metadata": {
+                "label": "Payload",
+                "description": ""
+              },
+              "placeholder": "payload",
+              "value": "payload",
+              "types": [
+                {
+                  "fieldType": "IDENTIFIER",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false
+            },
+            "enabled": true,
+            "editable": false,
+            "optional": false,
+            "advanced": false,
+            "hidden": false,
+            "isGraphqlId": false
+          }
+        ],
+        "returnType": {
+          "hasError": true,
+          "isGraphqlId": false,
+          "metadata": {
+            "label": "Return Type",
+            "description": "The return type of the function."
+          },
+          "placeholder": "error?",
+          "value": "error?",
+          "types": [
+            {
+              "fieldType": "TYPE",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": true,
+          "advanced": false
+        },
+        "enabled": false,
+        "optional": false,
+        "editable": false,
+        "canAddParameters": false,
+        "codedata": {
+          "orgName": "ballerinax",
+          "packageName": "trigger.github",
+          "moduleName": "trigger.github",
+          "version": "0.12.0"
+        },
+        "properties": {},
+        "group": "onUnpinned",
+        "repeatable": "FALSE",
+        "nameEditable": false
+      },
+      {
+        "metadata": {
+          "label": "On Milestoned",
+          "description": "The `onMilestoned` handler."
+        },
+        "kind": "REMOTE",
+        "name": {
+          "metadata": {
+            "label": "On Milestoned",
+            "description": "The `onMilestoned` handler."
+          },
+          "placeholder": "onMilestoned",
+          "value": "onMilestoned",
+          "types": [
+            {
+              "fieldType": "IDENTIFIER",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "advanced": false
+        },
+        "parameters": [
+          {
+            "metadata": {
+              "label": "Payload",
+              "description": ""
+            },
+            "kind": "REQUIRED",
+            "type": {
+              "metadata": {
+                "label": "Parameter Type",
+                "description": "The type of the parameter"
+              },
+              "placeholder": "github:IssuesEvent",
+              "value": "github:IssuesEvent",
+              "types": [
+                {
+                  "fieldType": "TYPE",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": false,
+              "optional": true,
+              "advanced": false
+            },
+            "name": {
+              "metadata": {
+                "label": "Payload",
+                "description": ""
+              },
+              "placeholder": "payload",
+              "value": "payload",
+              "types": [
+                {
+                  "fieldType": "IDENTIFIER",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false
+            },
+            "enabled": true,
+            "editable": false,
+            "optional": false,
+            "advanced": false,
+            "hidden": false,
+            "isGraphqlId": false
+          }
+        ],
+        "returnType": {
+          "hasError": true,
+          "isGraphqlId": false,
+          "metadata": {
+            "label": "Return Type",
+            "description": "The return type of the function."
+          },
+          "placeholder": "error?",
+          "value": "error?",
+          "types": [
+            {
+              "fieldType": "TYPE",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": true,
+          "advanced": false
+        },
+        "enabled": false,
+        "optional": false,
+        "editable": false,
+        "canAddParameters": false,
+        "codedata": {
+          "orgName": "ballerinax",
+          "packageName": "trigger.github",
+          "moduleName": "trigger.github",
+          "version": "0.12.0"
+        },
+        "properties": {},
+        "group": "onMilestoned",
+        "repeatable": "FALSE",
+        "nameEditable": false
+      },
+      {
+        "metadata": {
+          "label": "On Pinned",
+          "description": "The `onPinned` handler."
+        },
+        "kind": "REMOTE",
+        "name": {
+          "metadata": {
+            "label": "On Pinned",
+            "description": "The `onPinned` handler."
+          },
+          "placeholder": "onPinned",
+          "value": "onPinned",
+          "types": [
+            {
+              "fieldType": "IDENTIFIER",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "advanced": false
+        },
+        "parameters": [
+          {
+            "metadata": {
+              "label": "Payload",
+              "description": ""
+            },
+            "kind": "REQUIRED",
+            "type": {
+              "metadata": {
+                "label": "Parameter Type",
+                "description": "The type of the parameter"
+              },
+              "placeholder": "github:IssuesEvent",
+              "value": "github:IssuesEvent",
+              "types": [
+                {
+                  "fieldType": "TYPE",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": false,
+              "optional": true,
+              "advanced": false
+            },
+            "name": {
+              "metadata": {
+                "label": "Payload",
+                "description": ""
+              },
+              "placeholder": "payload",
+              "value": "payload",
+              "types": [
+                {
+                  "fieldType": "IDENTIFIER",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false
+            },
+            "enabled": true,
+            "editable": false,
+            "optional": false,
+            "advanced": false,
+            "hidden": false,
+            "isGraphqlId": false
+          }
+        ],
+        "returnType": {
+          "hasError": true,
+          "isGraphqlId": false,
+          "metadata": {
+            "label": "Return Type",
+            "description": "The return type of the function."
+          },
+          "placeholder": "error?",
+          "value": "error?",
+          "types": [
+            {
+              "fieldType": "TYPE",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": true,
+          "advanced": false
+        },
+        "enabled": false,
+        "optional": false,
+        "editable": false,
+        "canAddParameters": false,
+        "codedata": {
+          "orgName": "ballerinax",
+          "packageName": "trigger.github",
+          "moduleName": "trigger.github",
+          "version": "0.12.0"
+        },
+        "properties": {},
+        "group": "onPinned",
+        "repeatable": "FALSE",
+        "nameEditable": false
+      },
+      {
+        "metadata": {
+          "label": "On Typed",
+          "description": "The `onTyped` handler."
+        },
+        "kind": "REMOTE",
+        "name": {
+          "metadata": {
+            "label": "On Typed",
+            "description": "The `onTyped` handler."
+          },
+          "placeholder": "onTyped",
+          "value": "onTyped",
+          "types": [
+            {
+              "fieldType": "IDENTIFIER",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "advanced": false
+        },
+        "parameters": [
+          {
+            "metadata": {
+              "label": "Payload",
+              "description": ""
+            },
+            "kind": "REQUIRED",
+            "type": {
+              "metadata": {
+                "label": "Parameter Type",
+                "description": "The type of the parameter"
+              },
+              "placeholder": "github:IssuesEvent",
+              "value": "github:IssuesEvent",
+              "types": [
+                {
+                  "fieldType": "TYPE",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": false,
+              "optional": true,
+              "advanced": false
+            },
+            "name": {
+              "metadata": {
+                "label": "Payload",
+                "description": ""
+              },
+              "placeholder": "payload",
+              "value": "payload",
+              "types": [
+                {
+                  "fieldType": "IDENTIFIER",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false
+            },
+            "enabled": true,
+            "editable": false,
+            "optional": false,
+            "advanced": false,
+            "hidden": false,
+            "isGraphqlId": false
+          }
+        ],
+        "returnType": {
+          "hasError": true,
+          "isGraphqlId": false,
+          "metadata": {
+            "label": "Return Type",
+            "description": "The return type of the function."
+          },
+          "placeholder": "error?",
+          "value": "error?",
+          "types": [
+            {
+              "fieldType": "TYPE",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": true,
+          "advanced": false
+        },
+        "enabled": false,
+        "optional": false,
+        "editable": false,
+        "canAddParameters": false,
+        "codedata": {
+          "orgName": "ballerinax",
+          "packageName": "trigger.github",
+          "moduleName": "trigger.github",
+          "version": "0.12.0"
+        },
+        "properties": {},
+        "group": "onTyped",
+        "repeatable": "FALSE",
+        "nameEditable": false
+      },
+      {
+        "metadata": {
+          "label": "On Edited",
+          "description": "The `onEdited` handler."
+        },
+        "kind": "REMOTE",
+        "name": {
+          "metadata": {
+            "label": "On Edited",
+            "description": "The `onEdited` handler."
+          },
+          "placeholder": "onEdited",
+          "value": "onEdited",
+          "types": [
+            {
+              "fieldType": "IDENTIFIER",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "advanced": false
+        },
+        "parameters": [
+          {
+            "metadata": {
+              "label": "Payload",
+              "description": ""
+            },
+            "kind": "REQUIRED",
+            "type": {
+              "metadata": {
+                "label": "Parameter Type",
+                "description": "The type of the parameter"
+              },
+              "placeholder": "github:IssuesEvent",
+              "value": "github:IssuesEvent",
+              "types": [
+                {
+                  "fieldType": "TYPE",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": false,
+              "optional": true,
+              "advanced": false
+            },
+            "name": {
+              "metadata": {
+                "label": "Payload",
+                "description": ""
+              },
+              "placeholder": "payload",
+              "value": "payload",
+              "types": [
+                {
+                  "fieldType": "IDENTIFIER",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false
+            },
+            "enabled": true,
+            "editable": false,
+            "optional": false,
+            "advanced": false,
+            "hidden": false,
+            "isGraphqlId": false
+          }
+        ],
+        "returnType": {
+          "hasError": true,
+          "isGraphqlId": false,
+          "metadata": {
+            "label": "Return Type",
+            "description": "The return type of the function."
+          },
+          "placeholder": "error?",
+          "value": "error?",
+          "types": [
+            {
+              "fieldType": "TYPE",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": true,
+          "advanced": false
+        },
+        "enabled": false,
+        "optional": false,
+        "editable": false,
+        "canAddParameters": false,
+        "codedata": {
+          "orgName": "ballerinax",
+          "packageName": "trigger.github",
+          "moduleName": "trigger.github",
+          "version": "0.12.0"
+        },
+        "properties": {},
+        "group": "onEdited",
+        "repeatable": "FALSE",
+        "nameEditable": false
+      },
+      {
+        "metadata": {
+          "label": "On Untyped",
+          "description": "The `onUntyped` handler."
+        },
+        "kind": "REMOTE",
+        "name": {
+          "metadata": {
+            "label": "On Untyped",
+            "description": "The `onUntyped` handler."
+          },
+          "placeholder": "onUntyped",
+          "value": "onUntyped",
+          "types": [
+            {
+              "fieldType": "IDENTIFIER",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "advanced": false
+        },
+        "parameters": [
+          {
+            "metadata": {
+              "label": "Payload",
+              "description": ""
+            },
+            "kind": "REQUIRED",
+            "type": {
+              "metadata": {
+                "label": "Parameter Type",
+                "description": "The type of the parameter"
+              },
+              "placeholder": "github:IssuesEvent",
+              "value": "github:IssuesEvent",
+              "types": [
+                {
+                  "fieldType": "TYPE",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": false,
+              "optional": true,
+              "advanced": false
+            },
+            "name": {
+              "metadata": {
+                "label": "Payload",
+                "description": ""
+              },
+              "placeholder": "payload",
+              "value": "payload",
+              "types": [
+                {
+                  "fieldType": "IDENTIFIER",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false
+            },
+            "enabled": true,
+            "editable": false,
+            "optional": false,
+            "advanced": false,
+            "hidden": false,
+            "isGraphqlId": false
+          }
+        ],
+        "returnType": {
+          "hasError": true,
+          "isGraphqlId": false,
+          "metadata": {
+            "label": "Return Type",
+            "description": "The return type of the function."
+          },
+          "placeholder": "error?",
+          "value": "error?",
+          "types": [
+            {
+              "fieldType": "TYPE",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": true,
+          "advanced": false
+        },
+        "enabled": false,
+        "optional": false,
+        "editable": false,
+        "canAddParameters": false,
+        "codedata": {
+          "orgName": "ballerinax",
+          "packageName": "trigger.github",
+          "moduleName": "trigger.github",
+          "version": "0.12.0"
+        },
+        "properties": {},
+        "group": "onUntyped",
+        "repeatable": "FALSE",
+        "nameEditable": false
+      },
+      {
+        "metadata": {
+          "label": "On Demilestoned",
+          "description": "The `onDemilestoned` handler."
+        },
+        "kind": "REMOTE",
+        "name": {
+          "metadata": {
+            "label": "On Demilestoned",
+            "description": "The `onDemilestoned` handler."
+          },
+          "placeholder": "onDemilestoned",
+          "value": "onDemilestoned",
+          "types": [
+            {
+              "fieldType": "IDENTIFIER",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "advanced": false
+        },
+        "parameters": [
+          {
+            "metadata": {
+              "label": "Payload",
+              "description": ""
+            },
+            "kind": "REQUIRED",
+            "type": {
+              "metadata": {
+                "label": "Parameter Type",
+                "description": "The type of the parameter"
+              },
+              "placeholder": "github:IssuesEvent",
+              "value": "github:IssuesEvent",
+              "types": [
+                {
+                  "fieldType": "TYPE",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": false,
+              "optional": true,
+              "advanced": false
+            },
+            "name": {
+              "metadata": {
+                "label": "Payload",
+                "description": ""
+              },
+              "placeholder": "payload",
+              "value": "payload",
+              "types": [
+                {
+                  "fieldType": "IDENTIFIER",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false
+            },
+            "enabled": true,
+            "editable": false,
+            "optional": false,
+            "advanced": false,
+            "hidden": false,
+            "isGraphqlId": false
+          }
+        ],
+        "returnType": {
+          "hasError": true,
+          "isGraphqlId": false,
+          "metadata": {
+            "label": "Return Type",
+            "description": "The return type of the function."
+          },
+          "placeholder": "error?",
+          "value": "error?",
+          "types": [
+            {
+              "fieldType": "TYPE",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": true,
+          "advanced": false
+        },
+        "enabled": false,
+        "optional": false,
+        "editable": false,
+        "canAddParameters": false,
+        "codedata": {
+          "orgName": "ballerinax",
+          "packageName": "trigger.github",
+          "moduleName": "trigger.github",
+          "version": "0.12.0"
+        },
+        "properties": {},
+        "group": "onDemilestoned",
+        "repeatable": "FALSE",
+        "nameEditable": false
+      },
+      {
+        "metadata": {
+          "label": "On Locked",
+          "description": "The `onLocked` handler."
+        },
+        "kind": "REMOTE",
+        "name": {
+          "metadata": {
+            "label": "On Locked",
+            "description": "The `onLocked` handler."
+          },
+          "placeholder": "onLocked",
+          "value": "onLocked",
+          "types": [
+            {
+              "fieldType": "IDENTIFIER",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "advanced": false
+        },
+        "parameters": [
+          {
+            "metadata": {
+              "label": "Payload",
+              "description": ""
+            },
+            "kind": "REQUIRED",
+            "type": {
+              "metadata": {
+                "label": "Parameter Type",
+                "description": "The type of the parameter"
+              },
+              "placeholder": "github:IssuesEvent",
+              "value": "github:IssuesEvent",
+              "types": [
+                {
+                  "fieldType": "TYPE",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": false,
+              "optional": true,
+              "advanced": false
+            },
+            "name": {
+              "metadata": {
+                "label": "Payload",
+                "description": ""
+              },
+              "placeholder": "payload",
+              "value": "payload",
+              "types": [
+                {
+                  "fieldType": "IDENTIFIER",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false
+            },
+            "enabled": true,
+            "editable": false,
+            "optional": false,
+            "advanced": false,
+            "hidden": false,
+            "isGraphqlId": false
+          }
+        ],
+        "returnType": {
+          "hasError": true,
+          "isGraphqlId": false,
+          "metadata": {
+            "label": "Return Type",
+            "description": "The return type of the function."
+          },
+          "placeholder": "error?",
+          "value": "error?",
+          "types": [
+            {
+              "fieldType": "TYPE",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": true,
+          "advanced": false
+        },
+        "enabled": false,
+        "optional": false,
+        "editable": false,
+        "canAddParameters": false,
+        "codedata": {
+          "orgName": "ballerinax",
+          "packageName": "trigger.github",
+          "moduleName": "trigger.github",
+          "version": "0.12.0"
+        },
+        "properties": {},
+        "group": "onLocked",
+        "repeatable": "FALSE",
+        "nameEditable": false
+      },
+      {
+        "metadata": {
+          "label": "On Unlocked",
+          "description": "The `onUnlocked` handler."
+        },
+        "kind": "REMOTE",
+        "name": {
+          "metadata": {
+            "label": "On Unlocked",
+            "description": "The `onUnlocked` handler."
+          },
+          "placeholder": "onUnlocked",
+          "value": "onUnlocked",
+          "types": [
+            {
+              "fieldType": "IDENTIFIER",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "advanced": false
+        },
+        "parameters": [
+          {
+            "metadata": {
+              "label": "Payload",
+              "description": ""
+            },
+            "kind": "REQUIRED",
+            "type": {
+              "metadata": {
+                "label": "Parameter Type",
+                "description": "The type of the parameter"
+              },
+              "placeholder": "github:IssuesEvent",
+              "value": "github:IssuesEvent",
+              "types": [
+                {
+                  "fieldType": "TYPE",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": false,
+              "optional": true,
+              "advanced": false
+            },
+            "name": {
+              "metadata": {
+                "label": "Payload",
+                "description": ""
+              },
+              "placeholder": "payload",
+              "value": "payload",
+              "types": [
+                {
+                  "fieldType": "IDENTIFIER",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false
+            },
+            "enabled": true,
+            "editable": false,
+            "optional": false,
+            "advanced": false,
+            "hidden": false,
+            "isGraphqlId": false
+          }
+        ],
+        "returnType": {
+          "hasError": true,
+          "isGraphqlId": false,
+          "metadata": {
+            "label": "Return Type",
+            "description": "The return type of the function."
+          },
+          "placeholder": "error?",
+          "value": "error?",
+          "types": [
+            {
+              "fieldType": "TYPE",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": true,
+          "advanced": false
+        },
+        "enabled": false,
+        "optional": false,
+        "editable": false,
+        "canAddParameters": false,
+        "codedata": {
+          "orgName": "ballerinax",
+          "packageName": "trigger.github",
+          "moduleName": "trigger.github",
+          "version": "0.12.0"
+        },
+        "properties": {},
+        "group": "onUnlocked",
+        "repeatable": "FALSE",
+        "nameEditable": false
+      },
+      {
+        "metadata": {
+          "label": "On Deleted",
+          "description": "The `onDeleted` handler."
+        },
+        "kind": "REMOTE",
+        "name": {
+          "metadata": {
+            "label": "On Deleted",
+            "description": "The `onDeleted` handler."
+          },
+          "placeholder": "onDeleted",
+          "value": "onDeleted",
+          "types": [
+            {
+              "fieldType": "IDENTIFIER",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "advanced": false
+        },
+        "parameters": [
+          {
+            "metadata": {
+              "label": "Payload",
+              "description": ""
+            },
+            "kind": "REQUIRED",
+            "type": {
+              "metadata": {
+                "label": "Parameter Type",
+                "description": "The type of the parameter"
+              },
+              "placeholder": "github:IssuesEvent",
+              "value": "github:IssuesEvent",
+              "types": [
+                {
+                  "fieldType": "TYPE",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": false,
+              "optional": true,
+              "advanced": false
+            },
+            "name": {
+              "metadata": {
+                "label": "Payload",
+                "description": ""
+              },
+              "placeholder": "payload",
+              "value": "payload",
+              "types": [
+                {
+                  "fieldType": "IDENTIFIER",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false
+            },
+            "enabled": true,
+            "editable": false,
+            "optional": false,
+            "advanced": false,
+            "hidden": false,
+            "isGraphqlId": false
+          }
+        ],
+        "returnType": {
+          "hasError": true,
+          "isGraphqlId": false,
+          "metadata": {
+            "label": "Return Type",
+            "description": "The return type of the function."
+          },
+          "placeholder": "error?",
+          "value": "error?",
+          "types": [
+            {
+              "fieldType": "TYPE",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": true,
+          "advanced": false
+        },
+        "enabled": false,
+        "optional": false,
+        "editable": false,
+        "canAddParameters": false,
+        "codedata": {
+          "orgName": "ballerinax",
+          "packageName": "trigger.github",
+          "moduleName": "trigger.github",
+          "version": "0.12.0"
+        },
+        "properties": {},
+        "group": "onDeleted",
+        "repeatable": "FALSE",
+        "nameEditable": false
+      }
+    ]
   }
 }

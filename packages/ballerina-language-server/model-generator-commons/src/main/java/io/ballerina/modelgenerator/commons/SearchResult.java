@@ -66,6 +66,25 @@ public record SearchResult(Package packageInfo, String name, String description,
                 a -> packageOrder.getOrDefault(a.packageInfo().packageName(), Integer.MAX_VALUE)));
     }
 
+    /**
+     * @param org         The organization of the package
+     * @param packageName The name of the package
+     * @param moduleName  The module name as the search index stores it
+     * @param version     The version of the package
+     */
     public record Package(String org, String packageName, String moduleName, String version) {
+
+        /**
+         * Identifies this result's module the way the search index does, by organization together with module name.
+         *
+         * <p>Results sourced from a query spanning the whole library have to be classified by coordinate rather
+         * than by module name alone, so a same-named package from another organization (e.g. {@code ballerina/np}
+         * vs {@code ballerinax/np}) isn't mistaken for the imported one.</p>
+         *
+         * @return the coordinate identifying this result's module
+         */
+        public ModuleCoordinate coordinate() {
+            return new ModuleCoordinate(org, moduleName);
+        }
     }
 }

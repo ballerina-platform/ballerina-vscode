@@ -75,9 +75,11 @@ import static io.ballerina.servicemodelgenerator.extension.util.Constants.KIND_I
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.KIND_MUTATION;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.KIND_REMOTE;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.KIND_REQUIRED;
+import static io.ballerina.servicemodelgenerator.extension.util.Constants.KIND_RESOURCE;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.NEW_LINE;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.NEW_LINE_WITH_TAB;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.OBJECT_METHOD;
+import static io.ballerina.servicemodelgenerator.extension.util.Constants.REMOTE;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.RESOURCE;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.TWO_NEW_LINES;
 import static io.ballerina.servicemodelgenerator.extension.util.ServiceClassUtil.ServiceClassContext.CLASS;
@@ -102,11 +104,25 @@ public abstract class AbstractFunctionBuilder implements NodeBuilder<Function> {
     static Function getServiceTypeBoundedFunctionFromSource(ServiceTypeFunction serviceTypeFunction,
                                                             FunctionDefinitionNode functionDefinitionNode,
                                                             SemanticModel semanticModel) {
-        Function function = ServiceModelUtils.getFunctionFromServiceTypeFunction(serviceTypeFunction);
+        return overlaySourceOntoFunctionTemplate(
+                ServiceModelUtils.getFunctionFromServiceTypeFunction(serviceTypeFunction), functionDefinitionNode);
+    }
+
+    /**
+     * Binds a curated function template's shape (kind, required-ness, accessor, whether extra
+     * parameters may be added) to what's actually written in source: its real return type, its real
+     * parameters (by name and type, not the template's), its line range, and its own doc comment.
+     * Shared by every "this connector's function shape is already known" path -- the legacy
+     * {@code ServiceDatabaseManager}-bound one above, and the schema-driven one in
+     * {@code SchemaDrivenFunctionBuilder} -- so neither has to re-derive kind/hasError/etc. from
+     * scratch the way the generic {@link #getObjectFunctionFromSource} fallback must.
+     */
+    static Function overlaySourceOntoFunctionTemplate(Function template,
+                                                      FunctionDefinitionNode functionDefinitionNode) {
         FunctionSignatureNode functionSignatureNode = functionDefinitionNode.functionSignature();
         Optional<ReturnTypeDescriptorNode> returnTypeDesc = functionSignatureNode.returnTypeDesc();
         if (returnTypeDesc.isPresent()) {
-            FunctionReturnType returnType = function.getReturnType();
+            FunctionReturnType returnType = template.getReturnType();
             returnType.setValue(returnTypeDesc.get().type().toString().trim());
         }
         SeparatedNodeList<ParameterNode> parameters = functionSignatureNode.parameters();
@@ -115,11 +131,11 @@ public abstract class AbstractFunctionBuilder implements NodeBuilder<Function> {
             Optional<Parameter> parameterModel = getParameterModel(parameterNode);
             parameterModel.ifPresent(parameterModels::add);
         });
-        function.setParameters(parameterModels);
-        function.setCodedata(new Codedata(functionDefinitionNode.lineRange()));
-        updateAnnotationAttachmentProperty(functionDefinitionNode, function);
-        Utils.updateFunctionAndReturnDocs(functionDefinitionNode, function);
-        return function;
+        template.setParameters(parameterModels);
+        template.setCodedata(new Codedata(functionDefinitionNode.lineRange()));
+        updateAnnotationAttachmentProperty(functionDefinitionNode, template);
+        Utils.updateFunctionAndReturnDocs(functionDefinitionNode, template);
+        return template;
     }
 
     static Function getObjectFunctionFromSource(ServiceClassUtil.ServiceClassContext context,
@@ -150,6 +166,12 @@ public abstract class AbstractFunctionBuilder implements NodeBuilder<Function> {
                 functionModel.setSchema(null);
                 return functionModel;
             }
+        } else if (functionDefinitionNode.qualifierList().stream()
+                .anyMatch(qualifier -> qualifier.text().equals(REMOTE))) {
+            functionModel.setKind(KIND_REMOTE);
+        } else if (functionDefinitionNode.qualifierList().stream()
+                .anyMatch(qualifier -> qualifier.text().equals(RESOURCE))) {
+            functionModel.setKind(KIND_RESOURCE);
         }
 
         SeparatedNodeList<ParameterNode> parameters = functionSignatureNode.parameters();

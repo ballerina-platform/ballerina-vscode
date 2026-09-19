@@ -16,7 +16,7 @@
       "metadata": {
         "label": "Chunker",
         "description": "Initializes a new instance of the `GenericRecursiveChunker`.\n",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png"
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png"
       },
       "codedata": {
         "node": "CHUNKER",
@@ -24,7 +24,7 @@
         "module": "ai",
         "packageName": "ai",
         "object": "GenericRecursiveChunker",
-        "version": "1.13.0",
+        "version": "1.15.0",
         "isNew": true
       },
       "returning": false,
@@ -88,7 +88,7 @@
           "placeholder": "0",
           "optional": true,
           "editable": true,
-          "advanced": true,
+          "advanced": false,
           "hidden": false,
           "codedata": {
             "kind": "DEFAULTABLE",
@@ -116,7 +116,7 @@
           "placeholder": "0",
           "optional": true,
           "editable": true,
-          "advanced": true,
+          "advanced": false,
           "hidden": false,
           "codedata": {
             "kind": "DEFAULTABLE",
@@ -134,24 +134,24 @@
               "fieldType": "SINGLE_SELECT",
               "options": [
                 {
-                  "label": "PARAGRAPH",
-                  "value": "\"PARAGRAPH\""
-                },
-                {
-                  "label": "SENTENCE",
-                  "value": "\"SENTENCE\""
-                },
-                {
-                  "label": "LINE",
-                  "value": "\"LINE\""
+                  "label": "CHARACTER",
+                  "value": "\"CHARACTER\""
                 },
                 {
                   "label": "WORD",
                   "value": "\"WORD\""
                 },
                 {
-                  "label": "CHARACTER",
-                  "value": "\"CHARACTER\""
+                  "label": "LINE",
+                  "value": "\"LINE\""
+                },
+                {
+                  "label": "SENTENCE",
+                  "value": "\"SENTENCE\""
+                },
+                {
+                  "label": "PARAGRAPH",
+                  "value": "\"PARAGRAPH\""
                 }
               ],
               "selected": false
@@ -165,7 +165,7 @@
           "placeholder": "\"PARAGRAPH\"",
           "optional": true,
           "editable": true,
-          "advanced": true,
+          "advanced": false,
           "hidden": false,
           "codedata": {
             "kind": "DEFAULTABLE",

@@ -36,6 +36,11 @@ const Container = styled.div`
     flex-direction: column;
     max-width: 600px;
     gap: 20px;
+
+    .side-panel-body {
+        height: auto;
+        overflow: visible;
+    }
 `;
 
 const LoaderContainer = styled.div`
@@ -225,6 +230,10 @@ export function AIChatAgentWizard(props: AIChatAgentWizardProps) {
             setCurrentStep(5);
 
             if (newServiceArtifact) {
+                // Land on the Service Designer's resource listing, not the chat flow diagram: the
+                // very next thing most users do after creating a chat agent is check whether they
+                // need human-in-the-loop, and that control lives on this screen. Landing in the
+                // chat flow first would mean backing out to get here anyway.
                 rpcClient.getVisualizerRpcClient().openView({
                     type: EVENT_TYPE.OPEN_VIEW,
                     location: { documentUri: newServiceArtifact.path, position: newServiceArtifact.position }

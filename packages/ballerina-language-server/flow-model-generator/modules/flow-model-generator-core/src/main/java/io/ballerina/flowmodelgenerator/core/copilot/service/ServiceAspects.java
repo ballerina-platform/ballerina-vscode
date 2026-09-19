@@ -19,6 +19,7 @@
 package io.ballerina.flowmodelgenerator.core.copilot.service;
 
 import io.ballerina.compiler.api.symbols.ClassSymbol;
+import io.ballerina.flowmodelgenerator.core.copilot.model.AlternativeListener;
 import io.ballerina.flowmodelgenerator.core.copilot.model.Listener;
 import io.ballerina.flowmodelgenerator.core.copilot.model.NativeLibrary;
 import io.ballerina.flowmodelgenerator.core.copilot.model.Parameter;
@@ -31,6 +32,7 @@ import io.ballerina.modelgenerator.commons.trigger.utils.TypeRefResolver;
 
 import java.util.ArrayList;
 import java.util.IdentityHashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -236,7 +238,7 @@ final class ServiceAspects {
     void listener(TriggerScope scope, ServiceDraft draft) {
         Object key = scope.listener() != null ? scope.listener() : scope.listenerClass();
         draft.setListener(builtListeners.computeIfAbsent(key, unused -> buildListener(scope)));
-        draft.setAlternativeListeners(alternativeListenerNames(scope));
+        draft.setAlternativeListeners(alternativeListeners(scope));
         // The listener is still emitted either way — a consumer needs its types even when the service is
         // written some other way, and the type closure reaches them through it.
         if (scope.document() != null
@@ -258,14 +260,21 @@ final class ServiceAspects {
      * <p>Init parameters are deliberately <b>not</b> carried. The alternative is a pointer — "this also
      * works" — and a second full parameter list per service entry would double the listener surface of
      * every mcp service to say something the reader can read off the library's own listener class.
+     *
+     * <p>The document's {@code deprecated} <b>is</b> carried, because a superseded listener is still offered
+     * here and the reason travels with it or nowhere: the primary listener renders its own deprecation, but
+     * an alternative that dropped it would present {@code mcp:Listener} as an equal transport to
+     * {@code mcp:StreamableHttpListener} with nothing saying it is retired.
      */
-    private static List<String> alternativeListenerNames(TriggerScope scope) {
+    private static List<AlternativeListener> alternativeListeners(TriggerScope scope) {
         if (scope.document() == null) {
             return List.of();
         }
         String primary = TypeRefResolver.moduleAlias(scope.packageName()) + ":"
                 + scope.listenerClass().getName().orElse(DEFAULT_LISTENER_NAME);
-        List<String> names = new ArrayList<>();
+        // Keyed by rendered name, in document order: two document entries can resolve to one class, and the
+        // merge below has to find the entry already made for it.
+        Map<String, AlternativeListener> alternatives = new LinkedHashMap<>();
         for (TriggerMetadataModel.Listener alternative : ListenerPairingResolver.alternativeHosts(
                 scope.document().listeners(), scope.serviceType(), scope.listener())) {
             String declared = alternative.type() == null ? null : alternative.type().name();
@@ -275,14 +284,22 @@ final class ServiceAspects {
                 continue;
             }
             String name = TypeRefResolver.moduleAlias(scope.packageName()) + ":" + className;
+            // An alternative identical to the primary is not an alternative at all.
+            if (name.equals(primary)) {
+                continue;
+            }
             // Two document entries can resolve to one class — `resolveListenerClass` falls back to the
-            // canonical `Listener` for an unnamed one — and an alternative identical to the primary is not
-            // an alternative at all.
-            if (!name.equals(primary) && !names.contains(name)) {
-                names.add(name);
+            // canonical `Listener` for an unnamed one. One entry per name, but the deprecation note is
+            // merged rather than taken from whichever entry came first: a note on the later duplicate is
+            // still the reason this listener is retired, and dropping it would present the listener as
+            // an equal choice.
+            AlternativeListener entry = alternatives.computeIfAbsent(name, AlternativeListener::new);
+            String deprecated = alternative.deprecated();
+            if (entry.getDeprecationNote() == null && deprecated != null && !deprecated.isBlank()) {
+                entry.setDeprecationNote(deprecated);
             }
         }
-        return names;
+        return new ArrayList<>(alternatives.values());
     }
 
     private static Listener buildListener(TriggerScope scope) {

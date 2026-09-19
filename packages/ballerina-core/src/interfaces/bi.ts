@@ -141,6 +141,8 @@ export type ToolData = {
     // True when the tool's @ai:AgentTool annotation gates it for human-in-the-loop approval
     // (requiresApproval: true, or a predicate function). Surfaced by the language server.
     requiresApproval?: boolean;
+    // MCP toolkit's module-qualified class name, used to match dev-time trace spans.
+    className?: string;
 };
 
 export type AgentData = {
@@ -218,7 +220,8 @@ export type AgentMemoryInfo = {
 
 export type MemoryData = {
     type: string;
-    size: string
+    size: string;
+    store?: ToolData;
 };
 
 export type Imports = {
@@ -239,6 +242,7 @@ export type FormFieldInputType = "TEXT" |
     "PARAM_MANAGER" |
     "STRING" |
     "FILE_SELECT" |
+    "PROJECT_FILE_SELECT" |
     "ACTION_OR_EXPRESSION" |
     "MULTIPLE_SELECT_LISTENER" |
     "SINGLE_SELECT_LISTENER" |
@@ -287,6 +291,7 @@ export interface BaseType {
     pattern?: string; // regex pattern for validation (e.g., for TEXT fields)
     patternErrorMessage?: string; // custom error message when pattern validation fails
     validations?: ValidationRule[]; // connector-shipped rules scoped to this type member (generalises pattern/patternErrorMessage)
+    extensions?: string[];
 }
 
 export interface EnumOptions {
@@ -523,9 +528,10 @@ export interface ProjectStructureResponse {
 }
 
 /**
- * `kind` is the semantic integration kind (event/file/http/graphql/ai) from the trigger metadata.
+ * `triggerKind` is the canonical semantic integration kind from trigger metadata. `kind` is retained
+ * for compatibility with older language-server responses.
  * `iconColor` is an optional tint for a monochrome brand glyph (e.g. "#f60"); `iconLight`/`iconDark`
- * are theme-specific images (data: URI / path) paired with each other, used when `icon` alone isn't
+ * are theme-specific raw SVG documents paired with each other, used when `icon` alone isn't
  * theme-aware.
  */
 export interface ProjectStructureArtifactResponse {
@@ -533,6 +539,7 @@ export interface ProjectStructureArtifactResponse {
     name: string;
     path: string;
     type: string;
+    triggerKind?: string;
     kind?: string;
     icon?: string;
     iconColor?: string;
@@ -554,6 +561,16 @@ export interface UpdatedArtifactsResponse {
     artifacts: ProjectStructureArtifactResponse[];
     error?: string;
     validationErrors?: ValidationResult[];
+    /**
+     * Whether this generation declared the shared WSO2 default model provider
+     * (`ai:getDefaultModelProvider()`), which only runs once its Config.toml entries are written.
+     *
+     * Reported by the source generation rather than probed beforehand: only the language server
+     * knows whether it declared one, and a caller re-deriving that answer drifts from it. A probe
+     * for "does the project have any model provider" says yes for a package whose only provider is,
+     * say, an OpenAI one, and the config write is then skipped for a provider that needs it.
+     */
+    declaredDefaultModelProvider?: boolean;
 }
 
 export type Item = Category | AvailableNode;

@@ -1,0 +1,32 @@
+{
+  "filePath": "workspace_proj/consumer/config.bal",
+  "description": "Qualified type constraint naming a module the file does not import: the probe still gets its import, so the top-level ambiguity surfaces and the cast is applied",
+  "typeConstraint": "typespkg:DestConfig|typespkg:AdvConfig",
+  "codedata": {
+    "org": "wso2",
+    "module": "typespkg",
+    "version": "0.1.0",
+    "packageName": "typespkg"
+  },
+  "type": {
+    "typeName": "record",
+    "name": "DestConfig",
+    "selected": true,
+    "hasRestType": false,
+    "optional": false,
+    "defaultable": false,
+    "isRestType": false,
+    "fields": [
+      {
+        "name": "ashost",
+        "typeName": "string",
+        "optional": false,
+        "defaultable": false,
+        "isRestType": false,
+        "selected": true,
+        "value": "\"\""
+      }
+    ]
+  },
+  "output": "<typespkg:DestConfig> {\n    ashost: \"\"\n}"
+}

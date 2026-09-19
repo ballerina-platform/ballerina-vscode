@@ -31,6 +31,7 @@ import { notifyEvaluationHistoryUpdated } from '../../RPCLayer';
 import { captureGitState, createSnapshot, pinSnapshot, ensureEvalReportsGitignored } from '../../utils/git-utils';
 import { quoteShellPath } from '../../utils/config';
 import { cleanAndValidateProject } from '../config-generator/configGenerator';
+import { refreshDefaultProviderToken } from '../ai/utils';
 
 /**
  * Extract project path from a test item
@@ -239,9 +240,14 @@ export async function runHandler(request: TestRunRequest, token: CancellationTok
         }
     });
     const langClient = extension.ballerinaExtInstance.langClient;
+    const unconfiguredProjectPaths = new Set<string>();
     for (const projectPath of projectPaths) {
         if (token.isCancellationRequested) {
             break;
+        }
+        if (!(await refreshDefaultProviderToken(projectPath))) {
+            unconfiguredProjectPaths.add(projectPath);
+            continue;
         }
         try {
             await cleanAndValidateProject(langClient, projectPath);
@@ -263,6 +269,11 @@ export async function runHandler(request: TestRunRequest, token: CancellationTok
         const projectPath = getProjectPathFromTestItem(test);
         if (!projectPath) {
             run.failed(test, new TestMessage('Could not determine project path for test'));
+            run.end();
+            return;
+        }
+        if (unconfiguredProjectPaths.has(projectPath)) {
+            run.failed(test, new TestMessage('The WSO2 default AI provider is not configured for this project.'));
             run.end();
             return;
         }

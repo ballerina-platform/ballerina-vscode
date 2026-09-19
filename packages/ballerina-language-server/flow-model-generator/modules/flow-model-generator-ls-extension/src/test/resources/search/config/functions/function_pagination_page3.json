@@ -1,0 +1,46 @@
+{
+  "description": "Function search third page (offset=16) across the same two indexed imported modules, verifying pages past the imported block stay empty rather than re-listing rows",
+  "kind": "FUNCTION",
+  "source": "function_pagination/main.bal",
+  "queryMap": {
+    "q": "",
+    "limit": "8",
+    "offset": "16"
+  },
+  "categories": [
+    {
+      "metadata": {
+        "label": "Imported Functions",
+        "description": "Functions imported from other integrations",
+        "keywords": [
+          "Imported",
+          "Function",
+          "Library"
+        ]
+      },
+      "items": []
+    },
+    {
+      "metadata": {
+        "label": "Standard Library",
+        "description": "Components supported officially by Ballerina",
+        "keywords": [
+          "Ballerina",
+          "Library"
+        ]
+      },
+      "items": []
+    },
+    {
+      "metadata": {
+        "label": "Extended Library",
+        "description": "Components from the ballerinax organization",
+        "keywords": [
+          "Ballerinax",
+          "Library"
+        ]
+      },
+      "items": []
+    }
+  ]
+}

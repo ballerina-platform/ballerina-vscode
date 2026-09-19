@@ -100,3 +100,71 @@ export class ArtifactNotificationHandler {
         }
     }
 }
+
+export const ARTIFACT_UPDATE_TIMEOUT_MS = 10000;
+
+export interface ArtifactUpdateWait {
+    /** Resolves `true` on the notification, `false` once the timeout passes without one. */
+    notified: Promise<boolean>;
+    cancel: () => void;
+}
+
+/**
+ * Starts a one-shot wait for the next artifact update. Arm it *before* the edit that triggers the
+ * notification: {@code publish} has no replay, so anything published in between is lost and the
+ * wait then always times out.
+ *
+ * It never rejects — an update can legitimately never arrive (the Language Server is busy, or the
+ * edit produced no artifact change), which says nothing about whether the edit itself applied.
+ */
+export function startArtifactUpdateWait(
+    onArtifacts: (artifacts: ProjectStructureArtifactResponse[]) => void,
+    timeoutMs: number = ARTIFACT_UPDATE_TIMEOUT_MS
+): ArtifactUpdateWait {
+    let settle!: (notified: boolean) => void;
+    const notified = new Promise<boolean>(resolve => {
+        settle = resolve;
+    });
+
+    const unsubscribe = ArtifactNotificationHandler.getInstance().subscribe(
+        ArtifactsUpdated.method,
+        undefined,
+        payload => {
+            stopListening();
+            // Settled before the callback runs: publish() swallows a throwing subscriber, so a
+            // failing callback would otherwise leave this promise pending with its timer cleared.
+            settle(true);
+            try {
+                onArtifacts(payload.data);
+            } catch (error) {
+                console.error('[Artifacts] Artifact-update listener failed:', error);
+            }
+        }
+    );
+    const timeoutId = setTimeout(() => {
+        stopListening();
+        settle(false);
+    }, timeoutMs);
+
+    let stopped = false;
+
+    // Idempotent on purpose: unsubscribe() closes over the subscriber Set and drops the whole
+    // notification entry once that Set is empty, so calling it twice would delete the Set a later
+    // subscriber created — silently unsubscribing every other listener of this notification.
+    function stopListening(): void {
+        if (stopped) {
+            return;
+        }
+        stopped = true;
+        clearTimeout(timeoutId);
+        unsubscribe();
+    }
+
+    return {
+        notified,
+        cancel: () => {
+            stopListening();
+            settle(false);
+        }
+    };
+}

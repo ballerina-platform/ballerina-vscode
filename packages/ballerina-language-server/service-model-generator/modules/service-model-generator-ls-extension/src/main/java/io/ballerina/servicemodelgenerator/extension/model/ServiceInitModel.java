@@ -19,6 +19,7 @@
 package io.ballerina.servicemodelgenerator.extension.model;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -52,6 +53,7 @@ public class ServiceInitModel {
     private final String icon;
     private final Map<String, Value> properties = new LinkedHashMap<>();
     private Boolean isLocalRepository;
+    private List<String> selectedTools;
     private Function resource;
 
     public ServiceInitModel(String id, String displayName, String description, String orgName,
@@ -125,6 +127,22 @@ public class ServiceInitModel {
 
     public void addProperty(String key, Value value) {
         this.properties.put(key, value);
+    }
+
+    /** Inserts a property before all existing ones, since {@link LinkedHashMap} has no prepend. */
+    public void addPropertyFirst(String key, Value value) {
+        Map<String, Value> existing = new LinkedHashMap<>(properties);
+        properties.clear();
+        properties.put(key, value);
+        properties.putAll(existing);
+    }
+
+    public List<String> getSelectedTools() {
+        return selectedTools;
+    }
+
+    public void setSelectedTools(List<String> selectedTools) {
+        this.selectedTools = selectedTools;
     }
 
     public void addProperties(Map<String, Value> properties) {

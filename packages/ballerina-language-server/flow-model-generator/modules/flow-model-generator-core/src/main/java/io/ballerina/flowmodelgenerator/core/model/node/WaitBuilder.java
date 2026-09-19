@@ -158,7 +158,7 @@ public class WaitBuilder extends NodeBuilder {
             }
         }
 
-        sourceBuilder.token().name(typeSignature)
+        sourceBuilder.token().name(CommonUtils.escapeTypeSignatureModulePrefixes(typeSignature))
                 .whiteSpace()
                 .expression(variable.get())
                 .whiteSpace()

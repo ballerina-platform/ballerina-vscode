@@ -359,7 +359,7 @@ export function ContextTypeCreatorTab(props: ContextTypeCreatorProps) {
         });
 
         const response = await rpcClient.getBIDiagramRpcClient().getExpressionDiagnostics({
-            filePath: type?.codedata?.lineRange?.fileName || "types.bal",
+            filePath: Utils.joinPath(URI.file(projectPath), type?.codedata?.lineRange?.fileName || "types.bal").fsPath,
             context: {
                 expression: value,
                 startLine: {

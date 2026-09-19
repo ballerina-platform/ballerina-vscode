@@ -292,7 +292,11 @@ export function applyFormValuesToModel(formFields: FormField[], model: ServiceIn
                 }
             })
         } else if (data[val.key] !== undefined) {
-            val.value = data[val.key];
+            if (val.key === "basePath") {
+                val.value = sanitizedHttpPath(data[val.key]);
+            } else {
+                val.value = data[val.key];
+            }
         }
 
         if (val.dynamicFormFields) {
@@ -307,12 +311,17 @@ export function applyFormValuesToModel(formFields: FormField[], model: ServiceIn
             });
         }
 
-        if (val.type === "CONDITIONAL_FIELDS") {
-            val.advanceProps.forEach(subField => {
+        if (val.type === "CONDITIONAL_FIELDS" || val.type === "GROUP_SECTION") {
+            val.advanceProps?.forEach(subField => {
                 const subProperty = model.properties[val.key]?.properties?.[subField.key];
                 if (subProperty) {
                     if (data[subField.key] !== undefined) {
-                        subProperty.value = data[subField.key];
+                        const fieldType = getPrimaryInputType(subProperty.types)?.fieldType;
+                        if (fieldType === "MULTIPLE_SELECT" || fieldType === "EXPRESSION_SET" || fieldType === "TEXT_SET") {
+                            subProperty.values = normalizeValueToArray(data[subField.key]);
+                        } else {
+                            subProperty.value = data[subField.key];
+                        }
                     }
                     processPropertyRecursively(subProperty, data, subField.key);
                 }

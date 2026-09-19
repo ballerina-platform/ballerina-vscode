@@ -39,18 +39,23 @@ public class TriggerSourceGenerationTest {
 
     private final Gson gson = new Gson();
 
-    // TriggerModelReader caches bundled models per moduleName (a JVM-wide singleton), and source
-    // generation mutates the init form in place (e.g. the enum-qualifier pre-pass). Returning a fresh
-    // deep copy per call keeps each test's mutations from leaking into every other test that resolves
-    // the same module later in the run.
-    private ServiceInitModel initForm(String moduleName) {
-        ServiceInitModel cached = TriggerModelReader.getInstance().getBundledServiceInitModel(moduleName)
+    // TriggerModelReader caches generated models per org/module/version (a JVM-wide singleton), and
+    // source generation mutates the init form in place (e.g. the enum-qualifier pre-pass). Returning a
+    // fresh deep copy per call keeps each test's mutations from leaking into every other test that
+    // resolves the same module later in the run.
+    private ServiceInitModel initForm(String key) {
+        GeneratedTriggerCorpus.Entry entry = GeneratedTriggerCorpus.get(key);
+        ServiceInitModel cached = TriggerModelReader.getInstance()
+                .getGeneratedServiceInitModel(entry.org(), entry.module(), entry.version())
                 .orElseThrow();
         return gson.fromJson(gson.toJsonTree(cached), ServiceInitModel.class);
     }
 
-    private TriggerUISchemaModel triggerModel(String moduleName) {
-        return TriggerModelReader.getInstance().getBundledTriggerModel(moduleName).orElseThrow();
+    private TriggerUISchemaModel triggerModel(String key) {
+        GeneratedTriggerCorpus.Entry entry = GeneratedTriggerCorpus.get(key);
+        return TriggerModelReader.getInstance()
+                .getGeneratedTriggerModel(entry.org(), entry.module(), entry.version())
+                .orElseThrow();
     }
 
     @Test

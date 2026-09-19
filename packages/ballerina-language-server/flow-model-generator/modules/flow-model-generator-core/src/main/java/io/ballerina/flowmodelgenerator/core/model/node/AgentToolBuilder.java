@@ -589,10 +589,7 @@ public class AgentToolBuilder extends NodeBuilder {
             throw new IllegalStateException("Function name is not present");
         }
         if (nodeKind == NodeKind.FUNCTION_CALL) {
-            String module = flowNode.codedata().module();
-            if (module != null) {
-                funcName = flowNode.codedata().getModulePrefix() + ":" + funcName;
-            }
+            funcName = sourceBuilder.importQualifier() + funcName;
         }
 
         Map<String, String> toolInputVarNames = new LinkedHashMap<>();
@@ -950,19 +947,19 @@ public class AgentToolBuilder extends NodeBuilder {
                     }
                 }
                 return sourceBuilder.getTypeNameForInferredParam(varProp,
-                        returnProperty.value().toString());
+                        sourceBuilder.requalifiedType(returnProperty));
             }
         }
         Optional<Property> optTargetType = flowNode.getProperty(TARGET_TYPE);
         String returnType;
         if (optTargetType.isPresent() && optTargetType.get().value() != null
                 && !optTargetType.get().value().toString().isEmpty()) {
-            returnType = optTargetType.get().value().toString();
+            returnType = sourceBuilder.requalifiedType(optTargetType.get());
         } else if (optTargetType.isPresent()) {
             String defaultType = optTargetType.get().defaultValue();
             returnType = (defaultType != null && !defaultType.isEmpty()) ? defaultType : "json";
         } else {
-            returnType = returnProperty.value().toString();
+            returnType = sourceBuilder.requalifiedType(returnProperty);
         }
         return resolveTypeInferParams(returnType, flowNode);
     }

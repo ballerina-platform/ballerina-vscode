@@ -38,6 +38,10 @@ import {
     ResourceReturnTypesRequest,
     ServiceDesignerAPI,
     ServiceInitSourceRequest,
+    ConnectorUpgradeAdviceRequest,
+    ConnectorUpgradeAdviceResponse,
+    PullConnectorUpgradeRequest,
+    PullConnectorUpgradeResult,
     ServiceModelFromCodeRequest,
     ServiceModelFromCodeResponse,
     ServiceModelInitResponse,
@@ -62,8 +66,10 @@ import {
     getListenerModelFromCode,
     getListeners,
     getResourceReturnTypes,
+    getConnectorUpgradeAdvice,
     getServiceInitModel,
     getServiceModel,
+    pullConnectorUpgrade,
     getServiceModelFromCode,
     getTriggerModels,
     searchTriggers,
@@ -71,10 +77,13 @@ import {
     updateResourceSourceCode,
     updateServiceSourceCode,
     GetOASSpecRequest,
+    OpenApiEndpointsRequest,
+    OpenApiEndpointsResponse,
     ValidatePropertyRequest,
     ValidatePropertyResponse,
     GetOASSpecResponse,
     getOASSpec,
+    listOpenApiEndpoints,
     validateProperty
 } from "@wso2/ballerina-core";
 import { HOST_EXTENSION } from "vscode-messenger-common";
@@ -167,6 +176,14 @@ export class ServiceDesignerRpcClient implements ServiceDesignerAPI {
         return this._messenger.sendRequest(getServiceInitModel, HOST_EXTENSION, params);
     }
 
+    getConnectorUpgradeAdvice(params: ConnectorUpgradeAdviceRequest): Promise<ConnectorUpgradeAdviceResponse> {
+        return this._messenger.sendRequest(getConnectorUpgradeAdvice, HOST_EXTENSION, params);
+    }
+
+    pullConnectorUpgrade(params: PullConnectorUpgradeRequest): Promise<PullConnectorUpgradeResult> {
+        return this._messenger.sendRequest(pullConnectorUpgrade, HOST_EXTENSION, params);
+    }
+
     createServiceAndListener(params: ServiceInitSourceRequest): Promise<UpdatedArtifactsResponse> {
         return this._messenger.sendRequest(createServiceAndListener, HOST_EXTENSION, params);
     }
@@ -181,5 +198,9 @@ export class ServiceDesignerRpcClient implements ServiceDesignerAPI {
 
     getOASSpec(params: GetOASSpecRequest): Promise<GetOASSpecResponse> {
         return this._messenger.sendRequest(getOASSpec, HOST_EXTENSION, params);
+    }
+
+    listOpenApiEndpoints(params: OpenApiEndpointsRequest): Promise<OpenApiEndpointsResponse> {
+        return this._messenger.sendRequest(listOpenApiEndpoints, HOST_EXTENSION, params);
     }
 }

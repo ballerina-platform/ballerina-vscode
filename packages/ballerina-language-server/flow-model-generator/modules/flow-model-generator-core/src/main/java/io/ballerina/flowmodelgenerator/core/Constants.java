@@ -107,6 +107,19 @@ public class Constants {
         public static final String CONTEXT_CLASS_NAME = "Context";
         public static final String RUN_METHOD_NAME = "run";
         public static final String RUN_PROCESS_FUNCTION_PARAM = "processFunction";
+        public static final String RUN_INPUT_PARAM = "input";
+        // Parameter names of the calls the analyzer reads back positionally or by name. A caller may
+        // write any of them as a named argument, so each anchor is looked up by this name as well
+        // as by its position.
+        public static final String CALL_ACTIVITY_FUNCTION_PARAM = "activityFunction";
+        public static final String CALL_ACTIVITY_ARGS_PARAM = "args";
+        public static final String CHILD_WORKFLOW_PARAM = "childWorkflow";
+        public static final String AGENT_RUN_QUERY_PARAM = "query";
+        public static final String AGENT_RUN_INPUT_PARAM = "input";
+        public static final String AGENT_INSTANCE_ID_PARAM = "instanceId";
+        public static final String AGENT_EVENT_NAME_PARAM = "eventName";
+        public static final String AGENT_DATA_PARAM = "data";
+        public static final String AGENT_TOKEN_PARAM = "token";
         public static final String RUN_LABEL = "Run Workflow";
         public static final String RUN_DESCRIPTION = "Run a new workflow instance";
         public static final String SEND_DATA_METHOD_NAME = "sendData";
@@ -139,7 +152,7 @@ public class Constants {
 
         // Workflow context utility functions
         public static final String CURRENT_TIME_METHOD_NAME = "currentTime";
-        public static final String CURRENT_TIME_LABEL = "Current Time";
+        public static final String CURRENT_TIME_LABEL = "Get Current Time";
         public static final String CURRENT_TIME_DESCRIPTION =
                 "Deterministic current time, safe to use inside workflow logic";
         public static final String IS_REPLAYING_METHOD_NAME = "isReplaying";

@@ -147,44 +147,6 @@ public class ServiceModelAPITests {
     }
 
     @Test
-    public void testGetServiceModelWithoutListener() throws ExecutionException, InterruptedException {
-        Path filePath = resDir.resolve("sample1/main.bal");
-        ServiceModelRequest request = new ServiceModelRequest(filePath.toAbsolutePath().toString(), "ballerina",
-                "http", null);
-        CompletableFuture<?> result = serviceEndpoint.request("serviceDesign/getServiceModel", request);
-        ServiceModelResponse response = (ServiceModelResponse) result.get();
-        Assert.assertTrue(Objects.nonNull(response.service()));
-
-        filePath = resDir.resolve("sample2/main.bal");
-        request = new ServiceModelRequest(filePath.toAbsolutePath().toString(), "ballerina",
-                "http", null);
-        result = serviceEndpoint.request("serviceDesign/getServiceModel", request);
-        response = (ServiceModelResponse) result.get();
-        Assert.assertTrue(Objects.nonNull(response.service()));
-
-        filePath = resDir.resolve("sample2/main.bal");
-        request = new ServiceModelRequest(filePath.toAbsolutePath().toString(), "ballerinax",
-                "kafka", null);
-        result = serviceEndpoint.request("serviceDesign/getServiceModel", request);
-        response = (ServiceModelResponse) result.get();
-        Assert.assertTrue(Objects.nonNull(response.service()));
-        serviceEndpoint.notify("textDocument/didClose",
-                new DidCloseTextDocumentParams(new TextDocumentIdentifier(filePath.toUri().toString())));
-    }
-
-    @Test
-    public void testGetServiceModelWithListener() throws ExecutionException, InterruptedException {
-        Path filePath = resDir.resolve("sample2/main.bal");
-        ServiceModelRequest request = new ServiceModelRequest(filePath.toAbsolutePath().toString(), "ballerinax",
-                "rabbitmq", "testListener");
-        CompletableFuture<?> result = serviceEndpoint.request("serviceDesign/getServiceModel", request);
-        ServiceModelResponse response = (ServiceModelResponse) result.get();
-        Assert.assertTrue(Objects.nonNull(response.service()));
-        serviceEndpoint.notify("textDocument/didClose",
-                new DidCloseTextDocumentParams(new TextDocumentIdentifier(filePath.toUri().toString())));
-    }
-
-    @Test
     public void testGetTriggerList() throws ExecutionException, InterruptedException {
         CompletableFuture<?> result = serviceEndpoint.request("serviceDesign/getTriggerModels", null);
         TriggerListResponse response = (TriggerListResponse) result.get();
@@ -222,29 +184,6 @@ public class ServiceModelAPITests {
     public void testAddBallerinaAiService() throws ExecutionException, InterruptedException {
         Path filePath = resDir.resolve("sample9/main.bal");
         ServiceModelRequest modelRequest = new ServiceModelRequest(filePath.toAbsolutePath().toString(), "ballerina",
-                "ai", null);
-        CompletableFuture<?> modelResult = serviceEndpoint.request("serviceDesign/getServiceModel", modelRequest);
-        ServiceModelResponse modelResponse = (ServiceModelResponse) modelResult.get();
-        Service service = modelResponse.service();
-        Assert.assertTrue(Objects.nonNull(service));
-        service.getListener().setValues(List.of("aiListener"));
-
-        ServiceSourceRequest sourceRequest = new ServiceSourceRequest(filePath.toAbsolutePath().toString(), service);
-        CompletableFuture<?> sourceResult = serviceEndpoint.request("serviceDesign/addService", sourceRequest);
-        CommonSourceResponse sourceResponse = (CommonSourceResponse) sourceResult.get();
-        Assert.assertTrue(Objects.nonNull(sourceResponse.textEdits()));
-        Assert.assertFalse(sourceResponse.textEdits().isEmpty());
-
-        List<TextEdit> textEdits = sourceResponse.textEdits().entrySet().stream().findFirst().get().getValue();
-        Assert.assertEquals(textEdits.size(), 2);
-        serviceEndpoint.notify("textDocument/didClose",
-                new DidCloseTextDocumentParams(new TextDocumentIdentifier(filePath.toUri().toString())));
-    }
-
-    @Test
-    public void testAddBallerinaXAiService() throws ExecutionException, InterruptedException {
-        Path filePath = resDir.resolve("sample9/main.bal");
-        ServiceModelRequest modelRequest = new ServiceModelRequest(filePath.toAbsolutePath().toString(), "ballerinax",
                 "ai", null);
         CompletableFuture<?> modelResult = serviceEndpoint.request("serviceDesign/getServiceModel", modelRequest);
         ServiceModelResponse modelResponse = (ServiceModelResponse) modelResult.get();

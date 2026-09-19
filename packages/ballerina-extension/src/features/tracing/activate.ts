@@ -16,13 +16,14 @@
  */
 
 import * as vscode from 'vscode';
-import { isSamePath } from '@wso2/ballerina-core';
+import { EVENT_TYPE, isSamePath, MACHINE_VIEW } from '@wso2/ballerina-core';
 import { BallerinaExtension } from '../../core';
 import { TracerMachine } from './tracer-machine';
 import { TraceTreeDataProvider } from './trace-tree-view';
 import { TraceServer, Trace } from './trace-server';
 import { TraceDetailsWebview } from './trace-details-webview';
-import { StateMachine } from '../../stateMachine';
+import { openView, StateMachine } from '../../stateMachine';
+import { getActiveTracingProvider, isAmpConfigIncomplete } from './utils';
 import { VisualizerWebview } from '../../views/visualizer/webview';
 import { initTraceAnimation, disposeTraceAnimation } from './trace-animation';
 import { executeTraceServerTask } from './trace-server-task';
@@ -96,7 +97,7 @@ export function activateTracing(ballerinaExtInstance: BallerinaExtension) {
         } else if (prevEnabled && !isEnabled) {
             disposeTraceAnimation();
         }
-        sendTracingStatusChangedNotification({ enabled: isEnabled });
+        sendTracingStatusChangedNotification({ enabled: isEnabled, provider: TracerMachine.getProvider() });
         prevEnabled = isEnabled;
     });
 
@@ -109,14 +110,28 @@ export function activateTracing(ballerinaExtInstance: BallerinaExtension) {
         await showTraceWindow();
     });
 
-    const enableTracingCommand = vscode.commands.registerCommand(ENABLE_TRACING_COMMAND, async () => {
+    const enableTracingCommand = vscode.commands.registerCommand(ENABLE_TRACING_COMMAND, async (useAmpProvider?: boolean) => {
         const targetPath = await resolveTracingTargetPath("Select an integration to enable tracing");
         if (!targetPath) {
             return;
         }
 
-        TracerMachine.enable(targetPath);
-        await notifyTracingToggle(true, targetPath);
+        const requestedProvider = useAmpProvider === true ? 'amp' : 'idetraceprovider';
+        const currentProvider = getActiveTracingProvider(targetPath);
+        if (currentProvider && currentProvider !== requestedProvider) {
+            const continueAction = 'Continue';
+            const selection = await vscode.window.showWarningMessage(
+                `Only one tracing destination can be enabled at a time. Enabling ${tracingLabel(requestedProvider)} will disable ${tracingLabel(currentProvider)}.`,
+                continueAction,
+                'Cancel'
+            );
+            if (selection !== continueAction) {
+                return;
+            }
+        }
+
+        TracerMachine.enable(targetPath, useAmpProvider === true);
+        await notifyTracingToggle(true, targetPath, useAmpProvider === true);
     });
 
     const disableTracingCommand = vscode.commands.registerCommand(DISABLE_TRACING_COMMAND, async () => {
@@ -124,8 +139,10 @@ export function activateTracing(ballerinaExtInstance: BallerinaExtension) {
         if (!targetPath) {
             return;
         }
+        // Read before disabling removes trace_enabled.bal, or the provider can no longer be determined.
+        const wasAmpProvider = getActiveTracingProvider(targetPath) === 'amp';
         TracerMachine.disable(targetPath);
-        await notifyTracingToggle(false, targetPath);
+        await notifyTracingToggle(false, targetPath, wasAmpProvider);
     });
 
     const clearTracesCommand = vscode.commands.registerCommand(CLEAR_TRACES_COMMAND, () => {
@@ -280,9 +297,25 @@ function showTraceDetails(trace: Trace, focusSpanId?: string, isAgentChat?: bool
     }
 }
 
-async function notifyTracingToggle(enabled: boolean, targetPath: string): Promise<void> {
+function tracingLabel(provider: 'amp' | 'idetraceprovider'): string {
+    return provider === 'amp' ? 'Agent Manager instrumentation' : 'Dev-time tracing';
+}
+
+async function notifyTracingToggle(enabled: boolean, targetPath: string, isAmpProvider?: boolean): Promise<void> {
     if (!isIntegrationRunningAt(targetPath)) {
-        vscode.window.showInformationMessage(enabled ? 'Tracing enabled.' : 'Tracing disabled.');
+        const label = tracingLabel(isAmpProvider ? 'amp' : 'idetraceprovider');
+        if (enabled && isAmpProvider && isAmpConfigIncomplete(targetPath)) {
+            const configureAction = 'Configure Now';
+            const selection = await vscode.window.showInformationMessage(
+                `${label} enabled. It needs an OTel endpoint and API key to publish traces.`,
+                configureAction
+            );
+            if (selection === configureAction) {
+                openView(EVENT_TYPE.OPEN_VIEW, { view: MACHINE_VIEW.ViewConfigVariables, identifier: 'ballerinax/amp' });
+            }
+            return;
+        }
+        vscode.window.showInformationMessage(`${label} ${enabled ? 'enabled' : 'disabled'}.`);
         return;
     }
     const restartAction = "Restart Integration";

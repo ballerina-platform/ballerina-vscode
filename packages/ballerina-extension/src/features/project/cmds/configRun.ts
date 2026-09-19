@@ -29,12 +29,16 @@ import { tryGetCurrentBallerinaFile } from "../../../utils/project-utils";
 import { findBallerinaPackageRoot } from "../../../utils/file-utils";
 import { discoverProjectPath } from "./doc";
 import { VisualizerWebview } from "../../../views/visualizer/webview";
+import { refreshDefaultProviderToken } from "../../ai/utils";
 
 function activateConfigRunCommand() {
     // register the config view run command
     commands.registerCommand(PALETTE_COMMANDS.RUN_CONFIG, async (filePath: Uri) => {
         const currentProject = extension.ballerinaExtInstance.getDocumentContext().getCurrentProject();
         if (currentProject) {
+            if (!(await refreshDefaultProviderToken(currentProject.path!))) {
+                return;
+            }
             runCommand(currentProject, extension.ballerinaExtInstance.getBallerinaCmd(),
                 getRunCommand(),
                 currentProject.path!);

@@ -32,6 +32,7 @@ import {
     ProgressRing
 } from "@wso2/ui-toolkit";
 import styled from "@emotion/styled";
+import { indentedFieldStyles } from "./styles";
 
 import { ExpressionFormField, FieldDerivation, FieldGroup, FormExpressionEditorProps, FormField, FormImports, FormValues } from "./types";
 import { FieldFactory } from "../editors/FieldFactory";
@@ -123,11 +124,7 @@ namespace S {
     // A field rendered indented under the field above it, so the two read as grouped (e.g. a
     // fixed-value input that belongs to the checkbox above it).
     export const IndentedRow = styled(Row)`
-        width: calc(100% - 14px);
-        margin-left: 14px;
-        padding-left: 10px;
-        border-left: 2px solid ${ThemeColors.OUTLINE_VARIANT};
-        box-sizing: border-box;
+        ${indentedFieldStyles}
     `;
 
     export const CategoryRow = styled.div<{ bottomBorder?: boolean; topBorder?: boolean }>`
@@ -1403,6 +1400,7 @@ export const Form = forwardRef((props: FormProps, _ref) => {
 
                     return renderedComponents;
                 })()}
+                {hasAdvanceFields && <S.GroupDivider />}
                 {hasAdvanceFields && (
                     <S.Row>
                         {optionalFieldsTitle}
@@ -1675,7 +1673,7 @@ export const Form = forwardRef((props: FormProps, _ref) => {
                 <Provider {...contextValue}>
                     <S.Container nestedForm={nestedForm} compact={compact} footerActionButton={footerActionButton} className="side-panel-body">
                         {isFormLoading && (
-                            <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: "12px", flex: 1 }}>
+                            <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: "12px", flex: 1, minHeight: "300px" }}>
                                 <ProgressRing color={ThemeColors.PRIMARY} />
                                 <span style={{ fontSize: "12px", color: ThemeColors.ON_SURFACE_VARIANT }}>Loading form data...</span>
                             </div>

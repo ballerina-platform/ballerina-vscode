@@ -15,7 +15,7 @@ type Employee1 record {|
     Id1 id;
 |};
 
-service class Project1 {
+distinct service class Project1 {
     function init() {
     }
 

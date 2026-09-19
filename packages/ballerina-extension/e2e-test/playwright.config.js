@@ -11,7 +11,9 @@ exports.default = (0, test_1.defineConfig)({
     workers: 1,
     reporter: [['html'], ['json', { outputFile: '../e2e-reports/e2e-results.json' }]],
     use: {
-        trace: 'on-first-retry',
+        // 'on-first-retry' captures nothing when retries are 0, which is how the
+        // non-gating Windows legs run — see BI_E2E_TRACE in e2e-scheduled.yml.
+        trace: process.env.BI_E2E_TRACE || 'on-first-retry',
     },
     timeout: 1200000,
 });

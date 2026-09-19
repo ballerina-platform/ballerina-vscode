@@ -18,7 +18,7 @@
 
 import { TraceAnimationState } from "../../DiagramContext";
 import { AgentData, ToolData } from "../../../utils/types";
-import { sanitizeAgentData } from "../agentNodeUtils";
+import { sanitizeAgentData, toolEntryMatchesTools } from "../agentNodeUtils";
 
 export type EntrypointContext = {
     serviceName?: string;
@@ -28,6 +28,7 @@ export type EntrypointContext = {
 export type AgentTraceState = {
     isModelActive: boolean;
     activeToolNames: string[];
+    activeToolKitNames: string[];
     isAgentNodeActive: boolean;
     activeEntrypoint?: EntrypointContext;
 };
@@ -50,6 +51,7 @@ const TOOL_VALIDATION_PATTERN =
 const INACTIVE: AgentTraceState = {
     isModelActive: false,
     activeToolNames: [],
+    activeToolKitNames: [],
     isAgentNodeActive: false,
 };
 
@@ -73,9 +75,10 @@ function matchesPrompt(systemInstructions: string, systemPrompt?: AgentData): bo
     return role === (agent?.role || '').trim() && instructionsMatch;
 }
 
-function matchesTools(trace: TraceAnimationState, toolNames: string[]): boolean {
+function matchesTools(trace: TraceAnimationState, tools: ToolData[]): boolean {
+    const toolNames = tools.map(tool => tool.name);
     return trace.activeAgentToolNames.some(name => toolNames.includes(name))
-        || trace.entries.some(e => e.type === 'execute_tool' && e.toolName && toolNames.includes(e.toolName));
+        || trace.entries.some(e => e.type === 'execute_tool' && toolEntryMatchesTools(e, tools));
 }
 
 export function getAgentTraceState(params: AgentTraceParams): AgentTraceState {
@@ -88,25 +91,25 @@ export function getAgentTraceState(params: AgentTraceParams): AgentTraceState {
         return INACTIVE;
     }
 
-    const toolNames = tools.map(tool => tool.name);
     const usedPrompt = Boolean(traceAnimation.systemInstructions);
     const matched = (usedPrompt && matchesPrompt(traceAnimation.systemInstructions, systemPrompt))
-        || matchesTools(traceAnimation, toolNames);
+        || matchesTools(traceAnimation, tools);
     if (!matched) {
         return INACTIVE;
     }
 
-    const activeToolNames = traceAnimation.entries
-        .filter(e => e.type === 'execute_tool' && e.phase === 'active'
-            && e.toolName && toolNames.includes(e.toolName))
-        .map(e => e.toolName);
-    const isAnyToolActive = activeToolNames.length > 0;
+    const activeEntries = traceAnimation.entries
+        .filter(e => e.type === 'execute_tool' && e.phase === 'active' && toolEntryMatchesTools(e, tools));
+    const activeToolNames = activeEntries.filter(e => e.toolName).map(e => e.toolName);
+    const activeToolKitNames = activeEntries.filter(e => e.toolKitName).map(e => e.toolKitName);
+    const isAnyToolActive = activeToolNames.length > 0 || activeToolKitNames.length > 0;
     const isModelActive = traceAnimation.entries
         .some(e => e.type === 'chat' && e.phase === 'active') && !isAnyToolActive;
 
     return {
         isModelActive,
         activeToolNames,
+        activeToolKitNames,
         isAgentNodeActive: isModelActive || isAnyToolActive,
         activeEntrypoint: {
             serviceName: traceAnimation.entrypointServiceName,

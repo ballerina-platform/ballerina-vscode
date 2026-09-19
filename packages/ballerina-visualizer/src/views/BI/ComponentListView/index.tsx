@@ -133,7 +133,7 @@ export function ComponentListView(props: ComponentListViewProps) {
         <View>
             <TopNavigationBar projectPath={projectPath} />
             <TitleBar title={title} subtitle={subtitle} />
-            <ViewContent padding>
+            <ViewContent>
                 <Container>
                     <FilterBar>
                         {!isLibrary && (

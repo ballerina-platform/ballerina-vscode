@@ -83,6 +83,22 @@
             },
             {
               "metadata": {
+                "label": "HealthConcernsSection",
+                "description": "",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.ccda.r3_0.9.0.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerinax",
+                "module": "health.ccda.r3",
+                "packageName": "health.ccda.r3",
+                "symbol": "HealthConcernsSection",
+                "version": "0.9.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
                 "label": "HealthStatusEvaluationsandOutcomesSection",
                 "description": "",
                 "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.ccda.r3_0.9.0.png"
@@ -109,22 +125,6 @@
                 "module": "health.ccda.r3",
                 "packageName": "health.ccda.r3",
                 "symbol": "HealthStatusObservation",
-                "version": "0.9.0"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "HealthConcernsSection",
-                "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.ccda.r3_0.9.0.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerinax",
-                "module": "health.ccda.r3",
-                "packageName": "health.ccda.r3",
-                "symbol": "HealthConcernsSection",
                 "version": "0.9.0"
               },
               "enabled": true
@@ -181,7 +181,7 @@
             },
             {
               "metadata": {
-                "label": "HealthcareLinkingProperties",
+                "label": "HealthcareEntity",
                 "description": "",
                 "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure.textanalytics_1.5.1.png"
               },
@@ -190,7 +190,7 @@
                 "org": "ballerinax",
                 "module": "azure.textanalytics",
                 "packageName": "azure.textanalytics",
-                "symbol": "HealthcareLinkingProperties",
+                "symbol": "HealthcareEntity",
                 "version": "1.5.1"
               },
               "enabled": true
@@ -213,7 +213,7 @@
             },
             {
               "metadata": {
-                "label": "HealthcareEntity",
+                "label": "HealthcareJobState",
                 "description": "",
                 "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure.textanalytics_1.5.1.png"
               },
@@ -222,14 +222,14 @@
                 "org": "ballerinax",
                 "module": "azure.textanalytics",
                 "packageName": "azure.textanalytics",
-                "symbol": "HealthcareEntity",
+                "symbol": "HealthcareJobState",
                 "version": "1.5.1"
               },
               "enabled": true
             },
             {
               "metadata": {
-                "label": "HealthcareTaskResult",
+                "label": "HealthcareLinkingProperties",
                 "description": "",
                 "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure.textanalytics_1.5.1.png"
               },
@@ -238,23 +238,7 @@
                 "org": "ballerinax",
                 "module": "azure.textanalytics",
                 "packageName": "azure.textanalytics",
-                "symbol": "HealthcareTaskResult",
-                "version": "1.5.1"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "HealthcareResult",
-                "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure.textanalytics_1.5.1.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerinax",
-                "module": "azure.textanalytics",
-                "packageName": "azure.textanalytics",
-                "symbol": "HealthcareResult",
+                "symbol": "HealthcareLinkingProperties",
                 "version": "1.5.1"
               },
               "enabled": true
@@ -277,7 +261,7 @@
             },
             {
               "metadata": {
-                "label": "HealthcareJobState",
+                "label": "HealthcareResult",
                 "description": "",
                 "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure.textanalytics_1.5.1.png"
               },
@@ -286,7 +270,23 @@
                 "org": "ballerinax",
                 "module": "azure.textanalytics",
                 "packageName": "azure.textanalytics",
-                "symbol": "HealthcareJobState",
+                "symbol": "HealthcareResult",
+                "version": "1.5.1"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "HealthcareTaskResult",
+                "description": "",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure.textanalytics_1.5.1.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerinax",
+                "module": "azure.textanalytics",
+                "packageName": "azure.textanalytics",
+                "symbol": "HealthcareTaskResult",
                 "version": "1.5.1"
               },
               "enabled": true
@@ -328,6 +328,22 @@
                 "module": "health.fhir.r4.international401",
                 "packageName": "health.fhir.r4.international401",
                 "symbol": "HealthcareService",
+                "version": "4.0.3"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "HealthcareServiceAvailableTime",
+                "description": "FHIR HealthcareServiceAvailableTime datatype record.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4.international401_4.0.3.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerinax",
+                "module": "health.fhir.r4.international401",
+                "packageName": "health.fhir.r4.international401",
+                "symbol": "HealthcareServiceAvailableTime",
                 "version": "4.0.3"
               },
               "enabled": true
@@ -394,22 +410,6 @@
                 "module": "health.fhir.r5.international500",
                 "packageName": "health.fhir.r5.international500",
                 "symbol": "HealthcareService",
-                "version": "1.0.1"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "HealthcareServiceEligibility",
-                "description": "FHIR HealthcareServiceEligibility datatype record.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r5.international500_1.0.1.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerinax",
-                "module": "health.fhir.r5.international500",
-                "packageName": "health.fhir.r5.international500",
-                "symbol": "HealthcareServiceEligibility",
                 "version": "1.0.1"
               },
               "enabled": true

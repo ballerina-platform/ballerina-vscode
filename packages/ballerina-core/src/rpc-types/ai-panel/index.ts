@@ -160,7 +160,8 @@ export interface AIPanelAPI {
     getShowContextUsage: () => Promise<boolean>;
     // Thread / session management
     listThreads: () => Promise<ThreadSummary[]>;
-    switchThread: (params: SwitchThreadRequest) => Promise<void>;
+    /** False when refused — a run or checkpoint restore is in progress. */
+    switchThread: (params: SwitchThreadRequest) => Promise<boolean>;
     deleteThread: (params: DeleteThreadRequest) => Promise<void>;
     renameThread: (params: RenameThreadRequest) => Promise<void>;
     // TODO(auto-memory): memory management temporarily disabled for this release.

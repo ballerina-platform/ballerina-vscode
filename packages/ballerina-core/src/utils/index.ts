@@ -26,3 +26,5 @@ export * from "./diagram/utils";
 export * from './form-property-utils';
 export * from './path-utils';
 export * from './ai-utils';
+export * from './theme-utils';
+export * from './icon-utils';

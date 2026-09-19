@@ -30,6 +30,9 @@ import java.util.Map;
 public class ProjectDiagnosticsResponse {
 
     private Map<String, List<Diagnostic>> errorDiagnosticMap;
+    // Why the diagnostics could not be produced (e.g. the package failed to compile).
+    // errorDiagnosticMap stays null in that case, which older clients already treat as failure.
+    private String errorMsg;
 
     public Map<String, List<Diagnostic>> getErrorDiagnosticMap() {
         return errorDiagnosticMap;
@@ -37,5 +40,13 @@ public class ProjectDiagnosticsResponse {
 
     public void setErrorDiagnosticMap(Map<String, List<Diagnostic>> errorDiagnosticMap) {
         this.errorDiagnosticMap = errorDiagnosticMap;
+    }
+
+    public String getErrorMsg() {
+        return errorMsg;
+    }
+
+    public void setErrorMsg(String errorMsg) {
+        this.errorMsg = errorMsg;
     }
 }

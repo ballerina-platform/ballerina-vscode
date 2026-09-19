@@ -25,7 +25,7 @@ import { BodyText } from '../../styles';
 import ButtonCard from '../../../components/ButtonCard';
 import { isBetaModule } from './componentListUtils';
 import { RelativeLoader } from '../../../components/RelativeLoader';
-import { getEntryNodeIcon } from './EventIntegrationPanel';
+import { getIntegrationIcon } from './integrationIcon';
 
 interface CentralSearchPanelProps {
     /** The page-level search query; the panel is expected to be rendered only when non-empty. */
@@ -103,16 +103,9 @@ export function CentralSearchPanel(props: CentralSearchPanelProps) {
     );
 
     useEffect(() => {
-        if (!additionalTriggerSearchEnabled) {
-            return;
-        }
         runSearch(props.query);
         return () => runSearch.cancel();
-    }, [props.query, runSearch, additionalTriggerSearchEnabled]);
-
-    if (!additionalTriggerSearchEnabled) {
-        return null;
-    }
+    }, [props.query, runSearch]);
 
     const handleSelect = async (model: ServiceModel, isLocalRepository: boolean) => {
         if (props.onSelect) {
@@ -158,7 +151,7 @@ export function CentralSearchPanel(props: CentralSearchPanelProps) {
                                 id={`central-trigger-${item.moduleName.replace(/\./g, '-')}`}
                                 key={`${item.orgName}/${item.packageName}`}
                                 title={item.name}
-                                icon={getEntryNodeIcon(item)}
+                                icon={getIntegrationIcon(item)}
                                 onClick={() => handleSelect(item, false)}
                                 isBeta={isBetaModule(item.moduleName)}
                             />
@@ -180,7 +173,7 @@ export function CentralSearchPanel(props: CentralSearchPanelProps) {
                                 id={`local-repo-trigger-${item.moduleName.replace(/\./g, '-')}`}
                                 key={`local/${item.orgName}/${item.packageName}`}
                                 title={item.name}
-                                icon={getEntryNodeIcon(item)}
+                                icon={getIntegrationIcon(item)}
                                 onClick={() => handleSelect(item, true)}
                                 isBeta={isBetaModule(item.moduleName)}
                             />

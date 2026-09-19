@@ -90,7 +90,7 @@
     "flags": 0
   },
   "output": {
-    "workflow_function_empty/workflow.bal": [
+    "workflow_function_empty/workflows.bal": [
       {
         "range": {
           "start": {

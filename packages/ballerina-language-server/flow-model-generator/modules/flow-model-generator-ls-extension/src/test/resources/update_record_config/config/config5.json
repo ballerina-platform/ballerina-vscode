@@ -1,0 +1,104 @@
+{
+  "filePath": "proj",
+  "description": "values inside a readonly & X field are recovered when re-opening saved source",
+  "codedata": {
+    "org": "org",
+    "module": "source",
+    "packageName": "source",
+    "version": "0.3.0"
+  },
+  "typeConstraint": "ReadonlyHolder",
+  "expr": "{cacheConfig: {maxAge: 120}, tags: [\"a\"], name: \"x\"}",
+  "output": {
+    "fields": [
+      {
+        "fields": [
+          {
+            "name": "enabled",
+            "typeName": "boolean",
+            "optional": false,
+            "defaultable": true,
+            "documentation": "",
+            "isRestType": false,
+            "selected": false
+          },
+          {
+            "name": "maxAge",
+            "typeName": "int",
+            "optional": false,
+            "defaultable": true,
+            "documentation": "",
+            "isRestType": false,
+            "value": "120",
+            "selected": true
+          },
+          {
+            "name": "maxSize",
+            "typeName": "int",
+            "optional": false,
+            "defaultable": true,
+            "documentation": "",
+            "isRestType": false,
+            "selected": false
+          }
+        ],
+        "hasRestType": false,
+        "name": "cacheConfig",
+        "typeName": "record",
+        "optional": false,
+        "typeInfo": {
+          "name": "ServerCacheConfig",
+          "orgName": "org",
+          "moduleName": "source",
+          "version": "0.3.0"
+        },
+        "defaultable": false,
+        "documentation": "",
+        "isRestType": false,
+        "selected": true
+      },
+      {
+        "memberType": {
+          "typeName": "string",
+          "optional": false,
+          "defaultable": false,
+          "isRestType": false,
+          "selected": false
+        },
+        "elements": [
+          {
+            "typeName": "string",
+            "optional": false,
+            "defaultable": false,
+            "isRestType": false,
+            "value": "\"a\"",
+            "selected": true
+          }
+        ],
+        "name": "tags",
+        "typeName": "array",
+        "optional": false,
+        "defaultable": false,
+        "documentation": "",
+        "isRestType": false,
+        "selected": true
+      },
+      {
+        "name": "name",
+        "typeName": "string",
+        "optional": false,
+        "defaultable": false,
+        "documentation": "",
+        "isRestType": false,
+        "value": "\"x\"",
+        "selected": true
+      }
+    ],
+    "hasRestType": false,
+    "typeName": "record",
+    "optional": false,
+    "defaultable": false,
+    "isRestType": false,
+    "selected": true
+  }
+}

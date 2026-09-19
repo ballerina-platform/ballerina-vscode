@@ -358,7 +358,8 @@ public class ActivityGenerator {
      * appears in the generated return type or parameter list.
      */
     private static boolean needsModuleImport(FlowNode flowNode, String returnType, List<String> paramList) {
-        String modulePrefix = flowNode.codedata().getModulePrefix() + ":";
+        // getModulePrefix() is escaped for emission; the signature/params here are raw, so unescape before matching.
+        String modulePrefix = CommonUtils.unescapeModuleName(flowNode.codedata().getModulePrefix()) + ":";
         if (returnType.contains(modulePrefix)) {
             return true;
         }

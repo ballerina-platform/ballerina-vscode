@@ -31,6 +31,8 @@ import { CDModel } from "./component-diagram";
 import { DMModel, ExpandedDMModel, IntermediateClause, Mapping, VisualizableField, FnMetadata, ResultClauseType, IOType } from "./data-mapper";
 import { ArtifactData, DataMapperMetadata, SCOPE } from "./shared-types";
 import { ToolParameters } from "../rpc-types/ai-agent/interfaces";
+import { OpenApiEndpointsRequest, OpenApiEndpointsResponse } from "../rpc-types/service-designer/interfaces";
+import { normalizeSvgDocument } from "../utils/icon-utils";
 
 export interface DidOpenParams {
     textDocument: TextDocumentItem;
@@ -854,6 +856,8 @@ export interface ProjectDiagnosticsRequest {
 
 export interface ProjectDiagnosticsResponse {
     errorDiagnosticMap?: Map<string, Diagnostic[]>;
+    /** Why diagnostics could not be produced (e.g. the package failed to compile). */
+    errorMsg?: string;
 }
 
 export interface MainFunctionParamsRequest {
@@ -979,6 +983,8 @@ export type SearchQueryParams = {
     /** ACTIVITY_CALL search: node kind stamped on result items (e.g. DURABLE_AGENT_ADD_ACTIVITY). */
     nodeKind?: string;
     source?: string;
+    /** AGENT search: `org/name:version` — lists the agent definitions inside that package. */
+    package?: string;
     connectorSet?: "GROUPED";
 }
 
@@ -1072,8 +1078,16 @@ export interface ActivityActionAnalysis {
     supported: boolean;
     /** When unsupported, the human-readable reasons. */
     reasons: string[];
-    /** The derived activity parameters. */
-    params: { name: string; type: string; required: boolean; description?: string }[];
+    /**
+     * The derived activity parameters. `name` is the bare parameter name — it matches the action
+     * node template's property key and is what the form shows; `escapedName` carries the leading
+     * quote for a Ballerina keyword (`'from`) and belongs only in text emitted as source.
+     *
+     * `escapedName` is optional because the language server ships with the Ballerina distribution
+     * rather than with this extension, so a newer extension can meet an older server. One that
+     * predates the field sends only `name`, already carrying the quote — fall back to it.
+     */
+    params: { name: string; escapedName?: string; type: string; required: boolean; description?: string }[];
     /** The derived activity return type (success type, without |error). */
     returnType: string;
     /** When the action returns a stream, its element type T (the activity returns T[]); else absent. */
@@ -1442,6 +1456,45 @@ export interface TriggerModelsResponse {
     localRepositoryResults?: ServiceModel[];
 }
 
+export interface ModelResolutionIssue {
+    code: "UNSUPPORTED_CONNECTOR_VERSION" | "NO_SUPPORTED_VERSION_AVAILABLE";
+    orgName: string;
+    moduleName: string;
+    currentVersion?: string;
+    requiredVersion?: string;
+}
+
+export interface ConnectorUpgradeAdviceRequest {
+    filePath: string;
+}
+
+export interface ConnectorUpgradeAdvice {
+    orgName: string;
+    moduleName: string;
+    packageName: string;
+    currentVersion: string;
+    minSupportedVersion: string;
+    breaking: boolean;
+    usedInFile?: string;
+}
+
+export interface ConnectorUpgradeAdviceResponse {
+    advice: ConnectorUpgradeAdvice[];
+    errorMsg?: string;
+    stacktrace?: string;
+}
+
+export interface PullConnectorUpgradeRequest {
+    orgName: string;
+    moduleName: string;
+    packageName: string;
+    targetVersion: string;
+}
+
+export interface PullConnectorUpgradeResult {
+    success: boolean;
+}
+
 // <-------- Trigger Related ------->
 
 // <-------- Service Designer Related ------->
@@ -1470,6 +1523,7 @@ export interface ListenerModelRequest {
 }
 export interface ListenerModelResponse {
     listener: ListenerModel;
+    issue?: ModelResolutionIssue;
 }
 
 export interface ListenerSourceCodeRequest {
@@ -1496,6 +1550,7 @@ export interface ServiceModelRequest {
 }
 export interface ServiceModelResponse {
     service: ServiceModel;
+    issue?: ModelResolutionIssue;
 }
 export interface ServiceSourceCodeRequest {
     filePath: string;
@@ -1586,6 +1641,11 @@ export interface ServiceModelFromCodeRequest {
     filePath: string;
     codedata: {
         lineRange: LineRange; // For the entire service
+        // The service's own attach point, as the language server last reported it
+        // (`properties.basePath.value`). A range recorded before an edit can come to
+        // enclose a different service; naming the one being edited lets the server
+        // refuse that match instead of answering with the wrong service.
+        originalName?: string;
     };
 }
 export interface ServiceModelFromCodeResponse {
@@ -1616,6 +1676,7 @@ export interface ServiceModelInitResponse {
     serviceInitModel?: ServiceInitModel;
     errorMsg?: string;
     stacktrace?: string;
+    issue?: ModelResolutionIssue;
 }
 
 export interface ServiceInitSourceRequest {
@@ -1937,6 +1998,10 @@ export interface ResourceSourceCodeResponse {
         [key: string]: TextEdit[];
     };
     validationErrors?: ValidationResult[];
+    // An unexpected failure the builder threw, distinct from a validation failure. `textEdits`
+    // is empty whenever this is set (see CommonSourceResponse(Throwable) on the language server).
+    errorMsg?: string;
+    stacktrace?: string;
 }
 
 export interface ResourceReturnTypesRequest {
@@ -2154,8 +2219,8 @@ export interface WorkspaceDeploymentRequest {
  * A structured, multi-representation icon descriptor resolved by the Language Server (Phase-6 icon
  * architecture). The LS fills `url`/`kind`/`source` and any connector-declared `glyph`/`color`; the IDE
  * completes missing `glyph`/`color` from its brand-icon registry and applies the `kind` default.
- * `light`/`dark` are a paired set of theme-specific images (data: URI) used when a single `url` isn't
- * theme-aware.
+ * `light`/`dark` are a paired set of theme-specific raw SVG documents used when a single `url` isn't
+ * theme-aware. Clients turn the selected document into an image URI locally.
  */
 export interface IconDescriptor {
     url?: string;
@@ -2175,7 +2240,17 @@ export function toIconDescriptor(icon?: string | IconDescriptor): IconDescriptor
     if (icon === undefined || icon === null) {
         return undefined;
     }
-    return typeof icon === "string" ? { url: icon } : icon;
+    if (typeof icon === "string") {
+        return { url: icon };
+    }
+    if (icon.light === undefined && icon.dark === undefined) {
+        return icon;
+    }
+    return {
+        ...icon,
+        light: normalizeSvgDocument(icon.light) ?? icon.light,
+        dark: normalizeSvgDocument(icon.dark) ?? icon.dark,
+    };
 }
 
 export interface BaseArtifact<T = any> {
@@ -2194,6 +2269,7 @@ export interface BaseArtifact<T = any> {
     type: DIRECTORY_MAP;
     name: string;
     module?: string;
+    triggerKind?: string; // Canonical integration kind for service/listener artifacts
     scope: string;
     visibility?: VISIBILITY;
     icon?: IconDescriptor | string; // Resolved icon descriptor; a bare string (legacy URL) is accepted
@@ -2313,6 +2389,8 @@ export interface BIInterface extends BaseLangClientInterface {
     addFunctionSourceCode: (params: FunctionSourceCodeRequest) => Promise<ResourceSourceCodeResponse>;
     getResourceReturnTypes: (params: ResourceReturnTypesRequest) => Promise<VisibleTypesResponse>;
     getServiceInitModel: (params: ServiceModelRequest) => Promise<ServiceModelInitResponse>;
+    listOpenApiEndpoints: (params: OpenApiEndpointsRequest) => Promise<OpenApiEndpointsResponse>;
+    getConnectorUpgradeAdvice: (params: ConnectorUpgradeAdviceRequest) => Promise<ConnectorUpgradeAdviceResponse>;
     createServiceAndListener: (params: ServiceInitSourceRequest) => Promise<SourceEditResponse>;
     validateProperty: (params: ValidatePropertyRequest) => Promise<ValidatePropertyResponse>;
 

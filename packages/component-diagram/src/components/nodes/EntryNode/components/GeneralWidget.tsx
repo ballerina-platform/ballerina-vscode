@@ -18,8 +18,9 @@
 
 import React, { useState } from "react";
 import { PortWidget } from "@projectstorm/react-diagrams-core";
-import { CDAutomation, CDService, CDWorkflow, CDWorkflowEvent, CDWorkflowHumanTask, resolveBrandIcon } from "@wso2/ballerina-core";
+import { CDAutomation, CDService, CDWorkflow, CDWorkflowEvent, CDWorkflowHumanTask, toIconDescriptor, toThemedSvgDataUri } from "@wso2/ballerina-core";
 import { Item, Menu, MenuItem, Popover, ImageWithFallback, Icon } from "@wso2/ui-toolkit";
+import { DurableAgentIcon } from "@wso2/bi-diagram";
 import { useDiagramContext } from "../../../DiagramContext";
 import { HttpIcon, TaskIcon } from "../../../../resources";
 import { MoreVertIcon } from "../../../../resources/icons/nodes/MoreVertIcon";
@@ -81,7 +82,7 @@ const getNodeDescription = (model: EntryNodeModel) => {
     return "Service";
 };
 
-function getColorByMethod(method: string) {
+export function getColorByMethod(method: string) {
     switch (method.toUpperCase()) {
         case "GET":
             return colors.GET;
@@ -102,21 +103,33 @@ function getColorByMethod(method: string) {
     }
 }
 
-function getCustomEntryNodeIcon(type: string) {
-    let typePart = type;
-    if (type && type.includes(":")) {
-        const typeParts = type.split(":");
-        typePart = typeParts.at(0);
-    }
+const HTTP_SERVICE_TYPE = "http:Service";
 
-    const brand = resolveBrandIcon(typePart);
-    if (!brand) {
-        return null;
+/**
+ * Renders a service's icon following the descriptor's representation order: the theme-specific SVG
+ * pair first, then the single `url` image, then the generic HTTP glyph. Each step falls through on a
+ * load failure, so a connector shipping an SVG the browser refuses still gets its `url` image rather
+ * than an empty icon slot.
+ *
+ * HTTP is drawn with the diagram's own bundled glyph rather than the descriptor, the way `ai` and
+ * `graphql` get their own widgets in {@link EntryNodeWidget}: it's the diagram's most common node
+ * and the one the canvas already has an icon designed for, so it should not depend on a remote
+ * package image that the theme can't follow and the webview may not be able to reach.
+ */
+function getServiceIcon(service: CDService) {
+    if (service.type === HTTP_SERVICE_TYPE) {
+        return <HttpIcon />;
     }
-    return <Icon name={brand.glyph} sx={brand.color ? { color: brand.color } : undefined} />;
+    const descriptor = toIconDescriptor(service.icon);
+    const svgDataUri = toThemedSvgDataUri(descriptor);
+    const urlIcon = <ImageWithFallback imageUrl={descriptor?.url ?? ""} fallbackEl={<HttpIcon />} />;
+    if (svgDataUri) {
+        return <ImageWithFallback imageUrl={svgDataUri} fallbackEl={urlIcon} />;
+    }
+    return urlIcon;
 }
 
-function FunctionBox(props: { func: any; model: EntryNodeModel; engine: any; readonly?: boolean }) {
+export function FunctionBox(props: { func: any; model: EntryNodeModel; engine: any; readonly?: boolean }) {
     const { func, model, engine, readonly } = props;
     const [isHovered, setIsHovered] = useState(false);
     const { onFunctionSelect } = useDiagramContext();
@@ -263,17 +276,12 @@ export function GeneralServiceWidget({ model, engine }: BaseNodeWidgetProps) {
         switch (model.type) {
             case "workflow":
                 return isDurableAgentWorkflow(model)
-                    ? <Icon name="bi-ai-agent" sx={{ fontSize: 24, width: 24, height: 24 }} />
+                    ? <DurableAgentIcon size={24} />
                     : <Icon name="bi-flowchart" sx={{ fontSize: 24, width: 24, height: 24 }} />;
             case "automation":
                 return <TaskIcon />;
             case "service":
-                const serviceType = (model.node as CDService)?.type;
-                const customIcon = getCustomEntryNodeIcon(serviceType);
-                if (customIcon) {
-                    return customIcon;
-                }
-                return <ImageWithFallback imageUrl={(model.node as CDService).icon} fallbackEl={<HttpIcon />} />;
+                return getServiceIcon(model.node as CDService);
             default:
                 return <HttpIcon />;
         }

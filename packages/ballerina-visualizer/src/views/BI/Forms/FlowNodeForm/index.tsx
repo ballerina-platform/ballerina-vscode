@@ -16,6 +16,7 @@
  * under the License.
  */
 
+import { validateWorkflowAudience } from "./workflowAudienceValidation";
 import { RefObject, useCallback, useEffect, useMemo, useRef, useState, forwardRef, useImperativeHandle } from "react";
 import {
     EVENT_TYPE,
@@ -1297,6 +1298,19 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     };
 
     const handleFormValidation = async (data: FormValues, dirtyFields?: any): Promise<boolean> => {
+        // A task naming nobody is refused when the source is generated, which is after the save has
+        // left the panel. Catching it here keeps the panel open with what was typed.
+        //
+        // Reported as a notification rather than a field diagnostic: a diagnostic seeds the form's
+        // own error state, which disables Save and is cleared only when the fields are rebuilt —
+        // and the only thing that rebuilds them is a validation pass the disabled button can no
+        // longer start. The panel would be stuck holding a message about a field the person had
+        // already fixed.
+        const audienceError = validateWorkflowAudience(data, node?.codedata?.node);
+        if (audienceError) {
+            rpcClient.getCommonRpcClient().showErrorMessage({ message: audienceError.message });
+            return false;
+        }
         if (node && targetLineRange && !skipFormValidation) {
             const validationData = buildValidationData(data);
             const updatedNode = mergeFormDataWithFlowNode(validationData, targetLineRange, dirtyFields);
@@ -1546,6 +1560,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     }
 
     const handleCreateNode = useCreateNode(fileName, targetLineRange, props.onConnectionCreated);
+    const handleCreateNodeInModal = useCreateNode(fileName, targetLineRange, props.onConnectionCreated, { preferModal: true });
 
 
     // State to manage record config page modal
@@ -2068,7 +2083,15 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                     isInferredReturnType={!!node.codedata?.inferredReturnType}
                     formImports={formImportsRef.current}
                     handleSelectedTypeChange={handleSelectedTypeChange}
-                    preserveOrder={node.codedata.node === "VARIABLE" as NodeKind || node.codedata.node === "CONFIG_VARIABLE" as NodeKind}
+                    preserveOrder={
+                        node.codedata.node === ("VARIABLE" as NodeKind) ||
+                        node.codedata.node === ("CONFIG_VARIABLE" as NodeKind) ||
+                        // A data event declares two types — the request and the reply. The default
+                        // layout lifts "the" type field into a slot of its own, and that slot holds one
+                        // field, so the second type is skipped everywhere and never rendered. Keeping
+                        // template order renders both.
+                        node.codedata.node === ("DURABLE_AGENT_REGISTER_EVENT" as NodeKind)
+                    }
                 />
                 <EntryPointTypeCreator
                     isOpen={isTypeEditorOpen}
@@ -2151,7 +2174,9 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                                     popupManager: popupManager,
                                     nodeInfo: {
                                         kind: node.codedata.node
-                                    }
+                                    },
+                                    onCreateNode: handleCreateNodeInModal,
+                                    onRequestCreateConnection: handleRequestCreateConnection
                                 }}
                             />
                         </DynamicModal>
@@ -2241,7 +2266,10 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                         node.codedata.node === ("CONFIG_VARIABLE" as NodeKind) ||
                         node.codedata.node === ("ASSIGN" as NodeKind) ||
                         node.codedata.node === ("FUNCTION_CREATION" as NodeKind) ||
-                        node.codedata.node === ("DATA_MAPPER_CREATION" as NodeKind)
+                        node.codedata.node === ("DATA_MAPPER_CREATION" as NodeKind) ||
+                        // See the note on the other Form above: a data event's second type field is
+                        // dropped by the default layout, so this form keeps its template order.
+                        node.codedata.node === ("DURABLE_AGENT_REGISTER_EVENT" as NodeKind)
                     }
                     scopeFieldAddon={scopeFieldAddon}
                     onChange={handleFormChange}
@@ -2343,7 +2371,9 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                                 popupManager: popupManager,
                                 nodeInfo: {
                                     kind: node.codedata.node
-                                }
+                                },
+                                onCreateNode: handleCreateNodeInModal,
+                                onRequestCreateConnection: handleRequestCreateConnection
                             }}
                         />
                     </DynamicModal>

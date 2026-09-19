@@ -26,7 +26,7 @@ import { ExecutionTimeline } from "./ExecutionTimeline";
 import { ApprovalCard } from "./ApprovalCard";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Icon, Button, ThemeColors } from "@wso2/ui-toolkit";
-import { SessionInfoResponse, AgentInfo, PendingApprovalInfo, HumanResponse, ChatHistoryMessage } from "@wso2/ballerina-core";
+import { SessionInfoResponse, AgentInfo, PendingApprovalInfo, HumanDecision, ChatHistoryMessage } from "@wso2/ballerina-core";
 import ReactMarkdown from "react-markdown";
 import remarkMath from 'remark-math';
 import remarkGfm from 'remark-gfm';
@@ -49,7 +49,7 @@ interface ChatMessage {
     // Present when type is APPROVAL: the requests the agent paused on.
     pendingApproval?: PendingApprovalInfo;
     // Present once (some or all of) the pending approval above has been resolved.
-    decisions?: Record<string, HumanResponse>;
+    decisions?: Record<string, HumanDecision>;
     // Set when the user dismisses this batch after it keeps failing to submit. Terminal even
     // if some requests still lack a decision.
     unresolvable?: boolean;
@@ -593,7 +593,8 @@ const ChatInterface: React.FC = () => {
         const checkTracingStatus = async () => {
             try {
                 const status = await rpcClient.getAgentChatRpcClient().getTracingStatus();
-                setIsTracingEnabled(status.enabled);
+                // Local trace details only exist for idetraceprovider, not Agent Manager.
+                setIsTracingEnabled(status.enabled && status.provider !== 'amp');
             } catch (error) {
                 console.error('Failed to get tracing status:', error);
                 setIsTracingEnabled(false);
@@ -618,7 +619,7 @@ const ChatInterface: React.FC = () => {
     // Listen for tracing status changes pushed from the extension (toggled from the diagram)
     useEffect(() => {
         rpcClient.getAgentChatRpcClient().onTracingStatusChanged((status) => {
-            setIsTracingEnabled(status.enabled);
+            setIsTracingEnabled(status.enabled && status.provider !== 'amp');
         });
     }, [rpcClient]);
 
@@ -820,7 +821,7 @@ const ChatInterface: React.FC = () => {
         );
     };
 
-    const handleApprovalDecision = async (decisions: Record<string, HumanResponse>) => {
+    const handleApprovalDecision = async (decisions: Record<string, HumanDecision>) => {
         // Lock session-changing actions (switch agent, clear chat) while a decision is in
         // flight, and capture the session token so a response that arrives after the user
         // switched/cleared sessions anyway is dropped instead of applied to the wrong chat.

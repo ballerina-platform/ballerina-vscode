@@ -22,9 +22,11 @@ import { Button, Codicon } from "@wso2/ui-toolkit";
 
 
 import { useHelperPaneStyles } from "./styles";
-import { isAnyFieldSelected, isRequiredParam } from "./utils";
+import { isAnyFieldSelected, isModelProviderField, isOptionalParam, isPromptField } from "./utils";
 
 import * as Types from "./Types";
+import PromptType from "./Types/PromptType";
+import ModelProviderType from "./Types/ModelProviderType";
 
 export interface ParameterBranchProps {
     parameters: TypeField[];
@@ -44,11 +46,15 @@ export function ParameterBranch(props: ParameterBranchProps) {
 
     const [showOptionalParams, setShowOptionalParams] = useState(isAnyFieldSelected(parameters));
 
-    const requiredParams: JSX.Element[] = [];
+    const inlineParams: JSX.Element[] = []; // required and defaultable fields
     const optionalParams: JSX.Element[] = [];
 
     parameters?.forEach((param: TypeField, index: number) => {
-        let TypeComponent = (Types as any)[param.typeName];
+        let TypeComponent = isPromptField(param)
+            ? PromptType
+            : isModelProviderField(param)
+                ? ModelProviderType
+                : (Types as any)[param.typeName];
         const typeProps: TypeProps = {
             param,
             depth,
@@ -57,10 +63,10 @@ export function ParameterBranch(props: ParameterBranchProps) {
         if (!TypeComponent) {
             TypeComponent = (Types as any).custom;
         }
-        if (isRequiredParam(param)) {
-            requiredParams.push(<TypeComponent key={index} {...typeProps} />);
-        } else {
+        if (isOptionalParam(param)) {
             optionalParams.push(<TypeComponent key={index} {...typeProps} />);
+        } else {
+            inlineParams.push(<TypeComponent key={index} {...typeProps} />);
         }
     });
 
@@ -72,11 +78,11 @@ export function ParameterBranch(props: ParameterBranchProps) {
     }
 
     const shouldShowOptionalParamsDirectly = (optionalParams.length > 0 && depth === 1) ||
-        (requiredParams.length === 0 && optionalParams.length > 0 && depth < 3);
+        (inlineParams.length === 0 && optionalParams.length > 0 && depth < 3);
 
     return (
         <div data-testid="parameter-branch">
-            {requiredParams}
+            {inlineParams}
             {shouldShowOptionalParamsDirectly ? (
                 optionalParams
             ) : (

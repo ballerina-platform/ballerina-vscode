@@ -29,6 +29,7 @@
 import React from "react";
 import { createRoot, Root } from "react-dom/client";
 import { act } from "react-dom/test-utils";
+import type { TraceStatus } from "@wso2/ballerina-core";
 
 // The core barrel pulls in ESM-only LS transport modules that jest cannot load. Only the
 // enum-like values this view reads are needed; DIRECTORY_MAP keys must match the real ones
@@ -57,8 +58,8 @@ jest.mock("@wso2/ballerina-core", () => ({
     },
     isSamePath: (a: string, b: string) => a === b,
     ProductMode: { INTEGRATOR: "integrator", AGENT_BUILDER: "agent-builder" },
-    assistantName: () => "WSO2 Integration Intelligence",
-    shortAssistantName: () => "Integration Intelligence",
+    assistantName: () => "WSO2 Integrator Copilot",
+    shortAssistantName: () => "Integrator Copilot",
     // Reached through `getIntegrationTypes`, which the view derives its deployment options
     // from. Irrelevant to which add-artifact button renders; undefined means "no scope",
     // which the caller already filters out.
@@ -124,9 +125,17 @@ jest.mock("../../../components/TopNavigationBar", () => ({ __esModule: true, Top
 jest.mock("../../../components/TitleBar", () => ({ __esModule: true, TitleBar: (): null => null }));
 jest.mock("./PublishToCentralButton", () => ({ __esModule: true, PublishToCentralButton: (): null => null }));
 jest.mock("./LibraryOverview", () => ({ __esModule: true, LibraryOverview: (): null => null }));
-jest.mock("../../../components/AgentStatusOrb/CopilotHeroBox", () => ({
+// Stubbed: it owns the shader-orb rendering (real WebGL, unavailable in jsdom) and its own
+// status-orb wiring, none of which this suite cares about. Its "Add Artifact manually" button
+// is kept, wired to the same prop, since that IS the click target these tests assert on.
+jest.mock("./CopilotComposer", () => ({
     __esModule: true,
-    CopilotHeroBox: (): null => null,
+    CopilotComposer: ({ onAddArtifactManually }: any) => (
+        <div>
+            <div>What would you like to build?</div>
+            <button onClick={onAddArtifactManually}>Add Artifact manually</button>
+        </div>
+    ),
 }));
 jest.mock("../../../components/AgentStatusOrb/shared", () => ({
     __esModule: true,
@@ -172,6 +181,10 @@ function makeRpc(directoryMap: Record<string, unknown[]>) {
         getICPRpcClient: () => ({ isIcpEnabled: async () => ({ enabled: false }) }),
         getWorkflowManagementRpcClient: () => ({ isWorkflowManagementEnabled: async () => ({ enabled: false }) }),
         getAiPanelRpcClient: () => ({ showSignInAlert: async () => false }),
+        getAgentChatRpcClient: () => ({
+            getTracingStatus: async (): Promise<TraceStatus> => ({ enabled: false, provider: undefined }),
+            onTracingStatusChanged: jest.fn(),
+        }),
         onProjectContentUpdated: jest.fn(() => (): void => undefined),
     };
     return { rpcClient, openView };
@@ -248,7 +261,7 @@ describe("PackageOverview add-artifact entry point", () => {
         await renderOverview(rpcClient);
 
         const emptyMessage = Array.from(container.querySelectorAll("div")).find(
-            (d) => d.textContent === "Your integration is empty"
+            (d) => d.textContent === "What would you like to build?"
         );
         expect(emptyMessage).toBeTruthy();
 

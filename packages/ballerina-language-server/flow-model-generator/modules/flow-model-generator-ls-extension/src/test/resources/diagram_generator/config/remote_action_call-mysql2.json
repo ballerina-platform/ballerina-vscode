@@ -46,7 +46,7 @@
         "metadata": {
           "label": "queryRow",
           "description": "Executes a SQL query that is expected to return a single row or value as the result.\nIf the query returns no results, `sql:NoRowsError` is returned.\n",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_mysql_1.18.0.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_mysql_1.19.1.png"
         },
         "codedata": {
           "node": "REMOTE_ACTION_CALL",
@@ -55,7 +55,7 @@
           "packageName": "mysql",
           "object": "Client",
           "symbol": "queryRow",
-          "version": "1.18.0",
+          "version": "1.19.1",
           "lineRange": {
             "fileName": "mysql.bal",
             "startLine": {
@@ -223,7 +223,7 @@
         "metadata": {
           "label": "MySQL",
           "description": "MySQL database client that enables interaction with MySQL servers and supports standard SQL operations.",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_mysql_1.18.0.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_mysql_1.19.1.png"
         },
         "codedata": {
           "node": "NEW_CONNECTION",
@@ -266,7 +266,7 @@
             "placeholder": "\"\"",
             "optional": true,
             "editable": true,
-            "advanced": true,
+            "advanced": false,
             "hidden": false,
             "codedata": {
               "kind": "DEFAULTABLE",
@@ -294,7 +294,7 @@
             "placeholder": "()",
             "optional": true,
             "editable": true,
-            "advanced": true,
+            "advanced": false,
             "hidden": false,
             "codedata": {
               "kind": "DEFAULTABLE",
@@ -322,7 +322,7 @@
             "placeholder": "()",
             "optional": true,
             "editable": true,
-            "advanced": true,
+            "advanced": false,
             "hidden": false,
             "codedata": {
               "kind": "DEFAULTABLE",
@@ -350,7 +350,7 @@
             "placeholder": "()",
             "optional": true,
             "editable": true,
-            "advanced": true,
+            "advanced": false,
             "hidden": false,
             "codedata": {
               "kind": "DEFAULTABLE",
@@ -378,7 +378,7 @@
             "placeholder": "0",
             "optional": true,
             "editable": true,
-            "advanced": true,
+            "advanced": false,
             "hidden": false,
             "codedata": {
               "kind": "DEFAULTABLE",
@@ -398,7 +398,7 @@
                 "typeMembers": [
                   {
                     "type": "Options",
-                    "packageInfo": "ballerinax:mysql:1.18.0",
+                    "packageInfo": "ballerinax:mysql:1.19.1",
                     "packageName": "mysql",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -415,7 +415,7 @@
             "placeholder": "()",
             "optional": true,
             "editable": true,
-            "advanced": true,
+            "advanced": false,
             "hidden": false,
             "codedata": {
               "kind": "DEFAULTABLE",
@@ -452,7 +452,7 @@
             "placeholder": "()",
             "optional": true,
             "editable": true,
-            "advanced": true,
+            "advanced": false,
             "hidden": false,
             "codedata": {
               "kind": "DEFAULTABLE",

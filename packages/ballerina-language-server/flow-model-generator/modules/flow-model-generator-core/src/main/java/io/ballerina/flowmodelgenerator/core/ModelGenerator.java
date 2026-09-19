@@ -92,6 +92,7 @@ import static io.ballerina.modelgenerator.commons.CommonUtils.isAiFixedTypedAgen
 import static io.ballerina.modelgenerator.commons.CommonUtils.isAiDependentlyTypedAgent;
 import static io.ballerina.modelgenerator.commons.CommonUtils.isAiKnowledgeBase;
 import static io.ballerina.modelgenerator.commons.CommonUtils.isAiMemoryStore;
+import static io.ballerina.modelgenerator.commons.CommonUtils.isAiDataLoader;
 import static io.ballerina.modelgenerator.commons.CommonUtils.isAiVectorStore;
 
 /**
@@ -108,8 +109,9 @@ public class ModelGenerator {
     private final WorkspaceManager workspaceManager;
 
     private static final Comparator<FlowNode> FLOW_NODE_COMPARATOR = Comparator.comparing(
-            node -> Optional.ofNullable(node.properties().get(Property.VARIABLE_KEY))
-                    .map(property -> property.value().toString())
+            node -> node.getProperty(Property.VARIABLE_KEY)
+                    .map(Property::value)
+                    .map(Object::toString)
                     .orElse("")
     );
     private static final String TYPE_MATCH_SUBTYPE = "subtype";
@@ -175,10 +177,7 @@ public class ModelGenerator {
         List<FlowNode> moduleConnections =
                 semanticModel.visibleSymbols(document, canvasNode.lineRange().startLine()).stream()
                         .flatMap(symbol -> buildConnection(symbol).stream())
-                        .sorted(Comparator.comparing(
-                                node -> Optional.ofNullable(node.properties().get(Property.VARIABLE_KEY))
-                                        .map(property -> property.value().toString())
-                                        .orElse("")))
+                        .sorted(FLOW_NODE_COMPARATOR)
                         .toList();
 
         // Obtain the data mapping function names
@@ -893,7 +892,8 @@ public class ModelGenerator {
         if (typeSymbol.kind() == SymbolKind.CLASS) {
             if (((ClassSymbol) typeSymbol).qualifiers().contains(Qualifier.CLIENT) || isAgentClass(typeSymbol) ||
                     isAiFixedTypedAgent(typeSymbol) || isAiDependentlyTypedAgent(typeSymbol) ||
-                    isAiVectorStore(typeSymbol) || isAiKnowledgeBase(typeSymbol) || isAiMemoryStore(typeSymbol)) {
+                    isAiVectorStore(typeSymbol) || isAiKnowledgeBase(typeSymbol) || isAiMemoryStore(typeSymbol) ||
+                    isAiDataLoader(typeSymbol)) {
                 return true;
             }
         }

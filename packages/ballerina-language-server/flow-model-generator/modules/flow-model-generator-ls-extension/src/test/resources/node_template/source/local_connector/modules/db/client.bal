@@ -62,4 +62,17 @@ public isolated client class Client {
     # + targetType - Defines which fields to retrieve from the result
     # + return - The matching record or an error
     isolated resource function get albums/[int albumId](AlbumTargetType targetType = <>) returns targetType|error = external;
+
+    # Get a row whose inferred type unions two live modules sharing a natural qualifier.
+    #
+    # + targetType - Defines which fields to retrieve from the result
+    # + return - The matching record or an error
+    isolated resource function get itemcollision(CollisionTargetType targetType = <>) returns targetType|error = external;
+
+    # Get a row whose inferred type unions a live member with an error member from the colliding pair.
+    #
+    # + targetType2 - Defines which fields to retrieve from the result
+    # + return - The matching record or an error
+    isolated resource function get itemcollisionerr(CollisionWithErrorTargetType targetType2 = <>)
+            returns targetType2 = external;
 }

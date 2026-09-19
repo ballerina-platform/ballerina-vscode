@@ -61,6 +61,7 @@ import static io.ballerina.modelgenerator.commons.CommonUtils.isAiFixedTypedAgen
 import static io.ballerina.modelgenerator.commons.CommonUtils.isAiDependentlyTypedAgent;
 import static io.ballerina.modelgenerator.commons.CommonUtils.isAiMemoryStore;
 import static io.ballerina.modelgenerator.commons.CommonUtils.isAiKnowledgeBase;
+import static io.ballerina.modelgenerator.commons.CommonUtils.isAiDataLoader;
 import static io.ballerina.modelgenerator.commons.CommonUtils.isAiVectorStore;
 import static io.ballerina.modelgenerator.commons.CommonUtils.isPersistClient;
 
@@ -159,7 +160,9 @@ public class ModuleNodeTransformer extends NodeTransformer<Optional<Artifact>> {
         Optional<TypeDescriptorNode> typeDescriptorNode = serviceDeclarationNode.typeDescriptor();
         NodeList<Node> resourcePaths = serviceDeclarationNode.absoluteResourcePath();
         if (!serviceBuilder.trySetNameFromAnnotation(serviceDeclarationNode)) {
-            if (typeDescriptorNode.isPresent()) {
+            if (!resourcePaths.isEmpty() && serviceBuilder.usesAttachPointAsName()) {
+                serviceBuilder.serviceNameWithPath(getPathString(resourcePaths));
+            } else if (typeDescriptorNode.isPresent()) {
                 serviceBuilder.serviceName(typeDescriptorNode.get().toSourceCode().strip());
             } else if (!resourcePaths.isEmpty()) {
                 serviceBuilder.serviceNameWithPath(getPathString(resourcePaths));
@@ -205,8 +208,8 @@ public class ModuleNodeTransformer extends NodeTransformer<Optional<Artifact>> {
 
         Artifact.Visibility varVisibility = determineVisibility(moduleVariableDeclarationNode);
         if (WorkflowUtil.isDurableAgentDeclaration(moduleVariableDeclarationNode, semanticModel)) {
-            // A `workflow:DurableAgent` declaration is a durable agentic workflow — a first-class
-            // artifact listed alongside durable workflows, opening the agent model on click.
+            // A `workflow:DurableAgent` declaration is a first-class artifact listed under Agents,
+            // opening the agent model on click.
             variableBuilder
                     .type(Artifact.Type.DURABLE_AGENT)
                     .visibility(varVisibility);
@@ -327,7 +330,7 @@ public class ModuleNodeTransformer extends NodeTransformer<Optional<Artifact>> {
                     (TypeReferenceTypeSymbol) ((VariableSymbol) symbol).typeDescriptor();
             ClassSymbol classSymbol = (ClassSymbol) typeDescriptorSymbol.typeDescriptor();
             if (classSymbol.qualifiers().contains(Qualifier.CLIENT) || isAiKnowledgeBase(classSymbol)
-                    || isAiVectorStore(symbol) || isAiMemoryStore(symbol)) {
+                    || isAiVectorStore(symbol) || isAiMemoryStore(symbol) || isAiDataLoader(symbol)) {
                 return Optional.of(classSymbol);
             }
         } catch (Throwable e) {

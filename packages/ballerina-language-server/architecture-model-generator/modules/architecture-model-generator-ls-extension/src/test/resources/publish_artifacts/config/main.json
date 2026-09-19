@@ -89,8 +89,13 @@
           "name": "httpListener",
           "scope": "Global",
           "visibility": "module",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.3.png",
+          "icon": {
+            "url": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.17.1.png",
+            "kind": "http",
+            "source": "ballerina-central"
+          },
           "module": "http",
+          "triggerKind": "http",
           "children": {}
         }
       }
@@ -114,8 +119,13 @@
           "name": "HTTP Service - /restaurant",
           "scope": "Global",
           "visibility": "module",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.3.png",
+          "icon": {
+            "url": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.17.1.png",
+            "kind": "http",
+            "source": "ballerina-central"
+          },
           "module": "http",
+          "triggerKind": "http",
           "children": {
             "post#orders": {
               "id": "post#orders",

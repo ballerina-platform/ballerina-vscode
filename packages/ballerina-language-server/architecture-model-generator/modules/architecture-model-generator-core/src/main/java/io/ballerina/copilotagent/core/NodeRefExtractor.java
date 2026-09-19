@@ -18,7 +18,11 @@
 
 package io.ballerina.copilotagent.core;
 
+import io.ballerina.compiler.syntax.tree.ClassDefinitionNode;
+import io.ballerina.compiler.syntax.tree.ConstantDeclarationNode;
+import io.ballerina.compiler.syntax.tree.EnumDeclarationNode;
 import io.ballerina.compiler.syntax.tree.FunctionDefinitionNode;
+import io.ballerina.compiler.syntax.tree.ImportDeclarationNode;
 import io.ballerina.compiler.syntax.tree.ListenerDeclarationNode;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
 import io.ballerina.compiler.syntax.tree.ModuleVariableDeclarationNode;
@@ -47,6 +51,7 @@ public class NodeRefExtractor extends NodeVisitor {
 
     @Override
     public void visit(ModulePartNode modulePartNode) {
+        modulePartNode.imports().forEach(importNode -> importNode.accept(this));
         modulePartNode.members().forEach(member -> member.accept(this));
     }
 
@@ -80,6 +85,42 @@ public class NodeRefExtractor extends NodeVisitor {
         String key = CommonUtils.getVariableName(
                 moduleVariableDeclarationNode.typedBindingPattern().bindingPattern());
         this.nodeRefMap.putModuleVarNode(key, moduleVariableDeclarationNode);
+    }
+
+    @Override
+    public void visit(ConstantDeclarationNode constantDeclarationNode) {
+        String key = constantDeclarationNode.variableName().text().trim();
+        this.nodeRefMap.putConstantNode(key, constantDeclarationNode);
+    }
+
+    @Override
+    public void visit(EnumDeclarationNode enumDeclarationNode) {
+        String key = enumDeclarationNode.identifier().text().trim();
+        this.nodeRefMap.putEnumNode(key, enumDeclarationNode);
+    }
+
+    @Override
+    public void visit(ClassDefinitionNode classDefinitionNode) {
+        String key = classDefinitionNode.className().text().trim();
+        this.nodeRefMap.putClassNode(key, classDefinitionNode);
+    }
+
+    @Override
+    public void visit(ImportDeclarationNode importDeclarationNode) {
+        // Key by the imported module identity plus alias: the same module may legally be
+        // imported more than once under different prefixes, and identity-only keys would
+        // silently overwrite one of them. An alias-only change therefore reads as a
+        // deletion+addition pair rather than a modification — an acceptable trade for
+        // never dropping an import from the diff.
+        String orgName = importDeclarationNode.orgName().map(org -> org.orgName().text() + "/").orElse("");
+        String moduleName = importDeclarationNode.moduleName().stream()
+                .map(identifier -> identifier.text().trim())
+                .collect(Collectors.joining("."));
+        // " as <prefix>" keeps the key readable, since it doubles as the diff's display name.
+        String prefix = importDeclarationNode.prefix()
+                .map(p -> " as " + p.prefix().text().trim())
+                .orElse("");
+        this.nodeRefMap.putImportNode(orgName + moduleName + prefix, importDeclarationNode);
     }
 
     private static String getPath(NodeList<Node> paths) {

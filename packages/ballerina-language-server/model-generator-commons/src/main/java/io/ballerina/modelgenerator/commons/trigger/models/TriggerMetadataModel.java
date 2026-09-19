@@ -21,7 +21,7 @@ package io.ballerina.modelgenerator.commons.trigger.models;
 import java.util.List;
 
 /**
- * Deserialization target for a connector's {@code resources/trigger-metadata.json}, per the
+ * Deserialization target for a connector's {@code metadata/trigger-metadata.json}, per the
  * Ballerina Trigger Construct Spec v1.0.
  *
  * @param version spec version this instance conforms to, e.g. {@code "v1.0"}
