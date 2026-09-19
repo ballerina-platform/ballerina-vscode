@@ -7,7 +7,7 @@
         {
           "symbol": "supportModel",
           "location": {
-            "filePath": "/Users/hasitha/Source/workflow/ballerina-vscode-agentic/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_16/agent.bal",
+            "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode.worktrees/pr-1104-review-fixes/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_16/agent.bal",
             "startLine": {
               "line": 3,
               "offset": 0
@@ -18,11 +18,12 @@
             }
           },
           "scope": "GLOBAL",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.12.0.png?wso2_icon",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png?wso2_icon",
           "dependentFunctions": [],
           "dependentConnection": [],
           "kind": "Model Provider",
-          "uuid": "5bb983fd-b75f-7487-2106-916df0a3c268",
+          "typeName": "Wso2ModelProvider",
+          "uuid": "ad465286-d437-c3cb-f6d5-1c9a51c4020e",
           "enableFlowModel": true,
           "sortText": "agent.bal3"
         }
@@ -33,7 +34,7 @@
         {
           "symbol": "supportAgent",
           "location": {
-            "filePath": "/Users/hasitha/Source/workflow/ballerina-vscode-agentic/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_16/agent.bal",
+            "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode.worktrees/pr-1104-review-fixes/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_16/agent.bal",
             "startLine": {
               "line": 5,
               "offset": 0
@@ -57,11 +58,12 @@
           "humanTasks": [],
           "activities": [],
           "connections": [
-            "5bb983fd-b75f-7487-2106-916df0a3c268"
+            "ad465286-d437-c3cb-f6d5-1c9a51c4020e"
           ],
           "invalidSendDataServices": [],
           "invalidSendDataFunctions": [],
-          "uuid": "28f57a0f-2762-0adf-1f6f-baf5f3adcc93",
+          "role": "Support triage",
+          "uuid": "e2597a5a-b879-77c5-74c2-d08688b30fa3",
           "enableFlowModel": true,
           "sortText": "agent.bal5"
         }

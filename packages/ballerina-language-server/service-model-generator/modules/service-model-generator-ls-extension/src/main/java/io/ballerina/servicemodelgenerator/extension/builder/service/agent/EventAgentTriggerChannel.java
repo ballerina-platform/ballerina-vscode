@@ -67,9 +67,14 @@ public class EventAgentTriggerChannel implements AgentTriggerChannel {
                     log:printError("Agent run failed", result);
                     return;
                 }
-                // TODO: replace this with what should happen with the agent's answer
-                log:printInfo("Agent result", result = result);
+                {{resultLog}}
             }""";
+
+    private static final String RESULT_LOG = """
+            // TODO: replace this with what should happen with the agent's answer
+            log:printInfo("Agent result", result = result);""";
+    private static final String INSTANCE_LOG = """
+            log:printInfo("Agent started", instanceId = result);""";
 
     private final String moduleName;
     private final AgentTriggerKind kind;
@@ -260,7 +265,8 @@ public class EventAgentTriggerChannel implements AgentTriggerChannel {
     private String replyMethod(AgentTriggerContext context, String methodName, List<HandlerParameter> parameters) {
         String promptExpression = AgentPromptBuilder.promptExpression(context.formValue(INSTRUCTIONS),
                 DEFAULT_INSTRUCTIONS, SOLE_PAYLOAD_LABEL, parameters);
-        return AgentTriggerChannel.indent(REPLY_METHOD)
+        String resultLog = context.isDurable() ? INSTANCE_LOG : RESULT_LOG;
+        return AgentTriggerChannel.indent(REPLY_METHOD.replace("{{resultLog}}", resultLog))
                 .replace("{{method}}", methodName)
                 .replace("{{params}}", parameters.stream()
                         .map(parameter -> parameter.type() + SPACE + parameter.name())

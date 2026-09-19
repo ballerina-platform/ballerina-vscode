@@ -38,6 +38,7 @@ public class TelegramChannel implements AgentTriggerChannel {
 
     private static final String SERVICE_BLOCK = """
             service {{alias}}:TelegramService on {{listener}} {
+            {{durableHelpers}}
                 final {{alias}}:Client telegramClient;
 
                 function init() returns error? {

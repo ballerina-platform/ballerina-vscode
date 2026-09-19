@@ -30,7 +30,7 @@ public class GoogleChatChannel implements AgentTriggerChannel {
 
     private static final String SERVICE_BLOCK = """
             service {{alias}}:ChatService on {{listener}} {
-
+            {{durableHelpers}}
                 remote function onMessage({{alias}}:MessageEvent event, {{alias}}:MessageCaller caller)
                         returns error? {
                     check caller->respond();

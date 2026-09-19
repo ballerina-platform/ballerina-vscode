@@ -1,34 +1,37 @@
 import ballerina/ai;
+import ballerina/workflow;
 
-final ai:Wso2ModelProvider supportModel = check ai:getDefaultModelProvider();
+final ai:Wso2ModelProvider claimModel = check new ("http://localhost:9099", "test-token");
 
-// Delegates to specialistAgent (via delegateToSpecialist) and uses an http:Client (via callHttpTool).
-final ai:Agent supervisorAgent = check new (
-    systemPrompt = {role: "Supervisor", instructions: string `Route to a specialist.`},
-    model = supportModel,
-    tools = [delegateToSpecialist, callHttpTool]
+final ai:Agent stockAgent = check new (
+    systemPrompt = {role: "Stock desk", instructions: "Answer whether an item is in stock."},
+    model = claimModel
 );
 
-final ai:MessageWindowChatMemory sharedMemory = new (10);
+final workflow:DurableAgent paymentAgent = check new ({
+    systemPrompt: {role: "Payment desk", instructions: "Release payments."},
+    model: claimModel,
+    activities: [executePayment],
+    humanTasks: {
+        release: {userRoles: "FINANCE", resultType: string, title: "Release payment"}
+    }
+});
 
-final ai:Agent specialistAgent = check new (
-    systemPrompt = {role: "Specialist", instructions: string `Handle the request.`},
-    model = supportModel,
-    memory = sharedMemory,
-    tools = [ticketTools, check new ai:McpToolKit("http://localhost:9701/mcp")]
-);
-
-// No entry point and no delegation edge reaches this agent -- exercises the orphan case.
-final ai:Agent orphanAgent = check new (
-    systemPrompt = {role: "Orphan", instructions: string `Never called.`},
-    model = supportModel,
-    tools = []
-);
-
-// Inline default provider -- no provider variable exists, so the agent records the default marker itself.
-final ai:Agent inlineModelAgent = check new (
-    systemPrompt = {role: "Inline", instructions: string `Uses the default model provider inline.`},
-    model = check ai:getDefaultModelProvider(),
-    memory = new ai:MessageWindowChatMemory(5),
-    tools = []
-);
+final workflow:DurableAgent claimAgent = check new ({
+    systemPrompt: {role: "Smart Claim assistant", instructions: "Run one claim case end to end."},
+    model: claimModel,
+    maxIter: 24,
+    activities: [
+        fileClaim,
+        {activity: validateClaim, description: "Apply the pre-approval rules."},
+        notifyUser,
+        {activity: executePayment, requiresApproval: true, userRoles: "ACCOUNTANT",
+            description: "Release the payment. Gated on an accountant."}
+    ],
+    tools: [askStock],
+    events: {chat: {request: string, response: string, cardinality: workflow:MULTI_EVENT}},
+    humanTasks: {
+        managerApproval: {userRoles: ["MANAGER", "DIRECTOR"], resultType: string, title: "Manager sign-off"}
+    },
+    peers: [{agent: paymentAgent, name: "pay", requiresApproval: true, userRoles: "FINANCE"}]
+});

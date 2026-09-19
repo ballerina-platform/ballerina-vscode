@@ -171,7 +171,8 @@ public class ServiceBuilderRouter {
         GetServiceInitModelContext context = new GetServiceInitModelContext(
                 request.orgName(), request.pkgName(), request.moduleName(), request.version(),
                 project, semanticModel, document, request.isLocalRepository(),
-                request.agentName(), request.agentOrgName());
+                request.agentName(), request.agentOrgName(), request.agentKind(), request.eventChannel(),
+                request.eventResponse());
         ServiceNodeBuilder serviceBuilder;
         if (AgentTriggerServiceBuilder.handles(request)) {
             serviceBuilder = new AgentTriggerServiceBuilder();

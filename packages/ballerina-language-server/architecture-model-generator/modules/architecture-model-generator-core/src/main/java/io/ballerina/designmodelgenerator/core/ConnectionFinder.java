@@ -262,7 +262,7 @@ public class ConnectionFinder {
                 lineRange.endLine());
     }
 
-    public SeparatedNodeList<FunctionArgumentNode> getArgList(NewExpressionNode newExpressionNode) {
+    public static SeparatedNodeList<FunctionArgumentNode> getArgList(NewExpressionNode newExpressionNode) {
         if (newExpressionNode instanceof ExplicitNewExpressionNode explicitNewExpressionNode) {
             return explicitNewExpressionNode.parenthesizedArgList().arguments();
         } else {
@@ -326,7 +326,7 @@ public class ConnectionFinder {
     // An agent's tools list: functions by name, MCP toolkits by their variable, class field or server URL.
     private void recordToolListEntries(Connection connection, ListConstructorExpressionNode list) {
         for (Node expr : list.expressions()) {
-            if (isMcpToolKit(expr)) {
+            if (isMcpToolKit(this.semanticModel, expr)) {
                 connection.addMcpToolKit(mcpToolKitLabel(expr));
                 continue;
             }
@@ -337,12 +337,12 @@ public class ConnectionFinder {
         }
     }
 
-    private boolean isMcpToolKit(Node expr) {
-        return this.semanticModel.typeOf(expr).map(CommonUtils::isAiMcpToolKit).orElse(false);
+    static boolean isMcpToolKit(SemanticModel semanticModel, Node expr) {
+        return semanticModel.typeOf(expr).map(CommonUtils::isAiMcpToolKit).orElse(false);
     }
 
     // A named toolkit reads by its variable or class field; an inline `new ai:McpToolKit("url")` by its server URL.
-    private String mcpToolKitLabel(Node expr) {
+    static String mcpToolKitLabel(Node expr) {
         Node inner = unwrapCheck(expr);
         if (inner instanceof SimpleNameReferenceNode reference) {
             return reference.name().text();
@@ -356,7 +356,7 @@ public class ConnectionFinder {
         return MCP_SERVER;
     }
 
-    private Optional<String> firstStringArgument(NewExpressionNode newExpression) {
+    private static Optional<String> firstStringArgument(NewExpressionNode newExpression) {
         return getArgList(newExpression).stream()
                 .filter(arg -> arg instanceof PositionalArgumentNode positional
                         && positional.expression() instanceof BasicLiteralNode literal

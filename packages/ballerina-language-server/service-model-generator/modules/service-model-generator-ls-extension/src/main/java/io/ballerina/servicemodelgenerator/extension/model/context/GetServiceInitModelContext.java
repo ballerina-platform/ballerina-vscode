@@ -21,6 +21,7 @@ package io.ballerina.servicemodelgenerator.extension.model.context;
 import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.projects.Document;
 import io.ballerina.projects.Project;
+import io.ballerina.servicemodelgenerator.extension.builder.service.agent.AgentTriggerContext;
 
 /**
  * Context for getting the initial service model.
@@ -36,9 +37,32 @@ import io.ballerina.projects.Project;
  *                          result rather than Central (see {@code ServiceModelRequest.isLocalRepository})
  * @param agentName         the agent variable this trigger is created for, or {@code null}
  * @param agentOrgName      the publishing org of that agent, deciding {@code .run} vs {@code ->run}
+ * @param agentKind         {@code "durable"} for a {@code workflow:DurableAgent}, else {@code null}
+ * @param eventChannel      the data-event channel an event trigger sends on, or {@code null}
+ * @param eventResponse     the declared type of an event trigger's response, or {@code null}
  * @since 1.3.0
  */
 public record GetServiceInitModelContext(String orgName, String packageName, String moduleName, String version,
                                          Project project, SemanticModel semanticModel, Document document,
-                                         boolean isLocalRepository, String agentName, String agentOrgName) {
+                                         boolean isLocalRepository, String agentName, String agentOrgName,
+                                         String agentKind, String eventChannel, String eventResponse) {
+
+    public GetServiceInitModelContext(String orgName, String packageName, String moduleName, String version,
+                                      Project project, SemanticModel semanticModel, Document document,
+                                      boolean isLocalRepository, String agentName, String agentOrgName,
+                                      String agentKind) {
+        this(orgName, packageName, moduleName, version, project, semanticModel, document, isLocalRepository,
+                agentName, agentOrgName, agentKind, null, null);
+    }
+
+    public GetServiceInitModelContext(String orgName, String packageName, String moduleName, String version,
+                                      Project project, SemanticModel semanticModel, Document document,
+                                      boolean isLocalRepository, String agentName, String agentOrgName) {
+        this(orgName, packageName, moduleName, version, project, semanticModel, document, isLocalRepository,
+                agentName, agentOrgName, null);
+    }
+
+    public boolean isEventTrigger() {
+        return AgentTriggerContext.DURABLE_KIND.equals(agentKind) && eventChannel != null && !eventChannel.isBlank();
+    }
 }

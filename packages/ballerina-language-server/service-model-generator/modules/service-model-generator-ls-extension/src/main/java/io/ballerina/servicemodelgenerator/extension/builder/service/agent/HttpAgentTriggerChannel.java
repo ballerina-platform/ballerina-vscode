@@ -59,6 +59,7 @@ import java.util.regex.Pattern;
 import static io.ballerina.servicemodelgenerator.extension.model.ServiceInitModel.KEY_CONFIGURE_ENDPOINT;
 import static io.ballerina.servicemodelgenerator.extension.model.ServiceInitModel.KEY_EXISTING_SERVICE;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.HTTP_PARAM_TYPE_HEADER;
+import static io.ballerina.servicemodelgenerator.extension.util.Constants.HTTP_PARAM_TYPE_PAYLOAD;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.NEW_LINE;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.SPACE;
 
@@ -103,6 +104,8 @@ public class HttpAgentTriggerChannel implements AgentTriggerChannel {
 
     private static final String DEFAULT_SIGNATURE =
             "resource function post .(@http:Payload string payload) returns string|error ";
+    private static final String DURABLE_DEFAULT_SIGNATURE =
+            "resource function post .(@http:Payload string payload) returns http:Accepted|error ";
 
     private static final String RESOURCE = """
             {{signature}}{
@@ -117,6 +120,33 @@ public class HttpAgentTriggerChannel implements AgentTriggerChannel {
     private static final String RETURN_ANSWER = "        return result;" + NEW_LINE;
 
     private static final String RETURN_ANSWER_AS_BODY = "        return {body: result};" + NEW_LINE;
+
+    private static final String RETURN_INSTANCE_ID =
+            "        return <http:Accepted>{body: {instanceId: result}};" + NEW_LINE;
+
+    private static final String INSTANCE_PARAM = "instanceId";
+    private static final String EVENT_SIGNATURE =
+            "resource function post [string " + INSTANCE_PARAM + "](@http:Payload string payload) returns ";
+    private static final List<HandlerParameter> EVENT_PATH_PARAMETERS =
+            List.of(new HandlerParameter(STRING_TYPE, INSTANCE_PARAM, true));
+    private static final String EVENT_RESOURCE = """
+            {{signature}}{
+                do {
+                    string token = check {{sendData}};
+                    {{answerType}} result = check {{agent}}.waitForDataResult({{instance}}, token);
+            {{return}}    } on fail error err {
+                    return error("unhandled error", err);
+                }
+            }""";
+    private static final String ONE_WAY_EVENT_RESOURCE = """
+            {{signature}}{
+                do {
+                    _ = check {{sendData}};
+                    return http:ACCEPTED;
+                } on fail error err {
+                    return error("unhandled error", err);
+                }
+            }""";
 
     private static final String RETURN_ANSWER_UNMAPPED =
             "        // TODO: map the agent's result to the declared response type and return it" + NEW_LINE
@@ -289,6 +319,11 @@ public class HttpAgentTriggerChannel implements AgentTriggerChannel {
                 "What the agent should do with each request.", DEFAULT_INSTRUCTIONS));
     }
 
+    @Override
+    public Map<String, Value> additionalProperties(GetServiceInitModelContext context) {
+        return context.isEventTrigger() ? Map.of() : additionalProperties();
+    }
+
     private static Value listenerChooser(GetServiceInitModelContext context) {
         if (context.document() == null) {
             return null;
@@ -354,23 +389,83 @@ public class HttpAgentTriggerChannel implements AgentTriggerChannel {
 
     private static String resource(AgentTriggerContext context) {
         Function shaped = context.initForm().getResource();
+        if (context.isEventTrigger()) {
+            return eventResource(context, shaped);
+        }
         return shaped == null ? defaultResource(context) : shapedResource(context, shaped);
     }
 
     private static String shapedResource(AgentTriggerContext context, Function shaped) {
+        // A durable `run` returns the instance id, not the answer, so it can't be mapped to the shaped response.
+        Answer answer = context.isDurable() ? new Answer(STRING_TYPE, false, false) : answer(shaped);
+        return body(context, shapedHeader(context, shaped), answer, promptParameters(shaped));
+    }
+
+    private static String shapedHeader(AgentTriggerContext context, Function shaped) {
         List<String> newTypeDefinitions = new ArrayList<>();
         Map<String, String> importsForMainBal = new LinkedHashMap<>();
         String signature = HttpUtil.generateHttpResourceSignature(shaped, newTypeDefinitions, importsForMainBal,
                 context.auxiliaryImports(), true);
         context.auxiliaryTypes().addAll(newTypeDefinitions);
-        String header = "resource function " + accessor(shaped) + SPACE + resourcePath(shaped) + signature;
-        Answer answer = answer(shaped);
-        return body(context, header, answer, promptParameters(shaped));
+        return "resource function " + accessor(shaped) + SPACE + resourcePath(shaped) + signature;
+    }
+
+    private static String eventResource(AgentTriggerContext context, Function shaped) {
+        boolean oneWay = context.eventResponse().isEmpty();
+        String header = shaped == null ? EVENT_SIGNATURE + (oneWay ? "http:Accepted" : context.eventResponse())
+                + "|error " : shapedHeader(context, shaped);
+        String instance = instanceExpression(shaped);
+        String sendData = "%s.sendData(%s, \"%s\", %s)".formatted(context.agentVarName(), instance,
+                context.eventChannel(), dataExpression(shaped));
+        if (oneWay) {
+            return AgentTriggerChannel.indent(ONE_WAY_EVENT_RESOURCE)
+                    .replace("{{signature}}", header)
+                    .replace("{{sendData}}", sendData);
+        }
+        Answer answer = shaped == null ? Answer.of(context.eventResponse(), false) : answer(shaped);
+        return AgentTriggerChannel.indent(EVENT_RESOURCE.replace("{{return}}", returnStatement(answer)))
+                .replace("{{signature}}", header)
+                .replace("{{answerType}}", answer.type())
+                .replace("{{agent}}", context.agentVarName())
+                .replace("{{instance}}", instance)
+                .replace("{{sendData}}", sendData);
+    }
+
+    private static String instanceExpression(Function shaped) {
+        List<HandlerParameter> pathParameters = shaped == null ? EVENT_PATH_PARAMETERS : pathParameters(shaped);
+        if (pathParameters.isEmpty()) {
+            throw new GenerationRefusedException(INSTANCE_PARAM,
+                    "Add a path parameter for the instance id, such as [string instanceId].");
+        }
+        // Prefer a path parameter literally named "instanceId" over the first, e.g. a leading tenant id.
+        return pathParameters.stream().filter(parameter -> INSTANCE_PARAM.equals(parameter.name())).findFirst()
+                .orElse(pathParameters.getFirst()).name();
+    }
+
+    private static String dataExpression(Function shaped) {
+        if (shaped == null) {
+            return DEFAULT_PAYLOAD_NAME;
+        }
+        List<Parameter> parameters = shaped.getParameters() == null ? List.of() : shaped.getParameters();
+        List<Parameter> carrying = parameters.stream()
+                .filter(parameter -> parameter.isEnabled() && valueOf(parameter.getName()) != null
+                        && !HTTP_PARAM_TYPE_HEADER.equals(parameter.getHttpParamType()))
+                .toList();
+        return carrying.stream()
+                .filter(parameter -> HTTP_PARAM_TYPE_PAYLOAD.equals(parameter.getHttpParamType()))
+                .findFirst()
+                .or(() -> carrying.stream().findFirst())
+                .map(parameter -> valueOf(parameter.getName()))
+                .orElseThrow(() -> new GenerationRefusedException(DEFAULT_PAYLOAD_NAME,
+                        "Add a payload parameter to carry the data sent on the channel."));
     }
 
     private static String defaultResource(AgentTriggerContext context) {
-        return body(context, DEFAULT_SIGNATURE, Answer.text(false),
-                List.of(new HandlerParameter(STRING_TYPE, DEFAULT_PAYLOAD_NAME, true)));
+        List<HandlerParameter> parameters = List.of(new HandlerParameter(STRING_TYPE, DEFAULT_PAYLOAD_NAME, true));
+        if (context.isDurable()) {
+            return body(context, DURABLE_DEFAULT_SIGNATURE, Answer.instanceId(), parameters);
+        }
+        return body(context, DEFAULT_SIGNATURE, Answer.text(false), parameters);
     }
 
     private static String body(AgentTriggerContext context, String header, Answer answer,
@@ -384,10 +479,18 @@ public class HttpAgentTriggerChannel implements AgentTriggerChannel {
                 .replace("{{agentRun}}", context.agentRun(promptExpression));
     }
 
-    private record Answer(String type, boolean wrapped, boolean deliverable) {
+    private record Answer(String type, boolean wrapped, boolean deliverable, boolean acknowledged) {
+
+        Answer(String type, boolean wrapped, boolean deliverable) {
+            this(type, wrapped, deliverable, false);
+        }
 
         static Answer text(boolean wrapped) {
             return new Answer(STRING_TYPE, wrapped, true);
+        }
+
+        static Answer instanceId() {
+            return new Answer(STRING_TYPE, false, true, true);
         }
 
         // `run` is dependently typed, so the declared type binds the answer — but only a subtype of `json`.
@@ -406,6 +509,9 @@ public class HttpAgentTriggerChannel implements AgentTriggerChannel {
     }
 
     private static String returnStatement(Answer answer) {
+        if (answer.acknowledged()) {
+            return RETURN_INSTANCE_ID;
+        }
         if (!answer.deliverable()) {
             return RETURN_ANSWER_UNMAPPED;
         }
