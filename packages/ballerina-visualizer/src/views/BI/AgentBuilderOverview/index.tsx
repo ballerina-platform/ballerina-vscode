@@ -143,6 +143,13 @@ const BreadcrumbLabel = styled.div`
     color: var(--vscode-foreground);
 `;
 
+const StripActions = styled.div`
+    display: flex;
+    align-items: stretch;
+    flex-shrink: 0;
+    height: 100%;
+`;
+
 const AddAgentButton = styled.button`
     display: flex;
     align-items: center;
@@ -515,10 +522,21 @@ export function AgentBuilderOverview({ projectPath, agentFocus, isInDevant, isIC
                                 <Layer $show={canvasVisible}>
                                     <Strip>
                                         <BreadcrumbLabel>{OVERVIEW_TITLE}</BreadcrumbLabel>
-                                        <AddAgentButton onClick={() => setShowAddAgent(true)} title="Add an agent to this project">
-                                            <Icon name="bi-plus" sx={{ fontSize: 16, width: 16, height: 16 }} />
-                                            Add Agent
-                                        </AddAgentButton>
+                                        <StripActions>
+                                            <AddAgentButton onClick={() => setShowAddAgent(true)} title="Add an agent to this project">
+                                                <Icon name="bi-plus" sx={{ fontSize: 16, width: 16, height: 16 }} />
+                                                Add Agent
+                                            </AddAgentButton>
+                                            {!isLibrary && (
+                                                <AddAgentButton
+                                                    onClick={() => setShowAddMcpService(true)}
+                                                    title="Add an MCP server to this project"
+                                                >
+                                                    <Icon name="bi-plus" sx={{ fontSize: 16, width: 16, height: 16 }} />
+                                                    Add MCP
+                                                </AddAgentButton>
+                                            )}
+                                        </StripActions>
                                     </Strip>
                                     <CanvasSlot>
                                         <React.Suspense
