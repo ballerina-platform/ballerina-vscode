@@ -43,6 +43,7 @@ import { openAddAgentTrigger } from "../AIChatAgent/utils";
 const LazyAgentTopology = React.lazy(() => import("../AgentTopology"));
 const LazyAddAgentPopup = React.lazy(() => import("../AIChatAgent/AddAgentPopup"));
 const LazyAddLibraryArtifactPopup = React.lazy(() => import("./AddLibraryArtifactPopup"));
+const LazyAddMcpServicePopup = React.lazy(() => import("./AddMcpServicePopup"));
 
 const Page = styled.div`
     display: flex;
@@ -142,6 +143,13 @@ const BreadcrumbLabel = styled.div`
     color: var(--vscode-foreground);
 `;
 
+const StripActions = styled.div`
+    display: flex;
+    align-items: stretch;
+    flex-shrink: 0;
+    height: 100%;
+`;
+
 const AddAgentButton = styled.button`
     display: flex;
     align-items: center;
@@ -238,6 +246,7 @@ export function AgentBuilderOverview({ projectPath, agentFocus, isInDevant, isIC
     const [isInProject, setIsInProject] = useState(false);
     const [showAddAgent, setShowAddAgent] = useState(false);
     const [showAddLibraryArtifact, setShowAddLibraryArtifact] = useState(false);
+    const [showAddMcpService, setShowAddMcpService] = useState(false);
     const [canvasReady, setCanvasReady] = useState(false);
     // Only true once the empty state has actually been on screen, so opening a
     // package that already has agents never mounts it — it just fades out once shown.
@@ -513,10 +522,21 @@ export function AgentBuilderOverview({ projectPath, agentFocus, isInDevant, isIC
                                 <Layer $show={canvasVisible}>
                                     <Strip>
                                         <BreadcrumbLabel>{OVERVIEW_TITLE}</BreadcrumbLabel>
-                                        <AddAgentButton onClick={() => setShowAddAgent(true)} title="Add an agent to this project">
-                                            <Icon name="bi-plus" sx={{ fontSize: 16, width: 16, height: 16 }} />
-                                            Add Agent
-                                        </AddAgentButton>
+                                        <StripActions>
+                                            <AddAgentButton onClick={() => setShowAddAgent(true)} title="Add an agent to this project">
+                                                <Icon name="bi-plus" sx={{ fontSize: 16, width: 16, height: 16 }} />
+                                                Add Agent
+                                            </AddAgentButton>
+                                            {!isLibrary && (
+                                                <AddAgentButton
+                                                    onClick={() => setShowAddMcpService(true)}
+                                                    title="Add an MCP server to this project"
+                                                >
+                                                    <Icon name="bi-plus" sx={{ fontSize: 16, width: 16, height: 16 }} />
+                                                    Add MCP
+                                                </AddAgentButton>
+                                            )}
+                                        </StripActions>
                                     </Strip>
                                     <CanvasSlot>
                                         <React.Suspense
@@ -547,6 +567,9 @@ export function AgentBuilderOverview({ projectPath, agentFocus, isInDevant, isIC
                                         isLibrary={isLibrary}
                                         onCreateFromScratch={() =>
                                             isLibrary ? setShowAddLibraryArtifact(true) : setShowAddAgent(true)
+                                        }
+                                        onAddMcpService={
+                                            isLibrary ? undefined : () => setShowAddMcpService(true)
                                         }
                                     />
                                 </Layer>
@@ -582,6 +605,14 @@ export function AgentBuilderOverview({ projectPath, agentFocus, isInDevant, isIC
             {showAddLibraryArtifact && (
                 <React.Suspense fallback={null}>
                     <LazyAddLibraryArtifactPopup onClose={() => setShowAddLibraryArtifact(false)} />
+                </React.Suspense>
+            )}
+            {showAddMcpService && (
+                <React.Suspense fallback={null}>
+                    <LazyAddMcpServicePopup
+                        projectPath={projectPath}
+                        onClose={() => setShowAddMcpService(false)}
+                    />
                 </React.Suspense>
             )}
         </>
