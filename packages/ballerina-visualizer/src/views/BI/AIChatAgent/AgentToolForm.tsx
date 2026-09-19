@@ -289,7 +289,7 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
             const request: BISearchRequest = {
                 position: { startLine: position, endLine: position },
                 filePath,
-                queryMap: undefined,
+                queryMap: { excludeLibrary: "true" },
                 searchKind: "FUNCTION",
             };
             const response = await rpcClient.getBIDiagramRpcClient().search(request);
