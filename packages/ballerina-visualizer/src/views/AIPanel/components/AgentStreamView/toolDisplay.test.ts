@@ -62,6 +62,10 @@ describe("getFileName", () => {
         expect(getFileName("main.bal")).toBe("main.bal");
     });
 
+    it("strips a backslash path too, matching MiniChat's describeTool", () => {
+        expect(getFileName("modules\\helpers\\types.bal")).toBe("types.bal");
+    });
+
     it("falls back to a placeholder when the path is missing", () => {
         expect(getFileName(undefined)).toBe("file");
     });
@@ -109,6 +113,17 @@ describe("getToolCallDisplay", () => {
         });
     });
 
+    it("names a delete by its filename, distinctly from an edit", () => {
+        expect(getToolCallDisplay("file_delete", { fileName: "a/todo.bal" })).toEqual({
+            label: "Deleting",
+            detail: "todo.bal...",
+        });
+    });
+
+    it("labels a scratch run as a try-out, not a run of the project", () => {
+        expect(getToolCallDisplay("runBallerinaScratch", {}).label).toBe("Trying it out...");
+    });
+
     it("distinguishes a service run from a program run", () => {
         expect(getToolCallDisplay("runBallerinaPackage", { runType: "service" }).label).toBe("Running service...");
         expect(getToolCallDisplay("runBallerinaPackage", {}).label).toBe("Running program...");
@@ -124,6 +139,19 @@ describe("getToolResultDisplay", () => {
     it("reports created vs updated from the result action", () => {
         expect(getToolResultDisplay("file_write", { fileName: "m.bal", action: "updated" }).label).toBe("Updated");
         expect(getToolResultDisplay("file_write", { fileName: "m.bal", action: "created" }).label).toBe("Created");
+    });
+
+    it("reports a delete separately from an update", () => {
+        expect(getToolResultDisplay("file_delete", { fileName: "todo.bal" })).toEqual({
+            label: "Deleted",
+            detail: "todo.bal",
+        });
+    });
+
+    it("maps every scratch-run status to its own label", () => {
+        expect(getToolResultDisplay("runBallerinaScratch", { status: "completed" }).label).toBe("Try-out completed");
+        expect(getToolResultDisplay("runBallerinaScratch", { status: "timeout" }).label).toBe("Try-out timed out");
+        expect(getToolResultDisplay("runBallerinaScratch", { status: "error" }).label).toBe("Try-out failed");
     });
 
     it("summarises diagnostics by count", () => {

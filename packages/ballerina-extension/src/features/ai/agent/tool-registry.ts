@@ -23,6 +23,8 @@ import { createTaskWriteTool, TASK_WRITE_TOOL_NAME } from './tools/task-writer';
 import { createDiagnosticsTool, DIAGNOSTICS_TOOL_NAME } from './tools/diagnostics';
 import {
     createBatchEditTool,
+    createDeleteExecute,
+    createDeleteTool,
     createEditExecute,
     createEditTool,
     createMultiEditExecute,
@@ -31,6 +33,7 @@ import {
     createWriteExecute,
     createWriteTool,
     FILE_BATCH_EDIT_TOOL_NAME,
+    FILE_DELETE_TOOL_NAME,
     FILE_READ_TOOL_NAME,
     FILE_SINGLE_EDIT_TOOL_NAME,
     FILE_WRITE_TOOL_NAME
@@ -51,6 +54,7 @@ import {
     MIGRATION_SOURCE_READ_TOOL,
 } from './tools/migration-source-reader';
 import { createBallerinaRunTool, BALLERINA_RUN_TOOL_NAME } from './tools/ballerina-run';
+import { createBallerinaScratchRunTool, BALLERINA_SCRATCH_RUN_TOOL_NAME } from './tools/ballerina-scratch-run';
 import { createBallerinaGetLogsTool, BALLERINA_GET_LOGS_TOOL_NAME } from './tools/ballerina-get-logs';
 import { createBallerinaStopTool, BALLERINA_STOP_TOOL_NAME } from './tools/ballerina-stop';
 import { RunningServicesManager } from './tools/running-service-manager';
@@ -137,6 +141,9 @@ export function createToolRegistry(opts: ToolRegistryOptions) {
         [FILE_READ_TOOL_NAME]: createReadTool(
             createReadExecute(eventHandler, tempProjectPath)
         ),
+        [FILE_DELETE_TOOL_NAME]: createDeleteTool(
+            createDeleteExecute(eventHandler, tempProjectPath, modifiedFiles, allModifiedFiles, ctx)
+        ),
         [DIAGNOSTICS_TOOL_NAME]: createDiagnosticsTool(tempProjectPath, eventHandler),
         [TEST_RUNNER_TOOL_NAME]: createTestRunnerTool(tempProjectPath, eventHandler),
         // Migration source tools — registered only when a source project path is available
@@ -146,6 +153,7 @@ export function createToolRegistry(opts: ToolRegistryOptions) {
         } : {}),
         [HURL_TOOL_NAME]: createHurlTool(eventHandler),
         [BALLERINA_RUN_TOOL_NAME]: createBallerinaRunTool(tempProjectPath, opts.runningServices, eventHandler),
+        [BALLERINA_SCRATCH_RUN_TOOL_NAME]: createBallerinaScratchRunTool(tempProjectPath, eventHandler),
         [BALLERINA_GET_LOGS_TOOL_NAME]: createBallerinaGetLogsTool(opts.runningServices, eventHandler),
         [BALLERINA_STOP_TOOL_NAME]: createBallerinaStopTool(opts.runningServices, eventHandler),
         [WEB_SEARCH_TOOL_NAME]: createWebSearchTool(eventHandler, webSearchEnabled),
