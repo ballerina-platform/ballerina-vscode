@@ -18,7 +18,7 @@
             }
           },
           "scope": "GLOBAL",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png",
           "dependentFunctions": [],
           "dependentConnection": [
             "2caf81a5-9415-9357-bfe6-5357ae25867a"
@@ -28,7 +28,7 @@
           "modelProvider": {
             "symbol": "chatModel",
             "type": "Wso2ModelProvider",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png?wso2_icon"
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png?wso2_icon"
           },
           "typeName": "Agent",
           "uuid": "0f4b0a87-75ff-7fd2-407d-f2a15d0fa8d2",
@@ -49,7 +49,7 @@
             }
           },
           "scope": "GLOBAL",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png?wso2_icon",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png?wso2_icon",
           "dependentFunctions": [],
           "dependentConnection": [],
           "kind": "Model Provider",
@@ -86,7 +86,7 @@
           "modelProvider": {
             "symbol": "supportModel",
             "type": "Wso2ModelProvider",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png?wso2_icon"
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png?wso2_icon"
           },
           "typeName": "CustomSupportAgent",
           "mcpToolKits": [
@@ -132,7 +132,7 @@
             }
           },
           "scope": "GLOBAL",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png?wso2_icon",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png?wso2_icon",
           "dependentFunctions": [],
           "dependentConnection": [],
           "kind": "Model Provider",

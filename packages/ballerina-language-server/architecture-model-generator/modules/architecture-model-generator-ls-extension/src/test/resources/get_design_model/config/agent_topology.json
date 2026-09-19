@@ -18,7 +18,7 @@
             }
           },
           "scope": "GLOBAL",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png",
           "dependentFunctions": [],
           "dependentConnection": [
             "a0f8ee4d-4ca9-c3f6-8b72-811cb20421d5",
@@ -29,7 +29,7 @@
           "modelProvider": {
             "symbol": "supportModel",
             "type": "Wso2ModelProvider",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png?wso2_icon"
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png?wso2_icon"
           },
           "memory": {
             "symbol": "sharedMemory",
@@ -58,7 +58,7 @@
             }
           },
           "scope": "GLOBAL",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png",
           "dependentFunctions": [],
           "dependentConnection": [],
           "kind": "Agent",
@@ -88,7 +88,7 @@
             }
           },
           "scope": "GLOBAL",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png",
           "dependentFunctions": [],
           "dependentConnection": [
             "2ba623bb-8bd5-b138-7714-a570f4863bf8"
@@ -98,7 +98,7 @@
           "modelProvider": {
             "symbol": "supportModel",
             "type": "Wso2ModelProvider",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png?wso2_icon"
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png?wso2_icon"
           },
           "typeName": "Agent",
           "uuid": "d32dfe07-8f0d-8e10-617e-3575b88c33d2",
@@ -119,7 +119,7 @@
             }
           },
           "scope": "GLOBAL",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png",
           "dependentFunctions": [
             "delegateToSpecialist",
             "callHttpTool"
@@ -141,7 +141,7 @@
           "modelProvider": {
             "symbol": "supportModel",
             "type": "Wso2ModelProvider",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png?wso2_icon"
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png?wso2_icon"
           },
           "typeName": "Agent",
           "uuid": "0bdf6e0a-95ab-f2e5-7cf4-074560d54378",
@@ -162,7 +162,7 @@
             }
           },
           "scope": "GLOBAL",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png?wso2_icon",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png?wso2_icon",
           "dependentFunctions": [],
           "dependentConnection": [],
           "kind": "Model Provider",
@@ -206,7 +206,7 @@
             }
           },
           "scope": "GLOBAL",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png",
           "dependentFunctions": [],
           "dependentConnection": [],
           "kind": "Connection",

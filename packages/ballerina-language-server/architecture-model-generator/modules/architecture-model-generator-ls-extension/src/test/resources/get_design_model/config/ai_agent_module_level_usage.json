@@ -48,7 +48,7 @@
             }
           },
           "scope": "GLOBAL",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png?wso2_icon",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png?wso2_icon",
           "dependentFunctions": [],
           "dependentConnection": [],
           "kind": "Model Provider",
@@ -70,7 +70,7 @@
             }
           },
           "scope": "LOCAL",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png",
           "dependentFunctions": [],
           "dependentConnection": [
             "90d1bf41-ddf6-aa08-97a0-94f69d5e753b"
@@ -80,7 +80,7 @@
           "modelProvider": {
             "symbol": "mathTutorModel",
             "type": "Wso2ModelProvider",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png?wso2_icon"
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png?wso2_icon"
           },
           "uuid": "90433222-9f1e-3fed-2432-0101a5623e33",
           "enableFlowModel": false,
@@ -100,7 +100,7 @@
             }
           },
           "scope": "GLOBAL",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png",
           "dependentFunctions": [
             "sum"
           ],
@@ -112,7 +112,7 @@
           "modelProvider": {
             "symbol": "mathTutorModel",
             "type": "Wso2ModelProvider",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png?wso2_icon"
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png?wso2_icon"
           },
           "typeName": "Agent",
           "uuid": "edfbea7d-c767-4ff7-7254-4d21c7f051cd",
