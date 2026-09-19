@@ -18,8 +18,9 @@
 
 import React, { useState } from "react";
 import { PortWidget } from "@projectstorm/react-diagrams-core";
-import { CDAutomation, CDService, CDWorkflow, CDWorkflowEvent, CDWorkflowHumanTask, toIconDescriptor } from "@wso2/ballerina-core";
+import { CDAutomation, CDService, CDWorkflow, CDWorkflowEvent, CDWorkflowHumanTask, toIconDescriptor, toThemedSvgDataUri } from "@wso2/ballerina-core";
 import { Item, Menu, MenuItem, Popover, ImageWithFallback, Icon } from "@wso2/ui-toolkit";
+import { DurableAgentIcon } from "@wso2/bi-diagram";
 import { useDiagramContext } from "../../../DiagramContext";
 import { HttpIcon, TaskIcon } from "../../../../resources";
 import { MoreVertIcon } from "../../../../resources/icons/nodes/MoreVertIcon";
@@ -102,16 +103,30 @@ export function getColorByMethod(method: string) {
     }
 }
 
+const HTTP_SERVICE_TYPE = "http:Service";
+
+/**
+ * Renders a service's icon following the descriptor's representation order: the theme-specific SVG
+ * pair first, then the single `url` image, then the generic HTTP glyph. Each step falls through on a
+ * load failure, so a connector shipping an SVG the browser refuses still gets its `url` image rather
+ * than an empty icon slot.
+ *
+ * HTTP is drawn with the diagram's own bundled glyph rather than the descriptor, the way `ai` and
+ * `graphql` get their own widgets in {@link EntryNodeWidget}: it's the diagram's most common node
+ * and the one the canvas already has an icon designed for, so it should not depend on a remote
+ * package image that the theme can't follow and the webview may not be able to reach.
+ */
 function getServiceIcon(service: CDService) {
-    const descriptor = toIconDescriptor(service.icon);
-    const lightTheme = typeof document !== "undefined" && (document.body.classList.contains("vscode-light")
-        || document.body.classList.contains("vscode-high-contrast-light"));
-    const svg = lightTheme ? descriptor?.light : descriptor?.dark;
-    if (svg) {
-        const tinted = descriptor?.color ? svg.replace(/currentColor/g, descriptor.color) : svg;
-        return <img src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(tinted)}`} alt="" />;
+    if (service.type === HTTP_SERVICE_TYPE) {
+        return <HttpIcon />;
     }
-    return <ImageWithFallback imageUrl={descriptor?.url ?? ""} fallbackEl={<HttpIcon />} />;
+    const descriptor = toIconDescriptor(service.icon);
+    const svgDataUri = toThemedSvgDataUri(descriptor);
+    const urlIcon = <ImageWithFallback imageUrl={descriptor?.url ?? ""} fallbackEl={<HttpIcon />} />;
+    if (svgDataUri) {
+        return <ImageWithFallback imageUrl={svgDataUri} fallbackEl={urlIcon} />;
+    }
+    return urlIcon;
 }
 
 export function FunctionBox(props: { func: any; model: EntryNodeModel; engine: any; readonly?: boolean }) {
@@ -261,7 +276,7 @@ export function GeneralServiceWidget({ model, engine }: BaseNodeWidgetProps) {
         switch (model.type) {
             case "workflow":
                 return isDurableAgentWorkflow(model)
-                    ? <Icon name="bi-ai-agent" sx={{ fontSize: 24, width: 24, height: 24 }} />
+                    ? <DurableAgentIcon size={24} />
                     : <Icon name="bi-flowchart" sx={{ fontSize: 24, width: 24, height: 24 }} />;
             case "automation":
                 return <TaskIcon />;

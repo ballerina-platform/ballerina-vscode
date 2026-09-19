@@ -110,6 +110,7 @@ public class AgentCallBuilder extends CallBuilder {
     public void setConcreteTemplateData(TemplateContext context) {
         FlowNode callTemplate = getOrCreateCallFunctionTemplate(context);
         restoreFromTemplate(callTemplate);
+        fixQueryPromptType(this, true);
 
         Codedata contextCd = context.codedata();
         codedata().lineRange(contextCd.lineRange()).sourceCode(contextCd.sourceCode());
@@ -202,6 +203,14 @@ public class AgentCallBuilder extends CallBuilder {
             updatedProperty = AiUtils.createUpdatedProperty(updatedProperty, STRING);
         }
         props.put(key, AiUtils.convertToSingleSelect(updatedProperty, TD_OPTIONS));
+    }
+
+    /** Adds PROMPT to the query property on an AGENT_CALL node builder; no-op for any other builder. */
+    public static void fixQueryPromptType(NodeBuilder nodeBuilder, boolean defaultToPrompt) {
+        if (!(nodeBuilder instanceof AgentCallBuilder builder) || builder.formBuilder == null) {
+            return;
+        }
+        AiUtils.fixQueryPromptType(builder.formBuilder.build(), defaultToPrompt);
     }
 
     private Set<String> getVisibleSymbolNames(TemplateContext context) {

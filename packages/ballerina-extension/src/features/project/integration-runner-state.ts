@@ -299,7 +299,7 @@ export async function restartIntegration(targetPath: string): Promise<void> {
         // Preserve original mode so debug restarts keep breakpoints.
         const wasNoDebug = session.configuration.noDebug ?? true;
         await stopRun(sessionRun);
-        TracerMachine.startServer();
+        TracerMachine.startServer(targetPath);
         // Direct re-launch skips the BI run flow's Try-It suggestion.
         await startDebugging(Uri.file(targetPath), false, false, wasNoDebug);
         return;
@@ -311,7 +311,7 @@ export async function restartIntegration(targetPath: string): Promise<void> {
         }
         gcRun(run);
     }
-    TracerMachine.startServer();
+    TracerMachine.startServer(targetPath);
     // Wrap as Uri so the RUN handler avoids Uri.parse, which mishandles Windows paths.
     await commands.executeCommand(PALETTE_COMMANDS.RUN, Uri.file(targetPath));
 }

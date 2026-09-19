@@ -17,6 +17,7 @@
  */
 
 /** @jsxImportSource @emotion/react */
+import { isCapabilityApprovalGated } from "./capabilityApproval";
 import React, { ReactNode, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import styled from "@emotion/styled";
@@ -871,14 +872,10 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
         setMenuPos(null);
     };
 
-    // Whether an activity is gated by a review before the agent may run it. The value arrives as the
-    // declared source text — `true`, or the name of a predicate function — so anything other than
-    // absent or `false` gates it, which is how the chat agent's tool badge reads it too.
-    const isApprovalGated = (item: CapabilityItem) => {
-        const declared = (item.data as any)?.values?.requiresApproval;
-        const value = typeof declared === "string" ? declared.trim() : "";
-        return value !== "" && value !== "false";
-    };
+    // Whether a capability is gated by a review before the agent may run it. 0.10 declares a policy
+    // where 0.9 carried a flag, so the predicate reads the policy and falls back to the flag.
+    const isApprovalGated = (item: CapabilityItem) =>
+        isCapabilityApprovalGated((item.data as any)?.values);
 
     const onCapabilityClick = (item: CapabilityItem) => {
         if (readOnly) {
@@ -1609,10 +1606,24 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
                                     <div className="connector-icon">{renderCapabilityIcon(item)}</div>
                                 </foreignObject>
 
-                                {/* The same shield the chat agent puts on a gated tool, in the same bottom-right corner — the
-                                    only one free here, since the remove button owns the top-right. Keyed on the declared
-                                    `requiresApproval` rather than the capability kind, because a registered tool carries it too. */}
-                                {isApprovalGated(item) && <ApprovalBadge background={NODE_BG_COLOR} />}
+                                {/* The same shield the chat agent puts on a gated tool, in the same
+                                    bottom-right corner it now uses — which is also the only one free
+                                    here, since the remove button owns the top-right. Keyed on the
+                                    declared approval policy rather than the capability kind, because a
+                                    registered tool carries it too and used to render as ungated. The
+                                    click mirrors the circle underneath, which a tool does not have --
+                                    and neither does a read-only canvas, where the handler would be a
+                                    no-op the badge still advertised with a pointer cursor. */}
+                                {isApprovalGated(item) && (
+                                    <ApprovalBadge
+                                        background={NODE_BG_COLOR}
+                                        onClick={
+                                            readOnly || item.kind === "tool"
+                                                ? undefined
+                                                : () => onCapabilityClick(item)
+                                        }
+                                    />
+                                )}
 
                                 {/* HTML for the label so the open-flow button can sit right after text of any width. */}
                                 <foreignObject x="110" y="2" width={sideSvgWidth - 110} height="44" style={{ pointerEvents: "none" }}>

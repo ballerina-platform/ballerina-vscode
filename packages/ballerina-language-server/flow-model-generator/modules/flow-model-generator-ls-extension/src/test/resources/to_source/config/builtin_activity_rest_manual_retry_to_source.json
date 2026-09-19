@@ -1,6 +1,6 @@
 {
   "source": "workflow_function/functions.bal",
-  "description": "Create REST builtin activity call with ManualRetry policy (retryPolicy = workflow:ManualRetry)",
+  "description": "Create REST builtin activity call with a Human Review policy scoped to a role (retryPolicy = workflow:ManualRetry)",
   "diagram": {
     "id": "1",
     "metadata": {
@@ -149,6 +149,29 @@
         "editable": true,
         "advanced": false,
         "hidden": false
+      },
+      "retryUserRoles": {
+        "metadata": {
+          "label": "Reviewer Roles"
+        },
+        "valueType": "TEXT",
+        "value": "manager",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": true,
+        "types": [
+          {
+            "fieldType": "TEXT",
+            "ballerinaType": "string",
+            "selected": true
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string|string[]",
+            "selected": false
+          }
+        ]
       }
     }
   },
@@ -191,7 +214,7 @@
             "character": 0
           }
         },
-        "newText": "\njson result = check context->callActivity(activity:callRestAPI, {connection: httpClient, method: \"GET\", path: \"/users/1\"}, retryPolicy = {userRoles: []});"
+        "newText": "\njson result = check context->callActivity(activity:callRestAPI, {connection: httpClient, method: \"GET\", path: \"/users/1\"}, retryPolicy = {userRoles: \"manager\"});"
       }
     ]
   }

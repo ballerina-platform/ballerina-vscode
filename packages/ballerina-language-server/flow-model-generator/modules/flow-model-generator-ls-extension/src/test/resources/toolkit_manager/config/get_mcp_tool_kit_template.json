@@ -9,7 +9,7 @@
       "metadata": {
         "label": "ai",
         "description": "",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png"
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png"
       },
       "codedata": {
         "node": "MCP_TOOL_KIT",
@@ -17,7 +17,7 @@
         "module": "ai",
         "packageName": "ai",
         "object": "McpToolKit",
-        "version": "1.13.0",
+        "version": "1.15.0",
         "isNew": true
       },
       "returning": false,
@@ -590,7 +590,7 @@
                 },
                 {
                   "type": "AgentIdAuthConfig",
-                  "packageInfo": "ballerina:ai:1.13.0",
+                  "packageInfo": "ballerina:ai:1.15.0",
                   "packageName": "ai",
                   "kind": "RECORD_TYPE",
                   "selected": false

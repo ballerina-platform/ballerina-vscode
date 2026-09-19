@@ -40,18 +40,19 @@
         "advanced": false,
         "hidden": false
       },
-      "requiresApproval": {
+      "approvalPolicy": {
         "metadata": {
-          "label": "Requires Approval"
+          "label": "Approval Policy",
+          "description": "Whether a person approves before this runs"
         },
-        "valueType": "FLAG",
-        "value": "false",
-        "optional": true,
+        "valueType": "DROPDOWN_CHOICE",
+        "value": "NoApproval",
+        "optional": false,
         "editable": true,
-        "advanced": true,
+        "advanced": false,
         "hidden": false
       },
-      "userRoles": {
+      "approvalUserRoles": {
         "metadata": {
           "label": "Reviewer Roles"
         },
@@ -70,15 +71,15 @@
       {
         "range": {
           "start": {
-            "line": 21,
-            "character": 0
+            "line": 20,
+            "character": 5
           },
           "end": {
-            "line": 21,
-            "character": 0
+            "line": 20,
+            "character": 5
           }
         },
-        "newText": "\n, tools: [searchClaimDocs]"
+        "newText": "\n,\n    tools: [searchClaimDocs]"
       }
     ]
   }

@@ -244,6 +244,7 @@ export async function traverseComponents(artifacts: Artifacts, projectPath: stri
     response.directoryMap[DIRECTORY_MAP.DATA_MAPPER].push(...await getComponents(artifacts[ARTIFACT_TYPE.DataMappers], projectPath, DIRECTORY_MAP.DATA_MAPPER, "dataMapper"));
     response.directoryMap[DIRECTORY_MAP.CONNECTION].push(...await getComponents(artifacts[ARTIFACT_TYPE.Connections], projectPath, DIRECTORY_MAP.CONNECTION, "connection"));
     response.directoryMap[DIRECTORY_MAP.AGENT].push(...await getComponents(artifacts[ARTIFACT_TYPE.Agents], projectPath, DIRECTORY_MAP.AGENT, "bi-ai-agent"));
+    // Durable agents (workflow:DurableAgent declarations) list after the AI agents in the Agents section.
     response.directoryMap[DIRECTORY_MAP.AGENT].push(...await getComponents(artifacts[ARTIFACT_TYPE.Agents], projectPath, DIRECTORY_MAP.DURABLE_AGENT, "bi-ai-agent"));
     response.directoryMap[DIRECTORY_MAP.AGENT_DEFINITION].push(...await getComponents(artifacts[ARTIFACT_TYPE.AgentDefinitions], projectPath, DIRECTORY_MAP.AGENT_DEFINITION, "bi-ai-agent"));
     response.directoryMap[DIRECTORY_MAP.TYPE].push(...await getComponents(artifacts[ARTIFACT_TYPE.Types], projectPath, DIRECTORY_MAP.TYPE, "type"));
@@ -378,20 +379,18 @@ async function getComponents(
     return entries;
 }
 
-function publishedIdentity(artifact: BaseArtifact): { type: DIRECTORY_MAP; moduleName?: string } {
-    if (artifact.type === DIRECTORY_MAP.DURABLE_AGENT) {
-        return { type: DIRECTORY_MAP.AGENT, moduleName: "workflow" };
-    }
-    return { type: artifact.type, moduleName: artifact.module };
-}
-
 async function getEntryValue(artifact: BaseArtifact, projectPath: string, icon: string, moduleName?: string) {
     const targetFile = Utils.joinPath(URI.file(projectPath), artifact.location.fileName).fsPath;
     const entryValue: ProjectStructureArtifactResponse = {
         id: artifact.id,
         name: artifact.name,
         path: targetFile,
-        ...publishedIdentity(artifact),
+        moduleName: artifact.module,
+        // The WSO2 Integrator shell's explorer renders a section's children only when the entry
+        // type matches the section, so a durable agent presents as an AGENT entry; `kind` keeps
+        // what it is, which click routing uses to open the agent model instead of the AI agent.
+        type: artifact.type === DIRECTORY_MAP.DURABLE_AGENT ? DIRECTORY_MAP.AGENT : artifact.type,
+        kind: artifact.type === DIRECTORY_MAP.DURABLE_AGENT ? DIRECTORY_MAP.DURABLE_AGENT : undefined,
         icon: artifact.module ? `bi-${artifact.module}` : icon,
         context: artifact.name === "automation" ? "main" : artifact.name,
         resources: [],
