@@ -28,14 +28,14 @@ import type {
 
 const DIRECTORY_MAP = Object.fromEntries([
     "AUTOMATION", "SERVICE", "LISTENER", "FUNCTION", "CONNECTION", "TYPE", "CONFIGURABLE", "DATA_MAPPER",
-    "NP_FUNCTION", "AGENT", "AGENT_DEFINITION", "LOCAL_CONNECTORS", "WORKFLOW", "DURABLE_AGENT", "ACTIVITY",
-    "RESOURCE", "REMOTE", "VARIABLE",
+    "NP_FUNCTION", "AGENT", "AGENT_DEFINITION", "AGENT_TOOL", "LOCAL_CONNECTORS", "WORKFLOW", "DURABLE_AGENT",
+    "ACTIVITY", "RESOURCE", "REMOTE", "VARIABLE",
 ].map((key) => [key, key])) as unknown as typeof DirectoryMap;
 const ARTIFACT_TYPE = {
     Functions: "Functions", Workflows: "Workflows", Connections: "Connections", Agents: "Agents",
     AgentDefinitions: "Agent Definitions", Listeners: "Listeners", EntryPoints: "Entry Points", Types: "Types",
     NaturalFunctions: "Natural Functions", DataMappers: "Data Mappers", Configurations: "Configurations",
-    Variables: "Variables",
+    Variables: "Variables", AgentTools: "Agent Tools",
 } as unknown as typeof ArtifactType;
 jest.mock("@wso2/ballerina-core", () => ({
     ARTIFACT_TYPE,
