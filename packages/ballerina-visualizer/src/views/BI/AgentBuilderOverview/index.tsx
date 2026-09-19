@@ -453,6 +453,9 @@ export function AgentBuilderOverview({ projectPath, agentFocus, isInDevant, isIC
                                         selectedKey={agentKey(selectedAgent)}
                                         onSelect={(agent) => setSelectedKey(agentKey(agent))}
                                         onAdd={() => setShowAddAgent(true)}
+                                        onAddMcpService={
+                                            isLibrary ? undefined : () => setShowAddMcpService(true)
+                                        }
                                     />
                                     <CanvasSlot>
                                         <React.Suspense

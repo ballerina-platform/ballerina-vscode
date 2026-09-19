@@ -237,9 +237,10 @@ interface AgentTabsProps {
     selectedKey: string;
     onSelect: (agent: ProjectStructureArtifactResponse) => void;
     onAdd: () => void;
+    onAddMcpService?: () => void;
 }
 
-export function AgentTabs({ agents, selectedKey, onSelect, onAdd }: AgentTabsProps) {
+export function AgentTabs({ agents, selectedKey, onSelect, onAdd, onAddMcpService }: AgentTabsProps) {
     const activeRef = useRef<HTMLButtonElement>(null);
     const listRef = useRef<HTMLDivElement>(null);
     const [fade, setFade] = useState({ start: false, end: false });
@@ -392,6 +393,16 @@ export function AgentTabs({ agents, selectedKey, onSelect, onAdd }: AgentTabsPro
                 <Icon name="bi-plus" sx={GLYPH_SX} iconSx={GLYPH_ICON_SX} />
                 <TabLabel>Add Agent</TabLabel>
             </AddTab>
+            {onAddMcpService && (
+                <AddTab
+                    active={false}
+                    onClick={onAddMcpService}
+                    title="Add an MCP server to this project"
+                >
+                    <Icon name="bi-plus" sx={GLYPH_SX} iconSx={GLYPH_ICON_SX} />
+                    <TabLabel>Add MCP</TabLabel>
+                </AddTab>
+            )}
         </Strip>
     );
 }
