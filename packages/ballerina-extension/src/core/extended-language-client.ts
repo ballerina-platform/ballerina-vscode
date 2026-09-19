@@ -89,6 +89,8 @@ import {
     ExtendedLangClientInterface,
     BIAvailableNodesRequest,
     BIAvailableNodesResponse,
+    BILibraryActionsRequest,
+    BILibraryActionsResponse,
     BINodeTemplateRequest,
     BINodeTemplateResponse,
     BIFlowModelRequest,
@@ -396,6 +398,7 @@ enum EXTENDED_APIS {
     BI_AVAILABLE_KNOWLEDGE_BASES = 'flowDesignService/getAvailableVectorKnowledgeBases',
     BI_AVAILABLE_DATA_LOADERS = 'flowDesignService/getAvailableDataLoaders',
     BI_AVAILABLE_CHUNKS = 'flowDesignService/getAvailableChunkers',
+    BI_LIBRARY_ACTIONS = 'flowDesignService/getLibraryActions',
     BI_NODE_TEMPLATE = 'flowDesignService/getNodeTemplate',
     BI_GEN_OPEN_API = 'flowDesignService/generateServiceFromOpenApiContract',
     BI_MODULE_NODES = 'flowDesignService/getModuleNodes',
@@ -1247,6 +1250,10 @@ export class ExtendedLangClient extends LanguageClient implements ExtendedLangCl
 
     async getAvailableChunkers(params: BIAvailableNodesRequest): Promise<BIAvailableNodesResponse> {
         return this.sendRequest<BIAvailableNodesResponse>(EXTENDED_APIS.BI_AVAILABLE_CHUNKS, params);
+    }
+
+    async getLibraryActions(params: BILibraryActionsRequest): Promise<BILibraryActionsResponse> {
+        return this.sendRequest<BILibraryActionsResponse>(EXTENDED_APIS.BI_LIBRARY_ACTIONS, params);
     }
 
     async getEnclosedFunctionDef(params: BIGetEnclosedFunctionRequest): Promise<BIGetEnclosedFunctionResponse> {

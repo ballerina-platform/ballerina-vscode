@@ -22,10 +22,10 @@ import { Typography, ThemeColors, SearchBox } from "@wso2/ui-toolkit";
 export const PopupContent = styled.div`
     flex: 1;
     overflow-y: auto;
-    padding: 16px 20px;
+    padding: 20px 20px 24px;
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 24px;
 `;
 
 export const FormContainer = styled.div`
@@ -79,6 +79,14 @@ export const Section = styled.div`
 
 export const ResultsSection = styled(Section)`
     flex: 1;
+    gap: 16px;
+    margin-top: 8px;
+`;
+
+export const CreateOptionsGrid = styled.div`
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 12px;
 `;
 
 export const SectionTitle = styled(Typography)`
@@ -97,6 +105,7 @@ export const SectionHeader = styled.div`
 `;
 
 export const AgentOptionCard = styled.div`
+    --option-card-bg: ${ThemeColors.SURFACE_DIM};
     position: relative;
     display: flex;
     align-items: center;
@@ -104,17 +113,18 @@ export const AgentOptionCard = styled.div`
     padding: 12px;
     border: 1px solid ${ThemeColors.OUTLINE_VARIANT};
     border-radius: 8px;
-    background-color: ${ThemeColors.SURFACE_DIM};
+    background-color: var(--option-card-bg);
     cursor: pointer;
     transition: all 0.2s ease;
 
     &:hover {
-        background-color: ${ThemeColors.PRIMARY_CONTAINER};
+        --option-card-bg: ${ThemeColors.PRIMARY_CONTAINER};
         border-color: ${ThemeColors.PRIMARY};
     }
 `;
 
 export const AgentOptionIcon = styled.div`
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -123,6 +133,23 @@ export const AgentOptionIcon = styled.div`
     border-radius: 8px;
     background-color: ${ThemeColors.SURFACE_CONTAINER};
     flex-shrink: 0;
+`;
+
+export const AgentOptionIconBadge = styled.div`
+    position: absolute;
+    right: -7px;
+    bottom: -7px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 1px solid ${ThemeColors.OUTLINE_VARIANT};
+    background-color: ${ThemeColors.SURFACE_CONTAINER};
+    color: ${ThemeColors.ON_SURFACE_VARIANT};
+    box-shadow: 0 0 0 2px var(--option-card-bg);
+    transition: box-shadow 0.2s ease;
 `;
 
 export const AgentOptionContent = styled.div`
@@ -183,7 +210,6 @@ export const AgentsGrid = styled.div`
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
     gap: 12px;
-    margin-top: 8px;
 `;
 
 export const AgentsLoadingCard = styled.div`

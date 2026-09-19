@@ -478,6 +478,17 @@ public class AgentToolBuilder extends NodeBuilder {
                 return buildResourceActionBody(ctx, returnInfo);
             }
         },
+        KNOWLEDGE_BASE {
+            @Override
+            ReturnInfo resolveReturn(ToolGenContext ctx) {
+                return resolveActionReturn(ctx, true);
+            }
+
+            @Override
+            Map<Path, List<TextEdit>> buildBody(ToolGenContext ctx, ReturnInfo returnInfo) {
+                return buildKnowledgeBaseActionBody(ctx, returnInfo);
+            }
+        },
         AGENT_CALL {
             @Override
             List<ToolParam> resolveParams(ToolGenContext ctx) {
@@ -546,6 +557,7 @@ public class AgentToolBuilder extends NodeBuilder {
                 case FUNCTION_DEFINITION, FUNCTION_CALL -> FUNCTION;
                 case REMOTE_ACTION_CALL -> REMOTE;
                 case RESOURCE_ACTION_CALL -> RESOURCE;
+                case KNOWLEDGE_BASE_CALL -> KNOWLEDGE_BASE;
                 default -> throw new IllegalStateException("Unsupported node kind to generate tool");
             };
         }
@@ -729,6 +741,15 @@ public class AgentToolBuilder extends NodeBuilder {
     }
 
     private static Map<Path, List<TextEdit>> buildRemoteActionBody(ToolGenContext ctx, ReturnInfo returnInfo) {
+        return buildCallActionBody(ctx, returnInfo, SyntaxKind.RIGHT_ARROW_TOKEN);
+    }
+
+    private static Map<Path, List<TextEdit>> buildKnowledgeBaseActionBody(ToolGenContext ctx, ReturnInfo returnInfo) {
+        return buildCallActionBody(ctx, returnInfo, SyntaxKind.DOT_TOKEN);
+    }
+
+    private static Map<Path, List<TextEdit>> buildCallActionBody(ToolGenContext ctx, ReturnInfo returnInfo,
+                                                                   SyntaxKind callToken) {
         SourceBuilder sourceBuilder = ctx.sb;
         FlowNode flowNode = ctx.wrappedNode;
         String returnType = returnInfo.typeName();
@@ -737,7 +758,7 @@ public class AgentToolBuilder extends NodeBuilder {
         beginActionBody(sourceBuilder, flowNode, returnType);
         sourceBuilder.token()
                 .name(ctx.connection)
-                .keyword(SyntaxKind.RIGHT_ARROW_TOKEN)
+                .keyword(callToken)
                 .name(flowNode.metadata().label())
                 .stepOut()
                 .functionParameters(flowNode, ignoredKeys);

@@ -22,9 +22,12 @@ export enum NodeTypes {
     LISTENER_NODE = "listener-node",
     ENTRY_NODE = "entry-node",
     CONNECTION_NODE = "connection-node",
+    AGENT_CARD_NODE = "agent-card-node",
+    SERVICE_NODE = "service-node",
 }
 
 export const NODE_LINK = "node-link";
+export const TOPOLOGY_LINK = "topology-link";
 export const NODE_PORT = "node-port";
 export const LOADING_OVERLAY = "loading-overlay";
 
@@ -53,7 +56,40 @@ export const STRUCTURE_OPACITY = 0.45;
  * color, same opacity) so borders and links read as one consistent line style. Hover states keep
  * using ThemeColors.HIGHLIGHT directly - only the resting color is shared here. */
 export const NODE_BORDER_COLOR = `var(--vscode-contrastBorder, color-mix(in srgb, ${ThemeColors.ON_SURFACE} ${STRUCTURE_OPACITY * 100}%, transparent))`;
+export const NODE_BG_HOVER_COLOR = ThemeColors.PRIMARY_CONTAINER;
+export const NODE_HOVER_GLOW = `0 0 4px 1px ${ThemeColors.PRIMARY}`;
 
 // position
 export const NODE_GAP_Y = 100;
 export const NODE_GAP_X = 160;
+
+export const AGENT_CARD_WIDTH = 280;
+export const AGENT_CARD_MIN_HEIGHT = 112;
+export const INLET_TOP_OFFSET = 66;
+export const INLET_PITCH = 24;
+export const INLET_VISIBLE_MAX = 2;
+export const WORKFLOW_ROW_CAP = 3;
+export const WORKFLOW_TASKS_GAP = 10;
+export const DURABLE_RUN_PORT_OFFSET = 30;
+export const DURABLE_ARRIVAL_BOW = 0.4;
+export const WARNING_COLOR = "var(--vscode-contrastActiveBorder, var(--vscode-editorLightBulb-foreground))";
+export const EVENT_COLOR_VAR = "--topology-event-color";
+export const EVENT_COLOR = `var(${EVENT_COLOR_VAR}, var(--vscode-terminal-ansiBrightMagenta))`;
+export const FOCUS_FADE_MS = 260;
+export const ENTRY_CARD_WIDTH = 232;
+export const ENTRY_HEADER_HEIGHT = 56;
+export const ENTRY_ROW_HEIGHT = 36;
+export const ENTRY_FOOTER_HEIGHT = 30;
+export const ROW_LANE_GAP = 20;
+export const ROW_LANE_PITCH = 12;
+export const ENTRY_MIN_ROWS = 3;
+export const ENTRY_ROW_BAND = 0.4;
+
+export const TOPOLOGY_GAP_X = 160;
+export const TOPOLOGY_GAP_X_MAX = 520;
+export const TOPOLOGY_GAP_X_PAIR = 240;
+export const TOPOLOGY_GAP_Y = 64;
+export const TOPOLOGY_ROW_GAP = 120;
+export const TOPOLOGY_COLUMN_GAP = 48;
+export const LAYOUT_FIT_MARGIN = 40;
+export const ARRIVAL_BOW_PX = 40;

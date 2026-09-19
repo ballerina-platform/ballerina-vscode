@@ -59,9 +59,9 @@ import { RelativeLoader } from "../../../components/RelativeLoader";
 import styled from "@emotion/styled";
 import { URI, Utils } from "vscode-uri";
 import { cloneDeep } from "lodash";
-import { buildAgentToolFields, buildApprovalToolData, buildRequiresApprovalField, collectLocalFunctionNames, createDefaultParameterValue, createRequiresApprovalField, createToolInputFields, createToolParameters, extractRecordTypeFields, extractRecordTypeFieldsFromEntries, prepareToolInputFields, stripCodeFences, stripCodeFencesInline } from "./formUtils";
+import { buildAgentToolFields, buildApprovalToolData, buildRequiresApprovalField, collectLocalFunctionNames, createRequiresApprovalField, createToolInputFields, extractRecordTypeFields, extractRecordTypeFieldsFromEntries, prepareToolInputFields, stripCodeFences, stripCodeFencesInline, updateToolParameters } from "./formUtils";
 import { ImplementationBadge } from "../../../components/ImplementationBadge";
-import { FUNCTION_CALL, METHOD_CALL, REMOTE_ACTION_CALL, RESOURCE_ACTION_CALL } from "../../../constants";
+import { FUNCTION_CALL, KNOWLEDGE_BASE_CALL, METHOD_CALL, REMOTE_ACTION_CALL, RESOURCE_ACTION_CALL } from "../../../constants";
 import { NewToolSelectionMode } from "./NewTool";
 import { buildOAuthFields, fetchOAuthConfigProperties, ZERO_LINE_RANGE } from "./utils";
 import { updateResourcePathProperty } from "./agentTools";
@@ -74,6 +74,7 @@ import {
     buildConnectionSelectField,
     displayResourcePath,
 } from "../Connection/ConnectorBrowser";
+import { KnowledgeBaseBrowser } from "./KnowledgeBaseBrowser";
 import {
     INCLUDE_CONTEXT_KEY,
     RESULT_TYPE_GROUP,
@@ -403,9 +404,11 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
     const dependencyMode = Boolean(connectionDependency);
 
     const connectorFirst = mode === NewToolSelectionMode.CONNECTION && !dependencyMode;
+    const wizardFirst = !dependencyMode
+        && (mode === NewToolSelectionMode.CONNECTION || mode === NewToolSelectionMode.KNOWLEDGE_BASE);
 
     const [sidePanelView, setSidePanelView] = useState<SidePanelView>(
-        connectorFirst ? SidePanelView.CONNECTOR_WIZARD : SidePanelView.NODE_LIST
+        wizardFirst ? SidePanelView.CONNECTOR_WIZARD : SidePanelView.NODE_LIST
     );
     const [categories, setCategories] = useState<PanelCategory[]>([]);
     const wizardBackRef = useRef<(() => void) | undefined>(undefined);
@@ -484,10 +487,10 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
     useEffect(() => {
         if (sidePanelView === SidePanelView.TOOL_FORM) {
             onViewChange?.(SidePanelView.TOOL_FORM, () => {
-                const target = connectorFirst ? SidePanelView.CONNECTOR_WIZARD : SidePanelView.NODE_LIST;
+                const target = wizardFirst ? SidePanelView.CONNECTOR_WIZARD : SidePanelView.NODE_LIST;
                 resetToolForm();
                 setSidePanelView(target);
-                onViewChange?.(target, connectorFirst ? wizardBackRef.current : undefined);
+                onViewChange?.(target, wizardFirst ? wizardBackRef.current : undefined);
             });
         } else if (sidePanelView === SidePanelView.CONNECTOR_WIZARD) {
             onViewChange?.(SidePanelView.CONNECTOR_WIZARD, wizardBackRef.current);
@@ -524,6 +527,7 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
             case FUNCTION_CALL:
                 return `${codeData.symbol}`;
             case METHOD_CALL:
+            case KNOWLEDGE_BASE_CALL:
                 return `${receiver} -> ${codeData.symbol}`;
             default:
                 return "";
@@ -551,7 +555,7 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
         const settleLoading = () => { if (!silent) setLoading(false); };
         if (!silent) setLoading(true);
 
-        if (mode === NewToolSelectionMode.CUSTOM_TOOL) {
+        if (mode === NewToolSelectionMode.CUSTOM_TOOL || mode === NewToolSelectionMode.KNOWLEDGE_BASE) {
             settleLoading();
             return;
         }
@@ -785,6 +789,18 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
         }
     };
 
+    const applyApprovalCandidatesWhenReady = (node: AvailableNode, approvalCandidatesPromise: Promise<string[] | null>) => {
+        void approvalCandidatesPromise.then((approvalCandidates) => {
+            if (selectedNodeRef.current !== node) {
+                return; // a different action is showing now
+            }
+            compatibleApprovalFunctionsRef.current = approvalCandidates ?? [];
+            setFields((prevFields) => prevFields.map((field) =>
+                field.key === "requiresApproval" ? buildRequiresApprovalField(field, approvalCandidates) : field
+            ));
+        });
+    };
+
     const loadFunctionCallFields = async (node: AvailableNode, options?: { suggestedToolName?: string }): Promise<void> => {
         try {
             const functionNodeResponse = await rpcClient.getBIDiagramRpcClient().getFunctionNode({
@@ -803,11 +819,17 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                 toolInputFields = convertConfig(funcDef.properties, ["functionName", "functionNameDescription", "isIsolated", "type", "typeDescription", "isPublic"]);
             }
 
-            const functionNodeTemplate = await rpcClient.getBIDiagramRpcClient().getNodeTemplate({
-                position: funcDef?.codedata.lineRange.startLine || { line: 0, offset: 0 },
-                filePath: functionFilePath.current,
-                id: node.codedata,
-            });
+            const position = funcDef?.codedata.lineRange.startLine || { line: 0, offset: 0 };
+            // Much slower than the rest; don't let it block the form.
+            const approvalCandidatesPromise = fetchCompatibleApprovalFunctions(node.codedata?.symbol);
+            const [functionNodeTemplate, oauthProperties] = await Promise.all([
+                rpcClient.getBIDiagramRpcClient().getNodeTemplate({
+                    position,
+                    filePath: functionFilePath.current,
+                    id: node.codedata,
+                }),
+                fetchOAuthConfigProperties(rpcClient, functionFilePath.current, position),
+            ]);
 
             // Remove imports from optional+advanced properties to avoid unnecessary imports in genTool
             if (functionNodeTemplate.flowNode?.properties) {
@@ -841,8 +863,6 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
 
             const templateDescription = stripCodeFences(functionNodeTemplate.flowNode?.metadata?.description || "");
 
-            const position = funcDef?.codedata.lineRange.startLine || { line: 0, offset: 0 };
-            const oauthProperties = await fetchOAuthConfigProperties(rpcClient, functionFilePath.current, position);
             oauthConfigPropertiesRef.current = oauthProperties;
             const oauthFields = buildOAuthFields(oauthProperties);
             setShowOAuthConfig(oauthFields.length > 0);
@@ -853,12 +873,6 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
             const oauthRecordTypeFields = extractRecordTypeFieldsFromEntries(oauthProperties);
             setRecordTypeFields([...nodeRecordTypeFields, ...oauthRecordTypeFields]);
 
-            // Build the approval-predicate picker: fetch the project's module-level functions and keep
-            // the boolean-returning ones as candidates. Injected into the "Requires Approval" control's
-            // "On" branch so the picker sits under the checkbox; free-typed names drive the create path.
-            const approvalCandidates = await fetchCompatibleApprovalFunctions(node.codedata?.symbol);
-            compatibleApprovalFunctionsRef.current = approvalCandidates ?? [];
-
             setFields((prevFields) => [
                 ...prevFields.map((field) => {
                     if (field.key === "description") {
@@ -867,14 +881,13 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                     if (field.key === "name" && options?.suggestedToolName) {
                         return { ...field, value: options.suggestedToolName };
                     }
-                    if (field.key === "requiresApproval") {
-                        return buildRequiresApprovalField(field, approvalCandidates);
-                    }
                     return field;
                 }),
                 ...buildGroupedInputFields(toolInputFields, functionParameterFields),
                 ...oauthFields,
             ]);
+
+            applyApprovalCandidatesWhenReady(node, approvalCandidatesPromise);
         } catch (error) {
             console.error(">>> Error fetching function node or template", error);
         }
@@ -885,11 +898,16 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
         options?: { connectionName?: string; suggestedToolName?: string; connector?: AvailableNode }
     ): Promise<void> => {
         try {
-            const nodeTemplate = await rpcClient.getBIDiagramRpcClient().getNodeTemplate({
-                position: { line: 0, offset: 0 },
-                filePath: agentFilePath.current,
-                id: node.codedata,
-            });
+            // Much slower than the rest; don't let it block the form.
+            const approvalCandidatesPromise = fetchCompatibleApprovalFunctions();
+            const [nodeTemplate, oauthProperties] = await Promise.all([
+                rpcClient.getBIDiagramRpcClient().getNodeTemplate({
+                    position: { line: 0, offset: 0 },
+                    filePath: agentFilePath.current,
+                    id: node.codedata,
+                }),
+                fetchOAuthConfigProperties(rpcClient, agentFilePath.current),
+            ]);
 
             const connectionProperty = nodeTemplate.flowNode?.properties?.connection as Property | undefined;
             if (options?.connectionName && connectionProperty) {
@@ -925,7 +943,8 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                 connectionField = buildConnectionSelectField(
                     options.connector.codedata,
                     ballerinaType,
-                    options.connectionName ?? String(connectionProperty?.value ?? "")
+                    options.connectionName ?? String(connectionProperty?.value ?? ""),
+                    mode === NewToolSelectionMode.KNOWLEDGE_BASE ? "knowledgeBase" : "connection"
                 ) as unknown as FormField;
                 if (connectionIndex >= 0) {
                     nodeParameterFields.splice(connectionIndex, 1);
@@ -934,7 +953,6 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
             const templateDescription = stripCodeFences(
                 nodeTemplate.flowNode?.metadata?.description || node.metadata?.description || ""
             );
-            const oauthProperties = await fetchOAuthConfigProperties(rpcClient, agentFilePath.current);
             oauthConfigPropertiesRef.current = oauthProperties;
             const oauthFields = buildOAuthFields(oauthProperties);
             setShowOAuthConfig(oauthFields.length > 0);
@@ -947,11 +965,6 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
 
             const groupedInputFields = buildGroupedInputFields(toolInputFields, nodeParameterFields);
 
-            // Same approval-predicate picker as the function-call path: fetch the project's
-            // module-level functions and inject them into the "Requires Approval" control.
-            const approvalCandidates = await fetchCompatibleApprovalFunctions();
-            compatibleApprovalFunctionsRef.current = approvalCandidates ?? [];
-
             setFields((prevFields) => {
                 const baseFields = prevFields.map((field) => {
                     if (field.key === "description") {
@@ -959,9 +972,6 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                     }
                     if (field.key === "name" && options?.suggestedToolName) {
                         return { ...field, value: options.suggestedToolName };
-                    }
-                    if (field.key === "requiresApproval") {
-                        return buildRequiresApprovalField(field, approvalCandidates);
                     }
                     return field;
                 });
@@ -975,6 +985,8 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                     ...oauthFields,
                 ];
             });
+
+            applyApprovalCandidatesWhenReady(node, approvalCandidatesPromise);
         } catch (error) {
             console.error(">>> Error fetching node template", error);
         }
@@ -1227,39 +1239,6 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
         });
     };
 
-    const updateToolParameters = (params: ToolParameterItem[], baseParams?: ToolParameters): ToolParameters => {
-        const newToolParameters = baseParams ? cloneDeep(baseParams) : createToolParameters();
-        const paramKeys = params.map((param: ToolParameterItem) => param.formValues.variable);
-
-        if (newToolParameters.value && typeof newToolParameters.value === "object" && !Array.isArray(newToolParameters.value)) {
-            // Remove keys that are no longer present
-            Object.keys(newToolParameters.value).forEach((key) => {
-                if (!paramKeys.includes(key)) {
-                    delete (newToolParameters.value as ToolParametersValue)[key];
-                }
-            });
-
-            // Add or update parameters
-            paramKeys.forEach((key: string) => {
-                const paramData = params.find((param: ToolParameterItem) => param.formValues.variable === key)?.formValues;
-                const existingParam = (newToolParameters.value as ToolParametersValue)[key];
-
-                if (existingParam?.value?.variable) {
-                    existingParam.value.variable.value = paramData?.variable || key;
-                    existingParam.value.parameterDescription.value = paramData?.parameterDescription || "";
-                    existingParam.value.type.value = paramData?.type || "";
-                } else {
-                    (newToolParameters.value as ToolParametersValue)[key] = createDefaultParameterValue({
-                        value: paramData?.variable || key,
-                        parameterDescription: paramData?.parameterDescription,
-                        type: paramData?.type,
-                    });
-                }
-            });
-        }
-        return newToolParameters;
-    };
-
     const handleToolSubmit = async (data: FormValues, formImports?: FormImports) => {
         if (submittingTool) {
             return;
@@ -1315,7 +1294,12 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                     }
                 });
             }
-        } else if (toolNodeId === REMOTE_ACTION_CALL || toolNodeId === RESOURCE_ACTION_CALL || toolNodeId === METHOD_CALL) {
+        } else if (
+            toolNodeId === REMOTE_ACTION_CALL
+            || toolNodeId === RESOURCE_ACTION_CALL
+            || toolNodeId === METHOD_CALL
+            || toolNodeId === KNOWLEDGE_BASE_CALL
+        ) {
             clonedFlowNode = flowNode.current ? cloneDeep(flowNode.current) : null;
             if (Array.isArray(data["parameters"])) {
                 toolParameters = updateToolParameters(data["parameters"]);
@@ -1442,6 +1426,42 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
         }]
         : categories;
 
+    const handleWizardStepChange = (step: WizardStep, goBack?: () => void) => {
+        wizardBackRef.current = goBack;
+        onViewChange?.(
+            step === WizardStep.CONNECTOR_LIST ? SidePanelView.NODE_LIST : SidePanelView.CONNECTOR_WIZARD,
+            goBack
+        );
+    };
+
+    const renderWizardBrowser = () => (
+        <div
+            style={{
+                display: sidePanelView === SidePanelView.CONNECTOR_WIZARD && !loading ? "contents" : "none",
+            }}
+        >
+            {connectorFirst ? (
+                <ConnectorBrowser
+                    filePath={agentFilePath.current}
+                    target={targetRef.current.startLine}
+                    existingConnectionCategories={categories}
+                    connectorSet="GROUPED"
+                    description="Pick an existing connection or a connector to browse its actions."
+                    noActionsHint="You can still add it as a connection and create the tool from an action later."
+                    onSelect={handleWizardSelect}
+                    onStepChange={handleWizardStepChange}
+                />
+            ) : (
+                <KnowledgeBaseBrowser
+                    filePath={agentFilePath.current}
+                    target={targetRef.current.startLine}
+                    onSelect={handleWizardSelect}
+                    onStepChange={handleWizardStepChange}
+                />
+            )}
+        </div>
+    );
+
     return (
         <>
             {loading && (
@@ -1449,48 +1469,23 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                     <RelativeLoader />
                 </LoaderContainer>
             )}
-            {connectorFirst && (
-                <div
-                    style={{
-                        display: sidePanelView === SidePanelView.CONNECTOR_WIZARD && !loading ? "contents" : "none",
-                    }}
-                >
-                    <ConnectorBrowser
-                        filePath={agentFilePath.current}
-                        target={targetRef.current.startLine}
-                        existingConnectionCategories={categories}
-                        connectorSet="GROUPED"
-                        description="Pick an existing connection or a connector to browse its actions."
-                        noActionsHint="You can still add it as a connection and create the tool from an action later."
-                        onSelect={handleWizardSelect}
-                        onStepChange={(step, goBack) => {
-                            wizardBackRef.current = goBack;
-                            onViewChange?.(
-                                step === WizardStep.CONNECTOR_LIST
-                                    ? SidePanelView.NODE_LIST
-                                    : SidePanelView.CONNECTOR_WIZARD,
-                                goBack
-                            );
-                        }}
-                    />
-                </div>
-            )}
-            {!loading && !connectorFirst && sidePanelView !== SidePanelView.TOOL_FORM
+            {wizardFirst && renderWizardBrowser()}
+            {!loading && !wizardFirst && sidePanelView !== SidePanelView.TOOL_FORM
                 && displayedCategories.length > 0 && (
-                <NodeList
-                    categories={displayedCategories}
-                    onSelect={handleOnSelectNode}
-                    onAddConnection={dependencyMode ? handleAddDependency : handleOnAddConnection}
-                    connectionAddLabel={dependencyMode ? "Add Connection" : undefined}
-                    onAddFunction={() => handleOnAddFunction(MACHINE_VIEW.BIFunctionForm, DIRECTORY_MAP.FUNCTION)}
-                    onSearchTextChange={mode !== NewToolSelectionMode.CONNECTION ? (searchText) => handleSearchFunction(searchText, FUNCTION_TYPE.REGULAR, true) : undefined}
-                    title={"Functions"}
-                    description={listDescription}
-                    searchPlaceholder={searchPlaceholder}
-                    panelBodySx={{ height: "calc(100vh - 140px)" }}
-                    alwaysCollapsedCategories={["Imported Functions"]}
-                />
-            )}
+                    <NodeList
+                        categories={displayedCategories}
+                        onSelect={handleOnSelectNode}
+                        onAddConnection={dependencyMode ? handleAddDependency : handleOnAddConnection}
+                        connectionAddLabel={dependencyMode ? "Add Connection" : undefined}
+                        onAddFunction={() => handleOnAddFunction(MACHINE_VIEW.BIFunctionForm, DIRECTORY_MAP.FUNCTION)}
+                        onSearchTextChange={mode !== NewToolSelectionMode.CONNECTION ? (searchText) => handleSearchFunction(searchText, FUNCTION_TYPE.REGULAR, true) : undefined}
+                        title={"Functions"}
+                        description={listDescription}
+                        searchPlaceholder={searchPlaceholder}
+                        panelBodySx={{ height: "calc(100vh - 140px)" }}
+                        alwaysCollapsedCategories={["Imported Functions"]}
+                    />
+                )}
             {isConnectionPopupOpen && createPortal(
                 <>
                     <PopupOverlay

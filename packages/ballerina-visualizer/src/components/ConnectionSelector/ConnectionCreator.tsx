@@ -26,6 +26,7 @@ import { InfoBox } from "../InfoBox";
 import { ConnectionCreatorProps } from "./types";
 import { getConnectionSpecialConfig } from "./config";
 import { convertConnectionConfig } from "./connectionFormFields";
+import { useCreateNode } from "./useCreateNode";
 import { updateFormFieldsWithData, updateNodeTemplateProperties, updateNodeWithConnectionVariable, updateNodeLineRange } from "./utils";
 import { cloneDeep } from "lodash";
 import { GET_DEFAULT_EMBEDDING_PROVIDER, GET_DEFAULT_MODEL_PROVIDER, LineRange, RecordTypeField, getPrimaryInputType, PropertyTypeMemberInfo } from "@wso2/ballerina-core";
@@ -50,6 +51,13 @@ export function ConnectionCreator(props: ConnectionCreatorProps): JSX.Element {
     const projectPath = useRef<string>("");
     const connectionsFilePath = useRef<string>("");
     const targetLineRangeRef = useRef<LineRange | undefined>(undefined);
+
+    const onCreateNode = useCreateNode(
+        connectionsFilePath.current || projectPath.current,
+        targetLineRangeRef.current,
+        undefined,
+        { preferModal: true }
+    );
 
     useEffect(() => {
         initPanel();
@@ -147,6 +155,7 @@ export function ConnectionCreator(props: ConnectionCreatorProps): JSX.Element {
                         fields={connectionFields}
                         description={nodeFormTemplate?.metadata?.description}
                         onSubmit={handleOnSave}
+                        onCreateNode={onCreateNode}
                         submitText={savingForm ? "Saving..." : "Save"}
                         disableSaveButton={savingForm}
                         footerActionButton={isInPopup}

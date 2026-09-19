@@ -18,3 +18,9 @@
 
 export { Diagram } from "./components/Diagram";
 export * from "./utils/types";
+
+export { AgentTopologyDiagram } from "./components/AgentTopologyDiagram";
+export type { AgentTopologyDiagramProps } from "./components/AgentTopologyDiagram";
+export { buildTopology } from "./components/AgentTopologyDiagram/topologyModel";
+export { layoutTopology, estimateAgentCardHeight } from "./components/AgentTopologyDiagram/topologyLayout";
+export * from "./components/AgentTopologyDiagram/types";

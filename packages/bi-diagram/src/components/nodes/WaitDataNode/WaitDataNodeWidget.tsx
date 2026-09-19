@@ -24,6 +24,7 @@ import { Button, Icon, Item, Menu, MenuItem, Tooltip } from "@wso2/ui-toolkit";
 import { FlowNode } from "../../../utils/types";
 import { MoreVertIcon } from "../../../resources";
 import { useDiagramContext } from "../../DiagramContext";
+import { getNodeChartColor } from "../../NodeIcon";
 import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
 import { DiagnosticsPopUp } from "../../DiagnosticsPopUp";
 import {
@@ -451,7 +452,10 @@ export function WaitDataNodeWidget(props: WaitDataNodeWidgetProps) {
                             justifyContent: "center",
                         }}
                     >
-                        <Icon name={sourceIconName} sx={{ width: 24, height: 24, fontSize: 24 }} />
+                        <Icon
+                            name={sourceIconName}
+                            sx={{ width: 24, height: 24, fontSize: 24, color: sourceName && !isHumanTask ? getNodeChartColor("DURABLE_AGENT_RUN") : undefined }}
+                        />
                     </div>
                 </foreignObject>
                 {sourceName && (

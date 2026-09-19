@@ -17,7 +17,7 @@
  */
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Button, Codicon, Icon, ProgressRing, ThemeColors } from "@wso2/ui-toolkit";
+import { Button, Icon, ProgressRing, ThemeColors } from "@wso2/ui-toolkit";
 import { ConnectorIcon } from "@wso2/bi-diagram";
 import { AvailableNode, BISearchResponse, EVENT_TYPE, FlowNode, LineRange, isDefaultModelProviderExpr } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
@@ -28,17 +28,13 @@ import { FlowNodeForm } from "../../Forms/FlowNodeForm";
 import { fetchAgentNodeTemplate, getEndOfFileLineRange, getNodeTemplate } from "../utils";
 import { AgentDefinitionForm } from "../AgentDefinitionForm";
 import { AgentInfoCard } from "./AgentInfoCard";
+import { CreateDurableAgentView } from "./CreateDurableAgentView";
+import { CreateNewSection } from "./CreateNewSection";
 import { PackageAgentsView } from "./PackageAgentsView";
 import {
     AgentDefinitionFormContainer,
-    AgentOptionCard,
-    AgentOptionContent,
-    AgentOptionDescription,
-    AgentOptionIcon,
-    AgentOptionTitle,
     AgentsGrid,
     AgentsLoadingCard,
-    ArrowIcon,
     EmptyState,
     FilterButton,
     FilterButtons,
@@ -47,7 +43,6 @@ import {
     LoaderWrapper,
     PopupContent,
     ResultsSection,
-    Section,
     SectionHeader,
     SectionTitle,
     StyledSearchBox,
@@ -56,7 +51,7 @@ import {
 const AGENT_FILE_NAME = "agents.bal";
 
 type AgentFilter = "All" | "Project" | "Organization";
-export type AddAgentView = "gallery" | "package" | "configure" | "create" | "createDefinition";
+export type AddAgentView = "gallery" | "package" | "configure" | "create" | "createDefinition" | "createDurable";
 
 export interface AddAgentPopupContentProps {
     projectPath: string;
@@ -277,6 +272,8 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
         onViewChange("create");
     };
 
+    const handleDurableAgent = () => onViewChange("createDurable");
+
     const handleCreateAgent = async (updatedNode?: FlowNode) => {
         if (!updatedNode) {
             return;
@@ -398,6 +395,10 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
         );
     }
 
+    if (view === "createDurable") {
+        return <CreateDurableAgentView projectPath={projectPath} />;
+    }
+
     if (view === "create" || view === "configure") {
         const isConfiguring = view === "configure";
         const fieldOverrides = {
@@ -459,57 +460,13 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
                     : "To add an agent, create a one-off agent for this project, create a reusable agent definition that can be shared across projects, or select one of the pre-built agents below. You will then be guided to provide the required details to complete the agent setup."}
             </IntroText>
 
-            <StyledSearchBox
-                value={searchText}
-                placeholder="Search agents..."
-                onChange={setSearchText}
-                size={60}
+            <CreateNewSection
+                dependencyMode={dependencyMode}
+                onCreateAgent={handleCustomAgent}
+                onCreateDurableAgent={inFlow ? undefined : handleDurableAgent}
+                onCreateDefinition={() => onViewChange("createDefinition")}
+                onGenericAgent={onGenericAgentSelected}
             />
-
-            <Section>
-                <SectionTitle variant="h4">{dependencyMode ? "Generic Agent" : "Create New"}</SectionTitle>
-                <Section>
-                    <AgentOptionCard onClick={dependencyMode ? onGenericAgentSelected : handleCustomAgent}>
-                        <AgentOptionIcon>
-                            <Icon name="bi-ai-agent" sx={{ fontSize: 24, width: 24, height: 24 }} />
-                        </AgentOptionIcon>
-                        <AgentOptionContent>
-                            <AgentOptionTitle>
-                                {dependencyMode ? "Generic ai:Agent" : "Create Agent"}
-                            </AgentOptionTitle>
-                            <AgentOptionDescription>
-                                {dependencyMode
-                                    ? "Use a flexible agent input when the concrete agent is supplied by the caller."
-                                    : "Create an agent instance for this integration only."}
-                            </AgentOptionDescription>
-                        </AgentOptionContent>
-                        <ArrowIcon>
-                            <Codicon name="chevron-right" />
-                        </ArrowIcon>
-                    </AgentOptionCard>
-                    {!dependencyMode && (
-                        <AgentOptionCard onClick={() => onViewChange("createDefinition")}>
-                            <AgentOptionIcon>
-                                <Icon
-                                    isCodicon={true}
-                                    name="symbol-class"
-                                    sx={{ width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center" }}
-                                    iconSx={{ fontSize: "24px" }}
-                                />
-                            </AgentOptionIcon>
-                            <AgentOptionContent>
-                                <AgentOptionTitle>Create Agent Definition</AgentOptionTitle>
-                                <AgentOptionDescription>
-                                    Create an agent definition that can be shared and used to create agent instances with the same configuration.
-                                </AgentOptionDescription>
-                            </AgentOptionContent>
-                            <ArrowIcon>
-                                <Codicon name="chevron-right" />
-                            </ArrowIcon>
-                        </AgentOptionCard>
-                    )}
-                </Section>
-            </Section>
 
             <ResultsSection>
                 <SectionHeader>
@@ -537,6 +494,12 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
                         </FilterButton>
                     </FilterButtons>
                 </SectionHeader>
+                <StyledSearchBox
+                    value={searchText}
+                    placeholder="Search pre-built agents..."
+                    onChange={setSearchText}
+                    size={60}
+                />
                 {isExpanding || ((isSearching || isLoadingOrgAgents) && agents.length === 0) ? (
                     <LoaderWrapper>
                         <RelativeLoader />

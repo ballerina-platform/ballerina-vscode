@@ -27,6 +27,7 @@ import io.ballerina.compiler.syntax.tree.ModulePartNode;
 import io.ballerina.flowmodelgenerator.core.AgentsGenerator;
 import io.ballerina.flowmodelgenerator.core.AvailableNodesGenerator;
 import io.ballerina.flowmodelgenerator.core.ClassMemberManager;
+import io.ballerina.flowmodelgenerator.core.ConnectionActionProvider;
 import io.ballerina.flowmodelgenerator.core.CopilotContextGenerator;
 import io.ballerina.flowmodelgenerator.core.DeleteNodeHandler;
 import io.ballerina.flowmodelgenerator.core.EnclosedNodeFinder;
@@ -40,6 +41,7 @@ import io.ballerina.flowmodelgenerator.core.analyzers.function.ModuleNodeAnalyze
 import io.ballerina.flowmodelgenerator.core.diagnostics.DiagnosticRequest;
 import io.ballerina.flowmodelgenerator.core.diagnostics.DiagnosticsDebouncer;
 import io.ballerina.flowmodelgenerator.core.model.FlowNode;
+import io.ballerina.flowmodelgenerator.core.model.Item;
 import io.ballerina.flowmodelgenerator.core.search.SearchCommand;
 import io.ballerina.flowmodelgenerator.extension.request.ClassMemberRequest;
 import io.ballerina.flowmodelgenerator.extension.request.ComponentDeleteRequest;
@@ -54,6 +56,7 @@ import io.ballerina.flowmodelgenerator.extension.request.FlowModelSourceGenerato
 import io.ballerina.flowmodelgenerator.extension.request.FlowModelSuggestedGenerationRequest;
 import io.ballerina.flowmodelgenerator.extension.request.FlowNodeDeleteRequest;
 import io.ballerina.flowmodelgenerator.extension.request.FunctionDefinitionRequest;
+import io.ballerina.flowmodelgenerator.extension.request.GetLibraryActionsRequest;
 import io.ballerina.flowmodelgenerator.extension.request.SaveClassMemberRequest;
 import io.ballerina.flowmodelgenerator.extension.request.SearchNodesRequest;
 import io.ballerina.flowmodelgenerator.extension.request.SearchRequest;
@@ -68,6 +71,7 @@ import io.ballerina.flowmodelgenerator.extension.response.FlowModelNodeTemplateR
 import io.ballerina.flowmodelgenerator.extension.response.FlowModelSourceGeneratorResponse;
 import io.ballerina.flowmodelgenerator.extension.response.FlowNodeDeleteResponse;
 import io.ballerina.flowmodelgenerator.extension.response.FunctionDefinitionResponse;
+import io.ballerina.flowmodelgenerator.extension.response.GetLibraryActionsResponse;
 import io.ballerina.flowmodelgenerator.extension.response.SearchNodesResponse;
 import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.modelgenerator.commons.FileSystemUtils;
@@ -417,6 +421,25 @@ public class FlowModelGeneratorService implements ExtendedLanguageServerService 
             FlowModelAvailableNodesRequest request) {
         return handleAvailableNodesRequest(request,
                 generator -> generator.getAvailableModelProviders(request.position()));
+    }
+
+    // Lists a class's actions (e.g. a knowledge base's retrieve/ingest) by library coordinates,
+    // before any instance of it is declared in source.
+    @JsonRequest
+    public CompletableFuture<GetLibraryActionsResponse> getLibraryActions(GetLibraryActionsRequest request) {
+        return CompletableFuture.supplyAsync(() -> {
+            GetLibraryActionsResponse response = new GetLibraryActionsResponse();
+            try {
+                WorkspaceManager workspaceManager = this.workspaceManagerProxy.get();
+                Path filePath = Path.of(request.filePath());
+                List<Item> actions = ConnectionActionProvider.getInstance()
+                        .getActions(request.codedata(), workspaceManager, filePath);
+                response.setActions(new Gson().toJsonTree(actions).getAsJsonArray());
+            } catch (Throwable e) {
+                response.setError(e);
+            }
+            return response;
+        });
     }
 
     private CompletableFuture<FlowModelAvailableNodesResponse> handleAvailableNodesRequest(

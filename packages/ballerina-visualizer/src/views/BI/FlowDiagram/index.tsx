@@ -20,13 +20,14 @@ import { capabilityValueText, seedCapabilityValue, SeedableProperty } from "./ca
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import styled from "@emotion/styled";
-import { goToAgent, startAgentChat } from "../AIChatAgent/utils";
+import { goToAgent, startAddAgentTrigger, startAddDurableEventTrigger, startAgentChat } from "../AIChatAgent/utils";
 import { DIAGRAM_REFRESH_DEBOUNCE_MS } from "../diagramRefreshDebounce";
 import { MemoizedDiagram } from "@wso2/bi-diagram";
 import {
     BIAvailableNodesRequest,
     Flow,
     FlowNode,
+    ToolData,
     Branch,
     Category,
     AvailableNode,
@@ -70,6 +71,7 @@ import {
 } from "../../../utils/bi";
 import { findCurrentIntegrationCategory } from "../../../utils/function-category";
 import { useDraftNodeManager } from "./hooks/useDraftNodeManager";
+import { useDurableAgentUsages } from "./durableAgentUsages";
 import { NodePosition, STNode } from "@wso2/syntax-tree";
 import { View, ProgressIndicator, ThemeColors } from "@wso2/ui-toolkit";
 import { applyModifications, textToModifications } from "../../../utils/utils";
@@ -83,7 +85,7 @@ import { cloneDeep, debounce } from "lodash";
 import { ConnectionKind } from "../../../components/ConnectionSelector";
 import AddAgentPopup from "../AIChatAgent/AddAgentPopup";
 import { DiagramSkeleton } from "../../../components/Skeletons";
-import { AI_COMPONENT_PROGRESS_MESSAGE, AI_COMPONENT_PROGRESS_MESSAGE_TIMEOUT, FORM_LOADING_MESSAGE, LOADING_MESSAGE } from "../../../constants";
+import { AI_COMPONENT_PROGRESS_MESSAGE, AI_COMPONENT_PROGRESS_MESSAGE_TIMEOUT, FORM_LOADING_MESSAGE, LOADING_MESSAGE, WSO2_CLOUD_KNOWLEDGE_BASE_PACKAGE } from "../../../constants";
 import { ConnectionListItem, MarketplaceItem } from "@wso2/wso2-platform-core";
 import { usePlatformExtContext } from "../../../providers/platform-ext-ctx-provider";
 import { requestMiniChatOpen } from "../../../components/AgentStatusOrb/shared";
@@ -205,6 +207,10 @@ const mergePanelCategories = (prev: PanelCategory[] = [], next: PanelCategory[] 
     }
     return merged;
 };
+
+const isDurableAgentBoxNode = (node: FlowNode) =>
+    node.codedata?.node === "DURABLE_AGENT_RUN" &&
+    ((node.metadata?.data as { agentBox?: boolean })?.agentBox === true || node.metadata?.draft === true);
 
 export function BIFlowDiagram(props: BIFlowDiagramProps) {
     const { projectPath, breakpointState, syntaxTree, onUpdate, onReady, onSave, hideAgentConfiguration } = props;
@@ -1878,7 +1884,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         // + create new) instead of the generic form.
         if (
             sidePanelView === SidePanelView.KNOWLEDGE_BASES &&
-            node.codedata.packageName === "ai.wso2.integration"
+            node.codedata.packageName === WSO2_CLOUD_KNOWLEDGE_BASE_PACKAGE
         ) {
             cloudKbNodeRef.current = node; // reuse this codedata for the list/create flows
             setSidePanelView(SidePanelView.WSO2_CLOUD_KB_LIST);
@@ -2759,6 +2765,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
 
         // When editorConfig is absent, derive the artifact type from the EVENT_START node's metadata.
         //   kind="Function" + label="main" → AUTOMATION
+        //   kind="Function" + @ai:AgentTool → AGENT_TOOL
         //   kind="Function" + other label  → FUNCTION
         //   isServiceFunction              → SERVICE
         if (!editorConfig) {
@@ -2769,6 +2776,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 if (!isServiceFunction && kind === "Function") {
                     if (label?.toLowerCase() === "main") {
                         return { artifactType: DIRECTORY_MAP.AUTOMATION };
+                    }
+                    if (/@ai:AgentTool\b/.test(eventStartNode?.codedata?.sourceCode ?? "")) {
+                        return { artifactType: DIRECTORY_MAP.AGENT_TOOL };
                     }
                     return { artifactType: DIRECTORY_MAP.FUNCTION };
                 }
@@ -3985,20 +3995,8 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         }
     };
 
-    // Opens the agent's configuration form from the gear button in the agent box header.
-    const handleOnConfigureAgentIdentifier = async (node: FlowNode) => {
-        // The gear edits the declaration (role/instructions/model) through the box's node form.
-        return handleOnEditNode(node);
-    };
-
-    // Model select for the durable agent box: an object-model agent edits the model on the
-    // declaration through the box form; a legacy durable run node configures its own `model`
-    // property. AI agents fall through to the agent editor controller's handler.
     const handleOnEditDurableAgentModel = (agentCallNode: FlowNode) => {
         const superseded = beginPanelNav();
-        if (agentVarFromRunNode(agentCallNode)) {
-            return handleOnEditNode(agentCallNode);
-        }
         selectedNodeRef.current = agentCallNode;
         showEditForm.current = true;
         setSelectedNodeId(agentCallNode.id);
@@ -4040,6 +4038,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             NEW_TOOL_FUNCTION: SidePanelView.NEW_TOOL_FROM_FUNCTION,
             NEW_TOOL_AGENT: SidePanelView.NEW_TOOL_FROM_AGENT,
             NEW_TOOL_AGENT_FORM: SidePanelView.NEW_TOOL_FROM_AGENT_FORM,
+            NEW_TOOL_KNOWLEDGE_BASE: SidePanelView.NEW_TOOL_FROM_KNOWLEDGE_BASE,
             ADD_MCP: SidePanelView.ADD_MCP_SERVER,
             EDIT_MCP: SidePanelView.EDIT_MCP_SERVER,
         };
@@ -4162,19 +4161,20 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     // agent box (or its draft placeholder) at index 0 followed by the full control-flow
     // chain. While the configuration is hidden, render just [Start, agent box] — the
     // visitor links the pair with a non-editable edge.
-    const isDurableAgentBoxNode = (node: FlowNode) =>
-        node.codedata?.node === "DURABLE_AGENT_RUN" &&
-        ((node.metadata?.data as { agentBox?: boolean })?.agentBox === true || node.metadata?.draft === true);
     const agentOnlyView = !!hideAgentConfiguration && !!flowModel?.nodes?.some(isDurableAgentBoxNode);
-    const displayModel = agentOnlyView
-        ? {
-            ...flowModel,
-            nodes: [
-                ...flowModel.nodes.filter((node) => node.codedata?.node === "EVENT_START"),
-                ...flowModel.nodes.filter(isDurableAgentBoxNode),
-            ],
-        }
-        : flowModel;
+    const durableUsagesLoaded = useDurableAgentUsages(agentOnlyView, model, projectPath, setModel);
+    const displayModel = useMemo(
+        () => (agentOnlyView
+            ? {
+                ...flowModel,
+                nodes: [
+                    ...flowModel.nodes.filter((node) => node.codedata?.node === "EVENT_START"),
+                    ...flowModel.nodes.filter(isDurableAgentBoxNode),
+                ],
+            }
+            : flowModel),
+        [flowModel, agentOnlyView]
+    );
 
     // No RHS side panel in the agent-only view: node clicks (the Start pill) are inert;
     // the agent box hosts its own affordances. While a side panel is already open,
@@ -4228,14 +4228,16 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 onAddActivity: handleOnAddDurableActivity,
                 onAddHumanTask: handleOnAddDurableHumanTask,
                 onAddEvent: handleOnAddDurableEvent,
+                onAddTrigger: agentOnlyView ? (node: FlowNode) => startAddAgentTrigger(node, rpcClient) : agentEditor.diagramCallbacks.onAddTrigger,
+                onAddEventTrigger: agentOnlyView ? (node: FlowNode, event: ToolData) => startAddDurableEventTrigger(node, event, rpcClient) : undefined,
                 onEditCapability: handleOnEditDurableCapability,
                 onDeleteCapability: handleOnDeleteDurableCapability,
-                onConfigureAgent: handleOnConfigureAgentIdentifier,
                 // Outside the declaration canvas the durable agent box is a read-only
                 // reference; clicks navigate to the agent's own model.
                 durableAgentReference: !agentOnlyView,
                 onGoToAgent: handleOnGoToDurableAgent,
             },
+            isAgentFocusView: agentOnlyView,
             suggestions: {
                 fetching: fetchingAiSuggestions,
                 onAccept: onAcceptSuggestions,
@@ -4288,8 +4290,8 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                     <ProgressIndicator color={ThemeColors.PRIMARY} />
                 )}
                 <Container>
-                    {!model && <DiagramSkeleton />}
-                    {model && <MemoizedDiagram {...memoizedDiagramProps} />}
+                    {(!model || !durableUsagesLoaded) && <DiagramSkeleton />}
+                    {model && durableUsagesLoaded && <MemoizedDiagram {...memoizedDiagramProps} />}
                 </Container>
             </View>
 

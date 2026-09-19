@@ -18,6 +18,7 @@
 
 package io.ballerina.designmodelgenerator.core.model;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -33,12 +34,13 @@ import java.util.Set;
  * @param workflowSendData workflow data events sent by the function via workflow:sendData(), keyed by workflow uuid
  * @param invalidWorkflowSendData uuids of workflows targeted by workflow:sendData() calls whose data event name is
  *                                unknown or does not match any event declared by the workflow function
+ * @param agentCalls direct agent calls made by this function, in source order
  *
  * @since 1.0.0
  */
 public record ResourceFunction(String accessor, String path, Location location, Set<String> connections,
                                Set<String> workflows, Map<String, Set<String>> workflowSendData,
-                               Set<String> invalidWorkflowSendData) {
+                               Set<String> invalidWorkflowSendData, List<AgentCall> agentCalls) {
 
     @Override
     public int hashCode() {
@@ -48,5 +50,27 @@ public record ResourceFunction(String accessor, String path, Location location, 
         int invalidWorkflowSendData = invalidWorkflowSendData() != null ? invalidWorkflowSendData().size() : 0;
         return Objects.hash(accessor().hashCode(), path().hashCode(), location().hashCode(), connections, workflows,
                 workflowSendData, invalidWorkflowSendData);
+    }
+
+    // Mirrors hashCode's size-based fields (agentCalls excluded) instead of the record-derived, field-by-field
+    // equals, which would otherwise drift out of sync with hashCode the moment a component is added here.
+    @Override
+    public boolean equals(Object obj) {
+        if (!(obj instanceof ResourceFunction other)) {
+            return false;
+        }
+        int connections = connections() != null ? connections().size() : 0;
+        int otherConnections = other.connections() != null ? other.connections().size() : 0;
+        int workflows = workflows() != null ? workflows().size() : 0;
+        int otherWorkflows = other.workflows() != null ? other.workflows().size() : 0;
+        int workflowSendData = workflowSendData() != null ? workflowSendData().size() : 0;
+        int otherWorkflowSendData = other.workflowSendData() != null ? other.workflowSendData().size() : 0;
+        int invalidWorkflowSendData = invalidWorkflowSendData() != null ? invalidWorkflowSendData().size() : 0;
+        int otherInvalidWorkflowSendData = other.invalidWorkflowSendData() != null
+                ? other.invalidWorkflowSendData().size() : 0;
+        return accessor().equals(other.accessor()) && path().equals(other.path())
+                && location().equals(other.location()) && connections == otherConnections
+                && workflows == otherWorkflows && workflowSendData == otherWorkflowSendData
+                && invalidWorkflowSendData == otherInvalidWorkflowSendData;
     }
 }

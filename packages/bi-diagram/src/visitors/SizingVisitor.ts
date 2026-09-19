@@ -16,12 +16,9 @@
  * under the License.
  */
 
-import { BaseVisitor } from "@wso2/ballerina-core";
+import { AgentUsage, BaseVisitor } from "@wso2/ballerina-core";
 
 import {
-    AGENT_BOX_BOTTOM_AFFORDANCE_GAP,
-    AGENT_NODE_TOOL_GAP,
-    AGENT_NODE_TOOL_SECTION_GAP,
     EMPTY_NODE_CONTAINER_WIDTH,
     END_NODE_WIDTH,
     IF_NODE_WIDTH,
@@ -50,13 +47,33 @@ import { getEvalNodeContainerHeight } from "../components/nodes/EvalNode/evalNod
 import {
     AGENT_USAGE_COLUMN_WIDTH,
     AgentUsageOptions,
+    canAddEventTrigger,
+    canAddTrigger,
+    DurableBoxRows,
+    durableAgentBoxHeight,
+    durableHasSenders,
+    durableLeftColumnWidth,
+    durableLeftSenders,
+    durableRunUsages,
+    durableTriggerRows,
     getAgentNodeContainerHeight,
     getAgentNodeUsages,
+    getDurableAgentUsages,
     hasAgentUsageColumn,
 } from "../components/nodes/AgentWidget/agentNodeLayout";
 import { isEvalTemplateCall, NodeMetadata } from "@wso2/ballerina-core";
 import { getHumanTaskUserRoles, isWaitingAgentCall, reverseCustomNodeId } from "../utils/node";
 import { Branch, FlowNode } from "../utils/types";
+
+type DurableBoxMetadata = NodeMetadata & {
+    tools?: unknown[];
+    activities?: unknown[];
+    humanTasks?: unknown[];
+    events?: { name: string }[];
+    peers?: unknown[];
+    agentBox?: boolean;
+    agentName?: string;
+};
 
 export class SizingVisitor implements BaseVisitor {
     private skipChildrenVisit = false;
@@ -395,6 +412,16 @@ export class SizingVisitor implements BaseVisitor {
         this.setNodeSize(node, containerLeftWidth, containerRightWidth, containerHeight);
     }
 
+    private durableBoxRows(nodeMetadata: DurableBoxMetadata | undefined, usages: AgentUsage[]): DurableBoxRows {
+        return {
+            triggerRows: durableTriggerRows(durableRunUsages(usages), canAddTrigger(this.agentUsageOptions)),
+            leftSenders: durableLeftSenders(nodeMetadata?.humanTasks?.length ?? 0, nodeMetadata?.events ?? [], usages,
+                canAddEventTrigger(this.agentUsageOptions)),
+            leftTiles: 2,
+            rightRows: 1 + (nodeMetadata?.tools?.length ?? 0) + (nodeMetadata?.activities?.length ?? 0) + (nodeMetadata?.peers?.length ?? 0) + 1,
+        };
+    }
+
     endVisitDurableAgentRun(node: FlowNode, parent?: FlowNode): void {
         if (!this.validateNode(node)) return;
 
@@ -409,15 +436,7 @@ export class SizingVisitor implements BaseVisitor {
         const halfNodeWidth = NODE_WIDTH / 2;
         const sideColumnWidth = NODE_GAP_X + NODE_HEIGHT + LABEL_HEIGHT + LABEL_WIDTH;
 
-        const nodeMetadata = node.metadata.data as NodeMetadata & {
-            tools?: unknown[];
-            activities?: unknown[];
-            humanTasks?: unknown[];
-            events?: unknown[];
-            peers?: unknown[];
-            agentBox?: boolean;
-            agentName?: string;
-        };
+        const nodeMetadata = node.metadata.data as DurableBoxMetadata;
 
         // The in-chain buildAndRun statement ("Build Agent") renders as a compact node like
         // the other register statements; only the synthetic agent-box copy (agentBox flag)
@@ -438,32 +457,14 @@ export class SizingVisitor implements BaseVisitor {
             return;
         }
 
-        // Left column: human task and event circles (arrows point into the box).
-        const leftCircles = (nodeMetadata?.humanTasks?.length || 0) + (nodeMetadata?.events?.length || 0);
-        // Right column: the model circle plus AI tool, activity and peer circles — the same set the
-        // widget paints there, so the reserved rows match the painted rows.
-        const rightCircles =
-            1 +
-            (nodeMetadata?.tools?.length || 0) +
-            (nodeMetadata?.activities?.length || 0) +
-            (nodeMetadata?.peers?.length || 0);
+        const rows = this.durableBoxRows(nodeMetadata, getDurableAgentUsages(node));
 
-        // Reserve left-side space only when left circles exist (the widget skips the left svg otherwise).
-        const containerLeftWidth = halfNodeWidth + (leftCircles > 0 ? sideColumnWidth : 0);
+        const hasSenders = durableHasSenders(nodeMetadata?.events ?? [], getDurableAgentUsages(node));
+        const containerLeftWidth = halfNodeWidth + durableLeftColumnWidth(sideColumnWidth, rows.triggerRows, hasSenders);
         // Reserve right-side space for the model circle and capability circles column.
         const containerRightWidth = halfNodeWidth + sideColumnWidth;
 
-        // Height must fit the taller of the two circle columns; row 0 holds the model circle
-        // (and the first left circle), remaining rows are offset by the tool section gap.
-        const numberOfRows = Math.max(leftCircles, rightCircles);
-        const containerHeight =
-            NODE_HEIGHT +
-            AGENT_NODE_TOOL_SECTION_GAP +
-            AGENT_NODE_TOOL_GAP * 2 +
-            (numberOfRows - 1) * (NODE_HEIGHT + AGENT_NODE_TOOL_GAP) +
-            // Reserve space so the corner "+" affordance buttons don't overlap the role/instructions text.
-            AGENT_BOX_BOTTOM_AFFORDANCE_GAP;
-        this.setNodeSize(node, containerLeftWidth, containerRightWidth, containerHeight);
+        this.setNodeSize(node, containerLeftWidth, containerRightWidth, durableAgentBoxHeight(rows));
     }
 
     endVisitEmpty(node: FlowNode, parent?: FlowNode): void {

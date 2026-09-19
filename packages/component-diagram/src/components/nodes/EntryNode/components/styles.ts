@@ -280,3 +280,8 @@ export const colors = {
     "OPTIONS": '#0d5aa7',
     "HEAD": '#9012fe'
 }
+
+const DEFAULT_METHOD_COLOR = "#876036";
+
+export const methodColor = (accessor: string | undefined) =>
+    colors[accessor?.toUpperCase() as keyof typeof colors] ?? DEFAULT_METHOD_COLOR;

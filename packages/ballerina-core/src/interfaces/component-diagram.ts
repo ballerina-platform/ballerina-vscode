@@ -34,7 +34,24 @@ export type CDAutomation = {
     displayName: string;
     location: CDLocation;
     connections: string[];
+    workflows?: string[];
+    type?: string;
+    agentCalls?: CDAgentCall[];
     uuid: string;
+    enableFlowModel?: boolean;
+    sortText?: string;
+};
+
+export type CDAgentCallGroup = {
+    kind: "if" | "match" | "fork" | "while" | "foreach";
+    id: string;
+    label: string;
+};
+
+export type CDAgentCall = {
+    connection: string;
+    line: number;
+    groups?: CDAgentCallGroup[];
 };
 
 export type CDWorkflow = {
@@ -52,6 +69,14 @@ export type CDWorkflow = {
     connections?: string[];
     invalidSendDataServices?: string[];
     invalidSendDataFunctions?: string[];
+    role?: string;
+    activityDecls?: CDWorkflowActivity[];
+    tools?: string[];
+    mcpToolKits?: string[];
+    peers?: CDWorkflowPeer[];
+    delegatesTo?: string[];
+    toolConnections?: string[];
+    agentTools?: Record<string, string>;
     uuid: string;
     enableFlowModel: boolean;
     sortText: string;
@@ -67,6 +92,21 @@ export type CDWorkflowEvent = {
 export type CDWorkflowHumanTask = {
     name: string;
     location: CDLocation;
+    userRoles?: string[];
+    title?: string;
+};
+
+export type CDWorkflowActivity = {
+    name: string;
+    requiresApproval?: boolean;
+    userRoles?: string[];
+};
+
+export type CDWorkflowPeer = {
+    name?: string;
+    agentUuid: string;
+    requiresApproval?: boolean;
+    userRoles?: string[];
 };
 
 export type CDActivity = {
@@ -92,6 +132,27 @@ export type CDConnection = {
     sortText: string;
     icon?: string;
     kind?: string;
+    dependentFunctions?: string[];
+    dependentConnection?: string[];
+    role?: string;
+    delegatesTo?: string[];
+    toolConnections?: string[];
+    modelProvider?: CDModelProvider;
+    memory?: CDMemoryStore;
+    agentTools?: Record<string, string>;
+    typeName?: string;
+    mcpToolKits?: string[];
+};
+
+export type CDModelProvider = {
+    symbol?: string;
+    type: string;
+    icon?: string;
+};
+
+export type CDMemoryStore = {
+    symbol?: string;
+    type: string;
 };
 
 export type CDListener = {
@@ -135,6 +196,7 @@ export type CDFunction = {
     workflows?: string[];
     workflowSendData?: Record<string, string[]>;
     invalidWorkflowSendData?: string[];
+    agentCalls?: CDAgentCall[];
 };
 
 export type CDResourceFunction = {
@@ -145,4 +207,5 @@ export type CDResourceFunction = {
     workflows?: string[];
     workflowSendData?: Record<string, string[]>;
     invalidWorkflowSendData?: string[];
+    agentCalls?: CDAgentCall[];
 };

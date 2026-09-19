@@ -33,7 +33,8 @@ import {
 
 export type AgentEditorView =
     | "NONE" | "MEMORY" | "MEMORY_STORE" | "ADD_TOOL" | "NEW_TOOL_CUSTOM" | "NEW_TOOL_CONNECTION"
-    | "NEW_TOOL_FUNCTION" | "NEW_TOOL_AGENT" | "NEW_TOOL_AGENT_FORM" | "ADD_MCP" | "EDIT_MCP";
+    | "NEW_TOOL_FUNCTION" | "NEW_TOOL_AGENT" | "NEW_TOOL_AGENT_FORM" | "NEW_TOOL_KNOWLEDGE_BASE"
+    | "ADD_MCP" | "EDIT_MCP";
 
 export interface AgentEditorHost {
     projectPath: string;
@@ -354,7 +355,11 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
             backOverride();
             return;
         }
-        setView(view === "NEW_TOOL_AGENT_FORM" ? "NEW_TOOL_AGENT" : "ADD_TOOL");
+        if (view === "NEW_TOOL_AGENT_FORM") {
+            setView("NEW_TOOL_AGENT");
+            return;
+        }
+        setView("ADD_TOOL");
     };
 
     const openView = useCallback((next: AgentEditorView) => {

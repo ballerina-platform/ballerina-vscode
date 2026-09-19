@@ -7,7 +7,7 @@
         {
           "symbol": "deskModel",
           "location": {
-            "filePath": "$PROJECT_ROOT/src/test/resources/get_design_model/source/project_19/agent.bal",
+            "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/agent.bal",
             "startLine": {
               "line": 3,
               "offset": 0
@@ -18,11 +18,12 @@
             }
           },
           "scope": "GLOBAL",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png?wso2_icon",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png?wso2_icon",
           "dependentFunctions": [],
           "dependentConnection": [],
           "kind": "Model Provider",
-          "uuid": "128f3b02-83a9-81fc-b968-597e14274ba1",
+          "typeName": "Wso2ModelProvider",
+          "uuid": "3aec22c7-9189-72a0-2f0e-35f2317790fa",
           "enableFlowModel": true,
           "sortText": "agent.bal3"
         }
@@ -33,7 +34,7 @@
         {
           "symbol": "deskAgent",
           "location": {
-            "filePath": "$PROJECT_ROOT/src/test/resources/get_design_model/source/project_19/agent.bal",
+            "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/agent.bal",
             "startLine": {
               "line": 5,
               "offset": 0
@@ -64,7 +65,7 @@
             {
               "name": "escalation",
               "location": {
-                "filePath": "$PROJECT_ROOT/src/test/resources/get_design_model/source/project_19/agent.bal",
+                "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/agent.bal",
                 "startLine": {
                   "line": 14,
                   "offset": 8
@@ -73,12 +74,16 @@
                   "line": 14,
                   "offset": 72
                 }
-              }
+              },
+              "userRoles": [
+                "support-lead"
+              ],
+              "title": "Escalated case"
             },
             {
               "name": "signoff",
               "location": {
-                "filePath": "$PROJECT_ROOT/src/test/resources/get_design_model/source/project_19/agent.bal",
+                "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/agent.bal",
                 "startLine": {
                   "line": 15,
                   "offset": 8
@@ -87,12 +92,15 @@
                   "line": 15,
                   "offset": 39
                 }
-              }
+              },
+              "userRoles": [
+                "manager"
+              ]
             },
             {
               "name": "audit",
               "location": {
-                "filePath": "$PROJECT_ROOT/src/test/resources/get_design_model/source/project_19/agent.bal",
+                "filePath": "/Users/danniles/Documents/Projects/WSO2/ballerina-vscode/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_19/agent.bal",
                 "startLine": {
                   "line": 16,
                   "offset": 8
@@ -106,11 +114,12 @@
           ],
           "activities": [],
           "connections": [
-            "128f3b02-83a9-81fc-b968-597e14274ba1"
+            "3aec22c7-9189-72a0-2f0e-35f2317790fa"
           ],
           "invalidSendDataServices": [],
           "invalidSendDataFunctions": [],
-          "uuid": "ef4d23eb-b2ca-33bf-8a20-48e49edc645d",
+          "role": "Desk",
+          "uuid": "5b724b6b-8ce4-16d8-4dfd-29a7c451bfcc",
           "enableFlowModel": true,
           "sortText": "agent.bal5"
         }

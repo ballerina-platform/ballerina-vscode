@@ -46,6 +46,8 @@ import {
     BIGetEnclosedFunctionResponse,
     BIGetVisibleVariableTypesRequest,
     BIGetVisibleVariableTypesResponse,
+    BILibraryActionsRequest,
+    BILibraryActionsResponse,
     BIModuleNodesResponse,
     BINodeTemplateRequest,
     BINodeTemplateResponse,
@@ -200,6 +202,7 @@ import {
     getFormDiagnostics,
     getFunctionNames,
     getFunctionNode,
+    getLibraryActions,
     getSuggestedProjectDefaults,
     getModuleNodes,
     getNodeTemplate,
@@ -294,6 +297,10 @@ export class BiDiagramRpcClient implements BIDiagramAPI {
 
     getAvailableVectorKnowledgeBases(params: BIAvailableNodesRequest): Promise<BIAvailableNodesResponse> {
         return this._messenger.sendRequest(getAvailableVectorKnowledgeBases, HOST_EXTENSION, params);
+    }
+
+    getLibraryActions(params: BILibraryActionsRequest): Promise<BILibraryActionsResponse> {
+        return this._messenger.sendRequest(getLibraryActions, HOST_EXTENSION, params);
     }
 
     getAvailableDataLoaders(params: BIAvailableNodesRequest): Promise<BIAvailableNodesResponse> {

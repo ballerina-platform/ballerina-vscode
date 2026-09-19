@@ -20,10 +20,13 @@ package io.ballerina.designmodelgenerator.extension;
 
 import com.google.gson.JsonObject;
 import io.ballerina.designmodelgenerator.core.model.Activity;
+import io.ballerina.designmodelgenerator.core.model.AgentCall;
 import io.ballerina.designmodelgenerator.core.model.Automation;
 import io.ballerina.designmodelgenerator.core.model.Connection;
 import io.ballerina.designmodelgenerator.core.model.DesignModel;
+import io.ballerina.designmodelgenerator.core.model.Function;
 import io.ballerina.designmodelgenerator.core.model.Listener;
+import io.ballerina.designmodelgenerator.core.model.ResourceFunction;
 import io.ballerina.designmodelgenerator.core.model.Service;
 import io.ballerina.designmodelgenerator.core.model.Workflow;
 import io.ballerina.designmodelgenerator.extension.request.GetDesignModelRequest;
@@ -38,8 +41,11 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * Tests for getting the design model for a package.
@@ -117,11 +123,49 @@ public class DesignModelGeneratorTest extends AbstractLSTest {
                             != expectedWorkflow.getAttachedFunctions().size()
                     || !assertHumanTasks(actualWorkflow.getHumanTasks(), expectedWorkflow.getHumanTasks())
                     || sizeOf(actualWorkflow.getActivities()) != sizeOf(expectedWorkflow.getActivities())
-                    || !assertWorkflowEvents(actualWorkflow.getEvents(), expectedWorkflow.getEvents())) {
+                    || !assertWorkflowEvents(actualWorkflow.getEvents(), expectedWorkflow.getEvents())
+                    || !assertDurableAgentFacts(actualWorkflow, expectedWorkflow, actual, expected)) {
                 return false;
             }
         }
         return true;
+    }
+
+    private boolean assertDurableAgentFacts(Workflow actual, Workflow expected,
+                                            List<Workflow> actualAll, List<Workflow> expectedAll) {
+        return Objects.equals(actual.getRole(), expected.getRole())
+                && Objects.equals(actual.getTools(), expected.getTools())
+                && Objects.equals(actual.getMcpToolKits(), expected.getMcpToolKits())
+                && Objects.equals(actual.getActivityDecls(), expected.getActivityDecls())
+                && Objects.equals(humanTaskRoles(actual), humanTaskRoles(expected))
+                && sizeOf(actual.getDelegatesTo()) == sizeOf(expected.getDelegatesTo())
+                && sizeOf(actual.getToolConnections()) == sizeOf(expected.getToolConnections())
+                && Objects.equals(agentToolNames(actual), agentToolNames(expected))
+                && Objects.equals(peerSummaries(actual, actualAll), peerSummaries(expected, expectedAll));
+    }
+
+    private static List<List<String>> humanTaskRoles(Workflow workflow) {
+        return workflow.getHumanTasks() == null ? List.of()
+                : workflow.getHumanTasks().stream().map(Workflow.HumanTask::userRoles).toList();
+    }
+
+    private static Set<String> agentToolNames(Workflow workflow) {
+        return workflow.getAgentTools() == null ? Set.of() : workflow.getAgentTools().keySet();
+    }
+
+    private static List<String> peerSummaries(Workflow workflow, List<Workflow> all) {
+        if (workflow.getPeers() == null) {
+            return null;
+        }
+        return workflow.getPeers().stream()
+                .map(peer -> peer.name() + "->" + symbolOf(all, peer.agentUuid()) + (peer.requiresApproval() ? "!" : "")
+                        + peer.userRoles())
+                .toList();
+    }
+
+    private static String symbolOf(List<Workflow> all, String uuid) {
+        return all.stream().filter(workflow -> uuid.equals(workflow.getUuid())).map(Workflow::getSymbol)
+                .findFirst().orElse("?");
     }
 
     private boolean assertHumanTasks(List<Workflow.HumanTask> actual, List<Workflow.HumanTask> expected) {
@@ -176,12 +220,96 @@ public class DesignModelGeneratorTest extends AbstractLSTest {
             if (actualService.hashCode() != expectedService.hashCode() && !actualService.equals(expectedService)) {
                 return false;
             }
+            if (!assertAgentCallsList(actualService.getFunctions(), expectedService.getFunctions(),
+                    Function::agentCalls)
+                    || !assertAgentCallsList(actualService.getRemoteFunctions(),
+                            expectedService.getRemoteFunctions(), Function::agentCalls)
+                    || !assertAgentCallsList(actualService.getResourceFunctions(),
+                            expectedService.getResourceFunctions(), ResourceFunction::agentCalls)) {
+                return false;
+            }
         }
         return true;
     }
 
+    private <T> boolean assertAgentCallsList(List<T> actual, List<T> expected,
+                                             java.util.function.Function<T, List<AgentCall>> agentCallsOf) {
+        if (sizeOf(actual) != sizeOf(expected)) {
+            return false;
+        }
+        for (int i = 0; i < actual.size(); i++) {
+            if (!assertAgentCalls(agentCallsOf.apply(actual.get(i)), agentCallsOf.apply(expected.get(i)))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean assertAgentCalls(List<AgentCall> actual, List<AgentCall> expected) {
+        if (sizeOf(actual) != sizeOf(expected)) {
+            return false;
+        }
+        if (actual == null || expected == null) {
+            return true;
+        }
+        for (int i = 0; i < actual.size(); i++) {
+            AgentCall actualCall = actual.get(i);
+            AgentCall expectedCall = expected.get(i);
+            if (actualCall.line() != expectedCall.line()
+                    || !assertAgentCallGroups(actualCall.groups(), expectedCall.groups())) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean assertAgentCallGroups(List<AgentCall.Group> actual, List<AgentCall.Group> expected) {
+        if (sizeOf(actual) != sizeOf(expected)) {
+            return false;
+        }
+        for (int i = 0; i < sizeOf(actual); i++) {
+            AgentCall.Group actualGroup = actual.get(i);
+            AgentCall.Group expectedGroup = expected.get(i);
+            if (!actualGroup.kind().equals(expectedGroup.kind())
+                    || !actualGroup.label().equals(expectedGroup.label())) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    // uuids are regenerated on every run, so connections are matched by symbol name rather than by index.
     private boolean assertConnections(List<Connection> actual, List<Connection> expected) {
-        return actual.size() == expected.size();
+        if (actual.size() != expected.size()) {
+            return false;
+        }
+        Map<String, Connection> expectedBySymbol = new HashMap<>();
+        for (Connection connection : expected) {
+            expectedBySymbol.put(connection.getSymbol(), connection);
+        }
+        for (Connection actualConnection : actual) {
+            Connection expectedConnection = expectedBySymbol.get(actualConnection.getSymbol());
+            if (expectedConnection == null
+                    || !Objects.equals(actualConnection.getRole(), expectedConnection.getRole())
+                    || !Objects.equals(actualConnection.getDependentFunctions(),
+                            expectedConnection.getDependentFunctions())
+                    || sizeOf(actualConnection.getDelegatesTo()) != sizeOf(expectedConnection.getDelegatesTo())
+                    || sizeOf(actualConnection.getToolConnections())
+                            != sizeOf(expectedConnection.getToolConnections())
+                    || !Objects.equals(actualConnection.getModelProvider(), expectedConnection.getModelProvider())
+                    || !Objects.equals(actualConnection.getMemory(), expectedConnection.getMemory())
+                    || !Objects.equals(agentToolNames(actualConnection), agentToolNames(expectedConnection))
+                    || !Objects.equals(actualConnection.getTypeName(), expectedConnection.getTypeName())
+                    || !Objects.equals(actualConnection.getMcpToolKits(), expectedConnection.getMcpToolKits())) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    // The map's values are agent uuids, which change on every run; the tool names are what is stable.
+    private static Set<String> agentToolNames(Connection connection) {
+        return connection.getAgentTools() == null ? Set.of() : connection.getAgentTools().keySet();
     }
 
     private boolean assertListeners(List<Listener> actual, List<Listener> expected) {
@@ -195,6 +323,11 @@ public class DesignModelGeneratorTest extends AbstractLSTest {
         if (actual == null || expected == null) {
             return false;
         }
+        return assertAutomationFields(actual, expected)
+                && assertAgentCalls(actual.getAgentCalls(), expected.getAgentCalls());
+    }
+
+    private boolean assertAutomationFields(Automation actual, Automation expected) {
         int actualWorkflows = actual.getWorkflows() == null ? 0 : actual.getWorkflows().size();
         int expectedWorkflows = expected.getWorkflows() == null ? 0 : expected.getWorkflows().size();
         return actual.getType().equals(expected.getType()) &&

@@ -23,7 +23,7 @@ import { DocumentIdentifier, LinePosition, LineRange, NOT_SUPPORTED_TYPE, Positi
 import { BallerinaConnectorInfo, BallerinaExampleCategory, BallerinaModuleResponse, BallerinaModulesRequest, BallerinaTrigger, BallerinaTriggerInfo, BallerinaConnector, ExecutorPosition, ExpressionRange, JsonToRecordMapperDiagnostic, MainTriggerModifyRequest, NoteBookCellOutputValue, NotebookCellMetaInfo, OASpec, PackageSummary, PartialSTModification, ResolvedTypeForExpression, ResolvedTypeForSymbol, STModification, SequenceModel, SequenceModelDiagnostic, ServiceTriggerModifyRequest, SymbolDocumentation, XMLToRecordConverterDiagnostic, TypeField, ComponentInfo } from "./ballerina";
 import { ModulePart, STNode } from "@wso2/syntax-tree";
 import { CodeActionParams, DefinitionParams, DocumentSymbolParams, ExecuteCommandParams, InitializeParams, InitializeResult, LocationLink, RenameParams } from "vscode-languageserver-protocol";
-import { Category, Flow, FlowNode, CodeData, ConfigVariable, FunctionNode, Property, PropertyTypeMemberInfo, DIRECTORY_MAP, Imports, NodeKind, InputType, FormFieldInputType, ProjectStructureArtifactResponse, VISIBILITY } from "./bi";
+import { AvailableNode, Category, Flow, FlowNode, CodeData, ConfigVariable, FunctionNode, Property, PropertyTypeMemberInfo, DIRECTORY_MAP, Imports, NodeKind, InputType, FormFieldInputType, ProjectStructureArtifactResponse, VISIBILITY } from "./bi";
 import { ConnectorRequest, ConnectorResponse } from "../rpc-types/connector-wizard/interfaces";
 import { SqFlow } from "../rpc-types/sequence-diagram/interfaces";
 import { FieldType, FunctionModel, ListenerModel, PropertyModel, ServiceClassModel, ServiceInitModel, ServiceModel, ValidationResult } from "./service";
@@ -941,6 +941,15 @@ export type BIAvailableNodesResponse = {
     categories: Category[];
 };
 
+export interface BILibraryActionsRequest {
+    filePath: string;
+    codedata: CodeData;
+}
+
+export type BILibraryActionsResponse = {
+    actions: AvailableNode[];
+};
+
 export interface BIGetVisibleVariableTypesRequest {
     filePath: string;
     position: LinePosition;
@@ -1547,6 +1556,9 @@ export interface ServiceModelRequest {
     isLocalRepository?: boolean;
     agentName?: string;
     agentOrgName?: string;
+    agentKind?: string;
+    eventChannel?: string;
+    eventResponse?: string;
 }
 export interface ServiceModelResponse {
     service: ServiceModel;
@@ -2291,7 +2303,8 @@ export enum ARTIFACT_TYPE {
     NaturalFunctions = "Natural Functions",
     DataMappers = "Data Mappers",
     Configurations = "Configurations",
-    Variables = "Variables"
+    Variables = "Variables",
+    AgentTools = "Agent Tools"
 }
 
 export enum PROJECT_KIND {
@@ -2311,6 +2324,7 @@ export interface Artifacts {
     [ARTIFACT_TYPE.NaturalFunctions]: Record<string, BaseArtifact>;
     [ARTIFACT_TYPE.DataMappers]: Record<string, BaseArtifact>;
     [ARTIFACT_TYPE.Configurations]: Record<string, BaseArtifact>;
+    [ARTIFACT_TYPE.AgentTools]?: Record<string, BaseArtifact>;
 }
 
 export interface ArtifactsNotification {
