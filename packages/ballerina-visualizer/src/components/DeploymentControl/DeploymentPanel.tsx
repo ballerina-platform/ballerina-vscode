@@ -389,15 +389,14 @@ function AgentManagerTracing({ enabled, handleAmpTracing }: AgentManagerTracingP
         <div>
             <Title variant="h3">Agent Manager</Title>
             <p>
-                {"Publish agent traces to WSO2 Agent Manager. Enabling it configures the "
-                    + "agent manager tracing provider and its endpoint/API key in Config.toml; "
-                    + "disabling it removes that configuration."}
+                {"Publish agent traces to WSO2 Agent Manager. Enabling it instruments this "
+                    + "integration to send traces to Agent Manager."}
             </p>
             <div style={{ paddingLeft: 10 }}>
                 <CheckBox
                     checked={enabled}
                     onChange={handleAmpTracing}
-                    label="Enable Agent Manager tracing"
+                    label="Enable Agent Manager instrumentation"
                 />
             </div>
         </div>
