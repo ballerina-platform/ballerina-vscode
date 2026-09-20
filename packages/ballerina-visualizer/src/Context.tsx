@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import React, { ReactNode, useRef, useState, createContext, useContext } from "react";
+import React, { ReactNode, useCallback, useMemo, useRef, useState, createContext, useContext } from "react";
 import { BallerinaRpcClient, VisualizerContext as RpcContext, Context } from "@wso2/ballerina-rpc-client";
 import { NodePosition, STNode } from "@wso2/syntax-tree";
 import { ConnectorInfo, TriggerModelsResponse } from "@wso2/ballerina-core";
@@ -143,7 +143,7 @@ export const POPUP_IDS = {
   DOCUMENT_URL: "DOCUMENT_URL",
 } as const;
 
-type ModalStackItem = {
+export type ModalStackItem = {
     modal: ReactNode;
     id: string;
     title: string;
@@ -155,35 +155,75 @@ type ModalStackItem = {
 interface ModalStackContext {
     modalStack: ModalStackItem[];
     addModal: (modal: ReactNode, id: string, title: string, height?: number, width?: number, onClose?: () => void) => void;
+    updateModal: (id: string, updates: Partial<Omit<ModalStackItem, "id">>) => void;
     popModal: () => void;
     closeModal: (id: string) => void;
+    popToModal: (id: string) => void;
+    clearModals: () => void;
 }
 
 export const ModalStackContext = createContext({
     modalStack: [],
-    addModal: (modal: ReactNode, id: string, title: string, height?: number, width?: number) => { },
+    addModal: (modal: ReactNode, id: string, title: string, height?: number, width?: number, onClose?: () => void) => { },
+    updateModal: (id: string, updates: Partial<Omit<ModalStackItem, "id">>) => { },
     popModal: () => { },
     closeModal: (id: string) => { },
+    popToModal: (id: string) => { },
+    clearModals: () => { },
 } as ModalStackContext);
 
 export const ModalStackProvider = ({children}: {children: ReactNode}) => {
     const [modalStack, setModalStack] = useState<ModalStackItem[]>([]);
+    const stackRef = useRef<ModalStackItem[]>([]);
 
-    const addModal = (modal: ReactNode, id: string, title: string, height?: number, width?: number, onClose?: () => void) => {
-        setModalStack((prevStack) => [...prevStack, { modal, id, title, height, width, onClose }]);
-    };
+    // Notifies dropped entries outside the state updater, which React may invoke twice.
+    const commit = useCallback((next: (stack: ModalStackItem[]) => ModalStackItem[]) => {
+        const previous = stackRef.current;
+        const kept = next(previous);
+        if (kept === previous) {
+            return;
+        }
+        stackRef.current = kept;
+        setModalStack(kept);
+        previous
+            .filter((item) => !kept.includes(item))
+            .reverse()
+            .forEach((item) => item.onClose?.());
+    }, []);
 
-    const popModal = () => {
-        setModalStack((prevStack) => prevStack.slice(0, -1));
-    };
+    const addModal = useCallback((modal: ReactNode, id: string, title: string, height?: number, width?: number, onClose?: () => void) => {
+        commit((stack) => [...stack.filter((item) => item.id !== id), { modal, id, title, height, width, onClose }]);
+    }, [commit]);
 
-    const closeModal = (id: string) => {
-        setModalStack((prevStack) => prevStack.filter((item) => item.id !== id));
-    };
+    const updateModal = useCallback((id: string, updates: Partial<Omit<ModalStackItem, "id">>) => {
+        commit((stack) => stack.map((item) => (item.id === id ? { ...item, ...updates } : item)));
+    }, [commit]);
 
-    return <ModalStackContext.Provider value={{ modalStack, addModal, popModal, closeModal }}>
-        {children}
-    </ModalStackContext.Provider>;
+    const popModal = useCallback(() => {
+        commit((stack) => stack.slice(0, -1));
+    }, [commit]);
+
+    const closeModal = useCallback((id: string) => {
+        commit((stack) => stack.filter((item) => item.id !== id));
+    }, [commit]);
+
+    const popToModal = useCallback((id: string) => {
+        commit((stack) => {
+            const index = stack.findIndex((item) => item.id === id);
+            return index === -1 ? stack : stack.slice(0, index + 1);
+        });
+    }, [commit]);
+
+    const clearModals = useCallback(() => {
+        commit((stack) => (stack.length === 0 ? stack : []));
+    }, [commit]);
+
+    const value = useMemo(
+        () => ({ modalStack, addModal, updateModal, popModal, closeModal, popToModal, clearModals }),
+        [modalStack, addModal, updateModal, popModal, closeModal, popToModal, clearModals]
+    );
+
+    return <ModalStackContext.Provider value={value}>{children}</ModalStackContext.Provider>;
 }
 
 export const useModalStack = () => useContext(ModalStackContext);
