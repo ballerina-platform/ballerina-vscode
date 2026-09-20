@@ -661,7 +661,7 @@ function CardList(props: CardListProps) {
                         placeholder={searchPlaceholder || "Search"}
                         autoFocus={true}
                         onChange={handleOnSearch}
-                        size={60}
+                        sx={{ width: "100%" }}
                     />
                 </S.Row>
             </S.HeaderContainer>
