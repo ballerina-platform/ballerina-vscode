@@ -99,6 +99,7 @@ export enum MACHINE_VIEW {
     BIDataMapperForm = "Add Data Mapper SKIP",
     AIAgentDesigner = "AI Agent Designer",
     AIChatAgentWizard = "Chat Agent Service Wizard",
+    VoiceAgentServiceWizard = "Voice Agent Service Wizard",
     ResolveMissingDependencies = "Resolve Missing Dependencies",
     ServiceFunctionForm = "Service Function Form",
     AIAgentToolForm = "Agent Tool Form",

@@ -30,7 +30,7 @@ import {
 import { CardGrid, PanelViewMore, Title, TitleWrapper } from "./styles";
 import { BodyText } from "../../styles";
 import ButtonCard from "../../../components/ButtonCard";
-import { AI_CHAT_AGENT_CARD, ARTIFACT_CATEGORY_META, DURABLE_AGENT_CARD } from "../components/artifactCards";
+import { AI_CHAT_AGENT_CARD, ARTIFACT_CATEGORY_META, DURABLE_AGENT_CARD, VOICE_AGENT_CARD } from "../components/artifactCards";
 import { cardMatchesSearch, isBetaModule, OutOfScopeComponentTooltip } from "./componentListUtils";
 import { RelativeLoader } from "../../../components/RelativeLoader";
 import { getIntegrationIcon } from "./integrationIcon";
@@ -49,15 +49,22 @@ export function AIAgentPanel(props: AIAgentPanelProps) {
     const { rpcClient } = useRpcContext();
     const isDisabled = props.scope && props.scope !== SCOPE.AI_AGENT && props.scope !== SCOPE.ANY;
     const q = props.searchQuery;
-    const mcpTriggers = useMemo(
-        () => props.triggers.local.filter((t) => effectiveTriggerKind(t) === "mcp" && cardMatchesSearch(t.name, q)),
+    const aiIntegrationTriggers = useMemo(
+        () =>
+            props.triggers.local.filter(
+                (t) =>
+                    ["mcp", "ai"].includes(effectiveTriggerKind(t)) &&
+                    // Superseded by the VOICE_AGENT_CARD below.
+                    t.moduleName !== "ai.wso2.integration" &&
+                    cardMatchesSearch(t.name, q)
+            ),
         [props.triggers, q]
     );
     const agentMatches = cardMatchesSearch(AI_CHAT_AGENT_CARD.displayName, q);
     const durableAgentMatches = cardMatchesSearch(DURABLE_AGENT_CARD.displayName, q);
+    const voiceAgentMatches = cardMatchesSearch(VOICE_AGENT_CARD.displayName, q);
 
-    const handleMcpClick = async (key: DIRECTORY_MAP, model: ServiceModel) => {
-        console.log(">>>>> Model: ", model);
+    const handleTriggerClick = async (key: DIRECTORY_MAP, model: ServiceModel) => {
         await rpcClient.getVisualizerRpcClient().openView({
             type: EVENT_TYPE.OPEN_VIEW,
             location: {
@@ -90,8 +97,17 @@ export function AIAgentPanel(props: AIAgentPanelProps) {
         });
     };
 
+    const handleVoiceAgentClick = async () => {
+        await rpcClient.getVisualizerRpcClient().openView({
+            type: EVENT_TYPE.OPEN_VIEW,
+            location: {
+                view: MACHINE_VIEW.VoiceAgentServiceWizard,
+            },
+        });
+    };
+
     // While searching, hide the whole panel when nothing here matches.
-    if (q?.trim() && !agentMatches && !durableAgentMatches && mcpTriggers.length === 0) {
+    if (q?.trim() && !agentMatches && !durableAgentMatches && !voiceAgentMatches && aiIntegrationTriggers.length === 0) {
         return null;
     }
 
@@ -124,14 +140,24 @@ export function AIAgentPanel(props: AIAgentPanelProps) {
                         tooltip={DURABLE_AGENT_CARD.tooltip}
                     />
                 )}
+                {voiceAgentMatches && (
+                    <ButtonCard
+                        id={VOICE_AGENT_CARD.id}
+                        icon={VOICE_AGENT_CARD.icon}
+                        title={VOICE_AGENT_CARD.displayName}
+                        onClick={handleVoiceAgentClick}
+                        disabled={isDisabled}
+                        tooltip={isDisabled ? OutOfScopeComponentTooltip : ""}
+                    />
+                )}
                 {props.triggers.local.length === 0 && <RelativeLoader />}
-                {mcpTriggers.map((item) => (
+                {aiIntegrationTriggers.map((item) => (
                     <ButtonCard
                         id={`trigger-${item.moduleName.replace(/\./g, "-")}`}
                         key={item.id}
                         title={item.name}
                         icon={getIntegrationIcon(item)}
-                        onClick={() => handleMcpClick(DIRECTORY_MAP.SERVICE, item)}
+                        onClick={() => handleTriggerClick(DIRECTORY_MAP.SERVICE, item)}
                         disabled={isDisabled}
                         tooltip={isDisabled ? OutOfScopeComponentTooltip : ""}
                         isBeta={isBetaModule(item.moduleName)}

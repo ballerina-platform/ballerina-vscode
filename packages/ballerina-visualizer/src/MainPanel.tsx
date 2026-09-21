@@ -629,6 +629,12 @@ const MainPanel = () => {
                             setViewComponent(<AIChatAgentWizard initialName={value?.identifier} />);
                             break;
                         }
+                        case MACHINE_VIEW.VoiceAgentServiceWizard: {
+                            const { VoiceAgentWizard } = await import("./views/BI/VoiceAgent/VoiceAgentWizard");
+                            if (isStaleNavigation()) return;
+                            setViewComponent(<VoiceAgentWizard initialName={value?.identifier} />);
+                            break;
+                        }
                         case MACHINE_VIEW.BIServiceWizard: {
                             const { ServiceCreationView } = await import("./views/BI/ServiceDesigner/ServiceCreationView");
                             if (isStaleNavigation()) return;

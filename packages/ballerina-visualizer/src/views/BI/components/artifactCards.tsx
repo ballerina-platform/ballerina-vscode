@@ -30,7 +30,7 @@ import { DIRECTORY_MAP } from "@wso2/ballerina-core";
  */
 
 /** The artifact kinds the Create Integration wizard can create. */
-export type ArtifactKind = "automation" | "workflow" | "durable_agent" | "ai-agent" | "service";
+export type ArtifactKind = "automation" | "workflow" | "durable_agent" | "ai-agent" | "voice-agent" | "service";
 
 /** A selectable artifact card, rendered as a `ButtonCard` on both surfaces. */
 export interface ArtifactCard {
@@ -145,6 +145,13 @@ export const AI_CHAT_AGENT_CARD: ArtifactCard = {
     kind: "ai-agent",
     displayName: "Chat Agent Service",
     icon: <Icon name="bi-ai-agent" />,
+};
+
+export const VOICE_AGENT_CARD: ArtifactCard = {
+    id: "voice-agent-card",
+    kind: "voice-agent",
+    displayName: "Voice Agent Service",
+    icon: <Icon name="mic" isCodicon={true} />,
 };
 
 /** TODO: Add the gRPC service card once gRPC support is working. */
