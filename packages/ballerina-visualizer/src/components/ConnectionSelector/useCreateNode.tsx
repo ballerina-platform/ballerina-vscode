@@ -37,6 +37,8 @@ import { LoaderContainer } from "../RelativeLoader/styles";
 
 const MODAL_WIDTH = 680;
 
+const dummyNode = { codedata: {}, properties: {} } as unknown as FlowNode;
+
 const readCreatedVariable = (node: FlowNode): string | undefined => {
     const props = node.properties as Record<string, { value?: string }> | undefined;
     return props?.model?.value || props?.modelProvider?.value;
@@ -78,29 +80,50 @@ export function useCreateNode(
     // of a blank form.
     const createCloudKnowledgeBaseConnection = (connectorCodeData: CodeData, onCreated: (variableName: string) => void) => {
         const title = "WSO2 Cloud Knowledge Bases";
+        const formTitle = connectorCodeData.object
+            ? `Create ${formatMethodName(connectorCodeData.object)}`
+            : "Create Knowledge Base";
         const done = returnToCallingLevel();
-        const renderCreator = (close: () => void) => (
+        const renderForm = (flowNode: FlowNode, close: () => void) => (
+            <ConnectionCreator
+                connectionKind={(connectorCodeData.node || "NEW_CONNECTION") as ConnectionKind}
+                selectedNode={dummyNode}
+                nodeFormTemplate={flowNode}
+                onSave={buildOnSave(close, onCreated)}
+            />
+        );
+        const renderPicker = (onNodeReady: (flowNode: FlowNode) => void) => (
             <CloudKnowledgeBaseCreator
                 connectorCodeData={connectorCodeData}
                 fileName={fileName}
                 targetLineRange={targetLineRange}
-                onSave={buildOnSave(close, onCreated)}
+                onNodeReady={onNodeReady}
             />
         );
 
         if (panelOverlay) {
             panelOverlay.openOverlay({
                 title,
-                content: renderCreator(panelOverlay.clearAllOverlays),
+                content: renderPicker((flowNode) =>
+                    panelOverlay.openOverlay({
+                        title: formTitle,
+                        content: renderForm(flowNode, panelOverlay.clearAllOverlays),
+                        onBack: panelOverlay.closeTopOverlay,
+                    })
+                ),
                 onBack: panelOverlay.closeTopOverlay,
             });
             return;
         }
 
-        // Narrower than the generic connection modal so ConnectorsGrid's minmax(200px, 1fr) columns
-        // fall back to one per row, matching the flow diagram's own (narrower) side panel.
         const modalId = `create-cloud-kb-${connectorCodeData.org}-${connectorCodeData.object}`;
-        addModal(renderCreator(done), modalId, title, 780, 420);
+        addModal(
+            renderPicker((flowNode) => addModal(renderForm(flowNode, done), `${modalId}-form`, formTitle, 780, MODAL_WIDTH)),
+            modalId,
+            title,
+            780,
+            MODAL_WIDTH
+        );
     };
 
     const createGenericConnection = async (connectorCodeData: CodeData, onCreated: (variableName: string) => void) => {
@@ -112,7 +135,6 @@ export function useCreateNode(
             ? `Create ${formatMethodName(connectorCodeData.object)}`
             : "Create Connection";
         const done = returnToCallingLevel();
-        const dummyNode = { codedata: {}, properties: {} } as unknown as FlowNode;
         const renderCreator = (flowNode: FlowNode, close: () => void) => (
             <ConnectionCreator
                 connectionKind={(connectorCodeData.node || "NEW_CONNECTION") as ConnectionKind}
