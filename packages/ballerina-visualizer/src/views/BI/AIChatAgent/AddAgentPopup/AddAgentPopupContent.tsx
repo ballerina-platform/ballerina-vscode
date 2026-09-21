@@ -16,29 +16,21 @@
  * under the License.
  */
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Button, Icon, ProgressRing, ThemeColors } from "@wso2/ui-toolkit";
+import React, { useEffect, useRef, useState } from "react";
+import { Icon, ProgressRing, ThemeColors } from "@wso2/ui-toolkit";
 import { ConnectorIcon } from "@wso2/bi-diagram";
-import { AvailableNode, BISearchResponse, EVENT_TYPE, FlowNode, LineRange, isDefaultModelProviderExpr } from "@wso2/ballerina-core";
+import { AvailableNode, BISearchResponse } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { cloneDeep, debounce } from "lodash";
+import { debounce } from "lodash";
 import ButtonCard from "../../../../components/ButtonCard";
 import { RelativeLoader } from "../../../../components/RelativeLoader";
-import { FlowNodeForm } from "../../Forms/FlowNodeForm";
-import { fetchAgentNodeTemplate, getEndOfFileLineRange, getNodeTemplate } from "../utils";
-import { AgentDefinitionForm } from "../AgentDefinitionForm";
-import { AgentInfoCard } from "./AgentInfoCard";
-import { CreateDurableAgentView } from "./CreateDurableAgentView";
 import { CreateNewSection } from "./CreateNewSection";
-import { PackageAgentsView } from "./PackageAgentsView";
 import {
-    AgentDefinitionFormContainer,
     AgentsGrid,
     AgentsLoadingCard,
     EmptyState,
     FilterButton,
     FilterButtons,
-    FormContainer,
     IntroText,
     LoaderWrapper,
     PopupContent,
@@ -48,21 +40,14 @@ import {
     StyledSearchBox,
 } from "./styles";
 
-const AGENT_FILE_NAME = "agents.bal";
-
 type AgentFilter = "All" | "Project" | "Organization";
-export type AddAgentView = "gallery" | "package" | "configure" | "create" | "createDefinition" | "createDurable";
-
 export interface AddAgentPopupContentProps {
     projectPath: string;
-    onClose?: () => void;
-    onAgentDefinitionCreated?: () => void;
-    view: AddAgentView;
-    onViewChange: (view: AddAgentView) => void;
-    pendingAgent?: AvailableNode;
-    onPendingAgentChange: (agent: AvailableNode | undefined) => void;
+    onOpenAgentForm: (agent?: AvailableNode) => void;
+    onOpenPackage: (agent: AvailableNode, agents: AvailableNode[]) => void;
+    onOpenDefinition: () => void;
+    onOpenDurable: () => void;
     inFlow?: boolean;
-    onAgentCreated?: (agentVarName: string) => void;
     dependencyMode?: boolean;
     onAgentSelectedForDependency?: (agent: AvailableNode) => void;
     onGenericAgentSelected?: () => void;
@@ -83,14 +68,11 @@ const FILTER_TO_SOURCE: Record<AgentFilter, string> = {
 export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
     const {
         projectPath,
-        onClose,
-        onAgentDefinitionCreated,
-        view,
-        onViewChange,
-        pendingAgent,
-        onPendingAgentChange,
+        onOpenAgentForm,
+        onOpenPackage,
+        onOpenDefinition,
+        onOpenDurable,
         inFlow,
-        onAgentCreated,
         dependencyMode,
         onAgentSelectedForDependency,
         onGenericAgentSelected,
@@ -99,7 +81,6 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
     const [searchText, setSearchText] = useState("");
     const [filterType, setFilterType] = useState<AgentFilter>("All");
     const [agents, setAgents] = useState<AvailableNode[]>([]);
-    const [packageAgents, setPackageAgents] = useState<AvailableNode[]>([]);
     const [isExpanding, setIsExpanding] = useState(false);
     const [isSearching, setIsSearching] = useState(false);
     const [isLoadingOrgAgents, setIsLoadingOrgAgents] = useState(false);
@@ -124,67 +105,6 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
             cancelled = true;
         };
     }, [rpcClient]);
-
-    const [agentNode, setAgentNode] = useState<FlowNode>();
-    const [agentFilePath, setAgentFilePath] = useState("");
-    const [targetLineRange, setTargetLineRange] = useState<LineRange>();
-    const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-    const [loadError, setLoadError] = useState<string>();
-    const [loadAttempt, setLoadAttempt] = useState(0);
-    const createFormNode = useMemo(() => agentNode ? cloneDeep(agentNode) : undefined, [agentNode]);
-    const configureFormNode = useMemo(() => {
-        if (!agentNode) {
-            return undefined;
-        }
-        const node = cloneDeep(agentNode);
-        if (node.metadata?.description) {
-            delete node.metadata.description;
-        }
-        return node;
-    }, [agentNode]);
-
-    useEffect(() => {
-        if ((view !== "configure" && view !== "create") || (view === "configure" && !pendingAgent)) {
-            setAgentNode(undefined);
-            setTargetLineRange(undefined);
-            setIsSubmitting(false);
-            return;
-        }
-        let cancelled = false;
-        (async () => {
-            try {
-                setLoadError(undefined);
-                const endOfFile = await getEndOfFileLineRange(AGENT_FILE_NAME, rpcClient);
-                let template: FlowNode;
-                if (view === "configure") {
-                    template = await getNodeTemplate(
-                        rpcClient,
-                        pendingAgent!.codedata,
-                        endOfFile.fileName,
-                        endOfFile.startLine
-                    );
-                    if (!template) {
-                        throw new Error("No agent node template returned");
-                    }
-                } else {
-                    template = await fetchAgentNodeTemplate(rpcClient, projectPath);
-                }
-                template.codedata.lineRange = endOfFile;
-                if (cancelled) return;
-                setAgentFilePath(endOfFile.fileName);
-                setTargetLineRange(endOfFile);
-                setAgentNode(template);
-            } catch (error) {
-                console.error("Error loading agent node template:", error);
-                if (!cancelled) {
-                    setLoadError("Unable to load the agent template.");
-                }
-            }
-        })();
-        return () => {
-            cancelled = true;
-        };
-    }, [view, pendingAgent, rpcClient, projectPath, loadAttempt]);
 
     // Org packages need a Central round trip, so they are merged in after the offline results render.
     const loadOrganizationAgents = (request: number) => {
@@ -251,10 +171,6 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
     const debouncedSearch = debounce((text: string, filter: AgentFilter) => runSearch(text, filter), 1100);
 
     useEffect(() => {
-        if (view !== "gallery") {
-            previousFilterRef.current = undefined;
-            return;
-        }
         const filterChanged = previousFilterRef.current !== filterType;
         previousFilterRef.current = filterType;
         setIsLoadingOrgAgents(false);
@@ -265,81 +181,9 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
         searchRequestRef.current += 1;
         debouncedSearch(searchText, filterType);
         return () => debouncedSearch.cancel();
-    }, [view, searchText, filterType, rpcClient, projectPath]);
+    }, [searchText, filterType, rpcClient, projectPath]);
 
-    const handleCustomAgent = () => {
-        onPendingAgentChange(undefined);
-        onViewChange("create");
-    };
-
-    const handleDurableAgent = () => onViewChange("createDurable");
-
-    const handleCreateAgent = async (updatedNode?: FlowNode) => {
-        if (!updatedNode) {
-            return;
-        }
-        setIsSubmitting(true);
-        try {
-            const node = cloneDeep(updatedNode);
-
-            const endOfFile = await getEndOfFileLineRange(AGENT_FILE_NAME, rpcClient);
-            node.codedata.lineRange = endOfFile;
-
-            const sourceResponse = await rpcClient
-                .getBIDiagramRpcClient()
-                .getSourceCode({ filePath: endOfFile.fileName, flowNode: node });
-
-            if (isDefaultModelProviderExpr(node.properties?.model?.value)) {
-                await rpcClient.getAIAgentRpcClient().configureDefaultModelProvider("model");
-            }
-
-            const agentVarName = String(node.properties?.variable?.value ?? "");
-
-            if (inFlow) {
-                onAgentCreated?.(agentVarName);
-                return;
-            }
-
-            const agentArtifact =
-                sourceResponse?.artifacts?.find((artifact) => artifact.isNew && artifact.name === agentVarName) ||
-                sourceResponse?.artifacts?.find((artifact) => artifact.name === agentVarName);
-
-            if (agentArtifact?.path && agentArtifact?.position) {
-                await rpcClient.getVisualizerRpcClient().openView({
-                    type: EVENT_TYPE.OPEN_VIEW,
-                    location: {
-                        documentUri: agentArtifact.path,
-                        position: agentArtifact.position,
-                        identifier: agentVarName,
-                    },
-                });
-                return;
-            }
-            onClose?.();
-        } catch (error) {
-            console.error("Error creating custom agent:", error);
-            rpcClient.getCommonRpcClient().showErrorMessage({
-                message: "Failed to create the agent. Please try again.",
-            });
-            setIsSubmitting(false);
-        }
-    };
-
-    const renderLoadError = () => (
-        <LoaderWrapper>
-            <div role="alert">
-                <p>{loadError}</p>
-                <Button appearance="secondary" onClick={() => setLoadAttempt((attempt) => attempt + 1)}>
-                    Retry
-                </Button>
-            </div>
-        </LoaderWrapper>
-    );
-
-    const openAgent = (agent: AvailableNode) => {
-        onPendingAgentChange(agent);
-        onViewChange("configure");
-    };
+    const handleCustomAgent = () => onOpenAgentForm();
 
     // A resolved agent (codedata.object set) routes to the dependency callback or the configure view.
     const selectResolvedAgent = (agent: AvailableNode) => {
@@ -347,7 +191,7 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
             onAgentSelectedForDependency?.(agent);
             return;
         }
-        openAgent(agent);
+        onOpenAgentForm(agent);
     };
 
     // Central results name a package; expand it so the user picks which definition to instantiate.
@@ -366,9 +210,7 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
                 selectResolvedAgent(found[0]);
                 return;
             }
-            setPackageAgents(found);
-            onPendingAgentChange(agent);
-            onViewChange("package");
+            onOpenPackage(agent, found);
         } catch (error) {
             console.error("Error expanding agent package:", error);
             rpcClient.getCommonRpcClient().showErrorMessage({
@@ -387,71 +229,6 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
         selectResolvedAgent(agent);
     };
 
-    if (view === "createDefinition") {
-        return (
-            <AgentDefinitionFormContainer>
-                <AgentDefinitionForm projectPath={projectPath} onCreated={onAgentDefinitionCreated} />
-            </AgentDefinitionFormContainer>
-        );
-    }
-
-    if (view === "createDurable") {
-        return <CreateDurableAgentView projectPath={projectPath} />;
-    }
-
-    if (view === "create" || view === "configure") {
-        const isConfiguring = view === "configure";
-        const fieldOverrides = {
-            type: { hidden: true },
-            variable: { label: "Agent Name", documentation: "Name of the agent" },
-        };
-        // Memoized per `agentNode` so a re-render does not hand the form a new node
-        // object and wipe the values the user has already typed.
-        const formNode = isConfiguring ? configureFormNode : createFormNode;
-        const submitText = isConfiguring ? "Add Agent" : "Create Agent";
-        const submittingText = isConfiguring ? "Adding..." : "Creating...";
-        return (
-            <FormContainer>
-                {loadError ? renderLoadError() : formNode && targetLineRange ? (
-                    <>
-                        {isConfiguring && <AgentInfoCard
-                            label={pendingAgent?.metadata?.label || ""}
-                            description={pendingAgent?.metadata?.description || agentNode?.metadata?.description}
-                            icon={pendingAgent?.metadata?.icon}
-                        />}
-                        <FlowNodeForm
-                            fileName={agentFilePath}
-                            node={formNode}
-                            nodeFormTemplate={formNode}
-                            targetLineRange={targetLineRange}
-                            onSubmit={handleCreateAgent}
-                            submitText={isSubmitting ? submittingText : submitText}
-                            showProgressIndicator={isSubmitting}
-                            disableSaveButton={isSubmitting}
-                            footerActionButton
-                            fieldOverrides={fieldOverrides}
-                        />
-                    </>
-                ) : (
-                    <LoaderWrapper>
-                        <RelativeLoader />
-                    </LoaderWrapper>
-                )}
-            </FormContainer>
-        );
-    }
-
-    if (view === "package" && pendingAgent) {
-        return (
-            <PackageAgentsView
-                packageNode={pendingAgent}
-                agents={packageAgents}
-                isLoading={isExpanding}
-                onSelect={selectResolvedAgent}
-            />
-        );
-    }
-
     return (
         <PopupContent>
             <IntroText>
@@ -463,8 +240,8 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
             <CreateNewSection
                 dependencyMode={dependencyMode}
                 onCreateAgent={handleCustomAgent}
-                onCreateDurableAgent={inFlow ? undefined : handleDurableAgent}
-                onCreateDefinition={() => onViewChange("createDefinition")}
+                onCreateDurableAgent={inFlow ? undefined : onOpenDurable}
+                onCreateDefinition={onOpenDefinition}
                 onGenericAgent={onGenericAgentSelected}
             />
 

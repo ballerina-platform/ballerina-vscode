@@ -22,24 +22,22 @@ import { Typography, ThemeColors, SearchBox } from "@wso2/ui-toolkit";
 export const PopupContent = styled.div`
     flex: 1;
     overflow-y: auto;
-    padding: 20px 20px 24px;
+    padding: 0 16px 16px;
     display: flex;
     flex-direction: column;
     gap: 24px;
 `;
 
 export const FormContainer = styled.div`
-    flex: 1;
+    height: 100%;
     min-height: 0;
     display: flex;
     flex-direction: column;
-    overflow-y: auto;
-    padding: 16px 20px;
+    overflow: hidden;
 `;
 
 export const AgentDefinitionFormContainer = styled(FormContainer)`
     overflow: hidden;
-    padding: 0;
 `;
 
 export const LoaderWrapper = styled.div`
@@ -150,6 +148,13 @@ export const AgentOptionIconBadge = styled.div`
     color: ${ThemeColors.ON_SURFACE_VARIANT};
     box-shadow: 0 0 0 2px var(--option-card-bg);
     transition: box-shadow 0.2s ease;
+
+    /* The glyph's own bearing offsets it inside the circle. */
+    & i,
+    & svg {
+        display: block;
+        line-height: 1;
+    }
 `;
 
 export const AgentOptionContent = styled.div`
@@ -170,6 +175,10 @@ export const AgentOptionDescription = styled(Typography)`
     font-size: 12px;
     color: ${ThemeColors.ON_SURFACE_VARIANT};
     margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 `;
 
 export const ArrowIcon = styled.div`

@@ -45,12 +45,21 @@ const FormContainer = styled.div<{ $fullWidth?: boolean }>`
     flex-direction: column;
     max-width: ${(props: { $fullWidth?: boolean }) => props.$fullWidth ? "none" : "600px"};
     gap: 20px;
+    ${(props: { $fullWidth?: boolean }) => props.$fullWidth && "flex: 1; min-height: 0;"}
 `;
 
-const Container = styled.div`
+const Container = styled.div<{ $fill?: boolean }>`
     display: "flex";
     flex-direction: "column";
     gap: 10;
+    ${(props: { $fill?: boolean }) =>
+        props.$fill &&
+        `
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        min-height: 0;
+    `}
 `;
 
 interface FunctionFormShellProps {
@@ -744,7 +753,7 @@ export function FunctionForm(props: FunctionFormProps) {
             title={formType.current}
             subtitle={titleSubtitle}
         >
-            <Container>
+            <Container $fill={embedded}>
                 {isPopup && (
                     <>
                         <TopBar>
@@ -806,7 +815,8 @@ export function FunctionForm(props: FunctionFormProps) {
                     {filePath && targetLineRange && functionFields.length > 0 && !(saving && !functionName) &&
                         <ArtifactForm
                             fileName={filePath}
-                            nestedForm={true}
+                            nestedForm={!embedded}
+                            footerActionButton={embedded}
                             targetLineRange={targetLineRange}
                             fields={functionFields}
                             recordTypeFields={recordTypeFields}
