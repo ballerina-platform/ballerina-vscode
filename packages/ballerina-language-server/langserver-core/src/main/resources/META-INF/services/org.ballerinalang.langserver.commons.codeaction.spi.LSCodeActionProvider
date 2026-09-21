@@ -54,3 +54,4 @@ org.ballerinalang.langserver.codeaction.providers.MakeAnnotationDeclConstantCode
 org.ballerinalang.langserver.codeaction.providers.ExtractToConfigurableCodeAction
 org.ballerinalang.langserver.codeaction.providers.AddAccessModifierCodeAction
 org.ballerinalang.langserver.codeaction.providers.AddToConfigTomlCodeAction
+org.ballerinalang.langserver.codeaction.providers.MigrateWorkflowDeclarationCodeAction

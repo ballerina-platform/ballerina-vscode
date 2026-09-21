@@ -109,7 +109,9 @@ const NODE_COLOR_GROUPS = {
         "WORKFLOW_CURRENT_TIME",
         "WORKFLOW_IS_REPLAYING",
         "WORKFLOW_GET_ID",
-        "WORKFLOW_GET_TYPE"
+        "WORKFLOW_GET_TYPE",
+        "WORKFLOW_LAST_HUMAN_TASK_COMPLETION",
+        "WORKFLOW_LAST_REVIEW_DECISION"
     ],
     
     // AI/NP function group - cyan variants
@@ -180,6 +182,8 @@ const WORKFLOW_MODULE_FUNCTION_ICONS: Record<string, string> = {
     getWorkflowId: "bi-key",
     getWorkflowType: "bi-type",
     sleep: "bi-clock",
+    lastHumanTaskCompletion: "bi-user",
+    lastReviewDecision: "bi-check",
 };
 
 // Exported so callers building their own icon (e.g. the side panel, which picks an icon before
@@ -290,6 +294,29 @@ export const getNodeChartColor = (nodeType: NodeKind, symbol?: string): string =
 export const isHighContrastTheme = isHighContrastThemeShared;
 
 // Get AI-specific color
+// The agent glyph with a small workflow badge on its bottom-right corner, so a durable agent
+// reads apart from an AI agent wherever the two can appear side by side.
+export function DurableAgentIcon({ size, color }: { size: number; color?: string }): React.ReactElement {
+    const badge = Math.max(10, Math.round(size / 2));
+    return (
+        <span style={{ position: "relative", display: "inline-flex", width: size, height: size, flexShrink: 0 }}>
+            <Icon name="bi-ai-agent" sx={{ fontSize: size, width: size, height: size, color }} />
+            <Icon
+                name="bi-workflow"
+                sx={{
+                    fontSize: badge,
+                    width: badge,
+                    height: badge,
+                    color,
+                    position: "absolute",
+                    right: -Math.round(badge / 4),
+                    bottom: -Math.round(badge / 6),
+                }}
+            />
+        </span>
+    );
+}
+
 export const getAIColor = (): string => {
     if (isHighContrastTheme()) {
         return "rgb(243, 133, 24)";
@@ -342,6 +369,8 @@ const NODE_ICONS: Record<NodeKind, React.FC<{ size: number; color: string; isDBC
     WORKFLOW_IS_REPLAYING: ({ size, color }) => <Icon name="bi-redo" sx={{ fontSize: size, width: size, height: size, color }} />,
     WORKFLOW_GET_ID: ({ size, color }) => <Icon name="bi-key" sx={{ fontSize: size, width: size, height: size, color }} />,
     WORKFLOW_GET_TYPE: ({ size, color }) => <Icon name="bi-type" sx={{ fontSize: size, width: size, height: size, color }} />,
+    WORKFLOW_LAST_HUMAN_TASK_COMPLETION: ({ size, color }) => <Icon name="bi-user" sx={{ fontSize: size, width: size, height: size, color }} />,
+    WORKFLOW_LAST_REVIEW_DECISION: ({ size, color }) => <Icon name="bi-check" sx={{ fontSize: size, width: size, height: size, color }} />,
     ACTIVITY_CALL: ({ size, color }) => <Icon name="bi-task" sx={{ fontSize: size, width: size, height: size, color }} />,
     CONNECTION_ACTIVITY_CALL: ({ size, color }) => <Icon name="bi-task" sx={{ fontSize: size, width: size, height: size, color }} />,
     // Sending a data event into a workflow: the send icon, matching the receive-side bi-import.
@@ -351,8 +380,8 @@ const NODE_ICONS: Record<NodeKind, React.FC<{ size: number; color: string; isDBC
     HUMAN_TASK: ({ size, color }) => <Icon name="bi-user" sx={{ fontSize: size, width: size, height: size, color }} />,
     // Agent driver verbs mirror the workflow data-event icons: send for sendData, import
     // (receive) for the result readers, and the agent glyph for starting an agent.
-    DURABLE_AGENT_RUN: ({ size, color }) => <Icon name="bi-ai-agent" sx={{ fontSize: size, width: size, height: size, color }} />,
-    DURABLE_AGENT_START: ({ size, color }) => <Icon name="bi-ai-agent" sx={{ fontSize: size, width: size, height: size, color }} />,
+    DURABLE_AGENT_RUN: ({ size, color }) => <DurableAgentIcon size={size} color={color} />,
+    DURABLE_AGENT_START: ({ size, color }) => <DurableAgentIcon size={size} color={color} />,
     DURABLE_AGENT_UPDATE: ({ size, color }) => <Icon name="bi-send" sx={{ fontSize: size, width: size, height: size, color }} />,
     DURABLE_AGENT_RESULT: ({ size, color }) => <Icon name="bi-flowchart" sx={{ fontSize: size, width: size, height: size, color }} />,
     DURABLE_AGENT_DATA_RESULT: ({ size, color }) => <Icon name="bi-import" sx={{ fontSize: size, width: size, height: size, color }} />,

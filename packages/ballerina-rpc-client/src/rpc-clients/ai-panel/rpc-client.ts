@@ -514,7 +514,7 @@ export class AiPanelRpcClient implements AIPanelAPI {
         return this._messenger.sendRequest(listThreads, HOST_EXTENSION);
     }
 
-    switchThread(params: SwitchThreadRequest): Promise<void> {
+    switchThread(params: SwitchThreadRequest): Promise<boolean> {
         return this._messenger.sendRequest(switchThread, HOST_EXTENSION, params);
     }
 

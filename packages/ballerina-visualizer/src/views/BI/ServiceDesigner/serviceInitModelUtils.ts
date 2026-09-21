@@ -281,7 +281,11 @@ export function applyFormValuesToModel(formFields: FormField[], model: ServiceIn
                 }
             })
         } else if (data[val.key] !== undefined) {
-            val.value = data[val.key];
+            if (val.key === "basePath") {
+                val.value = sanitizedHttpPath(data[val.key]);
+            } else {
+                val.value = data[val.key];
+            }
         }
 
         if (val.type === "CONDITIONAL_FIELDS" || val.type === "GROUP_SECTION") {

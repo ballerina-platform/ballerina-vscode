@@ -165,6 +165,21 @@ public class Constants {
         public static final String GET_WORKFLOW_TYPE_METHOD_NAME = "getWorkflowType";
         public static final String GET_WORKFLOW_TYPE_LABEL = "Get Workflow Type";
         public static final String GET_WORKFLOW_TYPE_DESCRIPTION = "The type name of this workflow";
+        public static final String LAST_HUMAN_TASK_COMPLETION_METHOD_NAME = "lastHumanTaskCompletion";
+        public static final String LAST_HUMAN_TASK_COMPLETION_LABEL = "Get Last Human Task Completion";
+        public static final String LAST_HUMAN_TASK_COMPLETION_DESCRIPTION =
+                "The completion of the most recently completed human task, with who completed it";
+        public static final String LAST_REVIEW_DECISION_METHOD_NAME = "lastReviewDecision";
+        public static final String LAST_REVIEW_DECISION_LABEL = "Get Last Review Decision";
+        public static final String LAST_REVIEW_DECISION_DESCRIPTION =
+                "The decision of the most recent review task, with who decided it";
+        public static final String CONTEXT_TASK_NAME_KEY = "taskName";
+        public static final String CONTEXT_ASSIGNS_EXISTING_KEY = "assignsExisting";
+        public static final String CONTEXT_TASK_NAME_LABEL = "Task Name";
+        public static final String CONTEXT_TASK_NAME_DESCRIPTION =
+                "Name of the task to read. Leave empty for the most recent one.";
+        public static final String HUMAN_TASK_COMPLETION_TYPE = "workflow:HumanTaskCompletion?";
+        public static final String REVIEW_DECISION_TYPE = "workflow:ReviewDecisionRecord?";
         public static final String WORKFLOW = "Workflow";
         public static final String ACTIVITY = "Activity";
         public static final String DEFAULT_CTX_PARAM_NAME = "ctx";

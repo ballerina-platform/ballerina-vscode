@@ -18,6 +18,7 @@
 
 package io.ballerina.flowmodelgenerator.core.model.node;
 
+import io.ballerina.flowmodelgenerator.core.UserFacingException;
 import io.ballerina.flowmodelgenerator.core.model.Property;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -36,13 +37,32 @@ import java.util.Map;
  */
 public class HumanReviewLiteralTest {
 
-    @Test(description = "An empty form writes only the required roles, as the empty 'any role' list")
-    public void testEmptyReview() {
-        Assert.assertEquals(ActivityCallBuilder.humanReviewRecordLiteral(Map.of()), "{userRoles: []}");
+    @Test(description = "A review naming nobody is refused: it would create a task no one can act on")
+    public void testReviewWithoutAnAudienceIsRefused() {
+        Assert.assertThrows(UserFacingException.class,
+                () -> ActivityCallBuilder.humanReviewRecordLiteral(Map.of()));
+        Assert.assertThrows(UserFacingException.class, () -> ActivityCallBuilder.humanReviewRecordLiteral(props(
+                ActivityCallBuilder.RETRY_USER_ROLES_KEY, "",
+                ActivityCallBuilder.RETRY_TITLE_KEY, "Approve it",
+                ActivityCallBuilder.RETRY_TIMEOUT_KEY, "")));
+    }
+
+    @Test(description = "Named users alone decide: the roles field is written as nil beside them")
+    public void testUsersWithoutRoles() {
         Assert.assertEquals(ActivityCallBuilder.humanReviewRecordLiteral(props(
                 ActivityCallBuilder.RETRY_USER_ROLES_KEY, "",
-                ActivityCallBuilder.RETRY_TITLE_KEY, "",
-                ActivityCallBuilder.RETRY_TIMEOUT_KEY, "")), "{userRoles: []}");
+                ActivityCallBuilder.RETRY_USERS_KEY, "alice")), "{userRoles: (), users: \"alice\"}");
+    }
+
+    @Test(description = "Retry, then Review needs its attempt count: an empty box is refused, not defaulted")
+    public void testRetryBeforeReviewNeedsAnAttemptCount() {
+        Assert.assertThrows(UserFacingException.class,
+                () -> ActivityCallBuilder.retryBeforeReviewRecordLiteral(props(
+                        ActivityCallBuilder.RETRY_USER_ROLES_KEY, "ops")));
+        Assert.assertEquals(ActivityCallBuilder.retryBeforeReviewRecordLiteral(props(
+                ActivityCallBuilder.MAX_RETRIES_KEY, "2",
+                ActivityCallBuilder.RETRY_USER_ROLES_KEY, "ops")),
+                "{maxRetries: 2, userRoles: \"ops\"}");
     }
 
     @Test(description = "Roles alone: a bare role is quoted, a role list is written as it was typed")

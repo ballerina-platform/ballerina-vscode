@@ -1,0 +1,69 @@
+{
+  "source": "workflow_function/functions.bal",
+  "description": "Is Replaying writes the replay flag bound to a variable",
+  "diagram": {
+    "id": "31",
+    "metadata": {
+      "label": "Is Replaying",
+      "description": "Whether the workflow is currently replaying recorded history"
+    },
+    "codedata": {
+      "node": "WORKFLOW_IS_REPLAYING",
+      "org": "ballerina",
+      "module": "workflow",
+      "object": "Context",
+      "symbol": "isReplaying",
+      "isNew": true,
+      "lineRange": {
+        "fileName": "functions.bal",
+        "startLine": {
+          "line": 46,
+          "offset": 0
+        },
+        "endLine": {
+          "line": 46,
+          "offset": 0
+        }
+      }
+    },
+    "returning": false,
+    "properties": {
+      "variable": {
+        "metadata": {
+          "label": "Variable Name",
+          "description": "Variable name to receive the value."
+        },
+        "types": [
+          {
+            "fieldType": "IDENTIFIER",
+            "ballerinaType": "boolean",
+            "selected": true
+          }
+        ],
+        "value": "replaying",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      }
+    },
+    "flags": 0
+  },
+  "output": {
+    "workflow_function/functions.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 46,
+            "character": 0
+          },
+          "end": {
+            "line": 46,
+            "character": 0
+          }
+        },
+        "newText": "\nboolean replaying = ctx.isReplaying();"
+      }
+    ]
+  }
+}

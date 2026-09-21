@@ -21,7 +21,7 @@ import { commands, EventEmitter, Uri, window, workspace } from "vscode";
 import { extension } from "../../../BalExtensionContext";
 import { StateMachine } from "../../../stateMachine";
 import { AIStateMachine, openAIPanelWithPrompt } from "../../../views/ai-panel/aiMachine";
-import { AgentExecutor } from "../agent/AgentExecutor";
+import { AgentExecutor, COMPACT_TRIGGER_TOKENS } from "../agent/AgentExecutor";
 import { AICommandConfig } from "../executors/base/AICommandExecutor";
 import { createMigrationEventHandler, createVisualizerMigrationEventHandler, createAIPanelMigrationEventHandler } from "../utils/events";
 import { sendVisualizerMigrationNotification, sendAIPanelNotification, getErrorMessage } from "../utils/ai-utils";
@@ -30,6 +30,10 @@ import { MigrationDebugLogger } from "./debug-logger";
 import { TranscriptWriter } from "./transcript-writer";
 import { getWorkspaceTomlValues } from "../../../utils";
 import { setMigrationEnhancementActive } from "../../../utils/source-utils";
+import { buildMigrationCodebaseMap, extractPreviousStageWorkPlan } from "./project-map";
+
+// Below COMPACT_TRIGGER_TOKENS on purpose: the estimate omits the system prompt and tool schemas.
+const MIGRATION_STAGE_PROMPT_BUDGET_TOKENS = COMPACT_TRIGGER_TOKENS - 100_000;
 
 // ── Wizard streaming emitter – exposed via extension.ts exports ──────────────
 const _wizardChatEmitter = new EventEmitter<ChatNotify>();
@@ -646,6 +650,16 @@ async function runStagesForPackage(opts: StageRunnerOpts): Promise<void> {
             continue;
         }
 
+        // Only the Stage 2 and Stage 4 prompts reference the Stage 1 inventory.
+        let workPlanPreamble: string | undefined;
+        if ((i === 1 || i === 3) && transcriptWriter) {
+            const stage1Transcript = transcriptWriter.readStageTranscript(packageRelPath ?? "", 0, isWorkspaceValidation);
+            const workPlan = stage1Transcript ? extractPreviousStageWorkPlan(stage1Transcript) : undefined;
+            if (workPlan) {
+                workPlanPreamble = `## Work plan from the previous stage\n\n${workPlan}\n\n---\n\n`;
+            }
+        }
+
         // For partially-completed stages, inject transcript content as a resume preamble
         const partialTranscript = transcriptWriter?.readStageTranscript(packageRelPath ?? "", i, isWorkspaceValidation);
         if (partialTranscript) {
@@ -654,8 +668,8 @@ async function runStagesForPackage(opts: StageRunnerOpts): Promise<void> {
             console.log(`[MigrationEnhancement] Injected partial transcript for resume: ${stage.name}`);
         }
 
-        if (transcriptWriter) {
-            transcriptWriter.startStage(packageRelPath ?? "", i, stage.name, isWorkspaceValidation);
+        if (workPlanPreamble) {
+            stages[i] = { ...stages[i], prompt: workPlanPreamble + stages[i].prompt };
         }
 
         // Wrap the event handler to also capture content/tool events to transcript
@@ -674,6 +688,25 @@ async function runStagesForPackage(opts: StageRunnerOpts): Promise<void> {
                 eventHandler(event);
             }
             : eventHandler;
+
+        // Checked before startStage so a failed guard leaves a resumable transcript intact.
+        const codebaseMapText = await buildMigrationCodebaseMap(packagePath);
+        const estimatedPromptTokens = Math.ceil((stages[i].prompt.length + codebaseMapText.length) / 4);
+        if (estimatedPromptTokens > MIGRATION_STAGE_PROMPT_BUDGET_TOKENS) {
+            const reason = `${stage.name} prompt is estimated at ~${estimatedPromptTokens.toLocaleString()} tokens, over the ${MIGRATION_STAGE_PROMPT_BUDGET_TOKENS.toLocaleString()}-token budget — split this project into smaller packages and retry.`;
+            if (debugLogger) {
+                debugLogger.logError(stage.name, new Error(reason));
+            }
+            recordingHandler({
+                type: "content_block",
+                content: `\n\n**${stage.name} — Failed** ❌\n\n${escapeChatText(reason)}\n\n`,
+            });
+            throw new Error(reason);
+        }
+
+        if (transcriptWriter) {
+            transcriptWriter.startStage(packageRelPath ?? "", i, stage.name, isWorkspaceValidation);
+        }
 
         recordingHandler({
             type: "content_block",
@@ -708,18 +741,21 @@ async function runStagesForPackage(opts: StageRunnerOpts): Promise<void> {
             generationId: stageGenId,
             abortController,
             params: {
-                usecase: stage.prompt,
+                usecase: stages[i].prompt,
                 fileAttachmentContents: [],
                 isPlanMode: false,
             },
             chatStorage: fromAIChat
-                ? { projectRootPath: projectRoot, threadId: "default", enabled: true }
+                ? { projectRootPath: projectRoot, threadId: "default", enabled: true, replayHistory: false }
                 : undefined,
             lifecycle: useExistingTempPath
                 ? { existingTempPath: packagePath, skipFreshProjectSetup: true, cleanupStrategy: "review" as const }
                 : { cleanupStrategy: "immediate" as const },
             toolOptions: {
                 migrationSourcePath: sourcePath,
+                omitCodebaseDump: true,
+                codebaseMapText,
+                failWhenCompactionUnavailable: true,
             },
             agentLimits: stage.agentLimits,
             debugLogger,

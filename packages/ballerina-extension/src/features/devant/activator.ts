@@ -16,16 +16,16 @@
  * under the License.
  */
 
-import { BI_COMMANDS, DIRECTORY_MAP, EVENT_TYPE, MACHINE_VIEW, SCOPE, findScope, isSamePath } from "@wso2/ballerina-core";
+import { BI_COMMANDS, DIRECTORY_MAP, SCOPE, findScope, isSamePath } from "@wso2/ballerina-core";
 import {
     WICommandIds,
     ICommitAndPushCmdParams,
     ICreateNewIntegrationCmdParams,
-    resolveIntegrationType,
-    AUTOMATION_WITH_LISTENER_WARNING,
 } from "@wso2/wso2-platform-core";
 import { BallerinaExtension } from "../../core";
-import { openView, StateMachine } from "../../stateMachine";
+import { promptToAddConstruct } from "./add-construct-prompt";
+import { selectIntegrationType } from "./integration-type";
+import { StateMachine } from "../../stateMachine";
 import { commands, window } from "vscode";
 import * as path from "path";
 import * as fs from "fs";
@@ -80,6 +80,7 @@ const handleComponentPushToDevant = async () => {
         }
         const services = projectStructure?.directoryMap[DIRECTORY_MAP.SERVICE];
         const automation = projectStructure?.directoryMap[DIRECTORY_MAP.AUTOMATION];
+        const workflows = projectStructure?.directoryMap[DIRECTORY_MAP.WORKFLOW];
         const scopeSet = new Set<SCOPE>();
 
         if (services) {
@@ -91,48 +92,25 @@ const handleComponentPushToDevant = async () => {
             });
         }
 
+        if (workflows?.length > 0) {
+            scopeSet.add(SCOPE.WORKFLOW);
+        }
+
         if (automation?.length > 0) {
             scopeSet.add(SCOPE.AUTOMATION);
         }
 
-        let integrationType: SCOPE | undefined;
-
         if (scopeSet.size === 0) {
-            window
-                .showInformationMessage(
-                    "Please add a construct and try again to deploy your integration",
-                    "Add Construct"
-                )
-                .then((resp) => {
-                    if (resp === "Add Construct") {
-                        openView(EVENT_TYPE.OPEN_VIEW, { view: MACHINE_VIEW.BIComponentView });
-                    }
-                });
+            promptToAddConstruct();
             return;
         }
 
-        const resolution = resolveIntegrationType([...scopeSet]);
-
-        if (resolution.kind === "autoPick") {
-            integrationType = resolution.scope as SCOPE;
-        } else if (resolution.kind === "autoPickWithWarning") {
-            const choice = await window.showWarningMessage(
-                AUTOMATION_WITH_LISTENER_WARNING,
-                { modal: true },
-                "Continue",
-            );
-            if (choice !== "Continue") {
-                return;
-            }
-            integrationType = resolution.scope as SCOPE;
-        } else {
-            const selectedScope = await window.showQuickPick(resolution.choices, {
-                placeHolder: "Multiple types of artifacts detected. Please select the artifact type to be deployed",
-            });
-            if (!selectedScope) {
-                return;
-            }
-            integrationType = selectedScope as SCOPE;
+        const integrationType = await selectIntegrationType(
+            [...scopeSet],
+            "Multiple types of artifacts detected. Please select the artifact type to be deployed",
+        );
+        if (!integrationType) {
+            return;
         }
 
         const deployementParams: ICreateNewIntegrationCmdParams = {

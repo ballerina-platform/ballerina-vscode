@@ -1,0 +1,22 @@
+{
+    "description": "#2251 submodule case: the corrupt BIR belongs to submodule 'ai.observe', whose compiled BIR lives under the *package* dir ballerina/ai/<version>/bir/ai.observe.bir — there is no ballerina/ai.observe/ dir. The LS resolves and sends the package name 'ai', so clearing the package cache dir removes the submodule BIR (and its siblings) in one shot, instead of resolving a nonexistent ai.observe dir and falling back to a full-cache wipe.",
+    "pkg": { "org": "ballerina", "packageName": "ai", "version": "1.14.1" },
+    "distVersion": "2201.13.5",
+    "tree": [
+        "repositories/central.ballerina.io/cache-2201.13.5/ballerina/ai/1.14.1/bir/ai.bir",
+        "repositories/central.ballerina.io/cache-2201.13.5/ballerina/ai/1.14.1/bir/ai.observe.bir",
+        "repositories/central.ballerina.io/cache-2201.13.5/ballerina/ai/1.14.1/bir/ai.intelligence.bir",
+        "repositories/central.ballerina.io/cache-2201.13.5/ballerina/io/1.6.0/bir/io.bir",
+        "repositories/central.ballerina.io/bala/ballerina/ai/1.14.1/java21/pkg.json"
+    ],
+    "expectedResolved": [
+        "repositories/central.ballerina.io/cache-2201.13.5/ballerina/ai/1.14.1"
+    ],
+    "expectedRemoved": [
+        "repositories/central.ballerina.io/cache-2201.13.5/ballerina/ai/1.14.1"
+    ],
+    "expectedKept": [
+        "repositories/central.ballerina.io/cache-2201.13.5/ballerina/io/1.6.0/bir/io.bir",
+        "repositories/central.ballerina.io/bala/ballerina/ai/1.14.1/java21/pkg.json"
+    ]
+}

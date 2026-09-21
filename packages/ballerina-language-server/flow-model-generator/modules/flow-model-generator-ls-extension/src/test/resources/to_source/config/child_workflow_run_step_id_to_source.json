@@ -1,0 +1,95 @@
+{
+  "source": "workflow_function/functions.bal",
+  "description": "A child workflow start that names its step: the step id follows the child workflow and its input as a named argument",
+  "diagram": {
+    "id": "31",
+    "metadata": {
+      "label": "Sleep",
+      "description": "Pause workflow execution for a specified duration"
+    },
+    "codedata": {
+      "node": "CHILD_WORKFLOW_RUN",
+      "org": "ballerina",
+      "module": "workflow",
+      "isNew": true,
+      "lineRange": {
+        "fileName": "functions.bal",
+        "startLine": {
+          "line": 16,
+          "offset": 0
+        },
+        "endLine": {
+          "line": 16,
+          "offset": 0
+        }
+      },
+      "symbol": "workflowWithNoInput"
+    },
+    "returning": false,
+    "properties": {
+      "workflow": {
+        "metadata": {
+          "label": "Child Workflow"
+        },
+        "valueType": "SINGLE_SELECT",
+        "value": "workflowWithNoInput",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "variable": {
+        "metadata": {
+          "label": "Child Workflow ID Variable Name"
+        },
+        "valueType": "IDENTIFIER",
+        "value": "childWorkflowId",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "stepId": {
+        "metadata": {
+          "label": "Step Id"
+        },
+        "valueType": "TEXT",
+        "value": "reconcile#1",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false,
+        "types": [
+          {
+            "fieldType": "TEXT",
+            "ballerinaType": "string",
+            "selected": true
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string?",
+            "selected": false
+          }
+        ]
+      }
+    },
+    "flags": 0
+  },
+  "output": {
+    "workflow_function/functions.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 16,
+            "character": 0
+          },
+          "end": {
+            "line": 16,
+            "character": 0
+          }
+        },
+        "newText": "\nstring childWorkflowId = check context->runChildWorkflow(workflowWithNoInput, stepId = \"reconcile#1\");"
+      }
+    ]
+  }
+}

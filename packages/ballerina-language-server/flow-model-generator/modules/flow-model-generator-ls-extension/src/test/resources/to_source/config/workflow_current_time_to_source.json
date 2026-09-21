@@ -1,0 +1,82 @@
+{
+  "source": "workflow_function/functions.bal",
+  "description": "Get Current Time writes a deterministic clock read bound to a variable",
+  "diagram": {
+    "id": "31",
+    "metadata": {
+      "label": "Get Current Time",
+      "description": "Deterministic current time, safe to use inside workflow logic"
+    },
+    "codedata": {
+      "node": "WORKFLOW_CURRENT_TIME",
+      "org": "ballerina",
+      "module": "workflow",
+      "object": "Context",
+      "symbol": "currentTime",
+      "isNew": true,
+      "lineRange": {
+        "fileName": "functions.bal",
+        "startLine": {
+          "line": 46,
+          "offset": 0
+        },
+        "endLine": {
+          "line": 46,
+          "offset": 0
+        }
+      }
+    },
+    "returning": false,
+    "properties": {
+      "variable": {
+        "metadata": {
+          "label": "Variable Name",
+          "description": "Variable name to receive the value."
+        },
+        "types": [
+          {
+            "fieldType": "IDENTIFIER",
+            "ballerinaType": "time:Utc",
+            "selected": true
+          }
+        ],
+        "value": "now",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      }
+    },
+    "flags": 0
+  },
+  "output": {
+    "workflow_function/functions.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "import ballerina/time;"
+      },
+      {
+        "range": {
+          "start": {
+            "line": 46,
+            "character": 0
+          },
+          "end": {
+            "line": 46,
+            "character": 0
+          }
+        },
+        "newText": "\ntime:Utc now = ctx.currentTime();"
+      }
+    ]
+  }
+}

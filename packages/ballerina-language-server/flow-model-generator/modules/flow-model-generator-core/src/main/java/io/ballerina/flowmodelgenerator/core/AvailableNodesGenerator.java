@@ -621,7 +621,13 @@ public class AvailableNodesGenerator {
                             workflowNode(Workflow.GET_WORKFLOW_ID_LABEL, Workflow.GET_WORKFLOW_ID_DESCRIPTION,
                                     NodeKind.WORKFLOW_GET_ID),
                             workflowNode(Workflow.GET_WORKFLOW_TYPE_LABEL, Workflow.GET_WORKFLOW_TYPE_DESCRIPTION,
-                                    NodeKind.WORKFLOW_GET_TYPE)))
+                                    NodeKind.WORKFLOW_GET_TYPE),
+                            workflowNode(Workflow.LAST_HUMAN_TASK_COMPLETION_LABEL,
+                                    Workflow.LAST_HUMAN_TASK_COMPLETION_DESCRIPTION,
+                                    NodeKind.WORKFLOW_LAST_HUMAN_TASK_COMPLETION),
+                            workflowNode(Workflow.LAST_REVIEW_DECISION_LABEL,
+                                    Workflow.LAST_REVIEW_DECISION_DESCRIPTION,
+                                    NodeKind.WORKFLOW_LAST_REVIEW_DECISION)))
                     .build();
 
             workflowNodes.add(steps);

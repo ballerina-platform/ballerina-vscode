@@ -1,0 +1,25 @@
+openapi: 3.0.0
+info:
+  title: Petstore
+  version: 1.0.0
+servers:
+  - url: http://petstore.example.com
+paths:
+  /pets:
+    get:
+      operationId: getPets
+      responses:
+        '200':
+          description: OK
+  /pets/{id}:
+    delete:
+      operationId: deletePet
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK

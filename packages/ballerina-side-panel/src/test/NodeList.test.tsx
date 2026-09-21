@@ -222,4 +222,41 @@ describe("NodeList (rpc-driven)", () => {
         );
         expect(grids).toHaveLength(0);
     });
+    // Regression (wso2/product-integrator): two columns of a side panel are too narrow for a
+    // name like "Send Data to Child Workflow", and the row used to cut it to one clipped line.
+    // The name now wraps within its row rather than being held on one line.
+    it("INVARIANT: a long node name wraps rather than being held on one line", async () => {
+        const label = "Send Data to Child Workflow";
+        const categories = [{ title: "Child Workflows", items: [node("CHILD_WORKFLOW_SEND_DATA", label)] }];
+        const { findByText } = renderWithRpc(
+            <NodeList {...props(categories)} searchText="Child" />,
+            fakeRpc()
+        );
+
+        const shown = await findByText(label);
+        expect(shown.textContent).toBe(label);
+        expect(getComputedStyle(shown).whiteSpace).not.toBe("nowrap");
+    });
+
+    // One tooltip per row and no more. The styled one carries the description; a node that has
+    // none falls back to the browser's own with the name, so a clipped name is still readable.
+    // The name must not appear twice in the document: the styled tooltip's content is mounted
+    // whether or not it is shown, and a duplicate breaks every locator that matches on the name.
+    it.each([
+        ["described", "Sends a data event to a running child workflow", 0],
+        ["undescribed", "", 1],
+    ])("INVARIANT: a %s node row carries exactly one tooltip", async (_desc, description, nativeTitles) => {
+        const label = "Send Data to Child Workflow";
+        const item = { ...node("CHILD_WORKFLOW_SEND_DATA", label), description };
+        const { container, findByText } = renderWithRpc(
+            <NodeList {...props([{ title: "Child Workflows", items: [item] }])} searchText="Child" />,
+            fakeRpc()
+        );
+
+        await findByText(label);
+        expect(container.querySelectorAll(`[title="${label}"]`)).toHaveLength(nativeTitles);
+        const showingTheName = Array.from(container.querySelectorAll("div"))
+            .filter((el) => el.textContent === label && el.children.length === 0);
+        expect(showingTheName).toHaveLength(1);
+    });
 });

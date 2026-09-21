@@ -30,7 +30,11 @@ export const window = {
     // Tests reassign these to record what the user would have been shown.
     showErrorMessage: (_message?: string, ..._items: string[]) => Promise.resolve(undefined),
     showInformationMessage: (_message?: string, ..._items: string[]) => Promise.resolve(undefined),
-    showWarningMessage: (_message?: string, ..._items: string[]) => Promise.resolve(undefined),
+    // Return types are widened past `undefined` so a test can answer as the user would have.
+    showWarningMessage: (_message?: string, ..._items: string[]): Promise<string | undefined> =>
+        Promise.resolve(undefined),
+    showQuickPick: (_items?: readonly string[], _options?: { placeHolder?: string }): Promise<string | undefined> =>
+        Promise.resolve(undefined),
     withProgress: <T>(_options: unknown, task: (progress: { report(_v: unknown): void }) => Thenable<T>) =>
         task({ report() {} }),
     createOutputChannel: () => ({ appendLine() {}, append() {}, show() {}, clear() {}, dispose() {} }),

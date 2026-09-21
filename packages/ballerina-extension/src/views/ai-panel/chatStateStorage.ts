@@ -297,6 +297,15 @@ export class ChatStateStorage {
     // ============================================
 
     /**
+     * On-disk directory of one thread: `<workspaceDir>/threads/<threadId>`. Subagent histories live in
+     * `subagents/<id>/` under it. The `threads` segment duplicates a private constant of the submodule's
+     * CopilotPersistenceStore; prefer a store accessor once one exists.
+     */
+    getThreadDir(projectRootPath: string, threadId: string): string {
+        return path.join(this.persistenceStore.getWorkspaceDir(projectRootPath), 'threads', threadId);
+    }
+
+    /**
      * Flush a thread to disk after mutation.
      * Called after every state change to keep files as the source of truth.
      */

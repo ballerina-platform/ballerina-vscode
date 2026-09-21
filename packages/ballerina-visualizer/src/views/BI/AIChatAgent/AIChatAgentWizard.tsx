@@ -36,6 +36,11 @@ const Container = styled.div`
     flex-direction: column;
     max-width: 600px;
     gap: 20px;
+
+    .side-panel-body {
+        height: auto;
+        overflow: visible;
+    }
 `;
 
 const LoaderContainer = styled.div`

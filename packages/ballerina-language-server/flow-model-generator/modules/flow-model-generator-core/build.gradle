@@ -123,6 +123,9 @@ test {
     useTestNG() {
         suites "src/test/resources/testng.xml"
     }
+
+    // The concurrency guard resolves packages on 16 threads; the default heap runs out on CI runners.
+    maxHeapSize = "2g"
 }
 
 shadowJar {

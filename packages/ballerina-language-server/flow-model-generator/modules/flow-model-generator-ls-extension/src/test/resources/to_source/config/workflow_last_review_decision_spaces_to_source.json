@@ -1,0 +1,87 @@
+{
+  "source": "workflow_function/functions.bal",
+  "description": "A task name's own spaces are part of it, so they survive into the literal",
+  "diagram": {
+    "id": "31",
+    "metadata": {
+      "label": "Get Last Review Decision",
+      "description": "The decision of the most recent review task, with who decided it"
+    },
+    "codedata": {
+      "node": "WORKFLOW_LAST_REVIEW_DECISION",
+      "org": "ballerina",
+      "module": "workflow",
+      "object": "Context",
+      "symbol": "lastReviewDecision",
+      "isNew": true,
+      "lineRange": {
+        "fileName": "functions.bal",
+        "startLine": {
+          "line": 46,
+          "offset": 0
+        },
+        "endLine": {
+          "line": 46,
+          "offset": 0
+        }
+      }
+    },
+    "returning": false,
+    "properties": {
+      "variable": {
+        "metadata": {
+          "label": "Variable Name",
+          "description": "Variable name to receive the value."
+        },
+        "types": [
+          {
+            "fieldType": "IDENTIFIER",
+            "ballerinaType": "workflow:ReviewDecisionRecord?",
+            "selected": true
+          }
+        ],
+        "value": "decision",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "taskName": {
+        "metadata": {
+          "label": "Task Name",
+          "description": "Name of the task to read. Leave empty for the most recent one."
+        },
+        "types": [
+          {
+            "fieldType": "TEXT",
+            "ballerinaType": "string",
+            "selected": true
+          }
+        ],
+        "value": " review me ",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      }
+    },
+    "flags": 0
+  },
+  "output": {
+    "workflow_function/functions.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 46,
+            "character": 0
+          },
+          "end": {
+            "line": 46,
+            "character": 0
+          }
+        },
+        "newText": "\nworkflow:ReviewDecisionRecord? decision = ctx.lastReviewDecision(\" review me \");"
+      }
+    ]
+  }
+}

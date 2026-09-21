@@ -1673,7 +1673,7 @@ export const Form = forwardRef((props: FormProps, _ref) => {
                 <Provider {...contextValue}>
                     <S.Container nestedForm={nestedForm} compact={compact} footerActionButton={footerActionButton} className="side-panel-body">
                         {isFormLoading && (
-                            <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: "12px", flex: 1 }}>
+                            <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: "12px", flex: 1, minHeight: "300px" }}>
                                 <ProgressRing color={ThemeColors.PRIMARY} />
                                 <span style={{ fontSize: "12px", color: ThemeColors.ON_SURFACE_VARIANT }}>Loading form data...</span>
                             </div>

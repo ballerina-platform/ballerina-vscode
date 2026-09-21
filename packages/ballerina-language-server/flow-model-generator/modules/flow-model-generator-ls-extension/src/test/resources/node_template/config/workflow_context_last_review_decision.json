@@ -1,0 +1,73 @@
+{
+  "source": "workflow_context_functions.bal",
+  "position": {
+    "line": 4,
+    "offset": 4
+  },
+  "description": "Get Last Review Decision template: an optional decision record and an optional task name",
+  "codedata": {
+    "node": "WORKFLOW_LAST_REVIEW_DECISION",
+    "org": "ballerina",
+    "module": "workflow",
+    "object": "Context"
+  },
+  "output": {
+    "id": "31",
+    "metadata": {
+      "label": "Get Last Review Decision",
+      "description": "The decision of the most recent review task, with who decided it"
+    },
+    "codedata": {
+      "node": "WORKFLOW_LAST_REVIEW_DECISION",
+      "org": "ballerina",
+      "module": "workflow",
+      "object": "Context",
+      "symbol": "lastReviewDecision",
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "variable": {
+        "metadata": {
+          "label": "Variable Name",
+          "description": "Variable name to receive the value."
+        },
+        "types": [
+          {
+            "fieldType": "IDENTIFIER",
+            "selected": true
+          }
+        ],
+        "value": "decision",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "taskName": {
+        "metadata": {
+          "label": "Task Name",
+          "description": "Name of the task to read. Leave empty for the most recent one."
+        },
+        "types": [
+          {
+            "fieldType": "TEXT",
+            "ballerinaType": "string",
+            "selected": true
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string",
+            "selected": false
+          }
+        ],
+        "value": "",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      }
+    },
+    "flags": 0
+  }
+}

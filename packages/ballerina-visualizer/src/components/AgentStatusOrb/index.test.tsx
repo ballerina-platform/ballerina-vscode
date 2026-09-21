@@ -88,7 +88,7 @@ describe("AgentStatusOrb idle invite", () => {
     const invite = () =>
         container.querySelector(`input[placeholder="${INVITE_PLACEHOLDER}"]`) as HTMLInputElement | null;
     /** The box carrying the fade, and the bridge deciding whether the pointer can reach it. */
-    const box = () => invite()!.parentElement as HTMLElement;
+    const box = () => container.querySelector('[data-testid="invite-shell"]') as HTMLElement;
     const bridge = () => box().parentElement as HTMLElement;
     const clearButton = () =>
         container.querySelector('button[aria-label="Clear the message"]') as HTMLButtonElement | null;
@@ -139,6 +139,31 @@ describe("AgentStatusOrb idle invite", () => {
         act(() => root.unmount());
         container.remove();
         mockRpcClient = undefined;
+    });
+
+    // The old opacity 0.85 -> 1 lift only worked while idle; a run made the orb opaque and hover did
+    // nothing. Brightness reaches every state.
+    it("lifts the orb by brightness on hover and focus, in every run state", () => {
+        expect(container.querySelector(".orb-glow")).not.toBeNull();
+
+        const rules = Array.from(document.querySelectorAll("style"))
+            .flatMap((style) => Array.from((style.sheet?.cssRules ?? []) as unknown as CSSRule[]))
+            .map((rule) => rule.cssText);
+
+        const lift = rules.filter((text) => text.includes(".orb-glow") && text.includes("brightness"));
+        expect(lift.some((text) => text.includes(":hover"))).toBe(true);
+        expect(lift.some((text) => text.includes(":focus-visible"))).toBe(true);
+
+        const factors = lift.flatMap((text) =>
+            Array.from(text.matchAll(/brightness\(([\d.]+)\)/g)).map((m) => Number(m[1]))
+        );
+        expect(factors.length).toBeGreaterThan(0);
+        expect(Math.min(...factors)).toBeGreaterThan(1.13);
+
+        // A resting dim would make the lift idle-only again.
+        expect(rules.some((text) => /opacity:\s*0\.85/.test(text))).toBe(false);
+
+        expect(rules.some((text) => text.includes(".undefined"))).toBe(false);
     });
 
     it("is in the tree but hidden, untouchable and out of the tab order until the pointer arrives", () => {

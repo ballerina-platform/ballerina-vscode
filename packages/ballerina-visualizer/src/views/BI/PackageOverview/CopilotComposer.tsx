@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { CSSProperties, useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, { CSSProperties, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { keyframes } from "@emotion/react";
 import styled from "@emotion/styled";
 import { VSCodeLink } from "@vscode/webview-ui-toolkit/react";
@@ -29,7 +29,10 @@ import { acceptResolver, handleAttachmentSelection } from "../../AIPanel/utils/a
 import AttachmentBox from "../../AIPanel/components/AttachmentBox";
 import {
     AmbientFrame,
+    ORB_GLOW_CLASS,
+    ORB_HOVER_BRIGHTNESS,
     ORB_SIZE,
+    OrbGlow,
     subscribeAgentRunStatus,
     syncOrbThemeFromSetting,
     useAiPanelOpen,
@@ -39,6 +42,7 @@ import {
 import { CopilotOrb } from "../../../components/AgentStatusOrb/CopilotOrb";
 import { useOrbColors } from "../../../components/AgentStatusOrb/orbTheme";
 import { openCopilotPanel, submitPromptToCopilot } from "../../../components/AgentStatusOrb/copilotPanel";
+import { CopilotMenu } from "../../../components/CopilotMenu";
 
 const CONTENT_WIDTH = 620;
 const INPUT_MIN_HEIGHT = 46;
@@ -116,6 +120,13 @@ const OrbButton = styled.button<{ $interactive: boolean }>`
     }
     &:active {
         transform: ${(props: { $interactive: boolean }) => (props.$interactive ? "scale(0.98)" : "none")};
+    }
+    // Clears the ambient pulse's own 1.13 peak so the lift reads as a response, not the idle animation.
+    // Reached by class: interpolating OrbGlow would stringify to ".undefined" without @emotion/babel-plugin.
+    &:hover .${ORB_GLOW_CLASS},
+    &:focus-visible .${ORB_GLOW_CLASS} {
+        filter: ${(props: { $interactive: boolean }) =>
+            props.$interactive ? `brightness(${ORB_HOVER_BRIGHTNESS})` : "none"};
     }
 `;
 
@@ -228,6 +239,20 @@ const ActionRow = styled.div`
     width: 100%;
 `;
 
+const LeftControls = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 6px;
+`;
+
+// The menu is unrelated to the mode toggle beside it.
+const ControlDivider = styled.span`
+    width: 1px;
+    height: 16px;
+    background-color: var(--vscode-panel-border, var(--vscode-editorWidget-border));
+    opacity: 0.6;
+`;
+
 const RightControls = styled.div`
     display: flex;
     align-items: center;
@@ -290,6 +315,7 @@ const ComposerActionButton = styled.button`
         cursor: default;
     }
 `;
+
 
 const ExamplesBlock = styled.div`
     width: 100%;
@@ -506,14 +532,16 @@ export function CopilotComposer({ onAddArtifactManually, hiding }: CopilotCompos
     return (
         <Wrap>
             <OrbButton
-                type="button"
-                $interactive={showOpenCopilot}
-                disabled={!showOpenCopilot}
-                onClick={showOpenCopilot ? () => openCopilotPanel(rpcClient) : undefined}
-                title={showOpenCopilot ? "Open WSO2 Integrator Copilot" : undefined}
-                aria-label={showOpenCopilot ? "Open WSO2 Integrator Copilot" : undefined}
-            >
-                <CopilotOrb state={state} colors={colors} size={ORB_SIZE} />
+                    type="button"
+                    $interactive={showOpenCopilot}
+                    disabled={!showOpenCopilot}
+                    onClick={showOpenCopilot ? () => openCopilotPanel(rpcClient) : undefined}
+                    title={showOpenCopilot ? "Open WSO2 Integrator Copilot" : undefined}
+                    aria-label={showOpenCopilot ? "Open WSO2 Integrator Copilot" : undefined}
+                >
+                    <OrbGlow className={ORB_GLOW_CLASS}>
+                        <CopilotOrb state={state} colors={colors} size={ORB_SIZE} />
+                    </OrbGlow>
             </OrbButton>
 
             {shownMode === "run" ? (
@@ -566,7 +594,11 @@ export function CopilotComposer({ onAddArtifactManually, hiding }: CopilotCompos
                                     </AttachmentsWrap>
                                 )}
                                 <ActionRow>
-                                    <ModeToggle mode={agentMode} onChange={setAgentMode} />
+                                    <LeftControls>
+                                        <ModeToggle mode={agentMode} onChange={setAgentMode} />
+                                        <ControlDivider aria-hidden="true" />
+                                        <CopilotMenu />
+                                    </LeftControls>
                                     <RightControls>
                                         <input
                                             type="file"

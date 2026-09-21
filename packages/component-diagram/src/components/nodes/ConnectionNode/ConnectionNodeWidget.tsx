@@ -77,13 +77,6 @@ const MenuButton = styled(Button)`
     border-radius: 5px;
 `;
 
-const LeftPortWidget = styled(PortWidget)`
-    margin-top: -3px;
-`;
-
-const RightPortWidget = styled(PortWidget)`
-    margin-bottom: -2px;
-`;
 
 const StyledText = styled.div`
     font-size: 14px;
@@ -190,7 +183,12 @@ export function ConnectionNodeWidget(props: ConnectionNodeWidgetProps) {
 
     return (
         <Node>
-            <LeftPortWidget port={model.getPort("in")!} engine={engine} />
+            {/* PortWidget itself renders a bare, zero-height div, so its reported link-anchor
+                position is exactly wherever the flex row centers it - no margin nudge here, or
+                "in"/"out" would sit off that center by different amounts (see getPortAnchorY,
+                which assumes dead center for both) and every link's straight leg would render
+                with a small, otherwise-unexplained slope. */}
+            <PortWidget port={model.getPort("in")!} engine={engine} />
             <ClickableArea
                 data-testid={`connection-node-${model.node.symbol}`}
                 onMouseEnter={() => !readonly && setIsHovered(true)}
@@ -236,7 +234,7 @@ export function ConnectionNodeWidget(props: ConnectionNodeWidgetProps) {
                     ))}
                 </Menu>
             </Popover>
-            <RightPortWidget port={model.getPort("out")!} engine={engine} />
+            <PortWidget port={model.getPort("out")!} engine={engine} />
         </Node>
     );
 }

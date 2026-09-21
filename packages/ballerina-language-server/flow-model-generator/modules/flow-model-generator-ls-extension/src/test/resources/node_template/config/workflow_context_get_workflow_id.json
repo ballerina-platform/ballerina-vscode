@@ -1,0 +1,50 @@
+{
+  "source": "workflow_context_functions.bal",
+  "position": {
+    "line": 4,
+    "offset": 4
+  },
+  "description": "Get Workflow ID template: the instance id, checked because the call can fail",
+  "codedata": {
+    "node": "WORKFLOW_GET_ID",
+    "org": "ballerina",
+    "module": "workflow",
+    "object": "Context"
+  },
+  "output": {
+    "id": "31",
+    "metadata": {
+      "label": "Get Workflow ID",
+      "description": "The unique ID of this workflow instance"
+    },
+    "codedata": {
+      "node": "WORKFLOW_GET_ID",
+      "org": "ballerina",
+      "module": "workflow",
+      "object": "Context",
+      "symbol": "getWorkflowId",
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "variable": {
+        "metadata": {
+          "label": "Variable Name",
+          "description": "Variable name to receive the value."
+        },
+        "types": [
+          {
+            "fieldType": "IDENTIFIER",
+            "selected": true
+          }
+        ],
+        "value": "workflowId",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      }
+    },
+    "flags": 0
+  }
+}

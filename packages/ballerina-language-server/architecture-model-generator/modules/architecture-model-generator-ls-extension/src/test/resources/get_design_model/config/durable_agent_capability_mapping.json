@@ -1,0 +1,121 @@
+{
+  "description": "Durable agent declaring events and human tasks keyed by name",
+  "projectPath": "project_18",
+  "output": {
+    "designModel": {
+      "connections": [
+        {
+          "symbol": "deskModel",
+          "location": {
+            "filePath": "$PROJECT_ROOT/src/test/resources/get_design_model/source/project_18/agent.bal",
+            "startLine": {
+              "line": 3,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 3,
+              "offset": 89
+            }
+          },
+          "scope": "GLOBAL",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png?wso2_icon",
+          "dependentFunctions": [],
+          "dependentConnection": [],
+          "kind": "Model Provider",
+          "uuid": "128f3b02-83a9-81fc-b968-597e14274ba1",
+          "enableFlowModel": true,
+          "sortText": "agent.bal3"
+        }
+      ],
+      "listeners": [],
+      "services": [],
+      "workflows": [
+        {
+          "symbol": "deskAgent",
+          "location": {
+            "filePath": "$PROJECT_ROOT/src/test/resources/get_design_model/source/project_18/agent.bal",
+            "startLine": {
+              "line": 5,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 18,
+              "offset": 3
+            }
+          },
+          "kind": "DURABLE_AGENT",
+          "attachedServices": [],
+          "attachedFunctions": [],
+          "events": [
+            {
+              "name": "customerMessage",
+              "type": "string",
+              "attachedServices": [],
+              "attachedFunctions": []
+            },
+            {
+              "name": "billSubmitted",
+              "type": "string",
+              "attachedServices": [],
+              "attachedFunctions": []
+            }
+          ],
+          "humanTasks": [
+            {
+              "name": "escalation",
+              "location": {
+                "filePath": "$PROJECT_ROOT/src/test/resources/get_design_model/source/project_18/agent.bal",
+                "startLine": {
+                  "line": 14,
+                  "offset": 8
+                },
+                "endLine": {
+                  "line": 14,
+                  "offset": 72
+                }
+              }
+            },
+            {
+              "name": "signoff",
+              "location": {
+                "filePath": "$PROJECT_ROOT/src/test/resources/get_design_model/source/project_18/agent.bal",
+                "startLine": {
+                  "line": 15,
+                  "offset": 8
+                },
+                "endLine": {
+                  "line": 15,
+                  "offset": 39
+                }
+              }
+            },
+            {
+              "name": "audit",
+              "location": {
+                "filePath": "$PROJECT_ROOT/src/test/resources/get_design_model/source/project_18/agent.bal",
+                "startLine": {
+                  "line": 16,
+                  "offset": 8
+                },
+                "endLine": {
+                  "line": 16,
+                  "offset": 24
+                }
+              }
+            }
+          ],
+          "activities": [],
+          "connections": [
+            "128f3b02-83a9-81fc-b968-597e14274ba1"
+          ],
+          "invalidSendDataServices": [],
+          "invalidSendDataFunctions": [],
+          "uuid": "ef4d23eb-b2ca-33bf-8a20-48e49edc645d",
+          "enableFlowModel": true,
+          "sortText": "agent.bal5"
+        }
+      ],
+      "activities": []
+    }
+  }
+}

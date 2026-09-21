@@ -22,6 +22,7 @@ import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
+import io.ballerina.flowmodelgenerator.core.utils.WorkflowUtil;
 import io.ballerina.modelgenerator.commons.FunctionData;
 import io.ballerina.modelgenerator.commons.FunctionDataBuilder;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
@@ -106,6 +107,7 @@ public class SleepBuilder extends CallBuilder {
 
             Module module = context.workspaceManager().module(context.filePath()).orElse(null);
             setParameterProperties(functionData, module);
+            WorkflowUtil.markStepIdAdvanced(properties().build());
 
             if (functionData.returnError()) {
                 properties().checkError(true);
@@ -157,7 +159,9 @@ public class SleepBuilder extends CallBuilder {
                 .keyword(SyntaxKind.DOT_TOKEN)
                 .name(SLEEP_METHOD_NAME)
                 .keyword(SyntaxKind.OPEN_PAREN_TOKEN)
-                .name(duration)
+                .name(duration);
+        WorkflowUtil.appendStepIdArgument(sourceBuilder);
+        sourceBuilder.token()
                 .keyword(SyntaxKind.CLOSE_PAREN_TOKEN)
                 .endOfStatement();
 

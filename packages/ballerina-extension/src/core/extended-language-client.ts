@@ -272,6 +272,8 @@ import {
     GetMigrationToolsResponse,
     ServiceModelInitResponse,
     ServiceInitSourceRequest,
+    OpenApiEndpointsRequest,
+    OpenApiEndpointsResponse,
     ConnectorUpgradeAdviceRequest,
     ConnectorUpgradeAdviceResponse,
     ValidatePropertyRequest,
@@ -323,6 +325,7 @@ import { debug, handlePullModuleProgress } from "../utils";
 import { CMP_LS_CLIENT_COMPLETIONS, CMP_LS_CLIENT_DIAGNOSTICS, getMessageObject, sendTelemetryEvent, TM_EVENT_LANG_CLIENT } from "../features/telemetry";
 import { DefinitionParams, InitializeParams, InitializeResult, Location, LocationLink, TextDocumentPositionParams } from 'vscode-languageserver-protocol';
 import { updateProjectArtifacts } from "../utils/project-artifacts";
+import { CorruptBirCachePayload, promptClearCorruptBirCache } from "../utils/bir-cache-recovery";
 import { RPCLayer } from "../../src/RPCLayer";
 import { VisualizerWebview } from "../../src/views/visualizer/webview";
 
@@ -464,6 +467,7 @@ enum EXTENDED_APIS {
     BI_SERVICE_GET_SERVICE_INIT = 'serviceDesign/getServiceInitModel',
     BI_SERVICE_GET_CONNECTOR_UPGRADE_ADVICE = 'serviceDesign/getConnectorUpgradeAdvice',
     BI_SERVICE_CREATE_SERVICE_AND_LISTENER = 'serviceDesign/addServiceAndListener',
+    BI_SERVICE_LIST_OPENAPI_ENDPOINTS = 'serviceDesign/listOpenApiEndpoints',
     BI_SERVICE_VALIDATE_PROPERTY = 'serviceDesign/validateProperty',
     BI_SERVICE_GET_FUNCTION = 'serviceDesign/getFunctionModel',
     BI_SERVICE_ADD_SERVICE = 'serviceDesign/addService',
@@ -537,7 +541,8 @@ enum EXTENDED_APIS {
     MULE_TO_BI = 'projectService/importMule',
     MIGRATION_TOOL_STATE = 'projectService/stateCallback',
     MIGRATION_TOOL_LOG = 'projectService/logCallback',
-    PUSH_MIGRATED_PROJECT = 'projectService/pushMigratedProject'
+    PUSH_MIGRATED_PROJECT = 'projectService/pushMigratedProject',
+    CORRUPT_BIR_CACHE = 'projectService/corruptBirCache'
 }
 
 enum EXTENDED_APIS_ORG {
@@ -656,6 +661,16 @@ export class ExtendedLangClient extends LanguageClient implements ExtendedLangCl
             } catch (error) {
                 console.error("Error in PUBLISH_ARTIFACTS handler:", error);
             }
+        });
+    }
+
+    registerCorruptBirCache(): void {
+        // A corrupt/incompatible cached BIR makes the project load empty. The LS
+        // reports the affected module here; offer to clear just that module's cache and reload.
+        this.onNotification(EXTENDED_APIS.CORRUPT_BIR_CACHE, (res: CorruptBirCachePayload) => {
+            promptClearCorruptBirCache(res).catch((error) => {
+                console.error("CORRUPT_BIR_CACHE handler failed:", error);
+            });
         });
     }
 
@@ -1377,6 +1392,10 @@ export class ExtendedLangClient extends LanguageClient implements ExtendedLangCl
 
     async getServiceInitModel(params: ServiceModelRequest): Promise<ServiceModelInitResponse> {
         return this.sendRequest<ServiceModelInitResponse>(EXTENDED_APIS.BI_SERVICE_GET_SERVICE_INIT, params);
+    }
+
+    async listOpenApiEndpoints(params: OpenApiEndpointsRequest): Promise<OpenApiEndpointsResponse> {
+        return this.sendRequest<OpenApiEndpointsResponse>(EXTENDED_APIS.BI_SERVICE_LIST_OPENAPI_ENDPOINTS, params);
     }
 
     async getConnectorUpgradeAdvice(params: ConnectorUpgradeAdviceRequest): Promise<ConnectorUpgradeAdviceResponse> {

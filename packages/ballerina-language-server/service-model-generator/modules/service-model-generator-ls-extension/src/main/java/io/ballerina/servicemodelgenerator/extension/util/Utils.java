@@ -1480,6 +1480,25 @@ public final class Utils {
         return String.format(Constants.IMPORT_STMT_TEMPLATE_WITH_ALIAS, org, module, alias);
     }
 
+    /** Inserts {@code text} after the last member, else the last import, else at the module start. */
+    public static TextEdit appendAtEndOfModule(ModulePartNode modulePart, String text) {
+        LinePosition insertPosition;
+        String prefix;
+        if (!modulePart.members().isEmpty()) {
+            Node lastMember = modulePart.members().get(modulePart.members().size() - 1);
+            insertPosition = lastMember.lineRange().endLine();
+            prefix = "\n\n";
+        } else if (!modulePart.imports().isEmpty()) {
+            ImportDeclarationNode lastImport = modulePart.imports().get(modulePart.imports().size() - 1);
+            insertPosition = lastImport.lineRange().endLine();
+            prefix = "\n\n";
+        } else {
+            insertPosition = modulePart.lineRange().startLine();
+            prefix = "";
+        }
+        return new TextEdit(toRange(insertPosition), prefix + text);
+    }
+
     public static boolean filterTriggers(TriggerProperty triggerProperty, TriggerListRequest request) {
         return (request == null) ||
                 ((request.organization() == null || request.organization().equals(triggerProperty.orgName())) &&

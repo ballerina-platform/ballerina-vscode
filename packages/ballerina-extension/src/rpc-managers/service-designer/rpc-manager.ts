@@ -44,6 +44,8 @@ import {
     ListenersRequest,
     ListenersResponse,
     OpenAPISpec,
+    OpenApiEndpointsRequest,
+    OpenApiEndpointsResponse,
     PayloadContext,
     ResourceReturnTypesRequest,
     ResourceSourceCodeResponse,
@@ -469,6 +471,16 @@ export class ServiceDesignerRpcManager implements ServiceDesignerAPI {
         });
     }
 
+    async listOpenApiEndpoints(params: OpenApiEndpointsRequest): Promise<OpenApiEndpointsResponse> {
+        const context = StateMachine.context();
+        try {
+            return await context.langClient.listOpenApiEndpoints(params);
+        } catch (error) {
+            console.log(error);
+            throw error;
+        }
+    }
+
     async getConnectorUpgradeAdvice(params: ConnectorUpgradeAdviceRequest): Promise<ConnectorUpgradeAdviceResponse> {
         return new Promise(async (resolve, reject) => {
             const context = StateMachine.context();
@@ -509,6 +521,16 @@ export class ServiceDesignerRpcManager implements ServiceDesignerAPI {
                 await this.ensureFileExists(targetFile);
                 params.filePath = targetFile;
                 const res: SourceEditResponse = await context.langClient.createServiceAndListener(params);
+
+                if (res.errorMsg) {
+                    // A builder threw (e.g. MCP OpenAPI generation) rather than refusing at the
+                    // save-time gate: textEdits is empty, so nothing downstream would otherwise
+                    // tell the user this silently did nothing.
+                    console.error(">>> error creating service and listener", { errorMessage: res.errorMsg, stacktrace: res.stacktrace });
+                    window.showErrorMessage(`Failed to create service: ${res.errorMsg}`);
+                    resolve({ artifacts: [], error: res.errorMsg });
+                    return;
+                }
 
                 // The save-time gate refused the model — no source was generated, so surface the
                 // failures instead of reporting an empty success.

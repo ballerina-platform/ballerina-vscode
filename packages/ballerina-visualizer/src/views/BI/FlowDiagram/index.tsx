@@ -16,6 +16,7 @@
  * under the License.
  */
 
+import { capabilityValueText, seedCapabilityValue, SeedableProperty } from "./capabilityFieldValues";
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { TraceAnimationEvent } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
@@ -2732,11 +2733,18 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                         options.postUpdateCallBack();
                     }
                 } else if ((nodeToSubmit?.codedata as any)?.object === "DurableAgent") {
-                    // Capability edits rewrite the agent declaration's config literal via raw
-                    // text edits — hold the panel with the loader until the refreshed model
-                    // has rendered, then close.
-                    selectedNodeRef.current = undefined;
-                    finishCapabilityOpAfterRefresh();
+                    // A capability edit writes no artifact, so success and refusal arrive in the same
+                    // shape and only `error` tells them apart. Closing on a refusal would discard what
+                    // the person typed for a change that was never written.
+                    if (response?.error) {
+                        console.error(">>> Capability edit refused; keeping the panel open", response.error);
+                    } else {
+                        // Capability edits rewrite the agent declaration's config literal via raw
+                        // text edits — hold the panel with the loader until the refreshed model
+                        // has rendered, then close.
+                        selectedNodeRef.current = undefined;
+                        finishCapabilityOpAfterRefresh();
+                    }
                 } else {
                     console.error(">>> Error updating source code", response);
                 }
@@ -3909,10 +3917,12 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             const node = response.flowNode;
             // Seed the form with the existing statement's values and point it at that statement.
             const values = (capability?.values || {}) as Record<string, string>;
-            const nodeProps = node.properties as Record<string, { value: unknown }>;
+            const nodeProps = node.properties as Record<string, SeedableProperty>;
             for (const [key, value] of Object.entries(values)) {
                 if (nodeProps?.[key]) {
-                    nodeProps[key].value = value;
+                    // Both halves: the value and the mode it belongs in. The values arrive as source,
+                    // so a reference stays an expression instead of being quoted into a literal on save.
+                    seedCapabilityValue(nodeProps[key], value);
                 }
             }
             node.codedata.lineRange = lineRange;
@@ -3923,7 +3933,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             node.metadata = {
                 ...node.metadata,
                 label: capability?.name || node.metadata?.label,
-                description: values?.description || node.metadata?.description,
+                // The values are source, so a literal is decoded for the subtitle rather than
+                // shown with its quotes.
+                description: capabilityValueText(values?.description) || node.metadata?.description,
             } as any;
             selectedNodeRef.current = node;
             nodeTemplateRef.current = node;

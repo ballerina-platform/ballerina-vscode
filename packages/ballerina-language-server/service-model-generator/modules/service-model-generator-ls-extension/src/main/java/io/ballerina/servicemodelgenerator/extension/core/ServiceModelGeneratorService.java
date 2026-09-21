@@ -30,6 +30,8 @@ import io.ballerina.compiler.syntax.tree.ObjectFieldNode;
 import io.ballerina.compiler.syntax.tree.ServiceDeclarationNode;
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.compiler.syntax.tree.SyntaxTree;
+import io.ballerina.mcp.core.generator.OpenApiSpecParser;
+import io.ballerina.mcp.core.model.SpecInfo;
 import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.ModulePrefixContext;
@@ -54,6 +56,7 @@ import io.ballerina.servicemodelgenerator.extension.connector.TriggerPropertiesR
 import io.ballerina.servicemodelgenerator.extension.model.Codedata;
 import io.ballerina.servicemodelgenerator.extension.model.Function;
 import io.ballerina.servicemodelgenerator.extension.model.Listener;
+import io.ballerina.servicemodelgenerator.extension.model.McpToolEndpoint;
 import io.ballerina.servicemodelgenerator.extension.model.Option;
 import io.ballerina.servicemodelgenerator.extension.model.Service;
 import io.ballerina.servicemodelgenerator.extension.model.ServiceClass;
@@ -75,6 +78,7 @@ import io.ballerina.servicemodelgenerator.extension.model.request.ListenerModelR
 import io.ballerina.servicemodelgenerator.extension.model.request.ListenerModifierRequest;
 import io.ballerina.servicemodelgenerator.extension.model.request.ListenerSourceRequest;
 import io.ballerina.servicemodelgenerator.extension.model.request.ModifyClassDependencyRequest;
+import io.ballerina.servicemodelgenerator.extension.model.request.OpenApiEndpointsRequest;
 import io.ballerina.servicemodelgenerator.extension.model.request.ServiceClassSourceRequest;
 import io.ballerina.servicemodelgenerator.extension.model.request.ServiceInitSourceRequest;
 import io.ballerina.servicemodelgenerator.extension.model.request.ServiceModelRequest;
@@ -93,6 +97,7 @@ import io.ballerina.servicemodelgenerator.extension.model.response.ListenerDisco
 import io.ballerina.servicemodelgenerator.extension.model.response.ListenerFromSourceResponse;
 import io.ballerina.servicemodelgenerator.extension.model.response.ListenerModelResponse;
 import io.ballerina.servicemodelgenerator.extension.model.response.ModelResolutionIssue;
+import io.ballerina.servicemodelgenerator.extension.model.response.OpenApiEndpointsResponse;
 import io.ballerina.servicemodelgenerator.extension.model.response.ServiceClassModelResponse;
 import io.ballerina.servicemodelgenerator.extension.model.response.ServiceFromSourceResponse;
 import io.ballerina.servicemodelgenerator.extension.model.response.ServiceInitModelResponse;
@@ -1281,6 +1286,24 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                 return new CommonSourceResponse(textEdits, validations);
             } catch (Throwable e) {
                 return new CommonSourceResponse(e);
+            }
+        });
+    }
+
+    /** Lists the operations in an OpenAPI contract as candidate MCP tools. */
+    @JsonRequest
+    public CompletableFuture<OpenApiEndpointsResponse> listOpenApiEndpoints(OpenApiEndpointsRequest request) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                SpecInfo specInfo = McpOpenApiServiceGenerator
+                        .runSilently(() -> new OpenApiSpecParser().parse(Path.of(request.specPath())));
+                List<McpToolEndpoint> endpoints = specInfo.getEndpoints().stream()
+                        .map(endpoint -> new McpToolEndpoint(endpoint.getToolName(), endpoint.getMethod(),
+                                endpoint.getPath(), endpoint.getDescription()))
+                        .toList();
+                return new OpenApiEndpointsResponse(endpoints, McpOpenApiServiceGenerator.defaultsFor(specInfo));
+            } catch (Throwable error) {
+                return new OpenApiEndpointsResponse(error);
             }
         });
     }

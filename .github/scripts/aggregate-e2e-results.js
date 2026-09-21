@@ -9,7 +9,7 @@
 // unreadable files would otherwise produce nonsensical totals like "Total: 0 · Failed: 2".
 //
 // A group can produce more than one report file: run-e2e-group runs a first attempt,
-// then re-runs just the failed subset (`--last-failed`) into a second file (see
+// then re-runs any failing test.describe.serial() block into a second file (see
 // PLAYWRIGHT_JSON_OUTPUT_FILE in .github/actions/run-e2e-group/action.yml). Both are
 // full Playwright JSON reports, so per-test results across the group's files are merged
 // here rather than letting the later file silently replace the earlier one.
@@ -192,10 +192,17 @@ function aggregate(rootDir, expectedGroups) {
       if (isPassed) passed += 1;
       else if (isSkipped) skipped += 1;
       else failed += 1;
-      // Flakiness is derived from the merged attempt history rather than either report
-      // file's own test.status: a test re-run via --last-failed spans two separate
-      // Playwright invocations, so no single file's status reflects the merged outcome.
-      if (isPassed && attempts > 1) flaky += 1;
+      // Flakiness means THIS test failed on an earlier attempt before finally passing —
+      // not just that it has more than one attempt. Since a whole test.describe.serial()
+      // block is replayed (not just the one failed test), two kinds of sibling get swept
+      // into the re-run's report with no failure of their own: one that already passed
+      // (a second 'passed' result), and one that never got to run at all because an
+      // earlier sibling failed first ('skipped', not a failure of its own). attempts > 1
+      // alone, or treating 'skipped' as a failure, would wrongly count either as flaky.
+      const hadEarlierFailure = test.results
+        .slice(0, -1)
+        .some((r) => r.status !== 'passed' && r.status !== 'skipped');
+      if (isPassed && hadEarlierFailure) flaky += 1;
 
       const errorLines = test.results
         .map((r, i) => {

@@ -25,11 +25,15 @@ import { MiniChat } from "./MiniChat";
 import { CopilotOrb } from "./CopilotOrb";
 import { useOrbColors } from "./orbTheme";
 import {
+    AmbientFrame,
     Anchor,
     ANCHOR_STORAGE_KEY,
     EDGE_MARGIN,
     loadAnchor,
+    ORB_GLOW_CLASS,
+    ORB_HOVER_BRIGHTNESS,
     ORB_SIZE,
+    OrbGlow,
     activeStateLabel,
     subscribeAgentRunStatus,
     subscribeOrbSuppressed,
@@ -160,15 +164,11 @@ const InviteHitBridge = styled.div<InviteVisibility>`
     pointer-events: ${(props: InviteVisibility) => (props.visible ? "auto" : "none")};
 `;
 
-const InviteBox = styled.div<InviteVisibility>`
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    background: var(--vscode-editorWidget-background);
-    border: 1px solid var(--vscode-editorWidget-border, transparent);
-    border-radius: 14px;
-    padding: 5px 6px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+const InviteShell = styled.div<InviteVisibility>`
+    border-radius: 10px;
+    // Hidden it still animates, on every view that hosts an orb.
+    ${(props: InviteVisibility) => (props.visible ? "" : "& * { animation-play-state: paused; }")}
+    box-shadow: 0 4px 14px var(--vscode-widget-shadow, rgba(0, 0, 0, 0.3));
     opacity: ${(props: InviteVisibility) => (props.visible ? 1 : 0)};
     transform: translateX(${(props: InviteVisibility) => (props.visible ? "0" : "6px")});
     visibility: ${(props: InviteVisibility) => (props.visible ? "visible" : "hidden")};
@@ -180,6 +180,16 @@ const InviteBox = styled.div<InviteVisibility>`
     @media (prefers-reduced-motion: reduce) {
         transition: none;
     }
+`;
+
+const InviteBox = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    border: none;
+    border-radius: 9px;
+    background-color: var(--vscode-editor-background);
+    padding: 5px;
 `;
 
 const InviteClear = styled.button`
@@ -199,17 +209,13 @@ const InviteClear = styled.button`
 
 const InviteInput = styled.input`
     width: 230px;
-    background: var(--vscode-input-background);
+    background: transparent;
     color: var(--vscode-input-foreground);
-    border: 1px solid var(--vscode-input-border, transparent);
-    border-radius: 9px;
-    padding: 6px 10px;
+    border: none;
+    padding: 5px 6px;
     font-size: 12px;
     font-family: var(--vscode-font-family);
     outline: none;
-    &:focus {
-        border-color: var(--vscode-focusBorder);
-    }
     &::placeholder {
         color: var(--vscode-input-placeholderForeground);
     }
@@ -230,11 +236,15 @@ const OrbButton = styled.button<{ state: AgentRunState }>`
     cursor: grab;
     outline-offset: 4px;
     touch-action: none;
-    opacity: ${(props: Pick<OrbStyleProps, "state">) => (props.state === "idle" ? 0.85 : 1)};
-    transition: opacity 0.3s ease, transform 0.2s ease;
+    transition: transform 0.2s ease;
     &:hover {
-        opacity: 1;
         transform: scale(1.06);
+    }
+    // On the wrapper, not the button: breathe/bloom animate the button's own transform and would
+    // override a rule set here.
+    &:hover .${ORB_GLOW_CLASS},
+    &:focus-visible .${ORB_GLOW_CLASS} {
+        filter: brightness(${ORB_HOVER_BRIGHTNESS});
     }
     &:active {
         cursor: grabbing;
@@ -485,36 +495,40 @@ export function AgentStatusOrb() {
         >
             {inviteHosted && (
                 <InviteHitBridge visible={inviteVisible}>
-                    <InviteBox visible={inviteVisible}>
-                        <InviteInput
-                            value={inviteText}
-                            onChange={(event) => setInviteText(event.target.value)}
-                            onKeyDown={(event) => {
-                                if (event.key === "Enter") {
-                                    submitInvite(event.currentTarget);
-                                } else if (event.key === "Escape") {
-                                    setInviteText("");
-                                    event.currentTarget.blur();
-                                }
-                            }}
-                            onFocus={() => setInviteFocused(true)}
-                            onBlur={() => setInviteFocused(false)}
-                            placeholder="How can I help?"
-                            aria-label="Message WSO2 Integrator Copilot"
-                        />
-                        {inviteText.length > 0 && (
-                            <InviteClear
-                                type="button"
-                                title="Clear"
-                                aria-label="Clear the message"
-                                // Keep focus in the input so clearing never ends the typing.
-                                onMouseDown={(event) => event.preventDefault()}
-                                onClick={() => setInviteText("")}
-                            >
-                                <span className="codicon codicon-close" />
-                            </InviteClear>
-                        )}
-                    </InviteBox>
+                    <InviteShell visible={inviteVisible} data-testid="invite-shell">
+                            <AmbientFrame $state={state}>
+                            <InviteBox>
+                                <InviteInput
+                                    value={inviteText}
+                                    onChange={(event) => setInviteText(event.target.value)}
+                                    onKeyDown={(event) => {
+                                        if (event.key === "Enter") {
+                                            submitInvite(event.currentTarget);
+                                        } else if (event.key === "Escape") {
+                                            setInviteText("");
+                                            event.currentTarget.blur();
+                                        }
+                                    }}
+                                    onFocus={() => setInviteFocused(true)}
+                                    onBlur={() => setInviteFocused(false)}
+                                    placeholder="How can I help?"
+                                    aria-label="Message WSO2 Integrator Copilot"
+                                />
+                                {inviteText.length > 0 && (
+                                    <InviteClear
+                                        type="button"
+                                        title="Clear"
+                                        aria-label="Clear the message"
+                                        // Keep focus in the input so clearing never ends the typing.
+                                        onMouseDown={(event) => event.preventDefault()}
+                                        onClick={() => setInviteText("")}
+                                    >
+                                        <span className="codicon codicon-close" />
+                                    </InviteClear>
+                                )}
+                            </InviteBox>
+                            </AmbientFrame>
+                    </InviteShell>
                 </InviteHitBridge>
             )}
             {showLabel && label && <LabelPill onClick={() => setMiniOpen(true)}>{label}</LabelPill>}
@@ -530,7 +544,9 @@ export function AgentStatusOrb() {
                 title={label ? `WSO2 Integrator Copilot — ${label}` : "WSO2 Integrator Copilot"}
                 aria-label={label ? `WSO2 Integrator Copilot: ${label}. Click to open the mini chat, double-click for the chat panel.` : "Click to open the WSO2 Integrator Copilot mini chat, double-click for the chat panel"}
             >
-                <CopilotOrb state={state} colors={colors} size={ORB_SIZE} />
+                <OrbGlow className={ORB_GLOW_CLASS}>
+                    <CopilotOrb state={state} colors={colors} size={ORB_SIZE} />
+                </OrbGlow>
             </OrbButton>
         </Wrapper>
         </>

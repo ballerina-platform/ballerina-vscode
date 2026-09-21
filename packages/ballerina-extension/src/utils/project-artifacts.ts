@@ -240,16 +240,12 @@ async function traverseComponents(artifacts: Artifacts, projectPath: string, res
     response.directoryMap[DIRECTORY_MAP.LISTENER].push(...await getComponents(artifacts[ARTIFACT_TYPE.Listeners], projectPath, DIRECTORY_MAP.LISTENER, "http-service"));
     response.directoryMap[DIRECTORY_MAP.FUNCTION].push(...await getComponents(artifacts[ARTIFACT_TYPE.Functions], projectPath, DIRECTORY_MAP.FUNCTION, "function"));
     response.directoryMap[DIRECTORY_MAP.WORKFLOW].push(...await getComponents(artifacts[ARTIFACT_TYPE.Workflows], projectPath, DIRECTORY_MAP.WORKFLOW, "workflow"));
-    // Durable agentic workflows (workflow:DurableAgent declarations) list right after the
-    // durable workflows in the same explorer section, distinguished only by the agent icon.
-    // The WSO2 Integrator shell's explorer renders a section's children only when the entry
-    // type matches the section, so the entries present as WORKFLOW; position-based click
-    // routing still opens the agent model.
-    response.directoryMap[DIRECTORY_MAP.WORKFLOW].push(...await getComponents(artifacts[ARTIFACT_TYPE.Workflows], projectPath, DIRECTORY_MAP.DURABLE_AGENT, "bi-ai-agent"));
     response.directoryMap[DIRECTORY_MAP.ACTIVITY].push(...await getComponents(artifacts[ARTIFACT_TYPE.Workflows], projectPath, DIRECTORY_MAP.ACTIVITY, "task"));
     response.directoryMap[DIRECTORY_MAP.DATA_MAPPER].push(...await getComponents(artifacts[ARTIFACT_TYPE.DataMappers], projectPath, DIRECTORY_MAP.DATA_MAPPER, "dataMapper"));
     response.directoryMap[DIRECTORY_MAP.CONNECTION].push(...await getComponents(artifacts[ARTIFACT_TYPE.Connections], projectPath, DIRECTORY_MAP.CONNECTION, "connection"));
     response.directoryMap[DIRECTORY_MAP.AGENT].push(...await getComponents(artifacts[ARTIFACT_TYPE.Agents], projectPath, DIRECTORY_MAP.AGENT, "bi-ai-agent"));
+    // Durable agents (workflow:DurableAgent declarations) list after the AI agents in the Agents section.
+    response.directoryMap[DIRECTORY_MAP.AGENT].push(...await getComponents(artifacts[ARTIFACT_TYPE.Agents], projectPath, DIRECTORY_MAP.DURABLE_AGENT, "bi-ai-agent"));
     response.directoryMap[DIRECTORY_MAP.AGENT_DEFINITION].push(...await getComponents(artifacts[ARTIFACT_TYPE.AgentDefinitions], projectPath, DIRECTORY_MAP.AGENT_DEFINITION, "bi-ai-agent"));
     response.directoryMap[DIRECTORY_MAP.TYPE].push(...await getComponents(artifacts[ARTIFACT_TYPE.Types], projectPath, DIRECTORY_MAP.TYPE, "type"));
     response.directoryMap[DIRECTORY_MAP.CONFIGURABLE].push(...await getComponents(artifacts[ARTIFACT_TYPE.Configurations], projectPath, DIRECTORY_MAP.CONFIGURABLE, "config"));
@@ -390,11 +386,11 @@ async function getEntryValue(artifact: BaseArtifact, projectPath: string, icon: 
         name: artifact.name,
         path: targetFile,
         moduleName: artifact.module,
-        // The WSO2 Integrator shell's explorer renders a section's children only when the
-        // entry type matches the section, so durable agents present as WORKFLOW entries in
-        // the same list, distinguished only by the agent icon; position-based click routing
-        // still opens the agent model.
-        type: artifact.type === DIRECTORY_MAP.DURABLE_AGENT ? DIRECTORY_MAP.WORKFLOW : artifact.type,
+        // The WSO2 Integrator shell's explorer renders a section's children only when the entry
+        // type matches the section, so a durable agent presents as an AGENT entry; `kind` keeps
+        // what it is, which click routing uses to open the agent model instead of the AI agent.
+        type: artifact.type === DIRECTORY_MAP.DURABLE_AGENT ? DIRECTORY_MAP.AGENT : artifact.type,
+        kind: artifact.type === DIRECTORY_MAP.DURABLE_AGENT ? DIRECTORY_MAP.DURABLE_AGENT : undefined,
         icon: artifact.module ? `bi-${artifact.module}` : icon,
         context: artifact.name === "automation" ? "main" : artifact.name,
         resources: [],
@@ -531,9 +527,6 @@ function getDirectoryMapKeyAndIcon(artifact: BaseArtifact, artifactCategoryKey: 
         case ARTIFACT_TYPE.Workflows:
             if (artifact.type === DIRECTORY_MAP.ACTIVITY) {
                 return { mapKey: DIRECTORY_MAP.ACTIVITY, icon: "task" };
-            }
-            if (artifact.type === DIRECTORY_MAP.DURABLE_AGENT) {
-                return { mapKey: DIRECTORY_MAP.WORKFLOW, icon: "bi-ai-agent" };
             }
             return { mapKey: DIRECTORY_MAP.WORKFLOW, icon: "workflow" };
         case ARTIFACT_TYPE.DataMappers:

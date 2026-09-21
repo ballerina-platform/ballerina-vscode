@@ -25,7 +25,7 @@ import { Codicon, Icon } from "@wso2/ui-toolkit";
 import MarkdownRenderer from "../../views/AIPanel/components/MarkdownRenderer";
 import CodeContextCard from "../../views/AIPanel/components/CodeContextCard";
 import { StreamItem } from "../../views/AIPanel/components/AgentStreamView/types";
-import {
+import { upsertToolResult,
     serializeStream,
     parseStream,
     appendToLastEntry,
@@ -38,6 +38,7 @@ import {
     applyTaskWriteResult,
     COMPACTION_DISABLED_NOTICE,
 } from "../../views/AIPanel/components/AIChat/utils/streamSerialization";
+import { getToolResultDisplay, isToolResultInProgress, subagentName } from "../../views/AIPanel/components/AgentStreamView/toolDisplay";
 import {
     Anchor,
     EDGE_MARGIN,
@@ -174,9 +175,12 @@ function describeTool(toolName: string, toolInput: any): string {
             return "Asking a question";
         case "ConfigCollector":
             return "Managing configuration";
-        case "LibrarySearchTool":
-        case "LibraryGetTool":
-            return "Looking up libraries";
+        case "Subagent":
+            return `Consulting the ${subagentName(toolInput)}`;
+        case "task_output":
+            return "Waiting for a background task";
+        case "kill_task":
+            return "Stopping a background task";
         case "web_search":
             return "Searching the web";
         case "web_fetch":
@@ -258,19 +262,11 @@ function applyContentEvent(prevContent: string, evt: FoldableNotify): string {
             // would both lose the task rail and wrongly resolve the item.
             return serializeStream(applyTaskWriteResult(entries, evt.toolOutput?.tasks ?? []), prevContent);
         }
-        const resultItem: StreamItem = {
-            kind: "tool_result", toolCallId: evt.toolCallId, toolName: evt.toolName,
-            toolOutput: evt.toolOutput, failed: evt.failed,
-        };
-        let matched = false;
-        const updated = entries.map((entry) => {
-            if (matched) { return entry; }
-            const idx = entry.items.findIndex((i) => i.kind === "tool_call" && i.toolCallId === evt.toolCallId);
-            if (idx === -1) { return entry; }
-            matched = true;
-            return { ...entry, items: entry.items.map((item, i) => (i === idx ? resultItem : item)) };
-        });
-        return serializeStream(matched ? updated : appendToLastEntry(entries, resultItem), prevContent);
+        // Shared fold: resolves the open tool_call, or updates an earlier result of the
+        // same call id (a subagent reports partial progress, then the final result).
+        return serializeStream(upsertToolResult(entries, {
+            toolCallId: evt.toolCallId, toolName: evt.toolName, toolOutput: evt.toolOutput, failed: evt.failed, partial: evt.partial,
+        }), prevContent);
     }
     if (evt.type === "chat_component") {
         return serializeStream(upsertComponent(entries, evt.componentType, evt.id, evt.data), prevContent);
@@ -672,6 +668,9 @@ function renderTranscript(msgs: MiniMsg[], streaming: boolean): React.ReactNode[
                     }
                 } else if (item.kind === "tool_call") {
                     nodes.push(toolRowNode(key, describeTool(item.toolName ?? "", item.toolInput), streaming ? "running" : "pending"));
+                } else if (item.kind === "tool_result" && isToolResultInProgress(item)) {
+                    // A partial result (progress report): still running, worded with what it is doing right now.
+                    nodes.push(toolRowNode(key, getToolResultDisplay(item.toolName, item.toolOutput).label, streaming ? "running" : "pending"));
                 } else if (item.kind === "tool_result") {
                     nodes.push(toolRowNode(key, describeTool(item.toolName ?? "", undefined), item.failed ? "failed" : "done"));
                 }

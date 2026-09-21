@@ -26,6 +26,20 @@ import { ambientBorderColor } from "./orbTheme";
 
 /** Floating orb geometry, shared with the mini chat for anchor-relative placement. */
 export const ORB_SIZE = 56;
+
+/**
+ * Hover/focus lift shared by every clickable orb. Must stay above the ambient sphere pulse's own 1.13
+ * peak, or the lift is indistinguishable from the idle animation.
+ */
+export const ORB_HOVER_BRIGHTNESS = 1.18;
+
+export const ORB_GLOW_CLASS = "orb-glow";
+
+/** Scopes the lift to the orb so sibling chrome in the same button is left alone. */
+export const OrbGlow = styled.span`
+    display: block;
+    transition: filter 0.2s ease;
+`;
 export const EDGE_MARGIN = 20;
 
 export type Anchor = "top-left" | "top-center" | "top-right" | "bottom-left" | "bottom-center" | "bottom-right";
@@ -242,6 +256,15 @@ export const Sphere = styled.div<SphereProps>`
         inset 0 9px 16px rgba(255, 255, 255, 0.1),
         inset 0 -8px 14px rgba(0, 0, 0, 0.16),
         0 0 14px color-mix(in srgb, ${(props: SphereProps) => props.colors[1]} 45%, transparent);
+
+    body.vscode-dark &,
+    body.vscode-high-contrast & {
+        box-shadow:
+            inset 0 0 0 1px rgba(255, 255, 255, 0.22),
+            inset 0 9px 16px rgba(255, 255, 255, 0.1),
+            inset 0 -8px 14px rgba(0, 0, 0, 0.16),
+            0 0 16px color-mix(in srgb, ${(props: SphereProps) => props.colors[1]} 24%, transparent);
+    }
     animation:
         ${spherePulse} ${(props: SphereProps) => (4.2 - props.energy * 2.4).toFixed(2)}s ease-in-out infinite,
         ${sphereDrift} ${(props: SphereProps) => (7.5 - props.energy * 3.5).toFixed(2)}s ease-in-out infinite;

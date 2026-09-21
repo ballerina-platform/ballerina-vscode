@@ -16,19 +16,21 @@
  * under the License.
  */
 
-import { Button, Icon, ThemeColors, Typography, View, ViewContent } from "@wso2/ui-toolkit";
+import { Button, Icon, ThemeColors, View, ViewContent } from "@wso2/ui-toolkit";
 import { TopNavigationBar } from "../../../components/TopNavigationBar";
 import { useEffect, useRef, useState } from "react";
 import { TitleBar } from "../../../components/TitleBar";
 import { isBetaModule } from "../ComponentListView/componentListUtils";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { FormField, FormImports, FormValues } from "@wso2/ballerina-side-panel";
-import { EVENT_TYPE, hasBlockingValidationErrors, LineRange, ModelResolutionIssue, RecordTypeField, ServiceInitModel, ValidationResult } from "@wso2/ballerina-core";
+import { DIRECTORY_MAP, EVENT_TYPE, hasBlockingValidationErrors, LineRange, ModelResolutionIssue, RecordTypeField, ServiceInitModel, ValidationResult } from "@wso2/ballerina-core";
 import { FormHeader } from "../../../components/FormHeader";
 import ArtifactForm from "../Forms/ArtifactForm";
 import styled from "@emotion/styled";
 import { DownloadIcon } from "../../../components/DownloadIcon";
 import { RelativeLoader } from "../../../components/RelativeLoader";
+import { McpOpenApiImportWizard } from "./McpOpenApiImportWizard";
+import { HeaderWrapper, NestedFormWrapper, StatusCard, StatusText } from "./ServiceCreationLayout";
 import {
     applyFormValuesToModel,
     collectRecordTypeFields,
@@ -41,19 +43,11 @@ const Container = styled.div`
     flex-direction: column;
     gap: 10;
     margin: 20px;
-    /* padding: 0 20px 20px; */
     max-width: 600px;
     height: 100%;
-    > div:last-child {
-        /* padding: 20px 0; */
-        > div:last-child {
-            justify-content: flex-start;
-        }
-    }
 `;
 
 const FormContainer = styled.div`
-    /* padding-top: 15px; */
     padding-bottom: 100px;
 `;
 
@@ -63,26 +57,6 @@ const StatusContainer = styled.div`
     align-items: center;
     height: 100%;
 `;
-
-const StatusCard = styled.div`
-    margin: 16px 16px 0 16px;
-    padding: 16px;
-    border-radius: 8px;
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 16px;
-
-    & > svg {
-        font-size: 24px;
-        color: ${ThemeColors.ON_SURFACE};
-    }
-`;
-
-const StatusText = styled(Typography)`
-    color: ${ThemeColors.ON_SURFACE};
-`;
-
 
 export interface ServiceCreationViewProps {
     projectPath: string;
@@ -98,6 +72,11 @@ interface HeaderInfo {
     moduleName: string;
 }
 
+interface McpImportRequest {
+    model: ServiceInitModel;
+    specPath: string;
+}
+
 enum PullingStatus {
     FETCHING = "fetching",
     PULLING = "pulling",
@@ -105,6 +84,85 @@ enum PullingStatus {
     ERROR = "error",
     UNSUPPORTED_VERSION = "unsupported_version",
     UPDATING = "updating",
+}
+
+/** The design approach choice's properties for whichever option is currently selected (e.g. manual vs. import-from-spec). */
+function getEnabledDesignApproachProperties(model: ServiceInitModel) {
+    return model?.properties.designApproach?.choices?.find((choice) => choice.enabled)?.properties;
+}
+
+interface PackagePullingStatusProps {
+    status: PullingStatus;
+    isLocalRepository?: boolean;
+    packageName: string;
+    upgradeIssue?: ModelResolutionIssue;
+    onRetry: () => void;
+    onUpdateNow: () => void;
+}
+
+function PackagePullingStatus({ status, isLocalRepository, packageName, upgradeIssue, onRetry, onUpdateNow }: PackagePullingStatusProps) {
+    switch (status) {
+        case PullingStatus.FETCHING:
+            return <RelativeLoader message="Loading package..." />;
+        case PullingStatus.PULLING:
+            return (
+                <StatusCard>
+                    {isLocalRepository ? (
+                        <Icon name="bi-spinner" sx={{ color: ThemeColors.ON_SURFACE, fontSize: "18px" }} />
+                    ) : (
+                        <DownloadIcon color={ThemeColors.ON_SURFACE} />
+                    )}
+                    <StatusText variant="body2">
+                        {isLocalRepository
+                            ? `Please wait while the ${packageName} package is being loaded from your `
+                            + "local repository..."
+                            : `Please wait while the ${packageName} package is being pulled...`}
+                    </StatusText>
+                </StatusCard>
+            );
+        case PullingStatus.SUCCESS:
+            return (
+                <StatusCard>
+                    <Icon name="bi-success" sx={{ color: ThemeColors.PRIMARY, fontSize: "18px" }} />
+                    <StatusText variant="body2">
+                        {isLocalRepository ? "Package loaded successfully." : "Package pulled successfully."}
+                    </StatusText>
+                </StatusCard>
+            );
+        case PullingStatus.ERROR:
+            return (
+                <StatusCard>
+                    <Icon name="bi-error" sx={{ color: ThemeColors.ERROR, fontSize: "18px" }} />
+                    <StatusText variant="body2">
+                        {isLocalRepository
+                            ? "Failed to load the package from your local repository. Please try again."
+                            : "Failed to pull the package. Please try again."}
+                    </StatusText>
+                    <Button appearance="secondary" onClick={onRetry}>Retry</Button>
+                </StatusCard>
+            );
+        case PullingStatus.UNSUPPORTED_VERSION:
+            return upgradeIssue ? (
+                <StatusCard>
+                    <Icon name="bi-error" sx={{ color: ThemeColors.ERROR, fontSize: "18px" }} />
+                    <StatusText variant="body2">
+                        A newer version is required to use this feature..
+                    </StatusText>
+                    <Button appearance="primary" onClick={onUpdateNow}>Update Now</Button>
+                </StatusCard>
+            ) : null;
+        case PullingStatus.UPDATING:
+            return (
+                <StatusCard>
+                    <Icon name="bi-spinner" sx={{ color: ThemeColors.ON_SURFACE, fontSize: "18px" }} />
+                    <StatusText variant="body2">
+                        {`Updating ${packageName}...`}
+                    </StatusText>
+                </StatusCard>
+            );
+        default:
+            return null;
+    }
 }
 
 export function ServiceCreationView(props: ServiceCreationViewProps) {
@@ -123,6 +181,7 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
     const [isSaving, setIsSaving] = useState<boolean>(false);
     const [serverValidationErrors, setServerValidationErrors] = useState<ValidationResult[]>([]);
     const [recordTypeFields, setRecordTypeFields] = useState<RecordTypeField[]>([]);
+    const [mcpImport, setMcpImport] = useState<McpImportRequest>(null);
 
     const isMountedRef = useRef(true);
 
@@ -290,12 +349,23 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
     };
 
     const handleOnSubmit = async (data: FormValues, formImports: FormImports) => {
-        setIsSaving(true);
         const updatedModel = applyFormValuesToModel(formFields, model, data, formImports);
 
+        const specPath = getEnabledDesignApproachProperties(updatedModel)?.spec?.value as string | undefined;
+        if (moduleName === "mcp" && specPath) {
+            setMcpImport({ model: updatedModel, specPath });
+            return;
+        }
+
+        setIsSaving(true);
+        await createService(updatedModel);
+    };
+
+    const createService = async (serviceModel: ServiceInitModel) => {
+        setIsSaving(true);
         const res = await rpcClient
             .getServiceDesignerRpcClient()
-            .createServiceAndListener({ filePath: "", serviceInitModel: updatedModel });
+            .createServiceAndListener({ filePath: "", serviceInitModel: serviceModel });
 
         if (!isMountedRef.current) {
             return;
@@ -311,7 +381,13 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
         }
         setServerValidationErrors([]);
 
-        const newArtifact = res.artifacts.find(res => res.isNew && model.moduleName === res.moduleName);
+        const strictMatch = res.artifacts.find((artifact) => artifact.isNew && model.moduleName === artifact.moduleName);
+        // Only the MCP OpenAPI import falls back to a new SERVICE artifact; its edits may not carry the "mcp"
+        // moduleName, and generation can also emit a new TYPE artifact (types.bal) in the same response.
+        const newArtifact = strictMatch
+            || (isMcpOpenApiImport
+                ? res.artifacts.find((artifact) => artifact.isNew && artifact.type === DIRECTORY_MAP.SERVICE)
+                : undefined);
         if (newArtifact) {
             rpcClient.getVisualizerRpcClient().openView({ type: EVENT_TYPE.OPEN_VIEW, location: { documentUri: newArtifact.path, position: newArtifact.position } });
             setIsSaving(false);
@@ -319,66 +395,27 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
         }
         // No artifact came back and nothing was rejected — release the button rather than hanging.
         setIsSaving(false);
-    }
+    };
+
+    const enabledDesignApproachProperties = getEnabledDesignApproachProperties(model);
+    // Existence, not value: this also drives field filtering below, so it must be true before a spec is picked.
+    const isMcpOpenApiImport = moduleName === "mcp" && Boolean(enabledDesignApproachProperties?.spec);
+    const visibleFormFields = isMcpOpenApiImport
+        ? formFields.filter((field) => field.key === "designApproach")
+        : formFields;
 
     return (
         <View>
             {pullingStatus && (
                 <StatusContainer>
-                    {pullingStatus === PullingStatus.FETCHING && (
-                        <RelativeLoader message="Loading package..." />
-                    )}
-                    {pullingStatus === PullingStatus.PULLING && (
-                        <StatusCard>
-                            {isLocalRepository ? (
-                                <Icon name="bi-spinner" sx={{ color: ThemeColors.ON_SURFACE, fontSize: "18px" }} />
-                            ) : (
-                                <DownloadIcon color={ThemeColors.ON_SURFACE} />
-                            )}
-                            <StatusText variant="body2">
-                                {isLocalRepository
-                                    ? `Please wait while the ${packageName} package is being loaded from your `
-                                        + "local repository..."
-                                    : `Please wait while the ${packageName} package is being pulled...`}
-                            </StatusText>
-                        </StatusCard>
-                    )}
-                    {pullingStatus === PullingStatus.SUCCESS && (
-                        <StatusCard>
-                            <Icon name="bi-success" sx={{ color: ThemeColors.PRIMARY, fontSize: "18px" }} />
-                            <StatusText variant="body2">
-                                {isLocalRepository ? "Package loaded successfully." : "Package pulled successfully."}
-                            </StatusText>
-                        </StatusCard>
-                    )}
-                    {pullingStatus === PullingStatus.ERROR && (
-                        <StatusCard>
-                            <Icon name="bi-error" sx={{ color: ThemeColors.ERROR, fontSize: "18px" }} />
-                            <StatusText variant="body2">
-                                {isLocalRepository
-                                    ? "Failed to load the package from your local repository. Please try again."
-                                    : "Failed to pull the package. Please try again."}
-                            </StatusText>
-                            <Button appearance="secondary" onClick={fetchData}>Retry</Button>
-                        </StatusCard>
-                    )}
-                    {pullingStatus === PullingStatus.UNSUPPORTED_VERSION && upgradeIssue && (
-                        <StatusCard>
-                            <Icon name="bi-error" sx={{ color: ThemeColors.ERROR, fontSize: "18px" }} />
-                            <StatusText variant="body2">
-                                A newer version is required to use this feature..
-                            </StatusText>
-                            <Button appearance="primary" onClick={handleUpdateNow}>Update Now</Button>
-                        </StatusCard>
-                    )}
-                    {pullingStatus === PullingStatus.UPDATING && (
-                        <StatusCard>
-                            <Icon name="bi-spinner" sx={{ color: ThemeColors.ON_SURFACE, fontSize: "18px" }} />
-                            <StatusText variant="body2">
-                                {`Updating ${packageName}...`}
-                            </StatusText>
-                        </StatusCard>
-                    )}
+                    <PackagePullingStatus
+                        status={pullingStatus}
+                        isLocalRepository={isLocalRepository}
+                        packageName={packageName}
+                        upgradeIssue={upgradeIssue}
+                        onRetry={fetchData}
+                        onUpdateNow={handleUpdateNow}
+                    />
                 </StatusContainer>
             )}
 
@@ -394,28 +431,46 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
                     )}
                     <ViewContent>
                         <Container>
-                            <>
-                                {formFields && formFields.length > 0 && (
-                                    <FormContainer>
-                                        <FormHeader title={`Create ${model.displayName}`} />
-                                        {filePath && targetLineRange && (
-                                            <ArtifactForm
-                                                fileName={filePath}
-                                                targetLineRange={targetLineRange}
-                                                fields={formFields}
-                                                isSaving={isSaving}
-                                                nestedForm={true}
-                                                onSubmit={handleOnSubmit}
-                                                onChange={handleOnChange}
-                                                serverValidationErrors={serverValidationErrors}
-                                                preserveFieldOrder={true}
-                                                recordTypeFields={recordTypeFields}
-                                                submitText="Create"
-                                            />
-                                        )}
-                                    </FormContainer>
-                                )}
-                            </>
+                            {mcpImport ? (
+                                <McpOpenApiImportWizard
+                                    initialModel={mcpImport.model}
+                                    specPath={mcpImport.specPath}
+                                    filePath={filePath}
+                                    targetLineRange={targetLineRange}
+                                    recordTypeFields={recordTypeFields}
+                                    isSaving={isSaving}
+                                    serverValidationErrors={serverValidationErrors}
+                                    onBack={() => setMcpImport(null)}
+                                    onCreate={createService}
+                                />
+                            ) : (
+                                <>
+                                    {visibleFormFields && visibleFormFields.length > 0 && (
+                                        <FormContainer>
+                                            <HeaderWrapper>
+                                                <FormHeader title={`Create ${model.displayName}`} />
+                                            </HeaderWrapper>
+                                            {filePath && targetLineRange && (
+                                                <NestedFormWrapper>
+                                                    <ArtifactForm
+                                                        fileName={filePath}
+                                                        targetLineRange={targetLineRange}
+                                                        fields={visibleFormFields}
+                                                        isSaving={isSaving}
+                                                        nestedForm={true}
+                                                        onSubmit={handleOnSubmit}
+                                                        onChange={handleOnChange}
+                                                        serverValidationErrors={serverValidationErrors}
+                                                        preserveFieldOrder={true}
+                                                        recordTypeFields={recordTypeFields}
+                                                        submitText={isMcpOpenApiImport ? "Next" : "Create"}
+                                                    />
+                                                </NestedFormWrapper>
+                                            )}
+                                        </FormContainer>
+                                    )}
+                                </>
+                            )}
                         </Container>
                     </ViewContent>
                 </>
