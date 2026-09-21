@@ -36,7 +36,7 @@ import { RelativeLoader } from "../RelativeLoader";
 import { LoaderContainer } from "../RelativeLoader/styles";
 
 const MODAL_WIDTH = 680;
-const CONNECTION_MODAL_HEIGHT = 780;
+const NODE_MODAL_HEIGHT = 780;
 const PICKER_HEIGHT = 500;
 
 const dummyNode = { codedata: {}, properties: {} } as unknown as FlowNode;
@@ -121,7 +121,7 @@ export function useCreateNode(
         const modalId = `create-cloud-kb-${connectorCodeData.org}-${connectorCodeData.object}`;
         addModal(
             renderPicker((flowNode) =>
-                addModal(renderForm(flowNode, done), `${modalId}-form`, formTitle, 780, MODAL_WIDTH, undefined, true)
+                addModal(renderForm(flowNode, done), `${modalId}-form`, formTitle, NODE_MODAL_HEIGHT, MODAL_WIDTH, undefined, true)
             ),
             modalId,
             title,
@@ -182,7 +182,7 @@ export function useCreateNode(
         const modalId = `create-connection-${connectorCodeData.org}-${connectorCodeData.object}`;
         try {
             const flowNode = await fetchTemplate();
-            addModal(renderCreator(flowNode, done), modalId, title, 780, MODAL_WIDTH, undefined, true);
+            addModal(renderCreator(flowNode, done), modalId, title, NODE_MODAL_HEIGHT, MODAL_WIDTH, undefined, true);
         } catch (error) {
             console.error("Error fetching connector template", error);
             await rpcClient.getCommonRpcClient().showErrorMessage({
@@ -205,8 +205,8 @@ export function useCreateNode(
                 </Suspense>,
                 modalId,
                 `Create ${nodeCodeData.object ?? "Agent"}`,
-                600,
-                600,
+                NODE_MODAL_HEIGHT,
+                MODAL_WIDTH,
                 undefined,
                 true
             );
@@ -229,8 +229,8 @@ export function useCreateNode(
                 </Suspense>,
                 modalId,
                 "Create Memory",
-                600,
-                600,
+                NODE_MODAL_HEIGHT,
+                MODAL_WIDTH,
                 undefined,
                 true
             );
@@ -305,7 +305,7 @@ export function useCreateNode(
                 <LoaderContainer><RelativeLoader /></LoaderContainer>,
                 createId,
                 `Create ${displayName}`,
-                CONNECTION_MODAL_HEIGHT,
+                NODE_MODAL_HEIGHT,
                 MODAL_WIDTH,
                 undefined,
                 true
@@ -340,7 +340,7 @@ export function useCreateNode(
             <ConnectionSelectionList connectionKind={connectionKind} onSelect={handleSelect} fillContainerHeight />,
             selectId,
             `Select ${displayName}`,
-            CONNECTION_MODAL_HEIGHT,
+            NODE_MODAL_HEIGHT,
             MODAL_WIDTH,
             undefined,
             true
