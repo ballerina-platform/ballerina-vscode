@@ -79,7 +79,7 @@ const SECTIONS: { kind: AgentTriggerKind; title: string; description: string }[]
     },
     {
         kind: "FILE",
-        title: "File Source",
+        title: "File Sources",
         description: "The agent runs when a file becomes available in a location.",
     },
 ];
