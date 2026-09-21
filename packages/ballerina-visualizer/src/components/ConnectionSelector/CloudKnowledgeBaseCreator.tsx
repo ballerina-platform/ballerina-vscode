@@ -102,5 +102,5 @@ export function CloudKnowledgeBaseCreator(props: CloudKnowledgeBaseCreatorProps)
         );
     }
 
-    return <CloudKnowledgeBasePage onCreateNew={handleCreateNew} onSelectExisting={handleSelectExisting} />;
+    return <CloudKnowledgeBasePage inset onCreateNew={handleCreateNew} onSelectExisting={handleSelectExisting} />;
 }

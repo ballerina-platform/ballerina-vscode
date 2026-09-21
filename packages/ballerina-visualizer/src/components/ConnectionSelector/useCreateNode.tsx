@@ -36,6 +36,7 @@ import { RelativeLoader } from "../RelativeLoader";
 import { LoaderContainer } from "../RelativeLoader/styles";
 
 const MODAL_WIDTH = 680;
+const PICKER_HEIGHT = 500;
 
 const dummyNode = { codedata: {}, properties: {} } as unknown as FlowNode;
 
@@ -121,7 +122,7 @@ export function useCreateNode(
             renderPicker((flowNode) => addModal(renderForm(flowNode, done), `${modalId}-form`, formTitle, 780, MODAL_WIDTH)),
             modalId,
             title,
-            780,
+            PICKER_HEIGHT,
             MODAL_WIDTH
         );
     };
