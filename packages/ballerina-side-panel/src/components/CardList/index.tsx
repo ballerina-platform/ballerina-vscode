@@ -93,6 +93,7 @@ namespace S {
         align-items: center;
         gap: 12px;
         padding: 12px;
+        font-family: "GilmerRegular";
         border: 1px solid ${ThemeColors.OUTLINE_VARIANT};
         border-radius: 8px;
         cursor: ${({ enabled }) => (enabled ? "pointer" : "not-allowed")};
