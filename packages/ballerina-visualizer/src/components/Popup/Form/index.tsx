@@ -40,6 +40,7 @@ const PopupFormBox = styled.div<{ width?: number; height?: number }>`
   height: ${({height}:{height:number}) => (height ? `${height}px` : 'auto')};
   max-width: 90vw;
   max-height: 90vh;
+  transition: width 180ms ease, height 180ms ease;
   position: relative;
   display: flex;
   flex-direction: column;

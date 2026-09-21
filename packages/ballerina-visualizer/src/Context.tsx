@@ -150,11 +150,13 @@ export type ModalStackItem = {
     height?: number;
     width?: number;
     onClose?: () => void;
+    // Continues the dialog below instead of stacking a new one on it.
+    drillDown?: boolean;
 }
 
 interface ModalStackContext {
     modalStack: ModalStackItem[];
-    addModal: (modal: ReactNode, id: string, title: string, height?: number, width?: number, onClose?: () => void) => void;
+    addModal: (modal: ReactNode, id: string, title: string, height?: number, width?: number, onClose?: () => void, drillDown?: boolean) => void;
     updateModal: (id: string, updates: Partial<Omit<ModalStackItem, "id">>) => void;
     popModal: () => void;
     closeModal: (id: string) => void;
@@ -164,7 +166,7 @@ interface ModalStackContext {
 
 export const ModalStackContext = createContext({
     modalStack: [],
-    addModal: (modal: ReactNode, id: string, title: string, height?: number, width?: number, onClose?: () => void) => { },
+    addModal: (modal: ReactNode, id: string, title: string, height?: number, width?: number, onClose?: () => void, drillDown?: boolean) => { },
     updateModal: (id: string, updates: Partial<Omit<ModalStackItem, "id">>) => { },
     popModal: () => { },
     closeModal: (id: string) => { },
@@ -191,8 +193,8 @@ export const ModalStackProvider = ({children}: {children: ReactNode}) => {
             .forEach((item) => item.onClose?.());
     }, []);
 
-    const addModal = useCallback((modal: ReactNode, id: string, title: string, height?: number, width?: number, onClose?: () => void) => {
-        commit((stack) => [...stack.filter((item) => item.id !== id), { modal, id, title, height, width, onClose }]);
+    const addModal = useCallback((modal: ReactNode, id: string, title: string, height?: number, width?: number, onClose?: () => void, drillDown?: boolean) => {
+        commit((stack) => [...stack.filter((item) => item.id !== id), { modal, id, title, height, width, onClose, drillDown }]);
     }, [commit]);
 
     const updateModal = useCallback((id: string, updates: Partial<Omit<ModalStackItem, "id">>) => {

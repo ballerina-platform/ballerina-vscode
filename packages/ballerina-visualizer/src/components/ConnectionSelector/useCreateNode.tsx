@@ -36,6 +36,7 @@ import { RelativeLoader } from "../RelativeLoader";
 import { LoaderContainer } from "../RelativeLoader/styles";
 
 const MODAL_WIDTH = 680;
+const CONNECTION_MODAL_HEIGHT = 780;
 const PICKER_HEIGHT = 500;
 
 const dummyNode = { codedata: {}, properties: {} } as unknown as FlowNode;
@@ -119,11 +120,15 @@ export function useCreateNode(
 
         const modalId = `create-cloud-kb-${connectorCodeData.org}-${connectorCodeData.object}`;
         addModal(
-            renderPicker((flowNode) => addModal(renderForm(flowNode, done), `${modalId}-form`, formTitle, 780, MODAL_WIDTH)),
+            renderPicker((flowNode) =>
+                addModal(renderForm(flowNode, done), `${modalId}-form`, formTitle, 780, MODAL_WIDTH, undefined, true)
+            ),
             modalId,
             title,
             PICKER_HEIGHT,
-            MODAL_WIDTH
+            MODAL_WIDTH,
+            undefined,
+            true
         );
     };
 
@@ -177,7 +182,7 @@ export function useCreateNode(
         const modalId = `create-connection-${connectorCodeData.org}-${connectorCodeData.object}`;
         try {
             const flowNode = await fetchTemplate();
-            addModal(renderCreator(flowNode, done), modalId, title, 780, MODAL_WIDTH);
+            addModal(renderCreator(flowNode, done), modalId, title, 780, MODAL_WIDTH, undefined, true);
         } catch (error) {
             console.error("Error fetching connector template", error);
             await rpcClient.getCommonRpcClient().showErrorMessage({
@@ -201,7 +206,9 @@ export function useCreateNode(
                 modalId,
                 `Create ${nodeCodeData.object ?? "Agent"}`,
                 600,
-                600
+                600,
+                undefined,
+                true
             );
             return;
         }
@@ -223,7 +230,9 @@ export function useCreateNode(
                 modalId,
                 "Create Memory",
                 600,
-                600
+                600,
+                undefined,
+                true
             );
             return;
         }
@@ -296,8 +305,10 @@ export function useCreateNode(
                 <LoaderContainer><RelativeLoader /></LoaderContainer>,
                 createId,
                 `Create ${displayName}`,
-                600,
-                MODAL_WIDTH
+                CONNECTION_MODAL_HEIGHT,
+                MODAL_WIDTH,
+                undefined,
+                true
             );
             try {
                 const { flowNode } = await getNodeTemplateForConnection(
@@ -329,8 +340,10 @@ export function useCreateNode(
             <ConnectionSelectionList connectionKind={connectionKind} onSelect={handleSelect} fillContainerHeight />,
             selectId,
             `Select ${displayName}`,
-            600,
-            MODAL_WIDTH
+            CONNECTION_MODAL_HEIGHT,
+            MODAL_WIDTH,
+            undefined,
+            true
         );
     };
 }

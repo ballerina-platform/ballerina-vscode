@@ -20,14 +20,23 @@ import React, { useRef } from "react";
 import styled from "@emotion/styled";
 import Popup from "./index";
 import { PopupFormBreadcrumb } from "./Form";
-import { useModalStack } from "../../Context";
+import { ModalStackItem, useModalStack } from "../../Context";
 
 // Kept mounted so a parent form keeps its unsaved values.
 const ModalLevel = styled.div<{ active: boolean }>`
     display: ${({ active }: { active: boolean }) => (active ? "contents" : "none")};
 `;
 
-// Renders the stack as one dialog: top entry visible, the rest become the breadcrumb trail.
+const groupLevels = (stack: ModalStackItem[]): ModalStackItem[][] =>
+    stack.reduce<ModalStackItem[][]>((groups, item) => {
+        if (item.drillDown && groups.length > 0) {
+            groups[groups.length - 1].push(item);
+        } else {
+            groups.push([item]);
+        }
+        return groups;
+    }, []);
+
 export const ModalStack: React.FC = () => {
     const { modalStack, popModal, popToModal, clearModals } = useModalStack();
     const previousDepth = useRef(modalStack.length);
@@ -43,36 +52,45 @@ export const ModalStack: React.FC = () => {
         return null;
     }
 
-    const topIndex = modalStack.length - 1;
-    const top = modalStack[topIndex];
-
-    // Sized to the largest level so the dialog does not resize while drilling.
-    const largest = (pick: (item: typeof top) => number | undefined) =>
-        modalStack.reduce((max, item) => Math.max(max, pick(item) ?? 0), 0) || undefined;
-
-    const breadcrumbs: PopupFormBreadcrumb[] = modalStack.map((item, index) => ({
-        id: item.id,
-        label: item.title,
-        onSelect: index < topIndex ? () => popToModal(item.id) : undefined,
-    }));
+    const groups = groupLevels(modalStack);
 
     return (
-        <Popup
-            title={top.title}
-            width={largest((item) => item.width)}
-            height={largest((item) => item.height)}
-            onClose={clearModals}
-            onBack={topIndex > 0 ? popModal : undefined}
-            breadcrumbs={breadcrumbs}
-            transitionKey={top.id}
-            transitionDirection={direction.current}
-        >
-            {modalStack.map((item, index) => (
-                <ModalLevel key={item.id} active={index === topIndex}>
-                    {item.modal}
-                </ModalLevel>
-            ))}
-        </Popup>
+        <>
+            {groups.map((group, groupIndex) => {
+                const topIndex = group.length - 1;
+                const top = group[topIndex];
+                const below = groups[groupIndex - 1];
+
+                const sizeOf = (pick: (item: ModalStackItem) => number | undefined) =>
+                    pick(top) ?? (group.reduce((max, item) => Math.max(max, pick(item) ?? 0), 0) || undefined);
+
+                const breadcrumbs: PopupFormBreadcrumb[] = group.map((item, index) => ({
+                    id: item.id,
+                    label: item.title,
+                    onSelect: index < topIndex ? () => popToModal(item.id) : undefined,
+                }));
+
+                return (
+                    <Popup
+                        key={group[0].id}
+                        title={top.title}
+                        width={sizeOf((item) => item.width)}
+                        height={sizeOf((item) => item.height)}
+                        onClose={below ? () => popToModal(below[below.length - 1].id) : clearModals}
+                        onBack={topIndex > 0 ? popModal : undefined}
+                        breadcrumbs={breadcrumbs}
+                        transitionKey={top.id}
+                        transitionDirection={direction.current}
+                    >
+                        {group.map((item, index) => (
+                            <ModalLevel key={item.id} active={index === topIndex}>
+                                {item.modal}
+                            </ModalLevel>
+                        ))}
+                    </Popup>
+                );
+            })}
+        </>
     );
 };
 
