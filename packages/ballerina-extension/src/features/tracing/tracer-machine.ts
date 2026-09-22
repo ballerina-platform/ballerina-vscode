@@ -182,6 +182,14 @@ function hasOtherIdeTracingProjects(context: TracerMachineContext, event?: any):
     return false;
 }
 
+function resolveProjectDir(projectPath: string): string {
+    try {
+        return fs.statSync(projectPath).isFile() ? path.dirname(projectPath) : projectPath;
+    } catch {
+        return projectPath;
+    }
+}
+
 function startServer(context: TracerMachineContext, event?: any): Thenable<vscode.TaskExecution> {
     const task = createTraceServerTask();
     return vscode.tasks.executeTask(task);
@@ -649,8 +657,7 @@ export const TracerMachine = {
 
     // context.provider is machine-wide and can be stale, so fail open (start) when projectPath is unknown.
     startServer: (projectPath?: string) => {
-        // Agent Manager exports traces remotely; the local OTLP receiver has nothing to catch.
-        if (projectPath && getActiveTracingProvider(projectPath) === 'amp') {
+        if (projectPath && getActiveTracingProvider(resolveProjectDir(projectPath)) !== 'idetraceprovider') {
             return;
         }
         ensureInitialized().send({ type: 'START_SERVER' });
