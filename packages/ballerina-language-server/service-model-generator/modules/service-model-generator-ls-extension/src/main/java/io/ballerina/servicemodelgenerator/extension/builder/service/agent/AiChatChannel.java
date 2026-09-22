@@ -29,6 +29,7 @@ import io.ballerina.servicemodelgenerator.extension.model.Value;
 import io.ballerina.servicemodelgenerator.extension.model.context.GetServiceInitModelContext;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -87,6 +88,10 @@ public class AiChatChannel implements AgentTriggerChannel {
                 .value(DEFAULT_BASE_PATH)
                 .setValidations(List.of(new ValidationRule("common.validate.required")))
                 .build());
+        Value chooser = AgentTriggerChannel.listenerChooser(context);
+        if (chooser != null) {
+            model.addProperty(ServiceInitModel.KEY_CONFIGURE_LISTENER, chooser);
+        }
         return Optional.of(model);
     }
 
@@ -102,6 +107,19 @@ public class AiChatChannel implements AgentTriggerChannel {
         }
         return Optional.of(new SchemaDrivenSourceGenerator.ResolvedListener(LISTENER_VAR_NAME,
                 LISTENER_DECLARATION.replace("{{alias}}", alias)));
+    }
+
+    @Override
+    public Optional<SchemaDrivenSourceGenerator.ResolvedListener> listener(ModulePartNode rootNode, String alias,
+                                                                          Map<String, String> formValues) {
+        String port = formValues.get(HttpAgentTriggerChannel.PORT);
+        String customName = formValues.get(ServiceInitModel.KEY_LISTENER_VAR_NAME);
+        if (port != null && !port.isBlank() && customName != null && !customName.isBlank()) {
+            return Optional.of(new SchemaDrivenSourceGenerator.ResolvedListener(customName.strip(),
+                    "listener " + alias + ":Listener " + customName.strip()
+                            + " = new (listenOn = " + port.strip() + ");"));
+        }
+        return listener(rootNode, alias);
     }
 
     @Override

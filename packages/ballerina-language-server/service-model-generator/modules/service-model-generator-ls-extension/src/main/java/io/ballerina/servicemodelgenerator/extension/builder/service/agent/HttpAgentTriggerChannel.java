@@ -27,7 +27,6 @@ import io.ballerina.compiler.syntax.tree.NodeList;
 import io.ballerina.compiler.syntax.tree.ServiceDeclarationNode;
 import io.ballerina.compiler.syntax.tree.Token;
 import io.ballerina.projects.Document;
-import io.ballerina.servicemodelgenerator.extension.builder.service.HttpServiceBuilder;
 import io.ballerina.servicemodelgenerator.extension.connector.SchemaDrivenSourceGenerator;
 import io.ballerina.servicemodelgenerator.extension.connector.SchemaDrivenSourceGenerator.HandlerParameter;
 import io.ballerina.servicemodelgenerator.extension.model.Codedata;
@@ -178,7 +177,7 @@ public class HttpAgentTriggerChannel implements AgentTriggerChannel {
                 "Expose the agent at a URL, so anything that can call an API can reach it.",
                 context.orgName(), context.packageName(), MODULE_NAME, context.version(), "agent-http", "");
         List<String> served = servedPaths(rootNodeOf(context.document()));
-        Value chooser = listenerChooser(context);
+        Value chooser = AgentTriggerChannel.listenerChooser(context);
         if (served.isEmpty()) {
             model.addProperty(BASE_PATH, pathField(served));
             if (chooser != null) {
@@ -322,15 +321,6 @@ public class HttpAgentTriggerChannel implements AgentTriggerChannel {
     @Override
     public Map<String, Value> additionalProperties(GetServiceInitModelContext context) {
         return context.isEventTrigger() ? Map.of() : additionalProperties();
-    }
-
-    private static Value listenerChooser(GetServiceInitModelContext context) {
-        if (context.document() == null) {
-            return null;
-        }
-        ServiceInitModel httpModel = new HttpServiceBuilder().getServiceInitModel(context);
-        return httpModel == null ? null
-                : httpModel.getProperties().get(ServiceInitModel.KEY_CONFIGURE_LISTENER);
     }
 
     @Override
