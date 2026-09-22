@@ -39,22 +39,10 @@ jest.mock("@wso2/ballerina-core", () => ({
     MACHINE_VIEW: { BIComponentView: "BIComponentView", PackageOverview: "Overview" },
     BuildMode: {},
     BI_COMMANDS: {},
-    DIRECTORY_MAP: {
-        AUTOMATION: "AUTOMATION",
-        SERVICE: "SERVICE",
-        LISTENER: "LISTENER",
-        FUNCTION: "FUNCTION",
-        CONNECTION: "CONNECTION",
-        TYPE: "TYPE",
-        CONFIGURABLE: "CONFIGURABLE",
-        DATA_MAPPER: "DATA_MAPPER",
-        NP_FUNCTION: "NP_FUNCTION",
-        AGENT: "AGENT",
-        AGENT_DEFINITION: "AGENT_DEFINITION",
-        LOCAL_CONNECTORS: "LOCAL_CONNECTORS",
-        WORKFLOW: "WORKFLOW",
-        ACTIVITY: "ACTIVITY",
-    },
+    // The real enum, so the fixtures and the real `hasWorkflowArtifacts` below agree on the keys.
+    DIRECTORY_MAP: jest.requireActual("../../../../../ballerina-core/src/interfaces/bi").DIRECTORY_MAP,
+    hasWorkflowArtifacts: jest.requireActual(
+        "../../../../../ballerina-core/src/utils/identifier-utils").hasWorkflowArtifacts,
     isSamePath: (a: string, b: string) => a === b,
     // Reached through `getIntegrationTypes`, which the view derives its deployment options
     // from. Irrelevant to which add-artifact button renders; undefined means "no scope",

@@ -17,9 +17,10 @@
  */
 
 import { DevantScopes } from "@wso2/wso2-platform-core";
+import { DIRECTORY_MAP, ProjectStructure } from "../interfaces/bi";
 import { SCOPE } from "../interfaces/shared-types";
 import { findDevantScope } from "../rpc-types/platform-ext/utils";
-import { findScope } from "../utils/identifier-utils";
+import { findScope, hasWorkflowArtifacts } from "../utils/identifier-utils";
 
 describe("metadata-driven integration scope", () => {
     it.each([
@@ -45,5 +46,28 @@ describe("metadata-driven integration scope", () => {
         ["http", DevantScopes.INTEGRATION_AS_API],
     ])("routes a new %s connector for deployment using only triggerKind", (triggerKind, expected) => {
         expect(findDevantScope(triggerKind, "new.connector.not.in.any.allowlist")).toBe(expected);
+    });
+});
+
+describe("hasWorkflowArtifacts", () => {
+    const project = (directoryMap: Record<string, unknown[]>): ProjectStructure =>
+        ({ projectName: "approvalagent", directoryMap } as ProjectStructure);
+    const workflow = { id: "w1", name: "expenseApproval", path: "", type: DIRECTORY_MAP.WORKFLOW };
+    const aiAgent = { id: "a1", name: "chatAgent", path: "", type: DIRECTORY_MAP.AGENT };
+    // Listed under AGENT so the explorer shows it in the Agents section; `kind` keeps what it is.
+    const durableAgent = {
+        id: "a2", name: "expenseApproval", path: "", type: DIRECTORY_MAP.AGENT, kind: DIRECTORY_MAP.DURABLE_AGENT,
+    };
+
+    it.each<[string, boolean, ProjectStructure | undefined]>([
+        ["a plain workflow", true, project({ [DIRECTORY_MAP.WORKFLOW]: [workflow] })],
+        ["a durable agent alone", true, project({ [DIRECTORY_MAP.AGENT]: [durableAgent] })],
+        ["a durable agent beside an AI agent", true, project({ [DIRECTORY_MAP.AGENT]: [aiAgent, durableAgent] })],
+        ["a plain AI agent", false, project({ [DIRECTORY_MAP.AGENT]: [aiAgent] })],
+        ["a service only", false, project({ [DIRECTORY_MAP.SERVICE]: [{ id: "s1" }] })],
+        ["no artifacts", false, project({})],
+        ["no project", false, undefined],
+    ])("%s counts as a workflow: %s", (_label, expected, structure) => {
+        expect(hasWorkflowArtifacts(structure)).toBe(expected);
     });
 });

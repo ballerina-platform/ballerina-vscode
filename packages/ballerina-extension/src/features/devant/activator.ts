@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { BI_COMMANDS, DIRECTORY_MAP, SCOPE, findScope, isSamePath } from "@wso2/ballerina-core";
+import { BI_COMMANDS, DIRECTORY_MAP, SCOPE, findScope, hasWorkflowArtifacts, isSamePath } from "@wso2/ballerina-core";
 import {
     WICommandIds,
     ICommitAndPushCmdParams,
@@ -80,7 +80,6 @@ const handleComponentPushToDevant = async () => {
         }
         const services = projectStructure?.directoryMap[DIRECTORY_MAP.SERVICE];
         const automation = projectStructure?.directoryMap[DIRECTORY_MAP.AUTOMATION];
-        const workflows = projectStructure?.directoryMap[DIRECTORY_MAP.WORKFLOW];
         const scopeSet = new Set<SCOPE>();
 
         if (services) {
@@ -92,7 +91,7 @@ const handleComponentPushToDevant = async () => {
             });
         }
 
-        if (workflows?.length > 0) {
+        if (hasWorkflowArtifacts(projectStructure)) {
             scopeSet.add(SCOPE.WORKFLOW);
         }
 
