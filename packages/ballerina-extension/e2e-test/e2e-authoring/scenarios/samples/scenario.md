@@ -23,6 +23,24 @@ verify the extracted project's integration overview loads in a new window.
   page — a "Sample" / "Pre-built Integrations" type filter, a free-text search
   box, a category dropdown, and per-card "Use this" buttons. The steps above
   and the promoted spec target this current implementation.
+- Two external, unpinned dependencies this scenario relies on:
+  `prepareExtensionsForLaunch` (`e2e-playwright-tests/utils/helpers/setup.ts:188`)
+  downloads the `WSO2.wso2-integrator` extension from the Marketplace at
+  whatever version is current — nothing is pinned — so every selector this
+  scenario depends on ("Explore", "Browse Samples", the "Sample"/"All"
+  filter, "Use this", the "N results" string, `role=article`) can change in a
+  release of that other repo and break Group 2 with no commit here. The count
+  assertions also depend on the live remote sample catalog: the "Sample"
+  filter's count requires the unfiltered catalog to always contain at least
+  one non-sample entry, and the search assertion requires exactly one card
+  matching "Hello World Service". If this scenario starts failing, check
+  those two things first — the installed `WSO2.wso2-integrator` version and
+  the current contents of the remote catalog — before assuming a regression
+  in this repo.
+- This repo's own `packages/ballerina-visualizer/src/views/BI/SamplesView`
+  remains uncovered by any e2e test. It's a different implementation from the
+  one exercised above; if it still ships on some path, that's a coverage gap
+  rather than dead code.
 - "Use this" calls `window.showOpenDialog` for the download directory. The
   harness sets `files.simpleDialog.enable: true`, so this renders as an
   in-workbench dialog reachable via the host workbench page (a

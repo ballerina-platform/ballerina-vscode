@@ -29,8 +29,11 @@
   const projectFrame = await waitForGuest(BI_INTEGRATOR_LABEL, 120000);
   await waitForText('Add Artifact', 60000);
   const snap = await snapshot();
-  if (!snap.includes('hello-world-service') && !snap.includes('Add Artifact')) {
-    throw new Error(`integration/project overview did not appear after opening the sample:\n${snap}`);
+  // The project's folder slug ("hello-world-service") never appears in the
+  // webview's own content — only its display title ("Hello World Service")
+  // does. The slug only shows up in the native OS window title.
+  if (!snap.includes('Hello World Service')) {
+    throw new Error(`sample project overview did not appear after opening the sample:\n${snap}`);
   }
   console.log('sample loaded; integration overview is visible');
 

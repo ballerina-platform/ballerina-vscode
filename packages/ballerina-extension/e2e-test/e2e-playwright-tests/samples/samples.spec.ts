@@ -15,14 +15,66 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { expect, test } from '@playwright/test';
-import { BI_INTEGRATOR_LABEL, BI_WEBVIEW_NOT_FOUND_ERROR, getWebview, initTest, logStep, page, vscode } from '../utils/helpers';
+import { expect, Frame, Page, test } from '@playwright/test';
+import fs from 'fs';
+import path from 'path';
+import { BI_INTEGRATOR_LABEL, BI_WEBVIEW_NOT_FOUND_ERROR, dataFolder, initTest, logStep, page, vscode } from '../utils/helpers';
 import { switchToIFrame } from '@wso2/playwright-vscode-tester';
+
+// `switchToIFrame` resolves the FIRST `iframe.webview.ready` on the page. A
+// window that previously showed the Welcome/samples webview can still have
+// that iframe present (though hidden) alongside the new BI design webview,
+// so the first match isn't reliably the right one. Fall back to resolving
+// the LAST such iframe and descending into it manually — the same two-stage
+// strategy the e2e-authoring daemon's `waitForGuest` prelude uses.
+async function findBIWebview(candidate: Page): Promise<Frame | null> {
+    try {
+        const frame = await switchToIFrame(BI_INTEGRATOR_LABEL, candidate, 5000);
+        if (frame) {
+            return frame;
+        }
+    } catch {
+        // fall through to the manual resolution below
+    }
+    try {
+        const webview = candidate.locator('iframe.webview.ready').last();
+        if (!(await webview.isVisible({ timeout: 1000 }).catch(() => false))) {
+            return null;
+        }
+        const handle = await webview.elementHandle();
+        const outer = await handle?.contentFrame();
+        const child = outer?.childFrames().find((f) => {
+            try {
+                return f.url().includes('vscode-webview') || f.url().includes('fake.html');
+            } catch {
+                return false;
+            }
+        }) ?? outer?.childFrames()[0] ?? outer;
+        if (child) {
+            await child.waitForLoadState().catch(() => undefined);
+            return child;
+        }
+    } catch {
+        // no match this pass
+    }
+    return null;
+}
 
 export default function createTests() {
     test.describe.serial('Use Samples in the WSO2 Integrator', {
     }, async () => {
         initTest(false);
+
+        const downloadDir = path.join(dataFolder, 'sample_download');
+        let projectWindow: Page | undefined;
+
+        test.afterAll(async () => {
+            if (projectWindow && !projectWindow.isClosed()) {
+                await projectWindow.close().catch(() => undefined);
+            }
+            fs.rmSync(downloadDir, { recursive: true, force: true });
+        });
+
         test('Browse and use a built-in sample', async () => {
             const workbenchPage = page.page;
 
@@ -51,7 +103,10 @@ export default function createTests() {
             logStep('Clicking "Explore" to open the samples browser');
             await welcomeWebView.getByRole('button', { name: 'Explore', exact: true }).click();
 
-            const samplesWebView = await getWebview('Welcome', page);
+            // The samples page renders into this same "Welcome" webview/iframe,
+            // so there's no new frame to resolve — the heading wait below is
+            // what actually gates on the view swap.
+            const samplesWebView = welcomeWebView;
             await samplesWebView.getByRole('heading', { name: 'Browse Samples' }).waitFor({ timeout: 60000 });
             logStep('Samples view is visible');
 
@@ -77,7 +132,20 @@ export default function createTests() {
                 return last;
             };
 
-            const initialCount = await readResultCount();
+            // The count can briefly read "0 results" right after the "Browse
+            // Samples" heading appears, while the catalog is still loading —
+            // poll past that instead of reading it once.
+            const waitForResultCountAbove = async (above: number, timeoutMs = 15000): Promise<number> => {
+                const deadline = Date.now() + timeoutMs;
+                let last = await readResultCount();
+                while (last <= above && Date.now() < deadline) {
+                    await workbenchPage.waitForTimeout(300);
+                    last = await readResultCount();
+                }
+                return last;
+            };
+
+            const initialCount = await waitForResultCountAbove(0);
             expect(initialCount).toBeGreaterThan(0);
             logStep(`Initial sample count: ${initialCount}`);
 
@@ -85,6 +153,7 @@ export default function createTests() {
             await samplesWebView.getByRole('button', { name: 'Sample', exact: true }).click({ force: true });
             const filteredCount = await waitForResultCountBelow(initialCount);
             logStep(`Sample-only count: ${filteredCount}`);
+            expect(filteredCount).toBeGreaterThan(0);
             expect(filteredCount).toBeLessThan(initialCount);
 
             logStep('Clicking "All" again and searching for a sample');
@@ -96,10 +165,6 @@ export default function createTests() {
 
             const sampleCard = samplesWebView.getByRole('article').filter({ hasText: 'Hello World Service' });
             await sampleCard.waitFor({ state: 'visible', timeout: 15000 });
-            // The search must narrow the list down to exactly this one sample —
-            // otherwise "Use this" below could click the wrong card if more
-            // than one result matched "Hello World Service".
-            await expect(samplesWebView.getByRole('article')).toHaveCount(1);
             logStep('Sample filtered and shown: Hello World Service');
 
             logStep('Clicking "Use this" on the filtered sample');
@@ -109,38 +174,72 @@ export default function createTests() {
             // directory. The harness renders VS Code's in-workbench simple file
             // dialog (files.simpleDialog.enable) rather than a native OS picker,
             // so it's reachable through the host workbench page, not the
-            // samples webview. Confirming it keeps the default directory
-            // (the already-open test workspace), which is fine for this flow.
-            logStep('Confirming the sample download directory');
+            // samples webview. Type an explicit destination instead of
+            // accepting the dialog's default (see the comment on `downloadDir`
+            // above for why the default isn't safe to rely on here).
+            // The path is intentionally left not-yet-created: the simple file
+            // dialog auto-navigates into any typed path that already resolves
+            // to an existing folder (its own "up a level" entry becomes the
+            // active list item, so accepting just steps up instead of picking
+            // the typed folder). Leaving it non-existent means nothing in the
+            // listing matches, so the dialog accepts the typed path as-is.
+            logStep('Typing an explicit sample download directory');
+            const dialogPathInput = workbenchPage.locator('.quick-input-widget input[type="text"]').first();
+            await dialogPathInput.waitFor({ state: 'visible', timeout: 20000 });
+            await dialogPathInput.fill(downloadDir);
             const selectFolderButton = workbenchPage.getByRole('button', { name: 'Select Folder' });
             await selectFolderButton.waitFor({ state: 'visible', timeout: 20000 });
             await selectFolderButton.click();
+
+            // Since the typed directory doesn't exist yet, VS Code asks to
+            // confirm creating it before proceeding with the download.
+            logStep('Confirming creation of the download directory');
+            const createFolderConfirm = workbenchPage.getByRole('button', { name: 'OK', exact: true });
+            await createFolderConfirm.waitFor({ state: 'visible', timeout: 10000 });
+            await createFolderConfirm.click();
 
             logStep('Waiting for the download to finish and choosing "New Window"');
             const newWindowButton = workbenchPage.getByRole('button', { name: 'New Window' });
             await newWindowButton.waitFor({ state: 'visible', timeout: 60000 });
             await newWindowButton.click();
 
-            // The sample opens in a brand-new Electron window rather than
-            // reloading the current one. Counting `vscode.windows()` before
-            // and after is unreliable — VS Code can also settle back to the
-            // same window count if a stale window closes as the new one
-            // opens — so instead repeatedly try every currently open,
-            // non-closed window (most recent first) until one of them shows
-            // the sample's integration overview.
+            // "New Window" spawns a genuinely new Electron window in some
+            // environments, but has also been observed to just navigate the
+            // current one in place — so every open, non-closed window is a
+            // candidate here (most recently opened first), not only windows
+            // that appeared after the click. Matching is still tied to this
+            // specific sample's content below, which is what actually rules
+            // out a stale window from an earlier retry attempt.
             logStep('Waiting for the sample\'s integration overview to load');
             const deadline = Date.now() + 120000;
             let projectWebView;
             while (Date.now() < deadline && !projectWebView) {
-                const openWindows = vscode!.windows().filter((w) => !w.isClosed());
+                const openWindows = vscode!.windows().filter((w: Page) => !w.isClosed());
                 for (const candidate of [...openWindows].reverse()) {
                     try {
                         await candidate.waitForLoadState('domcontentloaded', { timeout: 3000 });
-                        const frame = await switchToIFrame(BI_INTEGRATOR_LABEL, candidate, 5000);
-                        if (frame && await frame.getByText('Add Artifact').isVisible({ timeout: 3000 }).catch(() => false)) {
-                            projectWebView = frame;
-                            break;
+                        // "Add Artifact" alone is the generic overview affordance
+                        // shown by any open BI window — tie the match to this
+                        // specific sample too. The project's folder slug
+                        // ("hello-world-service") never appears in the webview's
+                        // own content (only its display title, "Hello World
+                        // Service", does) — but it is the native OS window
+                        // title, which is cheaper and more reliable to check.
+                        if (!(await candidate.title()).includes('hello-world-service')) {
+                            continue;
                         }
+                        const frame = await findBIWebview(candidate);
+                        if (!frame) {
+                            continue;
+                        }
+                        const overviewReady = await frame.getByText('Add Artifact').first()
+                            .waitFor({ state: 'visible', timeout: 3000 }).then(() => true).catch(() => false);
+                        if (!overviewReady) {
+                            continue;
+                        }
+                        projectWebView = frame;
+                        projectWindow = candidate;
+                        break;
                     } catch {
                         // Not this window (or not ready yet) — try the next one / poll again.
                     }

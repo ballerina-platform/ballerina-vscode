@@ -21,8 +21,8 @@
     filteredCount = await readCount();
   }
   console.log(`sample-only count: ${filteredCount} (was ${globalThis.initialSampleCount})`);
-  if (!(filteredCount < globalThis.initialSampleCount)) {
-    throw new Error(`expected filtered count (${filteredCount}) to be less than initial count (${globalThis.initialSampleCount})`);
+  if (!(filteredCount > 0 && filteredCount < globalThis.initialSampleCount)) {
+    throw new Error(`expected filtered count (${filteredCount}) to be greater than 0 and less than initial count (${globalThis.initialSampleCount})`);
   }
 
   console.log('done: 02_filter_type');
