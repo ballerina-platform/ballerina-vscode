@@ -39,6 +39,7 @@ export interface SeedableProperty {
 // literal still belongs in it decoded.
 const TEXT_MODES = ["TEXT", "DOC_TEXT"];
 const EXPRESSION = "EXPRESSION";
+const TEXT_SET = "TEXT_SET";
 
 /** Whether the source is a plain string literal, the one shape a text box can hold. */
 function stringLiteral(source: string): boolean {
@@ -134,6 +135,18 @@ export function seedCapabilityValue(property: SeedableProperty, source: string):
     const textMode = types.find((type) => TEXT_MODES.includes(type.fieldType ?? ""));
     const expressionMode = types.find((type) => type.fieldType === EXPRESSION);
 
+    // A list-of-text field (roles, users) shows names one by one: a literal or a list of them is
+    // decoded into items; anything else is the expression it is.
+    const listMode = types.find((type) => type.fieldType === TEXT_SET);
+    if (listMode) {
+        const items = literalItems(source);
+        if (items !== undefined) {
+            property.value = items;
+            select(types, listMode);
+            return;
+        }
+    }
+
     if (textMode && stringLiteral(source)) {
         property.value = literalText(source);
         select(types, textMode);
@@ -145,6 +158,63 @@ export function seedCapabilityValue(property: SeedableProperty, source: string):
     if (expressionMode) {
         select(types, expressionMode);
     }
+}
+
+/**
+ * The names a role value states — one string literal, or a list of them — decoded; undefined for
+ * anything else, which belongs to the expression mode. `()` and nothing name nobody.
+ */
+function literalItems(source: string): string[] | undefined {
+    const trimmed = source.trim();
+    if (trimmed === "()" || trimmed === "[]") {
+        return [];
+    }
+    if (stringLiteral(trimmed)) {
+        return [literalText(trimmed)];
+    }
+    if (!trimmed.startsWith("[") || !trimmed.endsWith("]")) {
+        return undefined;
+    }
+    const items: string[] = [];
+    let depth = 0;
+    let quoted = false;
+    let start = 0;
+    const body = trimmed.slice(1, -1);
+    const push = (part: string) => {
+        const candidate = part.trim();
+        if (candidate === "") {
+            return true;
+        }
+        if (!stringLiteral(candidate)) {
+            return false;
+        }
+        items.push(literalText(candidate));
+        return true;
+    };
+    for (let i = 0; i < body.length; i++) {
+        const ch = body[i];
+        if (quoted) {
+            if (ch === "\\") {
+                i++;
+            } else if (ch === '"') {
+                quoted = false;
+            }
+            continue;
+        }
+        if (ch === '"') {
+            quoted = true;
+        } else if (ch === "[" || ch === "{" || ch === "(") {
+            depth++;
+        } else if (ch === "]" || ch === "}" || ch === ")") {
+            depth--;
+        } else if (ch === "," && depth === 0) {
+            if (!push(body.slice(start, i))) {
+                return undefined;
+            }
+            start = i + 1;
+        }
+    }
+    return push(body.slice(start)) ? items : undefined;
 }
 
 function select(types: FieldType[], chosen: FieldType): void {

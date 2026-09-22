@@ -33,7 +33,34 @@ const expressionOnly = (): SeedableProperty => ({ value: "", types: [{ fieldType
 
 const modeOf = (property: SeedableProperty) => property.types?.find((type) => type.selected)?.fieldType;
 
+const listMode = (): SeedableProperty => ({
+    value: "",
+    types: [
+        { fieldType: "TEXT_SET", selected: true },
+        { fieldType: "EXPRESSION", selected: false },
+    ],
+});
+
 describe("seedCapabilityValue", () => {
+    it("fills a role list with the names a literal or a list names", () => {
+        const single = listMode();
+        seedCapabilityValue(single, '"finance"');
+        expect(single.value).toEqual(["finance"]);
+        expect(modeOf(single)).toBe("TEXT_SET");
+
+        const several = listMode();
+        seedCapabilityValue(several, '["finance", "manager"]');
+        expect(several.value).toEqual(["finance", "manager"]);
+        expect(modeOf(several)).toBe("TEXT_SET");
+    });
+
+    it("keeps a role reference an expression even beside a role list", () => {
+        const property = listMode();
+        seedCapabilityValue(property, "financeRoles");
+        expect(property.value).toBe("financeRoles");
+        expect(modeOf(property)).toBe("EXPRESSION");
+    });
+
     it("puts a string literal in the text box, without its quotes", () => {
         const property = dualMode();
         seedCapabilityValue(property, '"finance"');

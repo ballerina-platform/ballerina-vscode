@@ -86,9 +86,16 @@ public class DurableAgentHumanTaskBuilder extends CallBuilder {
         addStringProperty(TASK_NAME_KEY, "Task Name",
                 "Identifies the task type; also the tool name advertised to the agent",
                 "approveRequest", true);
-        addStringProperty(USER_ROLES_KEY, "User Roles",
-                "Role(s) permitted to complete this task; may be left empty when users are named", "MANAGER",
-                false);
+        WorkflowUtil.addRoleFieldTypes(properties().custom()
+                .metadata()
+                    .label("User Roles")
+                    .description("Role(s) permitted to complete this task; may be left empty when users are named")
+                    .stepOut())
+                .placeholder("")
+                .editable(true)
+                .optional(true)
+                .stepOut()
+                .addProperty(USER_ROLES_KEY);
         WorkflowUtil.addAudienceProperties(this);
         // The completion type drives the task inbox's completion form (schema generation and
         // runtime validation of the submitted payload) — typically a record type.
