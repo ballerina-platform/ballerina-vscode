@@ -1,0 +1,36 @@
+{
+    "description": "DROPDOWN_CHOICE -> DropdownChoiceForm, which is what renders an option's sub-fields. The workflow policy dropdowns rely on this: their From Expression option carries the expression field.",
+    "expectedEditor": "DropdownChoiceForm",
+    "fieldInputType": { "fieldType": "DROPDOWN_CHOICE" },
+    "field": {
+        "key": "retryPolicy",
+        "label": "Retry Policy",
+        "type": "DROPDOWN_CHOICE",
+        "optional": false,
+        "editable": true,
+        "documentation": "",
+        "value": "FromExpression",
+        "types": [{ "fieldType": "DROPDOWN_CHOICE", "selected": true }],
+        "itemOptions": [
+            { "id": "NoRetry", "content": "No Retry", "value": "NoRetry" },
+            { "id": "FromExpression", "content": "From Expression", "value": "FromExpression" }
+        ],
+        "dynamicFormFields": {
+            "NoRetry": [],
+            "FromExpression": [
+                {
+                    "key": "retryPolicyExpression",
+                    "label": "Retry Policy Expression",
+                    "type": "EXPRESSION",
+                    "types": [{ "fieldType": "EXPRESSION", "ballerinaType": "workflow:RetryPolicy", "selected": true }],
+                    "value": "",
+                    "optional": false,
+                    "editable": true,
+                    "enabled": true,
+                    "documentation": ""
+                }
+            ]
+        },
+        "enabled": true
+    }
+}

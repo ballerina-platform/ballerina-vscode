@@ -1,0 +1,33 @@
+{
+    "description": "A SINGLE_SELECT carrying options goes to the expression editor, NOT DropdownChoiceForm: isDropDownType makes it multi-mode, and the DropdownChoiceForm branch is guarded by !showWithExpressionEditor. This is why a dropdown whose escape hatch needs a sub-field must be a DROPDOWN_CHOICE - an option added here would render with no input under it.",
+    "expectedEditor": "ContextAwareExpressionEditor",
+    "fieldInputType": { "fieldType": "SINGLE_SELECT", "options": [{ "label": "MULTI_EVENT", "value": "MULTI_EVENT" }, { "label": "SINGLE_EVENT", "value": "SINGLE_EVENT" }] },
+    "field": {
+        "key": "cardinality",
+        "label": "Cardinality",
+        "type": "SINGLE_SELECT",
+        "optional": true,
+        "editable": true,
+        "documentation": "",
+        "value": "",
+        "types": [
+            { "fieldType": "SINGLE_SELECT", "options": [{ "label": "MULTI_EVENT", "value": "MULTI_EVENT" }, { "label": "SINGLE_EVENT", "value": "SINGLE_EVENT" }], "selected": true },
+            { "fieldType": "EXPRESSION", "ballerinaType": "workflow:EventCardinality", "selected": false }
+        ],
+        "dynamicFormFields": {
+            "FromExpression": [
+                {
+                    "key": "unreachable",
+                    "label": "Never rendered",
+                    "type": "EXPRESSION",
+                    "types": [{ "fieldType": "EXPRESSION", "selected": true }],
+                    "value": "",
+                    "editable": true,
+                    "enabled": true,
+                    "documentation": ""
+                }
+            ]
+        },
+        "enabled": true
+    }
+}
