@@ -20,6 +20,7 @@ package io.ballerina.servicemodelgenerator.extension.builder.service.agent;
 
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerUISchemaModel;
+import io.ballerina.servicemodelgenerator.extension.builder.service.HttpServiceBuilder;
 import io.ballerina.servicemodelgenerator.extension.connector.SchemaDrivenSourceGenerator;
 import io.ballerina.servicemodelgenerator.extension.model.PropertyType;
 import io.ballerina.servicemodelgenerator.extension.model.ServiceInitModel;
@@ -111,5 +112,14 @@ public interface AgentTriggerChannel {
 
     static String indent(String source) {
         return INDENT + source.replace(NEW_LINE, NEW_LINE + INDENT);
+    }
+
+    // Reuses Integrator's own HTTP listener chooser (Shared Listener / Custom Listener) rather than re-authoring it.
+    static Value listenerChooser(GetServiceInitModelContext context) {
+        if (context.document() == null) {
+            return null;
+        }
+        ServiceInitModel httpModel = new HttpServiceBuilder().getServiceInitModel(context);
+        return httpModel == null ? null : httpModel.getProperties().get(ServiceInitModel.KEY_CONFIGURE_LISTENER);
     }
 }

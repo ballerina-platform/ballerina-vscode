@@ -455,16 +455,16 @@ public class ListenerUtil {
     private static Listener processListenerDeclaration(ListenerDeclarationNode listenerNode, String orgName,
                                                        SemanticModel semanticModel, ModuleInfo moduleInfo) {
 
-        if (isHttpDefaultListener(listenerNode)) {
-            return createHttpDefaultListenerModel(orgName, listenerNode).get();
-        }
-
         Optional<Symbol> symbol = semanticModel.symbol(listenerNode.variableName());
         if (symbol.isEmpty() || !(symbol.get() instanceof VariableSymbol variableSymbol)
                 || !(CommonUtils.getRawType(variableSymbol.typeDescriptor()) instanceof ClassSymbol classSymbol)) {
             return null;
         }
         TypeSymbol typeSymbol = variableSymbol.typeDescriptor();
+
+        if (isHttpDefaultListener(listenerNode, typeSymbol)) {
+            return createHttpDefaultListenerModel(orgName, listenerNode).get();
+        }
 
         Node initializer = listenerNode.initializer();
         NewExpressionNode newExpressionNode;
@@ -641,8 +641,9 @@ public class ListenerUtil {
         }
     }
 
-    public static boolean isHttpDefaultListener(ListenerDeclarationNode listenerNode) {
-        return listenerNode.initializer().toSourceCode().trim().contains(HTTP_DEFAULT_LISTENER_EXPR);
+    public static boolean isHttpDefaultListener(ListenerDeclarationNode listenerNode, TypeSymbol typeSymbol) {
+        return typeSymbol.getModule().map(module -> HTTP.equals(module.id().moduleName())).orElse(false)
+                && listenerNode.initializer().toSourceCode().trim().contains(HTTP_DEFAULT_LISTENER_EXPR);
     }
 
     public static Value nameProperty() {

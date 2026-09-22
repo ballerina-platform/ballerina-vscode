@@ -1,0 +1,115 @@
+{
+  "filePath": "sample2/main.bal",
+  "description": "An ai:Listener wrapping http:getDefaultListener() gets its own editable listenOn field, not the locked HTTP-only model",
+  "start": {
+    "line": 5,
+    "offset": 0
+  },
+  "end": {
+    "line": 5,
+    "offset": 90
+  },
+  "response": {
+    "listener": {
+      "name": "Ai Listener",
+      "type": "ai",
+      "displayName": "Ai",
+      "description": "",
+      "moduleName": "ai",
+      "orgName": "ballerina",
+      "version": "1.15.0",
+      "packageName": "ai",
+      "listenerProtocol": "ai",
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.15.0.png",
+      "properties": {
+        "variableNameKey": {
+          "metadata": {
+            "label": "Name",
+            "description": "The name of the listener"
+          },
+          "codedata": {
+            "lineRange": {
+              "fileName": "main.bal",
+              "startLine": {
+                "line": 5,
+                "offset": 21
+              },
+              "endLine": {
+                "line": 5,
+                "offset": 38
+              }
+            }
+          },
+          "value": "agentChatListener",
+          "types": [
+            {
+              "fieldType": "IDENTIFIER",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "advanced": false
+        },
+        "listenerType": {
+          "metadata": {
+            "label": "Listener Type",
+            "description": "The type of the listener"
+          },
+          "value": "Listener",
+          "types": [
+            {
+              "fieldType": "TYPE",
+              "selected": true
+            }
+          ],
+          "enabled": false,
+          "editable": false,
+          "optional": false,
+          "advanced": false
+        },
+        "listenOn": {
+          "metadata": {
+            "label": "Listen On"
+          },
+          "codedata": {
+            "type": "LISTENER_INIT_PARAM",
+            "originalName": "listenOn"
+          },
+          "placeholder": "0",
+          "value": "check http:getDefaultListener()",
+          "types": [
+            {
+              "fieldType": "NUMBER",
+              "ballerinaType": "int",
+              "selected": false
+            },
+            {
+              "fieldType": "EXPRESSION",
+              "ballerinaType": "int|http:Listener",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": true,
+          "advanced": false
+        }
+      },
+      "codedata": {
+        "lineRange": {
+          "fileName": "main.bal",
+          "startLine": {
+            "line": 5,
+            "offset": 0
+          },
+          "endLine": {
+            "line": 5,
+            "offset": 90
+          }
+        }
+      }
+    }
+  }
+}
