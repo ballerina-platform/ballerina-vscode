@@ -1,28 +1,28 @@
 {
   "start": {
-    "line": 9,
+    "line": 19,
     "offset": 0
   },
   "end": {
-    "line": 16,
+    "line": 33,
     "offset": 1
   },
-  "source": "workflow_activity_result_bindings.bal",
-  "description": "Activity calls read back from source: a checked wildcard binding, an unchecked call binding a value, and an unchecked nil-typed binding - each given the Check Error flag and the result name carrier the creation template uses",
+  "source": "workflow_var_ref/main.bal",
+  "description": "Module-level policy and method references open under the From Expression option of their dropdowns instead of being read as the default",
   "diagram": {
-    "fileName": "workflow_activity_result_bindings.bal",
+    "fileName": "main.bal",
     "nodes": [
       {
-        "id": "43370",
+        "id": "54437",
         "metadata": {
           "label": "Start",
           "data": {
             "kind": "Workflow",
-            "label": "eventWorkflow",
+            "label": "varRefWorkflow",
             "isServiceFunction": false,
             "parameters": [
               "workflow:Context ctx",
-              "string message"
+              "OrderInput input"
             ],
             "return": "error?"
           }
@@ -30,41 +30,44 @@
         "codedata": {
           "node": "EVENT_START",
           "lineRange": {
-            "fileName": "workflow_activity_result_bindings.bal",
+            "fileName": "main.bal",
             "startLine": {
-              "line": 9,
-              "offset": 76
+              "line": 20,
+              "offset": 79
             },
             "endLine": {
-              "line": 20,
+              "line": 33,
               "offset": 1
             }
           },
-          "sourceCode": "# Workflow with a checked no-result activity call and an unchecked one\n#\n# + ctx - Workflow context\n# + message - Message to log\n# + return - An error on failure\n@workflow:Workflow\nfunction eventWorkflow(workflow:Context ctx, string message) returns error? {\n    // Activity with no return value: a wildcard binding, so no named result variable is declared\n    () _ = check ctx->callActivity(logEvent, {message: message});\n\n    // Unchecked call: the error is part of the result value\n    int|error count = ctx->callActivity(countEvents, {});\n    io:println(count);\n\n    // Unchecked call to an activity with no return value: the error itself is the named result\n    error? r = ctx->callActivity(logEvent, {message: message});\n    io:println(r);\n}"
+          "sourceCode": "@workflow:Workflow\nfunction varRefWorkflow(workflow:Context ctx, OrderInput input) returns error? {\n    // 1. retryPolicy as a module-level record reference\n    int a = check ctx->callActivity(fetchOrder, {id: 1}, retryPolicy = STANDARD_RETRY);\n\n    // 2. approvalPolicy as a module-level record reference\n    int b = check ctx->callActivity(fetchOrder, {id: 2}, approvalPolicy = FINANCE_GATE);\n\n    // 3. REST builtin with the HTTP method coming from a constant\n    json c = check ctx->callActivity(activity:callRestAPI,\n            {connection: httpClient, method: GET_METHOD, path: \"/users/1\"});\n\n    // 4. Human task with the roles coming from a module-level array reference\n    boolean d = check ctx->awaitHumanTask(\"approve\", userRoles = APPROVERS);\n}"
         },
         "returning": false,
+        "diagnostics": {
+          "hasDiagnostics": true
+        },
         "flags": 0
       },
       {
-        "id": "41761",
+        "id": "52632",
         "metadata": {
           "label": "Comment",
-          "description": "Activity with no return value: a wildcard binding, so no named result variable is declared"
+          "description": "1. retryPolicy as a module-level record reference"
         },
         "codedata": {
           "node": "COMMENT",
           "lineRange": {
-            "fileName": "workflow_activity_result_bindings.bal",
+            "fileName": "main.bal",
             "startLine": {
-              "line": 10,
+              "line": 21,
               "offset": 0
             },
             "endLine": {
-              "line": 10,
-              "offset": 97
+              "line": 21,
+              "offset": 56
             }
           },
-          "sourceCode": "Activity with no return value: a wildcard binding, so no named result variable is declared"
+          "sourceCode": "1. retryPolicy as a module-level record reference"
         },
         "returning": false,
         "properties": {
@@ -79,7 +82,7 @@
                 "selected": true
               }
             ],
-            "value": "Activity with no return value: a wildcard binding, so no named result variable is declared",
+            "value": "1. retryPolicy as a module-level record reference",
             "optional": false,
             "editable": true,
             "advanced": false,
@@ -89,61 +92,61 @@
         "flags": 0
       },
       {
-        "id": "42845",
+        "id": "53779",
         "metadata": {
-          "label": "logEvent",
-          "description": "Activity with no return value\n",
+          "label": "fetchOrder",
+          "description": "Executes an activity function. A completed activity is never re-executed on replay — its\nrecorded result is reused — but a failed attempt can run again under a retry policy, so keep\nside effects idempotent. `T` comes from the assignment, so bind every call: `() _ = check ...`\nwhen the activity returns only `error?`.\n",
           "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.10.0.png"
         },
         "codedata": {
           "node": "ACTIVITY_CALL",
-          "org": "$anon",
-          "module": ".",
-          "packageName": ".",
+          "org": "test",
+          "module": "workflow_var_ref",
+          "packageName": "workflow_var_ref",
           "object": "Context",
-          "symbol": "logEvent",
-          "version": "0.0.0",
+          "symbol": "fetchOrder",
+          "version": "0.1.0",
           "lineRange": {
-            "fileName": "workflow_activity_result_bindings.bal",
+            "fileName": "main.bal",
             "startLine": {
-              "line": 11,
+              "line": 22,
               "offset": 4
             },
             "endLine": {
-              "line": 11,
-              "offset": 65
+              "line": 22,
+              "offset": 87
             }
           },
-          "sourceCode": "// Activity with no return value: a wildcard binding, so no named result variable is declared\n    () _ = check ctx->callActivity(logEvent, {message: message});"
+          "sourceCode": "// 1. retryPolicy as a module-level record reference\n    int a = check ctx->callActivity(fetchOrder, {id: 1}, retryPolicy = STANDARD_RETRY);"
         },
         "returning": false,
         "properties": {
-          "message": {
+          "id": {
             "metadata": {
-              "label": "message",
+              "label": "id",
               "description": ""
             },
             "types": [
               {
-                "fieldType": "TEXT",
-                "ballerinaType": "string",
-                "selected": false
+                "fieldType": "NUMBER",
+                "ballerinaType": "int",
+                "selected": true
               },
               {
                 "fieldType": "EXPRESSION",
-                "ballerinaType": "string",
-                "selected": true
+                "ballerinaType": "int",
+                "selected": false
               }
             ],
-            "value": "message",
-            "placeholder": "string",
+            "value": "1",
+            "placeholder": "int",
             "optional": false,
             "editable": true,
             "advanced": false,
             "hidden": false,
             "codedata": {
               "kind": "REQUIRED",
-              "originalName": "message"
+              "originalName": "id"
             }
           },
           "checkError": {
@@ -162,29 +165,7 @@
             "optional": true,
             "editable": true,
             "advanced": true,
-            "hidden": false,
-            "dynamicFormFields": {
-              "true": {},
-              "false": {
-                "variable": {
-                  "metadata": {
-                    "label": "Result",
-                    "description": "Name of the variable that receives the error the activity failed with, or nil when it succeeded"
-                  },
-                  "types": [
-                    {
-                      "fieldType": "IDENTIFIER",
-                      "selected": true
-                    }
-                  ],
-                  "value": "",
-                  "optional": false,
-                  "editable": true,
-                  "advanced": false,
-                  "hidden": false
-                }
-              }
-            }
+            "hidden": false
           },
           "stepId": {
             "metadata": {
@@ -712,7 +693,7 @@
                 "selected": true
               }
             ],
-            "value": "NoRetry",
+            "value": "FromExpression",
             "optional": false,
             "editable": true,
             "advanced": false,
@@ -1578,7 +1559,7 @@
                 "selected": true
               }
             ],
-            "value": "",
+            "value": "STANDARD_RETRY",
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -1586,8 +1567,8 @@
           },
           "variable": {
             "metadata": {
-              "label": "Result",
-              "description": "Name of the result variable"
+              "label": "Variable Name",
+              "description": "Name of the variable"
             },
             "types": [
               {
@@ -1595,35 +1576,67 @@
                 "selected": true
               }
             ],
-            "value": "",
-            "optional": true,
+            "value": "a",
+            "optional": false,
+            "editable": false,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "lineRange": {
+                "fileName": "main.bal",
+                "startLine": {
+                  "line": 22,
+                  "offset": 8
+                },
+                "endLine": {
+                  "line": 22,
+                  "offset": 9
+                }
+              }
+            }
+          },
+          "type": {
+            "metadata": {
+              "label": "Variable Type",
+              "description": "Type of the variable"
+            },
+            "types": [
+              {
+                "fieldType": "TYPE",
+                "selected": true
+              }
+            ],
+            "value": "int",
+            "placeholder": "var",
+            "optional": false,
             "editable": true,
             "advanced": false,
-            "hidden": true
+            "hidden": false,
+            "codedata": {}
           }
         },
         "flags": 1
       },
       {
-        "id": "43739",
+        "id": "54650",
         "metadata": {
           "label": "Comment",
-          "description": "Unchecked call: the error is part of the result value"
+          "description": "2. approvalPolicy as a module-level record reference"
         },
         "codedata": {
           "node": "COMMENT",
           "lineRange": {
-            "fileName": "workflow_activity_result_bindings.bal",
+            "fileName": "main.bal",
             "startLine": {
-              "line": 12,
+              "line": 23,
               "offset": 0
             },
             "endLine": {
-              "line": 13,
-              "offset": 60
+              "line": 24,
+              "offset": 59
             }
           },
-          "sourceCode": "Unchecked call: the error is part of the result value"
+          "sourceCode": "2. approvalPolicy as a module-level record reference"
         },
         "returning": false,
         "properties": {
@@ -1638,7 +1651,7 @@
                 "selected": true
               }
             ],
-            "value": "Unchecked call: the error is part of the result value",
+            "value": "2. approvalPolicy as a module-level record reference",
             "optional": false,
             "editable": true,
             "advanced": false,
@@ -1648,35 +1661,63 @@
         "flags": 0
       },
       {
-        "id": "45813",
+        "id": "56756",
         "metadata": {
-          "label": "countEvents",
-          "description": "Activity returning a count\n",
+          "label": "fetchOrder",
+          "description": "Executes an activity function. A completed activity is never re-executed on replay — its\nrecorded result is reused — but a failed attempt can run again under a retry policy, so keep\nside effects idempotent. `T` comes from the assignment, so bind every call: `() _ = check ...`\nwhen the activity returns only `error?`.\n",
           "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.10.0.png"
         },
         "codedata": {
           "node": "ACTIVITY_CALL",
-          "org": "$anon",
-          "module": ".",
-          "packageName": ".",
+          "org": "test",
+          "module": "workflow_var_ref",
+          "packageName": "workflow_var_ref",
           "object": "Context",
-          "symbol": "countEvents",
-          "version": "0.0.0",
+          "symbol": "fetchOrder",
+          "version": "0.1.0",
           "lineRange": {
-            "fileName": "workflow_activity_result_bindings.bal",
+            "fileName": "main.bal",
             "startLine": {
-              "line": 14,
+              "line": 25,
               "offset": 4
             },
             "endLine": {
-              "line": 14,
-              "offset": 57
+              "line": 25,
+              "offset": 88
             }
           },
-          "sourceCode": "// Unchecked call: the error is part of the result value\n    int|error count = ctx->callActivity(countEvents, {});"
+          "sourceCode": "// 2. approvalPolicy as a module-level record reference\n    int b = check ctx->callActivity(fetchOrder, {id: 2}, approvalPolicy = FINANCE_GATE);"
         },
         "returning": false,
         "properties": {
+          "id": {
+            "metadata": {
+              "label": "id",
+              "description": ""
+            },
+            "types": [
+              {
+                "fieldType": "NUMBER",
+                "ballerinaType": "int",
+                "selected": true
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "int",
+                "selected": false
+              }
+            ],
+            "value": "2",
+            "placeholder": "int",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "REQUIRED",
+              "originalName": "id"
+            }
+          },
           "checkError": {
             "metadata": {
               "label": "Check Error",
@@ -1689,7 +1730,7 @@
                 "selected": true
               }
             ],
-            "value": "false",
+            "value": "true",
             "optional": true,
             "editable": true,
             "advanced": true,
@@ -1748,7 +1789,7 @@
                 "selected": true
               }
             ],
-            "value": "NoApproval",
+            "value": "FromExpression",
             "optional": false,
             "editable": true,
             "advanced": false,
@@ -2182,7 +2223,7 @@
                 "selected": true
               }
             ],
-            "value": "",
+            "value": "FINANCE_GATE",
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -3104,21 +3145,21 @@
                 "selected": true
               }
             ],
-            "value": "count",
+            "value": "b",
             "optional": false,
             "editable": false,
             "advanced": false,
             "hidden": false,
             "codedata": {
               "lineRange": {
-                "fileName": "workflow_activity_result_bindings.bal",
+                "fileName": "main.bal",
                 "startLine": {
-                  "line": 14,
-                  "offset": 14
+                  "line": 25,
+                  "offset": 8
                 },
                 "endLine": {
-                  "line": 14,
-                  "offset": 19
+                  "line": 25,
+                  "offset": 9
                 }
               }
             }
@@ -3143,111 +3184,28 @@
             "codedata": {}
           }
         },
-        "flags": 0
+        "flags": 1
       },
       {
-        "id": "46770",
-        "metadata": {
-          "label": "println",
-          "description": "Prints `any`, `error` or string templates value(s) to the standard output stream and terminates the line.\n```ballerina\nio:println(\"Start processing the CSV file from \", srcFileName);\n```\n",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.1.png"
-        },
-        "codedata": {
-          "node": "FUNCTION_CALL",
-          "org": "ballerina",
-          "module": "io",
-          "packageName": "io",
-          "symbol": "println",
-          "version": "1.8.1",
-          "lineRange": {
-            "fileName": "workflow_activity_result_bindings.bal",
-            "startLine": {
-              "line": 15,
-              "offset": 4
-            },
-            "endLine": {
-              "line": 15,
-              "offset": 22
-            }
-          },
-          "sourceCode": "io:println(count);"
-        },
-        "returning": false,
-        "properties": {
-          "values": {
-            "metadata": {
-              "label": "values",
-              "description": "The value(s) to be printed"
-            },
-            "types": [
-              {
-                "fieldType": "REPEATABLE_LIST",
-                "ballerinaType": "io:Printable",
-                "template": {
-                  "types": [
-                    {
-                      "fieldType": "EXPRESSION",
-                      "ballerinaType": "io:Printable",
-                      "selected": false
-                    }
-                  ],
-                  "optional": false,
-                  "editable": false,
-                  "advanced": false,
-                  "hidden": false
-                },
-                "selected": true
-              }
-            ],
-            "value": [
-              {
-                "types": [
-                  {
-                    "fieldType": "EXPRESSION",
-                    "ballerinaType": "io:Printable",
-                    "selected": true
-                  }
-                ],
-                "value": "count",
-                "optional": false,
-                "editable": false,
-                "advanced": false,
-                "hidden": false
-              }
-            ],
-            "placeholder": "()",
-            "optional": false,
-            "editable": true,
-            "advanced": false,
-            "hidden": false,
-            "codedata": {
-              "kind": "REST_PARAMETER",
-              "originalName": "values"
-            }
-          }
-        },
-        "flags": 0
-      },
-      {
-        "id": "47742",
+        "id": "57633",
         "metadata": {
           "label": "Comment",
-          "description": "Unchecked call to an activity with no return value: the error itself is the named result"
+          "description": "3. REST builtin with the HTTP method coming from a constant"
         },
         "codedata": {
           "node": "COMMENT",
           "lineRange": {
-            "fileName": "workflow_activity_result_bindings.bal",
+            "fileName": "main.bal",
             "startLine": {
-              "line": 16,
+              "line": 26,
               "offset": 0
             },
             "endLine": {
-              "line": 17,
-              "offset": 95
+              "line": 27,
+              "offset": 66
             }
           },
-          "sourceCode": "Unchecked call to an activity with no return value: the error itself is the named result"
+          "sourceCode": "3. REST builtin with the HTTP method coming from a constant"
         },
         "returning": false,
         "properties": {
@@ -3262,7 +3220,7 @@
                 "selected": true
               }
             ],
-            "value": "Unchecked call to an activity with no return value: the error itself is the named result",
+            "value": "3. REST builtin with the HTTP method coming from a constant",
             "optional": false,
             "editable": true,
             "advanced": false,
@@ -3272,62 +3230,387 @@
         "flags": 0
       },
       {
-        "id": "49787",
+        "id": "59751",
         "metadata": {
-          "label": "logEvent",
-          "description": "Activity with no return value\n",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.10.0.png"
+          "label": "Call REST API",
+          "description": "Call a REST API endpoint as a workflow activity using a configured http:Client connection.",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.17.1.png"
         },
         "codedata": {
-          "node": "ACTIVITY_CALL",
-          "org": "$anon",
-          "module": ".",
-          "packageName": ".",
+          "node": "CONNECTION_ACTIVITY_CALL",
+          "org": "ballerina",
+          "module": "workflow.activity",
+          "packageName": "workflow",
           "object": "Context",
-          "symbol": "logEvent",
-          "version": "0.0.0",
+          "symbol": "callRestAPI",
+          "version": "0.10.0",
           "lineRange": {
-            "fileName": "workflow_activity_result_bindings.bal",
+            "fileName": "main.bal",
             "startLine": {
-              "line": 18,
+              "line": 28,
               "offset": 4
             },
             "endLine": {
-              "line": 18,
-              "offset": 63
+              "line": 29,
+              "offset": 76
             }
           },
-          "sourceCode": "// Unchecked call to an activity with no return value: the error itself is the named result\n    error? r = ctx->callActivity(logEvent, {message: message});"
+          "sourceCode": "// 3. REST builtin with the HTTP method coming from a constant\n    json c = check ctx->callActivity(activity:callRestAPI,\n            {connection: httpClient, method: GET_METHOD, path: \"/users/1\"});",
+          "inferredReturnType": "T"
         },
         "returning": false,
         "properties": {
-          "message": {
+          "connection": {
             "metadata": {
-              "label": "message",
-              "description": ""
+              "label": "Connection",
+              "description": "Connection to use",
+              "connectors": [
+                {
+                  "codedata": {
+                    "node": "NEW_CONNECTION",
+                    "org": "ballerina",
+                    "module": "http",
+                    "packageName": "http",
+                    "object": "Client",
+                    "symbol": "init"
+                  },
+                  "addNewConnectionLabel": "Add new HTTP connection"
+                }
+              ]
             },
             "types": [
               {
-                "fieldType": "TEXT",
-                "ballerinaType": "string",
-                "selected": false
+                "fieldType": "CONNECTION",
+                "selected": true
+              }
+            ],
+            "value": "httpClient",
+            "placeholder": "httpClient",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "searchNodesKind": "HTTP"
+            }
+          },
+          "method": {
+            "metadata": {
+              "label": "Method",
+              "description": "HTTP method to invoke"
+            },
+            "types": [
+              {
+                "fieldType": "DROPDOWN_CHOICE",
+                "options": [
+                  {
+                    "label": "GET",
+                    "value": "GET"
+                  },
+                  {
+                    "label": "POST",
+                    "value": "POST"
+                  },
+                  {
+                    "label": "PUT",
+                    "value": "PUT"
+                  },
+                  {
+                    "label": "DELETE",
+                    "value": "DELETE"
+                  },
+                  {
+                    "label": "PATCH",
+                    "value": "PATCH"
+                  },
+                  {
+                    "label": "From Expression",
+                    "value": "FromExpression"
+                  }
+                ],
+                "selected": true
+              }
+            ],
+            "value": "FromExpression",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "REQUIRED"
+            },
+            "dynamicFormFields": {
+              "GET": {},
+              "POST": {
+                "message": {
+                  "metadata": {
+                    "label": "Message",
+                    "description": "Request body, sent with POST, PUT, PATCH and DELETE"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "http:RequestMessage",
+                      "selected": true
+                    }
+                  ],
+                  "value": "",
+                  "optional": false,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                }
               },
+              "PUT": {
+                "message": {
+                  "metadata": {
+                    "label": "Message",
+                    "description": "Request body, sent with POST, PUT, PATCH and DELETE"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "http:RequestMessage",
+                      "selected": true
+                    }
+                  ],
+                  "value": "",
+                  "optional": false,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                }
+              },
+              "DELETE": {
+                "message": {
+                  "metadata": {
+                    "label": "Message",
+                    "description": "Request body, sent with POST, PUT, PATCH and DELETE"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "http:RequestMessage",
+                      "selected": true
+                    }
+                  ],
+                  "value": "",
+                  "optional": false,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                }
+              },
+              "PATCH": {
+                "message": {
+                  "metadata": {
+                    "label": "Message",
+                    "description": "Request body, sent with POST, PUT, PATCH and DELETE"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "http:RequestMessage",
+                      "selected": true
+                    }
+                  ],
+                  "value": "",
+                  "optional": false,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                }
+              },
+              "FromExpression": {
+                "methodExpression": {
+                  "metadata": {
+                    "label": "Method Expression",
+                    "description": "The HTTP method as a string expression: a constant or a variable. A literal such as \"GET\" reopens as that method."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "string",
+                      "selected": true
+                    }
+                  ],
+                  "value": "",
+                  "optional": false,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "message": {
+                  "metadata": {
+                    "label": "Message",
+                    "description": "Request body, sent with POST, PUT, PATCH and DELETE"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "http:RequestMessage",
+                      "selected": true
+                    }
+                  ],
+                  "value": "",
+                  "optional": false,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                }
+              }
+            },
+            "itemOptions": [
+              {
+                "id": "GET",
+                "content": "GET",
+                "value": "GET"
+              },
+              {
+                "id": "POST",
+                "content": "POST",
+                "value": "POST"
+              },
+              {
+                "id": "PUT",
+                "content": "PUT",
+                "value": "PUT"
+              },
+              {
+                "id": "DELETE",
+                "content": "DELETE",
+                "value": "DELETE"
+              },
+              {
+                "id": "PATCH",
+                "content": "PATCH",
+                "value": "PATCH"
+              },
+              {
+                "id": "FromExpression",
+                "content": "From Expression",
+                "value": "FromExpression"
+              }
+            ]
+          },
+          "methodExpression": {
+            "metadata": {
+              "label": "Method Expression",
+              "description": "The HTTP method as a string expression: a constant or a variable. A literal such as \"GET\" reopens as that method."
+            },
+            "types": [
               {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string",
                 "selected": true
               }
             ],
-            "value": "message",
-            "placeholder": "string",
+            "value": "GET_METHOD",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "path": {
+            "metadata": {
+              "label": "Path",
+              "description": "Resource path appended to the connection's base URL (e.g., \"/users/1\")"
+            },
+            "types": [
+              {
+                "fieldType": "TEXT",
+                "ballerinaType": "string",
+                "selected": true
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string",
+                "selected": false
+              }
+            ],
+            "value": "/users/1",
+            "placeholder": "/users/1",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false
+          },
+          "message": {
+            "metadata": {
+              "label": "Message",
+              "description": "Request body, sent with POST, PUT, PATCH and DELETE"
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "http:RequestMessage",
+                "selected": true
+              }
+            ],
+            "value": "",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "headers": {
+            "metadata": {
+              "label": "Headers",
+              "description": "Optional request headers"
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "map<string|string[]>?",
+                "selected": true
+              }
+            ],
+            "value": "",
+            "optional": true,
+            "editable": true,
+            "advanced": true,
+            "hidden": false
+          },
+          "variable": {
+            "metadata": {
+              "label": "Result",
+              "description": "Name of the result variable"
+            },
+            "types": [
+              {
+                "fieldType": "IDENTIFIER",
+                "selected": true
+              }
+            ],
+            "value": "c",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false
+          },
+          "T": {
+            "metadata": {
+              "label": "T",
+              "description": "Expected return type (inferred from context)"
+            },
+            "types": [
+              {
+                "fieldType": "TYPE",
+                "ballerinaType": "anydata",
+                "selected": false
+              }
+            ],
+            "value": "// 3. REST builtin with the HTTP method coming from a constant\n    json",
+            "placeholder": "anydata",
             "optional": false,
             "editable": true,
             "advanced": false,
             "hidden": false,
             "codedata": {
-              "kind": "REQUIRED",
-              "originalName": "message"
-            }
+              "kind": "PARAM_FOR_TYPE_INFER",
+              "originalName": "T"
+            },
+            "defaultValue": "anydata"
           },
           "checkError": {
             "metadata": {
@@ -3341,33 +3624,11 @@
                 "selected": true
               }
             ],
-            "value": "false",
+            "value": "true",
             "optional": true,
             "editable": true,
             "advanced": true,
-            "hidden": false,
-            "dynamicFormFields": {
-              "true": {},
-              "false": {
-                "variable": {
-                  "metadata": {
-                    "label": "Result",
-                    "description": "Name of the variable that receives the error the activity failed with, or nil when it succeeded"
-                  },
-                  "types": [
-                    {
-                      "fieldType": "IDENTIFIER",
-                      "selected": true
-                    }
-                  ],
-                  "value": "",
-                  "optional": false,
-                  "editable": true,
-                  "advanced": false,
-                  "hidden": false
-                }
-              }
-            }
+            "hidden": false
           },
           "stepId": {
             "metadata": {
@@ -4766,6 +5027,582 @@
             "editable": true,
             "advanced": false,
             "hidden": true
+          }
+        },
+        "flags": 1
+      },
+      {
+        "id": "61613",
+        "metadata": {
+          "label": "Comment",
+          "description": "4. Human task with the roles coming from a module-level array reference"
+        },
+        "codedata": {
+          "node": "COMMENT",
+          "lineRange": {
+            "fileName": "main.bal",
+            "startLine": {
+              "line": 30,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 31,
+              "offset": 78
+            }
+          },
+          "sourceCode": "4. Human task with the roles coming from a module-level array reference"
+        },
+        "returning": false,
+        "properties": {
+          "comment": {
+            "metadata": {
+              "label": "Comment",
+              "description": "Comment to describe the flow"
+            },
+            "types": [
+              {
+                "fieldType": "TEXT",
+                "selected": true
+              }
+            ],
+            "value": "4. Human task with the roles coming from a module-level array reference",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false
+          }
+        },
+        "flags": 0
+      },
+      {
+        "id": "63688",
+        "metadata": {
+          "label": "Await Human Task",
+          "description": "Create a human task and wait for a human to complete it",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.10.0.png"
+        },
+        "codedata": {
+          "node": "HUMAN_TASK",
+          "org": "ballerina",
+          "module": "workflow",
+          "packageName": "workflow",
+          "object": "Context",
+          "symbol": "awaitHumanTask",
+          "version": "0.10.0",
+          "lineRange": {
+            "fileName": "main.bal",
+            "startLine": {
+              "line": 32,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 32,
+              "offset": 76
+            }
+          },
+          "sourceCode": "// 4. Human task with the roles coming from a module-level array reference\n    boolean d = check ctx->awaitHumanTask(\"approve\", userRoles = APPROVERS);",
+          "inferredReturnType": "T"
+        },
+        "returning": false,
+        "properties": {
+          "taskName": {
+            "metadata": {
+              "label": "Task Name",
+              "description": "Identifies the task type"
+            },
+            "types": [
+              {
+                "fieldType": "TEXT",
+                "ballerinaType": "string",
+                "selected": true
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string",
+                "selected": false
+              }
+            ],
+            "value": "\"approve\"",
+            "placeholder": "\"\"",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "diagnostics": {
+              "hasDiagnostics": true,
+              "diagnostics": [
+                {
+                  "severity": "ERROR",
+                  "message": "missing required parameter 'taskInput' in call to 'awaitHumanTask()'"
+                }
+              ]
+            },
+            "codedata": {
+              "kind": "REQUIRED",
+              "originalName": "taskName"
+            }
+          },
+          "userRoles": {
+            "metadata": {
+              "label": "User Roles",
+              "description": "One or more roles permitted to complete this task"
+            },
+            "types": [
+              {
+                "fieldType": "TEXT",
+                "ballerinaType": "string",
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string|[string, string...]?",
+                "selected": true
+              }
+            ],
+            "value": "APPROVERS",
+            "placeholder": "()",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "diagnostics": {
+              "hasDiagnostics": true,
+              "diagnostics": [
+                {
+                  "severity": "ERROR",
+                  "message": "incompatible types: expected '(string|[string,string...])?', found '(string[] & readonly)'"
+                }
+              ]
+            },
+            "codedata": {
+              "kind": "INCLUDED_FIELD",
+              "originalName": "userRoles"
+            },
+            "defaultValue": "()"
+          },
+          "taskInput": {
+            "metadata": {
+              "label": "Task Input",
+              "description": "Read-only JSON object shown alongside the form. Required — a task with nothing to show says so with {}, and the runtime checks this against the task's taskInputType"
+            },
+            "types": [
+              {
+                "fieldType": "REPEATABLE_MAP",
+                "ballerinaType": "map<json>",
+                "template": {
+                  "types": [
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "json",
+                      "selected": false
+                    }
+                  ],
+                  "optional": false,
+                  "editable": false,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "map<json>",
+                "selected": false
+              }
+            ],
+            "placeholder": "{}",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "REQUIRED",
+              "originalName": "taskInput"
+            }
+          },
+          "title": {
+            "metadata": {
+              "label": "Title",
+              "description": "Short summary shown in the inbox"
+            },
+            "types": [
+              {
+                "fieldType": "TEXT",
+                "ballerinaType": "string",
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string?",
+                "selected": false
+              }
+            ],
+            "placeholder": "()",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "INCLUDED_FIELD",
+              "originalName": "title"
+            },
+            "defaultValue": "()"
+          },
+          "description": {
+            "metadata": {
+              "label": "Description",
+              "description": "Additional context shown alongside the form"
+            },
+            "types": [
+              {
+                "fieldType": "TEXT",
+                "ballerinaType": "string",
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string?",
+                "selected": false
+              }
+            ],
+            "placeholder": "()",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "INCLUDED_FIELD",
+              "originalName": "description"
+            },
+            "defaultValue": "()"
+          },
+          "timeout": {
+            "metadata": {
+              "label": "Timeout",
+              "description": "Maximum time to wait, in days, hours and minutes, e.g. {days: 1, hours: 2, minutes: 30}; omit to wait indefinitely"
+            },
+            "types": [
+              {
+                "fieldType": "RECORD_MAP_EXPRESSION",
+                "ballerinaType": "workflow:Duration",
+                "typeMembers": [
+                  {
+                    "type": "Duration",
+                    "packageInfo": "ballerina:workflow:0.10.0",
+                    "packageName": "workflow",
+                    "kind": "RECORD_TYPE",
+                    "selected": false
+                  }
+                ],
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "workflow:Duration?",
+                "selected": false
+              }
+            ],
+            "placeholder": "()",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "INCLUDED_FIELD",
+              "originalName": "timeout"
+            },
+            "defaultValue": "()"
+          },
+          "databindingType": {
+            "metadata": {
+              "label": "Completion Type",
+              "description": "The type of the data returned when the human task is completed"
+            },
+            "types": [
+              {
+                "fieldType": "TYPE",
+                "ballerinaType": "anydata",
+                "selected": true
+              }
+            ],
+            "value": "boolean",
+            "placeholder": "anydata",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "PARAM_FOR_TYPE_INFER",
+              "originalName": "databindingType"
+            },
+            "defaultValue": "anydata"
+          },
+          "stepId": {
+            "metadata": {
+              "label": "Step Id",
+              "description": "Identity of this step within the workflow, as for `callActivity`"
+            },
+            "types": [
+              {
+                "fieldType": "TEXT",
+                "ballerinaType": "string",
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string?",
+                "selected": false
+              }
+            ],
+            "placeholder": "()",
+            "optional": true,
+            "editable": true,
+            "advanced": true,
+            "hidden": false,
+            "codedata": {
+              "kind": "DEFAULTABLE",
+              "originalName": "stepId"
+            },
+            "defaultValue": "()"
+          },
+          "additionalValues": {
+            "metadata": {
+              "label": "Additional Values",
+              "description": "Capture key value pairs"
+            },
+            "types": [
+              {
+                "fieldType": "REPEATABLE_MAP",
+                "ballerinaType": "anydata",
+                "template": {
+                  "types": [
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "anydata",
+                      "selected": false
+                    }
+                  ],
+                  "optional": false,
+                  "editable": false,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "selected": true
+              }
+            ],
+            "value": {},
+            "placeholder": "{}",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "INCLUDED_RECORD_REST",
+              "originalName": "Additional Values"
+            }
+          },
+          "users": {
+            "metadata": {
+              "label": "Users",
+              "description": "User id(s) permitted to answer it, whatever their roles"
+            },
+            "types": [
+              {
+                "fieldType": "TEXT",
+                "ballerinaType": "string",
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string|[string, string...]",
+                "selected": false
+              }
+            ],
+            "placeholder": "\"\"",
+            "optional": true,
+            "editable": true,
+            "advanced": true,
+            "hidden": false,
+            "codedata": {
+              "kind": "INCLUDED_FIELD",
+              "originalName": "users"
+            },
+            "defaultValue": "\"\""
+          },
+          "excludedUsers": {
+            "metadata": {
+              "label": "Excluded Users",
+              "description": "User id(s) that may not answer it, whatever their roles"
+            },
+            "types": [
+              {
+                "fieldType": "TEXT",
+                "ballerinaType": "string",
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string|[string, string...]",
+                "selected": false
+              }
+            ],
+            "placeholder": "\"\"",
+            "optional": true,
+            "editable": true,
+            "advanced": true,
+            "hidden": false,
+            "codedata": {
+              "kind": "INCLUDED_FIELD",
+              "originalName": "excludedUsers"
+            },
+            "defaultValue": "\"\""
+          },
+          "excludedRoles": {
+            "metadata": {
+              "label": "Excluded Roles",
+              "description": "Role(s) that may not answer it"
+            },
+            "types": [
+              {
+                "fieldType": "TEXT",
+                "ballerinaType": "string",
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string|[string, string...]",
+                "selected": false
+              }
+            ],
+            "placeholder": "\"\"",
+            "optional": true,
+            "editable": true,
+            "advanced": true,
+            "hidden": false,
+            "codedata": {
+              "kind": "INCLUDED_FIELD",
+              "originalName": "excludedRoles"
+            },
+            "defaultValue": "\"\""
+          },
+          "administratorRoles": {
+            "metadata": {
+              "label": "Administrator Roles",
+              "description": "Role(s) that administer it: they see it, may reassign it, move its deadline,\nfail it, or complete it — a completion by them is recorded as an administrator's"
+            },
+            "types": [
+              {
+                "fieldType": "TEXT",
+                "ballerinaType": "string",
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string|[string, string...]",
+                "selected": false
+              }
+            ],
+            "placeholder": "\"\"",
+            "optional": true,
+            "editable": true,
+            "advanced": true,
+            "hidden": false,
+            "codedata": {
+              "kind": "INCLUDED_FIELD",
+              "originalName": "administratorRoles"
+            },
+            "defaultValue": "\"\""
+          },
+          "administratorUsers": {
+            "metadata": {
+              "label": "Administrator Users",
+              "description": "User id(s) that administer it, whatever their roles"
+            },
+            "types": [
+              {
+                "fieldType": "TEXT",
+                "ballerinaType": "string",
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string|[string, string...]",
+                "selected": false
+              }
+            ],
+            "placeholder": "\"\"",
+            "optional": true,
+            "editable": true,
+            "advanced": true,
+            "hidden": false,
+            "codedata": {
+              "kind": "INCLUDED_FIELD",
+              "originalName": "administratorUsers"
+            },
+            "defaultValue": "\"\""
+          },
+          "taskInputType": {
+            "metadata": {
+              "label": "Task Input Type",
+              "description": "Shape of the input shown to the decider"
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "typedesc<map<json>>",
+                "selected": false
+              }
+            ],
+            "placeholder": "",
+            "optional": true,
+            "editable": false,
+            "advanced": false,
+            "hidden": true,
+            "codedata": {
+              "kind": "INCLUDED_FIELD",
+              "originalName": "taskInputType"
+            },
+            "defaultValue": ""
+          },
+          "resultType": {
+            "metadata": {
+              "label": "Result Type",
+              "description": "Shape of the answer. A workflow states this as `awaitHumanTask`'s `T`\ninstead; an agent declares it here"
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "typedesc<anydata>",
+                "selected": false
+              }
+            ],
+            "placeholder": "",
+            "optional": true,
+            "editable": false,
+            "advanced": false,
+            "hidden": true,
+            "codedata": {
+              "kind": "INCLUDED_FIELD",
+              "originalName": "resultType"
+            },
+            "defaultValue": ""
+          },
+          "checkError": {
+            "metadata": {
+              "label": "Check Error",
+              "description": "Trigger error flow"
+            },
+            "types": [
+              {
+                "fieldType": "FLAG",
+                "selected": true
+              }
+            ],
+            "value": true,
+            "optional": false,
+            "editable": true,
+            "advanced": true,
+            "hidden": true
           },
           "variable": {
             "metadata": {
@@ -4778,99 +5615,879 @@
                 "selected": true
               }
             ],
-            "value": "r",
-            "optional": true,
+            "value": "d",
+            "optional": false,
             "editable": true,
             "advanced": false,
-            "hidden": true
+            "hidden": false
           }
         },
-        "flags": 0
-      },
+        "diagnostics": {
+          "hasDiagnostics": true
+        },
+        "flags": 1
+      }
+    ],
+    "connections": [
       {
-        "id": "50734",
+        "id": "35779",
         "metadata": {
-          "label": "println",
-          "description": "Prints `any`, `error` or string templates value(s) to the standard output stream and terminates the line.\n```ballerina\nio:println(\"Start processing the CSV file from \", srcFileName);\n```\n",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.1.png"
+          "label": "HTTP",
+          "description": "The HTTP client provides functionality to connect to remote HTTP services and perform requests using standard HTTP methods like GET, POST, PUT, DELETE, etc.\n",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.17.1.png"
         },
         "codedata": {
-          "node": "FUNCTION_CALL",
+          "node": "NEW_CONNECTION",
           "org": "ballerina",
-          "module": "io",
-          "packageName": "io",
-          "symbol": "println",
-          "version": "1.8.1",
+          "module": "http",
+          "object": "Client",
+          "symbol": "init",
           "lineRange": {
-            "fileName": "workflow_activity_result_bindings.bal",
+            "fileName": "main.bal",
             "startLine": {
-              "line": 19,
-              "offset": 4
+              "line": 4,
+              "offset": 0
             },
             "endLine": {
-              "line": 19,
-              "offset": 18
+              "line": 4,
+              "offset": 67
             }
           },
-          "sourceCode": "io:println(r);"
+          "sourceCode": "final http:Client httpClient = check new (\"http://localhost:9090\");"
         },
         "returning": false,
         "properties": {
-          "values": {
+          "url": {
             "metadata": {
-              "label": "values",
-              "description": "The value(s) to be printed"
+              "label": "Url",
+              "description": "URL of the target service"
             },
             "types": [
               {
-                "fieldType": "REPEATABLE_LIST",
-                "ballerinaType": "io:Printable",
-                "template": {
-                  "types": [
-                    {
-                      "fieldType": "EXPRESSION",
-                      "ballerinaType": "io:Printable",
-                      "selected": false
-                    }
-                  ],
-                  "optional": false,
-                  "editable": false,
-                  "advanced": false,
-                  "hidden": false
-                },
+                "fieldType": "TEXT",
+                "ballerinaType": "string",
                 "selected": true
-              }
-            ],
-            "value": [
+              },
               {
-                "types": [
-                  {
-                    "fieldType": "EXPRESSION",
-                    "ballerinaType": "io:Printable",
-                    "selected": true
-                  }
-                ],
-                "value": "r",
-                "optional": false,
-                "editable": false,
-                "advanced": false,
-                "hidden": false
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string",
+                "selected": false
               }
             ],
-            "placeholder": "()",
+            "value": "\"http://localhost:9090\"",
+            "placeholder": "\"\"",
             "optional": false,
             "editable": true,
             "advanced": false,
             "hidden": false,
             "codedata": {
-              "kind": "REST_PARAMETER",
-              "originalName": "values"
+              "kind": "REQUIRED",
+              "originalName": "url"
             }
+          },
+          "httpVersion": {
+            "metadata": {
+              "label": "HTTP Version",
+              "description": "HTTP protocol version supported by the client"
+            },
+            "types": [
+              {
+                "fieldType": "SINGLE_SELECT",
+                "options": [
+                  {
+                    "label": "HTTP_1_0",
+                    "value": "\"1.0\""
+                  },
+                  {
+                    "label": "HTTP_1_1",
+                    "value": "\"1.1\""
+                  },
+                  {
+                    "label": "HTTP_2_0",
+                    "value": "\"2.0\""
+                  }
+                ],
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "http:HttpVersion",
+                "selected": false
+              }
+            ],
+            "placeholder": "\"2.0\"",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "INCLUDED_FIELD",
+              "originalName": "httpVersion"
+            },
+            "defaultValue": "\"2.0\""
+          },
+          "http1Settings": {
+            "metadata": {
+              "label": "HTTP1 Settings",
+              "description": "HTTP/1.x specific settings"
+            },
+            "types": [
+              {
+                "fieldType": "RECORD_MAP_EXPRESSION",
+                "ballerinaType": "http:ClientHttp1Settings",
+                "typeMembers": [
+                  {
+                    "type": "ClientHttp1Settings",
+                    "packageInfo": "ballerina:http:2.17.1",
+                    "packageName": "http",
+                    "kind": "RECORD_TYPE",
+                    "selected": false
+                  }
+                ],
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "http:ClientHttp1Settings",
+                "selected": false
+              }
+            ],
+            "placeholder": "{}",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "INCLUDED_FIELD",
+              "originalName": "http1Settings"
+            },
+            "defaultValue": "{}"
+          },
+          "http2Settings": {
+            "metadata": {
+              "label": "HTTP2 Settings",
+              "description": "HTTP/2 specific settings"
+            },
+            "types": [
+              {
+                "fieldType": "RECORD_MAP_EXPRESSION",
+                "ballerinaType": "http:ClientHttp2Settings",
+                "typeMembers": [
+                  {
+                    "type": "ClientHttp2Settings",
+                    "packageInfo": "ballerina:http:2.17.1",
+                    "packageName": "http",
+                    "kind": "RECORD_TYPE",
+                    "selected": false
+                  }
+                ],
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "http:ClientHttp2Settings",
+                "selected": false
+              }
+            ],
+            "placeholder": "{}",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "INCLUDED_FIELD",
+              "originalName": "http2Settings"
+            },
+            "defaultValue": "{}"
+          },
+          "timeout": {
+            "metadata": {
+              "label": "Timeout",
+              "description": "Maximum time(in seconds) to wait for a response before the request times out"
+            },
+            "types": [
+              {
+                "fieldType": "NUMBER",
+                "ballerinaType": "decimal",
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "decimal",
+                "selected": false
+              }
+            ],
+            "placeholder": "0.0d",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "INCLUDED_FIELD",
+              "originalName": "timeout"
+            },
+            "defaultValue": "0.0d"
+          },
+          "forwarded": {
+            "metadata": {
+              "label": "Forwarded",
+              "description": "The choice of setting `Forwarded`/`X-Forwarded-For` header, when acting as a proxy"
+            },
+            "types": [
+              {
+                "fieldType": "TEXT",
+                "ballerinaType": "string",
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string",
+                "selected": false
+              }
+            ],
+            "placeholder": "\"\"",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "INCLUDED_FIELD",
+              "originalName": "forwarded"
+            },
+            "defaultValue": "\"\""
+          },
+          "followRedirects": {
+            "metadata": {
+              "label": "Follow Redirects",
+              "description": "HTTP redirect handling configurations (with 3xx status codes)"
+            },
+            "types": [
+              {
+                "fieldType": "RECORD_MAP_EXPRESSION",
+                "ballerinaType": "http:FollowRedirects",
+                "typeMembers": [
+                  {
+                    "type": "FollowRedirects",
+                    "packageInfo": "ballerina:http:2.17.1",
+                    "packageName": "http",
+                    "kind": "RECORD_TYPE",
+                    "selected": false
+                  }
+                ],
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "http:FollowRedirects?",
+                "selected": false
+              }
+            ],
+            "placeholder": "()",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "INCLUDED_FIELD",
+              "originalName": "followRedirects"
+            },
+            "defaultValue": "()"
+          },
+          "poolConfig": {
+            "metadata": {
+              "label": "Pool Config",
+              "description": "Configurations associated with the request connection pool"
+            },
+            "types": [
+              {
+                "fieldType": "RECORD_MAP_EXPRESSION",
+                "ballerinaType": "http:PoolConfiguration",
+                "typeMembers": [
+                  {
+                    "type": "PoolConfiguration",
+                    "packageInfo": "ballerina:http:2.17.1",
+                    "packageName": "http",
+                    "kind": "RECORD_TYPE",
+                    "selected": false
+                  }
+                ],
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "http:PoolConfiguration?",
+                "selected": false
+              }
+            ],
+            "placeholder": "()",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "INCLUDED_FIELD",
+              "originalName": "poolConfig"
+            },
+            "defaultValue": "()"
+          },
+          "cache": {
+            "metadata": {
+              "label": "Cache",
+              "description": "HTTP response caching related configurations"
+            },
+            "types": [
+              {
+                "fieldType": "RECORD_MAP_EXPRESSION",
+                "ballerinaType": "http:CacheConfig",
+                "typeMembers": [
+                  {
+                    "type": "CacheConfig",
+                    "packageInfo": "ballerina:http:2.17.1",
+                    "packageName": "http",
+                    "kind": "RECORD_TYPE",
+                    "selected": false
+                  }
+                ],
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "http:CacheConfig",
+                "selected": false
+              }
+            ],
+            "placeholder": "{}",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "INCLUDED_FIELD",
+              "originalName": "cache"
+            },
+            "defaultValue": "{}"
+          },
+          "compression": {
+            "metadata": {
+              "label": "Compression",
+              "description": "Enable request/response compression (using `accept-encoding` header)"
+            },
+            "types": [
+              {
+                "fieldType": "SINGLE_SELECT",
+                "options": [
+                  {
+                    "label": "AUTO",
+                    "value": "\"AUTO\""
+                  },
+                  {
+                    "label": "ALWAYS",
+                    "value": "\"ALWAYS\""
+                  },
+                  {
+                    "label": "NEVER",
+                    "value": "\"NEVER\""
+                  }
+                ],
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "http:Compression",
+                "selected": false
+              }
+            ],
+            "placeholder": "\"AUTO\"",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "INCLUDED_FIELD",
+              "originalName": "compression"
+            },
+            "defaultValue": "\"AUTO\""
+          },
+          "auth": {
+            "metadata": {
+              "label": "Auth",
+              "description": "Client authentication options (Basic, Bearer token, OAuth, etc.)"
+            },
+            "types": [
+              {
+                "fieldType": "RECORD_MAP_EXPRESSION",
+                "ballerinaType": "http:CredentialsConfig|http:BearerTokenConfig|http:JwtIssuerConfig|http:OAuth2ClientCredentialsGrantConfig|http:OAuth2PasswordGrantConfig|http:OAuth2RefreshTokenGrantConfig|http:OAuth2JwtBearerGrantConfig",
+                "typeMembers": [
+                  {
+                    "type": "CredentialsConfig",
+                    "packageInfo": "ballerina:http:2.17.1",
+                    "packageName": "http",
+                    "kind": "RECORD_TYPE",
+                    "selected": false
+                  },
+                  {
+                    "type": "BearerTokenConfig",
+                    "packageInfo": "ballerina:http:2.17.1",
+                    "packageName": "http",
+                    "kind": "RECORD_TYPE",
+                    "selected": false
+                  },
+                  {
+                    "type": "JwtIssuerConfig",
+                    "packageInfo": "ballerina:http:2.17.1",
+                    "packageName": "http",
+                    "kind": "RECORD_TYPE",
+                    "selected": false
+                  },
+                  {
+                    "type": "OAuth2ClientCredentialsGrantConfig",
+                    "packageInfo": "ballerina:http:2.17.1",
+                    "packageName": "http",
+                    "kind": "RECORD_TYPE",
+                    "selected": false
+                  },
+                  {
+                    "type": "OAuth2PasswordGrantConfig",
+                    "packageInfo": "ballerina:http:2.17.1",
+                    "packageName": "http",
+                    "kind": "RECORD_TYPE",
+                    "selected": false
+                  },
+                  {
+                    "type": "OAuth2RefreshTokenGrantConfig",
+                    "packageInfo": "ballerina:http:2.17.1",
+                    "packageName": "http",
+                    "kind": "RECORD_TYPE",
+                    "selected": false
+                  },
+                  {
+                    "type": "OAuth2JwtBearerGrantConfig",
+                    "packageInfo": "ballerina:http:2.17.1",
+                    "packageName": "http",
+                    "kind": "RECORD_TYPE",
+                    "selected": false
+                  }
+                ],
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "http:ClientAuthConfig?",
+                "selected": false
+              }
+            ],
+            "placeholder": "()",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "INCLUDED_FIELD",
+              "originalName": "auth"
+            },
+            "defaultValue": "()"
+          },
+          "circuitBreaker": {
+            "metadata": {
+              "label": "Circuit Breaker",
+              "description": "Circuit breaker configurations to prevent cascading failures"
+            },
+            "types": [
+              {
+                "fieldType": "RECORD_MAP_EXPRESSION",
+                "ballerinaType": "http:CircuitBreakerConfig",
+                "typeMembers": [
+                  {
+                    "type": "CircuitBreakerConfig",
+                    "packageInfo": "ballerina:http:2.17.1",
+                    "packageName": "http",
+                    "kind": "RECORD_TYPE",
+                    "selected": false
+                  }
+                ],
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "http:CircuitBreakerConfig?",
+                "selected": false
+              }
+            ],
+            "placeholder": "()",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "INCLUDED_FIELD",
+              "originalName": "circuitBreaker"
+            },
+            "defaultValue": "()"
+          },
+          "retryConfig": {
+            "metadata": {
+              "label": "Retry Config",
+              "description": "Automatic retry settings for failed requests"
+            },
+            "types": [
+              {
+                "fieldType": "RECORD_MAP_EXPRESSION",
+                "ballerinaType": "http:RetryConfig",
+                "typeMembers": [
+                  {
+                    "type": "RetryConfig",
+                    "packageInfo": "ballerina:http:2.17.1",
+                    "packageName": "http",
+                    "kind": "RECORD_TYPE",
+                    "selected": false
+                  }
+                ],
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "http:RetryConfig?",
+                "selected": false
+              }
+            ],
+            "placeholder": "()",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "INCLUDED_FIELD",
+              "originalName": "retryConfig"
+            },
+            "defaultValue": "()"
+          },
+          "cookieConfig": {
+            "metadata": {
+              "label": "Cookie Config",
+              "description": "Cookie handling settings for session management"
+            },
+            "types": [
+              {
+                "fieldType": "RECORD_MAP_EXPRESSION",
+                "ballerinaType": "http:CookieConfig",
+                "typeMembers": [
+                  {
+                    "type": "CookieConfig",
+                    "packageInfo": "ballerina:http:2.17.1",
+                    "packageName": "http",
+                    "kind": "RECORD_TYPE",
+                    "selected": false
+                  }
+                ],
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "http:CookieConfig?",
+                "selected": false
+              }
+            ],
+            "placeholder": "()",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "INCLUDED_FIELD",
+              "originalName": "cookieConfig"
+            },
+            "defaultValue": "()"
+          },
+          "responseLimits": {
+            "metadata": {
+              "label": "Response Limits",
+              "description": "Limits for response size and headers (to prevent memory issues)"
+            },
+            "types": [
+              {
+                "fieldType": "RECORD_MAP_EXPRESSION",
+                "ballerinaType": "http:ResponseLimitConfigs",
+                "typeMembers": [
+                  {
+                    "type": "ResponseLimitConfigs",
+                    "packageInfo": "ballerina:http:2.17.1",
+                    "packageName": "http",
+                    "kind": "RECORD_TYPE",
+                    "selected": false
+                  }
+                ],
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "http:ResponseLimitConfigs",
+                "selected": false
+              }
+            ],
+            "placeholder": "{}",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "INCLUDED_FIELD",
+              "originalName": "responseLimits"
+            },
+            "defaultValue": "{}"
+          },
+          "proxy": {
+            "metadata": {
+              "label": "Proxy",
+              "description": "Proxy server settings if requests need to go through a proxy"
+            },
+            "types": [
+              {
+                "fieldType": "RECORD_MAP_EXPRESSION",
+                "ballerinaType": "http:ProxyConfig",
+                "typeMembers": [
+                  {
+                    "type": "ProxyConfig",
+                    "packageInfo": "ballerina:http:2.17.1",
+                    "packageName": "http",
+                    "kind": "RECORD_TYPE",
+                    "selected": false
+                  }
+                ],
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "http:ProxyConfig?",
+                "selected": false
+              }
+            ],
+            "placeholder": "()",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "INCLUDED_FIELD",
+              "originalName": "proxy"
+            },
+            "defaultValue": "()"
+          },
+          "validation": {
+            "metadata": {
+              "label": "Validation",
+              "description": "Enable automatic payload validation for request/response data against constraints"
+            },
+            "types": [
+              {
+                "fieldType": "FLAG",
+                "ballerinaType": "boolean",
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "boolean",
+                "selected": false
+              }
+            ],
+            "placeholder": "false",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "INCLUDED_FIELD",
+              "originalName": "validation"
+            },
+            "defaultValue": "false"
+          },
+          "socketConfig": {
+            "metadata": {
+              "label": "Socket Config",
+              "description": "Low-level socket settings (timeouts, buffer sizes, etc.)"
+            },
+            "types": [
+              {
+                "fieldType": "RECORD_MAP_EXPRESSION",
+                "ballerinaType": "http:ClientSocketConfig",
+                "typeMembers": [
+                  {
+                    "type": "ClientSocketConfig",
+                    "packageInfo": "ballerina:http:2.17.1",
+                    "packageName": "http",
+                    "kind": "RECORD_TYPE",
+                    "selected": false
+                  }
+                ],
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "http:ClientSocketConfig",
+                "selected": false
+              }
+            ],
+            "placeholder": "{}",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "INCLUDED_FIELD",
+              "originalName": "socketConfig"
+            },
+            "defaultValue": "{}"
+          },
+          "laxDataBinding": {
+            "metadata": {
+              "label": "Lax Data Binding",
+              "description": "Enable relaxed data binding on the client side.\nWhen enabled:\n- `null` values in JSON are allowed to be mapped to optional fields\n- missing fields in JSON are allowed to be mapped as `null` values"
+            },
+            "types": [
+              {
+                "fieldType": "FLAG",
+                "ballerinaType": "boolean",
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "boolean",
+                "selected": false
+              }
+            ],
+            "placeholder": "false",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "INCLUDED_FIELD",
+              "originalName": "laxDataBinding"
+            },
+            "defaultValue": "false"
+          },
+          "secureSocket": {
+            "metadata": {
+              "label": "Secure Socket",
+              "description": "SSL/TLS security settings for HTTPS connections"
+            },
+            "types": [
+              {
+                "fieldType": "RECORD_MAP_EXPRESSION",
+                "ballerinaType": "http:ClientSecureSocket",
+                "typeMembers": [
+                  {
+                    "type": "ClientSecureSocket",
+                    "packageInfo": "ballerina:http:2.17.1",
+                    "packageName": "http",
+                    "kind": "RECORD_TYPE",
+                    "selected": false
+                  }
+                ],
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "http:ClientSecureSocket?",
+                "selected": false
+              }
+            ],
+            "placeholder": "()",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "INCLUDED_FIELD",
+              "originalName": "secureSocket"
+            },
+            "defaultValue": "()"
+          },
+          "checkError": {
+            "metadata": {
+              "label": "Check Error",
+              "description": "Terminate on error"
+            },
+            "types": [
+              {
+                "fieldType": "FLAG",
+                "selected": true
+              }
+            ],
+            "value": true,
+            "optional": false,
+            "editable": false,
+            "advanced": true,
+            "hidden": true
+          },
+          "scope": {
+            "metadata": {
+              "label": "Connection Scope",
+              "description": "Scope of the connection, Global or Local"
+            },
+            "types": [
+              {
+                "fieldType": "ENUM",
+                "selected": true
+              }
+            ],
+            "value": "Global",
+            "optional": false,
+            "editable": true,
+            "advanced": true,
+            "hidden": true
+          },
+          "variable": {
+            "metadata": {
+              "label": "Connection Name",
+              "description": "Name of the connection"
+            },
+            "types": [
+              {
+                "fieldType": "IDENTIFIER",
+                "selected": true
+              }
+            ],
+            "value": "httpClient",
+            "optional": false,
+            "editable": false,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "lineRange": {
+                "fileName": "main.bal",
+                "startLine": {
+                  "line": 4,
+                  "offset": 18
+                },
+                "endLine": {
+                  "line": 4,
+                  "offset": 28
+                }
+              }
+            }
+          },
+          "type": {
+            "metadata": {
+              "label": "Connection Type",
+              "description": "Type of the variable"
+            },
+            "types": [
+              {
+                "fieldType": "TYPE",
+                "selected": true
+              }
+            ],
+            "value": "http:Client",
+            "placeholder": "var",
+            "optional": false,
+            "editable": false,
+            "advanced": false,
+            "hidden": true,
+            "codedata": {}
           }
         },
-        "flags": 0
+        "flags": 1
       }
-    ],
-    "connections": []
+    ]
   }
 }

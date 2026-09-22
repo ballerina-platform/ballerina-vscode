@@ -26,10 +26,12 @@ import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Option;
 import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
+import io.ballerina.flowmodelgenerator.core.model.node.FromExpressionOption;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import static io.ballerina.modelgenerator.commons.ParameterData.Kind.REQUIRED;
@@ -50,6 +52,13 @@ public class RestActivityStrategy implements BuiltinActivityStrategy {
     public static final String MESSAGE_LABEL = "Message";
     public static final String MESSAGE_DESCRIPTION = "Request body, sent with POST, PUT, PATCH and DELETE";
     public static final String HEADERS_KEY = "headers";
+    // The method dropdown's escape hatch: the method as a string expression, written back unquoted.
+    public static final String METHOD_EXPRESSION_KEY = "methodExpression";
+    private static final String METHOD_EXPRESSION_LABEL = "Method Expression";
+    private static final String METHOD_EXPRESSION_DOC = "The HTTP method as a string expression: a constant or a "
+            + "variable. A literal such as \"GET\" reopens as that method.";
+    private static final String NO_METHOD_EXPRESSION_MESSAGE =
+            "From Expression needs a value: fill in Method Expression";
 
     // HTTP method options
     private static final String METHOD_GET = "GET";
@@ -57,6 +66,8 @@ public class RestActivityStrategy implements BuiltinActivityStrategy {
     private static final String METHOD_PUT = "PUT";
     private static final String METHOD_DELETE = "DELETE";
     private static final String METHOD_PATCH = "PATCH";
+    private static final List<String> METHODS = List.of(METHOD_GET, METHOD_POST, METHOD_PUT, METHOD_DELETE,
+            METHOD_PATCH);
 
     public static final String HTTP_PKG_ORG = "ballerina";
     public static final String HTTP_PKG_MODULE = "http";
@@ -65,54 +76,44 @@ public class RestActivityStrategy implements BuiltinActivityStrategy {
     private static final String STRATEGY_DESCRIPTION =
             "Call a REST API endpoint as a workflow activity using a configured http:Client connection.";
 
+    /**
+     * The method dropdown's reading of a {@code method:} source value: one of the fixed methods, or
+     * the expression option carrying the source as typed.
+     *
+     * @param method     the dropdown selection
+     * @param expression the method source under the expression option, empty otherwise
+     */
+    public record MethodSelection(String method, String expression) {
+
+        public static MethodSelection template() {
+            return new MethodSelection(METHOD_GET, "");
+        }
+
+        /**
+         * Reads a {@code method:} argument. A string literal naming a fixed method selects it; any
+         * other expression — a constant, a variable — is kept as typed under the expression option.
+         *
+         * @param source the argument source, or {@code null} when absent
+         * @return the selection
+         */
+        public static MethodSelection fromSource(String source) {
+            if (source == null || source.isBlank()) {
+                return template();
+            }
+            String trimmed = source.trim();
+            if (BuiltinActivityStrategy.isBallerinaStringExpression(trimmed)) {
+                String literal = trimmed.substring(1, trimmed.length() - 1).toUpperCase(Locale.ROOT);
+                if (METHODS.contains(literal)) {
+                    return new MethodSelection(literal, "");
+                }
+            }
+            return new MethodSelection(FromExpressionOption.VALUE, trimmed);
+        }
+    }
+
     @Override
     public void setFormProperties(NodeBuilder nodeBuilder, NodeBuilder.TemplateContext context) {
-        List<Option> methodOptions = List.of(
-                new Option(METHOD_GET, METHOD_GET),
-                new Option(METHOD_POST, METHOD_POST),
-                new Option(METHOD_PUT, METHOD_PUT),
-                new Option(METHOD_DELETE, METHOD_DELETE),
-                new Option(METHOD_PATCH, METHOD_PATCH)
-        );
-
-        // The body, shown under every method the module passes it to. GET is the one method whose
-        // dispatch ignores it (`connection->get(path, headers)`), so it is not offered there and a
-        // body typed under another method is not carried into it.
-        Property messageSubProp = new Property.Builder<Void>(null)
-                .metadata()
-                    .label(MESSAGE_LABEL)
-                    .description(MESSAGE_DESCRIPTION)
-                    .stepOut()
-                .type().fieldType(Property.ValueType.EXPRESSION)
-                    .ballerinaType("http:RequestMessage").selected(true).stepOut()
-                .value("")
-                .editable(true)
-                .build();
-
-        Map<String, Map<String, Property>> methodDynamicFields = new LinkedHashMap<>();
-        methodDynamicFields.put(METHOD_GET, Map.of());
-        methodDynamicFields.put(METHOD_POST, Map.of(MESSAGE_KEY, messageSubProp));
-        methodDynamicFields.put(METHOD_PUT, Map.of(MESSAGE_KEY, messageSubProp));
-        methodDynamicFields.put(METHOD_DELETE, Map.of(MESSAGE_KEY, messageSubProp));
-        methodDynamicFields.put(METHOD_PATCH, Map.of(MESSAGE_KEY, messageSubProp));
-
-        nodeBuilder.properties().custom()
-                .metadata()
-                    .label("Method")
-                    .description("HTTP method to invoke")
-                    .stepOut()
-                .type()
-                    .fieldType(Property.ValueType.DROPDOWN_CHOICE)
-                    .options(methodOptions)
-                    .selected(true)
-                    .stepOut()
-                .codedata().kind(REQUIRED.name()).stepOut()
-                .value(METHOD_GET)
-                .editable(true)
-                .itemOptions(ItemOption.from(methodOptions))
-                .dynamicFormFields(methodDynamicFields)
-                .stepOut()
-                .addProperty(METHOD_KEY);
+        addMethodProperties(nodeBuilder, MethodSelection.template(), "");
 
         // Path — TEXT (default) + EXPRESSION; defaults to "" matching the API default
         nodeBuilder.properties().custom()
@@ -160,6 +161,72 @@ public class RestActivityStrategy implements BuiltinActivityStrategy {
                 .addProperty(HEADERS_KEY);
     }
 
+    /**
+     * Adds the method dropdown, its per-method body sub-field, the expression option's field and the
+     * hidden root property holding the expression. Shared with the source re-read in
+     * {@code CodeAnalyzer.populateRestProperties} so both render the same form.
+     *
+     * @param nodeBuilder the form being built
+     * @param selection   the dropdown selection and expression to seed
+     * @param message     the body value to seed the sub-field with
+     */
+    public static void addMethodProperties(NodeBuilder nodeBuilder, MethodSelection selection, String message) {
+        List<Option> methodOptions = List.of(
+                new Option(METHOD_GET, METHOD_GET),
+                new Option(METHOD_POST, METHOD_POST),
+                new Option(METHOD_PUT, METHOD_PUT),
+                new Option(METHOD_DELETE, METHOD_DELETE),
+                new Option(METHOD_PATCH, METHOD_PATCH),
+                FromExpressionOption.option());
+
+        // The body, shown under every method the module passes it to. GET is the one method whose
+        // dispatch ignores it (`connection->get(path, headers)`), so it is not offered there and a
+        // body typed under another method is not carried into it.
+        Property messageSubProp = new Property.Builder<Void>(null)
+                .metadata()
+                    .label(MESSAGE_LABEL)
+                    .description(MESSAGE_DESCRIPTION)
+                    .stepOut()
+                .type().fieldType(Property.ValueType.EXPRESSION)
+                    .ballerinaType("http:RequestMessage").selected(true).stepOut()
+                .value(message == null ? "" : message)
+                .editable(true)
+                .build();
+
+        Map<String, Map<String, Property>> methodDynamicFields = new LinkedHashMap<>();
+        methodDynamicFields.put(METHOD_GET, Map.of());
+        methodDynamicFields.put(METHOD_POST, Map.of(MESSAGE_KEY, messageSubProp));
+        methodDynamicFields.put(METHOD_PUT, Map.of(MESSAGE_KEY, messageSubProp));
+        methodDynamicFields.put(METHOD_DELETE, Map.of(MESSAGE_KEY, messageSubProp));
+        methodDynamicFields.put(METHOD_PATCH, Map.of(MESSAGE_KEY, messageSubProp));
+        // An expression may name any method, so the body is offered beside it.
+        Map<String, Property> fromExpressionFields = new LinkedHashMap<>();
+        fromExpressionFields.put(METHOD_EXPRESSION_KEY, FromExpressionOption.subProperty(METHOD_EXPRESSION_LABEL,
+                METHOD_EXPRESSION_DOC, "string"));
+        fromExpressionFields.put(MESSAGE_KEY, messageSubProp);
+        methodDynamicFields.put(FromExpressionOption.VALUE, fromExpressionFields);
+
+        nodeBuilder.properties().custom()
+                .metadata()
+                    .label("Method")
+                    .description("HTTP method to invoke")
+                    .stepOut()
+                .type()
+                    .fieldType(Property.ValueType.DROPDOWN_CHOICE)
+                    .options(methodOptions)
+                    .selected(true)
+                    .stepOut()
+                .codedata().kind(REQUIRED.name()).stepOut()
+                .value(selection.method())
+                .editable(true)
+                .itemOptions(ItemOption.from(methodOptions))
+                .dynamicFormFields(methodDynamicFields)
+                .stepOut()
+                .addProperty(METHOD_KEY);
+        FromExpressionOption.addHiddenProperty(nodeBuilder, METHOD_EXPRESSION_KEY, METHOD_EXPRESSION_LABEL,
+                METHOD_EXPRESSION_DOC, "string", selection.expression());
+    }
+
     // NOTE: BuiltinActivityStrategy.processSpecialParameter is intentionally NOT overridden here.
     // ActivityCallBuilder.processSpecialParameter routes RestActivityStrategy params to its own
     // private processRestParameter(...) and never delegates to the strategy, so a REST override
@@ -195,16 +262,21 @@ public class RestActivityStrategy implements BuiltinActivityStrategy {
     public List<String> getCallActivityArgs(SourceBuilder sourceBuilder) {
         Map<String, Property> properties = sourceBuilder.flowNode.properties();
         String method = BuiltinActivityStrategy.getPropertyValue(properties, METHOD_KEY, METHOD_GET);
+        boolean fromExpression = FromExpressionOption.isSelected(method);
 
         List<String> args = new ArrayList<>();
 
-        args.add("method: \"" + method + "\"");
+        // A fixed method is a string literal; an expression is the source as typed, never quoted.
+        args.add("method: " + (fromExpression
+                ? FromExpressionOption.expression(properties, METHOD_EXPRESSION_KEY, NO_METHOD_EXPRESSION_MESSAGE)
+                : "\"" + method + "\""));
 
         // path — quote if TEXT-typed; only emit when non-default
         BuiltinActivityStrategy.addQuotedArg(args, "path", properties, PATH_KEY);
 
-        // message — every method but GET, whose dispatch in the module ignores it
-        if (isPayloadMethod(method)) {
+        // message — every method but GET, whose dispatch in the module ignores it; an expression
+        // may name any of them, so its body goes along when given
+        if (fromExpression || isPayloadMethod(method)) {
             String message = BuiltinActivityStrategy.getPropertyValue(properties, MESSAGE_KEY, "");
             if (!message.isEmpty()) {
                 args.add("message: " + message);

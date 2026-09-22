@@ -135,10 +135,8 @@ import io.ballerina.flowmodelgenerator.core.model.CommentProperty;
 import io.ballerina.flowmodelgenerator.core.model.Diagnostics;
 import io.ballerina.flowmodelgenerator.core.model.FlowNode;
 import io.ballerina.flowmodelgenerator.core.model.FormBuilder;
-import io.ballerina.flowmodelgenerator.core.model.ItemOption;
 import io.ballerina.flowmodelgenerator.core.model.NodeBuilder;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
-import io.ballerina.flowmodelgenerator.core.model.Option;
 import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.node.ActivityCallBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.AgentBuilder;
@@ -160,6 +158,7 @@ import io.ballerina.flowmodelgenerator.core.model.node.DurableAgentStartBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.DurableAgentUpdateBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.EmbeddingProviderBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.FailBuilder;
+import io.ballerina.flowmodelgenerator.core.model.node.FromExpressionOption;
 import io.ballerina.flowmodelgenerator.core.model.node.FunctionCall;
 import io.ballerina.flowmodelgenerator.core.model.node.FunctionDefinitionBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.HumanTaskBuilder;
@@ -1689,6 +1688,8 @@ public class CodeAnalyzer extends NodeVisitor {
                     if ("activity".equals(capabilityType) && "retryPolicy".equals(fieldName)) {
                         RetryPolicyForm retryForm = normalizeRetryPolicy(rawValue);
                         values.put(ActivityCallBuilder.RETRY_POLICY_PARAM, retryForm.dropdownValue());
+                        putIfNotBlank(values, ActivityCallBuilder.RETRY_POLICY_EXPRESSION_KEY,
+                                retryForm.expression());
                         putIfNotBlank(values, ActivityCallBuilder.MAX_RETRIES_KEY, retryForm.maxRetries());
                         putIfNotBlank(values, ActivityCallBuilder.RETRY_DELAY_KEY, retryForm.retryDelay());
                         putIfNotBlank(values, ActivityCallBuilder.RETRY_BACKOFF_KEY, retryForm.retryBackoff());
@@ -1800,10 +1801,11 @@ public class CodeAnalyzer extends NodeVisitor {
     private static final Set<String> ROLE_FIELDS = Set.of("roles", "userRoles");
 
     // The policy decomposes into the approval dropdown's selection plus its review fields, the way
-    // retryPolicy does; a policy the form cannot read is carried as the selection itself.
+    // retryPolicy does; a policy the form cannot read is carried under the expression option.
     private static void hydrateApprovalPolicy(ExpressionNode policy, Map<String, String> values) {
         ApprovalPolicyForm.Form form = ApprovalPolicyForm.normalize(policy.toSourceCode().trim());
         values.put(ApprovalPolicyForm.KEY, form.dropdownValue());
+        putIfNotBlank(values, ApprovalPolicyForm.EXPRESSION_KEY, form.expression());
         putReviewValues(values, ApprovalPolicyForm.REVIEW_KEYS, form.review());
     }
 
@@ -2480,7 +2482,8 @@ public class CodeAnalyzer extends NodeVisitor {
     // Both policies as their dropdowns, approval first as CallActivityOptions declares them.
     private void addNormalizedPolicyProperties(String rawApprovalPolicy, String rawRetryPolicy) {
         ApprovalPolicyForm.Form approval = ApprovalPolicyForm.normalize(rawApprovalPolicy);
-        ApprovalPolicyForm.addFormProperties(nodeBuilder, approval.dropdownValue(), approval.review());
+        ApprovalPolicyForm.addFormProperties(nodeBuilder, approval.dropdownValue(), approval.review(), true,
+                approval.expression());
         addNormalizedRetryPolicyProperties(rawRetryPolicy);
     }
 
@@ -2493,19 +2496,19 @@ public class CodeAnalyzer extends NodeVisitor {
         RetryPolicyForm form = normalizeRetryPolicy(rawValue);
         ActivityCallBuilder.addRetryPolicyFormProperties(nodeBuilder, form.dropdownValue(),
                 form.maxRetries(), form.retryDelay(), form.retryBackoff(), form.maxRetryDelay(),
-                form.review());
+                form.review(), form.expression());
     }
 
     // The retry-policy form's decomposition of a raw retryPolicy source value: the dropdown
-    // selection plus its sub-field values.
+    // selection plus its sub-field values, or the source itself under the expression option.
     record RetryPolicyForm(String dropdownValue, String maxRetries, String retryDelay,
                            String retryBackoff, String maxRetryDelay,
-                           ActivityCallBuilder.ReviewFormValues review) {
+                           ActivityCallBuilder.ReviewFormValues review, String expression) {
     }
 
     static RetryPolicyForm normalizeRetryPolicy(String rawValue) {
         String dropdownValue = ActivityCallBuilder.NO_RETRY_VALUE;
-        String maxRetries = "", retryDelay = "", retryBackoff = "", maxRetryDelay = "";
+        String maxRetries = "", retryDelay = "", retryBackoff = "", maxRetryDelay = "", expression = "";
         ActivityCallBuilder.ReviewFormValues review = ActivityCallBuilder.ReviewFormValues.empty();
 
         if (rawValue != null && !rawValue.isBlank()) {
@@ -2560,13 +2563,14 @@ public class CodeAnalyzer extends NodeVisitor {
                 review = ActivityCallBuilder.ReviewFormValues.ofRoles(trimmed);
             } else {
                 // Any other expression — a const, variable or call producing the policy — is not a
-                // shape the form can edit. Carry it as the dropdown value so it round-trips
-                // verbatim instead of being reinterpreted and re-emitted as something else.
-                dropdownValue = trimmed;
+                // shape the form can edit. It opens under the expression option and is written
+                // back verbatim instead of being reinterpreted and re-emitted as something else.
+                dropdownValue = FromExpressionOption.VALUE;
+                expression = trimmed;
             }
         }
         return new RetryPolicyForm(dropdownValue, maxRetries, retryDelay, retryBackoff,
-                maxRetryDelay, review);
+                maxRetryDelay, review, expression);
     }
 
     // `userRoles: ()` says the users alone decide; the form shows that as an empty roles field.
@@ -2605,7 +2609,7 @@ public class CodeAnalyzer extends NodeVisitor {
     // Whether the expression IS one of the named policy sentinels, bare or module-qualified.
     // Exact identifier matching, not substring containment: a user variable that merely contains
     // a sentinel word (`defaultNoRetryPolicy`) is an opaque expression and must round-trip
-    // verbatim through the opaque-option branch.
+    // verbatim through the expression option.
     private static boolean isRetryPolicySentinel(String expression, String... sentinelNames) {
         String bare = WorkflowUtil.stripModulePrefix(expression);
         for (String sentinel : sentinelNames) {
@@ -2618,43 +2622,10 @@ public class CodeAnalyzer extends NodeVisitor {
 
     /** Rebuilds REST-specific form properties from source values, preserving template shapes. */
     private void populateRestProperties(Map<String, String> src) {
-        // method — DROPDOWN_CHOICE; strip quotes carried over from source ("GET" → GET)
-        String method = src.getOrDefault(RestActivityStrategy.METHOD_KEY, "GET");
-        if (method.length() >= 2 && method.startsWith("\"") && method.endsWith("\"")) {
-            method = method.substring(1, method.length() - 1);
-        }
-        List<Option> methodOptions = List.of(
-                new Option("GET", "GET"), new Option("POST", "POST"),
-                new Option("PUT", "PUT"), new Option("DELETE", "DELETE"),
-                new Option("PATCH", "PATCH"));
-
-        Property messageSubProp = new Property.Builder<Void>(null)
-                .metadata()
-                    .label(RestActivityStrategy.MESSAGE_LABEL)
-                    .description(RestActivityStrategy.MESSAGE_DESCRIPTION)
-                    .stepOut()
-                .type().fieldType(Property.ValueType.EXPRESSION)
-                    .ballerinaType("http:RequestMessage").selected(true).stepOut()
-                .value(src.getOrDefault(RestActivityStrategy.MESSAGE_KEY, ""))
-                .editable(true)
-                .build();
-
-        Map<String, Map<String, Property>> methodDynamicFields = new LinkedHashMap<>();
-        methodDynamicFields.put("GET", Map.of());
-        methodDynamicFields.put("POST", Map.of(RestActivityStrategy.MESSAGE_KEY, messageSubProp));
-        methodDynamicFields.put("PUT", Map.of(RestActivityStrategy.MESSAGE_KEY, messageSubProp));
-        methodDynamicFields.put("DELETE", Map.of(RestActivityStrategy.MESSAGE_KEY, messageSubProp));
-        methodDynamicFields.put("PATCH", Map.of(RestActivityStrategy.MESSAGE_KEY, messageSubProp));
-
-        nodeBuilder.properties().custom()
-                .metadata().label("Method").description("HTTP method to invoke").stepOut()
-                .type().fieldType(Property.ValueType.DROPDOWN_CHOICE)
-                    .options(methodOptions).selected(true).stepOut()
-                .codedata().kind(ParameterData.Kind.REQUIRED.name()).stepOut()
-                .value(method).editable(true)
-                .itemOptions(ItemOption.from(methodOptions))
-                .dynamicFormFields(methodDynamicFields)
-                .stepOut().addProperty(RestActivityStrategy.METHOD_KEY);
+        // method — the dropdown for a literal method, the expression option for anything else
+        RestActivityStrategy.addMethodProperties(nodeBuilder,
+                RestActivityStrategy.MethodSelection.fromSource(src.get(RestActivityStrategy.METHOD_KEY)),
+                src.getOrDefault(RestActivityStrategy.MESSAGE_KEY, ""));
 
         // path — TEXT/EXPRESSION; detect existing string-literal to set mode correctly
         addDualTypeProperty(src, RestActivityStrategy.PATH_KEY,
