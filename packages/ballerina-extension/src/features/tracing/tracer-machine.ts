@@ -60,6 +60,7 @@ export interface TracerMachineContext {
     childProjectPaths?: string[];
     isDisabling?: boolean;
     restartRequested?: boolean;
+    stopRequested?: boolean;
     traceServer?: TraceServer;
     taskExecution?: vscode.TaskExecution;
     taskTerminationListener?: vscode.Disposable;
@@ -221,6 +222,7 @@ function createTracerMachine(projectPath?: string, childProjectPaths?: string[])
                 childProjectPaths: childProjectPaths,
                 isDisabling: false,
                 restartRequested: false,
+                stopRequested: false,
                 taskExecution: undefined,
                 taskTerminationListener: undefined
             },
@@ -349,23 +351,44 @@ function createTracerMachine(projectPath?: string, childProjectPaths?: string[])
                         serverStarting: {
                             invoke: {
                                 src: startServer,
-                                onDone: {
-                                    target: "serverStarted",
-                                    actions: assign({
-                                        error: undefined,
-                                        taskExecution: (context, event) => (event as any).data,
-                                    }),
-                                },
+                                onDone: [
+                                    {
+                                        target: "serverStopping",
+                                        cond: (context) => context.stopRequested === true,
+                                        actions: assign({
+                                            error: undefined,
+                                            taskExecution: (context, event) => (event as any).data,
+                                            stopRequested: false,
+                                        }),
+                                    },
+                                    {
+                                        target: "serverStarted",
+                                        actions: assign({
+                                            error: undefined,
+                                            taskExecution: (context, event) => (event as any).data,
+                                        }),
+                                    },
+                                ],
                                 onError: {
                                     target: "serverFailedToStart",
                                     actions: assign({
                                         error: (context, event) => {
                                             const err = (event as any).data;
                                             return err instanceof Error ? err.message : String(err);
-                                        }
+                                        },
+                                        stopRequested: false,
                                     })
                                 }
-                            }
+                            },
+                            on: {
+                                STOP_SERVER: {
+                                    actions: [
+                                        assign({
+                                            stopRequested: true,
+                                        }),
+                                    ],
+                                },
+                            },
                         },
                         /**
                          * Server start failed

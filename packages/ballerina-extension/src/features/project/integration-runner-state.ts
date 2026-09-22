@@ -99,9 +99,6 @@ function gcRun(run: ActiveRun): void {
 }
 
 function stopTraceServerIfUnused(): void {
-    if (!TracerMachine.isServerStarted()) {
-        return;
-    }
     for (const run of activeRuns.values()) {
         if (isRunAlive(run) && getActiveTracingProvider(run.projectPath) === "idetraceprovider") {
             return;
