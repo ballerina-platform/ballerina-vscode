@@ -14,7 +14,7 @@ import * as path from "path";
 import { commands, debug, DebugSession, TaskExecution, tasks, Terminal, Uri, window } from "vscode";
 import { extension } from "../../BalExtensionContext";
 import { startDebugging } from "../editor-support/activator";
-import { TracerMachine } from "../tracing";
+import { getActiveTracingProvider, TracerMachine } from "../tracing";
 import { PALETTE_COMMANDS } from "./cmds/cmd-runner";
 
 const BALLERINA_DEBUG_TYPE = "ballerina";
@@ -94,7 +94,21 @@ function isRunAlive(run: ActiveRun): boolean {
 function gcRun(run: ActiveRun): void {
     if (!isRunAlive(run)) {
         activeRuns.delete(run.projectPath);
+        stopTraceServerIfUnused();
     }
+}
+
+// Only idetraceprovider consumes the local trace server; amp exports remotely and doesn't keep it alive.
+function stopTraceServerIfUnused(): void {
+    if (!TracerMachine.isServerStarted()) {
+        return;
+    }
+    for (const run of activeRuns.values()) {
+        if (isRunAlive(run) && getActiveTracingProvider(run.projectPath) === "idetraceprovider") {
+            return;
+        }
+    }
+    TracerMachine.stopServer();
 }
 
 /** All live runs located at, or inside, the given path. */
