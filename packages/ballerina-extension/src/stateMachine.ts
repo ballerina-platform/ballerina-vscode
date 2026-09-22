@@ -435,14 +435,14 @@ const stateMachine = createMachine<MachineContext>(
                             if (!scaffoldPromptTriggered) {
                                 const scaffoldPrompt = process.env.INITIAL_SCAFFOLD_PROMPT;
                                 const scaffoldSteps = process.env.INITIAL_SCAFFOLD_STEPS;
+                                const startText = "Implementing Proposed Steps\n\n";
                                 if (scaffoldPrompt && scaffoldSteps) {
                                     scaffoldPromptTriggered = true;
                                     openAIPanelWithPrompt({
                                         type: 'text',
-                                        text: scaffoldPrompt,
-                                        planMode: true,
-                                        autoSubmit: true,
-                                        hiddenContext: scaffoldSteps
+                                        text: `${startText}\n\n${scaffoldSteps}`,
+                                        planMode: false,
+                                        autoSubmit: true
                                     });
                                 }
                             }
