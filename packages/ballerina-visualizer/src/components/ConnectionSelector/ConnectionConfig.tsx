@@ -220,7 +220,7 @@ export function ConnectionConfig(props: ConnectionConfigProps): JSX.Element {
                 <InfoBox
                     text="Configure this model provider using the command palette command:"
                     description={`Open the command palette with ${shortcut}, then run:`}
-                    codeCommand="> Ballerina: Configure default WSO2 model provider"
+                    codeCommand="> WSO2 Integrator: Configure default WSO2 model provider"
                 />
             ),
             index: Infinity,
