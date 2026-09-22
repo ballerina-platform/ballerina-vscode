@@ -506,6 +506,7 @@ function createTracerMachine(projectPath?: string, childProjectPaths?: string[])
                                                 return err instanceof Error ? err.message : String(err);
                                             },
                                             isDisabling: false,
+                                            restartRequested: false,
                                         }),
                                     ],
                                 }
@@ -522,6 +523,13 @@ function createTracerMachine(projectPath?: string, childProjectPaths?: string[])
                                     actions: [
                                         assign({
                                             restartRequested: true,
+                                        }),
+                                    ],
+                                },
+                                STOP_SERVER: {
+                                    actions: [
+                                        assign({
+                                            restartRequested: false,
                                         }),
                                     ],
                                 },
