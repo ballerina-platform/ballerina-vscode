@@ -34,6 +34,7 @@ import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
 import io.ballerina.flowmodelgenerator.core.utils.WorkflowUtil;
 import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.modelgenerator.commons.FileSystemUtils;
+import io.ballerina.modelgenerator.commons.ParameterData;
 import org.ballerinalang.langserver.common.utils.NameUtil;
 import org.eclipse.lsp4j.TextEdit;
 
@@ -69,6 +70,9 @@ public class ChildWorkflowCallBuilder extends NodeBuilder {
     public static final String INPUT_KEY = "input";
     public static final String INPUT_LABEL = "Input";
     public static final String INPUT_DOC = "Input data for the child workflow";
+    public static final String WORKFLOW_NAME_KEY = ChildWorkflowRunBuilder.WORKFLOW_NAME_KEY;
+    public static final String RESULT_TYPE_LABEL = "Result Type";
+    public static final String RESULT_TYPE_DOC = "Type of the child workflow's result.";
     private static final String DEFAULT_VARIABLE_NAME = "childResult";
     private static final String DEFAULT_RESULT_TYPE = "json";
 
@@ -98,6 +102,27 @@ public class ChildWorkflowCallBuilder extends NodeBuilder {
                     .version(codedata.version());
         }
 
+        // Pre-selected to whatever the list was clicked on, and editable so the choice can be
+        // changed — and read — from the form itself, as the run form does.
+        String selectedWorkflow = codedata != null && codedata.symbol() != null ? codedata.symbol() : "";
+        properties().custom()
+                .metadata()
+                    .label(ChildWorkflowRunBuilder.WORKFLOW_NAME_LABEL)
+                    .description(ChildWorkflowRunBuilder.WORKFLOW_NAME_DOC)
+                    .stepOut()
+                .type()
+                    .fieldType(Property.ValueType.SINGLE_SELECT)
+                    .options(SendDataBuilder.getAvailableWorkflowFunctions(context))
+                    .selected(true)
+                    .stepOut()
+                .codedata()
+                    .kind(ParameterData.Kind.REQUIRED.name())
+                    .stepOut()
+                .value(selectedWorkflow)
+                .editable(true)
+                .stepOut()
+                .addProperty(WORKFLOW_NAME_KEY);
+
         TypeSymbol inputType = ChildWorkflowRunBuilder.findSelectedWorkflowInputType(context, codedata);
         if (inputType != null) {
             properties().custom()
@@ -106,6 +131,8 @@ public class ChildWorkflowCallBuilder extends NodeBuilder {
                         .description(INPUT_DOC)
                         .stepOut()
                     .typeWithExpression(inputType, moduleInfo)
+                    // Typed from the chosen workflow, so a new choice in the form retypes it.
+                    .codedata().dependentProperty(WORKFLOW_NAME_KEY).stepOut()
                     .placeholder("")
                     .value("")
                     .editable(true)
@@ -118,10 +145,11 @@ public class ChildWorkflowCallBuilder extends NodeBuilder {
         String resultType = resolveResultType(context, codedata);
         properties().custom()
                 .metadata()
-                    .label("Result Type")
-                    .description("Type of the child workflow's result.")
+                    .label(RESULT_TYPE_LABEL)
+                    .description(RESULT_TYPE_DOC)
                     .stepOut()
                 .type(Property.ValueType.TYPE)
+                .codedata().dependentProperty(WORKFLOW_NAME_KEY).stepOut()
                 .value(resultType)
                 .editable(true)
                 .stepOut()
@@ -144,7 +172,12 @@ public class ChildWorkflowCallBuilder extends NodeBuilder {
 
     @Override
     public Map<Path, List<TextEdit>> toSource(SourceBuilder sourceBuilder) {
-        String childWorkflowFunction = sourceBuilder.flowNode.codedata().symbol();
+        // The form's selection wins, so changing it in the form changes the generated call; the
+        // codedata symbol is what the palette selected and remains the fallback.
+        String childWorkflowFunction = sourceBuilder.getProperty(WORKFLOW_NAME_KEY)
+                .map(property -> property.value() == null ? "" : property.value().toString().trim())
+                .filter(value -> !value.isBlank())
+                .orElseGet(() -> sourceBuilder.flowNode.codedata().symbol());
         if (childWorkflowFunction == null || childWorkflowFunction.isBlank()) {
             throw new IllegalStateException("A workflow function symbol is required for CHILD_WORKFLOW_CALL");
         }

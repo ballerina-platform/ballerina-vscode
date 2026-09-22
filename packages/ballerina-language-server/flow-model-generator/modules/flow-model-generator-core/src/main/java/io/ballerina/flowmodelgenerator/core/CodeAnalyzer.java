@@ -148,6 +148,8 @@ import io.ballerina.flowmodelgenerator.core.model.node.ApprovalPolicyForm;
 import io.ballerina.flowmodelgenerator.core.model.node.AssignBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.BinaryBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.CallBuilder;
+import io.ballerina.flowmodelgenerator.core.model.node.ChildWorkflowRunBuilder;
+import io.ballerina.flowmodelgenerator.core.model.node.ChildWorkflowSendDataBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.ChunkerBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.ClassInitBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.DataLoaderBuilder;
@@ -176,6 +178,7 @@ import io.ballerina.flowmodelgenerator.core.model.node.RemoteActionCallBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.ResourceActionCallBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.ReturnBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.RollbackBuilder;
+import io.ballerina.flowmodelgenerator.core.model.node.SendDataBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.ShortTermMemoryStoreBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.StartBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.VariableBuilder;
@@ -295,6 +298,7 @@ public class CodeAnalyzer extends NodeVisitor {
     public static final String PARAMETERIZED_CALL_QUERY = "sql:ParameterizedCallQuery";
     // Readonly fields
     private final Project project;
+    private List<Option> workflowOptions;
     private final SemanticModel semanticModel;
     private final Map<String, LineRange> dataMappings;
     private final Map<String, LineRange> naturalFunctions;
@@ -591,7 +595,105 @@ public class CodeAnalyzer extends NodeVisitor {
             // Carry the child workflow function as the node symbol so the diagram labels the node
             // with the workflow it starts, matching the palette-created template.
             overrideSymbolFromFirstArg(remoteMethodCallActionNode.arguments(), CHILD_WORKFLOW_PARAM);
+            populateChildWorkflowStartProperties(remoteMethodCallActionNode);
+        } else if (isWorkflowCtxOperation(remoteMethodCallActionNode, classSymbol,
+                Constants.Workflow.WAIT_CHILD_WORKFLOW_METHOD_NAME)) {
+            populateChildWorkflowHandleProperties(remoteMethodCallActionNode, false);
+        } else if (isWorkflowCtxOperation(remoteMethodCallActionNode, classSymbol,
+                Constants.Workflow.SEND_DATA_CHILD_WORKFLOW_METHOD_NAME)) {
+            populateChildWorkflowHandleProperties(remoteMethodCallActionNode, true);
         }
+    }
+
+    /**
+     * Gives a child workflow start read from source the form its template offers: the workflow as a
+     * dropdown that can be changed, the input typed from that workflow rather than from the library
+     * signature's {@code anydata}, and none of the context-object fields the generic remote-action
+     * path adds. Without this an existing statement opened as a different form from a new one.
+     */
+    private void populateChildWorkflowStartProperties(RemoteMethodCallActionNode callNode) {
+        SeparatedNodeList<FunctionArgumentNode> args = callNode.arguments();
+        Map<String, Property> props = nodeBuilder.properties().build();
+        props.remove(Property.CONNECTION_KEY);
+        props.remove(Property.CHECK_ERROR_KEY);
+        props.remove(CHILD_WORKFLOW_PARAM);
+
+        Optional<ExpressionNode> target = argumentExpression(args, 0, CHILD_WORKFLOW_PARAM);
+        addWorkflowSelectProperty(ChildWorkflowRunBuilder.WORKFLOW_NAME_KEY,
+                ChildWorkflowRunBuilder.WORKFLOW_NAME_LABEL, ChildWorkflowRunBuilder.WORKFLOW_NAME_DOC,
+                target.map(expression -> expression.toSourceCode().trim()).orElse(""));
+        Optional<Symbol> resolved = target.flatMap(expression -> semanticModel.symbol(expression));
+        if (resolved.isPresent() && resolved.get() instanceof FunctionSymbol workflowFunction) {
+            retypeWorkflowInput(workflowFunction, args, 1, RUN_INPUT_PARAM, ChildWorkflowRunBuilder.INPUT_KEY,
+                    ChildWorkflowRunBuilder.INPUT_LABEL, ChildWorkflowRunBuilder.INPUT_DOC,
+                    ChildWorkflowRunBuilder.WORKFLOW_NAME_KEY);
+        }
+        // callWorkflow infers its result type; the variable's own type field edits it, and the
+        // inferred parameter would sit beside that field as a box labelled `T`.
+        dropInferredTypeParameter(props);
+        WorkflowUtil.reorderProperties(props, ChildWorkflowRunBuilder.WORKFLOW_NAME_KEY,
+                ChildWorkflowRunBuilder.INPUT_KEY, Property.TYPE_KEY, Property.VARIABLE_KEY, WorkflowUtil.STEP_ID_KEY);
+    }
+
+    /**
+     * Gives a wait or a send on a child workflow handle the form its template offers. The send
+     * also names the workflow the handle belongs to — followed back to the start that bound it —
+     * so its data-event dropdown has a workflow to list the events of.
+     */
+    private void populateChildWorkflowHandleProperties(RemoteMethodCallActionNode callNode, boolean sendsData) {
+        Map<String, Property> props = nodeBuilder.properties().build();
+        props.remove(Property.CONNECTION_KEY);
+        props.remove(Property.CHECK_ERROR_KEY);
+        if (!sendsData) {
+            // waitForChildWorkflow infers its result type; the template offers the field, so the
+            // re-read form does too.
+            dropInferredTypeParameter(props);
+            return;
+        }
+        String handle = argumentExpression(callNode.arguments(), 0, ChildWorkflowSendDataBuilder.CHILD_WORKFLOW_ID_KEY)
+                .map(expression -> expression.toSourceCode().trim()).orElse("");
+        String workflow = handle.isEmpty() ? null : findChildWorkflowForHandle(callNode, handle);
+        addWorkflowSelectProperty(ChildWorkflowSendDataBuilder.WORKFLOW_NAME_KEY,
+                ChildWorkflowSendDataBuilder.WORKFLOW_NAME_LABEL, ChildWorkflowSendDataBuilder.WORKFLOW_NAME_DOC,
+                workflow == null ? "" : workflow);
+        WorkflowUtil.reorderProperties(props, ChildWorkflowSendDataBuilder.CHILD_WORKFLOW_ID_KEY,
+                ChildWorkflowSendDataBuilder.WORKFLOW_NAME_KEY, ChildWorkflowSendDataBuilder.DATA_NAME_KEY,
+                ChildWorkflowSendDataBuilder.DATA_KEY);
+    }
+
+    /**
+     * Drops the inferred {@code typedesc} parameter from a form that edits the result type through
+     * its own field. The generic read surfaces the parameter itself — a box labelled {@code T}
+     * beside "Variable Type", which the templates do not offer and which edits the same thing.
+     */
+    private void dropInferredTypeParameter(Map<String, Property> properties) {
+        nodeBuilder.codedata().inferredReturnType(null);
+        properties.entrySet().removeIf(entry -> entry.getValue().codedata() != null
+                && ParameterData.Kind.PARAM_FOR_TYPE_INFER.name().equals(entry.getValue().codedata().kind()));
+    }
+
+    // The workflow dropdown every form that picks a workflow carries, with the package's workflow
+    // functions as its options. Re-adding at an existing key keeps that key's position.
+    private void addWorkflowSelectProperty(String key, String label, String doc, String value) {
+        nodeBuilder.properties().custom()
+                .metadata().label(label).description(doc).stepOut()
+                .type().fieldType(Property.ValueType.SINGLE_SELECT)
+                    .options(workflowOptions()).selected(true).stepOut()
+                .codedata().kind(ParameterData.Kind.REQUIRED.name()).stepOut()
+                .value(value)
+                .editable(true)
+                .stepOut()
+                .addProperty(key);
+    }
+
+    // Walking every module's symbols is not free and a diagram holds many of these nodes, so the
+    // package's workflow functions are gathered once per analysis.
+    private List<Option> workflowOptions() {
+        if (workflowOptions == null) {
+            workflowOptions = project == null ? List.of()
+                    : WorkflowUtil.workflowFunctionOptions(project.currentPackage());
+        }
+        return workflowOptions;
     }
 
     private void populateAgentMetaData(ExpressionNode expressionNode, ClassSymbol classSymbol) {
@@ -4726,6 +4828,12 @@ public class CodeAnalyzer extends NodeVisitor {
         if (isWorkflowOperation(functionSymbol, RUN_METHOD_NAME)) {
             overrideSymbolFromFirstArg(functionCallExpressionNode.arguments(), RUN_PROCESS_FUNCTION_PARAM);
             populateWorkflowRunProperties(functionCallExpressionNode);
+        } else if (isWorkflowOperation(functionSymbol, SEND_DATA_METHOD_NAME)) {
+            // The signature types the workflow as a bare function; the template offers a dropdown.
+            String workflow = argumentExpression(functionCallExpressionNode.arguments(), 0,
+                    SendDataBuilder.WORKFLOW_NAME_KEY).map(expression -> expression.toSourceCode().trim()).orElse("");
+            addWorkflowSelectProperty(SendDataBuilder.WORKFLOW_NAME_KEY, SendDataBuilder.WORKFLOW_NAME_LABEL,
+                    SendDataBuilder.WORKFLOW_NAME_DOC, workflow);
         }
     }
 
@@ -4753,27 +4861,52 @@ public class CodeAnalyzer extends NodeVisitor {
         if (processFunctionExpr.isEmpty()) {
             return;
         }
+        // The template offers the workflow as a dropdown that can be changed; so does the re-read form.
+        addWorkflowSelectProperty(WorkflowRunBuilder.WORKFLOW_NAME_KEY, WorkflowRunBuilder.WORKFLOW_NAME_LABEL,
+                WorkflowRunBuilder.WORKFLOW_NAME_DOC, processFunctionExpr.get().toSourceCode().trim());
         Optional<Symbol> resolvedSymbol = semanticModel.symbol(processFunctionExpr.get());
-        if (resolvedSymbol.isEmpty() || !(resolvedSymbol.get() instanceof FunctionSymbol workflowFuncSymbol)) {
-            return;
+        if (resolvedSymbol.isPresent() && resolvedSymbol.get() instanceof FunctionSymbol workflowFuncSymbol) {
+            retypeWorkflowInput(workflowFuncSymbol, args, 1, RUN_INPUT_PARAM, WorkflowRunBuilder.INPUT_KEY,
+                    WorkflowRunBuilder.INPUT_LABEL, WorkflowRunBuilder.INPUT_DOC, WorkflowRunBuilder.WORKFLOW_NAME_KEY);
         }
+        WorkflowUtil.reorderProperties(currentProps, WorkflowRunBuilder.WORKFLOW_NAME_KEY, WorkflowRunBuilder.INPUT_KEY,
+                Property.VARIABLE_KEY);
+    }
 
-        // The workflow's input parameter is the first parameter that is a subtype of anydata.
-        TypeSymbol inputType = WorkflowRunBuilder.findWorkflowInputType(workflowFuncSymbol, semanticModel);
+    /**
+     * Re-types a workflow start's {@code input} from the target workflow's declared input parameter
+     * (the first parameter that is a subtype of {@code anydata}; {@code workflow:Context} and the
+     * events record are not anydata), matching the template path. The generic read typed it from
+     * the library signature, which says {@code anydata} and loses the workflow's own type.
+     *
+     * @param workflowFunction the workflow being started
+     * @param args             the call's arguments
+     * @param inputIndex       the input's position among them
+     * @param inputParamName   the input's parameter name, for the named form
+     * @param key              the property key the form edits the input under
+     * @param label            its label
+     * @param doc              its description
+     * @param dependsOn        the workflow dropdown's key, so a new choice retypes the input
+     */
+    private void retypeWorkflowInput(FunctionSymbol workflowFunction, SeparatedNodeList<FunctionArgumentNode> args,
+                                     int inputIndex, String inputParamName, String key, String label, String doc,
+                                     String dependsOn) {
+        Map<String, Property> currentProps = nodeBuilder.properties().build();
+        TypeSymbol inputType = WorkflowRunBuilder.findWorkflowInputType(workflowFunction, semanticModel);
         if (inputType == null) {
             // The workflow function declares no input; drop the library-derived input property.
-            currentProps.remove(WorkflowRunBuilder.INPUT_KEY);
+            currentProps.remove(key);
             return;
         }
 
         // Resolve the current input value from the call source, in either argument form.
-        Node valueNode = argumentExpression(args, 1, RUN_INPUT_PARAM).orElse(null);
+        Node valueNode = argumentExpression(args, inputIndex, inputParamName).orElse(null);
         // The input property built by processFunctionSymbol already consumed the diagnostic-handler
         // cursor for this value node, so its diagnostics are correct — only its type is wrong
         // (library map<anydata>? vs the workflow's declared type). Capture those diagnostics and
         // re-apply them, and rebuild the type WITHOUT the handler so the single-pass cursor is not
         // advanced a second time for the same node (which would drop or misattribute diagnostics).
-        Property existingInputProp = currentProps.get(WorkflowRunBuilder.INPUT_KEY);
+        Property existingInputProp = currentProps.get(key);
         String value = valueNode != null ? valueNode.toSourceCode().strip()
                 : (existingInputProp != null && existingInputProp.value() != null
                         ? existingInputProp.value().toString() : "");
@@ -4783,9 +4916,10 @@ public class CodeAnalyzer extends NodeVisitor {
         Property.Builder<FormBuilder<NodeBuilder>> customPropBuilder = nodeBuilder.properties().custom();
         FormBuilder<NodeBuilder> formBuilder = customPropBuilder
                 .metadata()
-                    .label(WorkflowRunBuilder.INPUT_LABEL)
-                    .description(WorkflowRunBuilder.INPUT_DOC)
+                    .label(label)
+                    .description(doc)
                     .stepOut()
+                .codedata().dependentProperty(dependsOn).stepOut()
                 .value(value)
                 .placeholder("")
                 .editable()
@@ -4797,7 +4931,7 @@ public class CodeAnalyzer extends NodeVisitor {
                 customPropBuilder.diagnostics().diagnostics(existingDiagnostics.diagnostics());
             }
         }
-        formBuilder.addProperty(WorkflowRunBuilder.INPUT_KEY, valueNode);
+        formBuilder.addProperty(key, valueNode);
     }
 
     private void processFunctionSymbol(NonTerminalNode callNode, SeparatedNodeList<FunctionArgumentNode> arguments,

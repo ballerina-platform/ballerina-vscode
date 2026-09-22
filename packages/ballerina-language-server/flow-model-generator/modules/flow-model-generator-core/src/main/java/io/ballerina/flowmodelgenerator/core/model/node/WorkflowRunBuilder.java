@@ -32,6 +32,7 @@ import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
 import io.ballerina.modelgenerator.commons.FileSystemUtils;
+import io.ballerina.modelgenerator.commons.ParameterData;
 import org.ballerinalang.langserver.common.utils.NameUtil;
 import org.eclipse.lsp4j.TextEdit;
 
@@ -56,6 +57,9 @@ public class WorkflowRunBuilder extends NodeBuilder {
     public static final String DESCRIPTION = "Run a workflow instance";
 
     public static final String INPUT_KEY = "input";
+    public static final String WORKFLOW_NAME_KEY = "workflow";
+    public static final String WORKFLOW_NAME_LABEL = "Workflow";
+    public static final String WORKFLOW_NAME_DOC = "The workflow to start";
     public static final String INPUT_LABEL = "Input";
     public static final String INPUT_DOC = "Input data for the workflow";
     private static final String RUN_METHOD = "run";
@@ -103,6 +107,28 @@ public class WorkflowRunBuilder extends NodeBuilder {
                     .addProperty(INPUT_KEY);
         }
 
+        if (!durableAgent) {
+            // Pre-selected to whatever the list was clicked on, and editable so the choice can be
+            // changed — and read — from the form itself, as the child workflow forms do.
+            properties().custom()
+                    .metadata()
+                        .label(WORKFLOW_NAME_LABEL)
+                        .description(WORKFLOW_NAME_DOC)
+                        .stepOut()
+                    .type()
+                        .fieldType(Property.ValueType.SINGLE_SELECT)
+                        .options(SendDataBuilder.getAvailableWorkflowFunctions(context))
+                        .selected(true)
+                        .stepOut()
+                    .codedata()
+                        .kind(ParameterData.Kind.REQUIRED.name())
+                        .stepOut()
+                    .value(codedata != null && codedata.symbol() != null ? codedata.symbol() : "")
+                    .editable(true)
+                    .stepOut()
+                    .addProperty(WORKFLOW_NAME_KEY);
+        }
+
         // Get the input parameter type from the workflow function's second parameter
         TypeSymbol inputType = durableAgent ? null : getWorkflowInputType(context, codedata);
 
@@ -113,6 +139,8 @@ public class WorkflowRunBuilder extends NodeBuilder {
                     .description(INPUT_DOC)
                     .stepOut()
                     .typeWithExpression(inputType, moduleInfo)
+                    // Typed from the chosen workflow, so a new choice in the form retypes it.
+                    .codedata().dependentProperty(WORKFLOW_NAME_KEY).stepOut()
                     .placeholder("")
                     .value("")
                     .editable(true)
@@ -154,8 +182,12 @@ public class WorkflowRunBuilder extends NodeBuilder {
                 .keyword(SyntaxKind.EQUAL_TOKEN)
                 .keyword(SyntaxKind.CHECK_KEYWORD);
 
-        // Get workflow function from codedata.symbol()
-        String workflowFunction = flowNode.codedata().symbol();
+        // The form's selection wins; the codedata symbol is what the palette selected and remains
+        // the fallback (and the only source for a durable agent, whose form has no dropdown).
+        String workflowFunction = sourceBuilder.getProperty(WORKFLOW_NAME_KEY)
+                .map(p -> p.value() == null ? "" : p.value().toString().trim())
+                .filter(value -> !value.isBlank())
+                .orElseGet(() -> flowNode.codedata().symbol());
         if (workflowFunction == null) {
             throw new IllegalStateException("Workflow symbol is required for WORKFLOW_RUN");
         }

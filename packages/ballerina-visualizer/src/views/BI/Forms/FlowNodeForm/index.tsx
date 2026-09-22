@@ -99,6 +99,7 @@ import IfForm from "../IfForm";
 import { ConnectionConfigurationPopup } from "../../Connection/ConnectionConfigurationPopup";
 import { createPortal } from "react-dom";
 import { cloneDeep, debounce } from "lodash";
+import { dependentKeysFromTemplate, retypeFieldsFromTemplate } from "./dependentFields";
 import {
     createNodeWithUpdatedLineRange,
     deserializeForDiagnosticsAPI,
@@ -882,12 +883,45 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         }
     };
 
+    // The fields typed from a dropdown's choice take their type from the template for the new
+    // choice; the last fetch wins when choices change faster than templates arrive.
+    const retypeRequest = useRef(0);
+    const retypeDependentFields = useCallback(async (fieldKey: string, value: unknown) => {
+        const changed = baseFields.find((field) => field.key === fieldKey);
+        const isSelect = changed?.types?.some((type) => type.fieldType === "SINGLE_SELECT");
+        // A dropdown is the only thing that retypes other fields, and it changes rarely, so asking
+        // for the template on every one of its changes costs nothing a keystroke would.
+        if (!isSelect || typeof value !== "string" || value === "" || !fileName) {
+            return;
+        }
+        const request = ++retypeRequest.current;
+        try {
+            const response = await rpcClient.getBIDiagramRpcClient().getNodeTemplate({
+                position: targetLineRange?.startLine,
+                filePath: fileName,
+                id: { ...node.codedata, symbol: value },
+            });
+            if (request !== retypeRequest.current || !response?.flowNode) {
+                return;
+            }
+            const template = getFormProperties(response.flowNode) ?? {};
+            const keys = dependentKeysFromTemplate(template, fieldKey);
+            if (keys.length === 0) {
+                return;
+            }
+            setBaseFields((prev) => retypeFieldsFromTemplate(prev, keys, template));
+        } catch (error) {
+            console.error(">>> Failed to retype the fields that follow", fieldKey, error);
+        }
+    }, [baseFields, fileName, node.codedata, rpcClient, targetLineRange]);
+
     const handleFormChange = useCallback(
         (fieldKey: string, value: any, allValues: FormValues) => {
             setFormDiagnostics(prev => prev.length > 0 ? [] : prev);
+            void retypeDependentFields(fieldKey, value);
             onChange?.(fieldKey, value, allValues);
         },
-        [onChange]
+        [onChange, retypeDependentFields]
     );
 
 
@@ -2183,7 +2217,9 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         );
     }
 
-    if (node?.codedata.node === "SEND_DATA") {
+    // Sending to a child workflow asks for the same workflow → data event → payload chain as
+    // sending to a top-level one; the form is keyed by field names, so it serves both.
+    if (node?.codedata.node === "SEND_DATA" || node?.codedata.node === "CHILD_WORKFLOW_SEND_DATA") {
         return (
             <SendEventForm
                 fileName={fileName}

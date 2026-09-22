@@ -1,0 +1,109 @@
+{
+  "source": "workflow_function/functions.bal",
+  "position": {
+    "line": 16,
+    "offset": 4
+  },
+  "description": "Child Workflow Send Data node template",
+  "codedata": {
+    "node": "CHILD_WORKFLOW_SEND_DATA"
+  },
+  "output": {
+    "id": "31",
+    "metadata": {
+      "label": "Send Data to Child Workflow",
+      "description": "Send a data event to a running child workflow"
+    },
+    "codedata": {
+      "node": "CHILD_WORKFLOW_SEND_DATA",
+      "org": "ballerina",
+      "module": "workflow",
+      "object": "Context",
+      "symbol": "sendDataToChildWorkflow",
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "childWorkflowId": {
+        "metadata": {
+          "label": "Child Workflow ID",
+          "description": "The child workflow ID returned by Run Child Workflow."
+        },
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string",
+            "selected": true
+          }
+        ],
+        "placeholder": "childWorkflowId",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "workflow": {
+        "metadata": {
+          "label": "Child Workflow",
+          "description": "The workflow the child workflow ID belongs to; its data events are offered below"
+        },
+        "types": [
+          {
+            "fieldType": "SINGLE_SELECT",
+            "options": [
+              {
+                "label": "orderWorkflow",
+                "value": "orderWorkflow"
+              }
+            ],
+            "selected": true
+          }
+        ],
+        "value": "",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "dataName": {
+        "metadata": {
+          "label": "Data Event",
+          "description": "The data event name: the field name of the child workflow's data-events record this payload is delivered to."
+        },
+        "types": [
+          {
+            "fieldType": "SINGLE_SELECT",
+            "ballerinaType": "string",
+            "options": [],
+            "selected": true
+          }
+        ],
+        "value": "",
+        "placeholder": "\"dataName\"",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "data": {
+        "metadata": {
+          "label": "Data",
+          "description": "The payload to send; must match the data event's declared type."
+        },
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "anydata",
+            "selected": true
+          }
+        ],
+        "placeholder": "",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      }
+    },
+    "flags": 0
+  }
+}
