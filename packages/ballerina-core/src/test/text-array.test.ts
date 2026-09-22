@@ -30,6 +30,12 @@ describe("a TEXT_SET field and the source it stands for", () => {
         ["a reference", "financeRoles", undefined],
         ["a list holding a reference", '["finance", lead]', undefined],
         ["a call", 'roles("finance")', undefined],
+        // The one escape a re-encode cannot reproduce: left as written it gains a backslash on
+        // every save. Mirrors WorkflowUtilLiteralTest on the language server side.
+        ["a numeric escape", '"grin \\u{1F600}"', ["grin \u{1F600}"]],
+        ["a numeric escape mid-string", '["\\u{41}BC"]', ["ABC"]],
+        ["an out-of-range code point", '"\\u{110000}"', ["\\u{110000}"]],
+        ["a lone surrogate", '"\\u{D800}"', ["\\u{D800}"]],
     ])("%s reads as %j", (_label, source, expected) => {
         expect(parseTextArraySource(source)).toEqual(expected);
     });
@@ -42,6 +48,14 @@ describe("a TEXT_SET field and the source it stands for", () => {
         [[], ""],
     ])("%j writes as %s", (items, expected) => {
         expect(textArraySource(items)).toBe(expected);
+    });
+
+    // The round trip below only covers escapes `stringLiteral` itself emits, so it can never
+    // exercise one that appears only in hand-written source.
+    it("round-trips a name a numeric escape named, without gaining a backslash", () => {
+        const items = parseTextArraySource('["grin \\u{1F600}", "\\u{41}BC"]')!;
+        expect(items).toEqual(["grin \u{1F600}", "ABC"]);
+        expect(parseTextArraySource(textArraySource(items))).toEqual(items);
     });
 
     it("round-trips what it writes", () => {

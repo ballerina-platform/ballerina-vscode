@@ -15,7 +15,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { dependentFieldKeys, dependentKeysFromTemplate, retypeFieldsFromTemplate } from "./dependentFields";
+import { dependentKeysFromTemplate, picksWorkflow, retypeFieldsFromTemplate } from "./dependentFields";
 
 const field = (key: string, extra: Record<string, any> = {}) => ({
     key, label: key, type: "EXPRESSION", optional: false, editable: true, documentation: "",
@@ -26,14 +26,9 @@ describe("fields that follow a workflow dropdown", () => {
     const fields = [
         field("workflow"),
         field("input", { codedata: { dependentProperty: "workflow" }, value: "claimId" }),
-        field("type", { codedata: { dependentProperty: ["workflow"] }, value: "json" }),
+        field("type", { codedata: { dependentProperty: "workflow" }, value: "json" }),
         field("variable"),
     ];
-
-    it("names the fields that depend on the changed one, in either spelling of the link", () => {
-        expect(dependentFieldKeys(fields, "workflow")).toEqual(["input", "type"]);
-        expect(dependentFieldKeys(fields, "variable")).toEqual([]);
-    });
 
     // A statement re-read from source does not carry the tag on its variable-type property, so the
     // template is what the retype asks — it always does.
@@ -72,6 +67,20 @@ describe("fields that follow a workflow dropdown", () => {
         // A default the template carries is the new choice's own and replaces the old.
         expect(retyped[2].value).toBe("string");
         expect(retyped[0]).toBe(fields[0]);
+    });
+
+    it("asks for a template only where a dropdown holds a workflow", () => {
+        expect(["WORKFLOW_RUN", "CHILD_WORKFLOW_RUN", "CHILD_WORKFLOW_CALL"].every(picksWorkflow)).toBe(true);
+        // A model provider's dropdown holds a model name, not a symbol to fetch a template for.
+        expect(picksWorkflow("AGENT_CALL")).toBe(false);
+        expect(picksWorkflow("CHILD_WORKFLOW_WAIT")).toBe(false);
+        expect(picksWorkflow(undefined)).toBe(false);
+    });
+
+    it("survives a template property that carries no types", () => {
+        const bare = [field("workflow"), field("input", { codedata: { dependentProperty: "workflow" } })];
+
+        expect(() => retypeFieldsFromTemplate(bare, ["input"], { input: { placeholder: "{}" } } as any)).not.toThrow();
     });
 
     it("hides a field the new choice has no use for", () => {

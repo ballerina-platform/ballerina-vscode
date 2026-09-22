@@ -54,6 +54,22 @@ describe("seedCapabilityValue", () => {
         expect(modeOf(several)).toBe("TEXT_SET");
     });
 
+    // The one escape a re-encode cannot reproduce. Kept identical to the core decoder and to
+    // WorkflowUtil on the language server side.
+    it("decodes a numeric escape in a role list rather than doubling its backslash", () => {
+        const property = listMode();
+        seedCapabilityValue(property, '["grin \\u{1F600}", "\\u{41}BC"]');
+        expect(property.value).toEqual(["grin \u{1F600}", "ABC"]);
+    });
+
+    it("names nobody for the shapes that state no role", () => {
+        for (const source of ["()", "[]"]) {
+            const property = listMode();
+            seedCapabilityValue(property, source);
+            expect(property.value).toEqual([]);
+        }
+    });
+
     it("keeps a role reference an expression even beside a role list", () => {
         const property = listMode();
         seedCapabilityValue(property, "financeRoles");

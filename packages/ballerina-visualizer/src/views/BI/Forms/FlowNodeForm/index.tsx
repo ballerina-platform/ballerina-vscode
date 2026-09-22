@@ -99,7 +99,7 @@ import IfForm from "../IfForm";
 import { ConnectionConfigurationPopup } from "../../Connection/ConnectionConfigurationPopup";
 import { createPortal } from "react-dom";
 import { cloneDeep, debounce } from "lodash";
-import { dependentKeysFromTemplate, retypeFieldsFromTemplate } from "./dependentFields";
+import { dependentKeysFromTemplate, picksWorkflow, retypeFieldsFromTemplate } from "./dependentFields";
 import {
     createNodeWithUpdatedLineRange,
     deserializeForDiagnosticsAPI,
@@ -887,11 +887,13 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     // choice; the last fetch wins when choices change faster than templates arrive.
     const retypeRequest = useRef(0);
     const retypeDependentFields = useCallback(async (fieldKey: string, value: unknown) => {
+        // Only the forms that pick a workflow: elsewhere a dropdown holds something that is not a
+        // symbol, and a template fetched for it would ask for one that does not exist.
+        if (!picksWorkflow(node.codedata?.node) || typeof value !== "string" || value === "" || !fileName) {
+            return;
+        }
         const changed = baseFields.find((field) => field.key === fieldKey);
-        const isSelect = changed?.types?.some((type) => type.fieldType === "SINGLE_SELECT");
-        // A dropdown is the only thing that retypes other fields, and it changes rarely, so asking
-        // for the template on every one of its changes costs nothing a keystroke would.
-        if (!isSelect || typeof value !== "string" || value === "" || !fileName) {
+        if (!changed?.types?.some((type) => type.fieldType === "SINGLE_SELECT")) {
             return;
         }
         const request = ++retypeRequest.current;

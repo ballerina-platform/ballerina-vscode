@@ -19,19 +19,22 @@ import { FormField } from "@wso2/ballerina-side-panel";
 import { NodeProperties } from "@wso2/ballerina-core";
 
 /**
- * A field typed from another field's value — the child workflow's input from the workflow
- * dropdown, say — carries that field's key as `codedata.dependentProperty`. When the dropdown
- * changes, the template for the new choice is fetched and the dependent fields take their type,
- * placeholder and documentation from it, keeping whatever the person had typed.
+ * The node kinds whose form picks a workflow and types other fields from it. Asking for a template
+ * is gated on these: a SINGLE_SELECT is common — a model provider, a type — and a template fetched
+ * for `symbol: "gpt-4o"` asks the language server for a symbol that does not exist.
  */
-export function dependentFieldKeys(fields: FormField[], changedKey: string): string[] {
-    return fields.filter((field) => dependsOn(field.codedata, changedKey)).map((field) => field.key);
+const WORKFLOW_PICKING_NODES = ["WORKFLOW_RUN", "CHILD_WORKFLOW_RUN", "CHILD_WORKFLOW_CALL"];
+
+/** Whether this node's form is one that retypes its fields from a chosen workflow. */
+export function picksWorkflow(nodeKind: string | undefined): boolean {
+    return !!nodeKind && WORKFLOW_PICKING_NODES.includes(nodeKind);
 }
 
 /**
- * The same, read from a freshly fetched template. A statement re-read from source does not always
- * carry the tags — the variable's type property is attached after the analysis that would set them
- * — while the template a choice is fetched with always does, so it is the one asked.
+ * The fields a template says follow another field's value — the child workflow's input follows the
+ * workflow dropdown, say. The template is what is asked rather than the node being edited: a
+ * statement re-read from source does not carry the tags, because its variable-type property is
+ * attached after the analysis that would set them.
  */
 export function dependentKeysFromTemplate(template: NodeProperties, changedKey: string): string[] {
     return Object.entries((template ?? {}) as Record<string, any>)
@@ -39,9 +42,8 @@ export function dependentKeysFromTemplate(template: NodeProperties, changedKey: 
         .map(([key]) => key);
 }
 
-function dependsOn(codedata: { dependentProperty?: string | string[] } | undefined, changedKey: string): boolean {
-    const declared = codedata?.dependentProperty;
-    return Array.isArray(declared) ? declared.includes(changedKey) : declared === changedKey;
+function dependsOn(codedata: { dependentProperty?: string } | undefined, changedKey: string): boolean {
+    return codedata?.dependentProperty === changedKey;
 }
 
 /**
@@ -61,7 +63,9 @@ export function retypeFieldsFromTemplate(fields: FormField[], keys: string[], te
         return {
             ...field,
             hidden: false,
-            types: JSON.parse(JSON.stringify(property.types ?? field.types)),
+            // A fresh copy, so editing the retyped field cannot reach back into the template. Both
+            // sides may be absent: `Property.types` is optional on the wire.
+            types: structuredClone(property.types ?? field.types ?? []),
             placeholder: property.placeholder ?? field.placeholder,
             documentation: property.metadata?.description ?? field.documentation,
             // A value the template carries is the new choice's own default — the result type of

@@ -39,6 +39,22 @@ export function stringLiteralText(literal: string): string | undefined {
             continue;
         }
         const next = body[i + 1];
+        if (next === "u") {
+            // A numeric escape, decoded: re-encoding cannot reproduce the escape, only the
+            // character it names, so leaving it as written doubles its backslash on the way out.
+            // An invalid code point or a lone surrogate names no character and stays as written,
+            // which is what the language server's decoder does with it.
+            const close = body[i + 2] === "{" ? body.indexOf("}", i + 3) : -1;
+            const digits = close === -1 ? "" : body.slice(i + 3, close);
+            const code = /^[0-9a-fA-F]+$/.test(digits) ? Number.parseInt(digits, 16) : NaN;
+            if (Number.isInteger(code) && code <= 0x10ffff && !(code >= 0xd800 && code <= 0xdfff)) {
+                text += String.fromCodePoint(code);
+                i = close;
+                continue;
+            }
+            text += current;
+            continue;
+        }
         switch (next) {
             case "n": text += "\n"; break;
             case "t": text += "\t"; break;
