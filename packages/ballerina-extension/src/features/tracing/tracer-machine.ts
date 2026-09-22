@@ -59,6 +59,8 @@ export interface TracerMachineContext {
     currentProjectPath?: string;
     childProjectPaths?: string[];
     isDisabling?: boolean;
+    restartRequested?: boolean;
+    stopRequested?: boolean;
     traceServer?: TraceServer;
     taskExecution?: vscode.TaskExecution;
     taskTerminationListener?: vscode.Disposable;
@@ -180,6 +182,14 @@ function hasOtherIdeTracingProjects(context: TracerMachineContext, event?: any):
     return false;
 }
 
+function resolveProjectDir(projectPath: string): string {
+    try {
+        return fs.statSync(projectPath).isFile() ? path.dirname(projectPath) : projectPath;
+    } catch {
+        return projectPath;
+    }
+}
+
 function startServer(context: TracerMachineContext, event?: any): Thenable<vscode.TaskExecution> {
     const task = createTraceServerTask();
     return vscode.tasks.executeTask(task);
@@ -219,6 +229,8 @@ function createTracerMachine(projectPath?: string, childProjectPaths?: string[])
                 currentProjectPath: projectPath,
                 childProjectPaths: childProjectPaths,
                 isDisabling: false,
+                restartRequested: false,
+                stopRequested: false,
                 taskExecution: undefined,
                 taskTerminationListener: undefined
             },
@@ -347,23 +359,44 @@ function createTracerMachine(projectPath?: string, childProjectPaths?: string[])
                         serverStarting: {
                             invoke: {
                                 src: startServer,
-                                onDone: {
-                                    target: "serverStarted",
-                                    actions: assign({
-                                        error: undefined,
-                                        taskExecution: (context, event) => (event as any).data,
-                                    }),
-                                },
+                                onDone: [
+                                    {
+                                        target: "serverStopping",
+                                        cond: (context) => context.stopRequested === true,
+                                        actions: assign({
+                                            error: undefined,
+                                            taskExecution: (context, event) => (event as any).data,
+                                            stopRequested: false,
+                                        }),
+                                    },
+                                    {
+                                        target: "serverStarted",
+                                        actions: assign({
+                                            error: undefined,
+                                            taskExecution: (context, event) => (event as any).data,
+                                        }),
+                                    },
+                                ],
                                 onError: {
                                     target: "serverFailedToStart",
                                     actions: assign({
                                         error: (context, event) => {
                                             const err = (event as any).data;
                                             return err instanceof Error ? err.message : String(err);
-                                        }
+                                        },
+                                        stopRequested: false,
                                     })
                                 }
-                            }
+                            },
+                            on: {
+                                STOP_SERVER: {
+                                    actions: [
+                                        assign({
+                                            stopRequested: true,
+                                        }),
+                                    ],
+                                },
+                            },
                         },
                         /**
                          * Server start failed
@@ -455,6 +488,16 @@ function createTracerMachine(projectPath?: string, childProjectPaths?: string[])
                                         actions: [
                                             assign({
                                                 isDisabling: false,
+                                                restartRequested: false,
+                                            }),
+                                        ],
+                                    },
+                                    {
+                                        target: "serverStarting",
+                                        cond: (context) => context.restartRequested === true,
+                                        actions: [
+                                            assign({
+                                                restartRequested: false,
                                             }),
                                         ],
                                     },
@@ -471,6 +514,7 @@ function createTracerMachine(projectPath?: string, childProjectPaths?: string[])
                                                 return err instanceof Error ? err.message : String(err);
                                             },
                                             isDisabling: false,
+                                            restartRequested: false,
                                         }),
                                     ],
                                 }
@@ -480,6 +524,20 @@ function createTracerMachine(projectPath?: string, childProjectPaths?: string[])
                                     actions: [
                                         assign({
                                             isDisabling: true,
+                                        }),
+                                    ],
+                                },
+                                START_SERVER: {
+                                    actions: [
+                                        assign({
+                                            restartRequested: true,
+                                        }),
+                                    ],
+                                },
+                                STOP_SERVER: {
+                                    actions: [
+                                        assign({
+                                            restartRequested: false,
                                         }),
                                     ],
                                 },
@@ -599,8 +657,7 @@ export const TracerMachine = {
 
     // context.provider is machine-wide and can be stale, so fail open (start) when projectPath is unknown.
     startServer: (projectPath?: string) => {
-        // Agent Manager exports traces remotely; the local OTLP receiver has nothing to catch.
-        if (projectPath && getActiveTracingProvider(projectPath) === 'amp') {
+        if (projectPath && getActiveTracingProvider(resolveProjectDir(projectPath)) !== 'idetraceprovider') {
             return;
         }
         ensureInitialized().send({ type: 'START_SERVER' });
