@@ -59,6 +59,7 @@ export interface TracerMachineContext {
     currentProjectPath?: string;
     childProjectPaths?: string[];
     isDisabling?: boolean;
+    restartRequested?: boolean;
     traceServer?: TraceServer;
     taskExecution?: vscode.TaskExecution;
     taskTerminationListener?: vscode.Disposable;
@@ -219,6 +220,7 @@ function createTracerMachine(projectPath?: string, childProjectPaths?: string[])
                 currentProjectPath: projectPath,
                 childProjectPaths: childProjectPaths,
                 isDisabling: false,
+                restartRequested: false,
                 taskExecution: undefined,
                 taskTerminationListener: undefined
             },
@@ -455,6 +457,16 @@ function createTracerMachine(projectPath?: string, childProjectPaths?: string[])
                                         actions: [
                                             assign({
                                                 isDisabling: false,
+                                                restartRequested: false,
+                                            }),
+                                        ],
+                                    },
+                                    {
+                                        target: "serverStarting",
+                                        cond: (context) => context.restartRequested === true,
+                                        actions: [
+                                            assign({
+                                                restartRequested: false,
                                             }),
                                         ],
                                     },
@@ -480,6 +492,13 @@ function createTracerMachine(projectPath?: string, childProjectPaths?: string[])
                                     actions: [
                                         assign({
                                             isDisabling: true,
+                                        }),
+                                    ],
+                                },
+                                START_SERVER: {
+                                    actions: [
+                                        assign({
+                                            restartRequested: true,
                                         }),
                                     ],
                                 },

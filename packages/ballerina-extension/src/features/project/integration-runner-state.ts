@@ -98,7 +98,6 @@ function gcRun(run: ActiveRun): void {
     }
 }
 
-// Only idetraceprovider consumes the local trace server; amp exports remotely and doesn't keep it alive.
 function stopTraceServerIfUnused(): void {
     if (!TracerMachine.isServerStarted()) {
         return;
@@ -344,7 +343,9 @@ export function activateIntegrationRunnerState(): void {
             if (isIntegrationRunDebugSession(session)) {
                 const script = (session.configuration as { script?: string })?.script;
                 if (script) {
-                    getOrCreateRun(script).session = session;
+                    const run = getOrCreateRun(script);
+                    run.session = session;
+                    TracerMachine.startServer(run.projectPath);
                 }
             }
         }),
