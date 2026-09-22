@@ -5562,7 +5562,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "taskInputType"
             },
-            "defaultValue": ""
+            "defaultValue": "JsonObject"
           },
           "resultType": {
             "metadata": {
@@ -5585,7 +5585,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "resultType"
             },
-            "defaultValue": ""
+            "defaultValue": "anydata"
           },
           "checkError": {
             "metadata": {
