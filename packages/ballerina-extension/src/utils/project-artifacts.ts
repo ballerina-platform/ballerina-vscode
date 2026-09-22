@@ -15,6 +15,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import * as fs from "fs";
+import * as path from "path";
 import * as vscode from "vscode";
 import { URI, Utils } from "vscode-uri";
 import { ARTIFACT_TYPE, Artifacts, ArtifactsNotification, BaseArtifact, DIRECTORY_MAP, EVENT_TYPE, IconDescriptor, isPathInside, isSamePath, MACHINE_VIEW, PROJECT_KIND, ProjectInfo, ProjectStructure, ProjectStructureArtifactResponse, ProjectStructureResponse, resolveBrandIcon, resolveKindDefaultIcon, SHARED_COMMANDS, toIconDescriptor } from "@wso2/ballerina-core";
@@ -27,6 +29,14 @@ import { isLibraryProject } from "./config";
 // missing-module pull and the compilation failed). Used to recover with a full rebuild once
 // the LS publishes artifacts after the pull completes.
 const failedArtifactProjects = new Set<string>();
+
+function isBallerinaPackage(projectPath: string): boolean {
+    try {
+        return fs.existsSync(path.join(projectPath, "Ballerina.toml"));
+    } catch {
+        return false;
+    }
+}
 
 // True while a recovery rebuild is in flight. Overlapping publishArtifacts notifications are
 // skipped during this window: the rebuild fetches the latest project state anyway, and letting
@@ -122,11 +132,15 @@ async function buildProjectArtifactsStructure(
         failedArtifactProjects.delete(projectPath);
         traverseComponents(designArtifacts.artifacts, projectPath, result);
         await populateLocalConnectors(projectPath, result);
-    } else {
+    } else if (isBallerinaPackage(projectPath)) {
         // The artifact fetch failed (e.g., compilation error while modules are being pulled).
         // Remember it so the next publishArtifacts notification triggers a full rebuild.
         failedArtifactProjects.add(projectPath);
         console.warn("[buildProjectArtifactsStructure] Failed to fetch artifacts for project:", projectPath);
+    } else {
+        // A deleted package never fetches again; retrying traps every later notification in recovery.
+        failedArtifactProjects.delete(projectPath);
+        console.warn("[buildProjectArtifactsStructure] No longer a Ballerina package, dropping:", projectPath);
     }
 
     return result;
@@ -151,13 +165,12 @@ export async function updateProjectArtifacts(publishedArtifacts: ArtifactsNotifi
         // Clear before the rebuild; buildProjectArtifactsStructure re-adds any project that
         // still fails, and stale entries (e.g., removed packages) get pruned.
         failedArtifactProjects.clear();
-        const notificationHandler = ArtifactNotificationHandler.getInstance();
-        notificationHandler.publish(ArtifactsUpdated.method, {
-            data: [],
-            timestamp: Date.now()
-        });
+        let entryLocations: ProjectStructureArtifactResponse[] = [];
         try {
-            await vscode.commands.executeCommand(SHARED_COMMANDS.FORCE_UPDATE_PROJECT_ARTIFACTS);
+            const rebuiltStructure = await vscode.commands.executeCommand<ProjectStructureResponse>(
+                SHARED_COMMANDS.FORCE_UPDATE_PROJECT_ARTIFACTS
+            );
+            entryLocations = collectPublishedArtifacts(publishedArtifacts, rebuiltStructure);
         } catch (error) {
             // Restore the failed state so the next notification retries the recovery.
             failedSnapshot.forEach(projectPath => failedArtifactProjects.add(projectPath));
@@ -165,6 +178,11 @@ export async function updateProjectArtifacts(publishedArtifacts: ArtifactsNotifi
         } finally {
             artifactRecoveryInProgress = false;
         }
+        // Real data, so a save waiting behind the rebuild resolves instead of timing out.
+        ArtifactNotificationHandler.getInstance().publish(ArtifactsUpdated.method, {
+            data: entryLocations,
+            timestamp: Date.now()
+        });
         return;
     }
 
