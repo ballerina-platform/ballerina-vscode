@@ -152,6 +152,7 @@ import io.ballerina.flowmodelgenerator.core.model.node.DataLoaderBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.DataMapperBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.DurableAgentAddActivityBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.DurableAgentDataResultBuilder;
+import io.ballerina.flowmodelgenerator.core.model.node.DurableAgentRegisterEventBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.DurableAgentResultBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.DurableAgentRunBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.DurableAgentStartBuilder;
@@ -1718,12 +1719,13 @@ public class CodeAnalyzer extends NodeVisitor {
                     }
                     String propertyKey = fieldToPropertyKey.get(fieldName);
                     if (propertyKey != null) {
-                        // The cardinality enum may be module-qualified in source (workflow:SINGLE_EVENT);
-                        // the form's select options carry the bare enum names. Every other field
-                        // hydrates as source, so the form can tell a reference from the text that
-                        // spells it the same and pick the field's mode accordingly.
-                        values.put(propertyKey, "cardinality".equals(fieldName)
-                                ? WorkflowUtil.stripModulePrefix(rawValue) : rawValue);
+                        // Every field but the cardinality hydrates as source, so the form can tell a
+                        // reference from the text that spells it the same and pick its mode accordingly.
+                        if ("cardinality".equals(fieldName)) {
+                            hydrateCardinality(rawValue, values);
+                        } else {
+                            values.put(propertyKey, rawValue);
+                        }
                     }
                     if ("name".equals(fieldName)) {
                         declaredName = WorkflowUtil.capabilityName(rawValue);
@@ -1785,7 +1787,7 @@ public class CodeAnalyzer extends NodeVisitor {
             }
             String rawValue = specificField.valueExpr().get().toSourceCode().trim();
             if ("cardinality".equals(fieldName)) {
-                values.put(propertyKey, WorkflowUtil.stripModulePrefix(rawValue));
+                hydrateCardinality(rawValue, values);
             } else if (ROLE_FIELDS.contains(fieldName)) {
                 // `userRoles: ()` says "only the named users decide"; the roles box stays empty for it.
                 values.put(propertyKey, nilAsBlank(rawValue));
@@ -1807,6 +1809,25 @@ public class CodeAnalyzer extends NodeVisitor {
         values.put(ApprovalPolicyForm.KEY, form.dropdownValue());
         putIfNotBlank(values, ApprovalPolicyForm.EXPRESSION_KEY, form.expression());
         putReviewValues(values, ApprovalPolicyForm.REVIEW_KEYS, form.review());
+    }
+
+    /**
+     * The cardinality as the form holds it. A member of the enum is written out in source with the
+     * module qualifier ({@code workflow:SINGLE_EVENT}) while the select lists the bare names, so a
+     * member hydrates bare. Anything else — a constant naming one, say — is the field's own source
+     * and hydrates whole, for {@link #cardinalityIsExpression} to put the field in expression mode.
+     */
+    private static void hydrateCardinality(String rawValue, Map<String, String> values) {
+        String trimmed = rawValue.trim();
+        values.put(DurableAgentRegisterEventBuilder.CARDINALITY_KEY,
+                cardinalityIsExpression(trimmed) ? trimmed : WorkflowUtil.stripModulePrefix(trimmed));
+    }
+
+    // Whether a cardinality source value is an expression rather than one of the enum's members.
+    private static boolean cardinalityIsExpression(String rawValue) {
+        String bare = WorkflowUtil.stripModulePrefix(rawValue.trim());
+        return !DurableAgentRegisterEventBuilder.MULTI_EVENT.equals(bare)
+                && !DurableAgentRegisterEventBuilder.SINGLE_EVENT.equals(bare);
     }
 
     private static void putReviewValues(Map<String, String> values, ActivityCallBuilder.ReviewKeys keys,
@@ -1979,6 +2000,8 @@ public class CodeAnalyzer extends NodeVisitor {
         Map<String, Property> currentProps = nodeBuilder.properties().build();
         String rawRetryPolicyValue = rawPropertyValue(currentProps, ActivityCallBuilder.RETRY_POLICY_PARAM);
         String rawApprovalPolicyValue = rawPropertyValue(currentProps, ApprovalPolicyForm.KEY);
+        String retryPolicyType = policyMemberName(args, ActivityCallBuilder.RETRY_POLICY_PARAM);
+        String approvalPolicyType = policyMemberName(args, ApprovalPolicyForm.KEY);
         currentProps.keySet().removeIf(EXCLUDED_CALL_ACTIVITY_PARAMS::contains);
         Map<String, Property> savedOptionProps = new LinkedHashMap<>();
         currentProps.forEach((key, property) ->
@@ -1999,7 +2022,8 @@ public class CodeAnalyzer extends NodeVisitor {
         if (activityParamSymbols.isEmpty()) {
             ActivityCallBuilder.addCheckErrorProperty(nodeBuilder, isCheckedCall(remoteMethodCallActionNode));
             nodeBuilder.properties().build().putAll(savedOptionProps);
-            addNormalizedPolicyProperties(rawApprovalPolicyValue, rawRetryPolicyValue);
+            addNormalizedPolicyProperties(rawApprovalPolicyValue, rawRetryPolicyValue,
+                approvalPolicyType, retryPolicyType);
             return;
         }
 
@@ -2085,7 +2109,8 @@ public class CodeAnalyzer extends NodeVisitor {
         // After the activity's inputs come the policies and the advanced options, as the creation form
         // lays them out.
         nodeBuilder.properties().build().putAll(savedOptionProps);
-        addNormalizedPolicyProperties(rawApprovalPolicyValue, rawRetryPolicyValue);
+        addNormalizedPolicyProperties(rawApprovalPolicyValue, rawRetryPolicyValue,
+                approvalPolicyType, retryPolicyType);
     }
 
     /**
@@ -2369,6 +2394,8 @@ public class CodeAnalyzer extends NodeVisitor {
         // The policies are restored as their dropdowns; the remaining options (stepId) as advanced fields.
         String rawRetryPolicyValue = rawPropertyValue(currentProps, ActivityCallBuilder.RETRY_POLICY_PARAM);
         String rawApprovalPolicyValue = rawPropertyValue(currentProps, ApprovalPolicyForm.KEY);
+        String retryPolicyType = policyMemberName(callNode.arguments(), ActivityCallBuilder.RETRY_POLICY_PARAM);
+        String approvalPolicyType = policyMemberName(callNode.arguments(), ApprovalPolicyForm.KEY);
         Map<String, Property> savedOptionProps = new LinkedHashMap<>();
         for (Map.Entry<String, Property> entry : currentProps.entrySet()) {
             if (!EXCLUDED_CALL_ACTIVITY_PARAMS.contains(entry.getKey())) {
@@ -2471,7 +2498,8 @@ public class CodeAnalyzer extends NodeVisitor {
 
         // The options and the policies follow the call's fields, in the signature's order.
         nodeBuilder.properties().build().putAll(savedOptionProps);
-        addNormalizedPolicyProperties(rawApprovalPolicyValue, rawRetryPolicyValue);
+        addNormalizedPolicyProperties(rawApprovalPolicyValue, rawRetryPolicyValue,
+                approvalPolicyType, retryPolicyType);
     }
 
     private static String rawPropertyValue(Map<String, Property> properties, String key) {
@@ -2479,12 +2507,39 @@ public class CodeAnalyzer extends NodeVisitor {
         return property == null || property.value() == null ? null : property.value().toString();
     }
 
-    // Both policies as their dropdowns, approval first as CallActivityOptions declares them.
-    private void addNormalizedPolicyProperties(String rawApprovalPolicy, String rawRetryPolicy) {
-        ApprovalPolicyForm.Form approval = ApprovalPolicyForm.normalize(rawApprovalPolicy);
+    // Both policies as their dropdowns, approval first as CallActivityOptions declares them. The
+    // member names come from the compiler: the module, not the form, decides which member of a
+    // policy union a literal declares.
+    private void addNormalizedPolicyProperties(String rawApprovalPolicy, String rawRetryPolicy,
+                                               String approvalMember, String retryMember) {
+        ApprovalPolicyForm.Form approval = ApprovalPolicyForm.normalize(rawApprovalPolicy, approvalMember);
         ApprovalPolicyForm.addFormProperties(nodeBuilder, approval.dropdownValue(), approval.review(), true,
                 approval.expression());
-        addNormalizedRetryPolicyProperties(rawRetryPolicy);
+        addNormalizedRetryPolicyProperties(rawRetryPolicy, retryMember);
+    }
+
+    /**
+     * The name of the policy-union member a named argument declares, as the compiler resolves it, or
+     * {@code null} when the argument is absent or its type cannot be resolved. Only a literal is
+     * resolved: a reference is not a shape the form can edit whatever its type, so it opens under
+     * the expression option regardless.
+     *
+     * @param args    the call's arguments
+     * @param argName the policy argument to resolve
+     * @return the bare member name, or {@code null}
+     */
+    private String policyMemberName(SeparatedNodeList<FunctionArgumentNode> args, String argName) {
+        for (FunctionArgumentNode arg : args) {
+            if (!(arg instanceof NamedArgumentNode named)
+                    || !argName.equals(named.argumentName().name().text())) {
+                continue;
+            }
+            if (named.expression().kind() != SyntaxKind.MAPPING_CONSTRUCTOR) {
+                return null;
+            }
+            return semanticModel.typeOf(named.expression()).flatMap(TypeSymbol::getName).orElse(null);
+        }
+        return null;
     }
 
     /**
@@ -2492,8 +2547,8 @@ public class CodeAnalyzer extends NodeVisitor {
      * {@code "{maxRetries: 3, retryDelay: 1.0}"}) into the DROPDOWN_CHOICE value + sub-fields,
      * then adds them as root-level properties on the current nodeBuilder.
      */
-    private void addNormalizedRetryPolicyProperties(String rawValue) {
-        RetryPolicyForm form = normalizeRetryPolicy(rawValue);
+    private void addNormalizedRetryPolicyProperties(String rawValue, String resolvedMember) {
+        RetryPolicyForm form = normalizeRetryPolicy(rawValue, resolvedMember);
         ActivityCallBuilder.addRetryPolicyFormProperties(nodeBuilder, form.dropdownValue(),
                 form.maxRetries(), form.retryDelay(), form.retryBackoff(), form.maxRetryDelay(),
                 form.review(), form.expression());
@@ -2507,6 +2562,19 @@ public class CodeAnalyzer extends NodeVisitor {
     }
 
     static RetryPolicyForm normalizeRetryPolicy(String rawValue) {
+        return normalizeRetryPolicy(rawValue, null);
+    }
+
+    /**
+     * Reads a {@code retryPolicy} source value into the dropdown selection and its sub-fields.
+     *
+     * @param rawValue       the source, possibly {@code null}
+     * @param resolvedMember the union member the compiler resolved a record literal to, or
+     *                       {@code null} when it could not be resolved — the fields the literal
+     *                       carries then decide, as they did before the type was available
+     * @return the form's view of it
+     */
+    static RetryPolicyForm normalizeRetryPolicy(String rawValue, String resolvedMember) {
         String dropdownValue = ActivityCallBuilder.NO_RETRY_VALUE;
         String maxRetries = "", retryDelay = "", retryBackoff = "", maxRetryDelay = "", expression = "";
         ActivityCallBuilder.ReviewFormValues review = ActivityCallBuilder.ReviewFormValues.empty();
@@ -2514,20 +2582,24 @@ public class CodeAnalyzer extends NodeVisitor {
         if (rawValue != null && !rawValue.isBlank()) {
             String trimmed = rawValue.trim();
             if (trimmed.startsWith("{")) {
-                // Three shapes share one union, told apart the way the compiler plugin and the
-                // runtime tell them: an audience makes a review, attempts make retries, both make
-                // retries followed by a review.
                 Map<String, String> fields = WorkflowUtil.parseRecordLiteral(rawValue);
-                boolean audience = fields.containsKey(USER_ROLES_FIELD)
-                        || fields.containsKey(WorkflowUtil.USERS_KEY);
-                // Every tuning field has a default, so any one of them alone still declares attempts.
-                boolean attempts = fields.containsKey(ActivityCallBuilder.MAX_RETRIES_KEY)
-                        || fields.containsKey(ActivityCallBuilder.RETRY_DELAY_KEY)
-                        || fields.containsKey(ActivityCallBuilder.RETRY_BACKOFF_KEY)
-                        || fields.containsKey(ActivityCallBuilder.MAX_RETRY_DELAY_KEY);
+                // Three shapes share one union. The compiler names the one this literal declares;
+                // only when it could not are they told apart by the fields they carry, the way the
+                // plugin and the runtime tell them: an audience makes a review, attempts make
+                // retries, both make retries followed by a review.
+                String member = retryMemberFor(resolvedMember, fields);
+                if (member == null) {
+                    // A member of the union the form has no option for — a shape added to the
+                    // module since. Carried as source rather than filed under the wrong option.
+                    return new RetryPolicyForm(FromExpressionOption.VALUE, "", "", "", "",
+                            ActivityCallBuilder.ReviewFormValues.empty(), trimmed);
+                }
+                boolean audience = ActivityCallBuilder.MANUAL_RETRY_VALUE.equals(member)
+                        || ActivityCallBuilder.RETRY_BEFORE_REVIEW_VALUE.equals(member);
+                boolean attempts = ActivityCallBuilder.AUTO_RETRY_VALUE.equals(member)
+                        || ActivityCallBuilder.RETRY_BEFORE_REVIEW_VALUE.equals(member);
+                dropdownValue = member;
                 if (audience) {
-                    dropdownValue = attempts ? ActivityCallBuilder.RETRY_BEFORE_REVIEW_VALUE
-                            : ActivityCallBuilder.MANUAL_RETRY_VALUE;
                     review = new ActivityCallBuilder.ReviewFormValues(
                             nilAsBlank(fields.getOrDefault(USER_ROLES_FIELD, "")),
                             fields.getOrDefault(WorkflowUtil.USERS_KEY, ""),
@@ -2538,8 +2610,6 @@ public class CodeAnalyzer extends NodeVisitor {
                             reviewText(fields.get("title")),
                             reviewText(fields.get("description")),
                             fields.getOrDefault("timeout", ""));
-                } else {
-                    dropdownValue = ActivityCallBuilder.AUTO_RETRY_VALUE;
                 }
                 if (attempts) {
                     maxRetries = fields.getOrDefault(ActivityCallBuilder.MAX_RETRIES_KEY, "");
@@ -2604,6 +2674,34 @@ public class CodeAnalyzer extends NodeVisitor {
      */
     private static ActivityCallBuilder.ReviewText reviewText(String literal) {
         return ActivityCallBuilder.ReviewText.fromSource(literal);
+    }
+
+    // The module's names for the retry-policy union members the form has options for.
+    private static final Map<String, String> RETRY_MEMBER_OPTIONS = Map.of(
+            "AutoRetry", ActivityCallBuilder.AUTO_RETRY_VALUE,
+            "ReviewTaskDefinition", ActivityCallBuilder.MANUAL_RETRY_VALUE,
+            "RetryBeforeReview", ActivityCallBuilder.RETRY_BEFORE_REVIEW_VALUE);
+
+    /**
+     * The option a record literal belongs to: the compiler's answer when it resolved the member,
+     * and the fields the literal carries when it did not. {@code null} when the compiler named a
+     * member the form has no option for.
+     */
+    private static String retryMemberFor(String resolvedMember, Map<String, String> fields) {
+        if (resolvedMember != null) {
+            return RETRY_MEMBER_OPTIONS.get(resolvedMember);
+        }
+        boolean audience = fields.containsKey(USER_ROLES_FIELD) || fields.containsKey(WorkflowUtil.USERS_KEY);
+        // Every tuning field has a default, so any one of them alone still declares attempts.
+        boolean attempts = fields.containsKey(ActivityCallBuilder.MAX_RETRIES_KEY)
+                || fields.containsKey(ActivityCallBuilder.RETRY_DELAY_KEY)
+                || fields.containsKey(ActivityCallBuilder.RETRY_BACKOFF_KEY)
+                || fields.containsKey(ActivityCallBuilder.MAX_RETRY_DELAY_KEY);
+        if (audience) {
+            return attempts ? ActivityCallBuilder.RETRY_BEFORE_REVIEW_VALUE
+                    : ActivityCallBuilder.MANUAL_RETRY_VALUE;
+        }
+        return ActivityCallBuilder.AUTO_RETRY_VALUE;
     }
 
     // Whether the expression IS one of the named policy sentinels, bare or module-qualified.

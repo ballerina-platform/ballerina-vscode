@@ -75,6 +75,8 @@ public final class ApprovalPolicyForm {
     public static final Set<String> PROPERTY_KEYS = propertyKeys();
 
     private static final String USER_ROLES_FIELD = "userRoles";
+    // The module's name for the one record member of ApprovalPolicy.
+    private static final String REVIEW_MEMBER = "ReviewTaskDefinition";
 
     private ApprovalPolicyForm() {
     }
@@ -208,11 +210,28 @@ public final class ApprovalPolicyForm {
      * @return the form's view of it
      */
     public static Form normalize(String rawValue) {
+        return normalize(rawValue, null);
+    }
+
+    /**
+     * Reads an {@code approvalPolicy} source value into the dropdown selection and review fields.
+     *
+     * @param rawValue       the source, possibly {@code null}
+     * @param resolvedMember the union member the compiler resolved a record literal to, or
+     *                       {@code null} when it could not be resolved
+     * @return the form's view of it
+     */
+    public static Form normalize(String rawValue, String resolvedMember) {
         if (rawValue == null || rawValue.isBlank()) {
             return new Form(NO_APPROVAL_VALUE, ReviewFormValues.empty(), "");
         }
         String trimmed = rawValue.trim();
         if (trimmed.startsWith("{")) {
+            // The union has one record member, so an unresolved literal is still a review; a literal
+            // the compiler names as something else is a shape this form has no option for.
+            if (resolvedMember != null && !REVIEW_MEMBER.equals(resolvedMember)) {
+                return new Form(FromExpressionOption.VALUE, ReviewFormValues.empty(), trimmed);
+            }
             Map<String, String> fields = WorkflowUtil.parseRecordLiteral(trimmed);
             return new Form(HUMAN_APPROVAL_VALUE, new ReviewFormValues(
                     nilAsBlank(fields.getOrDefault(USER_ROLES_FIELD, "")),
