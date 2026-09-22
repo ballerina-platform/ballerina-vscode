@@ -633,9 +633,6 @@ export const Form = forwardRef((props: FormProps, _ref) => {
     }
     const sawInitialLoadingRef = useRef(false);
     useEffect(() => {
-        if (!opensPrefilled) {
-            return;
-        }
         if (loadingFields.size > 0) {
             sawInitialLoadingRef.current = true;
         }
@@ -648,11 +645,9 @@ export const Form = forwardRef((props: FormProps, _ref) => {
         }
         const timer = setTimeout(() => setInitialLoadSettled(true), 0);
         return () => clearTimeout(timer);
-    }, [loadingFields.size, initialLoadSettled, opensPrefilled]);
+    }, [loadingFields.size, initialLoadSettled]);
 
-    const isFormLoading = opensPrefilled
-        ? !initialLoadSettled && (loadingFields.size > 0 || expectsInitialLoadRef.current)
-        : loadingFields.size > 0;
+    const isFormLoading = !initialLoadSettled && (loadingFields.size > 0 || expectsInitialLoadRef.current);
 
     // Bubble loading state up to the parent form when this is a nested form
     useEffect(() => {
