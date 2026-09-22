@@ -478,7 +478,7 @@
                 "selected": false
               }
             ],
-            "placeholder": "\"all\"",
+            "placeholder": "",
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -487,7 +487,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "acks"
             },
-            "defaultValue": "\"all\""
+            "defaultValue": "ACKS_SINGLE"
           },
           "compressionType": {
             "metadata": {
@@ -527,7 +527,7 @@
                 "selected": false
               }
             ],
-            "placeholder": "\"none\"",
+            "placeholder": "",
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -536,7 +536,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "compressionType"
             },
-            "defaultValue": "\"none\""
+            "defaultValue": "COMPRESSION_NONE"
           },
           "clientId": {
             "metadata": {
@@ -885,7 +885,7 @@
                 "selected": false
               }
             ],
-            "placeholder": "\"SER_AVRO\"",
+            "placeholder": "\"SER_BYTE_ARRAY\"",
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -894,7 +894,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "keySerializerType"
             },
-            "defaultValue": "\"SER_AVRO\""
+            "defaultValue": "SER_BYTE_ARRAY"
           },
           "valueSerializerType": {
             "metadata": {
@@ -922,7 +922,7 @@
                 "selected": false
               }
             ],
-            "placeholder": "\"SER_AVRO\"",
+            "placeholder": "\"SER_BYTE_ARRAY\"",
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -931,7 +931,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "valueSerializerType"
             },
-            "defaultValue": "\"SER_AVRO\""
+            "defaultValue": "SER_BYTE_ARRAY"
           },
           "additionalProperties": {
             "metadata": {
@@ -1619,7 +1619,7 @@
                 "selected": false
               }
             ],
-            "placeholder": "\"PLAINTEXT\"",
+            "placeholder": "",
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -1628,7 +1628,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "securityProtocol"
             },
-            "defaultValue": "\"PLAINTEXT\""
+            "defaultValue": "PROTOCOL_PLAINTEXT"
           },
           "checkError": {
             "metadata": {

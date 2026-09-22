@@ -17,7 +17,7 @@
  */
 
 apply from: "$rootDir/gradle/javaProject.gradle"
-apply plugin: "com.github.johnrengelman.shadow"
+apply plugin: "com.gradleup.shadow"
 apply plugin: "java"
 
 description = 'LS extension for flow diagram generation'
@@ -172,8 +172,9 @@ test {
     // pre-fetched 2.16.3 and 2.16.0, so those tests either downloaded from Central or skipped silently.
     systemProperty "copilot.pinnedVersions",
             copilotCorpusVersions.collect { library, version -> "$library=$version" }.join(",")
-    // Allocate a larger heap for the test JVM as the suite compiles full Ballerina projects.
-    maxHeapSize = "2g"
+    // Allocate a larger heap for the test JVM as the suite compiles full Ballerina projects. 2g was
+    // enough until the 2201.14.0 corpus; it now OOMs while reading bala package metadata.
+    maxHeapSize = "4g"
     useTestNG() {
         suites "src/test/resources/testng.xml"
     }

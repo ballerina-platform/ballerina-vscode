@@ -54,11 +54,11 @@ runs:
     # JDK + Gradle for the ballerina-language-server subproject. rush invokes
     # './gradlew build pack -x test -x check' as part of the LS package's
     # build script, so these must be present before 'rush build' runs.
-    - name: Set up JDK 21
+    - name: Set up JDK 25
       uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
       with:
         distribution: 'temurin'
-        java-version: 21.0.3
+        java-version: 25.0.4
 
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
@@ -66,6 +66,9 @@ runs:
     - name: Install Ballerina
       id: ballerina
       uses: ./.github/actions/setup-ballerina
+      # TEMPORARY: revert once 2201.14.0 is on dist.ballerina.io (currently HTTP 403).
+      with:
+        distributionVersion: nightly
 
     - name: Validate build mode
       if: ${{ inputs.nightly == 'true' && inputs.isPreRelease != 'true' }}

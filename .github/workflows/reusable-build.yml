@@ -295,6 +295,9 @@ jobs:
 
       - name: Install Ballerina distribution
         uses: ./.github/actions/setup-ballerina
+        # TEMPORARY: revert once 2201.14.0 is on dist.ballerina.io (currently HTTP 403).
+        with:
+          distributionVersion: nightly
 
       - name: Run e2e test group
         uses: ./.github/actions/run-e2e-group

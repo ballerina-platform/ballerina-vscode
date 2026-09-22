@@ -1,6 +1,12 @@
 name: Set up Ballerina
 description: Install the Ballerina distribution required by the language-server build
 inputs:
+  distributionVersion:
+    description: >-
+      Version handed to the installer, when it differs from ballerinaLangVersion (the Maven
+      coordinate). 'nightly' installs the latest CI artifact instead of the CDN.
+    required: false
+    default: ''
   gradlePropertiesRef:
     description: >-
       Git tag to read packages/ballerina-language-server/gradle.properties from,
@@ -43,13 +49,15 @@ runs:
           properties="${{ github.workspace }}/packages/ballerina-language-server/gradle.properties"
           version=$(sed -n 's/^ballerinaLangVersion=//p' "${properties}")
         fi
-        if [[ ! "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        # Accepts timestamped pre-GA builds; tighten back to the plain N.N.N form once
+        # 2201.14.0 is released.
+        if [[ ! "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]]; then
           echo "::error::Invalid or missing ballerinaLangVersion in packages/ballerina-language-server/gradle.properties${GRADLE_PROPERTIES_REF:+ at tag ${GRADLE_PROPERTIES_REF}}"
           exit 1
         fi
         echo "version=${version}" >> "$GITHUB_OUTPUT"
 
     - name: Install Ballerina
-      uses: ballerina-platform/setup-ballerina@97fd67111e3c3ecdfafff96fc24d95ad909ab299 # v1.1.4
+      uses: ballerina-platform/setup-ballerina@585120e3f0e540bf127376ee6e75d39e8ce6aaa4 # v1.1.5
       with:
-        version: ${{ steps.version.outputs.version }}
+        version: ${{ inputs.distributionVersion || steps.version.outputs.version }}

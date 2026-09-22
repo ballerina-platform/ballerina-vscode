@@ -274,4 +274,29 @@
         <Method name="getSampleProject" />
         <Bug pattern="MS_EXPOSE_REP"/>
     </Match>
+    <Match>
+        <Bug pattern="THROWS_METHOD_THROWS_RUNTIMEEXCEPTION"/>
+    </Match>
+    <Match>
+        <Bug pattern="THROWS_METHOD_THROWS_CLAUSE_BASIC_EXCEPTION"/>
+    </Match>
+    <Match>
+        <Bug pattern="THROWS_METHOD_THROWS_CLAUSE_THROWABLE"/>
+    </Match>
+    <Match>
+        <Class name="~.*\.BallerinaWorkspaceManager(\$.*)?"/>
+        <Bug pattern="AT_STALE_THREAD_WRITE_OF_PRIMITIVE"/>
+    </Match>
+    <Match>
+        <Class name="~.*\.Type(\$.*)?"/>
+        <Bug pattern="AT_STALE_THREAD_WRITE_OF_PRIMITIVE"/>
+    </Match>
+    <Match>
+        <Class name="org.ballerinalang.langserver.diagnostic.DiagnosticsHelper"/>
+        <Bug pattern="USO_UNSAFE_METHOD_SYNCHRONIZATION"/>
+    </Match>
+    <Match>
+        <Class name="~.*\.(AutomationBuilder|WorkflowBuilder)"/>
+        <Bug pattern="HSM_HIDING_METHOD"/>
+    </Match>
 </FindBugsFilter>

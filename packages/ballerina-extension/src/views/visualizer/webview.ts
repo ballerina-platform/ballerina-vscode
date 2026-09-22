@@ -25,7 +25,7 @@ import { debounce } from "lodash";
 import { WebViewOptions, getComposerWebViewOptions, getLibraryWebViewContent } from "../../utils/webview-utils";
 import { extension } from "../../BalExtensionContext";
 import { StateMachine, undoRedoManager, updateView } from "../../stateMachine";
-import { LANGUAGE } from "../../core";
+import { EXTENSION_ID, LANGUAGE } from "../../core";
 import { MACHINE_VIEW, isPathInside, getIntegrationCreationCopy } from "@wso2/ballerina-core";
 import { refreshDataMapper } from "../../rpc-managers/data-mapper/utils";
 import { AiPanelWebview } from "../ai-panel/webview";
@@ -61,6 +61,8 @@ export class VisualizerWebview {
     public static readonly viewType = "ballerina.visualizer";
     public static readonly ballerinaTitle = "Ballerina Visualizer";
     public static readonly biTitle = "WSO2 Integrator";
+    /** Set when the JRE is too old to start the server; the panel then explains why. */
+    public static jdkIncompatibility: { ballerinaVersion: string; jdkMajorVersion: number; requiredJdkMajorVersion: number; requiredBallerinaVersion: string; } | undefined;
     private _panel: vscode.WebviewPanel | undefined;
     private _disposables: vscode.Disposable[] = [];
     private _pendingProjectInfoRefresh = false;
@@ -75,6 +77,16 @@ export class VisualizerWebview {
         // so the federated project/import forms can talk to the extension over the
         // giga-bridge transport in the standalone visualizer.
         this._disposables.push(DefaultServer.getInstance().registerVisualizerPanel(this._panel));
+
+        // Posted by the blocked-startup panel, which never loads the React app's own messaging.
+        this._disposables.push(this._panel.webview.onDidReceiveMessage(async (message) => {
+            if (message?.command === 'jdkIncompatibility.updateBallerina') {
+                VisualizerWebview.clearJdkIncompatibility();
+                await vscode.commands.executeCommand('ballerina.update-ballerina-visually');
+            } else if (message?.command === 'jdkIncompatibility.installPreviousVersion') {
+                await vscode.commands.executeCommand('extension.open', EXTENSION_ID);
+            }
+        }));
 
         // Handle the text change and diagram update with rpc notification
         const sendUpdateNotificationToWebview = debounce(async (refreshTreeView?: boolean) => {
@@ -228,6 +240,26 @@ export class VisualizerWebview {
         return this._panel;
     }
 
+    /** Records the failure and re-renders an open panel; the HTML is built once at creation. */
+    /** Cleared before any action that opens a panel of its own, which would otherwise inherit this. */
+    public static clearJdkIncompatibility(): void {
+        VisualizerWebview.jdkIncompatibility = undefined;
+    }
+
+    public static showJdkIncompatibility(info: {
+        ballerinaVersion: string;
+        jdkMajorVersion: number;
+        requiredJdkMajorVersion: number;
+        requiredBallerinaVersion: string;
+    }): void {
+        VisualizerWebview.jdkIncompatibility = info;
+        const current = VisualizerWebview.currentPanel;
+        const panel = current?.getWebview();
+        if (current && panel) {
+            panel.webview.html = current.getWebviewContent(panel.webview);
+        }
+    }
+
     public static isVisualizerActive(): boolean {
         return VisualizerWebview.currentPanel?.getWebview()?.active ?? false;
     }
@@ -248,7 +280,37 @@ export class VisualizerWebview {
         const subtitle = creationCopy
             ? escapeHtml(creationCopy.subtitle)
             : "Your project is being prepared. This may take a few moments.";
-        const body = `<div class="container" id="webview-container">
+        const incompatibility = VisualizerWebview.jdkIncompatibility;
+        const body = incompatibility
+            ? `<div class="container" id="jdk-incompatibility-container">
+                <div class="loader-wrapper">
+                    <div class="welcome-content">
+                        <h1 class="welcome-title">${escapeHtml(productTitle)} cannot start</h1>
+                        <p class="welcome-subtitle">
+                            Your Ballerina ${escapeHtml(incompatibility.ballerinaVersion)} is
+                            incompatible with the current extension.
+                            <br><br>
+                            Update Ballerina to
+                            ${escapeHtml(incompatibility.requiredBallerinaVersion)} or later, or keep
+                            your current Ballerina version and install an older extension: expand the
+                            dropdown next to Uninstall and pick
+                            &quot;Install Specific Version...&quot;.
+                        </p>
+                        <div class="action-row">
+                            <button class="action-button" id="update-ballerina">Update Ballerina</button>
+                            <button class="action-button secondary" id="install-previous">Install Previous Extension Version</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <script>
+                const vscodeApi = acquireVsCodeApi();
+                document.getElementById('update-ballerina').addEventListener('click', () =>
+                    vscodeApi.postMessage({ command: 'jdkIncompatibility.updateBallerina' }));
+                document.getElementById('install-previous').addEventListener('click', () =>
+                    vscodeApi.postMessage({ command: 'jdkIncompatibility.installPreviousVersion' }));
+            </script>`
+            : `<div class="container" id="webview-container">
                 <div class="loader-wrapper">
                     <div class="welcome-content">
                         <div class="logo-container">
@@ -310,6 +372,33 @@ export class VisualizerWebview {
                 display: flex;
                 justify-content: center;
             }
+            .action-row {
+                display: flex;
+                gap: 8px;
+                justify-content: center;
+                margin-top: 20px;
+                flex-wrap: wrap;
+            }
+            .action-button {
+                background-color: var(--vscode-button-background);
+                color: var(--vscode-button-foreground);
+                border: none;
+                padding: 6px 14px;
+                border-radius: 2px;
+                cursor: pointer;
+                font-family: inherit;
+                font-size: inherit;
+            }
+            .action-button:hover {
+                background-color: var(--vscode-button-hoverBackground);
+            }
+            .action-button.secondary {
+                background-color: var(--vscode-button-secondaryBackground);
+                color: var(--vscode-button-secondaryForeground);
+            }
+            .action-button.secondary:hover {
+                background-color: var(--vscode-button-secondaryHoverBackground);
+            }
             .welcome-title {
                 color: var(--vscode-foreground);
                 margin: 1.5rem 0 0.5rem 0;
@@ -347,6 +436,10 @@ export class VisualizerWebview {
             window.startupTitle = ${toInlineJson(productTitle)};
 
             function loadedScript() {
+                // Mounting the app here would replace the explanation with an endless loader.
+                if (${incompatibility ? 'true' : 'false'}) {
+                    return;
+                }
                 function renderDiagrams() {
                     visualizerWebview.renderWebview("visualizer", document.getElementById("webview-container"));
                 }

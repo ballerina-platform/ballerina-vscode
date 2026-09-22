@@ -31,7 +31,7 @@ import {
 import { join, sep } from 'path';
 import { exec, spawnSync, execSync } from 'child_process';
 import { LanguageClientOptions, State as LS_STATE, RevealOutputChannelOn, ServerOptions } from "vscode-languageclient/node";
-import { getServerOptions } from '../utils/server/server';
+import { getServerOptions, getJdkMajorVersion, resolveLanguageServerJdkDir, usesBundledLanguageServer, REQUIRED_JDK_MAJOR_VERSION } from '../utils/server/server';
 import { ExtendedLangClient } from './extended-language-client';
 import {
     debug,
@@ -89,6 +89,8 @@ import { VisualizerWebview } from "../views/visualizer/webview";
 const SWAN_LAKE_REGEX = /(s|S)wan( |-)(l|L)ake/g;
 
 export const EXTENSION_ID = 'wso2.ballerina';
+// Shown to the user, not compared against.
+const REQUIRED_BALLERINA_VERSION = '2201.14.0';
 const PREV_EXTENSION_ID = 'ballerina.ballerina';
 export enum LANGUAGE {
     BALLERINA = 'ballerina',
@@ -555,6 +557,17 @@ export class BallerinaExtension {
                     throw error;
                 }
 
+                // Stop before spawning a JVM that could only die with UnsupportedClassVersionError.
+                try {
+                    if (!await this.checkLanguageServerJdkCompatibility()) {
+                        debug("[INIT] Returning early: distribution JRE cannot run the bundled language server");
+                        return;
+                    }
+                } catch (error) {
+                    // Never block startup on the check itself; let the server attempt to start.
+                    debug(`[INIT] Error checking language server JDK compatibility: ${error}`);
+                }
+
                 // Set up and start Language Server
                 try {
                     debug("[INIT] Setting up Language Server...");
@@ -958,7 +971,7 @@ export class BallerinaExtension {
             let supportedJreVersion;
             try {
                 if (this.updateToolServerUrl.includes('staging')) {
-                    supportedJreVersion = "jdk-21.0.5+11-jre";
+                    supportedJreVersion = "jdk-25.0.3+9-jre"; // staging has no /distributions to query
                     debug(`[SETUP] Supported JRE version: ${supportedJreVersion}`);
                 } else {
                     // Get supported jre version
@@ -1676,6 +1689,72 @@ export class BallerinaExtension {
         } else {
             this.sdkVersion.text = text;
         }
+    }
+
+    /** False when the user has been told the JRE cannot load the bundled server. */
+    private async checkLanguageServerJdkCompatibility(): Promise<boolean> {
+        if (!usesBundledLanguageServer(this)) {
+            return true;
+        }
+
+        // A configured jar's Java version is the user's own concern.
+        if (this.getConfiguredLangServerPath()?.trim()) {
+            debug('[INIT] Custom language server path configured; skipping the JDK check');
+            return true;
+        }
+
+        const jdkDir = resolveLanguageServerJdkDir(this);
+        if (!jdkDir) {
+            // getServerOptions raises a clearer error for this.
+            return true;
+        }
+
+        const jdkMajorVersion = getJdkMajorVersion(jdkDir);
+        if (jdkMajorVersion === null) {
+            // Version could not be determined; do not block on a guess.
+            debug(`[INIT] Could not determine the Java version of ${jdkDir}; continuing`);
+            return true;
+        }
+
+        debug(`[INIT] Language server JDK: ${jdkDir} (Java ${jdkMajorVersion})`);
+        if (jdkMajorVersion >= REQUIRED_JDK_MAJOR_VERSION) {
+            return true;
+        }
+
+        const message = `Your Ballerina ${this.ballerinaVersion} is incompatible with the current extension.`;
+        sendTelemetryEvent(this, TM_EVENT_EXTENSION_INI_FAILED, CMP_EXTENSION_CORE, getMessageObject(message));
+
+        // The modal is transient, so the panel carries the same explanation.
+        VisualizerWebview.showJdkIncompatibility({
+            ballerinaVersion: this.ballerinaVersion,
+            jdkMajorVersion,
+            requiredJdkMajorVersion: REQUIRED_JDK_MAJOR_VERSION,
+            requiredBallerinaVersion: REQUIRED_BALLERINA_VERSION
+        });
+
+        const UPDATE_BALLERINA = 'Update Ballerina';
+        const INSTALL_PREVIOUS = 'Install Previous Extension Version';
+        const selection = await window.showWarningMessage(
+            message,
+            {
+                modal: true,
+                detail: `Update Ballerina to ${REQUIRED_BALLERINA_VERSION} or later, or keep your `
+                    + `current Ballerina version and install an older extension: expand the dropdown `
+                    + `next to Uninstall and pick "Install Specific Version...".`
+            },
+            UPDATE_BALLERINA,
+            INSTALL_PREVIOUS
+        );
+
+        if (selection === UPDATE_BALLERINA) {
+            // The setup view opens its own panel, which would otherwise inherit this state.
+            VisualizerWebview.clearJdkIncompatibility();
+            await commands.executeCommand('ballerina.update-ballerina-visually');
+        } else if (selection === INSTALL_PREVIOUS) {
+            // No VS Code command opens the version picker for a given extension; the page is closest.
+            await commands.executeCommand('extension.open', EXTENSION_ID);
+        }
+        return false;
     }
 
     showPluginActivationError(): any {

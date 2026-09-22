@@ -16,10 +16,12 @@
  */
 
 import groovy.json.JsonSlurper
+import javax.inject.Inject
+import org.gradle.process.ExecOperations
 
 plugins {
     id "com.github.spotbugs-base" version "${spotbugsPluginVersion}"
-    id "com.github.johnrengelman.shadow" version "${shadowJarPluginVersion}"
+    id "com.gradleup.shadow" version "${shadowJarPluginVersion}"
     id "de.undercouch.download" version "${downloadPluginVersion}"
     id "org.cyclonedx.bom" version "${cyclonedxBomPluginVersion}"
     id "java"
@@ -73,6 +75,10 @@ allprojects {
 
 subprojects {
     apply plugin: "java"
+    // 2201.14.0's libraries are Java 25 artifacts; a lower target fails dependency resolution.
+    tasks.withType(JavaCompile).configureEach {
+        options.release = 25
+    }
     configurations {
         ballerinaStdLibs
         jbalTools
@@ -116,6 +122,10 @@ subprojects {
         ballerinaStdLibs "io.ballerina.stdlib:mcp-ballerina:${stdlibMcpVersion}"
         ballerinaStdLibs "io.ballerina.lib:messaging-ballerina:${stdlibMessagingVersion}"
         ballerinaStdLibs "io.ballerina.stdlib:websub-ballerina:${stdlibWebsubVersion}"
+        // Bundled by the distribution at the locked version, so bal build never fetches them.
+        ballerinaStdLibs "io.ballerina.stdlib:mime-ballerina:${stdlibMimeVersion}"
+        ballerinaStdLibs "io.ballerina.stdlib:mqtt-ballerina:${stdlibMqttVersion}"
+        ballerinaStdLibs "io.ballerina.stdlib:task-ballerina:${stdlibTaskVersion}"
         ballerinaStdLibs "io.ballerina.stdlib:protobuf-ballerina:${stdlibProtobufVersion}"
         ballerinaStdLibs "io.ballerina.stdlib:soap-ballerina:${stdlibSoapVersion}"
         ballerinaStdLibs "io.ballerina.stdlib:yaml-ballerina:${stdlibYamlVersion}"
@@ -132,6 +142,8 @@ subprojects {
 // resolution hash and the cache it describes together, so they cannot go out of
 // sync.
 ext.ballerinaTestHomeDir = file("$buildDir/ballerina_dependencies/home")
+
+def execOps = objects.newInstance(InjectedExecOps).execOps
 
 task resolveBallerinaDependencies {
     description 'Resolves Ballerina dependencies by executing bal build in build-config/ballerina_dependencies'
@@ -173,7 +185,7 @@ task resolveBallerinaDependencies {
 
             // Execute bal build in the copied directory
             def errOutput = new ByteArrayOutputStream()
-            def result = exec {
+            def result = execOps.exec {
                 ignoreExitValue = true
                 workingDir targetDir
                 environment "BALLERINA_HOME_DIR", ballerinaTestHomeDir.absolutePath
@@ -341,6 +353,10 @@ task pack(type: com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar) {
     dependsOn subprojects.collect { it.path + ':build' }
     dependsOn generatePackPom
 
+    filesMatching('META-INF/services/**') {
+        duplicatesStrategy = DuplicatesStrategy.INCLUDE
+    }
+
     archiveBaseName = project.name
     archiveClassifier = ''
     archiveVersion = project.version
@@ -348,10 +364,13 @@ task pack(type: com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar) {
 
     configurations = [project.configurations.externalJarDeps]
 
-    // Include the compiled classes and resources from all submodules
+    // zipTree, not from(<jar>): the extension uses a plain -cp, where a nested jar is invisible.
     subprojects.each { subproject ->
-        if (subproject.tasks.findByName('jar')) {
-            from subproject.tasks.jar.outputs
+        def subprojectJar = subproject.tasks.findByName('jar')
+        if (subprojectJar) {
+            dependsOn subprojectJar
+            // Lazy: ':checkstyle' disables its jar task in a file not yet evaluated.
+            from { subprojectJar.enabled ? zipTree(subprojectJar.archiveFile) : [] }
         }
     }
 
@@ -380,6 +399,60 @@ task pack(type: com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar) {
         def path = details.path
         return !path.contains("META-INF/maven/${project.group}/${project.name}/") &&
                 (path.startsWith('META-INF/maven/') && (path.contains('/pom.xml') || path.contains('/pom.properties')))
+    }
+}
+
+// Both shipping paths skip the check task, so hook the verification onto pack itself.
+pack.finalizedBy('verifyPack')
+
+task verifyPack {
+    description 'Asserts the packed jar has the structure the extension launches'
+    group 'verification'
+    dependsOn pack
+
+    def launcherClass = 'org/ballerinalang/langserver/launchers/stdio/Main.class'
+    def extensionService = 'META-INF/services/org.ballerinalang.langserver.commons.service.spi.ExtendedLanguageServerService'
+    def minExtensionServices = 20 // a floor: the regression this guards against left 1 of 34
+
+    doLast {
+        def jar = pack.archiveFile.get().asFile
+        if (!jar.exists()) {
+            return // pack failed; its own error is the real one
+        }
+        def zip = new java.util.zip.ZipFile(jar)
+        try {
+            def names = zip.entries().collect { it.name }
+
+            if (!names.contains(launcherClass)) {
+                throw new GradleException("$jar.name does not contain $launcherClass at the jar root. " +
+                        "The extension puts this jar on a plain -cp, so a nested or missing launcher " +
+                        "class means the language server cannot start.")
+            }
+
+            def nested = names.findAll { it.endsWith('.jar') }
+            if (!nested.isEmpty()) {
+                throw new GradleException("$jar.name embeds nested jars, which a plain -cp cannot see: " +
+                        "${nested.take(5).join(', ')}. Dependency jars must be expanded into the fat jar.")
+            }
+
+            def serviceEntry = zip.getEntry(extensionService)
+            if (serviceEntry == null) {
+                throw new GradleException("$jar.name is missing $extensionService; no BI extension would load.")
+            }
+            def providers = zip.getInputStream(serviceEntry).text.readLines()
+                    .collect { it.trim() }.findAll { it && !it.startsWith('#') }.unique()
+            if (providers.size() < minExtensionServices) {
+                throw new GradleException("$jar.name declares only ${providers.size()} " +
+                        "ExtendedLanguageServerService providers (expected at least " +
+                        "$minExtensionServices). Service files were dropped instead of merged, " +
+                        "so the BI UI would not initialise.")
+            }
+
+            logger.lifecycle("verifyPack: ${jar.name} OK -- launcher at root, no nested jars, " +
+                    "${providers.size()} extension services")
+        } finally {
+            zip.close()
+        }
     }
 }
 
@@ -561,3 +634,9 @@ build.dependsOn resolveBallerinaDependencies
 build.doNotTrackState("build needs to run every time")
 publishToMavenLocal.dependsOn build
 publish.dependsOn build
+
+// Gradle 9 removed Project.exec(); ExecOperations has to be injected instead.
+interface InjectedExecOps {
+    @Inject
+    ExecOperations getExecOps()
+}

@@ -16,7 +16,7 @@
  *  under the License.
  */
 
-apply plugin: "com.github.johnrengelman.shadow"
+apply plugin: "com.gradleup.shadow"
 apply from: "$rootDir/gradle/javaProject.gradle"
 
 description = 'Central client for the flow model LS extension'
