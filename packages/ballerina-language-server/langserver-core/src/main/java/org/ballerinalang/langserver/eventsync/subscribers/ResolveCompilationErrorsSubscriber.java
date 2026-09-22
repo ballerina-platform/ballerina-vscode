@@ -59,8 +59,7 @@ public class ResolveCompilationErrorsSubscriber implements EventSubscriber {
         try {
             context.workspace().waitAndGetPackageCompilation(context.filePath());
         } catch (BLangCompilerException e) {
-            String message = e.getMessage();
-            if (message != null && message.startsWith("failed to load the module")) {
+            if (PullModuleExecutor.isMissingModuleFailure(e)) {
                 PullModuleExecutor.resolveModules(context.fileUri(), client, context.workspace(),
                         context.languageServercontext(), true);
 
