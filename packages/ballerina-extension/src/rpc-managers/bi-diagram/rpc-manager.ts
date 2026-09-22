@@ -1841,10 +1841,20 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
             let text: string;
 
             try {
-                const textDocument = await workspace.openTextDocument(fileUri);
-                languageId = textDocument.languageId;
-                version = textDocument.version;
-                text = textDocument.getText();
+                const caseInsensitiveFs = process.platform === "win32" || process.platform === "darwin";
+                const targetPath = caseInsensitiveFs ? fileUri.fsPath.toLowerCase() : fileUri.fsPath;
+                const openDocument = workspace.textDocuments.find((document) =>
+                    (caseInsensitiveFs ? document.uri.fsPath.toLowerCase() : document.uri.fsPath) === targetPath
+                );
+                if (openDocument) {
+                    languageId = openDocument.languageId;
+                    version = openDocument.version;
+                    text = openDocument.getText();
+                } else {
+                    languageId = "ballerina";
+                    version = 1;
+                    text = await fs.promises.readFile(filePath, "utf8");
+                }
             } catch (error) {
                 languageId = "ballerina";
                 version = 1;
