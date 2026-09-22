@@ -441,7 +441,7 @@
               "kind": "DEFAULTABLE",
               "originalName": "temperature"
             },
-            "defaultValue": "0.0d"
+            "defaultValue": "DEFAULT_TEMPERATURE"
           },
           "generatorConfig": {
             "metadata": {
@@ -464,7 +464,7 @@
               "kind": "DEFAULTABLE",
               "originalName": "generatorConfig"
             },
-            "defaultValue": "{}"
+            "defaultValue": "DEFAULT_GENERATOR_CONFIG"
           },
           "httpVersion": {
             "metadata": {
@@ -508,7 +508,7 @@
             "imports": {
               "http": "ballerina/http"
             },
-            "defaultValue": "\"2.0\""
+            "defaultValue": "http:HTTP_2_0"
           },
           "http1Settings": {
             "metadata": {
@@ -616,7 +616,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "timeout"
             },
-            "defaultValue": "0.0d"
+            "defaultValue": "60"
           },
           "forwarded": {
             "metadata": {
@@ -644,7 +644,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "forwarded"
             },
-            "defaultValue": "\"\""
+            "defaultValue": "\"disable\""
           },
           "poolConfig": {
             "metadata": {
@@ -756,7 +756,7 @@
                 "selected": false
               }
             ],
-            "placeholder": "\"AUTO\"",
+            "placeholder": "",
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -768,7 +768,7 @@
             "imports": {
               "http": "ballerina/http"
             },
-            "defaultValue": "\"AUTO\""
+            "defaultValue": "http:COMPRESSION_AUTO"
           },
           "circuitBreaker": {
             "metadata": {
@@ -996,7 +996,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "validation"
             },
-            "defaultValue": "false"
+            "defaultValue": "true"
           },
           "checkError": {
             "metadata": {
