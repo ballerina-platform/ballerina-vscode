@@ -34,6 +34,7 @@ import io.ballerina.compiler.syntax.tree.ModulePartNode;
 import io.ballerina.compiler.syntax.tree.NodeList;
 import io.ballerina.compiler.syntax.tree.NonTerminalNode;
 import io.ballerina.compiler.syntax.tree.StatementNode;
+import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.projects.Document;
 import io.ballerina.projects.DocumentId;
 import io.ballerina.projects.Module;
@@ -47,6 +48,7 @@ import io.ballerina.testmanagerservice.extension.request.GetTestFunctionRequest;
 import io.ballerina.testmanagerservice.extension.request.TestsDiscoveryRequest;
 import io.ballerina.testmanagerservice.extension.request.UpdateTestFunctionRequest;
 import io.ballerina.testmanagerservice.extension.response.CommonSourceResponse;
+import io.ballerina.testmanagerservice.extension.response.EvaluationsDiscoveryResponse;
 import io.ballerina.testmanagerservice.extension.response.GetTestFunctionResponse;
 import io.ballerina.testmanagerservice.extension.response.TestsDiscoveryResponse;
 import io.ballerina.tools.text.LineRange;
@@ -142,6 +144,27 @@ public class TestManagerService implements ExtendedLanguageServerService {
                 return TestsDiscoveryResponse.from(moduleTestDetailsHolder.getGroupsToFunctions());
             } catch (Throwable e) {
                 return TestsDiscoveryResponse.from(e);
+            }
+        });
+    }
+
+    /**
+     * Discovers the evaluations of a project and the agents each one runs.
+     *
+     * @param request the request with the project path
+     * @return the evaluations of the project's default module
+     */
+    @JsonRequest
+    public CompletableFuture<EvaluationsDiscoveryResponse> discoverEvaluations(TestsDiscoveryRequest request) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                Project project = this.workspaceManager.loadProject(Path.of(request.projectPath()));
+                Module defaultModule = project.currentPackage().getDefaultModule();
+                SemanticModel semanticModel = PackageUtil.getCompilation(project)
+                        .getSemanticModel(defaultModule.moduleId());
+                return EvaluationsDiscoveryResponse.from(new EvaluationFinder(defaultModule, semanticModel).find());
+            } catch (Throwable e) {
+                return EvaluationsDiscoveryResponse.from(e);
             }
         });
     }

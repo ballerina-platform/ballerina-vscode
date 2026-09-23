@@ -24,16 +24,13 @@ import io.ballerina.compiler.syntax.tree.FunctionDefinitionNode;
 import io.ballerina.compiler.syntax.tree.ListConstructorExpressionNode;
 import io.ballerina.compiler.syntax.tree.MappingConstructorExpressionNode;
 import io.ballerina.compiler.syntax.tree.MappingFieldNode;
-import io.ballerina.compiler.syntax.tree.MetadataNode;
 import io.ballerina.compiler.syntax.tree.ModuleMemberDeclarationNode;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
 import io.ballerina.compiler.syntax.tree.Node;
-import io.ballerina.compiler.syntax.tree.NodeList;
 import io.ballerina.compiler.syntax.tree.SeparatedNodeList;
 import io.ballerina.compiler.syntax.tree.SpecificFieldNode;
 import io.ballerina.projects.Document;
 import io.ballerina.testmanagerservice.extension.model.FunctionTreeNode;
-import io.ballerina.tools.text.LineRange;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -59,33 +56,34 @@ public class TestFunctionsFinder {
 
     public void find() {
         ModulePartNode modulePartNode = document.syntaxTree().rootNode();
-
-        NodeList<ModuleMemberDeclarationNode> members = modulePartNode.members();
-
-        // filter the function definition nodes from here
-        for (ModuleMemberDeclarationNode member : members) {
-            // filter the function definition nodes from here
+        for (ModuleMemberDeclarationNode member : modulePartNode.members()) {
             if (member instanceof FunctionDefinitionNode functionDefinitionNode) {
-                Optional<MetadataNode> metadata = functionDefinitionNode.metadata();
-                if (metadata.isEmpty()) {
-                    continue;
-                }
-                NodeList<AnnotationNode> annotations = metadata.get().annotations();
-                for (AnnotationNode annotation : annotations) {
-                    if (annotation.annotReference().toSourceCode().trim().equals(TEST_CONFIG_ANNOTATION)) {
-                        List<String> groups = findSpecifiedGroups(annotation);
-                        String functionName = functionDefinitionNode.functionName().text().trim();
-                        LineRange lineRange = functionDefinitionNode.lineRange();
-                        FunctionTreeNode functionTreeNode = new FunctionTreeNode(
-                                functionName, lineRange, "Config", groups);
-                        this.moduleTestDetailsHolder.addTestFunctions(groups, functionTreeNode);
-                    }
-                }
+                findTestGroups(functionDefinitionNode).ifPresent(groups -> {
+                    String functionName = functionDefinitionNode.functionName().text().trim();
+                    FunctionTreeNode functionTreeNode = new FunctionTreeNode(
+                            functionName, functionDefinitionNode.lineRange(), "Config", groups);
+                    this.moduleTestDetailsHolder.addTestFunctions(groups, functionTreeNode);
+                });
             }
         }
     }
 
-    private List<String> findSpecifiedGroups(AnnotationNode annotationNode) {
+    /**
+     * Returns the groups of a function annotated with {@code @test:Config}, or empty if it is not a test.
+     *
+     * @param function the function definition
+     * @return the declared groups, still quoted as in source
+     */
+    public static Optional<List<String>> findTestGroups(FunctionDefinitionNode function) {
+        return function.metadata().stream()
+                .flatMap(metadata -> metadata.annotations().stream())
+                .filter(annotation -> annotation.annotReference().toSourceCode().trim()
+                        .equals(TEST_CONFIG_ANNOTATION))
+                .findFirst()
+                .map(TestFunctionsFinder::findSpecifiedGroups);
+    }
+
+    private static List<String> findSpecifiedGroups(AnnotationNode annotationNode) {
         if (annotationNode.annotValue().isEmpty()) {
             return List.of(GROUP_NOT_SPECIFIED);
         }

@@ -1,0 +1,134 @@
+{
+  "projectPath": "agent_evaluations",
+  "description": "Evaluations resolve the agents they run through template arguments, run calls, and module functions",
+  "response": {
+    "evaluations": [
+      {
+        "functionName": "evaluateMathAgentClarity",
+        "lineRange": {
+          "fileName": "tests/tests.bal",
+          "startLine": {
+            "line": 8,
+            "offset": 0
+          },
+          "endLine": {
+            "line": 12,
+            "offset": 1
+          }
+        },
+        "template": {
+          "symbol": "evaluateClarity",
+          "label": "Clarity",
+          "description": "Uses an LLM judge to check readability, structure, and absence of ambiguity in agent responses",
+          "kind": "LLM_JUDGE",
+          "needsEvalset": false
+        },
+        "agents": [
+          {
+            "name": "mathAgent",
+            "lineRange": {
+              "fileName": "agents.bal",
+              "startLine": {
+                "line": 2,
+                "offset": 0
+              },
+              "endLine": {
+                "line": 6,
+                "offset": 2
+              }
+            }
+          }
+        ]
+      },
+      {
+        "functionName": "testMathAgentAnswers",
+        "lineRange": {
+          "fileName": "tests/tests.bal",
+          "startLine": {
+            "line": 14,
+            "offset": 0
+          },
+          "endLine": {
+            "line": 18,
+            "offset": 1
+          }
+        },
+        "agents": [
+          {
+            "name": "mathAgent",
+            "lineRange": {
+              "fileName": "agents.bal",
+              "startLine": {
+                "line": 2,
+                "offset": 0
+              },
+              "endLine": {
+                "line": 6,
+                "offset": 2
+              }
+            }
+          }
+        ]
+      },
+      {
+        "functionName": "testSupportThenMath",
+        "lineRange": {
+          "fileName": "tests/tests.bal",
+          "startLine": {
+            "line": 20,
+            "offset": 0
+          },
+          "endLine": {
+            "line": 25,
+            "offset": 1
+          }
+        },
+        "agents": [
+          {
+            "name": "supportAgent",
+            "lineRange": {
+              "fileName": "agents.bal",
+              "startLine": {
+                "line": 8,
+                "offset": 0
+              },
+              "endLine": {
+                "line": 12,
+                "offset": 2
+              }
+            }
+          },
+          {
+            "name": "mathAgent",
+            "lineRange": {
+              "fileName": "agents.bal",
+              "startLine": {
+                "line": 2,
+                "offset": 0
+              },
+              "endLine": {
+                "line": 6,
+                "offset": 2
+              }
+            }
+          }
+        ]
+      },
+      {
+        "functionName": "testWithoutAgent",
+        "lineRange": {
+          "fileName": "tests/tests.bal",
+          "startLine": {
+            "line": 27,
+            "offset": 0
+          },
+          "endLine": {
+            "line": 30,
+            "offset": 1
+          }
+        },
+        "agents": []
+      }
+    ]
+  }
+}

@@ -51,6 +51,7 @@ public class Constants {
 
     public static final String TEST_ANNOTATION = "@test:";
     public static final String CONFIG_GROUPS = "groups";
+    public static final String EVALUATION_GROUP = "evaluations";
     public static final String CONFIG_ENABLED = "enabled";
 
     public static final String OPEN_CURLY_BRACE = "{";
