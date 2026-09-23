@@ -83,6 +83,18 @@ describe("fields that follow a workflow dropdown", () => {
         expect(() => retypeFieldsFromTemplate(bare, ["input"], { input: { placeholder: "{}" } } as any)).not.toThrow();
     });
 
+    // `Form` reports every field as changed on its first render, so a retype that did not compare
+    // against the opening value would rewrite a declared result type before anything was typed.
+    it("leaves a field alone when the template repeats the value it already holds", () => {
+        const template = { type: { types: [{ fieldType: "TYPE" }], value: "json" } } as any;
+        const declared = [field("type", { codedata: { dependentProperty: "workflow" }, value: "string" })];
+
+        // Nothing selected a new workflow, so no retype runs and the declared type stands.
+        expect(dependentKeysFromTemplate({} as any, "workflow")).toEqual([]);
+        // And when one does run, the template's own value is what the new choice returns.
+        expect(retypeFieldsFromTemplate(declared, ["type"], template)[0].value).toBe("json");
+    });
+
     it("hides a field the new choice has no use for", () => {
         const retyped = retypeFieldsFromTemplate(fields, ["input"], {} as any);
 

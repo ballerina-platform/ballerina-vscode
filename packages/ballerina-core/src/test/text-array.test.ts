@@ -17,6 +17,17 @@
  */
 
 import { carryTextArrayValue, parseTextArraySource, textArraySource } from "../utils/text-array";
+import corpus from "../utils/__fixtures__/roleValues.json";
+
+// The corpus every parser of this value is held to. `capabilityFieldValues.ts` in the visualizer
+// keeps its own copy of the parser — this file is what stops the two drifting.
+describe("the shared role-value corpus", () => {
+    it.each((corpus as { note: string; source: string; items: string[] | null }[])
+        .map((entry) => [entry.note, entry.source, entry.items] as const))(
+        "%s", (_note, source, items) => {
+            expect(parseTextArraySource(source)).toEqual(items ?? undefined);
+        });
+});
 
 describe("a TEXT_SET field and the source it stands for", () => {
     it.each<[string, string, string[] | undefined]>([

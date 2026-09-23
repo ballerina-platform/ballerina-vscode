@@ -449,8 +449,6 @@ public class HumanTaskBuilder extends CallBuilder {
         }
     }
 
-    // Keeps the property but takes it out of the form: not offered, not editable, still emitted
-    // by toSource when it holds a value.
     private static final Set<String> ROLE_KEYS = Set.of(USER_ROLES_KEY, WorkflowUtil.USERS_KEY,
             WorkflowUtil.EXCLUDED_USERS_KEY, WorkflowUtil.EXCLUDED_ROLES_KEY, WorkflowUtil.ADMINISTRATOR_ROLES_KEY,
             WorkflowUtil.ADMINISTRATOR_USERS_KEY);
@@ -459,6 +457,8 @@ public class HumanTaskBuilder extends CallBuilder {
         return prop.codedata() != null && prop.codedata().originalName() != null ? prop.codedata().originalName() : key;
     }
 
+    // Keeps the property but takes it out of the form: not offered, not editable, still emitted
+    // by toSource when it holds a value.
     private static void hide(Map<String, Property> properties, String key) {
         Property existing = properties.get(key);
         if (existing != null) {

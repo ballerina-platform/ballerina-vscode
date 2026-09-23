@@ -20,6 +20,9 @@
 // putting each value in the right mode, so a reference is not written back as a literal.
 
 import { capabilityValueText, seedCapabilityValue, SeedableProperty } from "./capabilityFieldValues";
+// The same table core's `parseTextArraySource` is held to, so this copy of the parser cannot
+// drift from it without one of the two suites failing.
+import corpus from "../../../../../ballerina-core/src/utils/__fixtures__/roleValues.json";
 
 const dualMode = (): SeedableProperty => ({
     value: "",
@@ -39,6 +42,17 @@ const listMode = (): SeedableProperty => ({
         { fieldType: "TEXT_SET", selected: true },
         { fieldType: "EXPRESSION", selected: false },
     ],
+});
+
+describe("the shared role-value corpus", () => {
+    it.each((corpus as { note: string; source: string; items: string[] | null }[])
+        .filter((entry) => entry.source !== "")
+        .map((entry) => [entry.note, entry.source, entry.items] as const))(
+        "%s", (_note, source, items) => {
+            const property = listMode();
+            seedCapabilityValue(property, source);
+            expect(property.value).toEqual(items ?? source);
+        });
 });
 
 describe("seedCapabilityValue", () => {

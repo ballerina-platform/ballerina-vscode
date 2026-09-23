@@ -112,12 +112,6 @@ public class WorkflowUtil {
     }
 
     /**
-     * Checks if the given function symbol has the @workflow:Workflow annotation.
-     *
-     * @param symbol The function symbol to check
-     * @return true if the function has @workflow:Workflow annotation, false otherwise
-     */
-    /**
      * Every {@code @workflow:Workflow} function of the package, as the options of a workflow
      * dropdown. One list for every form that picks a workflow, so a template and a re-read node
      * offer the same choices.
@@ -137,6 +131,12 @@ public class WorkflowUtil {
         return options;
     }
 
+    /**
+     * Checks if the given function symbol has the @workflow:Workflow annotation.
+     *
+     * @param symbol The function symbol to check
+     * @return true if the function has @workflow:Workflow annotation, false otherwise
+     */
     public static boolean isWorkflowFunction(Symbol symbol) {
         if (symbol == null) {
             return false;
@@ -1532,12 +1532,6 @@ public class WorkflowUtil {
     }
 
     /**
-     * Moves a signature-derived step id into the advanced configurations, leaving its type and
-     * value as the signature described them.
-     *
-     * @param properties the form's properties, edited in place
-     */
-    /**
      * Moves the named properties, those present, to the front in the given order; the rest keep
      * their order after them. The map is rebuilt in place because callers hold the same instance.
      *
@@ -1557,6 +1551,12 @@ public class WorkflowUtil {
         properties.putAll(ordered);
     }
 
+    /**
+     * Moves a signature-derived step id into the advanced configurations, leaving its type and
+     * value as the signature described them.
+     *
+     * @param properties the form's properties, edited in place
+     */
     public static void markStepIdAdvanced(Map<String, Property> properties) {
         Property stepId = properties.get(STEP_ID_KEY);
         if (stepId != null) {

@@ -682,6 +682,10 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         fields = hideTypeDescriptionField(fields);
 
         const sortedFields = sortFieldsByPriority(fields);
+        // What each field holds as the form opens. `Form` reports every field as changed on its
+        // first render, so without this a form would retype itself from its own opening value and
+        // come up dirty, with a declared result type replaced by the template's default.
+        retypedForRef.current = Object.fromEntries(sortedFields.map((field) => [field.key, field.value]));
         setBaseFields(sortedFields);
         formImportsRef.current = getImportsForFormFields(sortedFields);
     };
@@ -886,12 +890,18 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     // The fields typed from a dropdown's choice take their type from the template for the new
     // choice; the last fetch wins when choices change faster than templates arrive.
     const retypeRequest = useRef(0);
+    // The value each field was last seen holding, so a re-report of the same value does nothing.
+    const retypedForRef = useRef<Record<string, unknown>>({});
     const retypeDependentFields = useCallback(async (fieldKey: string, value: unknown) => {
         // Only the forms that pick a workflow: elsewhere a dropdown holds something that is not a
         // symbol, and a template fetched for it would ask for one that does not exist.
         if (!picksWorkflow(node.codedata?.node) || typeof value !== "string" || value === "" || !fileName) {
             return;
         }
+        if (value === retypedForRef.current[fieldKey]) {
+            return;
+        }
+        retypedForRef.current[fieldKey] = value;
         const changed = baseFields.find((field) => field.key === fieldKey);
         if (!changed?.types?.some((type) => type.fieldType === "SINGLE_SELECT")) {
             return;

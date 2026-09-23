@@ -298,7 +298,6 @@ public class CodeAnalyzer extends NodeVisitor {
     public static final String PARAMETERIZED_CALL_QUERY = "sql:ParameterizedCallQuery";
     // Readonly fields
     private final Project project;
-    private List<Option> workflowOptions;
     private final SemanticModel semanticModel;
     private final Map<String, LineRange> dataMappings;
     private final Map<String, LineRange> naturalFunctions;
@@ -335,6 +334,9 @@ public class CodeAnalyzer extends NodeVisitor {
     private static final String LABEL_KEY = "label";
     private static final String IS_SERVICE_FUNCTION_KEY = "isServiceFunction";
     private static final String ACCESSOR_KEY = "accessor";
+
+    // Lazily gathered once per analysis; see workflowOptions().
+    private List<Option> workflowOptions;
 
     public CodeAnalyzer(Project project, SemanticModel semanticModel, String connectionScope,
                         Map<String, LineRange> dataMappings, Map<String, LineRange> naturalFunctions,
