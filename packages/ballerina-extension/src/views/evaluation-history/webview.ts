@@ -80,6 +80,10 @@ export class EvaluationHistoryWebview {
                 retainContextWhenHidden: true,
             }
         );
+        panel.iconPath = {
+            light: Uri.file(path.join(extension.context.extensionPath, "resources", "icons", "dark-history.svg")),
+            dark: Uri.file(path.join(extension.context.extensionPath, "resources", "icons", "light-history.svg")),
+        };
 
         EvaluationHistoryWebview.currentPanel = new EvaluationHistoryWebview(
             panel,
