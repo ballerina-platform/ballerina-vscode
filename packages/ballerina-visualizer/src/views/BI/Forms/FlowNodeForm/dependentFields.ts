@@ -30,6 +30,29 @@ export function picksWorkflow(nodeKind: string | undefined): boolean {
     return !!nodeKind && WORKFLOW_PICKING_NODES.includes(nodeKind);
 }
 
+/** What a form's fields held when it opened, by key. */
+export type LastSeenValues = Record<string, unknown>;
+
+/**
+ * Whether a reported change is worth fetching a template for, and records it when it is.
+ *
+ * `Form` reports every field as changed on its first render, so without this a form would retype
+ * itself from its own opening value — replacing a result type the source declares and coming up
+ * dirty. Kept per key rather than against the opening value alone, so choosing A, then B, then A
+ * again still retypes back to A.
+ *
+ * @param lastSeen the values each field was last seen holding, updated in place
+ * @param key      the field that changed
+ * @param value    its new value, narrowed so the caller can pass it on as the symbol
+ */
+export function shouldRetype(lastSeen: LastSeenValues, key: string, value: unknown): value is string {
+    if (typeof value !== "string" || value === "" || value === lastSeen[key]) {
+        return false;
+    }
+    lastSeen[key] = value;
+    return true;
+}
+
 /**
  * The fields a template says follow another field's value — the child workflow's input follows the
  * workflow dropdown, say. The template is what is asked rather than the node being edited: a

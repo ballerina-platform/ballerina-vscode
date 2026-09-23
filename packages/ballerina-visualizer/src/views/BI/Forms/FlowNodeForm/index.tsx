@@ -99,7 +99,7 @@ import IfForm from "../IfForm";
 import { ConnectionConfigurationPopup } from "../../Connection/ConnectionConfigurationPopup";
 import { createPortal } from "react-dom";
 import { cloneDeep, debounce } from "lodash";
-import { dependentKeysFromTemplate, picksWorkflow, retypeFieldsFromTemplate } from "./dependentFields";
+import { dependentKeysFromTemplate, picksWorkflow, retypeFieldsFromTemplate, shouldRetype } from "./dependentFields";
 import {
     createNodeWithUpdatedLineRange,
     deserializeForDiagnosticsAPI,
@@ -686,6 +686,8 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         // first render, so without this a form would retype itself from its own opening value and
         // come up dirty, with a declared result type replaced by the template's default.
         retypedForRef.current = Object.fromEntries(sortedFields.map((field) => [field.key, field.value]));
+        // A template still in flight for the node that was open belongs to that node, not this one.
+        retypeRequest.current++;
         setBaseFields(sortedFields);
         formImportsRef.current = getImportsForFormFields(sortedFields);
     };
@@ -895,13 +897,15 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     const retypeDependentFields = useCallback(async (fieldKey: string, value: unknown) => {
         // Only the forms that pick a workflow: elsewhere a dropdown holds something that is not a
         // symbol, and a template fetched for it would ask for one that does not exist.
-        if (!picksWorkflow(node.codedata?.node) || typeof value !== "string" || value === "" || !fileName) {
+        if (!picksWorkflow(node.codedata?.node) || !fileName) {
             return;
         }
-        if (value === retypedForRef.current[fieldKey]) {
+        if (!shouldRetype(retypedForRef.current, fieldKey, value)) {
+            // A value that is gone or unchanged must also strand any fetch still in flight for the
+            // one before it, or its answer would retype fields for a workflow no longer chosen.
+            retypeRequest.current++;
             return;
         }
-        retypedForRef.current[fieldKey] = value;
         const changed = baseFields.find((field) => field.key === fieldKey);
         if (!changed?.types?.some((type) => type.fieldType === "SINGLE_SELECT")) {
             return;

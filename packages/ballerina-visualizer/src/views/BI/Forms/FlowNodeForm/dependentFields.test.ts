@@ -15,12 +15,50 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { dependentKeysFromTemplate, picksWorkflow, retypeFieldsFromTemplate } from "./dependentFields";
+import { NodeProperties } from "@wso2/ballerina-core";
+import {
+    dependentKeysFromTemplate, picksWorkflow, retypeFieldsFromTemplate, shouldRetype,
+} from "./dependentFields";
 
 const field = (key: string, extra: Record<string, any> = {}) => ({
     key, label: key, type: "EXPRESSION", optional: false, editable: true, documentation: "",
     types: [{ fieldType: "EXPRESSION", ballerinaType: "anydata", selected: true }], value: "", ...extra,
 }) as any;
+
+// `NodeProperties` is a map of `Property`, whose optional members these fixtures fill in part.
+const properties = (shape: Record<string, unknown>): NodeProperties => shape as NodeProperties;
+
+describe("deciding whether a reported change is worth a template", () => {
+    it("ignores the opening value every field is reported with on the first render", () => {
+        // What `initForm` records: the statement declares `auditClaim`.
+        const lastSeen: Record<string, unknown> = { workflow: "auditClaim", type: "string" };
+
+        expect(shouldRetype(lastSeen, "workflow", "auditClaim")).toBe(false);
+        expect(lastSeen.workflow).toBe("auditClaim");
+    });
+
+    it("retypes once a different workflow is chosen, and not again for the same one", () => {
+        const lastSeen: Record<string, unknown> = { workflow: "auditClaim" };
+
+        expect(shouldRetype(lastSeen, "workflow", "settleClaim")).toBe(true);
+        expect(shouldRetype(lastSeen, "workflow", "settleClaim")).toBe(false);
+    });
+
+    it("retypes back when the first choice is picked again", () => {
+        const lastSeen: Record<string, unknown> = { workflow: "auditClaim" };
+
+        expect(shouldRetype(lastSeen, "workflow", "settleClaim")).toBe(true);
+        expect(shouldRetype(lastSeen, "workflow", "auditClaim")).toBe(true);
+    });
+
+    it("ignores a cleared or non-string value", () => {
+        const lastSeen: Record<string, unknown> = { workflow: "auditClaim" };
+
+        expect(shouldRetype(lastSeen, "workflow", "")).toBe(false);
+        expect(shouldRetype(lastSeen, "workflow", undefined)).toBe(false);
+        expect(shouldRetype(lastSeen, "workflow", ["auditClaim"])).toBe(false);
+    });
+});
 
 describe("fields that follow a workflow dropdown", () => {
     const fields = [
@@ -33,28 +71,28 @@ describe("fields that follow a workflow dropdown", () => {
     // A statement re-read from source does not carry the tag on its variable-type property, so the
     // template is what the retype asks — it always does.
     it("reads the links off a template, including one the re-read node is missing", () => {
-        const template = {
-            workflow: { codedata: {} },
-            input: { codedata: { dependentProperty: "workflow" } },
-            type: { codedata: { dependentProperty: "workflow" } },
-            variable: { codedata: {} },
-        } as any;
+        const template = properties({
+            workflow: { metadata: { label: "Workflow" }, codedata: {} },
+            input: { metadata: { label: "Input" }, codedata: { dependentProperty: "workflow" } },
+            type: { metadata: { label: "Result Type" }, codedata: { dependentProperty: "workflow" } },
+            variable: { metadata: { label: "Variable" }, codedata: {} },
+        });
 
         expect(dependentKeysFromTemplate(template, "workflow")).toEqual(["input", "type"]);
         expect(dependentKeysFromTemplate(template, "input")).toEqual([]);
-        expect(dependentKeysFromTemplate(undefined as any, "workflow")).toEqual([]);
+        expect(dependentKeysFromTemplate(properties({}), "workflow")).toEqual([]);
     });
 
     it("takes type, placeholder and doc from the new template while keeping what was typed", () => {
-        const template = {
+        const template = properties({
             input: {
-                metadata: { description: "The claim to audit" },
+                metadata: { label: "Input", description: "The claim to audit" },
                 placeholder: "{}",
                 types: [{ fieldType: "EXPRESSION", ballerinaType: "ClaimInput", selected: true }],
                 value: "",
             },
-            type: { types: [{ fieldType: "TYPE" }], value: "string" },
-        } as any;
+            type: { metadata: { label: "Result Type" }, types: [{ fieldType: "TYPE" }], value: "string" },
+        });
 
         const retyped = retypeFieldsFromTemplate(fields, ["input", "type"], template);
 
@@ -80,17 +118,20 @@ describe("fields that follow a workflow dropdown", () => {
     it("survives a template property that carries no types", () => {
         const bare = [field("workflow"), field("input", { codedata: { dependentProperty: "workflow" } })];
 
-        expect(() => retypeFieldsFromTemplate(bare, ["input"], { input: { placeholder: "{}" } } as any)).not.toThrow();
+        const bareTemplate = properties({ input: { metadata: { label: "Input" }, placeholder: "{}" } });
+        expect(() => retypeFieldsFromTemplate(bare, ["input"], bareTemplate)).not.toThrow();
     });
 
     // `Form` reports every field as changed on its first render, so a retype that did not compare
     // against the opening value would rewrite a declared result type before anything was typed.
     it("leaves a field alone when the template repeats the value it already holds", () => {
-        const template = { type: { types: [{ fieldType: "TYPE" }], value: "json" } } as any;
+        const template = properties({
+            type: { metadata: { label: "Result Type" }, types: [{ fieldType: "TYPE" }], value: "json" },
+        });
         const declared = [field("type", { codedata: { dependentProperty: "workflow" }, value: "string" })];
 
         // Nothing selected a new workflow, so no retype runs and the declared type stands.
-        expect(dependentKeysFromTemplate({} as any, "workflow")).toEqual([]);
+        expect(dependentKeysFromTemplate(properties({}), "workflow")).toEqual([]);
         // And when one does run, the template's own value is what the new choice returns.
         expect(retypeFieldsFromTemplate(declared, ["type"], template)[0].value).toBe("json");
     });
