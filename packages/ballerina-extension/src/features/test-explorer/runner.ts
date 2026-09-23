@@ -20,6 +20,7 @@
 import { spawn } from 'child_process';
 import { CancellationToken, TestRunRequest, TestMessage, TestRun, TestItem, debug, Uri, WorkspaceFolder, DebugConfiguration, workspace, TestRunProfileKind, commands, window } from 'vscode';
 import { EVALUATION_GROUP, testController } from './activator';
+import { isSamePath } from '@wso2/ballerina-core';
 import { StateMachine } from "../../stateMachine";
 import { isTestFunctionItem, isTestGroupItem, isProjectGroupItem } from './discover';
 import { extension } from '../../BalExtensionContext';
@@ -32,6 +33,8 @@ import { captureGitState, createSnapshot, pinSnapshot, ensureEvalReportsGitignor
 import { quoteShellPath } from '../../utils/config';
 import { cleanAndValidateProject } from '../config-generator/configGenerator';
 import { refreshDefaultProviderToken } from '../ai/utils';
+import { killProcessGroup } from '../ai/agent/tools/running-service-manager';
+import { reportModuleStatus } from '../../utils/evaluation-report';
 
 /**
  * Extract project path from a test item
@@ -109,61 +112,61 @@ function buildTestCommand(test: TestItem, executor: string, testCaseNames?: stri
     }
 }
 
-async function handleEvalReport(run: TestRun, testItems: TestItem[], timeElapsed: number, projectPath: string, individualTest: boolean = false): Promise<boolean> {
-    const reportPath = await findLatestEvaluationReport(projectPath);
+interface EvalReport {
+    reportPath: string;
+    moduleStatus: any[];
+}
 
+async function readEvalReport(projectPath: string, stdout: string): Promise<EvalReport | undefined> {
+    const reportPath = extractTestReportPath(stdout);
     if (!reportPath) {
-        testItems.forEach(item => run.failed(item, new TestMessage('No evaluation report found'), timeElapsed));
-        return false;
+        return undefined;
     }
+    const absolutePath = path.resolve(projectPath, reportPath);
+    const moduleStatus = reportModuleStatus(await readTestJson(absolutePath));
+    const hasResults = moduleStatus.some((status) => status["tests"]?.length > 0);
+    return hasResults ? { reportPath: absolutePath, moduleStatus } : undefined;
+}
 
-    // Read evaluation report for individual test results
-    const reportJson = await readTestJson(reportPath);
+function evaluationsNotRunMessage(output: string): string {
+    const reason = output.match(/^error: .+$/gm)?.pop()?.slice('error: '.length).trim();
+    return reason
+        ? `The evaluations did not run: ${reason}`
+        : 'The evaluations did not run. See the test output for details.';
+}
 
-    // moduleStatus can be at top level or nested under packages[]
-    let moduleStatus;
-    if (reportJson && reportJson["packages"]) {
-        const packages = reportJson["packages"];
-        moduleStatus = packages.flatMap((pkg: any) => pkg["moduleStatus"] ?? []);
-    } else if (reportJson) {
-        moduleStatus = reportJson["moduleStatus"];
-    }
-
+async function handleEvalReport(run: TestRun, testItems: TestItem[], timeElapsed: number, projectPath: string,
+    individualTest: boolean, { reportPath, moduleStatus }: EvalReport): Promise<boolean> {
     let allPassed = true;
 
-    if (moduleStatus) {
-        for (const test of testItems) {
-            const matches: { status: string; failureMessage?: string }[] = [];
-            for (const status of moduleStatus) {
-                const testResults = status["tests"] || [];
-                for (const testResult of testResults) {
-                    if (testResult.name === test.label || testResult.name.startsWith(`${test.label}#`)) {
-                        matches.push(testResult);
-                    }
+    for (const test of testItems) {
+        const matches: { status: string; failureMessage?: string }[] = [];
+        for (const status of moduleStatus) {
+            const testResults = status["tests"] || [];
+            for (const testResult of testResults) {
+                if (testResult.name === test.label || testResult.name.startsWith(`${test.label}#`)) {
+                    matches.push(testResult);
                 }
-            }
-            if (matches.length > 0) {
-                const hasFailed = matches.some(m => m.status === TEST_STATUS.FAILED);
-                const hasSkipped = matches.some(m => m.status === TEST_STATUS.SKIPPED);
-                if (hasFailed) {
-                    const failureMessages = matches
-                        .filter(m => m.status === TEST_STATUS.FAILED)
-                        .map(m => m.failureMessage || 'Evaluation failed');
-                    run.failed(test, new TestMessage(failureMessages.join('\n')), timeElapsed);
-                    allPassed = false;
-                } else if (hasSkipped) {
-                    run.skipped(test);
-                } else {
-                    run.passed(test, timeElapsed);
-                }
-            } else if (!individualTest) {
-                run.failed(test, new TestMessage('Test not found in evaluation results'), timeElapsed);
-                allPassed = false;
             }
         }
-    } else {
-        testItems.forEach(item => run.failed(item, new TestMessage('Could not read evaluation results'), timeElapsed));
-        allPassed = false;
+        if (matches.length > 0) {
+            const hasFailed = matches.some(m => m.status === TEST_STATUS.FAILED);
+            const hasSkipped = matches.some(m => m.status === TEST_STATUS.SKIPPED);
+            if (hasFailed) {
+                const failureMessages = matches
+                    .filter(m => m.status === TEST_STATUS.FAILED)
+                    .map(m => m.failureMessage || 'Evaluation failed');
+                run.failed(test, new TestMessage(failureMessages.join('\n')), timeElapsed);
+                allPassed = false;
+            } else if (hasSkipped) {
+                run.skipped(test);
+            } else {
+                run.passed(test, timeElapsed);
+            }
+        } else if (!individualTest) {
+            run.failed(test, new TestMessage('Test not found in evaluation results'), timeElapsed);
+            allPassed = false;
+        }
     }
 
     // Post-process and open the report
@@ -203,14 +206,19 @@ async function postProcessEvaluationReport(reportPath: string, workingDirectory:
     }
 }
 
-export async function runHandler(request: TestRunRequest, token: CancellationToken) {
+export async function runHandler(request: TestRunRequest, token: CancellationToken): Promise<void> {
+    await executeRun(request, token);
+}
+
+// Resolves with the reasons the requested tests could not run.
+async function executeRun(request: TestRunRequest, token: CancellationToken): Promise<string[]> {
     // When request.include is undefined, it means "run all tests" (e.g. top bar Run Tests button)
     let include = request.include;
     if (!include) {
         const allItems: TestItem[] = [];
         testController.items.forEach((item) => allItems.push(item));
         if (allItems.length === 0) {
-            return;
+            return [];
         }
         include = allItems;
     }
@@ -228,7 +236,7 @@ export async function runHandler(request: TestRunRequest, token: CancellationTok
             }
         });
         startDebugging(true, testFuncs);
-        return;
+        return [];
     }
 
     // Match the run/debug flow: clean up unused imports before invoking `bal test`.
@@ -257,6 +265,8 @@ export async function runHandler(request: TestRunRequest, token: CancellationTok
     }
 
     // Handle Test Run
+    const errors: string[] = [];
+    const pending: Promise<string | undefined>[] = [];
     include.forEach((test) => {
         if (token.isCancellationRequested) {
             run.skipped(test);
@@ -268,13 +278,11 @@ export async function runHandler(request: TestRunRequest, token: CancellationTok
         // Get the project path for this test
         const projectPath = getProjectPathFromTestItem(test);
         if (!projectPath) {
-            run.failed(test, new TestMessage('Could not determine project path for test'));
-            run.end();
+            errors.push(markNotRun(run, [test], 'Could not determine project path for test'));
             return;
         }
         if (unconfiguredProjectPaths.has(projectPath)) {
-            run.failed(test, new TestMessage('The WSO2 default AI provider is not configured for this project.'));
-            run.end();
+            errors.push(markNotRun(run, [test], 'The WSO2 default AI provider is not configured for this project.'));
             return;
         }
 
@@ -306,71 +314,24 @@ export async function runHandler(request: TestRunRequest, token: CancellationTok
                 }
             });
 
-            const isEval = isAiEvaluations(test);
             command = buildTestCommand(test, executor, testCaseNames.length > 0 ? testCaseNames : undefined);
-
-            const startTime = Date.now();
-            runCommand(command, projectPath, run).then(async ({ stdout }) => {
-                const endTime = Date.now();
-                const timeElapsed = calculateTimeElapsed(startTime, endTime, testItems);
-                const reportPathOverride = extractTestReportPath(stdout);
-
-                if (isEval) {
-                    handleEvalReport(run, testItems, timeElapsed, projectPath).then((allPassed) => {
-                        endGroup(test, allPassed, run);
-                    }).catch(() => {
-                        endGroup(test, false, run);
-                    });
-                } else {
-                    reportTestResults(run, testItems, timeElapsed, projectPath, false, reportPathOverride).then(() => {
-                        endGroup(test, true, run);
-                    }).catch(() => {
-                        endGroup(test, false, run);
-                    });
-                }
-            }).catch((err) => {
-                testItems.forEach((item) => run.failed(item, new TestMessage(`Failed to run bal test: ${err.message}`)));
-                endGroup(test, false, run);
-            });
+            pending.push(executeTests(run, test, testItems, command, projectPath, false, token));
         } else if (isTestGroupItem(test)) {
             let testCaseNames: string[] = [];
             let testItems: TestItem[] = [];
             test.children.forEach((child) => {
-                const functionName = child.label;
-                testCaseNames.push(functionName);
+                if (request.exclude?.includes(child)) {
+                    return;
+                }
+                testCaseNames.push(child.label);
                 testItems.push(child);
                 run.started(child);
             });
 
-            const isEval = isAiEvaluations(test);
             command = buildTestCommand(test, executor, testCaseNames);
-
-            const startTime = Date.now();
-            runCommand(command, projectPath, run).then(async ({ stdout }) => {
-                const endTime = Date.now();
-                const timeElapsed = calculateTimeElapsed(startTime, endTime, testItems);
-                const reportPathOverride = extractTestReportPath(stdout);
-
-                if (isEval) {
-                    handleEvalReport(run, testItems, timeElapsed, projectPath).then((allPassed) => {
-                        endGroup(test, allPassed, run);
-                    }).catch(() => {
-                        endGroup(test, false, run);
-                    });
-                } else {
-                    reportTestResults(run, testItems, timeElapsed, projectPath, false, reportPathOverride).then(() => {
-                        endGroup(test, true, run);
-                    }).catch(() => {
-                        endGroup(test, false, run);
-                    });
-                }
-            }).catch((err) => {
-                testItems.forEach((item) => run.failed(item, new TestMessage(`Failed to run bal test: ${err.message}`)));
-                endGroup(test, false, run);
-            });
+            pending.push(executeTests(run, test, testItems, command, projectPath, false, token));
         } else if (isTestFunctionItem(test)) {
             command = buildTestCommand(test, executor, [test.label]);
-            const isEval = isAiEvaluations(test);
 
             const parentGroup = test.parent;
             let testItems: TestItem[] = [];
@@ -382,31 +343,84 @@ export async function runHandler(request: TestRunRequest, token: CancellationTok
                 });
             }
 
-            const startTime = Date.now();
-            runCommand(command, projectPath, run).then(async ({ stdout }) => {
-                const endTime = Date.now();
-                const timeElapsed = calculateTimeElapsed(startTime, endTime, testItems);
-                const reportPathOverride = extractTestReportPath(stdout);
-
-                if (isEval) {
-                    handleEvalReport(run, testItems, timeElapsed, projectPath, true).then((allPassed) => {
-                        endGroup(test, allPassed, run);
-                    }).catch(() => {
-                        endGroup(test, false, run);
-                    });
-                } else {
-                    reportTestResults(run, testItems, timeElapsed, projectPath, true, reportPathOverride).then(() => {
-                        endGroup(test, true, run);
-                    }).catch(() => {
-                        endGroup(test, false, run);
-                    });
-                }
-            }).catch((err) => {
-                run.failed(test, new TestMessage(`Failed to run bal test: ${err.message}`));
-                endGroup(test, false, run);
-            });
+            pending.push(executeTests(run, test, testItems, command, projectPath, true, token));
         }
     });
+
+    const results = await Promise.all(pending);
+    run.end();
+    return [...errors, ...results.filter((error): error is string => !!error)];
+}
+
+async function executeTests(run: TestRun, test: TestItem, testItems: TestItem[], command: string,
+    projectPath: string, individualTest: boolean, token: CancellationToken): Promise<string | undefined> {
+    const targets = individualTest ? [test] : [test, ...testItems];
+    const startTime = Date.now();
+    let stdout: string;
+    let stderr: string;
+    try {
+        ({ stdout, stderr } = await runCommand(command, projectPath, run, token));
+    } catch (err: any) {
+        return markNotRun(run, targets, `Failed to run bal test: ${err.message}`);
+    }
+    if (token.isCancellationRequested) {
+        targets.forEach((item) => run.skipped(item));
+        return undefined;
+    }
+
+    const timeElapsed = calculateTimeElapsed(startTime, Date.now(), testItems);
+    let allPassed = true;
+    try {
+        if (isAiEvaluations(test)) {
+            const report = await readEvalReport(projectPath, stdout);
+            if (!report) {
+                return markNotRun(run, targets, evaluationsNotRunMessage(`${stdout}\n${stderr}`));
+            }
+            allPassed = await handleEvalReport(run, testItems, timeElapsed, projectPath, individualTest, report);
+        } else {
+            await reportTestResults(run, testItems, timeElapsed, projectPath, individualTest,
+                extractTestReportPath(stdout));
+        }
+    } catch {
+        allPassed = false;
+    }
+    endGroup(test, allPassed, run);
+}
+
+/**
+ * Runs the given evaluations of a project through the Test Explorer and resolves when they finish.
+ */
+export async function runEvaluations(projectPath: string, functionNames: string[], token: CancellationToken): Promise<void> {
+    const group = findEvaluationGroup(projectPath);
+    const evaluations: TestItem[] = [];
+    group?.children.forEach((item) => evaluations.push(item));
+    const selected = evaluations.filter((item) => functionNames.includes(item.label));
+    if (!group || selected.length === 0) {
+        throw new Error('The evaluations were not found in the Testing view. Refresh the tests and try again.');
+    }
+
+    const [include, exclude] = selected.length === 1
+        ? [selected, undefined]
+        : [[group], evaluations.filter((item) => !selected.includes(item))];
+    // preserveFocus = false lets `testing.openTesting` reveal the Test Results panel.
+    const request = new TestRunRequest(include, exclude, undefined, false, false);
+    const errors = await executeRun(request, token);
+    if (errors.length > 0) {
+        throw new Error(errors.join('\n'));
+    }
+}
+
+function findEvaluationGroup(projectPath: string): TestItem | undefined {
+    const groups: TestItem[] = [];
+    testController.items.forEach((item) => {
+        if (isProjectGroupItem(item)) {
+            item.children.forEach((child) => groups.push(child));
+        } else {
+            groups.push(item);
+        }
+    });
+    return groups.find((item) => isTestGroupItem(item) && item.label === EVALUATION_GROUP
+        && isSamePath(getProjectPathFromTestItem(item), projectPath));
 }
 /**
  * Calculate time elapsed per test item
@@ -526,34 +540,6 @@ export async function readTestJson(file): Promise<JSON | undefined> {
     }
 }
 
-async function findLatestEvaluationReport(workingDirectory: string): Promise<string | undefined> {
-    const reportsDir = path.join(workingDirectory, 'tests', 'evaluation-reports');
-
-    if (!fs.existsSync(reportsDir)) {
-        return undefined;
-    }
-
-    try {
-        const files = fs.readdirSync(reportsDir);
-        const jsonFiles = files
-            .filter((file: string) => file.endsWith('_test_results.json'))
-            .map((file: string) => ({
-                name: file,
-                path: path.join(reportsDir, file),
-                mtime: fs.statSync(path.join(reportsDir, file)).mtime
-            }))
-            .sort((a: { mtime: Date }, b: { mtime: Date }) => b.mtime.getTime() - a.mtime.getTime());
-
-        if (jsonFiles.length > 0) {
-            return jsonFiles[0].path;
-        }
-    } catch (error) {
-        console.error('Error finding evaluation report:', error);
-    }
-
-    return undefined;
-}
-
 async function openEvaluationReport(reportPath: string): Promise<void> {
     try {
         window.showInformationMessage('Evaluation report generated');
@@ -564,20 +550,26 @@ async function openEvaluationReport(reportPath: string): Promise<void> {
     }
 }
 
+function markNotRun(run: TestRun, items: TestItem[], reason: string): string {
+    items.forEach((item) => run.errored(item, new TestMessage(reason)));
+    return reason;
+}
+
 function endGroup(test: TestItem, allPassed: boolean, run: TestRun) {
     if (allPassed) {
         run.passed(test);
     } else {
         run.failed(test, new TestMessage('Some tests failed!'));
     }
-    run.end();
 }
 
-async function runCommand(command: string, projectPath: string, run?: TestRun): Promise<{ stdout: string; stderr: string; exitCode: number | null }> {
+async function runCommand(command: string, projectPath: string, run?: TestRun, token?: CancellationToken): Promise<{ stdout: string; stderr: string; exitCode: number | null }> {
     return new Promise((resolve, reject) => {
         let stdout = '';
         let stderr = '';
-        const proc = spawn(command, { shell: true, cwd: projectPath });
+        // A separate process group lets a cancel kill `bal` and the JVM it starts, not only the shell.
+        const proc = spawn(command, { shell: true, cwd: projectPath, detached: process.platform !== 'win32' });
+        const cancellation = token?.onCancellationRequested(() => killProcessGroup(proc));
 
         proc.stdout.on('data', (data: Buffer) => {
             const str = data.toString();
@@ -596,12 +588,14 @@ async function runCommand(command: string, projectPath: string, run?: TestRun): 
         });
 
         proc.on('error', (err) => {
+            cancellation?.dispose();
             reject(err);
         });
 
         // Always resolve — `bal test` exits non-zero on test failures but still emits a report.
         // We need stdout in both cases so the caller can locate the report file.
         proc.on('close', (code) => {
+            cancellation?.dispose();
             resolve({ stdout, stderr, exitCode: code });
         });
     });

@@ -20,6 +20,9 @@ import {
     TestSourceEditResponse, GetTestFunctionResponse,
     getTestFunction, addTestFunction, updateTestFunction,
     GetTestFunctionNamesRequest, GetTestFunctionNamesResponse, getTestFunctionNames,
+    EvaluationsRequest, GetEvaluationsResponse, getEvaluations,
+    RunEvaluationsRequest, runEvaluations, StopEvaluationsRequest, stopEvaluations,
+    EvaluationRunState, getEvaluationRunState,
     SourceUpdateResponse, GetEvalsetsRequest, GetEvalsetsResponse, getEvalsets,
     GetEvaluationHistoryRequest, GetEvaluationHistoryResponse, getEvaluationHistory,
     OpenEvaluationReportRequest, openEvaluationReport,
@@ -51,6 +54,22 @@ export class TestManagerServiceRpcClient implements TestManagerServiceAPI {
 
     getTestFunctionNames(params: GetTestFunctionNamesRequest): Promise<GetTestFunctionNamesResponse> {
         return this._messenger.sendRequest(getTestFunctionNames, HOST_EXTENSION, params);
+    }
+
+    getEvaluations(params: EvaluationsRequest): Promise<GetEvaluationsResponse> {
+        return this._messenger.sendRequest(getEvaluations, HOST_EXTENSION, params);
+    }
+
+    runEvaluations(params: RunEvaluationsRequest): Promise<void> {
+        return this._messenger.sendRequest(runEvaluations, HOST_EXTENSION, params);
+    }
+
+    stopEvaluations(params: StopEvaluationsRequest): Promise<void> {
+        return this._messenger.sendRequest(stopEvaluations, HOST_EXTENSION, params);
+    }
+
+    getEvaluationRunState(params: EvaluationsRequest): Promise<EvaluationRunState> {
+        return this._messenger.sendRequest(getEvaluationRunState, HOST_EXTENSION, params);
     }
 
     getEvalsets(params: GetEvalsetsRequest): Promise<GetEvalsetsResponse> {

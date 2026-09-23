@@ -21,6 +21,11 @@ import {
     GetTestFunctionResponse,
     GetTestFunctionNamesRequest,
     GetTestFunctionNamesResponse,
+    EvaluationsRequest,
+    EvaluationRunState,
+    StopEvaluationsRequest,
+    GetEvaluationsResponse,
+    RunEvaluationsRequest,
     STModification,
     SourceUpdateResponse,
     SyntaxTree,
@@ -55,6 +60,8 @@ import { EvaluationReportWebview } from "../../views/evaluation-report/webview";
 import { getDiffStat, getDiffFull, objectExists, restoreToCheckpoint } from "../../utils/git-utils";
 import { getTestFunctionNames } from "../../utils/test-discovery";
 import { refreshTestsForFile } from "../../features/test-explorer/activator";
+import { getEvaluationRunState, queueEvaluations, stopEvaluations } from "../../features/test-explorer/evaluation-queue";
+import { parseReportDate } from "../../utils/evaluation-report";
 
 export class TestServiceManagerRpcManager implements TestManagerServiceAPI {
 
@@ -130,6 +137,30 @@ export class TestServiceManagerRpcManager implements TestManagerServiceAPI {
             console.error('Failed to discover test function names:', error);
             return { names: [] };
         }
+    }
+
+    async getEvaluations(params: EvaluationsRequest): Promise<GetEvaluationsResponse> {
+        try {
+            const res = await StateMachine.context().langClient.getProjectEvaluations({ projectPath: params.projectPath });
+            if (!res || !('evaluations' in res || 'errorMsg' in res)) {
+                return { evaluations: [], errorMsg: 'Evaluations are not supported by this language server.' };
+            }
+            return { evaluations: res.evaluations ?? [], errorMsg: res.errorMsg };
+        } catch (error) {
+            return { evaluations: [], errorMsg: error instanceof Error ? error.message : String(error) };
+        }
+    }
+
+    async runEvaluations(params: RunEvaluationsRequest): Promise<void> {
+        queueEvaluations(params.projectPath, params.functionNames);
+    }
+
+    async stopEvaluations(params: StopEvaluationsRequest): Promise<void> {
+        stopEvaluations(params.projectPath, params.functionNames);
+    }
+
+    async getEvaluationRunState(params: EvaluationsRequest): Promise<EvaluationRunState> {
+        return getEvaluationRunState(params.projectPath);
     }
 
     async getEvalsets(params: GetEvalsetsRequest): Promise<GetEvalsetsResponse> {
@@ -304,27 +335,6 @@ export class TestServiceManagerRpcManager implements TestManagerServiceAPI {
         };
     }
 
-    private parseDateFromFilename(filename: string): Date | undefined {
-        const match = filename.match(
-            /^(\d{4})-(\d{2})-(\d{2})_(\d{2})-(\d{2})-(\d{2})-(\d{3})/
-        );
-        if (!match) {
-            return undefined;
-        }
-        const [, year, month, day, hour, minute, second, ms] = match;
-        return new Date(
-            Date.UTC(
-                parseInt(year),
-                parseInt(month) - 1,
-                parseInt(day),
-                parseInt(hour),
-                parseInt(minute),
-                parseInt(second),
-                parseInt(ms)
-            )
-        );
-    }
-
     private loadReportData(reportsDir: string): EvaluationHistoryData {
         const testMap = new Map<string, EvaluationTestHistory>();
         const projectNames = new Set<string>();
@@ -340,7 +350,7 @@ export class TestServiceManagerRpcManager implements TestManagerServiceAPI {
             .sort();
 
         for (const jsonFile of jsonFiles) {
-            const date = this.parseDateFromFilename(jsonFile);
+            const date = parseReportDate(jsonFile);
             if (!date) {
                 continue;
             }
