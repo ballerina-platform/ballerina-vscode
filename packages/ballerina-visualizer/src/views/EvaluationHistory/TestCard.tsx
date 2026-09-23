@@ -22,6 +22,7 @@ import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { EvaluationRunDataPoint, EvaluationTestHistory } from "./types";
 import { SparklineChart } from "./SparklineChart";
 import { RunHistoryTable } from "./RunHistoryTable";
+import { PassRatePill } from "../../components/PassRatePill";
 
 const Card = styled.section`
     background: var(--vscode-sideBar-background);
@@ -62,30 +63,6 @@ const CardBadges = styled.div`
 const CardMeta = styled.div`
     font-size: 11px;
     color: var(--vscode-descriptionForeground);
-`;
-
-const PassBadge = styled.span<{ isPassing: boolean }>`
-    font-size: 12px;
-    font-weight: 600;
-    padding: 3px 10px;
-    border-radius: 12px;
-    background: ${(p: { isPassing: boolean }) =>
-        p.isPassing ? "rgba(76, 175, 80, 0.2)" : "rgba(244, 67, 54, 0.15)"};
-    color: ${(p: { isPassing: boolean }) =>
-        p.isPassing
-            ? "var(--vscode-editorGutter-addedBackground, #2ea043)"
-            : "var(--vscode-editorGutter-deletedBackground, #f85149)"};
-    border: 1px solid
-        ${(p: { isPassing: boolean }) =>
-        p.isPassing
-            ? "rgba(76, 175, 80, 0.4)"
-            : "rgba(244, 67, 54, 0.4)"};
-`;
-
-const BadgeSep = styled.span`
-    opacity: 0.5;
-    margin: 0 2px;
-    font-weight: 400;
 `;
 
 const Trend = styled.span<{ direction: "up" | "down" | "flat" }>`
@@ -144,8 +121,6 @@ export function TestCard({ history, projectPath }: TestCardProps) {
     }
 
     const latest = history.runs[history.runs.length - 1];
-    const latestPct = (latest.passRate * 100).toFixed(0);
-    const targetPct = (latest.targetPassRate * 100).toFixed(0);
     const isPassing = latest.passRate >= latest.targetPassRate;
 
     let trendElement: React.ReactNode = null;
@@ -174,11 +149,11 @@ export function TestCard({ history, projectPath }: TestCardProps) {
                     <TestName>{history.testName}</TestName>
                     <CardBadges>
                         {trendElement}
-                        <PassBadge isPassing={isPassing}>
-                            {latestPct}%
-                            <BadgeSep>/</BadgeSep>
-                            {targetPct}%
-                        </PassBadge>
+                        <PassRatePill
+                            passRate={latest.passRate}
+                            minPassRate={latest.targetPassRate}
+                            isPassing={isPassing}
+                        />
                     </CardBadges>
                 </CardTitleRow>
                 <CardMeta>

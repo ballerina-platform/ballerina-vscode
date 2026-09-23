@@ -18,9 +18,12 @@
 
 import React, { useState } from "react";
 import styled from "@emotion/styled";
-import { EvaluationReportTestResult, EvaluationRun } from "./types";
+import { EvaluationOutcomeResult, EvaluationReportTestResult, EvaluationRun } from "./types";
 import { Codicon } from "@wso2/ui-toolkit";
 import { RunPassRateChart } from "./RunPassRateChart";
+import { PassRatePill, toPercent } from "../../components/PassRatePill";
+
+const DEFAULT_MIN_PASS_RATE = 0.8;
 
 // ── Card shell ──────────────────────────────────────────────────────────────
 
@@ -63,30 +66,6 @@ const CardBadges = styled.div`
 const CardMeta = styled.div`
     font-size: 11px;
     color: var(--vscode-descriptionForeground);
-`;
-
-const PassBadge = styled.span<{ isPassing: boolean }>`
-    font-size: 12px;
-    font-weight: 600;
-    padding: 3px 10px;
-    border-radius: 12px;
-    background: ${(p: { isPassing: boolean }) =>
-        p.isPassing ? "rgba(76, 175, 80, 0.2)" : "rgba(244, 67, 54, 0.15)"};
-    color: ${(p: { isPassing: boolean }) =>
-        p.isPassing
-            ? "var(--vscode-editorGutter-addedBackground, #2ea043)"
-            : "var(--vscode-editorGutter-deletedBackground, #f85149)"};
-    border: 1px solid
-        ${(p: { isPassing: boolean }) =>
-        p.isPassing
-            ? "rgba(76, 175, 80, 0.4)"
-            : "rgba(244, 67, 54, 0.4)"};
-`;
-
-const BadgeSep = styled.span`
-    opacity: 0.5;
-    margin: 0 2px;
-    font-weight: 400;
 `;
 
 const StatusChip = styled.span<{ isPassed: boolean }>`
@@ -279,12 +258,8 @@ export function ReportTestCard({ test, moduleName }: ReportTestCardProps) {
     const evalSummary = test.evaluationSummary;
     const isPassing = test.status === "PASSED";
 
-    const observedPct = evalSummary
-        ? (evalSummary.observedPassRate * 100).toFixed(0)
-        : isPassing ? "100" : "0";
-    const targetPct = evalSummary
-        ? (evalSummary.targetPassRate * 100).toFixed(0)
-        : "80";
+    const passRate = evalSummary ? evalSummary.observedPassRate : (isPassing ? 1 : 0);
+    const minPassRate = evalSummary ? evalSummary.targetPassRate : DEFAULT_MIN_PASS_RATE;
     const totalRuns = evalSummary ? evalSummary.evaluationRuns.length : 0;
 
     return (
@@ -297,11 +272,7 @@ export function ReportTestCard({ test, moduleName }: ReportTestCardProps) {
                         <StatusChip isPassed={isPassing}>
                             {isPassing ? "Passed" : "Failed"}
                         </StatusChip>
-                        <PassBadge isPassing={isPassing}>
-                            {observedPct}%
-                            <BadgeSep>/</BadgeSep>
-                            {targetPct}%
-                        </PassBadge>
+                        <PassRatePill passRate={passRate} minPassRate={minPassRate} isPassing={isPassing} />
                     </CardBadges>
                 </CardTitleRow>
                 <CardMeta>{moduleName}</CardMeta>
@@ -313,13 +284,13 @@ export function ReportTestCard({ test, moduleName }: ReportTestCardProps) {
                     </StatItem>
                     <StatDivider />
                     <StatItem>
-                        <StatValue>{targetPct}%</StatValue>
-                        <StatLabel>Target Pass Rate</StatLabel>
+                        <StatValue>{toPercent(passRate)}</StatValue>
+                        <StatLabel>Pass Rate</StatLabel>
                     </StatItem>
                     <StatDivider />
                     <StatItem>
-                        <StatValue>{observedPct}%</StatValue>
-                        <StatLabel>Observed Pass Rate</StatLabel>
+                        <StatValue>{toPercent(minPassRate)}</StatValue>
+                        <StatLabel>Min Pass Rate</StatLabel>
                     </StatItem>
                 </StatsRow>
             </CardHeader>
@@ -358,8 +329,12 @@ export function ReportTestCard({ test, moduleName }: ReportTestCardProps) {
     );
 }
 
+const hasErrorDetails = (outcome: EvaluationOutcomeResult) => !outcome.passed && !!outcome.errorMessage;
+
 function EvalRunBlock({ run }: { run: EvaluationRun }) {
-    const [expandedErrors, setExpandedErrors] = useState<Set<string>>(new Set());
+    const [expandedErrors, setExpandedErrors] = useState<Set<string>>(
+        () => new Set(run.outcomes.filter(hasErrorDetails).map((outcome) => outcome.id))
+    );
 
     const toggleError = (id: string) => {
         setExpandedErrors((prev) => {
@@ -380,7 +355,7 @@ function EvalRunBlock({ run }: { run: EvaluationRun }) {
             </RunSubheader>
             <OutcomeList>
                 {run.outcomes.map((outcome) => {
-                    const hasError = !outcome.passed && !!outcome.errorMessage;
+                    const hasError = hasErrorDetails(outcome);
                     const isExpanded = expandedErrors.has(outcome.id);
 
                     return (

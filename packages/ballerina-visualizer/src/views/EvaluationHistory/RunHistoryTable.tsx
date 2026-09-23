@@ -334,7 +334,7 @@ export function RunHistoryTable({ runs, projectPath }: RunHistoryTableProps) {
                                             <RateBadge isPassed={isPassed}>
                                                 {pct}%
                                             </RateBadge>{" "}
-                                            <RateTarget>/ {targetPct}%</RateTarget>
+                                            <RateTarget>(min {targetPct}%)</RateTarget>
                                         </td>
                                         <td>
                                             <StatusChip isPassed={isPassed}>
