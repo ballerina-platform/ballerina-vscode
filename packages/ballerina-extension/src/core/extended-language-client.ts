@@ -71,6 +71,7 @@ import {
     ExecutorPositions,
     TestsDiscoveryRequest,
     TestsDiscoveryResponse,
+    EvaluationsDiscoveryResponse,
     JsonToRecordParams,
     XMLToRecordParams,
     XMLToRecord,
@@ -497,6 +498,7 @@ enum EXTENDED_APIS {
     BI_ADD_FUNCTION = 'expressionEditor/functionCallTemplate',
     BI_DISCOVER_TESTS_IN_PROJECT = 'testManagerService/discoverInProject',
     BI_DISCOVER_TESTS_IN_FILE = 'testManagerService/discoverInFile',
+    BI_DISCOVER_EVALUATIONS = 'testManagerService/discoverEvaluations',
     BI_GET_TEST_FUNCTION = 'testManagerService/getTestFunction',
     BI_ADD_TEST_FUNCTION = 'testManagerService/addTestFunction',
     BI_UPDATE_TEST_FUNCTION = 'testManagerService/updateTestFunction',
@@ -1068,6 +1070,10 @@ export class ExtendedLangClient extends LanguageClient implements ExtendedLangCl
 
     async getFileTestFunctions(params: TestsDiscoveryRequest): Promise<TestsDiscoveryResponse | NOT_SUPPORTED_TYPE> {
         return this.sendRequest(EXTENDED_APIS.BI_DISCOVER_TESTS_IN_FILE, params);
+    }
+
+    async getProjectEvaluations(params: TestsDiscoveryRequest): Promise<EvaluationsDiscoveryResponse | NOT_SUPPORTED_TYPE> {
+        return this.sendRequest(EXTENDED_APIS.BI_DISCOVER_EVALUATIONS, params);
     }
 
     async getTestFunction(params: GetTestFunctionRequest): Promise<GetTestFunctionResponse | NOT_SUPPORTED_TYPE> {

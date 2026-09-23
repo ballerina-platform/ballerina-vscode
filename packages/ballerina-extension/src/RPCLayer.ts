@@ -19,7 +19,7 @@
 import { WebviewView, WebviewPanel, window } from 'vscode';
 import { Messenger } from 'vscode-messenger';
 import { StateMachine } from './stateMachine';
-import { stateChanged, getVisualizerLocation, VisualizerLocation, projectContentUpdated, aiStateChanged, sendAIStateEvent, popupStateChanged, getPopupVisualizerState, PopupVisualizerLocation, breakpointChanged, AIMachineEventType, ArtifactData, onArtifactUpdatedNotification, onArtifactUpdatedRequest, currentThemeChanged, AIMachineSendableEvent, checkpointCaptured, CheckpointCapturedPayload, promptUpdated, approvalOverlayState, ApprovalOverlayState, onIdentifierUpdated, ProjectStructureArtifactResponse, runningServicesChanged, RunningServiceInfo, evaluationHistoryUpdated, mcpServersChanged, McpServerStatusDTO, mcpLoadErrorsChanged, McpLoadErrorsDTO, agentsMdFileInfoChanged, AgentsMdFileInfoDTO } from '@wso2/ballerina-core';
+import { stateChanged, getVisualizerLocation, VisualizerLocation, projectContentUpdated, aiStateChanged, sendAIStateEvent, popupStateChanged, getPopupVisualizerState, PopupVisualizerLocation, breakpointChanged, AIMachineEventType, ArtifactData, onArtifactUpdatedNotification, onArtifactUpdatedRequest, currentThemeChanged, AIMachineSendableEvent, checkpointCaptured, CheckpointCapturedPayload, promptUpdated, approvalOverlayState, ApprovalOverlayState, onIdentifierUpdated, ProjectStructureArtifactResponse, runningServicesChanged, RunningServiceInfo, evaluationHistoryUpdated, evaluationRunStateChanged, EvaluationRunState, mcpServersChanged, McpServerStatusDTO, mcpLoadErrorsChanged, McpLoadErrorsDTO, agentsMdFileInfoChanged, AgentsMdFileInfoDTO } from '@wso2/ballerina-core';
 import { EvaluationHistoryWebview } from './views/evaluation-history/webview';
 import { VisualizerWebview } from './views/visualizer/webview';
 import { registerVisualizerRpcHandlers } from './rpc-managers/visualizer/rpc-handler';
@@ -303,4 +303,8 @@ export function sendTracingStatusChangedNotification(status: TraceStatus) {
 
 export function notifyEvaluationHistoryUpdated() {
     RPCLayer._messenger.sendNotification(evaluationHistoryUpdated, { type: 'webview', webviewType: EvaluationHistoryWebview.viewType });
+}
+
+export function notifyEvaluationRunStateChanged(state: EvaluationRunState) {
+    RPCLayer._messenger.sendNotification(evaluationRunStateChanged, { type: 'webview', webviewType: VisualizerWebview.viewType }, state);
 }

@@ -79,7 +79,9 @@ import {
     McpLoadErrorsDTO,
     agentsMdFileInfoChanged,
     AgentsMdFileInfoDTO,
-    evaluationHistoryUpdated
+    evaluationHistoryUpdated,
+    evaluationRunStateChanged,
+    EvaluationRunState
 } from "@wso2/ballerina-core";
 import { LangClientRpcClient } from "./rpc-clients/lang-client/rpc-client";
 import { LibraryBrowserRpcClient } from "./rpc-clients/library-browser/rpc-client";
@@ -126,6 +128,7 @@ export class BallerinaRpcClient {
     private _agentsMdFileInfoChangedCallbacks = new Set<(state: AgentsMdFileInfoDTO) => void>();
     private _projectContentUpdatedCallbacks = new Set<(state: boolean) => void>();
     private _evaluationHistoryUpdatedCallbacks = new Set<() => void>();
+    private _evaluationRunStateChangedCallbacks = new Set<(state: EvaluationRunState) => void>();
 
     constructor() {
         this.messenger = new Messenger(vscode);
@@ -170,6 +173,9 @@ export class BallerinaRpcClient {
         });
         this.messenger.onNotification(evaluationHistoryUpdated, () => {
             this._evaluationHistoryUpdatedCallbacks.forEach((callback) => callback());
+        });
+        this.messenger.onNotification(evaluationRunStateChanged, (state: EvaluationRunState) => {
+            this._evaluationRunStateChangedCallbacks.forEach((callback) => callback(state));
         });
     }
 
@@ -284,6 +290,13 @@ export class BallerinaRpcClient {
         this._evaluationHistoryUpdatedCallbacks.add(callback);
         return () => {
             this._evaluationHistoryUpdatedCallbacks.delete(callback);
+        };
+    }
+
+    onEvaluationRunStateChanged(callback: (state: EvaluationRunState) => void): () => void {
+        this._evaluationRunStateChangedCallbacks.add(callback);
+        return () => {
+            this._evaluationRunStateChangedCallbacks.delete(callback);
         };
     }
 

@@ -37,6 +37,7 @@ import { ResourceForm } from "../ServiceDesigner/Forms/ResourceForm";
 import { AddServiceElementDropdown, DropdownOptionProps } from "../ServiceDesigner/components/AddServiceElementDropdown";
 import { removeForwardSlashes } from "../ServiceDesigner/utils";
 import { getTryItAIDefaultPromptResource, getTryItDropdownOptions, TryItOptionValue, TryItQuickPickItem } from "../shared/tryIt";
+import { AgentEvaluationsPopup } from "../AgentEvaluations/AgentEvaluationsPopup";
 
 const ActionButton = styled(Button)`
     display: flex;
@@ -133,6 +134,7 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
     const [serviceType, setServiceType] = useState("");
     const [serviceName, setServiceName] = useState("");
     const [agentName, setAgentName] = useState("");
+    const [showEvaluations, setShowEvaluations] = useState(false);
     const [basePath, setBasePath] = useState("");
     const [listener, setListener] = useState("");
     const [parentMetadata, setParentMetadata] = useState<ParentMetadata>();
@@ -607,7 +609,23 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
             );
         }
 
-        if (isAgentFocus || isDurableAgentPage) {
+        if (isAgentFocus) {
+            return (
+                <>
+                    <ActionButton
+                        appearance="secondary"
+                        onClick={() => setShowEvaluations(true)}
+                        tooltip="View and run the evaluations of this agent"
+                    >
+                        <Icon name="beaker" isCodicon={true} sx={{ marginRight: 5, width: 16, height: 16, fontSize: 14 }} />
+                        Evaluations
+                    </ActionButton>
+                    {tracingButton}
+                </>
+            );
+        }
+
+        if (isDurableAgentPage) {
             return tracingButton;
         }
 
@@ -732,6 +750,13 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
                     />
                 )
             }
+            {showEvaluations && (
+                <AgentEvaluationsPopup
+                    projectPath={projectPath}
+                    agentName={agentName}
+                    onClose={() => setShowEvaluations(false)}
+                />
+            )}
             {/* This is for editing a http resource */}
             <PanelContainer
                 title={"Resource Configuration"}

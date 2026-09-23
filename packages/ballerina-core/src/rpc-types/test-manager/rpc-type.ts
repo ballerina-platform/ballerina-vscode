@@ -15,7 +15,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { GetTestFunctionRequest, GetTestFunctionResponse, AddOrUpdateTestFunctionRequest } from "../../interfaces/extended-lang-client";
+import { GetTestFunctionRequest, GetTestFunctionResponse, AddOrUpdateTestFunctionRequest, Evaluation } from "../../interfaces/extended-lang-client";
 import { NotificationType, RequestType } from "vscode-messenger-common";
 import { SourceUpdateResponse } from "../service-designer/interfaces";
 
@@ -37,6 +37,48 @@ export interface GetTestFunctionNamesResponse {
 
 export const getTestFunctionNames: RequestType<GetTestFunctionNamesRequest, GetTestFunctionNamesResponse> =
     { method: `${_preFix}/getTestFunctionNames` };
+
+export interface EvaluationsRequest {
+    projectPath: string;
+}
+
+export interface GetEvaluationsResponse {
+    evaluations: Evaluation[];
+    errorMsg?: string;
+}
+
+export const getEvaluations: RequestType<EvaluationsRequest, GetEvaluationsResponse> =
+    { method: `${_preFix}/getEvaluations` };
+
+export interface RunEvaluationsRequest {
+    projectPath: string;
+    functionNames: string[];
+}
+
+export const runEvaluations: RequestType<RunEvaluationsRequest, void> =
+    { method: `${_preFix}/runEvaluations` };
+
+export interface StopEvaluationsRequest {
+    projectPath: string;
+    /** Stops every running and queued evaluation when omitted. */
+    functionNames?: string[];
+}
+
+export const stopEvaluations: RequestType<StopEvaluationsRequest, void> =
+    { method: `${_preFix}/stopEvaluations` };
+
+export interface EvaluationRunState {
+    projectPath: string;
+    running: string[];
+    queued: string[];
+    stopping: string[];
+}
+
+export const getEvaluationRunState: RequestType<EvaluationsRequest, EvaluationRunState> =
+    { method: `${_preFix}/getEvaluationRunState` };
+
+export const evaluationRunStateChanged: NotificationType<EvaluationRunState> =
+    { method: `${_preFix}/evaluationRunStateChanged` };
 
 export interface EvalsetItem {
     id: string;

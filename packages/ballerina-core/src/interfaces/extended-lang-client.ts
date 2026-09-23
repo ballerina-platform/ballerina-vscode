@@ -641,6 +641,32 @@ export interface FunctionLineRange {
     endLine: LinePosition;
 }
 
+export interface EvaluationTemplate {
+    symbol: string;
+    label: string;
+    description: string;
+    kind: string;
+    needsEvalset: boolean;
+}
+
+export interface EvaluationAgent {
+    name: string;
+    lineRange: FunctionLineRange;
+}
+
+export interface Evaluation {
+    functionName: string;
+    lineRange: FunctionLineRange;
+    template?: EvaluationTemplate;
+    agents: EvaluationAgent[];
+}
+
+export interface EvaluationsDiscoveryResponse {
+    evaluations?: Evaluation[];
+    errorMsg?: string;
+    stacktrace?: string;
+}
+
 export interface ICPEnabledRequest {
     projectPath: string;
 }
