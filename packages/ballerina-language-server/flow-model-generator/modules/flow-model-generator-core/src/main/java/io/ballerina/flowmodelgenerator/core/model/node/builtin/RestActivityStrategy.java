@@ -31,7 +31,6 @@ import io.ballerina.flowmodelgenerator.core.model.node.FromExpressionOption;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 import static io.ballerina.modelgenerator.commons.ParameterData.Kind.REQUIRED;
@@ -55,8 +54,12 @@ public class RestActivityStrategy implements BuiltinActivityStrategy {
     // The method dropdown's escape hatch: the method as a string expression, written back unquoted.
     public static final String METHOD_EXPRESSION_KEY = "methodExpression";
     private static final String METHOD_EXPRESSION_LABEL = "Method Expression";
-    private static final String METHOD_EXPRESSION_DOC = "The HTTP method as a string expression: a constant or a "
-            + "variable. A literal such as \"GET\" reopens as that method.";
+    // `callRestAPI` declares `activity:RestMethod`, an enum of the five methods. A plain `string`
+    // is not assignable to it, so the field states the enum and the wording does not invite one.
+    private static final String METHOD_TYPE = "activity:RestMethod";
+    private static final String METHOD_EXPRESSION_DOC = "The HTTP method as an expression: a constant, an enum "
+            + "member such as activity:GET, or a variable of type activity:RestMethod. A literal such as "
+            + "\"GET\" reopens as that method.";
     private static final String NO_METHOD_EXPRESSION_MESSAGE =
             "From Expression needs a value: fill in Method Expression";
 
@@ -102,7 +105,10 @@ public class RestActivityStrategy implements BuiltinActivityStrategy {
             }
             String trimmed = source.trim();
             if (BuiltinActivityStrategy.isBallerinaStringExpression(trimmed)) {
-                String literal = trimmed.substring(1, trimmed.length() - 1).toUpperCase(Locale.ROOT);
+                // Case-sensitive on purpose: `"get"` is not a `RestMethod`, and folding it to GET
+                // would rewrite source that does not compile into source that does, silently
+                // changing what was written. It opens under From Expression instead, as it stands.
+                String literal = trimmed.substring(1, trimmed.length() - 1);
                 if (METHODS.contains(literal)) {
                     return new MethodSelection(literal, "");
                 }
@@ -202,7 +208,7 @@ public class RestActivityStrategy implements BuiltinActivityStrategy {
         // An expression may name any method, so the body is offered beside it.
         Map<String, Property> fromExpressionFields = new LinkedHashMap<>();
         fromExpressionFields.put(METHOD_EXPRESSION_KEY, FromExpressionOption.subProperty(METHOD_EXPRESSION_LABEL,
-                METHOD_EXPRESSION_DOC, "string"));
+                METHOD_EXPRESSION_DOC, METHOD_TYPE));
         fromExpressionFields.put(MESSAGE_KEY, messageSubProp);
         methodDynamicFields.put(FromExpressionOption.VALUE, fromExpressionFields);
 
@@ -224,7 +230,7 @@ public class RestActivityStrategy implements BuiltinActivityStrategy {
                 .stepOut()
                 .addProperty(METHOD_KEY);
         FromExpressionOption.addHiddenProperty(nodeBuilder, METHOD_EXPRESSION_KEY, METHOD_EXPRESSION_LABEL,
-                METHOD_EXPRESSION_DOC, "string", selection.expression());
+                METHOD_EXPRESSION_DOC, METHOD_TYPE, selection.expression());
     }
 
     // NOTE: BuiltinActivityStrategy.processSpecialParameter is intentionally NOT overridden here.

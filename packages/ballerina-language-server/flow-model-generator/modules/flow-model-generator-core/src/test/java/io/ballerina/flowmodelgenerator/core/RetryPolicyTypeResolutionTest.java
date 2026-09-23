@@ -54,29 +54,36 @@ public class RetryPolicyTypeResolutionTest {
             .toAbsolutePath();
 
     private final Map<String, String> resolvedTypes = new LinkedHashMap<>();
+    private final Map<String, String> invalidTypes = new LinkedHashMap<>();
 
     @BeforeClass
     public void setup() {
-        Project project = SingleFileProject.load(RES_DIR.resolve("retry_policies.bal"),
+        collectFrom("retry_policies.bal", resolvedTypes);
+        collectFrom("retry_policies_invalid.bal", invalidTypes);
+    }
+
+    private void collectFrom(String fixture, Map<String, String> into) {
+        Project project = SingleFileProject.load(RES_DIR.resolve(fixture),
                 BuildOptions.builder().setOffline(true).build());
         SemanticModel model = PackageUtil.getCompilation(project)
                 .getSemanticModel(project.currentPackage().getDefaultModule().moduleId());
         for (DocumentId documentId : project.currentPackage().getDefaultModule().documentIds()) {
-            collect(project.currentPackage().getDefaultModule().document(documentId).syntaxTree().rootNode(), model);
+            collect(project.currentPackage().getDefaultModule().document(documentId).syntaxTree().rootNode(), model,
+                    into);
         }
     }
 
-    private void collect(Node node, SemanticModel model) {
+    private void collect(Node node, SemanticModel model, Map<String, String> into) {
         if (node instanceof NamedArgumentNode named
                 && ActivityCallBuilder.RETRY_POLICY_PARAM.equals(named.argumentName().name().text())
                 && named.expression().kind() == SyntaxKind.MAPPING_CONSTRUCTOR) {
-            resolvedTypes.put(named.expression().toSourceCode().trim(),
+            into.put(named.expression().toSourceCode().trim(),
                     model.typeOf(named.expression()).flatMap(TypeSymbol::getName).orElse(null));
         }
         if (node instanceof NonTerminalNode nonTerminal) {
             nonTerminal.children().forEach(child -> {
                 if (child != null) {
-                    collect(child, model);
+                    collect(child, model, into);
                 }
             });
         }
@@ -111,6 +118,20 @@ public class RetryPolicyTypeResolutionTest {
         Assert.assertEquals(
                 CodeAnalyzer.normalizeRetryPolicy("{maxRetries: 2, userRoles: \"ops\"}", null).dropdownValue(),
                 ActivityCallBuilder.RETRY_BEFORE_REVIEW_VALUE);
+    }
+
+    @Test(description = "A literal that does not type-check leaves the form where it was: the compiler names "
+            + "nothing for it, so the fields decide as they did before")
+    public void testInvalidLiteralFallsBackToTheFields() {
+        // The compiler answers with no name at all for a literal that matches no member — not with
+        // the union's own name — so this does not reach the unknown-member path below, and the
+        // form reads the literal from its fields exactly as it did before the member was consulted.
+        String resolved = invalidTypes.get("{budget: 5}");
+        Assert.assertNull(resolved, "the compiler names no member for a literal that does not type-check");
+
+        CodeAnalyzer.RetryPolicyForm form = CodeAnalyzer.normalizeRetryPolicy("{budget: 5}", resolved);
+        Assert.assertEquals(form.dropdownValue(), ActivityCallBuilder.AUTO_RETRY_VALUE,
+                "no audience in the literal, so the fields read it as an automatic retry, unchanged");
     }
 
     @Test(description = "A member the form has no option for is carried as source, not filed under the "

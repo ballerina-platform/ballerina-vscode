@@ -1824,8 +1824,15 @@ public class CodeAnalyzer extends NodeVisitor {
     }
 
     // Whether a cardinality source value is an expression rather than one of the enum's members.
+    // The prefix has to be the workflow module's own: `other:SINGLE_EVENT` names a different
+    // constant, and reading it as the member would save it back as `workflow:SINGLE_EVENT`.
     private static boolean cardinalityIsExpression(String rawValue) {
-        String bare = WorkflowUtil.stripModulePrefix(rawValue.trim());
+        String trimmed = rawValue.trim();
+        int colon = trimmed.lastIndexOf(':');
+        if (colon >= 0 && !WORKFLOW_MODULE.equals(trimmed.substring(0, colon))) {
+            return true;
+        }
+        String bare = trimmed.substring(colon + 1);
         return !DurableAgentRegisterEventBuilder.MULTI_EVENT.equals(bare)
                 && !DurableAgentRegisterEventBuilder.SINGLE_EVENT.equals(bare);
     }

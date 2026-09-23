@@ -191,12 +191,12 @@
             "methodExpression": {
               "metadata": {
                 "label": "Method Expression",
-                "description": "The HTTP method as a string expression: a constant or a variable. A literal such as \"GET\" reopens as that method."
+                "description": "The HTTP method as an expression: a constant, an enum member such as activity:GET, or a variable of type activity:RestMethod. A literal such as \"GET\" reopens as that method."
               },
               "types": [
                 {
                   "fieldType": "EXPRESSION",
-                  "ballerinaType": "string",
+                  "ballerinaType": "activity:RestMethod",
                   "selected": true
                 }
               ],
@@ -262,12 +262,12 @@
       "methodExpression": {
         "metadata": {
           "label": "Method Expression",
-          "description": "The HTTP method as a string expression: a constant or a variable. A literal such as \"GET\" reopens as that method."
+          "description": "The HTTP method as an expression: a constant, an enum member such as activity:GET, or a variable of type activity:RestMethod. A literal such as \"GET\" reopens as that method."
         },
         "types": [
           {
             "fieldType": "EXPRESSION",
-            "ballerinaType": "string",
+            "ballerinaType": "activity:RestMethod",
             "selected": true
           }
         ],

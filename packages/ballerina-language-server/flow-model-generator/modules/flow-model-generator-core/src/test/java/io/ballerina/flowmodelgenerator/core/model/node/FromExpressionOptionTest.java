@@ -62,7 +62,10 @@ public class FromExpressionOptionTest {
 
     @Test(description = "The method dropdown reads a literal method as itself and anything else as an expression")
     public void testMethodSelection() {
-        Assert.assertEquals(MethodSelection.fromSource("\"post\""), new MethodSelection("POST", ""));
+        Assert.assertEquals(MethodSelection.fromSource("\"POST\""), new MethodSelection("POST", ""));
+        Assert.assertEquals(MethodSelection.fromSource("\"post\""),
+                new MethodSelection(FromExpressionOption.VALUE, "\"post\""),
+                "`\"post\"` is not a RestMethod, so it is kept as typed rather than corrected to POST");
         Assert.assertEquals(MethodSelection.fromSource(null), MethodSelection.template());
         Assert.assertEquals(MethodSelection.fromSource("GET_METHOD"),
                 new MethodSelection(FromExpressionOption.VALUE, "GET_METHOD"));
@@ -132,7 +135,8 @@ public class FromExpressionOptionTest {
     @Test(description = "A method read as an expression reads back the same way, so reopening a node "
             + "does not move it to a different mode")
     public void testMethodSelectionIsStable() {
-        for (String source : new String[]{"GET_METHOD", "\"POST\"", "\"OPTIONS\"", "methodFor(request)"}) {
+        for (String source : new String[]{"GET_METHOD", "\"POST\"", "\"OPTIONS\"", "\"post\"",
+                "methodFor(request)"}) {
             MethodSelection first = MethodSelection.fromSource(source);
             String written = FromExpressionOption.isSelected(first.method())
                     ? first.expression() : "\"" + first.method() + "\"";
