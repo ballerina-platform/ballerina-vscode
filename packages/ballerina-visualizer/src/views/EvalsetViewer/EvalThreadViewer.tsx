@@ -137,12 +137,15 @@ const IconButton = styled.div`
     padding: 4px;
     cursor: pointer;
     border-radius: 4px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
 
     &:hover {
         background-color: var(--vscode-toolbar-hoverBackground);
+    }
+
+    & > div:first-child {
+        width: 20px;
+        height: 20px;
+        font-size: 20px;
     }
 `;
 
@@ -930,8 +933,7 @@ export const EvalThreadViewer: React.FC<EvalThreadViewerProps> = ({ projectPath,
                 <Header>
                     <HeaderLeft>
                         <IconButton onClick={handleBack} title="Back to thread list">
-                            <Icon name="chevron-left" isCodicon sx={{ display: "flex", alignItems: "center", justifyContent: "center" }}
-                                iconSx={{ display: "flex", fontSize: "20px", color: "var(--vscode-foreground)" }} />
+                            <Icon name="bi-arrow-back" iconSx={{ fontSize: "20px", color: "var(--vscode-foreground)" }} />
                         </IconButton>
                         <HeaderInfoWrapper>
                             <BreadcrumbRow>

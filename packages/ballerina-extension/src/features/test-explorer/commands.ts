@@ -33,17 +33,22 @@ import { BallerinaExtension } from "../../core";
 import { isSupportedSLVersion, createVersionNumber } from "../../utils/config";
 import { EVALUATION_GROUP } from "./activator";
 
+export const supportsAIEvaluation = (ballerinaExtInstance: BallerinaExtension): boolean =>
+    isSupportedSLVersion(ballerinaExtInstance, createVersionNumber(2201, 13, 2));
+
+export async function ensureEvaluationFile(projectPath: string): Promise<string> {
+    const fileUri = path.resolve(projectPath, `tests`, `tests.bal`);
+    await ensureFileExists(fileUri);
+    return fileUri;
+}
+
 export function activateEditBiTest(ballerinaExtInstance: BallerinaExtension) {
-    // Check if AI Evaluation features are supported
-    const isAIEvaluationSupported = isSupportedSLVersion(
-        ballerinaExtInstance,
-        createVersionNumber(2201, 13, 2)
-    );
+    const isAIEvaluationSupported = supportsAIEvaluation(ballerinaExtInstance);
 
     // Set VS Code context for UI visibility control
     commands.executeCommand('setContext', 'ballerina.ai.evaluationSupported', isAIEvaluationSupported);
     // register run project tests handler
-    commands.registerCommand(BI_COMMANDS.BI_EDIT_TEST_FUNCTION, async (entry: TestItem) => {
+    commands.registerCommand(BI_COMMANDS.BI_EDIT_TEST_FUNCTION, async (entry: TestItem, options?: { keepHistory?: boolean }) => {
         const projectPath = await findProjectPath(entry.uri?.fsPath);
 
         if (!projectPath) {
@@ -68,7 +73,9 @@ export function activateEditBiTest(ballerinaExtInstance: BallerinaExtension) {
                     endLine: range.end.line, endColumn: range.end.character
                 }
             });
-            history.clear();
+            if (!options?.keepHistory) {
+                history.clear();
+            }
         }
     });
 
@@ -96,8 +103,7 @@ export function activateEditBiTest(ballerinaExtInstance: BallerinaExtension) {
             return;
         }
 
-        const fileUri = path.resolve(projectPath, `tests`, `tests.bal`);
-        ensureFileExists(fileUri);
+        const fileUri = await ensureEvaluationFile(projectPath);
         openView(EVENT_TYPE.OPEN_VIEW, {
             view: MACHINE_VIEW.BIAIEvaluationForm,
             documentUri: fileUri,

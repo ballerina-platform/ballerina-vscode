@@ -31,6 +31,7 @@ import {
     HistoryEntry,
     joinProjectPath,
     JoinProjectPathRequest,
+    mergeHistoryLocation,
     openView,
     OpenViewRequest,
     redo,
@@ -46,7 +47,8 @@ import {
     UpdatedArtifactsResponse,
     navigateReviewMode,
     GoBackRequest,
-    GoHomeRequest
+    GoHomeRequest,
+    VisualizerLocation
 } from "@wso2/ballerina-core";
 import { Messenger } from "vscode-messenger";
 import { VisualizerRpcManager } from "./rpc-manager";
@@ -56,6 +58,7 @@ export function registerVisualizerRpcHandlers(messenger: Messenger) {
     messenger.onNotification(openView, (args: OpenViewRequest) => rpcManger.openView(args));
     messenger.onRequest(getHistory, () => rpcManger.getHistory());
     messenger.onNotification(addToHistory, (args: HistoryEntry) => rpcManger.addToHistory(args));
+    messenger.onNotification(mergeHistoryLocation, (args: VisualizerLocation) => rpcManger.mergeHistoryLocation(args));
     messenger.onNotification(goBack, (args: GoBackRequest) => rpcManger.goBack(args));
     messenger.onNotification(goHome, (args: GoHomeRequest) => rpcManger.goHome(args));
     messenger.onNotification(goSelected, (args: number) => rpcManger.goSelected(args));

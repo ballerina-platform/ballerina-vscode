@@ -42,6 +42,7 @@ export async function createNewEvalset(): Promise<void> {
         const evalset: EvalSet = {
             id: crypto.randomUUID(),
             name: name,
+            description: '',
             threads: [],
             created_on: new Date().toISOString()
         };
@@ -175,7 +176,7 @@ export async function createNewThread(evalsetFileNode?: any, autoRefresh?: boole
     }
 }
 
-export async function deleteEvalset(evalsetFileNode?: any): Promise<void> {
+export async function deleteEvalset(evalsetFileNode?: any, usedBy: string[] = []): Promise<void> {
     try {
         // Validate that this was called from tree view with proper node
         if (!evalsetFileNode || !evalsetFileNode.uri) {
@@ -187,8 +188,11 @@ export async function deleteEvalset(evalsetFileNode?: any): Promise<void> {
         const fileName = path.basename(filePath);
 
         // Confirm deletion
+        const usage = usedBy.length > 0
+            ? ` ${usedBy.join(', ')} ${usedBy.length === 1 ? 'uses' : 'use'} it and will fail until they load another evalset.`
+            : '';
         const confirmation = await vscode.window.showWarningMessage(
-            `Are you sure you want to delete "${fileName}"? This action cannot be undone.`,
+            `Are you sure you want to delete "${fileName}"?${usage} This action cannot be undone.`,
             { modal: true },
             'Delete'
         );

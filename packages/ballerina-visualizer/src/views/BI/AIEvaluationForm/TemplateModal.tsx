@@ -16,16 +16,17 @@
  * under the License.
  */
 
-import { useMemo, useState } from "react";
+import { ReactNode, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { Codicon } from "@wso2/ui-toolkit";
+import { Codicon, LinkButton } from "@wso2/ui-toolkit";
 import { AvailableNode } from "@wso2/ballerina-core";
 import { PopupModal } from "../../../components/PopupModal";
+import { RelativeLoader } from "../../../components/RelativeLoader";
 import {
     PopupHeader, HeaderTitleContainer, PopupTitle, PopupSubtitle, CloseButton, PopupContent
 } from "../Connection/styles";
 import {
-    Badge, EmptyTemplates, ModalControls, TemplateFilter, TemplateFilters, TemplateIconTile,
+    Badge, CustomEvaluationPrompt, EmptyTemplates, ModalControls, TemplateFilter, TemplateFilters, TemplateIconTile,
     TemplateOption, TemplateOptionContent, TemplateOptionDescription, TemplateOptionHeading,
     TemplateResultsGrid, TemplateSearch, TemplateTags
 } from "./styles";
@@ -33,16 +34,56 @@ import {
     TemplateFilterKind, getTemplateIcon, getTemplateKind, matchesTemplateFilter, templateNeedsEvalset
 } from "./templateUtils";
 
-interface TemplateModalProps {
+interface TemplateBrowserProps {
     templates: AvailableNode[];
     templateLoadError?: string;
     selectedTemplate?: AvailableNode;
     onSelectTemplate: (template: AvailableNode) => void;
-    onClose: () => void;
+    renderHeader?: (visibleCount: number) => ReactNode;
+    loading?: boolean;
+    /** Offers custom evaluation logic next to the templates. */
+    onCustom?: () => void;
 }
 
-export function TemplateModal(props: TemplateModalProps) {
-    const { templates, templateLoadError, selectedTemplate, onSelectTemplate, onClose } = props;
+interface TemplateCardProps {
+    template: AvailableNode;
+    selected: boolean;
+    onSelect: () => void;
+}
+
+function TemplateCard({ template, selected, onSelect }: TemplateCardProps) {
+    return (
+        <TemplateOption type="button" selected={selected} onClick={onSelect}>
+            <TemplateIconTile size={32} selected={selected}>
+                <Codicon name={getTemplateIcon(template)}
+                    sx={{ display: 'flex', height: 'auto', width: 'auto', cursor: 'pointer' }}
+                    iconSx={{ fontSize: '18px', lineHeight: 1, display: 'block', WebkitTextStroke: '0.4px currentColor' }} />
+            </TemplateIconTile>
+            <TemplateOptionContent>
+                <TemplateOptionHeading>
+                    <span>{template.metadata.label}</span>
+                    {selected && <Codicon name="check" />}
+                </TemplateOptionHeading>
+                <TemplateOptionDescription>{template.metadata.description}</TemplateOptionDescription>
+                <TemplateTags>
+                    <Badge>{getTemplateKind(template)}</Badge>
+                    <Badge>{templateNeedsEvalset(template) ? 'Evalset required' : 'Evalset or queries'}</Badge>
+                </TemplateTags>
+            </TemplateOptionContent>
+        </TemplateOption>
+    );
+}
+
+const TEMPLATE_FILTERS: Array<[TemplateFilterKind, string]> = [
+    ['all', 'All'],
+    ['rule-based', 'Rule-based'],
+    ['llm-as-judge', 'LLM-as-Judge'],
+    ['uses-evalset', 'Evalset required'],
+    ['no-evalset', 'Evalset or queries']
+];
+
+export function TemplateBrowser(props: TemplateBrowserProps) {
+    const { templates, templateLoadError, selectedTemplate, onSelectTemplate, renderHeader, loading, onCustom } = props;
 
     const [query, setQuery] = useState('');
     const [filter, setFilter] = useState<TemplateFilterKind>('all');
@@ -55,10 +96,68 @@ export function TemplateModal(props: TemplateModalProps) {
         });
     }, [templates, filter, query]);
 
-    const handleSelect = (template: AvailableNode, close: () => void) => {
-        onSelectTemplate(template);
-        close();
-    };
+    const emptyMessage = templateLoadError
+        || (filteredTemplates.length === 0 ? 'No templates match the current search and filters.' : undefined);
+    const customPrompt = onCustom && (
+        <CustomEvaluationPrompt>
+            Need a check that isn't listed?
+            <LinkButton onClick={onCustom} sx={{ fontSize: 12, padding: 0 }}>
+                Write a custom evaluation
+            </LinkButton>
+        </CustomEvaluationPrompt>
+    );
+
+    return (
+        <>
+            {renderHeader?.(filteredTemplates.length)}
+            <ModalControls>
+                <TemplateSearch
+                    value={query}
+                    placeholder="Search by name, type, or behavior"
+                    onChange={setQuery}
+                    size={60}
+                    autoFocus
+                />
+                <TemplateFilters>
+                    {TEMPLATE_FILTERS.map(([value, label]) => (
+                        <TemplateFilter key={value} type="button" active={filter === value}
+                            onClick={() => setFilter(value)}>{label}</TemplateFilter>
+                    ))}
+                </TemplateFilters>
+            </ModalControls>
+
+            <PopupContent>
+                {loading ? <RelativeLoader /> : emptyMessage ? (
+                    <EmptyTemplates>
+                        {emptyMessage}
+                        {customPrompt}
+                    </EmptyTemplates>
+                ) : (
+                    <>
+                        <TemplateResultsGrid>
+                            {filteredTemplates.map(template => (
+                                <TemplateCard
+                                    key={template.codedata.symbol}
+                                    template={template}
+                                    selected={selectedTemplate?.codedata.symbol === template.codedata.symbol}
+                                    onSelect={() => onSelectTemplate(template)}
+                                />
+                            ))}
+                        </TemplateResultsGrid>
+                        {customPrompt}
+                    </>
+                )}
+            </PopupContent>
+        </>
+    );
+}
+
+interface TemplateModalProps extends Omit<TemplateBrowserProps, 'renderHeader'> {
+    onClose: () => void;
+}
+
+export function TemplateModal(props: TemplateModalProps) {
+    const { templates, onSelectTemplate, onClose } = props;
 
     return createPortal(
         <PopupModal
@@ -68,78 +167,28 @@ export function TemplateModal(props: TemplateModalProps) {
             ariaLabelledBy="evaluation-template-dialog-title"
         >
             {(close) => (
-                <>
-                <PopupHeader>
-                    <HeaderTitleContainer>
-                        <PopupTitle variant="h2" id="evaluation-template-dialog-title">
-                            Browse Evaluation Templates
-                        </PopupTitle>
-                        <PopupSubtitle variant="body3">
-                            {filteredTemplates.length} of {templates.length} templates
-                        </PopupSubtitle>
-                    </HeaderTitleContainer>
-                    <CloseButton appearance="icon" onClick={close} aria-label="Close template browser">
-                        <Codicon name="close" />
-                    </CloseButton>
-                </PopupHeader>
-
-                <ModalControls>
-                    <TemplateSearch
-                        value={query}
-                        placeholder="Search by name, type, or behavior"
-                        onChange={setQuery}
-                        size={60}
-                        autoFocus
-                    />
-                    <TemplateFilters>
-                        {([
-                            ['all', 'All'],
-                            ['rule-based', 'Rule-based'],
-                            ['llm-as-judge', 'LLM-as-Judge'],
-                            ['uses-evalset', 'Evalset required'],
-                            ['no-evalset', 'Evalset or queries']
-                        ] as Array<[TemplateFilterKind, string]>).map(([value, label]) => (
-                            <TemplateFilter key={value} type="button" active={filter === value}
-                                onClick={() => setFilter(value)}>{label}</TemplateFilter>
-                        ))}
-                    </TemplateFilters>
-                </ModalControls>
-
-                <PopupContent>
-                    {templateLoadError ? (
-                        <EmptyTemplates>{templateLoadError}</EmptyTemplates>
-                    ) : filteredTemplates.length === 0 ? (
-                        <EmptyTemplates>No templates match the current search and filters.</EmptyTemplates>
-                    ) : (
-                        <TemplateResultsGrid>
-                            {filteredTemplates.map(template => {
-                                const isSelected = selectedTemplate?.codedata.symbol === template.codedata.symbol;
-                                return (
-                                    <TemplateOption key={template.codedata.symbol} type="button"
-                                        selected={isSelected} onClick={() => handleSelect(template, close)}>
-                                        <TemplateIconTile size={32} selected={isSelected}>
-                                            <Codicon name={getTemplateIcon(template)}
-                                                sx={{ display: 'flex', height: 'auto', width: 'auto', cursor: 'pointer' }}
-                                                iconSx={{ fontSize: '18px', lineHeight: 1, display: 'block', WebkitTextStroke: '0.4px currentColor' }} />
-                                        </TemplateIconTile>
-                                        <TemplateOptionContent>
-                                            <TemplateOptionHeading>
-                                                <span>{template.metadata.label}</span>
-                                                {isSelected && <Codicon name="check" />}
-                                            </TemplateOptionHeading>
-                                            <TemplateOptionDescription>{template.metadata.description}</TemplateOptionDescription>
-                                            <TemplateTags>
-                                                <Badge>{getTemplateKind(template)}</Badge>
-                                                <Badge>{templateNeedsEvalset(template) ? 'Evalset required' : 'Evalset or queries'}</Badge>
-                                            </TemplateTags>
-                                        </TemplateOptionContent>
-                                    </TemplateOption>
-                                );
-                            })}
-                        </TemplateResultsGrid>
+                <TemplateBrowser
+                    {...props}
+                    onSelectTemplate={(template) => {
+                        onSelectTemplate(template);
+                        close();
+                    }}
+                    renderHeader={(visibleCount) => (
+                        <PopupHeader>
+                            <HeaderTitleContainer>
+                                <PopupTitle variant="h2" id="evaluation-template-dialog-title">
+                                    Browse Evaluation Templates
+                                </PopupTitle>
+                                <PopupSubtitle variant="body3">
+                                    {visibleCount} of {templates.length} templates
+                                </PopupSubtitle>
+                            </HeaderTitleContainer>
+                            <CloseButton appearance="icon" onClick={close} aria-label="Close template browser">
+                                <Codicon name="close" />
+                            </CloseButton>
+                        </PopupHeader>
                     )}
-                </PopupContent>
-                </>
+                />
             )}
         </PopupModal>,
         document.body

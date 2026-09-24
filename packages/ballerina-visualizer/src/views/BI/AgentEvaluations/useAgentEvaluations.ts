@@ -16,8 +16,8 @@
  * under the License.
  */
 
-import { useEffect, useState } from "react";
-import { Evaluation, EvaluationRunState } from "@wso2/ballerina-core";
+import { useEffect, useMemo, useState } from "react";
+import { EvalsetItem, Evaluation, EvaluationAction, EvaluationRunState } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 
 export type EvaluationRunStatus = "running" | "queued" | "stopping";
@@ -25,11 +25,18 @@ export type EvaluationRunStatus = "running" | "queued" | "stopping";
 // A stopping evaluation that is run again shows as queued, since that is what happens next.
 const STATUS_PRECEDENCE: EvaluationRunStatus[] = ["running", "queued", "stopping"];
 
+const normalizeEvalsetPath = (filePath: string) => filePath.replace(/\\/g, "/").replace(/^\.\//, "");
+
+export const isSameEvalset = (filePath?: string, other?: string) =>
+    Boolean(filePath && other) && normalizeEvalsetPath(filePath) === normalizeEvalsetPath(other);
+
 export function useAgentEvaluations(projectPath: string, agentName: string) {
     const { rpcClient } = useRpcContext();
-    const [evaluations, setEvaluations] = useState<Evaluation[]>();
+    const [allEvaluations, setAllEvaluations] = useState<Evaluation[]>();
+    const [evalsets, setEvalsets] = useState<EvalsetItem[]>();
     const [error, setError] = useState<string>();
     const [runState, setRunState] = useState<EvaluationRunState>({ projectPath, running: [], queued: [], stopping: [] });
+    const [loadCount, setLoadCount] = useState(0);
 
     useEffect(() => {
         let active = true;
@@ -37,14 +44,21 @@ export function useAgentEvaluations(projectPath: string, agentName: string) {
             if (!active) {
                 return;
             }
-            setEvaluations(response.evaluations.filter((evaluation) =>
-                evaluation.agents.some((agent) => agent.name === agentName)));
+            setAllEvaluations(response.evaluations);
             setError(response.errorMsg);
+        });
+        rpcClient.getTestManagerRpcClient().getEvalsets({ projectPath }).then((response) => {
+            if (active) {
+                setEvalsets(response.evalsets);
+            }
         });
         return () => {
             active = false;
         };
-    }, [rpcClient, projectPath, agentName]);
+    }, [rpcClient, projectPath, loadCount]);
+
+    const evaluations = useMemo(() => allEvaluations?.filter((evaluation) =>
+        evaluation.agents.some((agent) => agent.name === agentName)), [allEvaluations, agentName]);
 
     useEffect(() => {
         rpcClient.getTestManagerRpcClient().getEvaluationRunState({ projectPath }).then(setRunState);
@@ -63,5 +77,20 @@ export function useAgentEvaluations(projectPath: string, agentName: string) {
         STATUS_PRECEDENCE.find((status) => runState[status].includes(functionName));
     const isBusy = STATUS_PRECEDENCE.some((status) => runState[status].length > 0);
 
-    return { evaluations, error, run, stop, statusOf, isBusy };
+    const reload = () => setLoadCount((count) => count + 1);
+
+    const runAction = async (functionName: string, action: EvaluationAction) => {
+        await testManager.runEvaluationAction({ projectPath, functionName, action });
+        if (action === "delete") {
+            reload();
+        }
+    };
+
+    const evalsetOf = (evaluation: Evaluation) =>
+        evalsets?.find((evalset) => isSameEvalset(evalset.filePath, evaluation.evalSetFile));
+    const openEvalset = (filePath: string) => testManager.runEvalsetAction({ projectPath, filePath, action: "open" });
+
+    return {
+        evaluations, error, run, stop, statusOf, isBusy, reload, runAction, evalsetOf, openEvalset,
+    };
 }

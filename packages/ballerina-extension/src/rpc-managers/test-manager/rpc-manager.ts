@@ -24,7 +24,12 @@ import {
     EvaluationsRequest,
     EvaluationRunState,
     StopEvaluationsRequest,
+    EvaluationAction,
+    EvaluationActionRequest,
+    EvalsetActionRequest,
+    BI_COMMANDS,
     GetEvaluationsResponse,
+    EvaluationFileResponse,
     RunEvaluationsRequest,
     STModification,
     SourceUpdateResponse,
@@ -62,6 +67,17 @@ import { getTestFunctionNames } from "../../utils/test-discovery";
 import { refreshTestsForFile } from "../../features/test-explorer/activator";
 import { getEvaluationRunState, queueEvaluations, stopEvaluations } from "../../features/test-explorer/evaluation-queue";
 import { parseReportDate } from "../../utils/evaluation-report";
+import { ensureEvaluationFile, supportsAIEvaluation } from "../../features/test-explorer/commands";
+import { findEvaluationItem } from "../../features/test-explorer/runner";
+import { deleteEvalset } from "../../features/test-explorer/evalset-commands";
+import { EVALSET_EXCLUDE, EVALSET_GLOB } from "../../features/test-explorer/evalset-utils";
+import { extension } from "../../BalExtensionContext";
+
+const EVALUATION_ACTION_COMMANDS: Record<EvaluationAction, string> = {
+    edit: BI_COMMANDS.BI_EDIT_TEST_FUNCTION_DEF,
+    openFlow: BI_COMMANDS.BI_EDIT_TEST_FUNCTION,
+    delete: BI_COMMANDS.BI_DELETE_TEST_FUNCTION,
+};
 
 export class TestServiceManagerRpcManager implements TestManagerServiceAPI {
 
@@ -151,6 +167,17 @@ export class TestServiceManagerRpcManager implements TestManagerServiceAPI {
         }
     }
 
+    async getEvaluationFile(params: EvaluationsRequest): Promise<EvaluationFileResponse> {
+        if (!supportsAIEvaluation(extension.ballerinaExtInstance)) {
+            return { errorMsg: 'AI evaluations need Ballerina 2201.13.2 or later. Upgrade Ballerina to create one.' };
+        }
+        try {
+            return { filePath: await ensureEvaluationFile(params.projectPath) };
+        } catch (error) {
+            return { errorMsg: error instanceof Error ? error.message : String(error) };
+        }
+    }
+
     async runEvaluations(params: RunEvaluationsRequest): Promise<void> {
         queueEvaluations(params.projectPath, params.functionNames);
     }
@@ -163,13 +190,33 @@ export class TestServiceManagerRpcManager implements TestManagerServiceAPI {
         return getEvaluationRunState(params.projectPath);
     }
 
+    async runEvaluationAction(params: EvaluationActionRequest): Promise<void> {
+        const item = findEvaluationItem(params.projectPath, params.functionName);
+        if (!item) {
+            vscode.window.showErrorMessage(`'${params.functionName}' was not found in the Testing view. `
+                + 'Refresh the tests and try again.');
+            return;
+        }
+        // Opened from the agent page, so back must return there.
+        await vscode.commands.executeCommand(EVALUATION_ACTION_COMMANDS[params.action], item, { keepHistory: true });
+    }
+
+    async runEvalsetAction(params: EvalsetActionRequest): Promise<void> {
+        const uri = vscode.Uri.file(path.resolve(params.projectPath, params.filePath));
+        if (params.action === "delete") {
+            await deleteEvalset({ uri }, params.usedBy);
+            return;
+        }
+        await vscode.commands.executeCommand("ballerina.openEvalsetViewer", uri);
+    }
+
     async getEvalsets(params: GetEvalsetsRequest): Promise<GetEvalsetsResponse> {
         return new Promise(async (resolve) => {
             try {
                 const pattern = params.projectPath
-                    ? new vscode.RelativePattern(vscode.Uri.file(params.projectPath), '**/tests/resources/evalsets/**/*.evalset.json')
-                    : '**/tests/resources/evalsets/**/*.evalset.json';
-                const evalsetFiles = await vscode.workspace.findFiles(pattern);
+                    ? new vscode.RelativePattern(vscode.Uri.file(params.projectPath), EVALSET_GLOB)
+                    : EVALSET_GLOB;
+                const evalsetFiles = await vscode.workspace.findFiles(pattern, EVALSET_EXCLUDE);
                 const evalsets: EvalsetItem[] = [];
 
                 for (const uri of evalsetFiles) {

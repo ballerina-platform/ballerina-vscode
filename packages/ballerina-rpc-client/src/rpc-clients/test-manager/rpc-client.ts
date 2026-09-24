@@ -20,9 +20,10 @@ import {
     TestSourceEditResponse, GetTestFunctionResponse,
     getTestFunction, addTestFunction, updateTestFunction,
     GetTestFunctionNamesRequest, GetTestFunctionNamesResponse, getTestFunctionNames,
-    EvaluationsRequest, GetEvaluationsResponse, getEvaluations,
+    EvaluationsRequest, GetEvaluationsResponse, getEvaluations, EvaluationFileResponse, getEvaluationFile,
     RunEvaluationsRequest, runEvaluations, StopEvaluationsRequest, stopEvaluations,
-    EvaluationRunState, getEvaluationRunState,
+    EvaluationRunState, getEvaluationRunState, EvaluationActionRequest, runEvaluationAction,
+    EvalsetActionRequest, runEvalsetAction,
     SourceUpdateResponse, GetEvalsetsRequest, GetEvalsetsResponse, getEvalsets,
     GetEvaluationHistoryRequest, GetEvaluationHistoryResponse, getEvaluationHistory,
     OpenEvaluationReportRequest, openEvaluationReport,
@@ -60,6 +61,10 @@ export class TestManagerServiceRpcClient implements TestManagerServiceAPI {
         return this._messenger.sendRequest(getEvaluations, HOST_EXTENSION, params);
     }
 
+    getEvaluationFile(params: EvaluationsRequest): Promise<EvaluationFileResponse> {
+        return this._messenger.sendRequest(getEvaluationFile, HOST_EXTENSION, params);
+    }
+
     runEvaluations(params: RunEvaluationsRequest): Promise<void> {
         return this._messenger.sendRequest(runEvaluations, HOST_EXTENSION, params);
     }
@@ -70,6 +75,14 @@ export class TestManagerServiceRpcClient implements TestManagerServiceAPI {
 
     getEvaluationRunState(params: EvaluationsRequest): Promise<EvaluationRunState> {
         return this._messenger.sendRequest(getEvaluationRunState, HOST_EXTENSION, params);
+    }
+
+    runEvaluationAction(params: EvaluationActionRequest): Promise<void> {
+        return this._messenger.sendRequest(runEvaluationAction, HOST_EXTENSION, params);
+    }
+
+    runEvalsetAction(params: EvalsetActionRequest): Promise<void> {
+        return this._messenger.sendRequest(runEvalsetAction, HOST_EXTENSION, params);
     }
 
     getEvalsets(params: GetEvalsetsRequest): Promise<GetEvalsetsResponse> {

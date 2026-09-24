@@ -42,6 +42,10 @@ const Header = styled.div`
     border-bottom: 1px solid var(--vscode-panel-border);
 `;
 
+const Description = styled(HintText)`
+    margin-bottom: 12px;
+`;
+
 const HeaderContent = styled.div`
     flex: 1;
     min-width: 0;
@@ -101,13 +105,15 @@ interface TemplateConfigCardProps {
     onCreateEvalset: () => void;
     onOpenEvalset: (evalsetFile: string) => void;
     onChangeTemplate: () => void;
+    /** The surrounding modal already names the template and the agent, so the card drops both. */
+    embedded?: boolean;
 }
 
 export function TemplateConfigCard(props: TemplateConfigCardProps) {
     const {
         template, templateFields, dataSourceParam, dataSourceMode, onDataSourceModeChange,
         agentFieldKey, evalsetField, queriesField, hasEvalsets, selectedEvalsetFile,
-        onCreateEvalset, onOpenEvalset, onChangeTemplate
+        onCreateEvalset, onOpenEvalset, onChangeTemplate, embedded
     } = props;
     const [showOptionalSettings, setShowOptionalSettings] = useState(false);
 
@@ -115,9 +121,9 @@ export function TemplateConfigCard(props: TemplateConfigCardProps) {
     const { agentField, requiredFields: requiredTemplateFields, optionalFields: optionalTemplateFields } =
         partitionTemplateFields(templateFields, agentFieldKey);
 
-    return (
+    const card = (
         <Card>
-            <Header>
+            {!embedded && <Header>
                 <TemplateIconTile selected>
                     <Codicon name={getTemplateIcon(template)}
                         sx={{ display: 'flex', height: 'auto', width: 'auto' }}
@@ -133,9 +139,9 @@ export function TemplateConfigCard(props: TemplateConfigCardProps) {
                 <LinkButton onClick={onChangeTemplate} sx={{ fontSize: 12, padding: 8, gap: 4 }}>
                     Change Template
                 </LinkButton>
-            </Header>
+            </Header>}
             <Body>
-                {agentField && (
+                {agentField && !embedded && (
                     <FirstFieldRow>
                         <FieldFactory field={{ ...agentField, hidden: false }} />
                     </FirstFieldRow>
@@ -222,4 +228,6 @@ export function TemplateConfigCard(props: TemplateConfigCardProps) {
             </Body>
         </Card>
     );
+
+    return embedded ? <><Description>{template.metadata.description}</Description>{card}</> : card;
 }

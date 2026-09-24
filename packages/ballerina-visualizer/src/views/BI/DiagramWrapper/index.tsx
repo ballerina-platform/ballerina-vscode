@@ -154,11 +154,25 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
     const [isTryItInProgress, setIsTryItInProgress] = useState(false);
     const isMountedRef = useRef(true);
 
+    // Kept on the history entry so going back to this page reopens the modal.
+    const setEvaluationsOpen = (open: boolean) => {
+        setShowEvaluations(open);
+        rpcClient.getVisualizerRpcClient().mergeHistoryLocation({ evaluationsOpen: open });
+    };
+
     useEffect(() => {
         isMountedRef.current = true;
         return () => {
             isMountedRef.current = false;
         };
+    }, []);
+
+    useEffect(() => {
+        rpcClient.getVisualizerRpcClient().getHistory().then((history) => {
+            if (isMountedRef.current && history.at(-1)?.location.evaluationsOpen) {
+                setShowEvaluations(true);
+            }
+        });
     }, []);
 
     useEffect(() => {
@@ -614,7 +628,7 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
                 <>
                     <ActionButton
                         appearance="secondary"
-                        onClick={() => setShowEvaluations(true)}
+                        onClick={() => setEvaluationsOpen(true)}
                         tooltip="View and run the evaluations of this agent"
                     >
                         <Icon name="beaker" isCodicon={true} sx={{ marginRight: 5, width: 16, height: 16, fontSize: 14 }} />
@@ -754,7 +768,7 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
                 <AgentEvaluationsPopup
                     projectPath={projectPath}
                     agentName={agentName}
-                    onClose={() => setShowEvaluations(false)}
+                    onClose={() => setEvaluationsOpen(false)}
                 />
             )}
             {/* This is for editing a http resource */}

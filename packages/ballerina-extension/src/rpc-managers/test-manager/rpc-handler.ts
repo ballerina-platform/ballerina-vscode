@@ -18,9 +18,11 @@
 import {
     addTestFunction, getTestFunction, GetTestFunctionRequest,
     getTestFunctionNames, GetTestFunctionNamesRequest,
-    getEvaluations, EvaluationsRequest,
+    getEvaluations, EvaluationsRequest, getEvaluationFile,
     runEvaluations, RunEvaluationsRequest,
     stopEvaluations, StopEvaluationsRequest, getEvaluationRunState,
+    runEvaluationAction, EvaluationActionRequest,
+    runEvalsetAction, EvalsetActionRequest,
     AddOrUpdateTestFunctionRequest, updateTestFunction, getEvalsets, GetEvalsetsRequest,
     getEvaluationHistory, GetEvaluationHistoryRequest,
     openEvaluationReport, OpenEvaluationReportRequest,
@@ -38,9 +40,12 @@ export function registerTestManagerRpcHandlers(messenger: Messenger) {
     messenger.onRequest(updateTestFunction, (args: AddOrUpdateTestFunctionRequest) => rpcManger.updateTestFunction(args));
     messenger.onRequest(getTestFunctionNames, (args: GetTestFunctionNamesRequest) => rpcManger.getTestFunctionNames(args));
     messenger.onRequest(getEvaluations, (args: EvaluationsRequest) => rpcManger.getEvaluations(args));
+    messenger.onRequest(getEvaluationFile, (args: EvaluationsRequest) => rpcManger.getEvaluationFile(args));
     messenger.onRequest(runEvaluations, (args: RunEvaluationsRequest) => rpcManger.runEvaluations(args));
     messenger.onRequest(stopEvaluations, (args: StopEvaluationsRequest) => rpcManger.stopEvaluations(args));
     messenger.onRequest(getEvaluationRunState, (args: EvaluationsRequest) => rpcManger.getEvaluationRunState(args));
+    messenger.onRequest(runEvaluationAction, (args: EvaluationActionRequest) => rpcManger.runEvaluationAction(args));
+    messenger.onRequest(runEvalsetAction, (args: EvalsetActionRequest) => rpcManger.runEvalsetAction(args));
     messenger.onRequest(getEvalsets, (args: GetEvalsetsRequest) => rpcManger.getEvalsets(args));
     messenger.onRequest(getEvaluationHistory, (args: GetEvaluationHistoryRequest) => rpcManger.getEvaluationHistory(args));
     messenger.onRequest(openEvaluationReport, (args: OpenEvaluationReportRequest) => rpcManger.openEvaluationReport(args));
