@@ -79,9 +79,10 @@ export const setBackendRegion = (region: string): boolean => {
         const devKey = `${normalized}-dev`;
         const devUrl = COPILOT_ROOT_URLS.get(devKey);
         if (devUrl) {
-            vscode.window.showWarningMessage(
-                `Copilot: No backend URL configured for '${devantEnv}', falling back to dev.`
-            );
+            // Staging deliberately has no Copilot backend of its own and is
+            // expected to use dev's, so this is the arrangement working, not a
+            // problem the user can act on. Logged, not raised.
+            console.log(`[Region] No Copilot backend URL configured for '${devantEnv}', using dev.`);
             regionalUrl = devUrl;
         }
     }
