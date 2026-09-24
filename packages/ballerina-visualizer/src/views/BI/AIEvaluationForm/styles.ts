@@ -95,13 +95,13 @@ export const TitleRow = styled.div`
 export const Badge = styled.span`
     display: inline-flex;
     align-items: center;
-    padding: 3px 8px;
-    color: ${ThemeColors.ON_SURFACE_VARIANT};
-    border-radius: 4px;
-    background: ${ThemeColors.SURFACE_CONTAINER};
+    padding: 2px 6px;
+    color: ${ThemeColors.ON_SURFACE};
+    border-radius: 3px;
+    background: color-mix(in srgb, var(--vscode-badge-background) 50%, transparent);
     font-size: 11px;
     font-weight: 500;
-    line-height: 1.3;
+    line-height: 14px;
     white-space: nowrap;
 `;
 
@@ -162,12 +162,8 @@ export const TemplateFilter = styled.button<{ active: boolean }>`
 
 export const TemplateResultsGrid = styled.div`
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 12px;
-
-    @media (max-width: 700px) {
-        grid-template-columns: 1fr;
-    }
 `;
 
 export const TemplateOption = styled.button<{ selected: boolean }>`
@@ -224,10 +220,23 @@ export const TemplateTags = styled.div`
     padding-top: 4px;
 `;
 
+export const CustomEvaluationPrompt = styled.div`
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 8px 0;
+    font-size: 12px;
+    color: ${ThemeColors.ON_SURFACE_VARIANT};
+`;
+
 export const EmptyTemplates = styled.div`
-    display: grid;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
     min-height: 240px;
-    place-items: center;
     color: ${ThemeColors.ON_SURFACE_VARIANT};
     text-align: center;
 `;

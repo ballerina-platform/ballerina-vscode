@@ -33,6 +33,7 @@ import {
     UndoRedoStateResponse,
     UpdatedArtifactsResponse,
     VisualizerAPI,
+    VisualizerLocation,
     addToHistory,
     addToUndoStack,
     getHistory,
@@ -42,6 +43,7 @@ import {
     goSelected,
     handleApprovalPopupClose,
     joinProjectPath,
+    mergeHistoryLocation,
     openView,
     redo,
     reopenApprovalView,
@@ -74,6 +76,10 @@ export class VisualizerRpcClient implements VisualizerAPI {
 
     addToHistory(entry: HistoryEntry): void {
         return this._messenger.sendNotification(addToHistory, HOST_EXTENSION, entry);
+    }
+
+    mergeHistoryLocation(location: VisualizerLocation): void {
+        return this._messenger.sendNotification(mergeHistoryLocation, HOST_EXTENSION, location);
     }
 
     goBack(params?: GoBackRequest): void {

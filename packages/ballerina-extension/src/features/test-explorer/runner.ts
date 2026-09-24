@@ -410,6 +410,16 @@ export async function runEvaluations(projectPath: string, functionNames: string[
     }
 }
 
+export function findEvaluationItem(projectPath: string, functionName: string): TestItem | undefined {
+    let found: TestItem | undefined;
+    findEvaluationGroup(projectPath)?.children.forEach((item) => {
+        if (item.label === functionName) {
+            found = item;
+        }
+    });
+    return found;
+}
+
 function findEvaluationGroup(projectPath: string): TestItem | undefined {
     const groups: TestItem[] = [];
     testController.items.forEach((item) => {

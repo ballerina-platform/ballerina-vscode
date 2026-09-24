@@ -659,6 +659,8 @@ export interface Evaluation {
     lineRange: FunctionLineRange;
     template?: EvaluationTemplate;
     agents: EvaluationAgent[];
+    /** Evalset the data provider loads, relative to the package. */
+    evalSetFile?: string;
 }
 
 export interface EvaluationsDiscoveryResponse {
@@ -705,6 +707,8 @@ export interface AddOrUpdateTestFunctionRequest {
             queries?: string[];
         };
     };
+    /** Agent a custom evaluation starts by running, so it is linked to that agent. */
+    targetAgent?: string;
 }
 
 export interface TestSourceEditResponse {

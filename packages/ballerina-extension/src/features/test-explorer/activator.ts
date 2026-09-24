@@ -113,7 +113,8 @@ export async function activate(ballerinaExtInstance: BallerinaExtension) {
     // Register commands for creating evalsets and threads
     const createEvalsetCommand = commands.registerCommand('ballerina.createNewEvalset', createNewEvalset);
     const createThreadCommand = commands.registerCommand('ballerina.createNewThread', createNewThread);
-    const deleteEvalsetCommand = commands.registerCommand('ballerina.deleteEvalset', deleteEvalset);
+    // Tree commands pass the selection as a second argument, which must not reach usedBy.
+    const deleteEvalsetCommand = commands.registerCommand('ballerina.deleteEvalset', (node) => deleteEvalset(node));
     const deleteThreadCommand = commands.registerCommand('ballerina.deleteThread', deleteThread);
 
     testController = tests.createTestController('ballerina-integrator-tests', 'WSO2 Integrator Tests');

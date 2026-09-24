@@ -50,6 +50,15 @@ export interface GetEvaluationsResponse {
 export const getEvaluations: RequestType<EvaluationsRequest, GetEvaluationsResponse> =
     { method: `${_preFix}/getEvaluations` };
 
+export interface EvaluationFileResponse {
+    filePath?: string;
+    errorMsg?: string;
+}
+
+/** Returns the file new evaluations are added to, creating it when missing. */
+export const getEvaluationFile: RequestType<EvaluationsRequest, EvaluationFileResponse> =
+    { method: `${_preFix}/getEvaluationFile` };
+
 export interface RunEvaluationsRequest {
     projectPath: string;
     functionNames: string[];
@@ -57,6 +66,32 @@ export interface RunEvaluationsRequest {
 
 export const runEvaluations: RequestType<RunEvaluationsRequest, void> =
     { method: `${_preFix}/runEvaluations` };
+
+export type EvaluationAction = "edit" | "openFlow" | "delete";
+
+export interface EvaluationActionRequest {
+    projectPath: string;
+    functionName: string;
+    action: EvaluationAction;
+}
+
+/** Runs the Testing view's edit, open-flow or delete command on the evaluation. */
+export const runEvaluationAction: RequestType<EvaluationActionRequest, void> =
+    { method: `${_preFix}/runEvaluationAction` };
+
+export type EvalsetAction = "open" | "delete";
+
+export interface EvalsetActionRequest {
+    projectPath: string;
+    /** Relative to the project, as the evalset list returns it. */
+    filePath: string;
+    action: EvalsetAction;
+    /** Evaluations that load the evalset, named in the delete confirmation. */
+    usedBy?: string[];
+}
+
+export const runEvalsetAction: RequestType<EvalsetActionRequest, void> =
+    { method: `${_preFix}/runEvalsetAction` };
 
 export interface StopEvaluationsRequest {
     projectPath: string;

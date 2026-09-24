@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Codicon, Icon, RadioButtonGroup, ThemeColors, Typography, View, ViewContent } from "@wso2/ui-toolkit";
 import styled from "@emotion/styled";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
@@ -31,11 +31,13 @@ import { getImportsForProperty } from "../../../utils/bi";
 import { CardSelector } from "./CardSelector";
 import { LoadingView } from "../../../components/LoadingView";
 import { RelativeLoader } from "../../../components/RelativeLoader";
-import { TemplateModal } from "./TemplateModal";
+import { TemplateBrowser, TemplateModal } from "./TemplateModal";
 import { TemplateConfigCard } from "./TemplateConfigCard";
 import { EvalsetFileControl } from "./EvalsetFileControl";
 import { resolveEvalsetPath } from "./evalsetUtils";
 import { suggestEvaluationName } from "./evaluationName";
+import { PopupContent } from "../Connection/styles";
+import { PopupModalStep } from "../../../components/PopupModal";
 import {
     FormSection, GrowingContent, HintText, MonospaceHint, SectionLabel,
     StatusRow, TemplateIconTile, TitleRow, cardBox
@@ -43,7 +45,7 @@ import {
 import {
     DataSourceMode, DataSourceParam, EVALSET_FIELD_KEY, QUERIES_FIELD_KEY, TEMPLATE_FIELD_PREFIX,
     buildQueriesField, carryOverArguments, findAgentArgument, findDataSourceParam,
-    generateTemplateFields, isDataSourceSatisfied, isTemplateField, templateNeedsEvalset
+    generateTemplateFields, isDataSourceSatisfied, isTemplateField, templateNeedsEvalset, withDefaultAgent
 } from "./templateUtils";
 
 const FormContainer = styled.div`
@@ -165,7 +167,32 @@ const ChooseTemplateAction = styled.span`
 `;
 
 
+// The side-panel form sizes itself to the viewport, which only suits a full page.
+const InlineFormContent = styled(PopupContent)`
+    overflow: hidden;
+
+    > div {
+        flex: 1;
+        min-height: 0;
+        max-width: none;
+        margin-bottom: 0;
+    }
+
+    > div > .side-panel-body {
+        flex: 1;
+        min-height: 0;
+        height: auto;
+        padding: 0;
+    }
+`;
+
 const NAME_FIELD_KEY = 'functionName';
+
+// Discovery and runs select evaluations by this group, so the form keeps it out of the editable list.
+const EVALUATION_GROUP = 'evaluations';
+
+const extraGroups = (groups: unknown): string[] => (Array.isArray(groups) ? groups : [])
+    .filter(group => String(group).replace(/"/g, '').trim() !== EVALUATION_GROUP);
 
 type EvalTemplatePayload = NonNullable<AddOrUpdateTestFunctionRequest['evalTemplate']>;
 
@@ -184,16 +211,65 @@ const readConfigField = (testFunction: TestFunction | undefined, originalName: s
 const resolveEditMode = (testFunction?: TestFunction): string =>
     String(readConfigField(testFunction, 'dataProviderMode') || '') === 'evalSet' ? 'evalSet' : 'function';
 
-interface TestFunctionDefProps {
+interface AIEvaluationFormBodyProps {
     projectPath: string;
     functionName?: string;
     filePath?: string;
     serviceType?: string;
+    /** Prefilled as the agent argument of a chosen template. */
+    agentName?: string;
+    /** Shows the template catalog, with a custom option, in place of the form instead of in a dialog. */
+    templatePicker?: { open: boolean; onOpenChange: (open: boolean) => void; onChoose: (title: string) => void };
+    /** Replaces opening the saved evaluation in the diagram, for evaluations built from a template. */
+    onSaved?: () => void;
+}
+
+interface TestFunctionDefProps extends AIEvaluationFormBodyProps {
     isVersionSupported?: boolean;
 }
 
 export function AIEvaluationForm(props: TestFunctionDefProps) {
-    const { projectPath, functionName, filePath, serviceType, isVersionSupported = true } = props;
+    const { isVersionSupported = true, ...formProps } = props;
+    const isEditing = formProps.serviceType === 'UPDATE_TEST';
+
+    if (isVersionSupported === false) {
+        return (
+            <FullHeightView>
+                <TopNavigationBar projectPath={formProps.projectPath} />
+                <TitleBar title="AI Evaluation" subtitle="Version upgrade required" />
+                <FullHeightViewContent padding>
+                    <CenteredMessage>
+                        <Typography variant="h3" sx={{ margin: '0 0 12px' }}>
+                            Please upgrade your Ballerina version
+                        </Typography>
+                        <HintText style={{ maxWidth: '500px' }}>
+                            AI Evaluation features require Ballerina version 2201.13.2 or higher.
+                            Please upgrade your Ballerina installation to use this feature.
+                        </HintText>
+                    </CenteredMessage>
+                </FullHeightViewContent>
+            </FullHeightView>
+        );
+    }
+
+    return (
+        <View>
+            <TopNavigationBar projectPath={formProps.projectPath} />
+            <TitleBar title="AI Evaluation" subtitle={isEditing
+                ? 'Update an existing AI evaluation'
+                : 'Create a new AI evaluation for your integration'} />
+            <ViewContent padding>
+                <Container>
+                    <FormHeader title={isEditing ? 'Update AI Evaluation' : 'Create New AI Evaluation'} />
+                    <AIEvaluationFormBody {...formProps} />
+                </Container>
+            </ViewContent>
+        </View>
+    );
+}
+
+export function AIEvaluationFormBody(props: AIEvaluationFormBodyProps) {
+    const { projectPath, functionName, filePath, serviceType, agentName, templatePicker, onSaved } = props;
     const { rpcClient } = useRpcContext();
     const [formFields, setFormFields] = useState<FormField[]>([]);
     const [testFunction, setTestFunction] = useState<TestFunction>();
@@ -206,7 +282,9 @@ export function AIEvaluationForm(props: TestFunctionDefProps) {
     const [evalTemplates, setEvalTemplates] = useState<AvailableNode[]>([]);
     const [selectedTemplate, setSelectedTemplate] = useState<AvailableNode>();
     const [templateNode, setTemplateNode] = useState<FlowNode>();
-    const [showTemplateCatalog, setShowTemplateCatalog] = useState(false);
+    const [ownCatalogOpen, setOwnCatalogOpen] = useState(false);
+    const { open: showTemplateCatalog, onOpenChange: setShowTemplateCatalog } =
+        templatePicker ?? { open: ownCatalogOpen, onOpenChange: setOwnCatalogOpen };
     const [isSelectingTemplate, setIsSelectingTemplate] = useState(false);
     const [templateLoadError, setTemplateLoadError] = useState<string>();
     const [dataSourceMode, setDataSourceMode] = useState<DataSourceMode>('evalset');
@@ -219,10 +297,6 @@ export function AIEvaluationForm(props: TestFunctionDefProps) {
     const [agentValue, setAgentValue] = useState<string>('');
     const [customName, setCustomName] = useState<string>();
     const isEditing = serviceType === 'UPDATE_TEST';
-    const formTitle = isEditing ? 'Update AI Evaluation' : 'Create New AI Evaluation';
-    const formSubtitle = isEditing
-        ? 'Update an existing AI evaluation'
-        : 'Create a new AI evaluation for your integration';
     const customUsesEvalset = dataProviderMode === 'evalSet';
     const dataSourceParam = useMemo(
         () => (templateNode ? findDataSourceParam(templateNode) : undefined),
@@ -349,7 +423,7 @@ export function AIEvaluationForm(props: TestFunctionDefProps) {
                 position: { line: 0, offset: 0 },
                 id: template.codedata
             });
-            const node = carryOverArguments(res.flowNode, templateNode);
+            const node = withDefaultAgent(carryOverArguments(res.flowNode, templateNode), agentName);
             const dsParam = findDataSourceParam(node);
             const keepMode = dsParam?.kind === 'union' && dataSourceMode === 'queries';
             const mode: 'evalset' | 'queries' = dsParam?.kind === 'union'
@@ -580,8 +654,13 @@ export function AIEvaluationForm(props: TestFunctionDefProps) {
             await rpcClient.getTestManagerRpcClient().addTestFunction({
                 function: updatedTestFunction,
                 filePath,
+                targetAgent: agentName,
                 ...(evalTemplate && { evalTemplate })
             });
+        }
+        if (onSaved && evalTemplate) {
+            onSaved();
+            return;
         }
         try {
             const res = await rpcClient.getTestManagerRpcClient().getTestFunction(
@@ -790,6 +869,11 @@ export function AIEvaluationForm(props: TestFunctionDefProps) {
             types: [{ fieldType: fieldType, selected: false }]
         };
 
+        if (key === 'groups') {
+            baseField.value = extraGroups(property.value);
+            baseField.documentation = 'Extra groups for this evaluation. It always stays in the evaluations group.';
+        }
+
         // Add slider-specific configuration for minPassRate
         if (key === 'minPassRate' && fieldType === 'SLIDER') {
             baseField.sliderProps = {
@@ -860,7 +944,7 @@ export function AIEvaluationForm(props: TestFunctionDefProps) {
                 let fields = configAnnot.fields;
                 for (const field of fields) {
                     if (field.originalName == 'groups') {
-                        field.value = formValues['groups'];
+                        field.value = [EVALUATION_GROUP, ...extraGroups(formValues['groups'])];
                     }
                     if (field.originalName == 'enabled') {
                         field.value = formValues['enabled'];
@@ -1176,219 +1260,243 @@ export function AIEvaluationForm(props: TestFunctionDefProps) {
         () => formFields.filter(isTemplateField).map(field => ({ ...field, hidden: false })),
         [formFields]);
 
-    // Show upgrade message if version is not supported
-    if (isVersionSupported === false) {
-        return (
-            <FullHeightView>
-                <TopNavigationBar projectPath={projectPath} />
-                <TitleBar title="AI Evaluation" subtitle="Version upgrade required" />
-                <FullHeightViewContent padding>
-                    <CenteredMessage>
-                        <Typography variant="h3" sx={{ margin: '0 0 12px' }}>
-                            Please upgrade your Ballerina version
-                        </Typography>
-                        <HintText style={{ maxWidth: '500px' }}>
-                            AI Evaluation features require Ballerina version 2201.13.2 or higher.
-                            Please upgrade your Ballerina installation to use this feature.
-                        </HintText>
-                    </CenteredMessage>
-                </FullHeightViewContent>
-            </FullHeightView>
-        );
-    }
+    const pickTemplate = (template: AvailableNode) => {
+        setShowTemplateCatalog(false);
+        templatePicker?.onChoose(template.metadata.label);
+        selectEvalTemplate(template);
+    };
+
+    const pickCustom = () => {
+        handleCardSelectorChange('custom');
+        templatePicker?.onChoose('Custom evaluation');
+    };
+
+    const form = (
+        <FormContainer>
+            {(isLoading || !targetLineRange) && (
+                <FormLoadingSlot>
+                    <LoadingView message="Loading form data..." />
+                </FormLoadingSlot>
+            )}
+            {!isLoading && targetLineRange && (
+                <ArtifactForm
+                    fileName={filePath}
+                    fields={fields}
+                    targetLineRange={targetLineRange}
+                    onSubmit={onFormSubmit}
+                    preserveFieldOrder={false}
+                    bottomFields={[NAME_FIELD_KEY]}
+                    hideInfoBanner
+                    onChange={handleFieldChange}
+                    isSaving={isSaving}
+                    disableSaveButton={isSaveDisabled}
+                    footerActionButton={Boolean(templatePicker)}
+                    injectedComponents={[
+                        {
+                            component: <>
+                                {!isEditing && !templatePicker && (
+                                    <CardSelector
+                                        title="How would you like to build this evaluation?"
+                                        options={cardOptions}
+                                        value={dataProviderMode === 'template' ? 'template' : 'custom'}
+                                        onChange={handleCardSelectorChange}
+                                    />
+                                )}
+                                {!isEditing && !isTemplateMode && (
+                                    <CustomEvalsetControls>
+                                        <FormSection>
+                                            <RadioButtonGroup
+                                                label="Use an evalset?"
+                                                orientation="horizontal"
+                                                value={customUsesEvalset ? 'evalSet' : 'none'}
+                                                options={[
+                                                    { id: 'evalset-none', value: 'none', content: 'No evalset' },
+                                                    { id: 'evalset-use', value: 'evalSet', content: 'Use evalset' }
+                                                ]}
+                                                onChange={(e) => handleCustomEvalsetChange(e.target.value === 'evalSet')}
+                                            />
+                                        </FormSection>
+                                        {/* Rendered here rather than as a plain field so the select stays
+                                            with the question that asks for it. */}
+                                        {customUsesEvalset && evalsetField && (
+                                            <FormSection>
+                                                <EvalsetFileControl
+                                                    field={evalsetField}
+                                                    hasEvalsets={evalsetOptions.length > 0}
+                                                    selectedEvalsetFile={selectedEvalsetFile}
+                                                    emptyState={{
+                                                        icon: <Icon name={evalsetsLoadError ? "bi-error" : "bi-data-table"}
+                                                            sx={{ fontSize: "16px", width: "16px", height: "16px" }} />,
+                                                        title: evalsetsLoadError ? 'Failed to load evalsets' : 'No evalset files found',
+                                                        description: evalsetsLoadError ? (
+                                                            <>Could not load evalsets for this project. Try reopening this view, then select an evalset.</>
+                                                        ) : (
+                                                            <>Export traces from a conversation with an agent to create an evalset.
+                                                                You can also create an empty evalset below, then add test threads in the evalset editor.</>
+                                                        ),
+                                                        canCreate: !evalsetsLoadError,
+                                                    }}
+                                                    onCreateEvalset={createEvalset}
+                                                    onOpenEvalset={openEvalset}
+                                                />
+                                            </FormSection>
+                                        )}
+                                    </CustomEvalsetControls>
+                                )}
+                                {isEditing && editShape === 'unresolvable' && (
+                                    <StatusRow>
+                                        <TemplateIconTile>
+                                            <Icon name="bi-error" sx={{ fontSize: "20px", width: "20px", height: "20px" }} />
+                                        </TemplateIconTile>
+                                        <GrowingContent>
+                                            <TitleRow>
+                                                Built from template <code>{detectedSymbol}</code>
+                                            </TitleRow>
+                                            <HintText>
+                                                Template details are unavailable, so its settings can't be edited here.
+                                                Check that the ballerina/ai.eval package is available and declared in Ballerina.toml.
+                                            </HintText>
+                                            {templateNode && (
+                                                <MonospaceHint>{templateNode.codedata?.sourceCode}</MonospaceHint>
+                                            )}
+                                        </GrowingContent>
+                                    </StatusRow>
+                                )}
+                                {isEditing && (editShape === 'custom' || editShape === 'ambiguous') && (
+                                    <StatusRow>
+                                        <TemplateIconTile>
+                                            <Icon name="bi-config" sx={{ fontSize: "20px", width: "20px", height: "20px" }} />
+                                        </TemplateIconTile>
+                                        <GrowingContent>
+                                            <TitleRow>Custom evaluation</TitleRow>
+                                            <HintText>
+                                                {editShape === 'ambiguous'
+                                                    ? 'This evaluation calls more than one ai.eval function, so it can\'t be edited as a template.'
+                                                    : 'The logic for this evaluation is written by hand.'}
+                                            </HintText>
+                                        </GrowingContent>
+                                    </StatusRow>
+                                )}
+                                {isTemplateMode && editShape !== 'unresolvable' && (
+                                    <TemplatePicker>
+                                        {!templatePicker && (
+                                            <SectionLabel style={{ marginBottom: '8px' }}>
+                                                {selectedTemplate ? 'Evaluation template' : 'Choose an evaluation template'}
+                                            </SectionLabel>
+                                        )}
+                                        {isSelectingTemplate ? (
+                                            <LoadingSlot>
+                                                <RelativeLoader message="Loading template..." />
+                                            </LoadingSlot>
+                                        ) : selectedTemplate && templateNode ? (
+                                            <TemplateConfigCard
+                                                template={selectedTemplate}
+                                                templateFields={templateFields}
+                                                dataSourceParam={dataSourceParam}
+                                                dataSourceMode={dataSourceMode}
+                                                onDataSourceModeChange={handleDataSourceModeChange}
+                                                agentFieldKey={agentFieldKey}
+                                                evalsetField={evalsetField}
+                                                queriesField={formFields.find(field => field.key === QUERIES_FIELD_KEY)}
+                                                hasEvalsets={evalsetOptions.length > 0}
+                                                selectedEvalsetFile={selectedEvalsetFile}
+                                                onCreateEvalset={createEvalset}
+                                                onOpenEvalset={openEvalset}
+                                                onChangeTemplate={() => setShowTemplateCatalog(true)}
+                                                embedded={Boolean(templatePicker)}
+                                            />
+                                        ) : (
+                                            <EmptyTemplateSlot type="button"
+                                                onClick={() => setShowTemplateCatalog(true)}
+                                                aria-haspopup="dialog"
+                                                aria-label="Choose an evaluation template">
+                                                <GrowingContent>
+                                                    <TitleRow>Choose a template to continue</TitleRow>
+                                                    <HintText>
+                                                        {templateLoadError
+                                                            || (evalTemplates.length > 0
+                                                                ? `Start with one of ${evalTemplates.length} rule-based and LLM-as-judge checks`
+                                                                : 'Start with a rule-based or LLM-as-judge check')}
+                                                    </HintText>
+                                                </GrowingContent>
+                                                <ChooseTemplateAction>
+                                                    <Codicon name="search" iconSx={{ fontSize: 14 }}
+                                                        sx={{ height: 14, marginRight: 6 }} />
+                                                    Choose Template
+                                                </ChooseTemplateAction>
+                                            </EmptyTemplateSlot>
+                                        )}
+                                        {/* The dialog is already gone by the time a fetch can
+                                            fail, so its error surfaces here. The empty slot
+                                            shows it inline, so only report it alongside a
+                                            card that survived the failed change. */}
+                                        {templateLoadError && selectedTemplate && !isSelectingTemplate && (
+                                            <HintText style={{ color: ThemeColors.ERROR }}>
+                                                {templateLoadError}
+                                            </HintText>
+                                        )}
+                                        {editShape === 'template-with-custom' && (
+                                            <HintText>
+                                                This evaluation also contains custom code. Saving updates only the{' '}
+                                                <code>eval:{detectedSymbol}(…)</code> call.
+                                            </HintText>
+                                        )}
+                                    </TemplatePicker>
+                                )}
+                            </>,
+                            index: 0
+                        }
+                    ]}
+                />
+            )}
+        </FormContainer>
+    );
+
+    return templatePicker ? (
+        <InlineTemplatePicker
+            open={templatePicker.open}
+            browser={<TemplateBrowser
+                templates={evalTemplates}
+                templateLoadError={templateLoadError}
+                onSelectTemplate={pickTemplate}
+                loading={isLoading}
+                onCustom={pickCustom}
+            />}
+        >
+            {form}
+        </InlineTemplatePicker>
+    ) : (
+        <>
+            {form}
+            {showTemplateCatalog && (
+                <TemplateModal
+                    templates={evalTemplates}
+                    templateLoadError={templateLoadError}
+                    selectedTemplate={selectedTemplate}
+                    onSelectTemplate={selectEvalTemplate}
+                    onClose={() => setShowTemplateCatalog(false)}
+                />
+            )}
+        </>
+    );
+}
+
+// Keeps the form mounted under the catalog so its values survive choosing a template.
+function InlineTemplatePicker({ open, browser, children }: { open: boolean; browser: ReactNode; children: ReactNode }) {
+    const [hasLeftCatalog, setHasLeftCatalog] = useState(false);
+
+    useEffect(() => {
+        if (!open) {
+            setHasLeftCatalog(true);
+        }
+    }, [open]);
 
     return (
-        <View>
-            <TopNavigationBar projectPath={projectPath} />
-            <TitleBar title="AI Evaluation" subtitle={formSubtitle} />
-            <ViewContent padding>
-                <Container>
-                    <FormHeader title={formTitle} />
-                    <FormContainer>
-                        {(isLoading || !targetLineRange) && (
-                            <FormLoadingSlot>
-                                <LoadingView message="Loading form data..." />
-                            </FormLoadingSlot>
-                        )}
-                        {!isLoading && targetLineRange && (
-                            <ArtifactForm
-                                fileName={filePath}
-                                fields={fields}
-                                targetLineRange={targetLineRange}
-                                onSubmit={onFormSubmit}
-                                preserveFieldOrder={false}
-                                bottomFields={[NAME_FIELD_KEY]}
-                                hideInfoBanner
-                                onChange={handleFieldChange}
-                                isSaving={isSaving}
-                                disableSaveButton={isSaveDisabled}
-                                injectedComponents={[
-                                    {
-                                        component: <>
-                                            {!isEditing && (
-                                                <CardSelector
-                                                    title="How would you like to build this evaluation?"
-                                                    options={cardOptions}
-                                                    value={dataProviderMode === 'template' ? 'template' : 'custom'}
-                                                    onChange={handleCardSelectorChange}
-                                                />
-                                            )}
-                                            {!isEditing && !isTemplateMode && (
-                                                <CustomEvalsetControls>
-                                                    <FormSection>
-                                                        <RadioButtonGroup
-                                                            label="Use an evalset?"
-                                                            orientation="horizontal"
-                                                            value={customUsesEvalset ? 'evalSet' : 'none'}
-                                                            options={[
-                                                                { id: 'evalset-none', value: 'none', content: 'No evalset' },
-                                                                { id: 'evalset-use', value: 'evalSet', content: 'Use evalset' }
-                                                            ]}
-                                                            onChange={(e) => handleCustomEvalsetChange(e.target.value === 'evalSet')}
-                                                        />
-                                                    </FormSection>
-                                                    {/* Rendered here rather than as a plain field so the select stays
-                                                        with the question that asks for it. */}
-                                                    {customUsesEvalset && evalsetField && (
-                                                        <FormSection>
-                                                            <EvalsetFileControl
-                                                                field={evalsetField}
-                                                                hasEvalsets={evalsetOptions.length > 0}
-                                                                selectedEvalsetFile={selectedEvalsetFile}
-                                                                emptyState={{
-                                                                    icon: <Icon name={evalsetsLoadError ? "bi-error" : "bi-data-table"}
-                                                                        sx={{ fontSize: "16px", width: "16px", height: "16px" }} />,
-                                                                    title: evalsetsLoadError ? 'Failed to load evalsets' : 'No evalset files found',
-                                                                    description: evalsetsLoadError ? (
-                                                                        <>Could not load evalsets for this project. Try reopening this view, then select an evalset.</>
-                                                                    ) : (
-                                                                        <>Export traces from a conversation with an agent to create an evalset.
-                                                                            You can also create an empty evalset below, then add test threads in the evalset editor.</>
-                                                                    ),
-                                                                    canCreate: !evalsetsLoadError,
-                                                                }}
-                                                                onCreateEvalset={createEvalset}
-                                                                onOpenEvalset={openEvalset}
-                                                            />
-                                                        </FormSection>
-                                                    )}
-                                                </CustomEvalsetControls>
-                                            )}
-                                            {isEditing && editShape === 'unresolvable' && (
-                                                <StatusRow>
-                                                    <TemplateIconTile>
-                                                        <Icon name="bi-error" sx={{ fontSize: "20px", width: "20px", height: "20px" }} />
-                                                    </TemplateIconTile>
-                                                    <GrowingContent>
-                                                        <TitleRow>
-                                                            Built from template <code>{detectedSymbol}</code>
-                                                        </TitleRow>
-                                                        <HintText>
-                                                            Template details are unavailable, so its settings can't be edited here.
-                                                            Check that the ballerina/ai.eval package is available and declared in Ballerina.toml.
-                                                        </HintText>
-                                                        {templateNode && (
-                                                            <MonospaceHint>{templateNode.codedata?.sourceCode}</MonospaceHint>
-                                                        )}
-                                                    </GrowingContent>
-                                                </StatusRow>
-                                            )}
-                                            {isEditing && (editShape === 'custom' || editShape === 'ambiguous') && (
-                                                <StatusRow>
-                                                    <TemplateIconTile>
-                                                        <Icon name="bi-config" sx={{ fontSize: "20px", width: "20px", height: "20px" }} />
-                                                    </TemplateIconTile>
-                                                    <GrowingContent>
-                                                        <TitleRow>Custom evaluation</TitleRow>
-                                                        <HintText>
-                                                            {editShape === 'ambiguous'
-                                                                ? 'This evaluation calls more than one ai.eval function, so it can\'t be edited as a template.'
-                                                                : 'The logic for this evaluation is written by hand.'}
-                                                        </HintText>
-                                                    </GrowingContent>
-                                                </StatusRow>
-                                            )}
-                                            {isTemplateMode && editShape !== 'unresolvable' && (
-                                                <TemplatePicker>
-                                                    <SectionLabel style={{ marginBottom: '8px' }}>
-                                                        {selectedTemplate ? 'Evaluation template' : 'Choose an evaluation template'}
-                                                    </SectionLabel>
-                                                    {isSelectingTemplate ? (
-                                                        <LoadingSlot>
-                                                            <RelativeLoader message="Loading template..." />
-                                                        </LoadingSlot>
-                                                    ) : selectedTemplate && templateNode ? (
-                                                        <TemplateConfigCard
-                                                            template={selectedTemplate}
-                                                            templateFields={templateFields}
-                                                            dataSourceParam={dataSourceParam}
-                                                            dataSourceMode={dataSourceMode}
-                                                            onDataSourceModeChange={handleDataSourceModeChange}
-                                                            agentFieldKey={agentFieldKey}
-                                                            evalsetField={evalsetField}
-                                                            queriesField={formFields.find(field => field.key === QUERIES_FIELD_KEY)}
-                                                            hasEvalsets={evalsetOptions.length > 0}
-                                                            selectedEvalsetFile={selectedEvalsetFile}
-                                                            onCreateEvalset={createEvalset}
-                                                            onOpenEvalset={openEvalset}
-                                                            onChangeTemplate={() => setShowTemplateCatalog(true)}
-                                                        />
-                                                    ) : (
-                                                        <EmptyTemplateSlot type="button"
-                                                            onClick={() => setShowTemplateCatalog(true)}
-                                                            aria-haspopup="dialog"
-                                                            aria-label="Choose an evaluation template">
-                                                            <GrowingContent>
-                                                                <TitleRow>Choose a template to continue</TitleRow>
-                                                                <HintText>
-                                                                    {templateLoadError
-                                                                        || (evalTemplates.length > 0
-                                                                            ? `Start with one of ${evalTemplates.length} rule-based and LLM-as-judge checks`
-                                                                            : 'Start with a rule-based or LLM-as-judge check')}
-                                                                </HintText>
-                                                            </GrowingContent>
-                                                            <ChooseTemplateAction>
-                                                                <Codicon name="search" iconSx={{ fontSize: 14 }}
-                                                                    sx={{ height: 14, marginRight: 6 }} />
-                                                                Choose Template
-                                                            </ChooseTemplateAction>
-                                                        </EmptyTemplateSlot>
-                                                    )}
-                                                    {/* The dialog is already gone by the time a fetch can
-                                                        fail, so its error surfaces here. The empty slot
-                                                        shows it inline, so only report it alongside a
-                                                        card that survived the failed change. */}
-                                                    {templateLoadError && selectedTemplate && !isSelectingTemplate && (
-                                                        <HintText style={{ color: ThemeColors.ERROR }}>
-                                                            {templateLoadError}
-                                                        </HintText>
-                                                    )}
-                                                    {editShape === 'template-with-custom' && (
-                                                        <HintText>
-                                                            This evaluation also contains custom code. Saving updates only the{' '}
-                                                            <code>eval:{detectedSymbol}(…)</code> call.
-                                                        </HintText>
-                                                    )}
-                                                </TemplatePicker>
-                                            )}
-                                            {showTemplateCatalog && (
-                                                <TemplateModal
-                                                    templates={evalTemplates}
-                                                    templateLoadError={templateLoadError}
-                                                    selectedTemplate={selectedTemplate}
-                                                    onSelectTemplate={selectEvalTemplate}
-                                                    onClose={() => setShowTemplateCatalog(false)}
-                                                />
-                                            )}
-                                        </>,
-                                        index: 0
-                                    }
-                                ]}
-                            />
-                        )}
-                    </FormContainer>
-                </Container>
-            </ViewContent>
-        </View>
+        <>
+            {open && <PopupModalStep $direction="backward" $animate={hasLeftCatalog}>{browser}</PopupModalStep>}
+            <PopupModalStep style={open ? { display: 'none' } : undefined}>
+                <InlineFormContent>{children}</InlineFormContent>
+            </PopupModalStep>
+        </>
     );
 }
