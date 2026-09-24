@@ -17,7 +17,7 @@
  */
 import { NodeProperties } from "@wso2/ballerina-core";
 import {
-    dependentKeysFromTemplate, picksWorkflow, retypeFieldsFromTemplate, shouldRetype,
+    dependentKeysFromTemplate, forgetRetype, picksWorkflow, retypeFieldsFromTemplate, shouldRetype,
 } from "./dependentFields";
 
 const field = (key: string, extra: Record<string, any> = {}) => ({
@@ -57,6 +57,40 @@ describe("deciding whether a reported change is worth a template", () => {
         expect(shouldRetype(lastSeen, "workflow", "")).toBe(false);
         expect(shouldRetype(lastSeen, "workflow", undefined)).toBe(false);
         expect(shouldRetype(lastSeen, "workflow", ["auditClaim"])).toBe(false);
+    });
+});
+
+describe("forgetting a retype whose template never arrived", () => {
+    it("lets the same workflow be picked again after a failed request", () => {
+        const lastSeen: Record<string, unknown> = { workflow: "auditClaim" };
+        const previous = lastSeen.workflow;
+
+        expect(shouldRetype(lastSeen, "workflow", "settleClaim")).toBe(true);
+        forgetRetype(lastSeen, "workflow", "settleClaim", previous);
+
+        expect(lastSeen.workflow).toBe("auditClaim");
+        expect(shouldRetype(lastSeen, "workflow", "settleClaim")).toBe(true);
+    });
+
+    it("drops the key when there was nothing recorded before the request", () => {
+        const lastSeen: Record<string, unknown> = {};
+        const previous = lastSeen.workflow;
+
+        expect(shouldRetype(lastSeen, "workflow", "settleClaim")).toBe(true);
+        forgetRetype(lastSeen, "workflow", "settleClaim", previous);
+
+        expect("workflow" in lastSeen).toBe(false);
+    });
+
+    it("leaves a newer choice alone when a superseded answer comes back", () => {
+        const lastSeen: Record<string, unknown> = { workflow: "auditClaim" };
+        const firstPrevious = lastSeen.workflow;
+        shouldRetype(lastSeen, "workflow", "settleClaim");
+        shouldRetype(lastSeen, "workflow", "reopenClaim");
+
+        forgetRetype(lastSeen, "workflow", "settleClaim", firstPrevious);
+
+        expect(lastSeen.workflow).toBe("reopenClaim");
     });
 });
 

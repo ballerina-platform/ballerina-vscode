@@ -54,6 +54,24 @@ export function shouldRetype(lastSeen: LastSeenValues, key: string, value: unkno
 }
 
 /**
+ * Puts back what `shouldRetype` recorded, so a template request that failed or was superseded does
+ * not leave the field looking already retyped and refuse to try that value again.
+ *
+ * @param previous what the key held before the request, restored only while the key still holds
+ *                 `value` — a newer attempt that has recorded its own owns the key
+ */
+export function forgetRetype(lastSeen: LastSeenValues, key: string, value: string, previous: unknown): void {
+    if (lastSeen[key] !== value) {
+        return;
+    }
+    if (previous === undefined) {
+        delete lastSeen[key];
+    } else {
+        lastSeen[key] = previous;
+    }
+}
+
+/**
  * The fields a template says follow another field's value — the child workflow's input follows the
  * workflow dropdown, say. The template is what is asked rather than the node being edited: a
  * statement re-read from source does not carry the tags, because its variable-type property is

@@ -99,7 +99,13 @@ import IfForm from "../IfForm";
 import { ConnectionConfigurationPopup } from "../../Connection/ConnectionConfigurationPopup";
 import { createPortal } from "react-dom";
 import { cloneDeep, debounce } from "lodash";
-import { dependentKeysFromTemplate, picksWorkflow, retypeFieldsFromTemplate, shouldRetype } from "./dependentFields";
+import {
+    dependentKeysFromTemplate,
+    forgetRetype,
+    picksWorkflow,
+    retypeFieldsFromTemplate,
+    shouldRetype,
+} from "./dependentFields";
 import {
     createNodeWithUpdatedLineRange,
     deserializeForDiagnosticsAPI,
@@ -900,14 +906,17 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         if (!picksWorkflow(node.codedata?.node) || !fileName) {
             return;
         }
+        // The dropdown check comes first: handleFormChange reports every field, and a bump from one
+        // of the others would strand the fetch the dropdown's own change is waiting on.
+        const changed = baseFields.find((field) => field.key === fieldKey);
+        if (!changed?.types?.some((type) => type.fieldType === "SINGLE_SELECT")) {
+            return;
+        }
+        const previous = retypedForRef.current[fieldKey];
         if (!shouldRetype(retypedForRef.current, fieldKey, value)) {
             // A value that is gone or unchanged must also strand any fetch still in flight for the
             // one before it, or its answer would retype fields for a workflow no longer chosen.
             retypeRequest.current++;
-            return;
-        }
-        const changed = baseFields.find((field) => field.key === fieldKey);
-        if (!changed?.types?.some((type) => type.fieldType === "SINGLE_SELECT")) {
             return;
         }
         const request = ++retypeRequest.current;
@@ -918,6 +927,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                 id: { ...node.codedata, symbol: value },
             });
             if (request !== retypeRequest.current || !response?.flowNode) {
+                forgetRetype(retypedForRef.current, fieldKey, value, previous);
                 return;
             }
             const template = getFormProperties(response.flowNode) ?? {};
@@ -927,6 +937,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
             }
             setBaseFields((prev) => retypeFieldsFromTemplate(prev, keys, template));
         } catch (error) {
+            forgetRetype(retypedForRef.current, fieldKey, value, previous);
             console.error(">>> Failed to retype the fields that follow", fieldKey, error);
         }
     }, [baseFields, fileName, node.codedata, rpcClient, targetLineRange]);
