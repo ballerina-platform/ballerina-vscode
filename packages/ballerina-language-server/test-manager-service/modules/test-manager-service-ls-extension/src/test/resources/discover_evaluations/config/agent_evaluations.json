@@ -128,6 +128,37 @@
           }
         },
         "agents": []
+      },
+      {
+        "functionName": "testMathAgentWithEvalset",
+        "lineRange": {
+          "fileName": "tests/tests.bal",
+          "startLine": {
+            "line": 45,
+            "offset": 0
+          },
+          "endLine": {
+            "line": 51,
+            "offset": 1
+          }
+        },
+        "agents": [
+          {
+            "name": "mathAgent",
+            "lineRange": {
+              "fileName": "agents.bal",
+              "startLine": {
+                "line": 2,
+                "offset": 0
+              },
+              "endLine": {
+                "line": 6,
+                "offset": 2
+              }
+            }
+          }
+        ],
+        "evalSetFile": "tests/resources/evalsets/math.evalset.json"
       }
     ]
   }

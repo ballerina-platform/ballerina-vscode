@@ -1,0 +1,167 @@
+{
+  "filePath": "sample_minpassrate/tests/test1.bal",
+  "description": "A queries-mode LLM-judge template evaluation adds the ai import its judgeModel argument needs",
+  "function": {
+    "metadata": {
+      "label": "Test Function",
+      "description": "Test Function"
+    },
+    "codedata": {
+      "lineRange": {
+        "fileName": "tests/test1.bal",
+        "startLine": {
+          "line": 3,
+          "offset": 0
+        },
+        "endLine": {
+          "line": 6,
+          "offset": 1
+        }
+      }
+    },
+    "functionName": {
+      "metadata": {
+        "label": "Test Function",
+        "description": "Test function"
+      },
+      "valueType": "IDENTIFIER",
+      "value": "evaluateMathAgentClarity",
+      "optional": false,
+      "editable": true,
+      "advanced": false
+    },
+    "returnType": {
+      "metadata": {
+        "label": "Return Type",
+        "description": "Return type of the function"
+      },
+      "valueType": "TYPE",
+      "optional": true,
+      "editable": true,
+      "advanced": true
+    },
+    "parameters": [],
+    "annotations": [
+      {
+        "metadata": {
+          "label": "Config",
+          "description": "Test Function Configurations"
+        },
+        "org": "ballerina",
+        "module": "test",
+        "name": "Config",
+        "fields": [
+          {
+            "metadata": {
+              "label": "Groups",
+              "description": "Groups to run"
+            },
+            "valueType": "EXPRESSION_SET",
+            "originalName": "groups",
+            "value": [
+              "\"evaluations\""
+            ],
+            "optional": true,
+            "editable": true,
+            "advanced": false
+          },
+          {
+            "metadata": {
+              "label": "Runs",
+              "description": "Number of times to execute this test"
+            },
+            "valueType": "EXPRESSION",
+            "originalName": "runs",
+            "value": "1",
+            "optional": true,
+            "editable": true,
+            "advanced": false
+          },
+          {
+            "metadata": {
+              "label": "Minimum Pass Rate (%)",
+              "description": "Minimum percentage of runs that must pass (0-100)"
+            },
+            "valueType": "SLIDER",
+            "originalName": "minPassRate",
+            "value": "80",
+            "optional": true,
+            "editable": true,
+            "advanced": false
+          }
+        ]
+      }
+    ],
+    "editable": true
+  },
+  "evalTemplate": {
+    "symbol": "evaluateClarity",
+    "parameters": {
+      "targetAgent": "mathAgent",
+      "judgeModel": "check ai:getDefaultModelProvider()"
+    },
+    "dataSource": {
+      "mode": "queries",
+      "paramName": "queries",
+      "queries": [
+        "string `What is 2 + 2?`"
+      ]
+    }
+  },
+  "output": {
+    "sample_minpassrate/tests/test1.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "import ballerina/ai.eval;"
+      },
+      {
+        "range": {
+          "start": {
+            "line": 1,
+            "character": 22
+          },
+          "end": {
+            "line": 1,
+            "character": 22
+          }
+        },
+        "newText": "\n\nisolated function loadQueriesData() returns string[][]|error {\n\treturn [[string `What is 2 + 2?`]];\n}"
+      },
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "import ballerina/ai;"
+      },
+      {
+        "range": {
+          "start": {
+            "line": 1,
+            "character": 22
+          },
+          "end": {
+            "line": 1,
+            "character": 22
+          }
+        },
+        "newText": "@test:Config{\ngroups: [\"evaluations\"],\nminPassRate: 80\n}\nfunction evaluateMathAgentClarity(string query) returns error? {\n\tcheck eval:evaluateClarity(targetAgent = mathAgent, judgeModel = check ai:getDefaultModelProvider(), queries = query);\n}"
+      }
+    ]
+  }
+}

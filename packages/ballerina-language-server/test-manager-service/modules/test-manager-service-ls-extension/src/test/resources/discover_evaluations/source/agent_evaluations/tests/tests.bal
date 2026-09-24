@@ -38,3 +38,15 @@ function testNotAnEvaluation() returns error? {
 function askSupport(string query) returns string|error {
     return supportAgent.run(query);
 }
+
+isolated function loadMathThreads() returns map<[ai:ConversationThread]>|error {
+    return ai:loadConversationThreads("tests/resources/evalsets/math.evalset.json");
+}
+
+@test:Config {groups: ["evaluations"], dataProvider: loadMathThreads}
+function testMathAgentWithEvalset(ai:ConversationThread thread) returns error? {
+    foreach ai:Trace trace in thread.traces {
+        string answer = check mathAgent.run(trace.userMessage.content.toString(), thread.id);
+        test:assertTrue(answer.length() > 0);
+    }
+}

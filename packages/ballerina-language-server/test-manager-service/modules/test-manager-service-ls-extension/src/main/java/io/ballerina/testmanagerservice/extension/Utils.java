@@ -240,8 +240,8 @@ public class Utils {
         return builder.build();
     }
 
-    private static String extractEvalSetFileFromDataProvider(ModulePartNode modulePartNode,
-                                                             String dataProviderFunctionName) {
+    public static String extractEvalSetFileFromDataProvider(ModulePartNode modulePartNode,
+                                                            String dataProviderFunctionName) {
         // Find the data provider function
         Optional<FunctionDefinitionNode> dataProviderFunc =
                 findFunctionByName(modulePartNode, dataProviderFunctionName);
@@ -340,7 +340,7 @@ public class Utils {
         return "";
     }
 
-    public static String getTestFunctionTemplate(TestFunction function) {
+    public static String getTestFunctionTemplate(TestFunction function, String body) {
         StringBuilder builder = new StringBuilder();
 
         // build annotations
@@ -355,8 +355,28 @@ public class Utils {
         builder.append(Constants.SPACE)
                 .append(Constants.OPEN_CURLY_BRACE)
                 .append(Constants.LINE_SEPARATOR)
+                .append(body)
                 .append(Constants.CLOSE_CURLY_BRACE);
         return builder.toString();
+    }
+
+    // Runs the agent so the evaluation is linked to it; the placeholder check fails until the author replaces it.
+    public static String getAgentEvaluationBody(String agent, boolean usesEvalSet) {
+        if (agent == null || agent.isBlank()) {
+            return "";
+        }
+        String placeholder = "test:assertFail(string `Replace this with the checks for the evaluation. "
+                + "The agent responded: ${response}`);";
+        if (!usesEvalSet) {
+            return "    string response = check " + agent + ".run(\"Replace with a test query\");"
+                    + Constants.LINE_SEPARATOR + "    " + placeholder + Constants.LINE_SEPARATOR;
+        }
+        String thread = Constants.EVALSET_PROVIDER_VAR;
+        return "    foreach ai:Trace trace in " + thread + ".traces {" + Constants.LINE_SEPARATOR
+                + "        string response = check " + agent + ".run(trace.userMessage.content.toString(), "
+                + thread + ".id);" + Constants.LINE_SEPARATOR
+                + "        " + placeholder + Constants.LINE_SEPARATOR
+                + "    }" + Constants.LINE_SEPARATOR;
     }
 
     public static String buildFunctionSignature(TestFunction function) {

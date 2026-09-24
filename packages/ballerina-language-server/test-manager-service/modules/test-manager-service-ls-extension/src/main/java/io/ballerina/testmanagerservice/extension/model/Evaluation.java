@@ -30,7 +30,8 @@ import java.util.List;
  * @param lineRange    the range of the test function
  * @param template     the evaluation template the test calls, or {@code null} for a custom evaluation
  * @param agents       the agents the test runs, directly or through functions of the module
+ * @param evalSetFile  the evalset its data provider loads, relative to the package, or {@code null}
  */
 public record Evaluation(String functionName, LineRange lineRange, EvalTemplate template,
-                         List<EvaluationAgent> agents) {
+                         List<EvaluationAgent> agents, String evalSetFile) {
 }

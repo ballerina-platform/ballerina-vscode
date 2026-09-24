@@ -82,6 +82,8 @@ import java.util.stream.Collectors;
 @JsonSegment("testManagerService")
 public class TestManagerService implements ExtendedLanguageServerService {
 
+    private static final String DEFAULT_MODEL_PROVIDER = "ai:getDefaultModelProvider()";
+
     private WorkspaceManager workspaceManager;
 
     @Override
@@ -237,8 +239,9 @@ public class TestManagerService implements ExtendedLanguageServerService {
                 // Check if dataProviderMode is evalSet
                 String dataProviderMode = getDataProviderMode(request.function());
                 String dataProviderFunctionName;
+                boolean usesEvalSet = Constants.DATA_PROVIDER_MODE_EVALSET.equals(dataProviderMode);
 
-                if (Constants.DATA_PROVIDER_MODE_EVALSET.equals(dataProviderMode)) {
+                if (usesEvalSet) {
                     // Add AI import if needed
                     if (!Utils.isAiModuleImportExists(modulePartNode)) {
                         edits.add(new TextEdit(Utils.toRange(lineRange.startLine()), Constants.IMPORT_AI_STMT));
@@ -270,7 +273,8 @@ public class TestManagerService implements ExtendedLanguageServerService {
                 }
 
                 // Generate the test function
-                String function = Utils.getTestFunctionTemplate(request.function());
+                String function = Utils.getTestFunctionTemplate(request.function(),
+                        Utils.getAgentEvaluationBody(request.targetAgent(), usesEvalSet));
                 edits.add(new TextEdit(Utils.toRange(lineRange.endLine()), function));
 
                 return new CommonSourceResponse(Map.of(request.filePath(), edits));
@@ -303,6 +307,10 @@ public class TestManagerService implements ExtendedLanguageServerService {
             }
             Set<String> visibleSymbolNames = visibleSymbolNames(semanticModel, document, modulePartNode);
             if (Constants.DATA_SOURCE_MODE_QUERIES.equals(mode)) {
+                boolean usesDefaultModel = String.valueOf(template.get("parameters")).contains(DEFAULT_MODEL_PROVIDER);
+                if (usesDefaultModel && !Utils.isAiModuleImportExists(modulePartNode)) {
+                    edits.add(new TextEdit(Utils.toRange(lineRange.startLine()), Constants.IMPORT_AI_STMT));
+                }
                 List<String> queries = readQueries(dataSource);
                 if (queries.isEmpty()) {
                     throw new IllegalArgumentException("At least one query is required");

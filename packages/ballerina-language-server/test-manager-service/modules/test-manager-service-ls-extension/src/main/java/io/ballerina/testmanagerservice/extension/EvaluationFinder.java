@@ -79,7 +79,7 @@ public class EvaluationFinder {
             ModulePartNode root = module.document(documentId).syntaxTree().rootNode();
             for (ModuleMemberDeclarationNode member : root.members()) {
                 if (member instanceof FunctionDefinitionNode function && isEvaluation(function)) {
-                    evaluations.add(analyze(function));
+                    evaluations.add(analyze(function, root));
                 }
             }
         }
@@ -93,11 +93,15 @@ public class EvaluationFinder {
                 .isPresent();
     }
 
-    private Evaluation analyze(FunctionDefinitionNode function) {
+    private Evaluation analyze(FunctionDefinitionNode function, ModulePartNode root) {
         UsageVisitor visitor = new UsageVisitor();
         function.functionBody().accept(visitor);
+        String evalSetFile = TestFunctionsFinder.findTestConfigField(function, "dataProvider")
+                .map(provider -> Utils.extractEvalSetFileFromDataProvider(root, provider))
+                .filter(path -> !path.isEmpty())
+                .orElse(null);
         return new Evaluation(function.functionName().text().trim(), function.lineRange(), visitor.template,
-                List.copyOf(visitor.agents.values()));
+                List.copyOf(visitor.agents.values()), evalSetFile);
     }
 
     private Optional<EvaluationAgent> agentOf(Symbol symbol) {

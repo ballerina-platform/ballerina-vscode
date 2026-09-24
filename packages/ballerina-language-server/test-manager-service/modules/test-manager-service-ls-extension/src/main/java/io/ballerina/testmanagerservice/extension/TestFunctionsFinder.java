@@ -75,12 +75,35 @@ public class TestFunctionsFinder {
      * @return the declared groups, still quoted as in source
      */
     public static Optional<List<String>> findTestGroups(FunctionDefinitionNode function) {
+        return findTestConfig(function).map(TestFunctionsFinder::findSpecifiedGroups);
+    }
+
+    /**
+     * Returns the source of a field of the function's {@code @test:Config}, such as its data provider.
+     *
+     * @param function  the function definition
+     * @param fieldName the config field
+     * @return the field value as written, or empty if the field is not set
+     */
+    public static Optional<String> findTestConfigField(FunctionDefinitionNode function, String fieldName) {
+        return findTestConfig(function)
+                .flatMap(AnnotationNode::annotValue)
+                .stream()
+                .flatMap(value -> value.fields().stream())
+                .filter(SpecificFieldNode.class::isInstance)
+                .map(SpecificFieldNode.class::cast)
+                .filter(field -> field.fieldName().toSourceCode().trim().equals(fieldName))
+                .flatMap(field -> field.valueExpr().stream())
+                .map(value -> value.toSourceCode().trim())
+                .findFirst();
+    }
+
+    private static Optional<AnnotationNode> findTestConfig(FunctionDefinitionNode function) {
         return function.metadata().stream()
                 .flatMap(metadata -> metadata.annotations().stream())
                 .filter(annotation -> annotation.annotReference().toSourceCode().trim()
                         .equals(TEST_CONFIG_ANNOTATION))
-                .findFirst()
-                .map(TestFunctionsFinder::findSpecifiedGroups);
+                .findFirst();
     }
 
     private static List<String> findSpecifiedGroups(AnnotationNode annotationNode) {
