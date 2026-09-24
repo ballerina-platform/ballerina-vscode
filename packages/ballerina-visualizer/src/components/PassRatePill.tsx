@@ -49,14 +49,19 @@ interface PassRatePillProps {
     passRate: number;
     minPassRate: number;
     isPassing: boolean;
+    /** Summarises a history of runs by its most recent one. */
+    latest?: boolean;
 }
 
-export function PassRatePill({ passRate, minPassRate, isPassing }: PassRatePillProps) {
+export function PassRatePill({ passRate, minPassRate, isPassing, latest }: PassRatePillProps) {
     const min = toPercent(minPassRate);
+    const title = latest
+        ? `Pass rate of the latest run. The evaluation passes at ${min} or higher.`
+        : `Average pass rate across runs. The evaluation passes at ${min} or higher.`;
     return (
-        <Pill isPassing={isPassing} title={`Average pass rate across runs. Passes at ${min} or higher.`}>
-            Pass rate {toPercent(passRate)}
-            <MinRate>· min {min}</MinRate>
+        <Pill isPassing={isPassing} title={title}>
+            {latest ? "Latest pass rate" : "Pass rate"} {toPercent(passRate)}
+            <MinRate>· needs {min}</MinRate>
         </Pill>
     );
 }
