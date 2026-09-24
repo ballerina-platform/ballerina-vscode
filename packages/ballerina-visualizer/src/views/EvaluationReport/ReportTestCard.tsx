@@ -23,7 +23,8 @@ import { Codicon } from "@wso2/ui-toolkit";
 import { RunPassRateChart } from "./RunPassRateChart";
 import { PassRatePill, toPercent } from "../../components/PassRatePill";
 
-const DEFAULT_MIN_PASS_RATE = 0.8;
+// Without minPassRate, `bal test` reports a plain test that must pass on its one run.
+const PLAIN_TEST_MIN_PASS_RATE = 1;
 
 // ── Card shell ──────────────────────────────────────────────────────────────
 
@@ -259,8 +260,8 @@ export function ReportTestCard({ test, moduleName }: ReportTestCardProps) {
     const isPassing = test.status === "PASSED";
 
     const passRate = evalSummary ? evalSummary.observedPassRate : (isPassing ? 1 : 0);
-    const minPassRate = evalSummary ? evalSummary.targetPassRate : DEFAULT_MIN_PASS_RATE;
-    const totalRuns = evalSummary ? evalSummary.evaluationRuns.length : 0;
+    const minPassRate = evalSummary ? evalSummary.targetPassRate : PLAIN_TEST_MIN_PASS_RATE;
+    const totalRuns = evalSummary ? evalSummary.evaluationRuns.length : 1;
 
     return (
         <Card>

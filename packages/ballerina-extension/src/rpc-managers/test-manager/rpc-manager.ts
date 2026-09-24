@@ -431,15 +431,16 @@ export class TestServiceManagerRpcManager implements TestManagerServiceAPI {
                     const status: "PASSED" | "FAILURE" =
                         test.status === "PASSED" ? "PASSED" : "FAILURE";
 
+                    // Without minPassRate there is no summary: a plain test that must pass on its one run.
                     const evalSummary = test.evaluationSummary ?? {};
                     const observedPassRate: number =
                         typeof evalSummary.observedPassRate === "number"
                             ? evalSummary.observedPassRate
-                            : 0;
+                            : status === "PASSED" ? 1 : 0;
                     const targetPassRate: number =
                         typeof evalSummary.targetPassRate === "number"
                             ? evalSummary.targetPassRate
-                            : 0.8;
+                            : 1;
 
                     const evaluationRuns: EvaluationRun[] = (
                         evalSummary.evaluationRuns ?? []

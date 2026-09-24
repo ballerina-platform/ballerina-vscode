@@ -178,7 +178,7 @@ export function RunPassRateChart({ runs, targetPassRate }: RunPassRateChartProps
                     fontSize={9}
                     fill="var(--vscode-terminal-ansiCyan, #0598bc)"
                 >
-                    {targetPct}% min
+                    needs {targetPct}%
                 </text>
                 {/* Average observed pass rate line */}
                 <line

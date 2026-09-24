@@ -121,6 +121,7 @@ export function TestCard({ history, projectPath }: TestCardProps) {
     }
 
     const latest = history.runs[history.runs.length - 1];
+    const passedRuns = history.runs.filter((run) => run.status === "PASSED").length;
     const isPassing = latest.passRate >= latest.targetPassRate;
 
     let trendElement: React.ReactNode = null;
@@ -137,7 +138,7 @@ export function TestCard({ history, projectPath }: TestCardProps) {
             );
         } else {
             trendElement = (
-                <Trend direction="flat">&rarr; stable</Trend>
+                <Trend direction="flat">&rarr; {isPassing ? "stable" : "still failing"}</Trend>
             );
         }
     }
@@ -153,12 +154,14 @@ export function TestCard({ history, projectPath }: TestCardProps) {
                             passRate={latest.passRate}
                             minPassRate={latest.targetPassRate}
                             isPassing={isPassing}
+                            latest
                         />
                     </CardBadges>
                 </CardTitleRow>
                 <CardMeta>
                     {history.runs.length} run
                     {history.runs.length !== 1 ? "s" : ""} &middot;{" "}
+                    {passedRuns} passed &middot;{" "}
                     {history.projectName}
                 </CardMeta>
             </CardHeader>
