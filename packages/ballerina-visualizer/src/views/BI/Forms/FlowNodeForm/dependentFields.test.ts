@@ -17,7 +17,7 @@
  */
 import { NodeProperties } from "@wso2/ballerina-core";
 import {
-    dependentKeysFromTemplate, forgetRetype, picksWorkflow, retypeFieldsFromTemplate, shouldRetype,
+    dependentKeys, forgetRetype, picksWorkflow, retypeFieldsFromTemplate, shouldRetype,
 } from "./dependentFields";
 
 const field = (key: string, extra: Record<string, any> = {}) => ({
@@ -112,9 +112,31 @@ describe("fields that follow a workflow dropdown", () => {
             variable: { metadata: { label: "Variable" }, codedata: {} },
         });
 
-        expect(dependentKeysFromTemplate(template, "workflow")).toEqual(["input", "type"]);
-        expect(dependentKeysFromTemplate(template, "input")).toEqual([]);
-        expect(dependentKeysFromTemplate(properties({}), "workflow")).toEqual([]);
+        expect(dependentKeys([], template, "workflow")).toEqual(["input", "type"]);
+        expect(dependentKeys([], template, "input")).toEqual([]);
+        expect(dependentKeys([], properties({}), "workflow")).toEqual([]);
+    });
+
+    // A workflow that declares no input has no `input` property in its template at all, so the
+    // template alone can never name the field that has to be hidden.
+    it("names a field the new template drops, so the old one does not stay on the form", () => {
+        const template = properties({
+            workflow: { metadata: { label: "Workflow" }, codedata: {} },
+            variable: { metadata: { label: "Variable" }, codedata: {} },
+        });
+
+        expect(dependentKeys(fields, template, "workflow")).toEqual(["input", "type"]);
+
+        const retyped = retypeFieldsFromTemplate(fields, dependentKeys(fields, template, "workflow"), template);
+        expect(retyped[1]).toMatchObject({ key: "input", hidden: true, value: "" });
+    });
+
+    it("names each field once when the template and the form both carry the tag", () => {
+        const template = properties({
+            input: { metadata: { label: "Input" }, codedata: { dependentProperty: "workflow" } },
+        });
+
+        expect(dependentKeys(fields, template, "workflow")).toEqual(["input", "type"]);
     });
 
     it("takes type, placeholder and doc from the new template while keeping what was typed", () => {
@@ -165,7 +187,7 @@ describe("fields that follow a workflow dropdown", () => {
         const declared = [field("type", { codedata: { dependentProperty: "workflow" }, value: "string" })];
 
         // Nothing selected a new workflow, so no retype runs and the declared type stands.
-        expect(dependentKeysFromTemplate(properties({}), "workflow")).toEqual([]);
+        expect(dependentKeys([], properties({}), "workflow")).toEqual([]);
         // And when one does run, the template's own value is what the new choice returns.
         expect(retypeFieldsFromTemplate(declared, ["type"], template)[0].value).toBe("json");
     });

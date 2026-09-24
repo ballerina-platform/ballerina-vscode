@@ -72,15 +72,22 @@ export function forgetRetype(lastSeen: LastSeenValues, key: string, value: strin
 }
 
 /**
- * The fields a template says follow another field's value — the child workflow's input follows the
- * workflow dropdown, say. The template is what is asked rather than the node being edited: a
- * statement re-read from source does not carry the tags, because its variable-type property is
- * attached after the analysis that would set them.
+ * The fields that follow another field's value — the child workflow's input follows the workflow
+ * dropdown, say. The template is asked as well as the form being edited: a statement re-read from
+ * source does not carry the tags, because its variable-type property is attached after the
+ * analysis that would set them. The form is asked as well as the template, because a template that
+ * drops the field altogether — a workflow that declares no input — cannot name it.
  */
-export function dependentKeysFromTemplate(template: NodeProperties, changedKey: string): string[] {
-    return Object.entries((template ?? {}) as Record<string, any>)
+export function dependentKeys(fields: FormField[], template: NodeProperties, changedKey: string): string[] {
+    const keys = new Set(Object.entries((template ?? {}) as Record<string, any>)
         .filter(([, property]) => dependsOn(property?.codedata, changedKey))
-        .map(([key]) => key);
+        .map(([key]) => key));
+    for (const field of fields) {
+        if (dependsOn(field.codedata, changedKey)) {
+            keys.add(field.key);
+        }
+    }
+    return [...keys];
 }
 
 function dependsOn(codedata: { dependentProperty?: string } | undefined, changedKey: string): boolean {

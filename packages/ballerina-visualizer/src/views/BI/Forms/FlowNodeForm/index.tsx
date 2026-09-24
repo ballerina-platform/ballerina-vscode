@@ -100,7 +100,7 @@ import { ConnectionConfigurationPopup } from "../../Connection/ConnectionConfigu
 import { createPortal } from "react-dom";
 import { cloneDeep, debounce } from "lodash";
 import {
-    dependentKeysFromTemplate,
+    dependentKeys,
     forgetRetype,
     picksWorkflow,
     retypeFieldsFromTemplate,
@@ -931,11 +931,10 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                 return;
             }
             const template = getFormProperties(response.flowNode) ?? {};
-            const keys = dependentKeysFromTemplate(template, fieldKey);
-            if (keys.length === 0) {
-                return;
-            }
-            setBaseFields((prev) => retypeFieldsFromTemplate(prev, keys, template));
+            setBaseFields((prev) => {
+                const keys = dependentKeys(prev, template, fieldKey);
+                return keys.length === 0 ? prev : retypeFieldsFromTemplate(prev, keys, template);
+            });
         } catch (error) {
             forgetRetype(retypedForRef.current, fieldKey, value, previous);
             console.error(">>> Failed to retype the fields that follow", fieldKey, error);
