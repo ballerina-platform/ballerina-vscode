@@ -217,6 +217,17 @@ const InviteInput = styled.input`
     font-size: 12px;
     font-family: var(--vscode-font-family);
     outline: none;
+    /* Outranks the webview default focus outline. */
+    &:focus,
+    &:focus-visible {
+        outline: none;
+    }
+    @media (forced-colors: active) {
+        &:focus-visible {
+            outline: 1px solid Highlight;
+            outline-offset: 1px;
+        }
+    }
     &::placeholder {
         color: var(--vscode-input-placeholderForeground);
     }
