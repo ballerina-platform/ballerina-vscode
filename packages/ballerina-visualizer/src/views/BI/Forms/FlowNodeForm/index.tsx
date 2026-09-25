@@ -100,6 +100,7 @@ import { ConnectionConfigurationPopup } from "../../Connection/ConnectionConfigu
 import { createPortal } from "react-dom";
 import { cloneDeep, debounce } from "lodash";
 import {
+    clearHiddenDependentValues,
     dependentKeys,
     forgetRetype,
     picksWorkflow,
@@ -914,8 +915,11 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         if (!changed?.types?.some((type) => type.fieldType === "SINGLE_SELECT")) {
             return;
         }
-        const previous = retypedForRef.current[fieldKey];
-        if (!shouldRetype(retypedForRef.current, fieldKey, value)) {
+        // Captured before the await: initForm replaces the ref's object when another node opens,
+        // and a late answer must not write this node's record into that one.
+        const lastSeen = retypedForRef.current;
+        const previous = lastSeen[fieldKey];
+        if (!shouldRetype(lastSeen, fieldKey, value)) {
             // A value that is gone or unchanged must also strand any fetch still in flight for the
             // one before it, or its answer would retype fields for a workflow no longer chosen.
             retypeRequest.current++;
@@ -929,7 +933,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                 id: { ...node.codedata, symbol: value },
             });
             if (request !== retypeRequest.current || !response?.flowNode) {
-                forgetRetype(retypedForRef.current, fieldKey, value, previous);
+                forgetRetype(lastSeen, fieldKey, value, previous);
                 return;
             }
             const template = getFormProperties(response.flowNode) ?? {};
@@ -938,7 +942,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                 return keys.length === 0 ? prev : retypeFieldsFromTemplate(prev, keys, template);
             });
         } catch (error) {
-            forgetRetype(retypedForRef.current, fieldKey, value, previous);
+            forgetRetype(lastSeen, fieldKey, value, previous);
             console.error(">>> Failed to retype the fields that follow", fieldKey, error);
         }
     }, [baseFields, fileName, node.codedata, rpcClient, targetLineRange]);
@@ -976,7 +980,9 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         const updatedNode = createNodeWithUpdatedLineRange(clonedNode, targetLineRange);
 
         // assign to a existing variable
-        const processedData = processFormData(data);
+        // A dependent field the retype hid keeps its value in the form, and the source builders
+        // write any property that is not blank.
+        const processedData = clearHiddenDependentValues(processFormData(data), baseFields);
 
         // Update node properties
         const nodeWithUpdatedProps = updateNodeWithProperties(clonedNode, updatedNode, processedData, formImportsRef.current, dirtyFields);

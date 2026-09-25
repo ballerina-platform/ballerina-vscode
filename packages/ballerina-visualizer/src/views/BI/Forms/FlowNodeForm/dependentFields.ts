@@ -15,7 +15,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { FormField } from "@wso2/ballerina-side-panel";
+import { FormField, FormValues } from "@wso2/ballerina-side-panel";
 import { NodeProperties } from "@wso2/ballerina-core";
 
 /**
@@ -122,4 +122,21 @@ export function retypeFieldsFromTemplate(fields: FormField[], keys: string[], te
             value: property.value !== undefined && property.value !== "" ? property.value : field.value,
         };
     });
+}
+
+/**
+ * Blanks the values of dependent fields the retype hid. `Form` keeps whatever a field already held
+ * when its `hidden` flag goes up, and the source builders write any property that is not blank, so
+ * a workflow that takes no input would still be called with the input typed for the last one.
+ */
+export function clearHiddenDependentValues(values: FormValues, fields: FormField[]): FormValues {
+    const hidden = fields.filter((field) => field.hidden && field.codedata?.dependentProperty);
+    if (hidden.length === 0) {
+        return values;
+    }
+    const cleared = { ...values };
+    for (const field of hidden) {
+        cleared[field.key] = "";
+    }
+    return cleared;
 }

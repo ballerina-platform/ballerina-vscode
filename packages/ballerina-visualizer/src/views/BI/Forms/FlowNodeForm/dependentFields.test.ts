@@ -17,7 +17,8 @@
  */
 import { NodeProperties } from "@wso2/ballerina-core";
 import {
-    dependentKeys, forgetRetype, picksWorkflow, retypeFieldsFromTemplate, shouldRetype,
+    clearHiddenDependentValues, dependentKeys, forgetRetype, picksWorkflow,
+    retypeFieldsFromTemplate, shouldRetype,
 } from "./dependentFields";
 
 const field = (key: string, extra: Record<string, any> = {}) => ({
@@ -196,5 +197,30 @@ describe("fields that follow a workflow dropdown", () => {
         const retyped = retypeFieldsFromTemplate(fields, ["input"], {} as any);
 
         expect(retyped[1]).toMatchObject({ hidden: true, value: "" });
+    });
+});
+
+describe("clearing what a hidden dependent field still holds", () => {
+    // Form preserves every non-empty value it holds when the fields change, and the source builders
+    // write any property that is not blank — so hiding the field is not enough to stop it emitting.
+    it("blanks a dependent field the retype hid", () => {
+        const fields = [
+            field("workflow", { value: "noInputWf" }),
+            field("input", { codedata: { dependentProperty: "workflow" }, hidden: true, value: "" }),
+        ];
+
+        const cleared = clearHiddenDependentValues({ workflow: "noInputWf", input: "claimId" }, fields);
+
+        expect(cleared).toEqual({ workflow: "noInputWf", input: "" });
+    });
+
+    it("leaves a visible dependent field and an unrelated hidden one alone", () => {
+        const fields = [
+            field("input", { codedata: { dependentProperty: "workflow" }, value: "" }),
+            field("connection", { hidden: true }),
+        ];
+        const values = { input: "claimId", connection: "self" };
+
+        expect(clearHiddenDependentValues(values, fields)).toBe(values);
     });
 });
