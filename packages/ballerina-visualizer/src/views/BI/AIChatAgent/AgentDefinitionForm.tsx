@@ -390,7 +390,7 @@ export function AgentDefinitionForm({
 
     return (
         <FormLayout>
-            <FormFields style={inModal ? { padding: "24px 36px 16px" } : undefined}>
+            <FormFields style={inModal ? { padding: "16px" } : undefined}>
                 <IntroText>
                     Create a reusable agent template that you can share with others and instantiate across projects.
                 </IntroText>
@@ -465,7 +465,7 @@ export function AgentDefinitionForm({
             </FormFields>
             <Actions
                 style={inModal
-                    ? { justifyContent: "center", padding: "16px 36px", borderTop: "1px solid var(--vscode-panel-border)" }
+                    ? { justifyContent: "center", padding: "16px", borderTop: "1px solid var(--vscode-panel-border)" }
                     : { justifyContent: "flex-end", marginTop: 20 }}
             >
                 {inModal ? (

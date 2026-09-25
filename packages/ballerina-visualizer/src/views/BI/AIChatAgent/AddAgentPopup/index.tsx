@@ -16,18 +16,20 @@
  * under the License.
  */
 
-import { ReactNode, useState } from "react";
+import { ReactNode, useCallback, useEffect, useRef } from "react";
 import { AvailableNode, ParentPopupData } from "@wso2/ballerina-core";
-import { Codicon } from "@wso2/ui-toolkit";
-import {
-    BackButton,
-    CloseButton,
-    HeaderTitleContainer,
-    PopupHeader,
-    PopupTitle,
-} from "../../Connection/styles";
-import { PopupModal, PopupModalStep } from "../../../../components/PopupModal";
-import { AddAgentPopupContent, AddAgentView } from "./AddAgentPopupContent";
+import { useModalStack } from "../../../../Context";
+import { AgentDefinitionForm } from "../AgentDefinitionForm";
+import { AddAgentPopupContent } from "./AddAgentPopupContent";
+import { AgentFormView } from "./AgentFormView";
+import { CreateDurableAgentView } from "./CreateDurableAgentView";
+import { PackageAgentsView } from "./PackageAgentsView";
+import { AgentDefinitionFormContainer } from "./styles";
+
+const ROOT_ID = "add-agent";
+const GALLERY_WIDTH = 800;
+const FORM_WIDTH = 680;
+const MODAL_HEIGHT = 780;
 
 export interface AddAgentPopupProps {
     projectPath: string;
@@ -43,90 +45,120 @@ export interface AddAgentPopupProps {
     onDependencyToolFormBack?: () => void;
 }
 
-export function AddAgentPopup(props: AddAgentPopupProps) {
-    const {
-        onClose,
-        onNavigateToOverview,
-        isPopup,
-        inFlow,
-        onAgentCreated,
-        dependencyMode,
-        onAgentSelectedForDependency,
-        onGenericAgentSelected,
-        dependencyToolForm,
-        onDependencyToolFormBack,
-    } = props;
-    const [view, setView] = useState<AddAgentView>("gallery");
-    const [transitionDirection, setTransitionDirection] = useState<"forward" | "backward">("forward");
-    const [pendingAgent, setPendingAgent] = useState<AvailableNode>();
-    const isDependencyToolForm = Boolean(dependencyToolForm);
-    const isForm = isDependencyToolForm || view === "package" || view === "configure" || view === "create"
-        || view === "createDefinition" || view === "createDurable";
+export function AddAgentPopup(props: AddAgentPopupProps): null {
+    const { projectPath, isPopup, inFlow, dependencyMode, dependencyToolForm } = props;
+    const { addModal, updateModal, closeModal, popToModal, clearModals } = useModalStack();
+    const latest = useRef(props);
+    latest.current = props;
+    const tearingDown = useRef(false);
+    const hasToolForm = Boolean(dependencyToolForm);
 
-    const changeView = (nextView: AddAgentView, direction: "forward" | "backward" = "forward") => {
-        setTransitionDirection(direction);
-        setView(nextView);
-    };
-
-    const handleClosePopup = () => {
-        if (isPopup) {
-            onClose?.();
-        } else {
-            onNavigateToOverview();
-        }
-    };
-
-    return (
-        <PopupModal onClose={handleClosePopup} zIndexBase={2050}>
-            {(close) => (
-                <PopupModalStep
-                    key={isDependencyToolForm ? "agent-tool-form" : view === "package" ? "gallery" : view}
-                    $direction={transitionDirection}
-                >
-                    <PopupHeader>
-                        {isForm && (
-                            <BackButton
-                                appearance="icon"
-                                onClick={() => isDependencyToolForm ? onDependencyToolFormBack?.() : changeView("gallery", "backward")}
-                            >
-                                <Codicon name="chevron-left" />
-                            </BackButton>
-                        )}
-                        <HeaderTitleContainer>
-                            <PopupTitle variant="h2">
-                                {isDependencyToolForm ? "Add Agent Tool"
-                                    : view === "package" ? pendingAgent?.metadata.label ?? "Select Agent"
-                                    : view === "configure" ? "Configure Agent"
-                                    : view === "create" ? "Create Agent"
-                                    : view === "createDefinition" ? "Create Agent Definition"
-                                    : view === "createDurable" ? "Create Durable Agent"
-                                        : dependencyMode ? "Use Agent" : "Add Agent"}
-                            </PopupTitle>
-                        </HeaderTitleContainer>
-                        <CloseButton appearance="icon" onClick={close}>
-                            <Codicon name="close" />
-                        </CloseButton>
-                    </PopupHeader>
-                    {isDependencyToolForm ? dependencyToolForm : (
-                        <AddAgentPopupContent
-                            projectPath={props.projectPath}
-                            onClose={close}
-                            onAgentDefinitionCreated={isPopup ? onClose : undefined}
-                            view={view}
-                            onViewChange={changeView}
-                            pendingAgent={pendingAgent}
-                            onPendingAgentChange={setPendingAgent}
-                            inFlow={inFlow}
-                            onAgentCreated={onAgentCreated}
-                            dependencyMode={dependencyMode}
-                            onAgentSelectedForDependency={onAgentSelectedForDependency}
-                            onGenericAgentSelected={onGenericAgentSelected}
-                        />
-                    )}
-                </PopupModalStep>
-            )}
-        </PopupModal>
+    const push = useCallback(
+        (id: string, title: string, content: ReactNode) =>
+            addModal(content, `${ROOT_ID}-${id}`, title, MODAL_HEIGHT, FORM_WIDTH, undefined, true),
+        [addModal]
     );
+
+    const dismiss = useCallback(() => {
+        const { isPopup: asPopup, onClose, onNavigateToOverview } = latest.current;
+        if (tearingDown.current) {
+            return;
+        }
+        asPopup ? onClose?.() : onNavigateToOverview();
+    }, []);
+
+    const openAgentForm = useCallback(
+        (agent?: AvailableNode) =>
+            push(
+                agent ? "configure" : "create",
+                agent ? "Configure Agent" : "Create Agent",
+                <AgentFormView
+                    projectPath={latest.current.projectPath}
+                    pendingAgent={agent}
+                    inFlow={latest.current.inFlow}
+                    onAgentCreated={latest.current.onAgentCreated}
+                    onClose={clearModals}
+                />
+            ),
+        [push, clearModals]
+    );
+
+    const selectAgent = useCallback(
+        (agent: AvailableNode) => {
+            const { dependencyMode: asDependency, onAgentSelectedForDependency } = latest.current;
+            asDependency ? onAgentSelectedForDependency?.(agent) : openAgentForm(agent);
+        },
+        [openAgentForm]
+    );
+
+    const openPackage = (agent: AvailableNode, agents: AvailableNode[]) =>
+        push(
+            "package",
+            agent.metadata.label ?? "Select Agent",
+            <PackageAgentsView packageNode={agent} agents={agents} isLoading={false} onSelect={selectAgent} />
+        );
+
+    const openDefinition = () =>
+        push(
+            "definition",
+            "Create Agent Definition",
+            <AgentDefinitionFormContainer>
+                <AgentDefinitionForm
+                    projectPath={projectPath}
+                    onCreated={isPopup ? () => latest.current.onClose?.() : undefined}
+                />
+            </AgentDefinitionFormContainer>
+        );
+
+    const openDurable = () =>
+        push("durable", "Create Durable Agent", <CreateDurableAgentView projectPath={projectPath} />);
+
+    // Each level is pushed once; its callbacks read the latest props through the ref.
+    useEffect(() => {
+        tearingDown.current = false;
+        const id = `${ROOT_ID}-${dependencyToolForm ? "tool" : "gallery"}`;
+        if (dependencyToolForm) {
+            addModal(dependencyToolForm, id, "Add Agent Tool", MODAL_HEIGHT, FORM_WIDTH, () => {
+                if (!tearingDown.current) {
+                    latest.current.onDependencyToolFormBack?.();
+                }
+            }, true);
+        } else {
+            addModal(
+                <AddAgentPopupContent
+                    projectPath={projectPath}
+                    onOpenAgentForm={openAgentForm}
+                    onOpenPackage={openPackage}
+                    onOpenDefinition={openDefinition}
+                    onOpenDurable={openDurable}
+                    inFlow={inFlow}
+                    dependencyMode={dependencyMode}
+                    onAgentSelectedForDependency={latest.current.onAgentSelectedForDependency}
+                    onGenericAgentSelected={latest.current.onGenericAgentSelected}
+                />,
+                id,
+                dependencyMode ? "Use Agent" : "Add Agent",
+                MODAL_HEIGHT,
+                GALLERY_WIDTH,
+                dismiss,
+                true
+            );
+        }
+        return () => {
+            tearingDown.current = true;
+            popToModal(id);
+            closeModal(id);
+        };
+    }, [hasToolForm]);
+
+    // Updated in place, since re-pushing would drop any level the tool form opened on top.
+    useEffect(() => {
+        if (dependencyToolForm) {
+            updateModal(`${ROOT_ID}-tool`, { modal: dependencyToolForm });
+        }
+    }, [dependencyToolForm]);
+
+    return null;
 }
 
 export default AddAgentPopup;

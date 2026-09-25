@@ -80,7 +80,8 @@ const FormReveal = styled.div`
     min-height: 0;
     animation: ${formIn} 160ms ease-out both;
     > .side-panel-body {
-        flex: 1 0 auto;
+        flex: 1 1 0;
+        min-height: 0;
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -600,7 +601,8 @@ function withEventResponse(seeded: FunctionModel, event: AgentEventChannel): Fun
             targetLineRange={targetLineRange}
             fields={collectEndpointShape ? endpointFormFields : visibleFormFields}
             isSaving={isSaving}
-            nestedForm={true}
+            nestedForm={!isPopup}
+            footerActionButton={isPopup}
             disableSaveButton={endpointHasErrors}
             injectedComponents={endpointSlots}
             onSubmit={handleOnSubmit}
@@ -623,6 +625,7 @@ function withEventResponse(seeded: FunctionModel, event: AgentEventChannel): Fun
             serverValidationErrors={serverValidationErrors}
             onBack={() => setMcpImport(null)}
             onCreate={createService}
+            inModal={isPopup}
         />
     );
 

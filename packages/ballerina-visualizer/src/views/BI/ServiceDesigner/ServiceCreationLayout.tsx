@@ -53,6 +53,12 @@ export const HeaderWrapper = styled.div`
 
 // The nested ArtifactForm already pads its own content by NESTED_FORM_INSET, so it only
 // needs the difference to line up with HeaderWrapper.
-export const NestedFormWrapper = styled.div`
+export const NestedFormWrapper = styled.div<{ inModal?: boolean }>`
     padding: 0 ${CONTENT_INSET - NESTED_FORM_INSET}px;
+    ${({ inModal }: { inModal?: boolean }) => inModal && `
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+    `}
 `;

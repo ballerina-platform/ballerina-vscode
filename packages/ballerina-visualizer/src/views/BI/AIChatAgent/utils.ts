@@ -82,7 +82,9 @@ export interface CreatedBuiltInAgent {
 
 export const fetchAgentNodeTemplate = async (
     rpcClient: BallerinaRpcClient,
-    projectPath: string
+    projectPath: string,
+    templateFilePath: string = projectPath,
+    templatePosition?: LinePosition
 ): Promise<FlowNode> => {
     const aiModuleOrg = await getAiModuleOrg(rpcClient);
     const agentSearchResponse = await rpcClient.getBIDiagramRpcClient().search({
@@ -94,7 +96,7 @@ export const fetchAgentNodeTemplate = async (
     if (!agentNode) {
         throw new Error("No agent node found in search response");
     }
-    return getNodeTemplate(rpcClient, agentNode.codedata, projectPath);
+    return getNodeTemplate(rpcClient, agentNode.codedata, templateFilePath, templatePosition);
 };
 
 export const ZERO_LINE_RANGE: LineRange = { startLine: { line: 0, offset: 0 }, endLine: { line: 0, offset: 0 } };

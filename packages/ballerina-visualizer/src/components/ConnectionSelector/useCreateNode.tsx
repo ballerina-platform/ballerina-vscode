@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { Suspense, lazy, useContext } from "react";
+import { Suspense, lazy, useContext, useRef } from "react";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { formatMethodName } from "@wso2/ballerina-side-panel";
 import { CodeData, FlowNode, ProjectStructureArtifactResponse, isAgentDeclarationNode, LineRange } from "@wso2/ballerina-core";
@@ -29,12 +29,17 @@ const CreateMemoryForm = lazy(() => import("../../views/BI/AIChatAgent/AddAgentP
 const CreateAgentForm = lazy(() => import("../../views/BI/AIChatAgent/AddAgentPopup/CreateAgentForm"));
 import { ConnectionSelectionList } from "./ConnectionSelectionList";
 import { ConnectionCreator } from "./ConnectionCreator";
-import { ConnectionCreateWizard } from "./ConnectionCreateWizard";
 import { CloudKnowledgeBaseCreator } from "./CloudKnowledgeBaseCreator";
 import { getConnectionKindDisplayName } from "./config";
 import { ConnectionKind } from "./types";
 import { RelativeLoader } from "../RelativeLoader";
 import { LoaderContainer } from "../RelativeLoader/styles";
+
+const MODAL_WIDTH = 680;
+const NODE_MODAL_HEIGHT = 780;
+const PICKER_HEIGHT = 500;
+
+const dummyNode = { codedata: {}, properties: {} } as unknown as FlowNode;
 
 const readCreatedVariable = (node: FlowNode): string | undefined => {
     const props = node.properties as Record<string, { value?: string }> | undefined;
@@ -50,7 +55,21 @@ export function useCreateNode(
     const { rpcClient } = useRpcContext();
     const panelOverlayContext = useContext(PanelOverlayContext);
     const panelOverlay = options?.preferModal ? undefined : panelOverlayContext;
-    const { addModal, closeModal } = useModalStack();
+    const { modalStack, addModal, updateModal, closeModal, popToModal, clearModals } = useModalStack();
+
+    // Read at callback time, since a flow can outlive the render that started it.
+    const stackRef = useRef(modalStack);
+    stackRef.current = modalStack;
+    const isOpen = (id?: string) => !!id && stackRef.current.some((item) => item.id === id);
+
+    const pushLoader = (id: string, title: string) =>
+        addModal(<LoaderContainer><RelativeLoader /></LoaderContainer>, id, title, NODE_MODAL_HEIGHT, MODAL_WIDTH, undefined, true);
+
+    // Capture before the flow pushes: finishing returns to the level that started it.
+    const returnToCallingLevel = () => {
+        const callingLevelId = modalStack[modalStack.length - 1]?.id;
+        return () => (isOpen(callingLevelId) ? popToModal(callingLevelId) : clearModals());
+    };
 
     const handleCreated = (variableName: string, onCreated: (variableName: string) => void) => {
         onNodeCreated?.();
@@ -71,28 +90,54 @@ export function useCreateNode(
     // of a blank form.
     const createCloudKnowledgeBaseConnection = (connectorCodeData: CodeData, onCreated: (variableName: string) => void) => {
         const title = "WSO2 Cloud Knowledge Bases";
-        const renderCreator = (close: () => void) => (
+        const formTitle = connectorCodeData.object
+            ? `Create ${formatMethodName(connectorCodeData.object)}`
+            : "Create Knowledge Base";
+        const done = returnToCallingLevel();
+        const renderForm = (flowNode: FlowNode, close: () => void) => (
+            <ConnectionCreator
+                connectionKind={(connectorCodeData.node || "NEW_CONNECTION") as ConnectionKind}
+                selectedNode={dummyNode}
+                nodeFormTemplate={flowNode}
+                onSave={buildOnSave(close, onCreated)}
+            />
+        );
+        const renderPicker = (onNodeReady: (flowNode: FlowNode) => void) => (
             <CloudKnowledgeBaseCreator
                 connectorCodeData={connectorCodeData}
                 fileName={fileName}
                 targetLineRange={targetLineRange}
-                onSave={buildOnSave(close, onCreated)}
+                onNodeReady={onNodeReady}
             />
         );
 
         if (panelOverlay) {
             panelOverlay.openOverlay({
                 title,
-                content: renderCreator(panelOverlay.clearAllOverlays),
+                content: renderPicker((flowNode) =>
+                    panelOverlay.openOverlay({
+                        title: formTitle,
+                        content: renderForm(flowNode, panelOverlay.clearAllOverlays),
+                        onBack: panelOverlay.closeTopOverlay,
+                    })
+                ),
                 onBack: panelOverlay.closeTopOverlay,
             });
             return;
         }
 
-        // Narrower than the generic connection modal so ConnectorsGrid's minmax(200px, 1fr) columns
-        // fall back to one per row, matching the flow diagram's own (narrower) side panel.
         const modalId = `create-cloud-kb-${connectorCodeData.org}-${connectorCodeData.object}`;
-        addModal(renderCreator(() => closeModal(modalId)), modalId, title, 780, 420);
+        addModal(
+            renderPicker((flowNode) =>
+                addModal(renderForm(flowNode, done), `${modalId}-form`, formTitle, NODE_MODAL_HEIGHT, MODAL_WIDTH, undefined, true)
+            ),
+            modalId,
+            title,
+            PICKER_HEIGHT,
+            MODAL_WIDTH,
+            undefined,
+            true
+        );
     };
 
     const createGenericConnection = async (connectorCodeData: CodeData, onCreated: (variableName: string) => void) => {
@@ -103,7 +148,7 @@ export function useCreateNode(
         const title = connectorCodeData.object
             ? `Create ${formatMethodName(connectorCodeData.object)}`
             : "Create Connection";
-        const dummyNode = { codedata: {}, properties: {} } as unknown as FlowNode;
+        const done = returnToCallingLevel();
         const renderCreator = (flowNode: FlowNode, close: () => void) => (
             <ConnectionCreator
                 connectionKind={(connectorCodeData.node || "NEW_CONNECTION") as ConnectionKind}
@@ -143,11 +188,16 @@ export function useCreateNode(
         }
 
         const modalId = `create-connection-${connectorCodeData.org}-${connectorCodeData.object}`;
+        pushLoader(modalId, title);
         try {
             const flowNode = await fetchTemplate();
-            addModal(renderCreator(flowNode, () => closeModal(modalId)), modalId, title, 780, 520);
+            if (!isOpen(modalId)) {
+                return;
+            }
+            updateModal(modalId, { modal: renderCreator(flowNode, done) });
         } catch (error) {
             console.error("Error fetching connector template", error);
+            closeModal(modalId);
             await rpcClient.getCommonRpcClient().showErrorMessage({
                 message: "Could not load the connector. Please try again.",
             });
@@ -157,9 +207,10 @@ export function useCreateNode(
     return (kind: string, onCreated: (variableName: string) => void, nodeCodeData?: CodeData) => {
         if (isAgentDeclarationNode(nodeCodeData?.node)) {
             const modalId = "create-agent";
+            const done = returnToCallingLevel();
             const handleAgentCreated = (variableName: string) => {
                 handleCreated(variableName, onCreated);
-                closeModal(modalId);
+                done();
             };
             addModal(
                 <Suspense fallback={<LoaderContainer><RelativeLoader /></LoaderContainer>}>
@@ -167,8 +218,10 @@ export function useCreateNode(
                 </Suspense>,
                 modalId,
                 `Create ${nodeCodeData.object ?? "Agent"}`,
-                600,
-                600
+                NODE_MODAL_HEIGHT,
+                MODAL_WIDTH,
+                undefined,
+                true
             );
             return;
         }
@@ -178,9 +231,10 @@ export function useCreateNode(
         }
         if (kind === "MEMORY") {
             const modalId = "create-memory";
+            const done = returnToCallingLevel();
             const handleMemoryCreated = (variableName: string) => {
                 handleCreated(variableName, onCreated);
-                closeModal(modalId);
+                done();
             };
             addModal(
                 <Suspense fallback={<LoaderContainer><RelativeLoader /></LoaderContainer>}>
@@ -188,8 +242,10 @@ export function useCreateNode(
                 </Suspense>,
                 modalId,
                 "Create Memory",
-                600,
-                600
+                NODE_MODAL_HEIGHT,
+                MODAL_WIDTH,
+                undefined,
+                true
             );
             return;
         }
@@ -253,21 +309,54 @@ export function useCreateNode(
             return;
         }
 
-        const modalId = `create-connection-${kind}`;
+        const selectId = `select-connection-${kind}`;
+        const createId = `create-connection-${kind}`;
+        const done = returnToCallingLevel();
+        // The levels share one id, so a slower earlier pick must not overwrite the current one.
+        let selection = 0;
+
+        const handleSelect = async (nodeId: string, metadata?: any) => {
+            const current = ++selection;
+            pushLoader(createId, `Create ${displayName}`);
+            try {
+                const { flowNode } = await getNodeTemplateForConnection(
+                    nodeId,
+                    metadata,
+                    { startLine: targetLineRange?.startLine },
+                    fileName,
+                    rpcClient
+                );
+                if (current !== selection || !isOpen(createId)) {
+                    return;
+                }
+                const typeLabel = flowNode?.metadata?.label;
+                updateModal(createId, {
+                    title: typeLabel ? `Create ${typeLabel}` : `Create ${displayName}`,
+                    modal: (
+                        <ConnectionCreator
+                            connectionKind={connectionKind}
+                            selectedNode={{ properties: { model: { value: "" } } } as unknown as FlowNode}
+                            nodeFormTemplate={flowNode}
+                            onSave={buildOnSave(done, onCreated)}
+                        />
+                    ),
+                });
+            } catch (error) {
+                console.error("Error fetching connector template", error);
+                if (current === selection) {
+                    closeModal(createId);
+                }
+            }
+        };
+
         addModal(
-            <ConnectionCreateWizard
-                connectionKind={connectionKind}
-                fileName={fileName}
-                targetLineRange={targetLineRange}
-                onCreated={(variableName) => {
-                    handleCreated(variableName, onCreated);
-                    closeModal(modalId);
-                }}
-            />,
-            modalId,
-            `Create ${displayName}`,
-            600,
-            520
+            <ConnectionSelectionList connectionKind={connectionKind} onSelect={handleSelect} fillContainerHeight />,
+            selectId,
+            `Select ${displayName}`,
+            NODE_MODAL_HEIGHT,
+            MODAL_WIDTH,
+            undefined,
+            true
         );
     };
 }

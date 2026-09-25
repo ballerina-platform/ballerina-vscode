@@ -245,6 +245,7 @@ namespace S {
         display: flex;
         justify-content: center;
         align-items: center;
+        gap: 8px;
         z-index: 10;
         width: 100%;
         padding: 16px 0 0;
@@ -452,6 +453,7 @@ export interface FormProps {
     }[];
     hideSaveButton?: boolean; // Option to hide the save button
     footerActionButton?: boolean; // Render save button as footer action button
+    footerCancelButton?: boolean; // Pair the footer action button with a secondary onCancelForm button
     onValidityChange?: (isValid: boolean) => void; // Callback for form validity status
     // Optional extra primary action rendered next to the save button (e.g. a "Next" that submits the
     // form but continues to a following step). Validated through the same path as save.
@@ -512,6 +514,7 @@ export const Form = forwardRef((props: FormProps, _ref) => {
         injectedComponents,
         hideSaveButton = false,
         footerActionButton = false,
+        footerCancelButton = false,
         onValidityChange,
         secondarySubmitButton,
         changeOptionalFieldTitle = undefined,
@@ -1749,6 +1752,16 @@ export const Form = forwardRef((props: FormProps, _ref) => {
                             )}
                             {onSubmit && !hideSaveButton && footerActionButton && (
                                 <S.FooterActionButtonContainer>
+                                    {footerCancelButton && onCancelForm && (
+                                        <Button
+                                            appearance="secondary"
+                                            onClick={onCancelForm}
+                                            disabled={isSaving}
+                                            buttonSx={{ height: "35px" }}
+                                        >
+                                            {cancelText || "Cancel"}
+                                        </Button>
+                                    )}
                                     <S.FooterActionButton
                                         appearance="primary"
                                         onClick={handleOnSaveClick}

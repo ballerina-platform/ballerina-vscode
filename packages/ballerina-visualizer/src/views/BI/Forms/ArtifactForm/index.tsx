@@ -139,6 +139,7 @@ interface ArtifactFormProps {
     recordsOnly?: boolean;
     serverValidationErrors?: ValidationResult[];
     footerActionButton?: boolean;
+    footerCancelButton?: boolean;
 }
 
 export function ArtifactForm(props: ArtifactFormProps) {
@@ -183,7 +184,8 @@ export function ArtifactForm(props: ArtifactFormProps) {
         secondarySubmitText,
         onSecondarySubmit,
         serverValidationErrors,
-        footerActionButton
+        footerActionButton,
+        footerCancelButton
     } = props;
 
     const { rpcClient } = useRpcContext();
@@ -1141,6 +1143,7 @@ export function ArtifactForm(props: ArtifactFormProps) {
                     opensPrefilled={opensPrefilled}
                     onCreateNode={onCreateNode}
                     footerActionButton={footerActionButton}
+                    footerCancelButton={footerCancelButton}
                     onValidityChange={onValidityChange}
                     secondarySubmitButton={
                         onSecondarySubmit
