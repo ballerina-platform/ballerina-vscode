@@ -270,26 +270,29 @@ export const getAnthropicClient = async (model: AnthropicModel): Promise<any> =>
 /**
  * Type definition for provider-specific cache options
  */
+export type CacheTtl = '5m' | '1h';
+
 export type ProviderCacheOptions =
-    | { anthropic: { cacheControl: { type: string } } }
-    | { bedrock: { cachePoint: { type: string } } };
+    | { anthropic: { cacheControl: { type: string; ttl?: CacheTtl } } }
+    | { bedrock: { cachePoint: { type: string; ttl?: CacheTtl } } };
 
 /**
  * Returns provider-aware cache control options for prompt caching
  * @returns Cache control options based on the current login method
  */
-export const getProviderCacheControl = async (): Promise<ProviderCacheOptions> => {
+export const getProviderCacheControl = async (ttl?: CacheTtl): Promise<ProviderCacheOptions> => {
     const loginMethod = await getLoginMethod();
-    
+    const ttlOption = ttl ? { ttl } : {};
+
     switch (loginMethod) {
         case LoginMethod.AWS_BEDROCK:
-            return { bedrock: { cachePoint: { type: 'default' } } };
+            return { bedrock: { cachePoint: { type: 'default', ...ttlOption } } };
         case LoginMethod.ANTHROPIC_AWS:
         case LoginMethod.VERTEX_AI:
         case LoginMethod.ANTHROPIC_KEY:
         case LoginMethod.BI_INTEL:
         default:
-            return { anthropic: { cacheControl: { type: "ephemeral" } } };
+            return { anthropic: { cacheControl: { type: "ephemeral", ...ttlOption } } };
     }
 };
 

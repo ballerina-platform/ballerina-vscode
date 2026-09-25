@@ -82,6 +82,12 @@ import { runningServicesManager } from './tools/running-service-manager';
 /** Per-response output cap, and what the context-usage widget reports as reserved. */
 const RESERVED_OUTPUT_TOKENS = 64_000;
 
+// The SDK records response messages apart from the live step messages, so the prepareStep strip never reaches them.
+function toPersisted<T>(messages: T[]): T[] {
+    stripAnalysisFromCompactionBlocks(messages);
+    return messages;
+}
+
 /** Built once; the tool names come from the registry so the advice cannot go stale. */
 const TRUNCATION_RECOVERY_NOTE = buildTruncationRecoveryNote(
     FILE_BATCH_EDIT_TOOL_NAME, FILE_SINGLE_EDIT_TOOL_NAME);
@@ -434,7 +440,7 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
 
             // 5. Build LLM messages with history
             const historyMessages = populateHistoryForAgent(chatHistory);
-            const cacheOptions = await getProviderCacheControl();
+            const [cacheOptions, historyCacheOptions] = await Promise.all([getProviderCacheControl('1h'), getProviderCacheControl()]);
             
             const allMessages: ModelMessage[] = [
                 {
@@ -575,7 +581,7 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
                             // Anthropic requires tool_use.input to be an object; an unparseable or schema-invalid
                             // streamed input is left as a non-object on the tool-call part and 400s every later request.
                             sanitizeMessages(stepMessages);
-                            return { messages: addCacheControlToMessages({ messages: stepMessages, model }) };
+                            return { messages: addCacheControlToMessages({ messages: stepMessages, model, providerOptions: historyCacheOptions as any }) };
                         },
 
                         // Emit per-step token usage for context usage widget + observability
@@ -609,8 +615,7 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
                                 chatStateStorage.updateGeneration(this.chatStoreKey, threadId, this.config.generationId, {
                                     modelMessages: [
                                         { role: "user", content: userMessageContent },
-                                        ...carriedMessages,
-                                        ...stepMessages,
+                                        ...toPersisted([...carriedMessages, ...stepMessages]),
                                     ],
                                 });
                                 updateAndSaveChat(this.config.generationId, Command.Agent, this.config.eventHandler);
@@ -731,11 +736,10 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
                             `resuming turn automatically (${truncationRetries}/${MAX_TRUNCATION_RETRIES})`
                         );
                         const resumed = dropDanglingToolCalls(attemptMessages);
-                        carriedMessages.push(...resumed);
-                        // Live prompt only: `carriedMessages` is persisted and replayed by every
-                        // later turn, so the note would ride along for the rest of the thread. The
-                        // adjacent assistant messages this leaves are merged by the provider.
-                        allMessages.push(...resumed, { role: 'user', content: TRUNCATION_RECOVERY_NOTE });
+                        const note: ModelMessage = { role: 'user', content: TRUNCATION_RECOVERY_NOTE };
+                        // Persisted too, so the replayed history matches what was sent and stays cached.
+                        carriedMessages.push(...resumed, note);
+                        allMessages.push(...resumed, note);
                         carriedUsage = addUsage(carriedUsage, await totalUsage);
                         continue;
                     }
@@ -771,7 +775,7 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
                         chatStateStorage.updateGeneration(projectRootPath, threadId, this.config.generationId, {
                             modelMessages: [
                                 { role: "user", content: streamContext.userMessageContent },
-                                ...partialLLMMessages,
+                                ...toPersisted(partialLLMMessages),
                                 {
                                     role: "user",
                                     content: `<abort_notification>
@@ -1009,7 +1013,7 @@ Generation stopped by user. The last in-progress task was not saved. Any complet
             chatStateStorage.updateGeneration(projectRootPath, threadId, context.messageId, {
                 modelMessages: [
                     { role: "user", content: context.userMessageContent },
-                    ...messagesToSave,
+                    ...toPersisted(messagesToSave),
                 ],
             });
             updateAndSaveChat(context.messageId, Command.Agent, context.eventHandler);
@@ -1205,7 +1209,7 @@ Generation stopped by user. The last in-progress task was not saved. Any complet
         chatStateStorage.updateGeneration(projectRootPath, threadId, context.messageId, {
             modelMessages: [
                 { role: "user", content: context.userMessageContent },
-                ...assistantMessages,
+                ...toPersisted(assistantMessages),
             ],
         });
 
