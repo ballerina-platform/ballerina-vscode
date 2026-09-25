@@ -120,6 +120,7 @@ import { extension } from "../../BalExtensionContext";
 import { openChatWindowWithCommand } from "../../features/ai/data-mapper/index";
 import { generateDocumentationForService } from "../../features/ai/documentation/generator";
 import { generateOpenAPISpec } from "../../features/ai/openapi/index";
+import { retractConsoleSummary } from "../../features/ai/agent/console-summary";
 import { BACKEND_URL } from "../../features/ai/utils";
 import { fetchWithAuth } from "../../features/ai/utils/ai-client";
 import { sendSaveChatNotification, sendSkillEnableNotification } from "../../features/ai/utils/ai-utils";
@@ -605,6 +606,10 @@ User reverted the last made changes. The files have been restored to the state b
 
             chatStateStorage.revertLastGeneration(projectRootPath, threadId);
             console.log(`[Review Actions] Reverted generation: ${doneGeneration.id}`);
+            if (doneGeneration.consoleSummary) {
+                retractConsoleSummary(doneGeneration.id);
+                chatStateStorage.updateGeneration(projectRootPath, threadId, doneGeneration.id, { consoleSummary: undefined });
+            }
 
             // Drop the manager's cached review for this generation so a queued/late
             // navigation cannot reopen the just-reverted diff.

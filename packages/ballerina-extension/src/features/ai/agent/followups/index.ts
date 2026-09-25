@@ -24,6 +24,7 @@ import { CopilotEventHandler } from "../../utils/events";
 import { ANTHROPIC_HAIKU, getAnthropicClient } from "../../utils/ai-client";
 import { buildFollowupMessages, FollowupPromptInput, FollowupSituation, RecentExchange } from "./prompt";
 import { followupSuggestionsSchema, GeneratedFollowupSuggestion } from "./schema";
+import { extractAssistantText } from "../message-text";
 
 export { FollowupSituation } from "./prompt";
 
@@ -208,26 +209,6 @@ function sanitize(
         }
     }
     return out;
-}
-
-/** Concatenates the assistant's text output from a set of model messages. */
-function extractAssistantText(messages: any[]): string {
-    const parts: string[] = [];
-    for (const message of messages ?? []) {
-        if (message?.role !== "assistant") {
-            continue;
-        }
-        if (typeof message.content === "string") {
-            parts.push(message.content);
-        } else if (Array.isArray(message.content)) {
-            for (const item of message.content) {
-                if (item?.type === "text" && typeof item.text === "string") {
-                    parts.push(item.text);
-                }
-            }
-        }
-    }
-    return parts.join("\n").trim();
 }
 
 /**

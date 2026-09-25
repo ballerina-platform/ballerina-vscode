@@ -27,6 +27,7 @@ import { mapWithConcurrency } from '../utils/concurrency';
 import { getSystemPrompt, getUserPrompt } from './prompts';
 import { shouldFailForMissingCompaction } from './compaction-gate';
 import { FollowupSituation, startFollowupSuggestions } from './followups';
+import { startConsoleSummary } from './console-summary';
 import { prepareAgentsMdForTurn } from './agents-md';
 import { resolveChatStoreKey } from './chatStoreKey';
 // TODO(auto-memory): temporarily disabled for this release.
@@ -291,6 +292,9 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
 
     /** A turn can reach both the finish and abort paths; suggestions must be scheduled once. */
     private _followupsScheduled = false;
+
+    /** Same reasoning for the console summary: at most one per turn. */
+    private _consoleSummaryScheduled = false;
 
     /** Store key for every `chatStateStorage` call — see `resolveChatStoreKey` for why. */
     private get chatStoreKey(): string {
@@ -1154,6 +1158,9 @@ Generation stopped by user. The last in-progress task was not saved. Any complet
         // Follow-up suggestions — best-effort, non-blocking.
         this.maybeScheduleFollowups(context, assistantMessages, 'completed');
 
+        // Devant console summary — best-effort, non-blocking, cloud editor only.
+        this.maybeScheduleConsoleSummary(context, assistantMessages, finalDiagnostics.diagnostics.length);
+
         // TODO(auto-memory): auto-dream consolidation temporarily disabled for this release.
         // // autoDream consolidation — skipped on compaction turns (no real user activity)
         // const workspacePath = context.ctx.workspacePath || context.ctx.projectPath || '';
@@ -1185,6 +1192,28 @@ Generation stopped by user. The last in-progress task was not saved. Any complet
             abortSignal: this.config.abortController.signal,
             errorMessage,
             eventHandler: this.config.eventHandler,
+        });
+    }
+
+    /** Hands the completed turn to the console summary flow; at most once per turn. */
+    private maybeScheduleConsoleSummary(
+        context: StreamContext,
+        assistantMessages: any[],
+        errorCount: number
+    ): void {
+        // Same exclusion as the follow-ups: migration and evals have no chat storage.
+        if (this._consoleSummaryScheduled || !this.config.chatStorage?.enabled) {
+            return;
+        }
+        this._consoleSummaryScheduled = startConsoleSummary({
+            messageId: context.messageId,
+            projectRootPath: this.chatStoreKey,
+            threadId: this.config.chatStorage.threadId,
+            assistantMessages,
+            userQuery: this.config.params.usecase ?? '',
+            modifiedFiles: Array.from(new Set([...context.allModifiedFiles, ...context.modifiedFiles])),
+            errorCount,
+            abortSignal: this.config.abortController.signal,
         });
     }
 
