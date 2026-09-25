@@ -20,7 +20,7 @@ import React, { useMemo, useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import styled from "@emotion/styled";
 import { Button, Icon, Tooltip } from "@wso2/ui-toolkit";
-import { DiagnosticMessage, FlowNode, LineRange, NodeProperties, Property } from "@wso2/ballerina-core";
+import { DiagnosticMessage, FlowNode, LineRange, NodeProperties, Property, webviewAssistantName } from "@wso2/ballerina-core";
 import { DiagramEngine } from "@projectstorm/react-diagrams-core";
 import { LINK_COLOR, NODE_BG_COLOR, NODE_ERROR_COLOR, NODE_TEXT_COLOR, NODE_WIDTH } from "../../resources/constants";
 import { useDiagramContext } from "../DiagramContext";
@@ -257,7 +257,7 @@ export function DiagnosticsPopUp(props: DiagnosticsPopUpProps) {
     };
 
     const disabledFixTooltip = !isUserAuthenticated
-        ? "You need to be logged into WSO2 Integrator Copilot to fix diagnostics"
+        ? `You need to be logged into ${webviewAssistantName()} to fix diagnostics`
         : !targetRange
             ? "No source location available for diagnostics"
             : diagnosticMessages.length === 0

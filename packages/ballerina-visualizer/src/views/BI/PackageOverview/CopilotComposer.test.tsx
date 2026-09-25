@@ -31,6 +31,17 @@ jest.mock("@wso2/ballerina-core", () => ({
         OPEN_AI_PANEL: "ballerina.open.ai.panel",
         SET_COPILOT_INLINE_STATUS: "ballerina.set.copilot.inline.status",
     },
+    // The product-mode helpers keep their real behaviour so a test can pick the product.
+    ProductMode: { BALLERINA: "ballerina", INTEGRATOR: "integrator" },
+    seededProductMode: () => {
+        const seed = (window as unknown as { productMode?: string }).productMode;
+        return seed === "ballerina" || seed === "integrator" ? seed : undefined;
+    },
+    assistantName: (mode: string) => (mode === "ballerina" ? "Ballerina Copilot" : "WSO2 Integrator Copilot"),
+    assistantTagline: (mode: string) =>
+        mode === "ballerina"
+            ? "Your AI pair programmer for Ballerina development"
+            : "Your AI pair programmer for integration development",
 }));
 
 let mockRpcClient: ReturnType<typeof makeRpcClient>["client"] | undefined;
@@ -87,6 +98,12 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
 const ORB_LABEL = "Open WSO2 Integrator Copilot";
 
+/** The extension host seeds this into every webview. */
+function seedProductMode(mode: "ballerina" | "integrator" | undefined): void {
+    (window as unknown as { productMode?: string }).productMode = mode;
+}
+
+
 function makeRpcClient() {
     let pushed: ((status: AgentRunStatus) => void) | undefined;
     // One instance, or assertions inspect a different mock than the component invoked.
@@ -119,6 +136,7 @@ describe("CopilotComposer orb affordance", () => {
 
     beforeEach(() => {
         __resetAgentRunStatusStoreForTests();
+        seedProductMode("integrator");
         harness = makeRpcClient();
         mockRpcClient = harness.client;
         container = document.createElement("div");
@@ -130,6 +148,7 @@ describe("CopilotComposer orb affordance", () => {
         act(() => root.unmount());
         container.remove();
         mockRpcClient = undefined;
+        seedProductMode(undefined);
     });
 
     const render = async () => {
@@ -156,6 +175,20 @@ describe("CopilotComposer orb affordance", () => {
         expect(orbButton()!.disabled).toBe(false);
         expect(container.querySelector(".orb-glow")).not.toBeNull();
         expect(cssRules().some((text) => text.includes(".undefined"))).toBe(false);
+    });
+
+    // product-integrator#1945: on its own this is the Ballerina plugin, not the Integrator.
+    it("names the assistant after the product it is installed in", async () => {
+        seedProductMode("ballerina");
+        await render();
+        harness.notify({ state: "idle", aiPanelOpen: false, timestamp: 0 } as AgentRunStatus);
+
+        const labels = Array.from(container.querySelectorAll("[aria-label]")).map((el) =>
+            el.getAttribute("aria-label")
+        );
+        expect(labels).toContain("Open Ballerina Copilot");
+        expect(container.textContent).toContain("Ballerina Copilot");
+        expect(container.textContent).not.toContain("WSO2 Integrator Copilot");
     });
 
     // The ambient sphere pulse peaks at 1.13 on its own; a lift at or below that is invisible.

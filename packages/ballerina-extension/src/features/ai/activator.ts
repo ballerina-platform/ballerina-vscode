@@ -26,8 +26,8 @@ import {
     CONFIGURE_DEFAULT_MODEL_COMMAND,
     DEFAULT_EMBEDDING_PROVIDER_ADDED,
     DEFAULT_PROVIDER_ADDED,
-    LOGIN_REQUIRED_WARNING_FOR_DEFAULT_EMBEDDING,
-    LOGIN_REQUIRED_WARNING_FOR_DEFAULT_MODEL
+    loginRequiredWarningForDefaultEmbedding,
+    loginRequiredWarningForDefaultModel
 } from './constants';
 import { isNotLoggedInError } from '../..//utils/ai/auth';
 import { DefaultProviderKind, GenerateAgentCodeRequest, ExecutionContext, SHARED_COMMANDS } from '@wso2/ballerina-core';
@@ -193,7 +193,7 @@ export function activateAIFeatures(ballerinaExternalInstance: BallerinaExtension
         const promptTitle = isEmbedding
             ? "Select an integration to configure default embedding provider"
             : "Select an integration to configure default model provider";
-        const loginWarning = isEmbedding ? LOGIN_REQUIRED_WARNING_FOR_DEFAULT_EMBEDDING : LOGIN_REQUIRED_WARNING_FOR_DEFAULT_MODEL;
+        const loginWarning = isEmbedding ? loginRequiredWarningForDefaultEmbedding() : loginRequiredWarningForDefaultModel();
         const successMessage = isEmbedding ? DEFAULT_EMBEDDING_PROVIDER_ADDED : DEFAULT_PROVIDER_ADDED;
         const retryFailureLabel = isEmbedding ? "default embedding" : "default model";
 

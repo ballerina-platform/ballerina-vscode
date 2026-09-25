@@ -18,6 +18,7 @@
 
 import { ModelMessage } from "ai";
 import { ANCHOR_ACTIONS } from "./anchors";
+import { copilotName } from '../../../../utils/config';
 
 /** How the turn these suggestions belong to ended. */
 export type FollowupSituation = "completed" | "aborted" | "error" | "usage_limit";
@@ -43,7 +44,8 @@ export interface FollowupPromptInput {
     errorMessage?: string;
 }
 
-const anchorGuidance = ANCHOR_ACTIONS.map((a) => `- ${a.label}: ${a.description}`).join("\n");
+// Descriptions only: a label listed here gets copied verbatim onto the chip.
+const anchorGuidance = ANCHOR_ACTIONS.map((a) => `- ${a.description}`).join("\n");
 
 const COMPLETED_FRAMING = `The Copilot builds integrations for the user. Given the user's last message and the Copilot's response, propose 2-3 short, specific follow-up actions the user is most likely to want next. Each is shown as a clickable chip; clicking one sends its prompt to the Copilot as the user's next message.
 
@@ -65,7 +67,8 @@ const SHARED_RULES = `Scope — only suggest things the Copilot can actually do:
 Audience — the user builds integrations in a friendly, low-code product and may not be a programmer. Write every label and prompt in plain, outcome-focused language: say what the user gets, not how it is built. Never expose implementation details — no programming-language or Ballerina specifics, no command-line commands, no code, annotation, or configuration syntax, no file, module, or library names, and no technical keywords or type names.
 
 Output:
-- Each suggestion has a "label" (imperative chip text, max ~4 words, e.g. "Add tests") and a "prompt" (a natural first-person message the user would send, e.g. "Add tests for the order service").
+- Each suggestion has a "label" (imperative chip text, at most 4 words) and a "prompt" (a natural first-person message the user would send, e.g. "Add tests for the order service").
+- Make the label specific to this integration rather than a generic category — "Retry failed payments", not "Handle errors". The same generic labels on every turn read as a fixed menu.
 - The "prompt" is spoken by the user, so it is always an instruction and never a question. Never ask the user anything in it, and never carry over a question the Copilot asked.
 - Base every suggestion on what actually happened in this exchange — be specific, never generic filler.
 - Earlier turns, when provided, are background only: use them to understand what has already been built and to avoid repeating it. Suggest next steps for the latest exchange, not for the earlier ones.
@@ -79,7 +82,7 @@ function buildSystemPrompt(situation: FollowupSituation): string {
     const framing = situation === "aborted" ? ABORTED_FRAMING
         : situation === "error" ? ERROR_FRAMING
         : COMPLETED_FRAMING;
-    return `You help users of the WSO2 Integrator Copilot decide what to do next.
+    return `You help users of the ${copilotName()} decide what to do next.
 
 ${framing}
 

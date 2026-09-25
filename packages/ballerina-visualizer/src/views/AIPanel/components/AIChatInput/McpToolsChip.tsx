@@ -21,7 +21,6 @@ import styled from "@emotion/styled";
 import { McpLoadErrorsDTO, McpScope, McpServerStatusDTO } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Icon } from "@wso2/ui-toolkit";
-import { ExperimentalTag } from "../ExperimentalTag";
 import { Loader } from "../Loader";
 
 const TOOLTIP_SHOW_MS = 150;
@@ -532,7 +531,6 @@ export const McpToolsChip: React.FC<McpToolsChipProps> = ({ mcpToolsEnabled, onO
                                 onClick={handleToggleGlobal}
                             />
                             <HeaderTitle>MCP</HeaderTitle>
-                            <ExperimentalTag size="sm" label="Preview" tooltip="MCP tool support is in preview and may change." />
                         </HeaderLeft>
                         <HeaderRight>
                             <IconAction

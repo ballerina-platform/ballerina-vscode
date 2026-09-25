@@ -22,7 +22,11 @@ import { useEffect, useState } from "react";
 import { ProgressIndicator, Typography } from "@wso2/ui-toolkit";
 import { ImportIntegration } from "./index";
 import { BiWsClientProvider } from "../wsManager/WsClientContext";
-import { WebviewTransportBootstrap } from "@wso2/ballerina-core";
+import { ProductMode, WebviewTransportBootstrap } from "@wso2/ballerina-core";
+
+// This remote is only ever loaded by the Integrator's welcome view, whose HTML we do not control
+// and so carries no seed. Declare the mode here instead, or the assistant name below falls back.
+(window as unknown as { productMode?: string }).productMode = ProductMode.INTEGRATOR;
 
 /** The embedding host client used only to fetch the WS coordinates. */
 interface HostBootstrapClient {

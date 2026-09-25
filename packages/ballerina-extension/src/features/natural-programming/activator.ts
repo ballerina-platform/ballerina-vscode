@@ -24,7 +24,7 @@ import { addConfigFile, getConfigFilePath, getLLMDiagnostics } from "./utils";
 import { NLCodeActionProvider } from './nl-code-action-provider';
 import { BallerinaExtension } from 'src/core';
 import {
-    PROGRESS_BAR_MESSAGE_FOR_DRIFT, WARNING_MESSAGE, WARNING_MESSAGE_DEFAULT,
+    PROGRESS_BAR_MESSAGE_FOR_DRIFT, warningMessage, WARNING_MESSAGE_DEFAULT,
     MONITERED_EXTENSIONS,
     COMMAND_SHOW_TEXT
 } from './constants';
@@ -56,7 +56,7 @@ export function activate(ballerinaExtInstance: BallerinaExtension) {
             }
 
             if (result > 400 && result < 500) {
-                vscode.window.showWarningMessage(WARNING_MESSAGE);
+                vscode.window.showWarningMessage(warningMessage());
                 return;
             }
             vscode.window.showWarningMessage(WARNING_MESSAGE_DEFAULT);
@@ -132,7 +132,7 @@ export function activate(ballerinaExtInstance: BallerinaExtension) {
                 }
 
                 if (result > 400 && result < 500) {
-                    vscode.window.showWarningMessage(WARNING_MESSAGE);
+                    vscode.window.showWarningMessage(warningMessage());
                     return;
                 }
                 vscode.window.showWarningMessage(WARNING_MESSAGE_DEFAULT);

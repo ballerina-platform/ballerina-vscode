@@ -25,6 +25,51 @@ import { DIRECTORY_MAP, ProjectStructureArtifactResponse, ProjectStructureRespon
 import { SCOPE, ArtifactData, DataMapperMetadata } from "./interfaces/shared-types";
 import { DiagnosticEntry, DocumentationGeneratorIntermediaryState, SourceFile, CodeContext, FileAttatchment, SkillEnableStage } from "./rpc-types/ai-panel/interfaces";
 
+/** Which product the extension is running inside. Resolved by the host; see `getProductMode`. */
+export enum ProductMode {
+    BALLERINA = 'ballerina',
+    INTEGRATOR = 'integrator'
+}
+
+const ASSISTANT_NAMES: Record<ProductMode, string> = {
+    [ProductMode.BALLERINA]: 'Ballerina Copilot',
+    [ProductMode.INTEGRATOR]: 'WSO2 Integrator Copilot'
+};
+
+export function assistantName(mode: ProductMode): string {
+    return ASSISTANT_NAMES[mode];
+}
+
+const ASSISTANT_TAGLINES: Record<ProductMode, string> = {
+    [ProductMode.BALLERINA]: 'Your AI pair programmer for Ballerina development',
+    [ProductMode.INTEGRATOR]: 'Your AI pair programmer for integration development'
+};
+
+export function assistantTagline(mode: ProductMode): string {
+    return ASSISTANT_TAGLINES[mode];
+}
+
+/**
+ * The mode the host seeded into this webview's HTML, so a panel names the assistant on its first
+ * paint instead of flashing the wrong name. Undefined outside a seeded webview.
+ */
+export function seededProductMode(): ProductMode | undefined {
+    if (typeof window === 'undefined') {
+        return undefined;
+    }
+    const seed = (window as unknown as { productMode?: string }).productMode;
+    return seed === ProductMode.BALLERINA || seed === ProductMode.INTEGRATOR ? seed : undefined;
+}
+
+/**
+ * The assistant's name for a webview with no RPC client of its own. Unseeded falls back to
+ * BALLERINA, matching `getProductMode()` — naming a product the user may not have installed is
+ * the worse of the two wrong answers, and these callers have no way to correct it later.
+ */
+export function webviewAssistantName(): string {
+    return assistantName(seededProductMode() ?? ProductMode.BALLERINA);
+}
+
 export type MachineStateValue =
     | 'initialize'
     | 'lsError'

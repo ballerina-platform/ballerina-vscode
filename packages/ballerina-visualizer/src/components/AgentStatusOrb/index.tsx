@@ -42,6 +42,7 @@ import {
     useAmbientCopilotPresence,
 } from "./shared";
 import { createMiniChatPrompt, MiniChatPrompt } from "./promptHandoff";
+import { useAssistantName } from "../../hooks/useProductMode";
 
 /**
  * Floating ambient indicator for the Copilot agent's background run.
@@ -329,6 +330,7 @@ export function AgentStatusOrb() {
     // Resolve orb colors before any early return so the hook order stays stable
     // across renders (status is null while the orb is hidden).
     const colors = useOrbColors(status?.state ?? "idle");
+    const assistantName = useAssistantName();
 
     useAmbientCopilotPresence(!orbHidden);
 
@@ -512,7 +514,7 @@ export function AgentStatusOrb() {
                                     onFocus={() => setInviteFocused(true)}
                                     onBlur={() => setInviteFocused(false)}
                                     placeholder="How can I help?"
-                                    aria-label="Message WSO2 Integrator Copilot"
+                                    aria-label={`Message ${assistantName}`}
                                 />
                                 {inviteText.length > 0 && (
                                     <InviteClear
@@ -541,8 +543,8 @@ export function AgentStatusOrb() {
                 onPointerUp={handlePointerUp}
                 onFocus={() => setOrbFocused(true)}
                 onBlur={() => setOrbFocused(false)}
-                title={label ? `WSO2 Integrator Copilot — ${label}` : "WSO2 Integrator Copilot"}
-                aria-label={label ? `WSO2 Integrator Copilot: ${label}. Click to open the mini chat, double-click for the chat panel.` : "Click to open the WSO2 Integrator Copilot mini chat, double-click for the chat panel"}
+                title={label ? `${assistantName} — ${label}` : assistantName}
+                aria-label={label ? `${assistantName}: ${label}. Click to open the mini chat, double-click for the chat panel.` : `Click to open the ${assistantName} mini chat, double-click for the chat panel`}
             >
                 <OrbGlow className={ORB_GLOW_CLASS}>
                     <CopilotOrb state={state} colors={colors} size={ORB_SIZE} />

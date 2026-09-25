@@ -1,0 +1,4 @@
+[package]
+org = "baltest"
+name = "unicode_output"
+version = "0.1.0"

@@ -1007,10 +1007,10 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
                                         )
                                     }
                                     {
-                                        serviceModel && (isMcpService) && (
+                                        serviceModel && (isMcpService || isAiService) && (
                                             <>
-                                                <Button appearance="secondary" tooltip="Try Service" onClick={handleServiceTryIt}>
-                                                    <><Icon name="play" isCodicon={true} sx={{ marginRight: 8, fontSize: 16 }} /> <ButtonText>Try It</ButtonText></>
+                                                <Button appearance="secondary" tooltip={isAiService ? "Chat with Agent" : "Try Service"} onClick={handleServiceTryIt}>
+                                                    <><Icon name={isAiService ? "comment-discussion" : "play"} isCodicon={true} sx={{ marginRight: 8, fontSize: 16 }} /> <ButtonText>{isAiService ? "Chat" : "Try It"}</ButtonText></>
                                                 </Button>
                                             </>
                                         )

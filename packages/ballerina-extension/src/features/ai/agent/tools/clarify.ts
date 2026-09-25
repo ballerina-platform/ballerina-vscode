@@ -55,6 +55,7 @@ Call this ONLY for genuine requirement gaps. Use smart defaults first:
 2. Storage / external system: Default to in-memory for simple apps. When a category is explicitly required but the specific technology is unspecified, infer from context — otherwise ask.
 
 When asking, include a recommended option labelled with "(recommended)".
+Offer only options you could carry out if picked; if one depends on something the user may not have, say so in its label and don't recommend it.
 Do NOT ask about library/connector selection or implementation details that can be defaulted.
 Call AT MOST ONCE per task — batch all questions into a single call.`,
         inputSchema: ClarifyInputSchema,

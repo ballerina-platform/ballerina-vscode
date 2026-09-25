@@ -31,6 +31,17 @@ import type { AgentRunStatus } from "@wso2/ballerina-core";
 jest.mock("@wso2/ballerina-core", () => ({
     MACHINE_VIEW: {},
     SHARED_COMMANDS: { OPEN_AI_PANEL: "ballerina.open.ai.panel" },
+    // The product-mode helpers keep their real behaviour so a test can pick the product.
+    ProductMode: { BALLERINA: "ballerina", INTEGRATOR: "integrator" },
+    seededProductMode: () => {
+        const seed = (window as unknown as { productMode?: string }).productMode;
+        return seed === "ballerina" || seed === "integrator" ? seed : undefined;
+    },
+    assistantName: (mode: string) => (mode === "ballerina" ? "Ballerina Copilot" : "WSO2 Integrator Copilot"),
+    assistantTagline: (mode: string) =>
+        mode === "ballerina"
+            ? "Your AI pair programmer for Ballerina development"
+            : "Your AI pair programmer for integration development",
 }));
 
 let mockRpcClient: ReturnType<typeof makeRpcClient>["client"] | undefined;
@@ -76,6 +87,12 @@ function makeRpcClient() {
             act(() => pushed!(status));
         },
     };
+}
+
+
+/** The extension host seeds this into every webview. */
+function seedProductMode(mode: "ballerina" | "integrator" | undefined): void {
+    (window as unknown as { productMode?: string }).productMode = mode;
 }
 
 describe("AgentStatusOrb idle invite", () => {
@@ -125,6 +142,7 @@ describe("AgentStatusOrb idle invite", () => {
 
     beforeEach(() => {
         __resetAgentRunStatusStoreForTests();
+        seedProductMode("integrator");
         const rpc = makeRpcClient();
         mockRpcClient = rpc.client;
         notify = rpc.notify;
@@ -139,6 +157,7 @@ describe("AgentStatusOrb idle invite", () => {
         act(() => root.unmount());
         container.remove();
         mockRpcClient = undefined;
+        seedProductMode(undefined);
     });
 
     // The old opacity 0.85 -> 1 lift only worked while idle; a run made the orb opaque and hover did

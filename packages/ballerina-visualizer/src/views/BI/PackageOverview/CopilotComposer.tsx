@@ -43,6 +43,7 @@ import { CopilotOrb } from "../../../components/AgentStatusOrb/CopilotOrb";
 import { useOrbColors } from "../../../components/AgentStatusOrb/orbTheme";
 import { openCopilotPanel, submitPromptToCopilot } from "../../../components/AgentStatusOrb/copilotPanel";
 import { CopilotMenu } from "../../../components/CopilotMenu";
+import { useAssistantName } from "../../../hooks/useProductMode";
 
 const CONTENT_WIDTH = 620;
 const INPUT_MIN_HEIGHT = 46;
@@ -408,6 +409,7 @@ interface CopilotComposerProps {
  */
 export function CopilotComposer({ onAddArtifactManually, hiding }: CopilotComposerProps) {
     const { rpcClient } = useRpcContext();
+    const assistantName = useAssistantName();
     const [status, setStatus] = useState<AgentRunStatus | null>(null);
     const [text, setText] = useState("");
     const [agentMode, setAgentMode] = useState<AgentMode>(AgentMode.Edit);
@@ -536,8 +538,8 @@ export function CopilotComposer({ onAddArtifactManually, hiding }: CopilotCompos
                     $interactive={showOpenCopilot}
                     disabled={!showOpenCopilot}
                     onClick={showOpenCopilot ? () => openCopilotPanel(rpcClient) : undefined}
-                    title={showOpenCopilot ? "Open WSO2 Integrator Copilot" : undefined}
-                    aria-label={showOpenCopilot ? "Open WSO2 Integrator Copilot" : undefined}
+                    title={showOpenCopilot ? `Open ${assistantName}` : undefined}
+                    aria-label={showOpenCopilot ? `Open ${assistantName}` : undefined}
                 >
                     <OrbGlow className={ORB_GLOW_CLASS}>
                         <CopilotOrb state={state} colors={colors} size={ORB_SIZE} />
@@ -551,13 +553,13 @@ export function CopilotComposer({ onAddArtifactManually, hiding }: CopilotCompos
                     {submittedPrompt && <PromptEcho>{submittedPrompt}</PromptEcho>}
                     {showOpenCopilot && (
                         <VSCodeLink onClick={() => openCopilotPanel(rpcClient)} style={{ marginTop: 8 }}>
-                            Open WSO2 Integrator Copilot
+                            Open {assistantName}
                         </VSCodeLink>
                     )}
                 </RunBlock>
             ) : shownMode === "idle" ? (
                 <IdleBlock>
-                    <AssistantName>WSO2 Integrator Copilot</AssistantName>
+                    <AssistantName>{assistantName}</AssistantName>
                     <Heading>What would you like to build?</Heading>
 
                     <ComposerRow>
@@ -613,8 +615,8 @@ export function CopilotComposer({ onAddArtifactManually, hiding }: CopilotCompos
                                         </ComposerActionButton>
                                         <ComposerActionButton
                                             type="button"
-                                            title={attachmentsReady ? "Send to WSO2 Integrator Copilot" : "Remove failed attachments to send"}
-                                            aria-label="Send to WSO2 Integrator Copilot"
+                                            title={attachmentsReady ? `Send to ${assistantName}` : "Remove failed attachments to send"}
+                                            aria-label={`Send to ${assistantName}`}
                                             disabled={!canSend}
                                             onClick={() => void send(text)}
                                         >
