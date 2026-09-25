@@ -70,17 +70,14 @@ export async function runSubagent(params: RunSubagentParams): Promise<SubagentRe
     const [model, cacheControl] = await Promise.all([getAnthropicClient(modelId), getProviderCacheControl()]);
 
     const conversation = buildSubagentMessages(params.prompt, params.previousMessages, definition.followUpHint);
-    const messages: ModelMessage[] = [
-        { role: "system", content: definition.system(params.ctx), providerOptions: cacheControl },
-        ...conversation,
-    ];
 
     const started = Date.now();
     let stepCount = 0;
     const onProgress = params.onProgress;
     const result = await generateText({
         model,
-        messages,
+        system: { role: "system", content: definition.system(params.ctx), providerOptions: cacheControl },
+        messages: conversation,
         tools: definition.buildTools(params.ctx),
         stopWhen: stepCountIs(SUBAGENT_MAX_STEPS),
         maxOutputTokens: SUBAGENT_MAX_OUTPUT_TOKENS,

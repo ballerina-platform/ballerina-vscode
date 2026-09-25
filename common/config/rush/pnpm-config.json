@@ -100,16 +100,15 @@
       // Claude Sonnet 5 must be sent `thinking: {"type": "disabled"}` explicitly,
       // because an absent `thinking` field means adaptive reasoning is ON. Only
       // @ai-sdk/anthropic >= 3.0.104 serializes that value — earlier 3.x releases
-      // accept it and then silently drop it from the request body. google-vertex
-      // pins 3.0.63 and anthropic-aws pins 3.0.81, so both need forcing. The
-      // selector stays inside 3.x: the 4.x line implements the v4 model spec,
+      // accept it and then silently drop it from the request body. Forcing keeps
+      // google-vertex and anthropic-aws on the same copy. The selector stays inside 3.x: the 4.x line implements the v4 model spec,
       // which the pinned ai@6 core cannot consume.
-      "@ai-sdk/anthropic@>=3 <4": "3.0.104",
+      "@ai-sdk/anthropic@>=3 <4": "3.0.122",
       // Security fix: uncontrolled resource consumption, fixed at 4.0.33,
-      // but @ai-sdk/anthropic@3.0.104 pins 4.0.41 exactly and imports its
-      // (unexported-until-4.0.41) `secureJsonParse` helper, so force 4.0.41
+      // but @ai-sdk/anthropic@3.0.122 pins 4.0.54 exactly and imports its
+      // (unexported-until-4.0.41) `secureJsonParse` helper, so force 4.0.54
       // rather than the bare fix version.
-      "@ai-sdk/provider-utils@>=4 <5": "4.0.41",
+      "@ai-sdk/provider-utils@>=4 <5": "4.0.54",
       // Security overrides — keep in sync with trivy findings. Bump to the
       // first fix version listed for each CVE. If a bump breaks workspace
       // consumers, narrow the selector (e.g. "pkg@<x.y.z": "x.y.z").

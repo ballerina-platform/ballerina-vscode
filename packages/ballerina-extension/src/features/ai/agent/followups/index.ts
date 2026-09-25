@@ -22,7 +22,7 @@ import { workspace } from "vscode";
 import { chatStateStorage } from "../../../../views/ai-panel/chatStateStorage";
 import { CopilotEventHandler } from "../../utils/events";
 import { ANTHROPIC_HAIKU, getAnthropicClient } from "../../utils/ai-client";
-import { buildFollowupMessages, FollowupPromptInput, FollowupSituation, RecentExchange } from "./prompt";
+import { buildFollowupPrompt, FollowupPromptInput, FollowupSituation, RecentExchange } from "./prompt";
 import { followupSuggestionsSchema, GeneratedFollowupSuggestion } from "./schema";
 
 export { FollowupSituation } from "./prompt";
@@ -163,7 +163,7 @@ async function generateSuggestions(
             model: await getAnthropicClient(ANTHROPIC_HAIKU),
             maxOutputTokens: 1024,
             temperature: 0.3,
-            messages: buildFollowupMessages(input),
+            ...buildFollowupPrompt(input),
             schema: followupSuggestionsSchema,
             // The turn's signal is tripped on the interrupted paths, so fall back to a timeout.
             abortSignal: interrupted ? AbortSignal.timeout(TIMEOUT_MS) : turnSignal,

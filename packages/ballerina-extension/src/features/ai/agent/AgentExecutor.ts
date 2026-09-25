@@ -19,7 +19,7 @@
 import { AICommandExecutor, AICommandConfig, AIExecutionResult } from '../executors/base/AICommandExecutor';
 import { Command, GenerateAgentCodeRequest, ProjectSource, ExecutionContext, SemanticDiff, ReviewModeData, PROJECT_KIND, LoginMethod } from '@wso2/ballerina-core';
 import { StateMachine } from '../../../stateMachine';
-import { FinishReason, LanguageModelUsage, ModelMessage, stepCountIs, streamText, TextStreamPart } from 'ai';
+import { FinishReason, LanguageModelUsage, ModelMessage, stepCountIs, SystemModelMessage, streamText, TextStreamPart } from 'ai';
 import { getAnthropicClient, getProviderCacheControl, getProviderModelOptions, addCacheControlToMessages, ANTHROPIC_SONNET } from '../utils/ai-client';
 import { populateHistoryForAgent, getErrorMessage, getErrorCode, buildChatError } from '../utils/ai-utils';
 import { seedAiBaselines } from '../utils/project/ls-schema-notifications';
@@ -436,12 +436,12 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
             const historyMessages = populateHistoryForAgent(chatHistory);
             const cacheOptions = await getProviderCacheControl();
             
+            const systemMessage: SystemModelMessage = {
+                role: "system",
+                content: systemPromptText,
+                providerOptions: cacheOptions,
+            };
             const allMessages: ModelMessage[] = [
-                {
-                    role: "system",
-                    content: systemPromptText,
-                    providerOptions: cacheOptions,
-                },
                 ...historyMessages,
                 {
                     role: "user",
@@ -559,6 +559,7 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
                     const { fullStream, response, usage, totalUsage } = streamText({
                         model,
                         maxOutputTokens: RESERVED_OUTPUT_TOKENS,
+                        system: systemMessage,
                         messages: allMessages,
                         tools,
                         abortSignal: this.config.abortController.signal,
@@ -637,7 +638,7 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
                                         cacheReadInputTokens: cacheReadTokens,
                                         outputTokens,
                                     },
-                                    breakdown: computeTokenBreakdown(allMessages, tools, accToolCallChars, accToolResultChars, inputTokens, (userMessageContent[0] as any)?.text?.length ?? 0),
+                                    breakdown: computeTokenBreakdown([systemMessage, ...allMessages], tools, accToolCallChars, accToolResultChars, inputTokens, (userMessageContent[0] as any)?.text?.length ?? 0),
                                 });
                             }
                         },

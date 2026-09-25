@@ -48,11 +48,8 @@ export async function enhancePrompt(
             model: await getAnthropicClient(ANTHROPIC_HAIKU),
             maxOutputTokens: 4000,
             temperature: 0,
+            system: systemPrompt,
             messages: [
-                {
-                    role: "system",
-                    content: systemPrompt,
-                },
                 {
                     role: "user",
                     content: userPrompt,

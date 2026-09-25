@@ -1558,10 +1558,10 @@
         "test:typecheck": "tsc --noEmit -p tsconfig.spec.json"
     },
     "dependencies": {
-        "@ai-sdk/amazon-bedrock": "4.0.83",
-        "@ai-sdk/anthropic-aws": "1.0.3",
-        "@ai-sdk/anthropic": "3.0.104",
-        "@ai-sdk/google-vertex": "4.0.94",
+        "@ai-sdk/amazon-bedrock": "4.0.183",
+        "@ai-sdk/anthropic-aws": "1.0.44",
+        "@ai-sdk/anthropic": "3.0.122",
+        "@ai-sdk/google-vertex": "4.0.205",
         "@iarna/toml": "2.2.5",
         "@modelcontextprotocol/sdk": "1.29.0",
         "ballerina-grammar": "workspace:*",
@@ -1578,7 +1578,7 @@
         "graphqlview-lib": "workspace:*",
         "@wso2/wso2-platform-core": "workspace:*",
         "@wso2/webview-giga-bridge": "workspace:*",
-        "ai": "6.0.103",
+        "ai": "6.0.291",
         "cors-anywhere": "0.4.4",
         "del-cli": "5.1.0",
         "dotenv": "16.5.0",
