@@ -27,7 +27,6 @@ import { FunctionForm } from "./views/BI/FunctionForm";
 import { DataMapper } from "./views/DataMapper";
 import AddConnectionPopup from "./views/BI/Connection/AddConnectionPopup";
 import AddAgentPopup from "./views/BI/AIChatAgent/AddAgentPopup";
-import { ModalStack } from "./components/Popup/ModalStack";
 import AddAgentTriggerPopup from "./views/BI/AIChatAgent/AddAgentTriggerPopup";
 import { ConnectionConfigurationPopup } from "./views/BI/Connection/ConnectionConfigurationPopup";
 import EditConnectionPopup from "./views/BI/Connection/EditConnectionPopup";
@@ -294,7 +293,6 @@ const PopupPanel = (props: PopupPanelProps) => {
     return (
         <ViewContainer isFullScreen={isFullScreen}>
             {viewComponent}
-            <ModalStack />
         </ViewContainer>
     );
 };

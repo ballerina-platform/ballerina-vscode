@@ -29,8 +29,9 @@ const ModalLevel = styled.div<{ active: boolean }>`
 
 const groupLevels = (stack: ModalStackItem[]): ModalStackItem[][] =>
     stack.reduce<ModalStackItem[][]>((groups, item) => {
-        if (item.drillDown && groups.length > 0) {
-            groups[groups.length - 1].push(item);
+        const open = groups[groups.length - 1];
+        if (item.drillDown && open?.[open.length - 1].drillDown) {
+            open.push(item);
         } else {
             groups.push([item]);
         }

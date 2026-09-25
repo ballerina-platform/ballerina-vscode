@@ -47,10 +47,11 @@ export interface AddAgentPopupProps {
 
 export function AddAgentPopup(props: AddAgentPopupProps): null {
     const { projectPath, isPopup, inFlow, dependencyMode, dependencyToolForm } = props;
-    const { addModal, closeModal, popToModal, clearModals } = useModalStack();
+    const { addModal, updateModal, closeModal, popToModal, clearModals } = useModalStack();
     const latest = useRef(props);
     latest.current = props;
     const tearingDown = useRef(false);
+    const hasToolForm = Boolean(dependencyToolForm);
 
     const push = useCallback(
         (id: string, title: string, content: ReactNode) =>
@@ -139,7 +140,8 @@ export function AddAgentPopup(props: AddAgentPopupProps): null {
                 dependencyMode ? "Use Agent" : "Add Agent",
                 MODAL_HEIGHT,
                 GALLERY_WIDTH,
-                dismiss
+                dismiss,
+                true
             );
         }
         return () => {
@@ -147,6 +149,13 @@ export function AddAgentPopup(props: AddAgentPopupProps): null {
             popToModal(id);
             closeModal(id);
         };
+    }, [hasToolForm]);
+
+    // Updated in place, since re-pushing would drop any level the tool form opened on top.
+    useEffect(() => {
+        if (dependencyToolForm) {
+            updateModal(`${ROOT_ID}-tool`, { modal: dependencyToolForm });
+        }
     }, [dependencyToolForm]);
 
     return null;

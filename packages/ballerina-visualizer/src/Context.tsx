@@ -150,7 +150,7 @@ export type ModalStackItem = {
     height?: number;
     width?: number;
     onClose?: () => void;
-    // Continues the dialog below instead of stacking a new one on it.
+    // Continues the drill-down dialog below instead of stacking a new one on it.
     drillDown?: boolean;
 }
 
@@ -187,8 +187,10 @@ export const ModalStackProvider = ({children}: {children: ReactNode}) => {
         }
         stackRef.current = kept;
         setModalStack(kept);
+        // Matched by id, so replacing or updating an entry in place is not a close.
+        const keptIds = new Set(kept.map((item) => item.id));
         previous
-            .filter((item) => !kept.includes(item))
+            .filter((item) => !keptIds.has(item.id))
             .reverse()
             .forEach((item) => item.onClose?.());
     }, []);
@@ -198,7 +200,11 @@ export const ModalStackProvider = ({children}: {children: ReactNode}) => {
     }, [commit]);
 
     const updateModal = useCallback((id: string, updates: Partial<Omit<ModalStackItem, "id">>) => {
-        commit((stack) => stack.map((item) => (item.id === id ? { ...item, ...updates } : item)));
+        commit((stack) =>
+            stack.some((item) => item.id === id)
+                ? stack.map((item) => (item.id === id ? { ...item, ...updates } : item))
+                : stack
+        );
     }, [commit]);
 
     const popModal = useCallback(() => {

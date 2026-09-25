@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { Suspense, lazy, useContext } from "react";
+import { Suspense, lazy, useContext, useRef } from "react";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { formatMethodName } from "@wso2/ballerina-side-panel";
 import { CodeData, FlowNode, ProjectStructureArtifactResponse, isAgentDeclarationNode, LineRange } from "@wso2/ballerina-core";
@@ -57,10 +57,18 @@ export function useCreateNode(
     const panelOverlay = options?.preferModal ? undefined : panelOverlayContext;
     const { modalStack, addModal, updateModal, closeModal, popToModal, clearModals } = useModalStack();
 
+    // Read at callback time, since a flow can outlive the render that started it.
+    const stackRef = useRef(modalStack);
+    stackRef.current = modalStack;
+    const isOpen = (id?: string) => !!id && stackRef.current.some((item) => item.id === id);
+
+    const pushLoader = (id: string, title: string) =>
+        addModal(<LoaderContainer><RelativeLoader /></LoaderContainer>, id, title, NODE_MODAL_HEIGHT, MODAL_WIDTH, undefined, true);
+
     // Capture before the flow pushes: finishing returns to the level that started it.
     const returnToCallingLevel = () => {
         const callingLevelId = modalStack[modalStack.length - 1]?.id;
-        return () => (callingLevelId ? popToModal(callingLevelId) : clearModals());
+        return () => (isOpen(callingLevelId) ? popToModal(callingLevelId) : clearModals());
     };
 
     const handleCreated = (variableName: string, onCreated: (variableName: string) => void) => {
@@ -180,11 +188,16 @@ export function useCreateNode(
         }
 
         const modalId = `create-connection-${connectorCodeData.org}-${connectorCodeData.object}`;
+        pushLoader(modalId, title);
         try {
             const flowNode = await fetchTemplate();
-            addModal(renderCreator(flowNode, done), modalId, title, NODE_MODAL_HEIGHT, MODAL_WIDTH, undefined, true);
+            if (!isOpen(modalId)) {
+                return;
+            }
+            updateModal(modalId, { modal: renderCreator(flowNode, done) });
         } catch (error) {
             console.error("Error fetching connector template", error);
+            closeModal(modalId);
             await rpcClient.getCommonRpcClient().showErrorMessage({
                 message: "Could not load the connector. Please try again.",
             });
@@ -299,17 +312,12 @@ export function useCreateNode(
         const selectId = `select-connection-${kind}`;
         const createId = `create-connection-${kind}`;
         const done = returnToCallingLevel();
+        // The levels share one id, so a slower earlier pick must not overwrite the current one.
+        let selection = 0;
 
         const handleSelect = async (nodeId: string, metadata?: any) => {
-            addModal(
-                <LoaderContainer><RelativeLoader /></LoaderContainer>,
-                createId,
-                `Create ${displayName}`,
-                NODE_MODAL_HEIGHT,
-                MODAL_WIDTH,
-                undefined,
-                true
-            );
+            const current = ++selection;
+            pushLoader(createId, `Create ${displayName}`);
             try {
                 const { flowNode } = await getNodeTemplateForConnection(
                     nodeId,
@@ -318,6 +326,9 @@ export function useCreateNode(
                     fileName,
                     rpcClient
                 );
+                if (current !== selection || !isOpen(createId)) {
+                    return;
+                }
                 const typeLabel = flowNode?.metadata?.label;
                 updateModal(createId, {
                     title: typeLabel ? `Create ${typeLabel}` : `Create ${displayName}`,
@@ -332,7 +343,9 @@ export function useCreateNode(
                 });
             } catch (error) {
                 console.error("Error fetching connector template", error);
-                closeModal(createId);
+                if (current === selection) {
+                    closeModal(createId);
+                }
             }
         };
 
