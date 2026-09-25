@@ -34,16 +34,8 @@ export function picksWorkflow(nodeKind: string | undefined): boolean {
 export type LastSeenValues = Record<string, unknown>;
 
 /**
- * Whether a reported change is worth fetching a template for, and records it when it is.
- *
- * `Form` reports every field as changed on its first render, so without this a form would retype
- * itself from its own opening value — replacing a result type the source declares and coming up
- * dirty. Kept per key rather than against the opening value alone, so choosing A, then B, then A
- * again still retypes back to A.
- *
- * @param lastSeen the values each field was last seen holding, updated in place
- * @param key      the field that changed
- * @param value    its new value, narrowed so the caller can pass it on as the symbol
+ * Whether a reported change is worth fetching a template for, recording it in `lastSeen` when it is.
+ * Kept per key, so choosing A, then B, then A again still retypes back to A.
  */
 export function shouldRetype(lastSeen: LastSeenValues, key: string, value: unknown): value is string {
     if (typeof value !== "string" || value === "" || value === lastSeen[key]) {
@@ -54,11 +46,8 @@ export function shouldRetype(lastSeen: LastSeenValues, key: string, value: unkno
 }
 
 /**
- * Puts back what `shouldRetype` recorded, so a template request that failed or was superseded does
- * not leave the field looking already retyped and refuse to try that value again.
- *
- * @param previous what the key held before the request, restored only while the key still holds
- *                 `value` — a newer attempt that has recorded its own owns the key
+ * Undoes `shouldRetype`'s record after a request fails or is superseded, so the same choice can be
+ * tried again. A key that a newer choice has since recorded is left alone.
  */
 export function forgetRetype(lastSeen: LastSeenValues, key: string, value: string, previous: unknown): void {
     if (lastSeen[key] !== value) {
@@ -72,11 +61,8 @@ export function forgetRetype(lastSeen: LastSeenValues, key: string, value: strin
 }
 
 /**
- * The fields that follow another field's value — the child workflow's input follows the workflow
- * dropdown, say. The template is asked as well as the form being edited: a statement re-read from
- * source does not carry the tags, because its variable-type property is attached after the
- * analysis that would set them. The form is asked as well as the template, because a template that
- * drops the field altogether — a workflow that declares no input — cannot name it.
+ * The fields that follow `changedKey`, asked of both sides: a node re-read from source lacks some tags,
+ * and a template that drops a field altogether (a workflow with no input) cannot name it.
  */
 export function dependentKeys(fields: FormField[], template: NodeProperties, changedKey: string): string[] {
     const keys = new Set(Object.entries((template ?? {}) as Record<string, any>)
@@ -94,11 +80,7 @@ function dependsOn(codedata: { dependentProperty?: string } | undefined, changed
     return codedata?.dependentProperty === changedKey;
 }
 
-/**
- * Retypes the named fields from the properties of a template fetched for the new choice. A field
- * the template no longer offers — an input, when the chosen workflow takes none — is hidden with
- * its value cleared, so nothing is emitted for it.
- */
+/** Retypes the named fields from the new choice's template, hiding any the template no longer offers. */
 export function retypeFieldsFromTemplate(fields: FormField[], keys: string[], template: NodeProperties): FormField[] {
     return fields.map((field) => {
         if (!keys.includes(field.key)) {
@@ -111,23 +93,19 @@ export function retypeFieldsFromTemplate(fields: FormField[], keys: string[], te
         return {
             ...field,
             hidden: false,
-            // A fresh copy, so editing the retyped field cannot reach back into the template. Both
-            // sides may be absent: `Property.types` is optional on the wire.
+            // A fresh copy, so editing the field cannot reach back into the template.
             types: structuredClone(property.types ?? field.types ?? []),
             placeholder: property.placeholder ?? field.placeholder,
             documentation: property.metadata?.description ?? field.documentation,
-            // A value the template carries is the new choice's own default — the result type of
-            // the chosen workflow, say — and replaces the old one; an empty template value keeps
-            // what the person typed.
+            // The new choice's own default (its result type, say) wins; an empty one keeps what was typed.
             value: property.value !== undefined && property.value !== "" ? property.value : field.value,
         };
     });
 }
 
 /**
- * Blanks the values of dependent fields the retype hid. `Form` keeps whatever a field already held
- * when its `hidden` flag goes up, and the source builders write any property that is not blank, so
- * a workflow that takes no input would still be called with the input typed for the last one.
+ * Blanks the values of dependent fields the retype hid: `Form` keeps what a hidden field held, and the
+ * source builders write any property that is not blank.
  */
 export function clearHiddenDependentValues(values: FormValues, fields: FormField[]): FormValues {
     const hidden = fields.filter((field) => field.hidden && field.codedata?.dependentProperty);

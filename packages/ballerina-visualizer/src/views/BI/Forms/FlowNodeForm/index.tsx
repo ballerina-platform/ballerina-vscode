@@ -691,9 +691,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         fields = hideTypeDescriptionField(fields);
 
         const sortedFields = sortFieldsByPriority(fields);
-        // What each field holds as the form opens. `Form` reports every field as changed on its
-        // first render, so without this a form would retype itself from its own opening value and
-        // come up dirty, with a declared result type replaced by the template's default.
+        // `Form` reports every field as changed on first render; the opening values must not count.
         retypedForRef.current = Object.fromEntries(sortedFields.map((field) => [field.key, field.value]));
         // A template still in flight for the node that was open belongs to that node, not this one.
         retypeRequest.current++;
@@ -906,7 +904,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     const retypeDependentFields = useCallback(async (fieldKey: string, value: unknown) => {
         // Only the forms that pick a workflow: elsewhere a dropdown holds something that is not a
         // symbol, and a template fetched for it would ask for one that does not exist.
-        if (!picksWorkflow(node.codedata?.node) || !fileName) {
+        if (!node || !picksWorkflow(node.codedata?.node) || !fileName) {
             return;
         }
         // The dropdown check comes first: handleFormChange reports every field, and a bump from one
@@ -945,7 +943,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
             forgetRetype(lastSeen, fieldKey, value, previous);
             console.error(">>> Failed to retype the fields that follow", fieldKey, error);
         }
-    }, [baseFields, fileName, node.codedata, rpcClient, targetLineRange]);
+    }, [baseFields, fileName, node?.codedata, rpcClient, targetLineRange]);
 
     const handleFormChange = useCallback(
         (fieldKey: string, value: any, allValues: FormValues) => {
@@ -980,8 +978,6 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         const updatedNode = createNodeWithUpdatedLineRange(clonedNode, targetLineRange);
 
         // assign to a existing variable
-        // A dependent field the retype hid keeps its value in the form, and the source builders
-        // write any property that is not blank.
         const processedData = clearHiddenDependentValues(processFormData(data), baseFields);
 
         // Update node properties

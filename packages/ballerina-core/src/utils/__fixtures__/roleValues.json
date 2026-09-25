@@ -12,5 +12,9 @@
   { "note": "nothing names nobody", "source": "", "items": [] },
   { "note": "a reference belongs to the expression mode", "source": "financeRoles", "items": null },
   { "note": "a list holding a reference belongs to the expression mode", "source": "[\"finance\", lead]", "items": null },
-  { "note": "a call belongs to the expression mode", "source": "roles(\"finance\")", "items": null }
+  { "note": "a call belongs to the expression mode", "source": "roles(\"finance\")", "items": null },
+  { "note": "an expression joining literals belongs to the expression mode", "source": "\"a\" + \"b\"", "items": null },
+  { "note": "a list holding such an expression belongs to the expression mode", "source": "[\"a\" + \"b\"]", "items": null },
+  { "note": "a literal whose closing quote is escaped never ends", "source": "\"a\\\"", "items": null },
+  { "note": "an escaped backslash before the closing quote still ends it", "source": "\"a\\\\\"", "items": ["a\\"] }
 ]

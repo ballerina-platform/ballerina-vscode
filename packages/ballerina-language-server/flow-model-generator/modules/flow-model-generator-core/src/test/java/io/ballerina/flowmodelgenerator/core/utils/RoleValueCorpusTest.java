@@ -34,21 +34,19 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Holds {@link WorkflowUtil#roleFieldValue} to the same table the designer's two parsers are held
- * to. Three implementations read a role value — this one, {@code parseTextArraySource} in
- * ballerina-core, and the copy in the visualizer's {@code capabilityFieldValues} — and a numeric
- * escape has already drifted between them once. The file is the designer's, read from here so the
- * language server cannot drift from the frontend without one of the three suites failing.
+ * Holds {@link WorkflowUtil#roleFieldValue} to the role-value corpus the designer's two parsers also read,
+ * so the three cannot drift apart without a suite failing.
  */
 public class RoleValueCorpusTest {
 
     private static final Path CORPUS = Paths.get("..", "..", "..", "..", "ballerina-core", "src", "utils",
             "__fixtures__", "roleValues.json").toAbsolutePath().normalize();
 
-    @DataProvider(name = "corpus")
+    @DataProvider(name = "corpus", propagateFailureAsTestFailure = true)
     public Object[][] corpus() throws IOException {
         Assert.assertTrue(Files.exists(CORPUS), "the shared corpus moved: " + CORPUS);
         JsonArray entries = JsonParser.parseString(Files.readString(CORPUS)).getAsJsonArray();
+        Assert.assertFalse(entries.isEmpty(), "the shared corpus is empty: " + CORPUS);
         List<Object[]> cases = new ArrayList<>();
         for (JsonElement element : entries) {
             JsonObject entry = element.getAsJsonObject();
@@ -69,7 +67,6 @@ public class RoleValueCorpusTest {
     public void testRoleFieldValueMatchesTheCorpus(String note, String source, List<String> expected) {
         Object actual = WorkflowUtil.roleFieldValue(source);
         if (expected == null) {
-            // No names: the value belongs to the expression mode and stays as it was written.
             Assert.assertEquals(actual, source.trim(), note);
         } else {
             Assert.assertEquals(actual, expected, note);

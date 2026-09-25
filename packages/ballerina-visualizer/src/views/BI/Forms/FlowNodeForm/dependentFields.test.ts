@@ -16,15 +16,16 @@
  * under the License.
  */
 import { NodeProperties } from "@wso2/ballerina-core";
+import { FormField } from "@wso2/ballerina-side-panel";
 import {
     clearHiddenDependentValues, dependentKeys, forgetRetype, picksWorkflow,
     retypeFieldsFromTemplate, shouldRetype,
 } from "./dependentFields";
 
-const field = (key: string, extra: Record<string, any> = {}) => ({
-    key, label: key, type: "EXPRESSION", optional: false, editable: true, documentation: "",
+const field = (key: string, extra: Partial<FormField> = {}): FormField => ({
+    key, label: key, type: "EXPRESSION", optional: false, editable: true, enabled: true, documentation: "",
     types: [{ fieldType: "EXPRESSION", ballerinaType: "anydata", selected: true }], value: "", ...extra,
-}) as any;
+});
 
 // `NodeProperties` is a map of `Property`, whose optional members these fixtures fill in part.
 const properties = (shape: Record<string, unknown>): NodeProperties => shape as NodeProperties;
@@ -141,11 +142,12 @@ describe("fields that follow a workflow dropdown", () => {
     });
 
     it("takes type, placeholder and doc from the new template while keeping what was typed", () => {
+        const inputTypes = [{ fieldType: "EXPRESSION", ballerinaType: "ClaimInput", selected: true }];
         const template = properties({
             input: {
                 metadata: { label: "Input", description: "The claim to audit" },
                 placeholder: "{}",
-                types: [{ fieldType: "EXPRESSION", ballerinaType: "ClaimInput", selected: true }],
+                types: inputTypes,
                 value: "",
             },
             type: { metadata: { label: "Result Type" }, types: [{ fieldType: "TYPE" }], value: "string" },
@@ -158,7 +160,7 @@ describe("fields that follow a workflow dropdown", () => {
             types: [{ ballerinaType: "ClaimInput" }],
         });
         // A fresh copy: editing the retyped field must not reach back into the template.
-        expect(retyped[1].types).not.toBe((template as any).input.types);
+        expect(retyped[1].types).not.toBe(inputTypes);
         // A default the template carries is the new choice's own and replaces the old.
         expect(retyped[2].value).toBe("string");
         expect(retyped[0]).toBe(fields[0]);
@@ -194,7 +196,7 @@ describe("fields that follow a workflow dropdown", () => {
     });
 
     it("hides a field the new choice has no use for", () => {
-        const retyped = retypeFieldsFromTemplate(fields, ["input"], {} as any);
+        const retyped = retypeFieldsFromTemplate(fields, ["input"], properties({}));
 
         expect(retyped[1]).toMatchObject({ hidden: true, value: "" });
     });

@@ -16,9 +16,7 @@
  * under the License.
  */
 
-// A list-of-text field (TEXT_SET) and the Ballerina source it stands for: one string literal, or a
-// list of them. Mirrors the language server's WorkflowUtil.roleFieldValue/roleSource so a value
-// converts the same way whichever side does it.
+// A TEXT_SET field and its source; mirrors the language server's WorkflowUtil.roleFieldValue/roleSource.
 
 /** The escapes a Ballerina string literal defines, decoded. */
 export function stringLiteralText(literal: string): string | undefined {
@@ -39,11 +37,12 @@ export function stringLiteralText(literal: string): string | undefined {
             continue;
         }
         const next = body[i + 1];
+        if (next === undefined) {
+            // The closing quote is escaped, so the literal never ends.
+            return undefined;
+        }
         if (next === "u") {
-            // A numeric escape, decoded: re-encoding cannot reproduce the escape, only the
-            // character it names, so leaving it as written doubles its backslash on the way out.
-            // An invalid code point or a lone surrogate names no character and stays as written,
-            // which is what the language server's decoder does with it.
+            // Decoded, since a re-encode would double its backslash; an invalid code point stays as written.
             const close = body[i + 2] === "{" ? body.indexOf("}", i + 3) : -1;
             const digits = close === -1 ? "" : body.slice(i + 3, close);
             const code = /^[0-9a-fA-F]+$/.test(digits) ? Number.parseInt(digits, 16) : NaN;
@@ -61,7 +60,7 @@ export function stringLiteralText(literal: string): string | undefined {
             case "r": text += "\r"; break;
             case '"': text += '"'; break;
             case "\\": text += "\\"; break;
-            default: text += current + (next ?? ""); break;
+            default: text += current + next; break;
         }
         i++;
     }

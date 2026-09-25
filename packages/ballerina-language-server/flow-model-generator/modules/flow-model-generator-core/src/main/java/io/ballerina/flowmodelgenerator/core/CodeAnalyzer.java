@@ -609,9 +609,7 @@ public class CodeAnalyzer extends NodeVisitor {
 
     /**
      * Gives a child workflow start read from source the form its template offers: the workflow as a
-     * dropdown that can be changed, the input typed from that workflow rather than from the library
-     * signature's {@code anydata}, and none of the context-object fields the generic remote-action
-     * path adds. Without this an existing statement opened as a different form from a new one.
+     * dropdown, the input typed from that workflow, and none of the context-object fields.
      */
     private void populateChildWorkflowStartProperties(RemoteMethodCallActionNode callNode) {
         SeparatedNodeList<FunctionArgumentNode> args = callNode.arguments();
@@ -4876,19 +4874,8 @@ public class CodeAnalyzer extends NodeVisitor {
     }
 
     /**
-     * Re-types a workflow start's {@code input} from the target workflow's declared input parameter
-     * (the first parameter that is a subtype of {@code anydata}; {@code workflow:Context} and the
-     * events record are not anydata), matching the template path. The generic read typed it from
-     * the library signature, which says {@code anydata} and loses the workflow's own type.
-     *
-     * @param workflowFunction the workflow being started
-     * @param args             the call's arguments
-     * @param inputIndex       the input's position among them
-     * @param inputParamName   the input's parameter name, for the named form
-     * @param key              the property key the form edits the input under
-     * @param label            its label
-     * @param doc              its description
-     * @param dependsOn        the workflow dropdown's key, so a new choice retypes the input
+     * Re-types a workflow start's {@code input} from the target workflow's declared input parameter, as
+     * the template does, rather than from the library signature's {@code anydata}.
      */
     private void retypeWorkflowInput(FunctionSymbol workflowFunction, SeparatedNodeList<FunctionArgumentNode> args,
                                      int inputIndex, String inputParamName, String key, String label, String doc,

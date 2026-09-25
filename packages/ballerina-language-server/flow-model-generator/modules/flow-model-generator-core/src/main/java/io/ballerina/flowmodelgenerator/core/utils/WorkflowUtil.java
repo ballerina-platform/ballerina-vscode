@@ -1242,14 +1242,8 @@ public class WorkflowUtil {
     }
 
     /**
-     * Re-declares the named properties, those present, as role fields: the list mode and the
-     * expression mode, with the value shaped by {@link #roleFieldValue}. The signature-derived
-     * human task form arrives with the modes {@code typeWithExpression} split a
-     * {@code string|string[]} into, which is one text box; this makes it the same field every
-     * other role property is.
-     *
-     * @param properties the live property map
-     * @param keys       the role property keys
+     * Re-declares the named properties, those present, as role fields: a list mode and an expression
+     * mode, with the value shaped by {@link #roleFieldValue}.
      */
     public static void restyleRoleProperties(Map<String, Property> properties, String... keys) {
         for (String key : keys) {
@@ -1260,9 +1254,8 @@ public class WorkflowUtil {
             Object value = existing.value() instanceof List<?> ? existing.value()
                     : roleFieldValue(existing.value() == null ? "" : existing.value().toString());
             boolean expression = value instanceof String text && !text.isBlank();
-            // The signature states the parameter's type exactly — `string|[string, string...]?` on
-            // the human task — and the expression editor checks what is typed against it, so the
-            // declared mode is kept as it stands and only the text box becomes a list.
+            // Keep the signature's exact expression type (`string|[string, string...]?` on the human task):
+            // the expression editor checks what is typed against it.
             PropertyType declared = existing.types() == null ? null : existing.types().stream()
                     .filter(type -> type.fieldType() == Property.ValueType.EXPRESSION)
                     .findFirst().orElse(null);
@@ -1326,7 +1319,16 @@ public class WorkflowUtil {
 
     private static boolean isStringLiteral(String source) {
         return source.length() >= 2 && source.startsWith("\"") && source.endsWith("\"")
-                && stringLiteralText(source).length() < source.length();
+                && !closingQuoteEscaped(source) && stringLiteralText(source).length() < source.length();
+    }
+
+    // An odd run of backslashes before the final quote escapes it, so the literal never ends.
+    private static boolean closingQuoteEscaped(String source) {
+        int backslashes = 0;
+        for (int i = source.length() - 2; i >= 1 && source.charAt(i) == '\\'; i--) {
+            backslashes++;
+        }
+        return backslashes % 2 == 1;
     }
 
     // Names entered in the list mode are text, so each is written as a literal: one name as the

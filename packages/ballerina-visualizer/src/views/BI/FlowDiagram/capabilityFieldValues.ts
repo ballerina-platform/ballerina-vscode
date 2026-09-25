@@ -161,14 +161,8 @@ export function seedCapabilityValue(property: SeedableProperty, source: string):
 }
 
 /**
- * The names a role value states — one string literal, or a list of them — decoded; undefined for
- * anything else, which belongs to the expression mode. `()`, `[]` and nothing name nobody.
- *
- * <p>This is `parseTextArraySource` from `@wso2/ballerina-core`, and the two must agree — they
- * edit the same field, one seeding it on open and the other carrying it across a mode switch. It
- * is copied rather than imported because this package's jest config does not transform
- * `node_modules` and the core package ships ESM, so a source file that imports it cannot be
- * parsed by the suite that covers this module. Change one and change the other.
+ * The names a role value states, decoded; undefined when it belongs to the expression mode. A copy of
+ * core's `parseTextArraySource` (this suite cannot load core's ESM); roleValues.json holds both to one table.
  */
 function literalItems(source: string): string[] | undefined {
     const trimmed = source.trim();
