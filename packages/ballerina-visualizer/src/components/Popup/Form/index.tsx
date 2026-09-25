@@ -45,7 +45,6 @@ const PopupFormBox = styled.div<{ width?: number; height?: number }>`
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  padding: 16px;
   border-radius: 10px;
   background-color: ${ThemeColors.SURFACE_DIM};
   box-shadow: 0 3px 8px rgb(0 0 0 / 0.2);
@@ -55,9 +54,8 @@ const PopupFormBox = styled.div<{ width?: number; height?: number }>`
 const PopupFormHeader = styled.header`
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding-inline: 16px;
-    padding-bottom: 16px;
+    gap: 16px;
+    padding: 16px 20px;
     border-bottom: 1px solid ${ThemeColors.OUTLINE_VARIANT};
 `;
 
@@ -66,7 +64,7 @@ const PopupFormHeading = styled.div`
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 4px;
 `;
 
 const Trail = styled.nav`
@@ -126,7 +124,7 @@ const PopupFormContent = styled.div`
     min-height: 0; /* Critical for nested flex scroll areas */
     display: flex;
     flex-direction: column;
-    padding-top: 16px;
+    padding: 16px;
 
     &.enter-forward {
         animation: ${enterForward} 200ms cubic-bezier(0.2, 0, 0, 1);

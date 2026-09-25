@@ -45,6 +45,8 @@ export const LoaderWrapper = styled.div`
     justify-content: center;
     align-items: center;
     flex: 1;
+    // A modal level sits in a plain block scroller, where flex-grow alone would not fill it.
+    height: 100%;
 `;
 
 export const EmptyState = styled.div`

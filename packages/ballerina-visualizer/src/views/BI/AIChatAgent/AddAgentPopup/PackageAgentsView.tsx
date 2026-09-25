@@ -45,7 +45,7 @@ export function PackageAgentsView(props: PackageAgentsViewProps) {
 
     return (
         <PopupContent>
-            <IntroText>
+            <IntroText sx={{ fontSize: 13 }}>
                 {`Choose an agent definition from ${org}/${module}:${version}.`}
             </IntroText>
 
