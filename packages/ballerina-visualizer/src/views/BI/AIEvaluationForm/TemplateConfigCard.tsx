@@ -107,13 +107,15 @@ interface TemplateConfigCardProps {
     onChangeTemplate: () => void;
     /** The surrounding modal already names the template and the agent, so the card drops both. */
     embedded?: boolean;
+    /** Names the template above its description when the modal header names something else. */
+    showTitle?: boolean;
 }
 
 export function TemplateConfigCard(props: TemplateConfigCardProps) {
     const {
         template, templateFields, dataSourceParam, dataSourceMode, onDataSourceModeChange,
         agentFieldKey, evalsetField, queriesField, hasEvalsets, selectedEvalsetFile,
-        onCreateEvalset, onOpenEvalset, onChangeTemplate, embedded
+        onCreateEvalset, onOpenEvalset, onChangeTemplate, embedded, showTitle
     } = props;
     const [showOptionalSettings, setShowOptionalSettings] = useState(false);
 
@@ -229,5 +231,16 @@ export function TemplateConfigCard(props: TemplateConfigCardProps) {
         </Card>
     );
 
-    return embedded ? <><Description>{template.metadata.description}</Description>{card}</> : card;
+    return embedded ? (
+        <>
+            {showTitle && (
+                <TitleRow>
+                    {template.metadata.label}
+                    <Badge>{getTemplateKind(template)}</Badge>
+                </TitleRow>
+            )}
+            <Description>{template.metadata.description}</Description>
+            {card}
+        </>
+    ) : card;
 }
