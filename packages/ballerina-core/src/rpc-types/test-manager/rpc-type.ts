@@ -115,6 +115,9 @@ export const getEvaluationRunState: RequestType<EvaluationsRequest, EvaluationRu
 export const evaluationRunStateChanged: NotificationType<EvaluationRunState> =
     { method: `${_preFix}/evaluationRunStateChanged` };
 
+export const evalsetsChanged: NotificationType<void> =
+    { method: `${_preFix}/evalsetsChanged` };
+
 export interface EvalsetItem {
     id: string;
     name: string;

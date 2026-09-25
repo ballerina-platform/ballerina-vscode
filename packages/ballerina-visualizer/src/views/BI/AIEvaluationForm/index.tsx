@@ -511,11 +511,19 @@ export function AIEvaluationFormBody(props: AIEvaluationFormBodyProps) {
         });
     }, [projectPath, rpcClient]);
 
+    const refreshEvalsets = useCallback(async () => {
+        const options = await loadEvalsets();
+        setFormFields(current => current.map(field =>
+            field.key === EVALSET_FIELD_KEY ? { ...field, itemOptions: options } : field));
+    }, [projectPath]);
+
+    useEffect(() => rpcClient.onEvalsetsChanged(refreshEvalsets), [rpcClient, refreshEvalsets]);
+
     const createEvalset = async () => {
         await rpcClient.getCommonRpcClient().executeCommand({
             commands: ['ballerina.createNewEvalset']
         });
-        await loadEvalsets();
+        await refreshEvalsets();
     };
 
     const detectTemplateFromSource = async (fn: TestFunction, templates: AvailableNode[]): Promise<{
