@@ -25,6 +25,7 @@ import * as React from "react";
 import { act } from "react-dom/test-utils";
 import { createRoot, Root } from "react-dom/client";
 import type { AgentRunStatus } from "@wso2/ballerina-core";
+import { loadFixtures } from "@wso2/test-config/fixtures";
 
 // The core barrel re-exports ESM-only LS transport modules jest cannot load. shared.ts
 // only property-accesses MACHINE_VIEW, and the orb only reads the open-panel command id.
@@ -55,13 +56,23 @@ jest.mock("./CopilotOrb", () => ({ CopilotOrb: (): null => null }));
 jest.mock("./MiniChat", () => ({ MiniChat: (): null => null }));
 
 import { AgentStatusOrb } from "./index";
-import { __resetAgentRunStatusStoreForTests } from "./shared";
+import { __resetAgentRunStatusStoreForTests, ORB_SIZE } from "./shared";
 
 declare global {
     // eslint-disable-next-line no-var
     var IS_REACT_ACT_ENVIRONMENT: boolean;
 }
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+
+interface DragFixture {
+    description: string;
+    drags: { name: string; hover: boolean; draft: string; path: number[][] }[];
+}
+
+const dragFixtures = loadFixtures<DragFixture>(__dirname, "fixtures", "drags");
+const dragCases = dragFixtures.flatMap((f) =>
+    f.data.drags.map((drag) => [`${f.name}: ${drag.name}`, drag] as [string, DragFixture["drags"][number]])
+);
 
 const INVITE_PLACEHOLDER = "How can I help?";
 const IDLE = { state: "idle", aiPanelOpen: false, timestamp: 0 } as AgentRunStatus;
@@ -334,6 +345,62 @@ describe("AgentStatusOrb idle invite", () => {
         act(() => orb().blur());
 
         expect(opacity()).toBe("0");
+    });
+
+    // The drag position is the orb's own, so nothing ahead of the orb in the wrapper may take up
+    // layout space while it is dragged or snapping — the idle invite did, and pushed it off the pointer.
+    it("has drag fixtures to run", () => {
+        expect(dragCases.length).toBeGreaterThan(0);
+    });
+
+    describe.each(dragCases)("dragging %s", (_name, drag) => {
+        const inFlowAheadOfOrb = () => {
+            const ahead: Element[] = [];
+            for (let el = orb().previousElementSibling; el; el = el.previousElementSibling) {
+                if (getComputedStyle(el).position !== "absolute") {
+                    ahead.push(el);
+                }
+            }
+            return ahead;
+        };
+
+        it("keeps the orb under the pointer through the drag and the snap", () => {
+            const setPointerCapture = HTMLElement.prototype.setPointerCapture;
+            HTMLElement.prototype.setPointerCapture = jest.fn();
+            jest.useFakeTimers();
+            try {
+                if (drag.hover) {
+                    hover();
+                }
+                if (drag.draft) {
+                    type(drag.draft);
+                }
+                const opened = box();
+                const pointer = (type: string, [x, y]: number[]) =>
+                    fire(orb(), new MouseEvent(type, { bubbles: true, button: 0, clientX: x, clientY: y }));
+                const [start, ...moves] = drag.path;
+
+                pointer("pointerdown", start);
+                for (const [x, y] of moves) {
+                    pointer("pointermove", [x, y]);
+                    expect(wrapper().style.left).toBe(`${x - ORB_SIZE / 2}px`);
+                    expect(wrapper().style.top).toBe(`${y - ORB_SIZE / 2}px`);
+                    expect(inFlowAheadOfOrb()).toEqual([]);
+                }
+
+                pointer("pointerup", moves[moves.length - 1]);
+                expect(inFlowAheadOfOrb()).toEqual([]);
+
+                act(() => {
+                    jest.runOnlyPendingTimers();
+                });
+                expect(getComputedStyle(bridge()).position).not.toBe("absolute");
+                expect(box()).toBe(opened);
+            } finally {
+                jest.useRealTimers();
+                HTMLElement.prototype.setPointerCapture = setPointerCapture;
+            }
+        });
     });
 
     it("keeps the invite when focus moves from the orb into the input", () => {
