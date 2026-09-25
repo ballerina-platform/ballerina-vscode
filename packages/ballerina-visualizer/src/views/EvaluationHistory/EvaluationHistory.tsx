@@ -16,12 +16,15 @@
  * under the License.
  */
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import styled from "@emotion/styled";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { EvaluationHistoryData } from "./types";
+import { Evaluation, EvaluationHistoryFilter, GetEvaluationsResponse } from "@wso2/ballerina-core";
+import { EvaluationHistoryData, EvaluationTestHistory } from "./types";
 import { SummaryBar } from "./SummaryBar";
 import { TestCard } from "./TestCard";
+import { HistoryToolbar } from "./HistoryToolbar";
+import { applyHistoryQuery, EvaluationsByName, HistoryQuery } from "./historyQuery";
 
 const Page = styled.div`
     font-family: var(
@@ -190,26 +193,95 @@ const Loader = styled.div`
     }
 `;
 
+const DEFAULT_QUERY: HistoryQuery = { search: "", status: "all", includeDeleted: false, range: "all", sort: "latest" };
+// Cleared after opening, so later re-renders don't scroll back to the card.
+const FOCUS_MS = 5000;
+
+type RememberedQuery = Pick<HistoryQuery, "status" | "range" | "sort">;
+
+const readFilter = (container: HTMLElement | null): EvaluationHistoryFilter => {
+    try {
+        return JSON.parse(container?.getAttribute("data-filter") || "{}");
+    } catch {
+        return {};
+    }
+};
+
+const storageKey = (projectPath: string) => `evaluation-history:${projectPath}`;
+
+const readRemembered = (projectPath: string): Partial<RememberedQuery> => {
+    try {
+        return JSON.parse(localStorage.getItem(storageKey(projectPath)) || "{}");
+    } catch {
+        return {};
+    }
+};
+
+const remember = (projectPath: string, { status, range, sort }: HistoryQuery) => {
+    try {
+        localStorage.setItem(storageKey(projectPath), JSON.stringify({ status, range, sort }));
+    } catch { /* the choices simply are not kept */ }
+};
+
+const toEvaluationsByName = (evaluations: Evaluation[]): EvaluationsByName =>
+    new Map(evaluations.map((evaluation) => [evaluation.functionName, evaluation]));
+
+const initialQuery = (filter: EvaluationHistoryFilter, evaluations: EvaluationsByName,
+    remembered: Partial<RememberedQuery>): HistoryQuery => {
+    const names = [...(filter.testNames ?? []), ...(filter.focus ? [filter.focus] : [])];
+    const agents = [...(filter.agents ?? []),
+        ...names.flatMap((name) => evaluations.get(name)?.agents.map((agent) => agent.name) ?? [])];
+    return {
+        ...DEFAULT_QUERY,
+        ...remembered,
+        ...(filter.focus ? { status: "all", range: "all" } : {}),
+        agents: agents.length > 0 ? [...new Set(agents)] : undefined,
+        includeDeleted: names.some((name) => !evaluations.has(name)),
+    };
+};
+
+const countRuns = (tests: EvaluationTestHistory[]): number =>
+    new Set(tests.flatMap((test) => test.runs.map((run) => run.jsonReportPath ?? run.date))).size;
+
 export function EvaluationHistory() {
     const { rpcClient } = useRpcContext();
     const [data, setData] = useState<EvaluationHistoryData | null>(null);
     const [loading, setLoading] = useState(true);
     const [projectPath, setProjectPath] = useState("");
+    const [evaluations, setEvaluations] = useState<EvaluationsByName>();
+    const [query, setQuery] = useState<HistoryQuery>(DEFAULT_QUERY);
+    const [focus, setFocus] = useState<string>();
+    const filterAppliedRef = useRef(false);
 
     useEffect(() => {
         const container = document.getElementById("webview-container");
         const resolvedProjectPath = container?.getAttribute("data-project-path") ?? "";
+        const filter = readFilter(container);
         setProjectPath(resolvedProjectPath);
+        setFocus(filter.focus);
+        setQuery({ ...DEFAULT_QUERY, ...readRemembered(resolvedProjectPath) });
 
         let cancelled = false;
         let latestFetchId = 0;
+        const applyDiscovery = (discovered?: Evaluation[]) => {
+            const byName = discovered && toEvaluationsByName(discovered);
+            setEvaluations(byName);
+            if (byName && !filterAppliedRef.current) {
+                filterAppliedRef.current = true;
+                setQuery(initialQuery(filter, byName, readRemembered(resolvedProjectPath)));
+            }
+        };
         const fetchHistory = (isInitial: boolean) => {
             const fetchId = ++latestFetchId;
-            rpcClient
-                .getTestManagerRpcClient()
-                .getEvaluationHistory({ projectPath: resolvedProjectPath })
-                .then((response) => {
+            const testManager = rpcClient.getTestManagerRpcClient();
+            Promise.all([
+                testManager.getEvaluationHistory({ projectPath: resolvedProjectPath }),
+                testManager.getEvaluations({ projectPath: resolvedProjectPath })
+                    .catch((): GetEvaluationsResponse | undefined => undefined),
+            ])
+                .then(([response, discovery]) => {
                     if (cancelled || fetchId !== latestFetchId) { return; }
+                    applyDiscovery(discovery && !discovery.errorMsg ? discovery.evaluations : undefined);
                     setData(response.data);
                     setLoading(false);
                 })
@@ -224,12 +296,21 @@ export function EvaluationHistory() {
 
         fetchHistory(true);
         const unsubscribe = rpcClient.onEvaluationHistoryUpdated(() => fetchHistory(false));
+        const clearFocus = setTimeout(() => setFocus(undefined), FOCUS_MS);
 
         return () => {
             cancelled = true;
             unsubscribe();
+            clearTimeout(clearFocus);
         };
     }, []);
+
+    const view = useMemo(() => applyHistoryQuery(data?.tests ?? [], evaluations, query), [data, evaluations, query]);
+
+    const changeQuery = (next: HistoryQuery) => {
+        setQuery(next);
+        remember(projectPath, next);
+    };
 
     if (loading) {
         return (
@@ -242,6 +323,9 @@ export function EvaluationHistory() {
     if (!data) return null;
 
     const projectLabel = data.projectNames.join(", ") || "Unknown";
+    const deletedNames = new Set(view.deleted.map((test) => test.testName));
+    const deleteHistory = (testNames: string[], reportPaths?: string[]) =>
+        rpcClient.getTestManagerRpcClient().deleteEvaluationHistory({ projectPath, testNames, reportPaths });
 
     return (
         <Page>
@@ -252,10 +336,31 @@ export function EvaluationHistory() {
 
             {data.tests.length > 0 ? (
                 <>
-                    <SummaryBar data={data} />
-                    {data.tests.map((test, i) => (
-                        <TestCard key={i} history={test} projectPath={projectPath} />
+                    <HistoryToolbar
+                        query={query}
+                        onChange={changeQuery}
+                        agents={view.agents}
+                        deletedCount={view.deleted.length}
+                        onDeleteDeletedHistory={() => deleteHistory([...deletedNames])}
+                    />
+                    <SummaryBar data={{ ...data, tests: view.visible, totalRunFiles: countRuns(view.visible) }} />
+                    {view.visible.map((test) => (
+                        <TestCard
+                            key={test.testName}
+                            history={test}
+                            projectPath={projectPath}
+                            deleted={deletedNames.has(test.testName)}
+                            focused={focus === test.testName}
+                            rowMatches={view.rowMatches.get(test.testName)}
+                            onDeleteHistory={(reportPaths) => deleteHistory([test.testName], reportPaths)}
+                        />
                     ))}
+                    {view.visible.length === 0 && (
+                        <EmptyState>
+                            <EmptyTitle>No evaluations match these filters</EmptyTitle>
+                            <EmptySub>Try another search, status, agent or date range.</EmptySub>
+                        </EmptyState>
+                    )}
                 </>
             ) : (
                 <EmptyState>

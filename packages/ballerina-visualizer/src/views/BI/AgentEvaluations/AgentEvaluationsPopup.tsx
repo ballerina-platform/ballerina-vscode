@@ -406,8 +406,8 @@ export function AgentEvaluationsPopup({ projectPath, agentName, onClose }: Agent
         goTo("list", "backward");
     };
 
-    const openHistory = () => rpcClient.getCommonRpcClient().executeCommand({
-        commands: ["ballerina.openEvaluationHistory", projectPath]
+    const openHistory = (focus?: string) => rpcClient.getCommonRpcClient().executeCommand({
+        commands: ["ballerina.openEvaluationHistory", projectPath, { agents: [agentName], focus }]
     });
 
     const openEvalsets = () => rpcClient.getVisualizerRpcClient().openView({
@@ -420,6 +420,7 @@ export function AgentEvaluationsPopup({ projectPath, agentName, onClose }: Agent
         return [
             { id: "edit", label: "Edit", icon: "edit", onSelect: () => editEvaluation(evaluation) },
             { id: "openFlow", label: "Open flow diagram", icon: "type-hierarchy", onSelect: () => runAction(functionName, "openFlow") },
+            { id: "history", label: "View history", icon: "history", onSelect: () => openHistory(functionName) },
             {
                 id: "delete", label: "Delete", icon: "trash", disabled: Boolean(statusOf(functionName)),
                 onSelect: () => runAction(functionName, "delete"),
@@ -588,7 +589,7 @@ export function AgentEvaluationsPopup({ projectPath, agentName, onClose }: Agent
                                     <Codicon name="collection" sx={{ marginRight: 6 }} />
                                     View evalsets
                                 </Button>
-                                <Button appearance="secondary" onClick={openHistory}>
+                                <Button appearance="secondary" onClick={() => openHistory()}>
                                     <Codicon name="history" sx={{ marginRight: 4 }} />
                                     View history
                                 </Button>

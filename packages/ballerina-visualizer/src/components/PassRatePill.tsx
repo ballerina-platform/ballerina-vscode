@@ -64,7 +64,7 @@ export function PassRatePill({ passRate, minPassRate, isPassing, latest }: PassR
     return (
         <Pill isPassing={isPassing} title={title}>
             {latest ? "Latest pass rate" : "Pass rate"} {toPercent(passRate)}
-            <MinRate>· needs {min}</MinRate>
+            {!isPassing && <MinRate>· needs {min}</MinRate>}
         </Pill>
     );
 }

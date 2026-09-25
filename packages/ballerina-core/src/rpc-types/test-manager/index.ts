@@ -23,7 +23,7 @@ import {
     EvaluationsRequest, GetEvaluationsResponse, EvaluationFileResponse,
     RunEvaluationsRequest, StopEvaluationsRequest, EvaluationRunState, EvaluationActionRequest, EvalsetActionRequest,
     GetEvalsetsRequest, GetEvalsetsResponse,
-    GetEvaluationHistoryRequest, GetEvaluationHistoryResponse,
+    GetEvaluationHistoryRequest, GetEvaluationHistoryResponse, DeleteEvaluationHistoryRequest,
     OpenEvaluationReportRequest,
     GetEvaluationReportRequest, GetEvaluationReportResponse,
     GitDiffRequest, GitDiffResponse,
@@ -44,6 +44,7 @@ export interface TestManagerServiceAPI {
     runEvalsetAction: (params: EvalsetActionRequest) => Promise<void>;
     getEvalsets: (params: GetEvalsetsRequest) => Promise<GetEvalsetsResponse>;
     getEvaluationHistory: (params: GetEvaluationHistoryRequest) => Promise<GetEvaluationHistoryResponse>;
+    deleteEvaluationHistory: (params: DeleteEvaluationHistoryRequest) => Promise<void>;
     openEvaluationReport: (params: OpenEvaluationReportRequest) => Promise<void>;
     getEvaluationReport: (params: GetEvaluationReportRequest) => Promise<GetEvaluationReportResponse>;
     getGitDiff: (params: GitDiffRequest) => Promise<GitDiffResponse>;

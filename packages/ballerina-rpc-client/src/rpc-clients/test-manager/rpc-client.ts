@@ -26,6 +26,7 @@ import {
     EvalsetActionRequest, runEvalsetAction,
     SourceUpdateResponse, GetEvalsetsRequest, GetEvalsetsResponse, getEvalsets,
     GetEvaluationHistoryRequest, GetEvaluationHistoryResponse, getEvaluationHistory,
+    DeleteEvaluationHistoryRequest, deleteEvaluationHistory,
     OpenEvaluationReportRequest, openEvaluationReport,
     GetEvaluationReportRequest, GetEvaluationReportResponse, getEvaluationReport,
     GitDiffRequest, GitDiffResponse, getGitDiff,
@@ -91,6 +92,10 @@ export class TestManagerServiceRpcClient implements TestManagerServiceAPI {
 
     getEvaluationHistory(params: GetEvaluationHistoryRequest): Promise<GetEvaluationHistoryResponse> {
         return this._messenger.sendRequest(getEvaluationHistory, HOST_EXTENSION, params);
+    }
+
+    deleteEvaluationHistory(params: DeleteEvaluationHistoryRequest): Promise<void> {
+        return this._messenger.sendRequest(deleteEvaluationHistory, HOST_EXTENSION, params);
     }
 
     openEvaluationReport(params: OpenEvaluationReportRequest): Promise<void> {

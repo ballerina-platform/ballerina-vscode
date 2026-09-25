@@ -24,7 +24,7 @@ import {
     runEvaluationAction, EvaluationActionRequest,
     runEvalsetAction, EvalsetActionRequest,
     AddOrUpdateTestFunctionRequest, updateTestFunction, getEvalsets, GetEvalsetsRequest,
-    getEvaluationHistory, GetEvaluationHistoryRequest,
+    getEvaluationHistory, GetEvaluationHistoryRequest, deleteEvaluationHistory, DeleteEvaluationHistoryRequest,
     openEvaluationReport, OpenEvaluationReportRequest,
     getEvaluationReport, GetEvaluationReportRequest,
     getGitDiff, GitDiffRequest,
@@ -48,6 +48,8 @@ export function registerTestManagerRpcHandlers(messenger: Messenger) {
     messenger.onRequest(runEvalsetAction, (args: EvalsetActionRequest) => rpcManger.runEvalsetAction(args));
     messenger.onRequest(getEvalsets, (args: GetEvalsetsRequest) => rpcManger.getEvalsets(args));
     messenger.onRequest(getEvaluationHistory, (args: GetEvaluationHistoryRequest) => rpcManger.getEvaluationHistory(args));
+    messenger.onRequest(deleteEvaluationHistory,
+        (args: DeleteEvaluationHistoryRequest) => rpcManger.deleteEvaluationHistory(args));
     messenger.onRequest(openEvaluationReport, (args: OpenEvaluationReportRequest) => rpcManger.openEvaluationReport(args));
     messenger.onRequest(getEvaluationReport, (args: GetEvaluationReportRequest) => rpcManger.getEvaluationReport(args));
     messenger.onRequest(getGitDiff, (args: GitDiffRequest) => rpcManger.getGitDiff(args));
