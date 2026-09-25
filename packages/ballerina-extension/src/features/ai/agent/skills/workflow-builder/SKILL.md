@@ -1,6 +1,6 @@
 ---
 name: workflow-builder
-description: Use this skill whenever you are writing or modifying a Ballerina workflow — declaring a `@workflow:Workflow` function or its `@workflow:Activity` steps, calling `workflow:run` / `workflow:getWorkflowResult` / `workflow:sendData`, or when the user describes a long-running, durable, or crash-resilient multi-step business process (order fulfillment, approval chains, sagas, scheduled multi-day processes) that must survive restarts without re-running completed work. Applies to every `.bal` file that declares or edits a workflow, including `workflows.bal` and `activities.bal`.
+description: Writes and edits durable workflows and durable agents with `ballerina/workflow`: `@workflow:Workflow` and `@workflow:Activity` functions, `workflow:run` / `sendData` / `getWorkflowResult`, data events, human tasks, child workflows, `workflow:DurableAgent` and its capabilities, serving an agent and completing its tasks, and runtime configuration. Use when the user describes a long-running, durable, resumable or crash-resilient process or agent (order fulfillment, approval chains, sagas, multi-day processes) that must survive restarts, or edits `workflows.bal` or `activities.bal`.
 ---
 
 # Workflow Builder
@@ -294,9 +294,9 @@ if decision is workflow:HumanTaskTimeoutError {
 ```
 
 A pending task is completed by a separate call, `workflow:completeHumanTask(taskWorkflowId,
-result)` — but the integrator's own user portal usually completes tasks this way already, so
-generate that call only when the user explicitly asks for a custom completion path outside the
-portal, not by default.
+result)`. A portal built on the workflow management API may already do this for the user; when
+nothing does (the program runs standalone, or is hosted on Agent Manager), generate completion
+resources as shown in "Completing human tasks and approvals" below.
 
 ### Alternative: approval over a data channel
 
@@ -350,26 +350,31 @@ poll. A parent workflow closing cancels any of its children still in flight.
 
 ## Configuration (`Config.toml`)
 
-Development, in-process, no persistence:
+Always write a `[ballerina.workflow]` section. Without one the runtime defaults to `LOCAL` at
+`localhost:7233`, and fails at startup when no server runs there.
 
 ```toml
 [ballerina.workflow]
 mode = "IN_MEMORY"
 ```
 
-Durable, backed by a local Temporal-compatible runtime:
+Default new projects to `IN_MEMORY`: in-process, lost on restart, one replica only. When the user
+asks for durability across restarts, use `LOCAL` (a local server, `temporal server start-dev`) or,
+for a server they name, `SELF_HOSTED` / `CLOUD`:
 
 ```toml
 [ballerina.workflow]
-mode = "LOCAL"
+mode = "SELF_HOSTED"
+url = "<host>:<port>"
+namespace = "<namespace>"
 taskQueue = "<queueName>"
+authApiKey = "<apiKey>"
 ```
 
-`mode` also accepts `CLOUD` and `SELF_HOSTED` for hosted/self-managed deployments — ask the user
-for connection details rather than inventing keys for those modes; only `IN_MEMORY` and `LOCAL`
-(with `taskQueue`) are confirmed here. Default new projects to `IN_MEMORY` unless the user asks
-for durability across restarts, at which point use `LOCAL` and pick a `taskQueue` name from the
-workflow's purpose.
+- Give each program its own `taskQueue`, named after its purpose; `LOCAL` takes one too.
+- `CLOUD` needs `authApiKey` or `authMtlsCert` + `authMtlsKey`. TLS is on only when one of those or
+  `authCaCert` is set.
+- Ask the user for connection details; never invent them.
 
 ## Durable agents — `workflow:DurableAgent`
 
@@ -408,6 +413,9 @@ Declaration rules, all compiler-enforced:
 `bindAgentName` exists on the object but is called by the compiler-plugin-generated module-init
 code and is not part of the public API surface — never write a call to it.
 
+Declare durable agents in `workflows.bal`, next to the workflow functions; that is where the diagram
+writes them.
+
 ### `DurableAgentConfig`
 
 | Field | Type | Default |
@@ -438,6 +446,12 @@ when the agent registers, so the program does not start.
 For a capability that needs no extra configuration, pass the bare value — an `@workflow:Activity`
 function in `activities` (as the example above does), or an `@ai:AgentTool` function,
 `ai:ToolConfig` or `ai:BaseToolKit` in `tools`. The records below are the with-configuration forms.
+
+#### Activities or tools
+
+Both run as recorded steps. Put side effects and connector calls in `activities`: only an activity
+takes a `retryPolicy`, `bindings`, or an authenticated client. Use `tools` for existing
+`@ai:AgentTool` functions, toolkits such as MCP, and read-only or pure computations.
 
 #### `ActivityDecl`
 
@@ -554,6 +568,14 @@ Declare `events` and `humanTasks` in the mapping form keyed by name, as above. T
 deprecated and warns (`WORKFLOW_159`): a mapping key is a compile-time constant by construction,
 which the name must be.
 
+Each event channel and each human task becomes a tool the model calls; the agent then suspends
+durably until `sendData` delivers the data or someone completes the task.
+
+A channel named exactly `chat` (`events: {chat: {request: string, response: string}}`) makes the
+agent conversational: after each answer it waits for the next `chat` message, until the model calls
+the built-in `endConversation` tool or `eventTimeout` passes. Start it with `run("")` so it waits
+for the first message.
+
 ### Driving the agent
 
 Every one of these is a plain method, **not** a remote method — call them with `.`, never `->`.
@@ -582,3 +604,86 @@ string token = check <agentName>.sendData(instanceId, "<channelName>", <data>);
   crashes, calling again after restart resumes the wait, because the result lives in history.
 
 Prefer the waiting forms unless the user specifically asks to poll.
+
+### Serving a durable agent over HTTP
+
+The `ai:Listener` chat trigger does not work with a durable agent. Serve it from an HTTP service
+that returns the instance ID:
+
+```ballerina
+type ConversationRef record {|
+    string instanceId;
+|};
+
+service /<agent\-name> on new http:Listener(<port>) {
+    resource function post conversations() returns ConversationRef|error {
+        string instanceId = check <agentName>.run("");
+        return {instanceId};
+    }
+
+    resource function post conversations/[string instanceId]/messages(@http:Payload string message) returns string|error {
+        string token = check <agentName>.sendData(instanceId, "chat", message);
+        string reply = check <agentName>.waitForDataResult(instanceId, token);
+        return reply;
+    }
+
+    resource function get conversations/[string instanceId]/result() returns string|http:Accepted|error {
+        string|error result = <agentName>.getResult(instanceId);
+        if result is workflow:AgentBusyError {
+            return http:ACCEPTED;
+        }
+        return result;
+    }
+}
+```
+
+- Never call `run` and `waitForResult` in one request: a timeout or restart leaves the run with
+  nobody holding its ID.
+- `run` assigns the ID, so a session key cannot be the instance ID. Persist the mapping when you
+  need one.
+- After a restart, `workflow:getPendingAgentEvents(instanceId)` returns unanswered turns with their
+  tokens.
+
+### Completing human tasks and approvals
+
+When no portal completes human tasks and approval reviews, add these resources to the agent's
+service, importing `ballerina/workflow.management`:
+
+```ballerina
+    resource function get conversations/[string instanceId]/tasks() returns management:HumanTaskGroup[]|error {
+        management:HumanTaskGroup[] tasks = check management:listPendingHumanTasks(instanceId);
+        return tasks;
+    }
+
+    resource function post tasks/[string taskId]/complete(@http:Payload json result) returns error? {
+        check management:completeHumanTask(taskId, result, callerRoles = <callerRoles>);
+    }
+
+    resource function get conversations/[string instanceId]/reviews() returns management:ReviewActivitySummary[]|error {
+        management:ReviewActivitySummary[] reviews = check management:listPendingReviewActivities(instanceId);
+        return reviews;
+    }
+
+    resource function post reviews/[string taskId]/decision(@http:Payload management:ReviewDecision decision) returns error? {
+        check management:completeReviewActivity(taskId, decision, callerRoles = <callerRoles>);
+    }
+```
+
+- `ReviewDecision` is `{action: "proceed"|"proceed-with-input"|"reject", input?, feedback?}`.
+- `callerRoles` is checked against the task's `userRoles`. Take it from the caller's authenticated
+  identity; never hard-code it.
+- Alternatively, `enableManagementApi = true` under `[ballerina.workflow.management.rest]`, with
+  `import ballerina/workflow.management.rest as _;`, serves a REST API on its own port (8234).
+
+### Hosting a durable agent on Agent Manager
+
+The agent-builder skill's "Hosting on WSO2 Agent Manager" rules apply, plus:
+
+- Use `SELF_HOSTED` or `CLOUD`; `IN_MEMORY` loses every run on each redeploy.
+- Agent Manager runs no workflow server and blocks port 7233. Tell the user the server must answer
+  on port 443 at a public address, or the platform admin must allow the egress.
+- Set the connection through `BAL_CONFIG_VAR_BALLERINA_WORKFLOW_MODE`, `..._URL`, `..._NAMESPACE`,
+  `..._TASKQUEUE`, and `..._AUTHAPIKEY` as a secret. Certificate files go in as file mounts.
+- Serve task completion from the agent's own service; the management API's separate port is not
+  routed.
+- Behind the Chat Agent contract, persist each `session_id` → instance ID mapping.
