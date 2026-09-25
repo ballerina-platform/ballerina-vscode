@@ -1011,18 +1011,19 @@ public class ActivityCallBuilder extends CallBuilder {
      */
     static void addHiddenReviewProperties(NodeBuilder nodeBuilder, ReviewKeys keys, ReviewFormValues review,
                                           String titleDoc, String descriptionDoc, boolean dualModeText) {
-        addHiddenRetrySubFieldProperty(nodeBuilder, keys.userRoles(),
-                RETRY_USER_ROLES_LABEL, RETRY_USER_ROLES_DOC, "string|string[]", review.userRoles());
-        addHiddenRetrySubFieldProperty(nodeBuilder, keys.users(),
-                RETRY_USERS_LABEL, RETRY_USERS_DOC, "string|string[]", review.users());
-        addHiddenRetrySubFieldProperty(nodeBuilder, keys.excludedUsers(),
-                RETRY_EXCLUDED_USERS_LABEL, RETRY_EXCLUDED_USERS_DOC, "string|string[]", review.excludedUsers());
-        addHiddenRetrySubFieldProperty(nodeBuilder, keys.excludedRoles(),
-                RETRY_EXCLUDED_ROLES_LABEL, RETRY_EXCLUDED_ROLES_DOC, "string|string[]", review.excludedRoles());
-        addHiddenRetrySubFieldProperty(nodeBuilder, keys.administratorRoles(), RETRY_ADMINISTRATOR_ROLES_LABEL,
-                RETRY_ADMINISTRATOR_ROLES_DOC, "string|string[]", review.administratorRoles());
-        addHiddenRetrySubFieldProperty(nodeBuilder, keys.administratorUsers(), RETRY_ADMINISTRATOR_USERS_LABEL,
-                RETRY_ADMINISTRATOR_USERS_DOC, "string|string[]", review.administratorUsers());
+        // The audience values are shaped for the list mode (names as a list, anything else as the
+        // expression it is), the way the sub-form's role fields edit them.
+        addHiddenRoleProperty(nodeBuilder, keys.userRoles(), RETRY_USER_ROLES_LABEL, RETRY_USER_ROLES_DOC,
+                review.userRoles());
+        addHiddenRoleProperty(nodeBuilder, keys.users(), RETRY_USERS_LABEL, RETRY_USERS_DOC, review.users());
+        addHiddenRoleProperty(nodeBuilder, keys.excludedUsers(), RETRY_EXCLUDED_USERS_LABEL,
+                RETRY_EXCLUDED_USERS_DOC, review.excludedUsers());
+        addHiddenRoleProperty(nodeBuilder, keys.excludedRoles(), RETRY_EXCLUDED_ROLES_LABEL,
+                RETRY_EXCLUDED_ROLES_DOC, review.excludedRoles());
+        addHiddenRoleProperty(nodeBuilder, keys.administratorRoles(), RETRY_ADMINISTRATOR_ROLES_LABEL,
+                RETRY_ADMINISTRATOR_ROLES_DOC, review.administratorRoles());
+        addHiddenRoleProperty(nodeBuilder, keys.administratorUsers(), RETRY_ADMINISTRATOR_USERS_LABEL,
+                RETRY_ADMINISTRATOR_USERS_DOC, review.administratorUsers());
         if (dualModeText) {
             addHiddenReviewTextProperty(nodeBuilder, keys.title(), RETRY_TITLE_LABEL, titleDoc, review.title());
             addHiddenReviewTextProperty(nodeBuilder, keys.description(), RETRY_DESCRIPTION_LABEL, descriptionDoc,
@@ -1091,6 +1092,15 @@ public class ActivityCallBuilder extends CallBuilder {
                 .editable(true)
                 .optional(optional)
                 .build();
+    }
+
+    private static void addHiddenRoleProperty(NodeBuilder nodeBuilder, String key, String label, String description,
+                                              String source) {
+        WorkflowUtil.addRoleFieldTypes(nodeBuilder.properties().custom()
+                .metadata().label(label).description(description).stepOut(), WorkflowUtil.roleFieldValue(source))
+                .editable(true).optional(true).hidden(true)
+                .stepOut()
+                .addProperty(key);
     }
 
     private static void addHiddenRetrySubFieldProperty(NodeBuilder nodeBuilder, String key,

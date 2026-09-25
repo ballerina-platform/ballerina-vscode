@@ -1,19 +1,19 @@
 {
   "start": {
-    "line": 42,
+    "line": 30,
     "offset": 0
   },
   "end": {
-    "line": 49,
+    "line": 33,
     "offset": 1
   },
-  "source": "workflow_operations.bal",
-  "description": "Test workflow:run returns WORKFLOW_RUN and workflow:sendData returns SEND_DATA node",
+  "source": "workflow_child_operations.bal",
+  "description": "workflow:run and workflow:sendData re-read from source offer the workflow as a dropdown, as their templates do",
   "diagram": {
-    "fileName": "workflow_operations.bal",
+    "fileName": "workflow_child_operations.bal",
     "nodes": [
       {
-        "id": "74804",
+        "id": "62776",
         "metadata": {
           "label": "Start",
           "data": {
@@ -26,69 +26,23 @@
         "codedata": {
           "node": "EVENT_START",
           "lineRange": {
-            "fileName": "workflow_operations.bal",
+            "fileName": "workflow_child_operations.bal",
             "startLine": {
-              "line": 42,
+              "line": 30,
               "offset": 38
             },
             "endLine": {
-              "line": 49,
+              "line": 33,
               "offset": 1
             }
           },
-          "sourceCode": "public function main() returns error? {\n    // Workflow run - should be WORKFLOW_RUN\n    string workflowId = check workflow:run(orderWorkflow, {orderId: \"123\", customerName: \"John\"});\n    io:println(\"Workflow started with ID: \" + workflowId);\n\n    // Send data - should be SEND_DATA\n    check workflow:sendData(orderWorkflow, \"4422\", {approved: true, approverName: \"Admin\"}, \"approve\");\n}"
+          "sourceCode": "public function main() returns error? {\n    string id = check workflow:run(auditClaim, {claimId: \"42\"});\n    check workflow:sendData(auditClaim, id, \"reviewed\", true);\n}"
         },
         "returning": false,
-        "diagnostics": {
-          "hasDiagnostics": true
-        },
         "flags": 0
       },
       {
-        "id": "74444",
-        "metadata": {
-          "label": "Comment",
-          "description": "Workflow run - should be WORKFLOW_RUN"
-        },
-        "codedata": {
-          "node": "COMMENT",
-          "lineRange": {
-            "fileName": "workflow_operations.bal",
-            "startLine": {
-              "line": 43,
-              "offset": 0
-            },
-            "endLine": {
-              "line": 43,
-              "offset": 44
-            }
-          },
-          "sourceCode": "Workflow run - should be WORKFLOW_RUN"
-        },
-        "returning": false,
-        "properties": {
-          "comment": {
-            "metadata": {
-              "label": "Comment",
-              "description": "Comment to describe the flow"
-            },
-            "types": [
-              {
-                "fieldType": "TEXT",
-                "selected": true
-              }
-            ],
-            "value": "Workflow run - should be WORKFLOW_RUN",
-            "optional": false,
-            "editable": true,
-            "advanced": false,
-            "hidden": false
-          }
-        },
-        "flags": 0
-      },
-      {
-        "id": "75614",
+        "id": "62684",
         "metadata": {
           "label": "Run Workflow",
           "description": "Run a workflow instance",
@@ -99,20 +53,20 @@
           "org": "ballerina",
           "module": "workflow",
           "packageName": ".",
-          "symbol": "orderWorkflow",
+          "symbol": "auditClaim",
           "version": "0.0.0",
           "lineRange": {
-            "fileName": "workflow_operations.bal",
+            "fileName": "workflow_child_operations.bal",
             "startLine": {
-              "line": 44,
+              "line": 31,
               "offset": 4
             },
             "endLine": {
-              "line": 44,
-              "offset": 98
+              "line": 31,
+              "offset": 64
             }
           },
-          "sourceCode": "// Workflow run - should be WORKFLOW_RUN\n    string workflowId = check workflow:run(orderWorkflow, {orderId: \"123\", customerName: \"John\"});"
+          "sourceCode": "string id = check workflow:run(auditClaim, {claimId: \"42\"});"
         },
         "returning": false,
         "properties": {
@@ -126,18 +80,22 @@
                 "fieldType": "SINGLE_SELECT",
                 "options": [
                   {
-                    "label": "orderWorkflow",
-                    "value": "orderWorkflow"
+                    "label": "auditClaim",
+                    "value": "auditClaim"
                   },
                   {
-                    "label": "reviewedOrderWorkflow",
-                    "value": "reviewedOrderWorkflow"
+                    "label": "settleClaim",
+                    "value": "settleClaim"
+                  },
+                  {
+                    "label": "processClaim",
+                    "value": "processClaim"
                   }
                 ],
                 "selected": true
               }
             ],
-            "value": "orderWorkflow",
+            "value": "auditClaim",
             "optional": false,
             "editable": true,
             "advanced": false,
@@ -154,10 +112,10 @@
             "types": [
               {
                 "fieldType": "RECORD_MAP_EXPRESSION",
-                "ballerinaType": "OrderInput",
+                "ballerinaType": "ClaimInput",
                 "typeMembers": [
                   {
-                    "type": "OrderInput",
+                    "type": "ClaimInput",
                     "packageInfo": "$anon:.:0.0.0",
                     "packageName": ".",
                     "kind": "RECORD_TYPE",
@@ -168,11 +126,11 @@
               },
               {
                 "fieldType": "EXPRESSION",
-                "ballerinaType": "OrderInput",
+                "ballerinaType": "ClaimInput",
                 "selected": false
               }
             ],
-            "value": "{orderId: \"123\", customerName: \"John\"}",
+            "value": "{claimId: \"42\"}",
             "placeholder": "",
             "optional": false,
             "editable": true,
@@ -210,21 +168,21 @@
                 "selected": true
               }
             ],
-            "value": "workflowId",
+            "value": "id",
             "optional": false,
             "editable": false,
             "advanced": false,
             "hidden": false,
             "codedata": {
               "lineRange": {
-                "fileName": "workflow_operations.bal",
+                "fileName": "workflow_child_operations.bal",
                 "startLine": {
-                  "line": 44,
+                  "line": 31,
                   "offset": 11
                 },
                 "endLine": {
-                  "line": 44,
-                  "offset": 21
+                  "line": 31,
+                  "offset": 13
                 }
               }
             }
@@ -252,133 +210,7 @@
         "flags": 1
       },
       {
-        "id": "76566",
-        "metadata": {
-          "label": "println",
-          "description": "Prints `any`, `error` or string templates value(s) to the standard output stream and terminates the line.\n```ballerina\nio:println(\"Start processing the CSV file from \", srcFileName);\n```\n",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_io_1.8.1.png"
-        },
-        "codedata": {
-          "node": "FUNCTION_CALL",
-          "org": "ballerina",
-          "module": "io",
-          "packageName": "io",
-          "symbol": "println",
-          "version": "1.8.1",
-          "lineRange": {
-            "fileName": "workflow_operations.bal",
-            "startLine": {
-              "line": 45,
-              "offset": 4
-            },
-            "endLine": {
-              "line": 45,
-              "offset": 58
-            }
-          },
-          "sourceCode": "io:println(\"Workflow started with ID: \" + workflowId);"
-        },
-        "returning": false,
-        "properties": {
-          "values": {
-            "metadata": {
-              "label": "values",
-              "description": "The value(s) to be printed"
-            },
-            "types": [
-              {
-                "fieldType": "REPEATABLE_LIST",
-                "ballerinaType": "io:Printable",
-                "template": {
-                  "types": [
-                    {
-                      "fieldType": "EXPRESSION",
-                      "ballerinaType": "io:Printable",
-                      "selected": false
-                    }
-                  ],
-                  "optional": false,
-                  "editable": false,
-                  "advanced": false,
-                  "hidden": false
-                },
-                "selected": true
-              }
-            ],
-            "value": [
-              {
-                "types": [
-                  {
-                    "fieldType": "EXPRESSION",
-                    "ballerinaType": "io:Printable",
-                    "selected": true
-                  }
-                ],
-                "value": "\"Workflow started with ID: \" + workflowId",
-                "optional": false,
-                "editable": false,
-                "advanced": false,
-                "hidden": false
-              }
-            ],
-            "placeholder": "()",
-            "optional": false,
-            "editable": true,
-            "advanced": false,
-            "hidden": false,
-            "codedata": {
-              "kind": "REST_PARAMETER",
-              "originalName": "values"
-            }
-          }
-        },
-        "flags": 0
-      },
-      {
-        "id": "77445",
-        "metadata": {
-          "label": "Comment",
-          "description": "Send data - should be SEND_DATA"
-        },
-        "codedata": {
-          "node": "COMMENT",
-          "lineRange": {
-            "fileName": "workflow_operations.bal",
-            "startLine": {
-              "line": 46,
-              "offset": 0
-            },
-            "endLine": {
-              "line": 47,
-              "offset": 38
-            }
-          },
-          "sourceCode": "Send data - should be SEND_DATA"
-        },
-        "returning": false,
-        "properties": {
-          "comment": {
-            "metadata": {
-              "label": "Comment",
-              "description": "Comment to describe the flow"
-            },
-            "types": [
-              {
-                "fieldType": "TEXT",
-                "selected": true
-              }
-            ],
-            "value": "Send data - should be SEND_DATA",
-            "optional": false,
-            "editable": true,
-            "advanced": false,
-            "hidden": false
-          }
-        },
-        "flags": 0
-      },
-      {
-        "id": "79587",
+        "id": "63674",
         "metadata": {
           "label": "Send Data",
           "description": "Send data to an existing workflow instance",
@@ -392,17 +224,17 @@
           "symbol": "sendData",
           "version": "0.10.0",
           "lineRange": {
-            "fileName": "workflow_operations.bal",
+            "fileName": "workflow_child_operations.bal",
             "startLine": {
-              "line": 48,
+              "line": 32,
               "offset": 4
             },
             "endLine": {
-              "line": 48,
-              "offset": 103
+              "line": 32,
+              "offset": 62
             }
           },
-          "sourceCode": "// Send data - should be SEND_DATA\n    check workflow:sendData(orderWorkflow, \"4422\", {approved: true, approverName: \"Admin\"}, \"approve\");"
+          "sourceCode": "check workflow:sendData(auditClaim, id, \"reviewed\", true);"
         },
         "returning": false,
         "properties": {
@@ -416,18 +248,22 @@
                 "fieldType": "SINGLE_SELECT",
                 "options": [
                   {
-                    "label": "orderWorkflow",
-                    "value": "orderWorkflow"
+                    "label": "auditClaim",
+                    "value": "auditClaim"
                   },
                   {
-                    "label": "reviewedOrderWorkflow",
-                    "value": "reviewedOrderWorkflow"
+                    "label": "settleClaim",
+                    "value": "settleClaim"
+                  },
+                  {
+                    "label": "processClaim",
+                    "value": "processClaim"
                   }
                 ],
                 "selected": true
               }
             ],
-            "value": "orderWorkflow",
+            "value": "auditClaim",
             "optional": false,
             "editable": true,
             "advanced": false,
@@ -445,15 +281,15 @@
               {
                 "fieldType": "TEXT",
                 "ballerinaType": "string",
-                "selected": true
+                "selected": false
               },
               {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string",
-                "selected": false
+                "selected": true
               }
             ],
-            "value": "\"4422\"",
+            "value": "id",
             "placeholder": "\"\"",
             "optional": false,
             "editable": true,
@@ -473,7 +309,7 @@
               {
                 "fieldType": "TEXT",
                 "ballerinaType": "string",
-                "selected": false
+                "selected": true
               },
               {
                 "fieldType": "EXPRESSION",
@@ -481,21 +317,12 @@
                 "selected": false
               }
             ],
-            "value": "{approved: true, approverName: \"Admin\"}",
+            "value": "\"reviewed\"",
             "placeholder": "\"\"",
             "optional": false,
             "editable": true,
             "advanced": false,
             "hidden": false,
-            "diagnostics": {
-              "hasDiagnostics": true,
-              "diagnostics": [
-                {
-                  "severity": "ERROR",
-                  "message": "a type compatible with mapping constructor expressions not found in type 'string'"
-                }
-              ]
-            },
             "codedata": {
               "kind": "REQUIRED",
               "originalName": "dataName"
@@ -513,7 +340,7 @@
                 "selected": false
               }
             ],
-            "value": "\"approve\"",
+            "value": "true",
             "placeholder": "{}",
             "optional": false,
             "editable": true,
@@ -541,9 +368,6 @@
             "advanced": true,
             "hidden": true
           }
-        },
-        "diagnostics": {
-          "hasDiagnostics": true
         },
         "flags": 1
       }

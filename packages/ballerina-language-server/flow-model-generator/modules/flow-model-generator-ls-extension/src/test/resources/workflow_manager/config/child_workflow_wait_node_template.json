@@ -1,0 +1,82 @@
+{
+  "source": "workflow_function/functions.bal",
+  "position": {
+    "line": 16,
+    "offset": 4
+  },
+  "description": "Child Workflow Wait node template",
+  "codedata": {
+    "node": "CHILD_WORKFLOW_WAIT"
+  },
+  "output": {
+    "id": "31",
+    "metadata": {
+      "label": "Wait for Child Workflow",
+      "description": "Durably wait for a started child workflow's result"
+    },
+    "codedata": {
+      "node": "CHILD_WORKFLOW_WAIT",
+      "org": "ballerina",
+      "module": "workflow",
+      "object": "Context",
+      "symbol": "waitForChildWorkflow",
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "childWorkflowId": {
+        "metadata": {
+          "label": "Child Workflow ID",
+          "description": "The child workflow ID returned by Run Child Workflow."
+        },
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string",
+            "selected": true
+          }
+        ],
+        "placeholder": "childWorkflowId",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "type": {
+        "metadata": {
+          "label": "Result Type",
+          "description": "Type of the child workflow's result."
+        },
+        "types": [
+          {
+            "fieldType": "TYPE",
+            "selected": false
+          }
+        ],
+        "value": "json",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "variable": {
+        "metadata": {
+          "label": "Result Variable Name",
+          "description": "Variable name to receive the child workflow's result."
+        },
+        "types": [
+          {
+            "fieldType": "IDENTIFIER",
+            "selected": false
+          }
+        ],
+        "value": "childResult",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      }
+    },
+    "flags": 0
+  }
+}

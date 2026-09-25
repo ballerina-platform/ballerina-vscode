@@ -20,6 +20,9 @@
 // putting each value in the right mode, so a reference is not written back as a literal.
 
 import { capabilityValueText, seedCapabilityValue, SeedableProperty } from "./capabilityFieldValues";
+// The same table core's `parseTextArraySource` is held to, so this copy of the parser cannot
+// drift from it without one of the two suites failing.
+import corpus from "../../../../../ballerina-core/src/utils/__fixtures__/roleValues.json";
 
 const dualMode = (): SeedableProperty => ({
     value: "",
@@ -33,7 +36,61 @@ const expressionOnly = (): SeedableProperty => ({ value: "", types: [{ fieldType
 
 const modeOf = (property: SeedableProperty) => property.types?.find((type) => type.selected)?.fieldType;
 
+const listMode = (): SeedableProperty => ({
+    value: "",
+    types: [
+        { fieldType: "TEXT_SET", selected: true },
+        { fieldType: "EXPRESSION", selected: false },
+    ],
+});
+
+describe("the shared role-value corpus", () => {
+    it.each((corpus as { note: string; source: string; items: string[] | null }[])
+        .filter((entry) => entry.source !== "")
+        .map((entry) => [entry.note, entry.source, entry.items] as const))(
+        "%s", (_note, source, items) => {
+            const property = listMode();
+            seedCapabilityValue(property, source);
+            expect(property.value).toEqual(items ?? source);
+        });
+});
+
 describe("seedCapabilityValue", () => {
+    it("fills a role list with the names a literal or a list names", () => {
+        const single = listMode();
+        seedCapabilityValue(single, '"finance"');
+        expect(single.value).toEqual(["finance"]);
+        expect(modeOf(single)).toBe("TEXT_SET");
+
+        const several = listMode();
+        seedCapabilityValue(several, '["finance", "manager"]');
+        expect(several.value).toEqual(["finance", "manager"]);
+        expect(modeOf(several)).toBe("TEXT_SET");
+    });
+
+    // The one escape a re-encode cannot reproduce. Kept identical to the core decoder and to
+    // WorkflowUtil on the language server side.
+    it("decodes a numeric escape in a role list rather than doubling its backslash", () => {
+        const property = listMode();
+        seedCapabilityValue(property, '["grin \\u{1F600}", "\\u{41}BC"]');
+        expect(property.value).toEqual(["grin \u{1F600}", "ABC"]);
+    });
+
+    it("names nobody for the shapes that state no role", () => {
+        for (const source of ["()", "[]"]) {
+            const property = listMode();
+            seedCapabilityValue(property, source);
+            expect(property.value).toEqual([]);
+        }
+    });
+
+    it("keeps a role reference an expression even beside a role list", () => {
+        const property = listMode();
+        seedCapabilityValue(property, "financeRoles");
+        expect(property.value).toBe("financeRoles");
+        expect(modeOf(property)).toBe("EXPRESSION");
+    });
+
     it("puts a string literal in the text box, without its quotes", () => {
         const property = dualMode();
         seedCapabilityValue(property, '"finance"');

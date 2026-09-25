@@ -220,9 +220,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -243,9 +243,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -266,9 +266,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -289,9 +289,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -312,9 +312,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -335,9 +335,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -437,12 +437,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -455,12 +460,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -473,12 +483,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -491,12 +506,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -509,12 +529,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -527,12 +552,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -720,9 +750,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -743,9 +773,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -766,9 +796,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -789,9 +819,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -812,9 +842,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -835,9 +865,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -996,9 +1026,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -1019,9 +1049,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -1042,9 +1072,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -1065,9 +1095,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -1088,9 +1118,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -1111,9 +1141,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -1295,12 +1325,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -1313,12 +1348,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -1331,12 +1371,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -1349,12 +1394,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -1367,12 +1417,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -1385,12 +1440,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -1687,9 +1747,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -1710,9 +1770,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -1733,9 +1793,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -1756,9 +1816,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -1779,9 +1839,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -1802,9 +1862,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -1904,12 +1964,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -1922,12 +1987,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -1940,12 +2010,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -1958,12 +2033,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -1976,12 +2056,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -1994,12 +2079,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -2191,9 +2281,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -2214,9 +2304,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -2237,9 +2327,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -2260,9 +2350,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -2283,9 +2373,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -2306,9 +2396,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -2467,9 +2557,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -2490,9 +2580,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -2513,9 +2603,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -2536,9 +2626,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -2559,9 +2649,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -2582,9 +2672,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -2772,12 +2862,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -2790,12 +2885,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -2808,12 +2908,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -2826,12 +2931,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -2844,12 +2954,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -2862,12 +2977,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -3019,72 +3139,66 @@
         },
         "returning": false,
         "properties": {
-          "connection": {
-            "metadata": {
-              "label": "Connection",
-              "description": "Connection to use",
-              "data": {
-                "connectorType": "Default"
-              }
-            },
-            "types": [
-              {
-                "fieldType": "EXPRESSION",
-                "selected": true
-              }
-            ],
-            "value": "ctx",
-            "optional": false,
-            "editable": false,
-            "advanced": false,
-            "hidden": true
-          },
-          "childWorkflow": {
+          "workflow": {
             "metadata": {
               "label": "Child Workflow",
-              "description": "The child workflow function (must have `@Workflow`)"
+              "description": "The workflow to start as a child of this one"
             },
             "types": [
               {
-                "fieldType": "EXPRESSION",
-                "ballerinaType": "function",
+                "fieldType": "SINGLE_SELECT",
+                "options": [
+                  {
+                    "label": "bookingFlow",
+                    "value": "bookingFlow"
+                  },
+                  {
+                    "label": "childFlow",
+                    "value": "childFlow"
+                  },
+                  {
+                    "label": "reconcileFlow",
+                    "value": "reconcileFlow"
+                  }
+                ],
                 "selected": true
               }
             ],
             "value": "childFlow",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "REQUIRED"
+            }
+          },
+          "input": {
+            "metadata": {
+              "label": "Input",
+              "description": "Input data for the child workflow"
+            },
+            "types": [
+              {
+                "fieldType": "TEXT",
+                "ballerinaType": "string",
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string",
+                "selected": true
+              }
+            ],
+            "value": "billId",
             "placeholder": "",
             "optional": false,
             "editable": true,
             "advanced": false,
             "hidden": false,
             "codedata": {
-              "kind": "REQUIRED",
-              "originalName": "childWorkflow"
+              "dependentProperty": "workflow"
             }
-          },
-          "input": {
-            "metadata": {
-              "label": "Input",
-              "description": "Optional input for the child workflow. Must match the child workflow\nfunction's declared input parameter type (any `anydata` subtype)"
-            },
-            "types": [
-              {
-                "fieldType": "EXPRESSION",
-                "ballerinaType": "anydata",
-                "selected": true
-              }
-            ],
-            "value": "billId",
-            "placeholder": "{}",
-            "optional": true,
-            "editable": true,
-            "advanced": false,
-            "hidden": false,
-            "codedata": {
-              "kind": "DEFAULTABLE",
-              "originalName": "input"
-            },
-            "defaultValue": "()"
           },
           "stepId": {
             "metadata": {
@@ -3113,23 +3227,6 @@
               "originalName": "stepId"
             },
             "defaultValue": "()"
-          },
-          "checkError": {
-            "metadata": {
-              "label": "Check Error",
-              "description": "Trigger error flow"
-            },
-            "types": [
-              {
-                "fieldType": "FLAG",
-                "selected": true
-              }
-            ],
-            "value": true,
-            "optional": false,
-            "editable": true,
-            "advanced": true,
-            "hidden": true
           },
           "variable": {
             "metadata": {
@@ -3358,9 +3455,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -3381,9 +3478,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -3404,9 +3501,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -3427,9 +3524,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -3450,9 +3547,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -3473,9 +3570,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -3575,12 +3672,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -3593,12 +3695,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -3611,12 +3718,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -3629,12 +3741,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -3647,12 +3764,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -3665,12 +3787,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -3858,9 +3985,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -3881,9 +4008,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -3904,9 +4031,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -3927,9 +4054,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -3950,9 +4077,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -3973,9 +4100,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -4134,9 +4261,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -4157,9 +4284,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -4180,9 +4307,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -4203,9 +4330,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -4226,9 +4353,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -4249,9 +4376,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -4433,12 +4560,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -4451,12 +4583,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -4469,12 +4606,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -4487,12 +4629,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -4505,12 +4652,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -4523,12 +4675,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -4825,9 +4982,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -4848,9 +5005,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -4871,9 +5028,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -4894,9 +5051,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -4917,9 +5074,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -4940,9 +5097,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -5042,12 +5199,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -5060,12 +5222,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -5078,12 +5245,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -5096,12 +5268,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -5114,12 +5291,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -5132,12 +5314,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -5325,9 +5512,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -5348,9 +5535,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -5371,9 +5558,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -5394,9 +5581,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -5417,9 +5604,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -5440,9 +5627,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -5601,9 +5788,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -5624,9 +5811,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -5647,9 +5834,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -5670,9 +5857,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -5693,9 +5880,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -5716,9 +5903,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -5900,12 +6087,19 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "\"ops\"",
+            "value": [
+              "ops"
+            ],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -5918,12 +6112,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -5936,12 +6135,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -5954,12 +6158,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -5972,12 +6181,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -5990,12 +6204,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -6292,9 +6511,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -6315,9 +6534,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -6338,9 +6557,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -6361,9 +6580,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -6384,9 +6603,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -6407,9 +6626,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -6509,12 +6728,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -6527,12 +6751,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -6545,12 +6774,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -6563,12 +6797,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -6581,12 +6820,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -6599,12 +6843,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -6792,9 +7041,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -6815,9 +7064,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -6838,9 +7087,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -6861,9 +7110,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -6884,9 +7133,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -6907,9 +7156,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -7068,9 +7317,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -7091,9 +7340,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -7114,9 +7363,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -7137,9 +7386,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -7160,9 +7409,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -7183,9 +7432,9 @@
                   },
                   "types": [
                     {
-                      "fieldType": "TEXT",
-                      "ballerinaType": "string",
-                      "selected": false
+                      "fieldType": "TEXT_SET",
+                      "ballerinaType": "string[]",
+                      "selected": true
                     },
                     {
                       "fieldType": "EXPRESSION",
@@ -7367,12 +7616,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -7385,12 +7639,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -7403,12 +7662,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -7421,12 +7685,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -7439,12 +7708,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -7457,12 +7731,17 @@
             },
             "types": [
               {
+                "fieldType": "TEXT_SET",
+                "ballerinaType": "string[]",
+                "selected": true
+              },
+              {
                 "fieldType": "EXPRESSION",
                 "ballerinaType": "string|string[]",
-                "selected": true
+                "selected": false
               }
             ],
-            "value": "",
+            "value": [],
             "optional": true,
             "editable": true,
             "advanced": false,

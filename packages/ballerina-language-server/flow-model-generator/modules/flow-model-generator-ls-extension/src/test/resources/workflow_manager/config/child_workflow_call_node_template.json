@@ -1,37 +1,33 @@
 {
   "source": "workflow_function/functions.bal",
   "position": {
-    "line": 3,
-    "offset": 0
+    "line": 16,
+    "offset": 4
   },
-  "description": "Workflow run node template",
+  "description": "Child Workflow Call node template",
   "codedata": {
-    "node": "WORKFLOW_RUN",
-    "org": "test",
-    "module": "workflow_function",
-    "symbol": "orderWorkflow",
-    "version": "0.1.0"
+    "node": "CHILD_WORKFLOW_CALL",
+    "symbol": "orderWorkflow"
   },
   "output": {
     "id": "31",
     "metadata": {
-      "label": "Run Workflow",
-      "description": "Run a workflow instance"
+      "label": "orderWorkflow",
+      "description": "Run a child workflow and durably wait for its result"
     },
     "codedata": {
-      "node": "WORKFLOW_RUN",
+      "node": "CHILD_WORKFLOW_CALL",
       "org": "ballerina",
       "module": "workflow",
       "symbol": "orderWorkflow",
-      "version": "0.1.0",
       "isNew": true
     },
     "returning": false,
     "properties": {
       "workflow": {
         "metadata": {
-          "label": "Workflow",
-          "description": "The workflow to start"
+          "label": "Child Workflow",
+          "description": "The workflow to start as a child of this one"
         },
         "types": [
           {
@@ -57,7 +53,7 @@
       "input": {
         "metadata": {
           "label": "Input",
-          "description": "Input data for the workflow"
+          "description": "Input data for the child workflow"
         },
         "types": [
           {
@@ -90,10 +86,30 @@
           "dependentProperty": "workflow"
         }
       },
+      "type": {
+        "metadata": {
+          "label": "Result Type",
+          "description": "Type of the child workflow's result."
+        },
+        "types": [
+          {
+            "fieldType": "TYPE",
+            "selected": false
+          }
+        ],
+        "value": "json",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "dependentProperty": "workflow"
+        }
+      },
       "variable": {
         "metadata": {
-          "label": "Workflow ID Variable Name",
-          "description": "Variable name to receive the started workflow ID."
+          "label": "Result Variable Name",
+          "description": "Variable name to receive the child workflow's result."
         },
         "types": [
           {
@@ -101,11 +117,38 @@
             "selected": false
           }
         ],
-        "value": "workflowId",
+        "value": "childResult",
         "optional": false,
         "editable": true,
         "advanced": false,
         "hidden": false
+      },
+      "stepId": {
+        "metadata": {
+          "label": "Step Id",
+          "description": "Identity of this step within the workflow, matching a node of the descriptor graph. A constant string; defaults to one the compiler generates"
+        },
+        "types": [
+          {
+            "fieldType": "TEXT",
+            "ballerinaType": "string",
+            "selected": true
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string?",
+            "selected": false
+          }
+        ],
+        "value": "",
+        "placeholder": "",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false,
+        "codedata": {
+          "originalName": "stepId"
+        }
       }
     },
     "flags": 0

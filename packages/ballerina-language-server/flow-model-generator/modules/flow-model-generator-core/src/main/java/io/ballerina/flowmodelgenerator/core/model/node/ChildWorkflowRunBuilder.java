@@ -128,6 +128,8 @@ public class ChildWorkflowRunBuilder extends NodeBuilder {
                         .description(INPUT_DOC)
                         .stepOut()
                     .typeWithExpression(inputType, moduleInfo)
+                    // Typed from the chosen workflow, so a new choice in the form retypes it.
+                    .codedata().dependentProperty(WORKFLOW_NAME_KEY).stepOut()
                     .placeholder("")
                     .value("")
                     .editable(true)
