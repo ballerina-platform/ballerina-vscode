@@ -45,6 +45,9 @@ const MinRate = styled.span`
 
 export const toPercent = (rate: number) => `${(rate * 100).toFixed(0)}%`;
 
+// `bal test` names the rows of a `string[][]` data provider by index.
+export const outcomeLabel = (id: string) => (/^\d+$/.test(id) ? `Query ${Number(id) + 1}` : id);
+
 interface PassRatePillProps {
     passRate: number;
     minPassRate: number;

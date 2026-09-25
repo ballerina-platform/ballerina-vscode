@@ -21,7 +21,7 @@ import styled from "@emotion/styled";
 import { EvaluationOutcomeResult, EvaluationReportTestResult, EvaluationRun } from "./types";
 import { Codicon } from "@wso2/ui-toolkit";
 import { RunPassRateChart } from "./RunPassRateChart";
-import { PassRatePill, toPercent } from "../../components/PassRatePill";
+import { outcomeLabel, PassRatePill, toPercent } from "../../components/PassRatePill";
 
 // Without minPassRate, `bal test` reports a plain test that must pass on its one run.
 const PLAIN_TEST_MIN_PASS_RATE = 1;
@@ -368,7 +368,7 @@ function EvalRunBlock({ run }: { run: EvaluationRun }) {
                                 <OutcomeIcon passed={outcome.passed}>
                                     {outcome.passed ? "\u2713" : "\u2717"}
                                 </OutcomeIcon>
-                                <OutcomeName>{outcome.id}</OutcomeName>
+                                <OutcomeName>{outcomeLabel(outcome.id)}</OutcomeName>
                                 <OutcomeStatus passed={outcome.passed}>
                                     {outcome.passed ? "PASSED" : "FAILED"}
                                 </OutcomeStatus>
