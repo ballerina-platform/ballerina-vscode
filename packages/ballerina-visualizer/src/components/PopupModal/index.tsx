@@ -80,7 +80,7 @@ export const PopupModalStep = styled.div<{ $direction?: PopupModalStepDirection;
         props.$animate === false
             ? "none"
             : `${props.$direction === "backward" ? "popup-step-backward" : "popup-step-forward"} `
-              + `${STEP_MS}ms ease-out both`};
+            + `${STEP_MS}ms ease-out both`};
 
     @keyframes popup-step-forward {
         from { opacity: 0; transform: translateX(8px); }
@@ -145,7 +145,7 @@ export function PopupModal(props: PopupModalProps) {
             <Backdrop
                 className={closingClass}
                 onClose={dismissOnBackdropClick ? close : undefined}
-                sx={zIndexBase ? { zIndex: zIndexBase } : undefined}
+                sx={{ zIndex: zIndexBase ?? 1999 }}
             />
             <Box
                 role="dialog"

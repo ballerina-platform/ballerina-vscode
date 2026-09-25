@@ -37,7 +37,8 @@ export const ORB_GLOW_CLASS = "orb-glow";
 
 /** Scopes the lift to the orb so sibling chrome in the same button is left alone. */
 export const OrbGlow = styled.span`
-    display: block;
+    position: absolute;
+    inset: 0;
     transition: filter 0.2s ease;
 `;
 export const EDGE_MARGIN = 20;
@@ -221,13 +222,13 @@ export const AmbientFrame = styled.div<AmbientFrameProps>`
 
     &:focus-within {
         box-shadow: ${(props: AmbientFrameProps) => {
-            if (props.$agentBuilder) {
-                const [first, second] = agentBuilderFrameColors(props);
-                return `0 0 22px color-mix(in srgb, ${first} 34%, transparent), 0 0 13px color-mix(in srgb, ${second} 20%, transparent)`;
-            }
-            const base = ambientBase(props);
-            return `0 0 22px color-mix(in srgb, ${base} 34%, transparent), 0 0 13px color-mix(in srgb, ${base} 20%, transparent)`;
-        }};
+        if (props.$agentBuilder) {
+            const [first, second] = agentBuilderFrameColors(props);
+            return `0 0 22px color-mix(in srgb, ${first} 34%, transparent), 0 0 13px color-mix(in srgb, ${second} 20%, transparent)`;
+        }
+        const base = ambientBase(props);
+        return `0 0 22px color-mix(in srgb, ${base} 34%, transparent), 0 0 13px color-mix(in srgb, ${base} 20%, transparent)`;
+    }};
     }
 
     @media (prefers-reduced-motion: reduce) {

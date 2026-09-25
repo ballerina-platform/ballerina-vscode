@@ -272,6 +272,9 @@ const OrbButton = styled.button<{ state: AgentRunState; agentBuilder: boolean }>
     background: transparent;
     cursor: grab;
     outline-offset: 4px;
+    &:focus-visible {
+        outline: 1px solid var(--vscode-focusBorder);
+    }
     touch-action: none;
     transition: transform 0.2s ease;
     &:hover {
@@ -629,7 +632,10 @@ export function AgentStatusOrb() {
                 onMouseLeave={() => setHovered(false)}
             >
                 {inviteHosted && (
-                    <InviteHitBridge visible={inviteVisible}>
+                    <InviteHitBridge
+                        visible={inviteVisible}
+                        style={dragPos ? { position: "absolute" } : undefined}
+                    >
                         <InviteShell visible={inviteVisible} data-testid="invite-shell">
                             <AmbientFrame $state={state}>
                                 <InviteBox>
