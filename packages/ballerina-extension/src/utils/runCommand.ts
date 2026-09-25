@@ -96,7 +96,7 @@ export function runCommandWithOutput(
             const text = data.toString();
             outputChannel.append(text);
             console.log(`[runCommandWithOutput] stderr: ${text}`);
-            onProgress(`Something went wrong. check the output for more details.`);
+            onProgress?.(`Something went wrong. check the output for more details.`);
         });
 
         // Handle process errors
@@ -104,7 +104,7 @@ export function runCommandWithOutput(
             const errorMsg = `Process error: ${error.message}`;
             outputChannel.appendLine(errorMsg);
             console.error(`[runCommandWithOutput] ${errorMsg}`, error);
-            onProgress(`Something went wrong. check the output for more details.`);
+            onProgress?.(`Something went wrong. check the output for more details.`);
             resolve({ success: false, exitCode: null });
         });
 
@@ -116,9 +116,9 @@ export function runCommandWithOutput(
             
             const success = code === 0;
             if (success) {
-                onProgress(`All dependencies pulled successfully`);
+                onProgress?.(`All dependencies pulled successfully`);
             } else {
-                onProgress(`Something went wrong. check the output for more details.`);
+                onProgress?.(`Something went wrong. check the output for more details.`);
             }
             resolve({ success, exitCode: code });
         });

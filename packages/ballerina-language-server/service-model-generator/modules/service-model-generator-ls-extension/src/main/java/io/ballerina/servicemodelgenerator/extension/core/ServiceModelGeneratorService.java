@@ -1233,13 +1233,13 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                 if (document.isEmpty() || semanticModel.isEmpty()) {
                     throw new IllegalStateException("Failed to load the document or semantic model");
                 }
-                String existingVersion = request.isLocalRepository() ? null
-                        : ConnectorVersionResolver.resolve(project, request.orgName(), request.moduleName(),
-                                request.version());
+                ServiceModelRequest resolvedRequest = request.isLocalRepository() ? request
+                        : request.withVersion(resolveInitModelVersion(project, request));
+                String existingVersion = request.isLocalRepository() ? null : resolvedRequest.version();
 
-                Utils.resolveModule(request.orgName(), request.pkgName(), request.moduleName(),
-                        request.version(), request.isLocalRepository(), lsClientLogger);
-                ServiceInitModel serviceInitModel = ServiceBuilderRouter.getServiceInitModel(request,
+                Utils.resolveModule(resolvedRequest.orgName(), resolvedRequest.pkgName(), resolvedRequest.moduleName(),
+                        resolvedRequest.version(), resolvedRequest.isLocalRepository(), lsClientLogger);
+                ServiceInitModel serviceInitModel = ServiceBuilderRouter.getServiceInitModel(resolvedRequest,
                         project, semanticModel.get(), document.get());
                 if (serviceInitModel == null && existingVersion != null) {
                     Optional<ModelResolutionIssue> issue = ConnectorUpgradeAdvisor.checkResolvedVersion(
@@ -1253,6 +1253,25 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                 return new ServiceInitModelResponse(e);
             }
         });
+    }
+
+    /**
+     * The version to build the service init model against: the version the project already resolves for the
+     * connector, else the version selected for a new dependency.
+     */
+    private String resolveInitModelVersion(Project project, ServiceModelRequest request) {
+        Optional<String> projectVersion = ConnectorVersionResolver.projectVersion(project, request.orgName(),
+                request.pkgName());
+        if (projectVersion.isPresent()) {
+            return projectVersion.get();
+        }
+        String minSupportedVersion = TriggerPropertiesRegistry.getInstance()
+                .forModule(request.orgName(), request.pkgName())
+                .map(TriggerProperty::minSupportedVersion)
+                .orElse(request.version());
+        String resolvedVersion = ConnectorVersionResolver.resolveForNewDependency(request.orgName(),
+                request.pkgName(), minSupportedVersion).version();
+        return resolvedVersion != null ? resolvedVersion : request.version();
     }
 
     /**

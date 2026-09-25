@@ -79,6 +79,7 @@ import java.util.Collection;
 import java.util.Deque;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -111,7 +112,7 @@ public class PullModuleExecutor implements LSCommandExecutor {
     // Guards against concurrent/re-entrant pulls for the same project. The PROJECT_UPDATE event
     // published in stage 4 below is also consumed by ResolveCompilationErrorsSubscriber, which
     // starts another pull for the same project, creating an endless pull loop on failures.
-    private static final Set<String> PULL_IN_PROGRESS_PROJECTS = ConcurrentHashMap.newKeySet();
+    private static final Map<String, CompletableFuture<Void>> PULLS_IN_PROGRESS = new ConcurrentHashMap<>();
     // Cap the trace we ship to the client: it only feeds a prefilled GitHub issue, whose URL has a
     // practical length limit, and the client truncates further when building that URL.
     private static final int MAX_STACK_TRACE_CHARS = 8000;
@@ -125,6 +126,7 @@ public class PullModuleExecutor implements LSCommandExecutor {
     public Object execute(ExecuteCommandContext context) {
         String fileUri = null;
         String moduleName = null;
+        List<PackageCoordinate> packages = List.of();
         for (CommandArgument arg : context.getArguments()) {
             switch (arg.key()) {
                 case CommandConstants.ARG_KEY_DOC_URI:
@@ -133,12 +135,15 @@ public class PullModuleExecutor implements LSCommandExecutor {
                 case CommandConstants.ARG_KEY_MODULE_NAME:
                     moduleName = arg.valueAs(String.class);
                     break;
+                case CommandConstants.ARG_KEY_PACKAGES:
+                    packages = packagesArgument(arg);
+                    break;
                 default:
             }
         }
         try {
             return resolveModules(fileUri, context.getLanguageClient(), context.workspace(),
-                    context.languageServercontext()).get();
+                    context.languageServercontext(), false, packages).get();
         } catch (InterruptedException | ExecutionException e) {
             // TODO: Add tracing after the workspace manager rewrite.
             // Tracked with https://github.com/wso2/product-ballerina-integrator/issues/1488
@@ -165,6 +170,24 @@ public class PullModuleExecutor implements LSCommandExecutor {
     public static CompletableFuture<Void> resolveModules(String fileUri, ExtendedLanguageClient languageClient,
                                                          WorkspaceManager workspaceManager,
                                                          LanguageServerContext languageServerContext, boolean sticky) {
+        return resolveModules(fileUri, languageClient, workspaceManager, languageServerContext, sticky, List.of());
+    }
+
+    /**
+     * Pulls the given exact package versions, then resolves missing modules for the given file.
+     *
+     * @param fileUri               the file URI
+     * @param languageClient        the language client
+     * @param workspaceManager      the workspace manager
+     * @param languageServerContext the language server context
+     * @param sticky                whether to use sticky mode for dependency resolution
+     * @param packages              the exact package versions to pull before resolving
+     * @return a CompletableFuture that completes when module resolution is done
+     */
+    public static CompletableFuture<Void> resolveModules(String fileUri, ExtendedLanguageClient languageClient,
+                                                         WorkspaceManager workspaceManager,
+                                                         LanguageServerContext languageServerContext, boolean sticky,
+                                                         List<PackageCoordinate> packages) {
         String taskId = PULL_MODULE_TASK_PREFIX + UUID.randomUUID();
         Path filePath = PathUtil.getPathFromURI(fileUri)
                 .orElseThrow(() -> new UserErrorException("Couldn't determine file path"));
@@ -177,10 +200,12 @@ public class PullModuleExecutor implements LSCommandExecutor {
         // PROJECT_UPDATE event published by a running pull re-triggers another pull via
         // ResolveCompilationErrorsSubscriber, causing an endless pull storm when pulls fail.
         String projectKey = project.sourceRoot().toString();
-        if (!PULL_IN_PROGRESS_PROJECTS.add(projectKey)) {
-            clientLogger.logTrace("Skipped pulling modules since a pull is already in progress for project: "
+        CompletableFuture<Void> pullDone = new CompletableFuture<>();
+        CompletableFuture<Void> runningPull = PULLS_IN_PROGRESS.putIfAbsent(projectKey, pullDone);
+        if (runningPull != null) {
+            clientLogger.logTrace("Skipped resolving modules since a pull is already in progress for project: "
                     + projectKey);
-            return CompletableFuture.completedFuture(null);
+            return runningPull.thenRunAsync(() -> pullRequestedPackages(packages, clientLogger));
         }
         return CompletableFuture
                 .runAsync(() -> {
@@ -224,6 +249,7 @@ public class PullModuleExecutor implements LSCommandExecutor {
                     // the local repository. The resolution below cannot repair such gaps by itself,
                     // because its online dependency graph is unified to the locked versions and never
                     // requests the bala-recorded (as-built) versions demanded by offline compilations.
+                    pullRequestedPackages(packages, clientLogger);
                     for (Project memberProject : memberProjects) {
                         // TODO: Remove the following path once
                         //  https://github.com/ballerina-platform/ballerina-lang/issues/44275 gets fixed
@@ -294,7 +320,8 @@ public class PullModuleExecutor implements LSCommandExecutor {
                     }
                 })
                 .whenComplete((result, t) -> {
-                    PULL_IN_PROGRESS_PROJECTS.remove(projectKey);
+                    PULLS_IN_PROGRESS.remove(projectKey);
+                    pullDone.complete(null);
                     boolean failed = true;
                     if (t != null) {
                         clientLogger.logError(LSContextOperation.WS_EXEC_CMD,
@@ -546,6 +573,92 @@ public class PullModuleExecutor implements LSCommandExecutor {
                     + e.getMessage());
         }
         return List.of();
+    }
+
+    /**
+     * The exact package versions carried by a {@link CommandConstants#ARG_KEY_PACKAGES} argument, or an empty
+     * list when its value is {@code null}.
+     *
+     * @param arg the command argument
+     * @return the requested package versions
+     */
+    static List<PackageCoordinate> packagesArgument(CommandArgument arg) {
+        PackageCoordinate[] requestedPackages = arg.valueAs(PackageCoordinate[].class);
+        return requestedPackages == null ? List.of() : List.of(requestedPackages);
+    }
+
+    /**
+     * Pulls every requested exact package version concurrently.
+     *
+     * @param packages     the exact package versions to pull
+     * @param clientLogger the client logger
+     * @throws UserErrorException if any of the packages could not be pulled
+     */
+    private static void pullRequestedPackages(List<PackageCoordinate> packages, LSClientLogger clientLogger) {
+        if (CommonUtil.TEST_OFFLINE) {
+            return;
+        }
+        pullRequestedPackages(packages, clientLogger,
+                pkg -> pullModuleFromCentral(pkg.org(), pkg.name(), pkg.version()));
+    }
+
+    /**
+     * Pulls every requested exact package version concurrently through {@code puller}.
+     *
+     * @param packages     the exact package versions to pull
+     * @param clientLogger the client logger
+     * @param puller       pulls a single package version
+     * @throws UserErrorException if any of the packages could not be pulled
+     */
+    static void pullRequestedPackages(List<PackageCoordinate> packages, LSClientLogger clientLogger,
+                                      PackagePuller puller) {
+        if (packages.isEmpty()) {
+            return;
+        }
+        List<CompletableFuture<Optional<String>>> pulls = packages.stream()
+                .map(pkg -> CompletableFuture.supplyAsync(() -> pullRequestedPackage(pkg, clientLogger, puller)))
+                .toList();
+        List<String> failed = pulls.stream()
+                .map(CompletableFuture::join)
+                .flatMap(Optional::stream)
+                .toList();
+        if (!failed.isEmpty()) {
+            throw new UserErrorException(String.format("Failed to pull modules: %s", String.join(", ", failed)));
+        }
+    }
+
+    private static Optional<String> pullRequestedPackage(PackageCoordinate pkg, LSClientLogger clientLogger,
+                                                         PackagePuller puller) {
+        try {
+            puller.pull(pkg);
+            return Optional.empty();
+        } catch (CentralClientException | RuntimeException e) {
+            clientLogger.logTrace("Failed to pull package '" + pkg.signature() + "': " + e.getMessage());
+            return Optional.of(pkg.signature());
+        }
+    }
+
+    /**
+     * An exact package version requested through {@link CommandConstants#ARG_KEY_PACKAGES}.
+     *
+     * @param org     the organization name
+     * @param name    the package name
+     * @param version the exact package version
+     */
+    public record PackageCoordinate(String org, String name, String version) {
+
+        String signature() {
+            return org + "/" + name + ":" + version;
+        }
+    }
+
+    /**
+     * Pulls a single exact package version into the local bala cache.
+     */
+    @FunctionalInterface
+    interface PackagePuller {
+
+        void pull(PackageCoordinate pkg) throws CentralClientException;
     }
 
     /**

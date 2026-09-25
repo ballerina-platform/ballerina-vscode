@@ -72,7 +72,11 @@ import * as path from 'path';
 import { window, workspace } from "vscode";
 import { extension } from "../../BalExtensionContext";
 import { StateMachine } from "../../stateMachine";
-import { pullAndBumpConnectors } from "../../features/project/connector-upgrade";
+import {
+    getPendingReloadConnectors,
+    upgradeConnectors,
+    upgradeProjectConnectors
+} from "../../features/project/connector-upgrade";
 import { writeBallerinaFileDidOpen } from "../../utils/modification";
 import { updateSourceCode } from "../../utils/source-utils";
 import { generateExamplePayload } from "../../features/ai/payload-generator/payload_json";
@@ -490,7 +494,7 @@ export class ServiceDesignerRpcManager implements ServiceDesignerAPI {
                 await this.ensureFileExists(targetFile);
                 params.filePath = targetFile;
                 const res: ConnectorUpgradeAdviceResponse = await context.langClient.getConnectorUpgradeAdvice(params);
-                resolve(res);
+                resolve({ ...res, pendingReload: getPendingReloadConnectors(StateMachine.context().projectPath) });
             } catch (error) {
                 console.log(error);
                 reject(error);
@@ -508,8 +512,10 @@ export class ServiceDesignerRpcManager implements ServiceDesignerAPI {
             minSupportedVersion: params.targetVersion,
             breaking: false,
         };
-        const { succeeded } = await pullAndBumpConnectors([advice], projectPath);
-        return { success: succeeded.length > 0 };
+        const success = params.promptReload
+            ? await upgradeProjectConnectors(advice, projectPath)
+            : await upgradeConnectors([advice], projectPath, false);
+        return { success };
     }
 
     async createServiceAndListener(params: ServiceInitSourceRequest): Promise<UpdatedArtifactsResponse> {

@@ -44,6 +44,7 @@ import { TitleBar } from "../../../components/TitleBar";
 import { TopNavigationBar } from "../../../components/TopNavigationBar";
 import { isPositionChanged } from "../../../utils/utils";
 import { AddServiceElementDropdown, DropdownOptionProps } from "./components/AddServiceElementDropdown";
+import { ConnectorUpgradeBanner } from "./components/ConnectorUpgradeBanner";
 import { MoreOptionsDropdown } from "./components/MoreOptionsDropdown";
 import { ResourceAccordion } from "./components/ResourceAccordion";
 import { ResourceAccordionV2 } from "./components/ResourceAccordionV2";
@@ -1028,6 +1029,7 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
                         />
 
                         <ServiceContainer>
+                            <ConnectorUpgradeBanner orgName={serviceModel.orgName} packageName={serviceModel.packageName} />
                             {/* Service Metadata - Compact View */}
                             {(listeners.length > 0 || readonlyProperties.size > 0) && (
                                 <ServiceMetadataContainer>

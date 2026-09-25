@@ -18,6 +18,8 @@
 
 package io.ballerina.servicemodelgenerator.extension.connector;
 
+import io.ballerina.centralconnector.RemoteCentral;
+import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.projects.DependencyManifest;
 import io.ballerina.projects.Package;
 import io.ballerina.projects.PackageManifest;
@@ -26,8 +28,15 @@ import io.ballerina.projects.PackageOrg;
 import io.ballerina.projects.PackageResolution;
 import io.ballerina.projects.Project;
 import io.ballerina.projects.ResolvedPackageDependency;
+import io.ballerina.projects.SemanticVersion;
+import io.ballerina.servicemodelgenerator.extension.model.ResolvedConnectorVersion;
+import io.ballerina.servicemodelgenerator.extension.model.ResolvedConnectorVersion.VersionSource;
 
+import java.time.Duration;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 /**
  * Resolves which version of a connector a schema-driven add flow should be modelled against: if the
@@ -37,6 +46,8 @@ import java.util.Optional;
  * @since 1.9.0
  */
 public final class ConnectorVersionResolver {
+
+    private static final Duration CENTRAL_LOOKUP_TIMEOUT = Duration.ofSeconds(10);
 
     private ConnectorVersionResolver() {
     }
@@ -49,6 +60,69 @@ public final class ConnectorVersionResolver {
     public static String resolve(Project project, String orgName, String packageName, String requestedVersion) {
         String resolved = resolvedProjectVersion(project, orgName, packageName);
         return resolved != null ? resolved : requestedVersion;
+    }
+
+    /**
+     * The version of {@code orgName/packageName} this project resolves, if it depends on it.
+     */
+    public static Optional<String> projectVersion(Project project, String orgName, String packageName) {
+        return Optional.ofNullable(resolvedProjectVersion(project, orgName, packageName));
+    }
+
+    /**
+     * The version to model a connector the project does not depend on yet against: the latest version on
+     * Ballerina Central, else the newest cached version, else {@code minSupportedVersion}. Central and
+     * cache lookups run concurrently, and a candidate below {@code minSupportedVersion} is never selected.
+     */
+    public static ResolvedConnectorVersion resolveForNewDependency(String orgName, String packageName,
+                                                                   String minSupportedVersion) {
+        return resolveForNewDependency(minSupportedVersion,
+                () -> PackageUtil.isOffline() ? null
+                        : RemoteCentral.getInstance().latestPackageVersion(orgName, packageName),
+                () -> PackageUtil.cachedVersion(orgName, packageName));
+    }
+
+    static ResolvedConnectorVersion resolveForNewDependency(String minSupportedVersion,
+                                                            Supplier<String> centralLatest,
+                                                            Supplier<String> cachedLatest) {
+        return resolveForNewDependency(minSupportedVersion, centralLatest, cachedLatest, CENTRAL_LOOKUP_TIMEOUT);
+    }
+
+    static ResolvedConnectorVersion resolveForNewDependency(String minSupportedVersion,
+                                                            Supplier<String> centralLatest,
+                                                            Supplier<String> cachedLatest,
+                                                            Duration centralTimeout) {
+        CompletableFuture<Optional<String>> central = lookup(centralLatest)
+                .completeOnTimeout(Optional.empty(), centralTimeout.toMillis(), TimeUnit.MILLISECONDS);
+        CompletableFuture<Optional<String>> cached = lookup(cachedLatest)
+                .completeOnTimeout(Optional.empty(), centralTimeout.toMillis(), TimeUnit.MILLISECONDS);
+        Optional<String> centralVersion = central.join().filter(version -> isSupported(version, minSupportedVersion));
+        if (centralVersion.isPresent()) {
+            return new ResolvedConnectorVersion(centralVersion.get(), VersionSource.CENTRAL_LATEST);
+        }
+        Optional<String> cachedVersion = cached.join().filter(version -> isSupported(version, minSupportedVersion));
+        return cachedVersion
+                .map(version -> new ResolvedConnectorVersion(version, VersionSource.LOCAL_CACHE_LATEST))
+                .orElseGet(() -> new ResolvedConnectorVersion(minSupportedVersion, VersionSource.MIN_SUPPORTED));
+    }
+
+    private static CompletableFuture<Optional<String>> lookup(Supplier<String> supplier) {
+        return CompletableFuture.supplyAsync(() -> Optional.ofNullable(supplier.get()))
+                .exceptionally(throwable -> Optional.empty());
+    }
+
+    private static boolean isSupported(String version, String minSupportedVersion) {
+        if (version.isBlank()) {
+            return false;
+        }
+        if (minSupportedVersion == null || minSupportedVersion.isBlank()) {
+            return true;
+        }
+        try {
+            return !SemanticVersion.from(version).lessThan(SemanticVersion.from(minSupportedVersion));
+        } catch (RuntimeException e) {
+            return false;
+        }
     }
 
     /**

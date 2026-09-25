@@ -83,7 +83,13 @@ enum PullingStatus {
     SUCCESS = "success",
     ERROR = "error",
     UNSUPPORTED_VERSION = "unsupported_version",
+    NO_SUPPORTED_VERSION = "no_supported_version",
     UPDATING = "updating",
+}
+
+enum ModelResolutionIssueCode {
+    UNSUPPORTED_CONNECTOR_VERSION = "UNSUPPORTED_CONNECTOR_VERSION",
+    NO_SUPPORTED_VERSION_AVAILABLE = "NO_SUPPORTED_VERSION_AVAILABLE",
 }
 
 /** The design approach choice's properties for whichever option is currently selected (e.g. manual vs. import-from-spec). */
@@ -105,6 +111,7 @@ function PackagePullingStatus({ status, isLocalRepository, packageName, upgradeI
         case PullingStatus.FETCHING:
             return <RelativeLoader message="Loading package..." />;
         case PullingStatus.PULLING:
+        case PullingStatus.UPDATING:
             return (
                 <StatusCard>
                     {isLocalRepository ? (
@@ -146,18 +153,19 @@ function PackagePullingStatus({ status, isLocalRepository, packageName, upgradeI
                 <StatusCard>
                     <Icon name="bi-error" sx={{ color: ThemeColors.ERROR, fontSize: "18px" }} />
                     <StatusText variant="body2">
-                        A newer version is required to use this feature..
+                        A newer version of the {packageName} package is required to use this feature.
                     </StatusText>
                     <Button appearance="primary" onClick={onUpdateNow}>Update Now</Button>
                 </StatusCard>
             ) : null;
-        case PullingStatus.UPDATING:
+        case PullingStatus.NO_SUPPORTED_VERSION:
             return (
                 <StatusCard>
-                    <Icon name="bi-spinner" sx={{ color: ThemeColors.ON_SURFACE, fontSize: "18px" }} />
+                    <Icon name="bi-error" sx={{ color: ThemeColors.ERROR, fontSize: "18px" }} />
                     <StatusText variant="body2">
-                        {`Updating ${packageName}...`}
+                        {`No supported version of the ${packageName} package is available yet.`}
                     </StatusText>
+                    <Button appearance="secondary" onClick={onRetry}>Retry</Button>
                 </StatusCard>
             );
         default:
@@ -250,9 +258,12 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
                 setServiceInitModel(res.serviceInitModel);
                 setFormFields(mapPropertiesToFormFields(res.serviceInitModel.properties));
                 setPullingStatus(undefined);
-            } else if (res?.issue?.code === "UNSUPPORTED_CONNECTOR_VERSION") {
+            } else if (res?.issue?.code === ModelResolutionIssueCode.UNSUPPORTED_CONNECTOR_VERSION) {
                 setUpgradeIssue(res.issue);
                 setPullingStatus(PullingStatus.UNSUPPORTED_VERSION);
+                return;
+            } else if (res?.issue?.code === ModelResolutionIssueCode.NO_SUPPORTED_VERSION_AVAILABLE) {
+                setPullingStatus(PullingStatus.NO_SUPPORTED_VERSION);
                 return;
             } else {
                 // The call resolved but came back with no model to show — treat it the same as a

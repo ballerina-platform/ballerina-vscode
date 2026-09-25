@@ -1478,8 +1478,14 @@ export interface ConnectorUpgradeAdvice {
     usedInFile?: string;
 }
 
+export interface ConnectorReference {
+    orgName: string;
+    packageName: string;
+}
+
 export interface ConnectorUpgradeAdviceResponse {
     advice: ConnectorUpgradeAdvice[];
+    pendingReload?: ConnectorReference[];
     errorMsg?: string;
     stacktrace?: string;
 }
@@ -1489,6 +1495,7 @@ export interface PullConnectorUpgradeRequest {
     moduleName: string;
     packageName: string;
     targetVersion: string;
+    promptReload?: boolean;
 }
 
 export interface PullConnectorUpgradeResult {

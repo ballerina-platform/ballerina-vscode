@@ -53,6 +53,8 @@ public final class CommandConstants {
 
     public static final String ARG_KEY_MODULE_NAME = "module";
 
+    public static final String ARG_KEY_PACKAGES = "packages";
+
     public static final String ARG_KEY_SERVICE_NAME = "service.name";
 
     public static final String ARG_KEY_FUNCTION_NAME = "function.name";

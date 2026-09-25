@@ -28,6 +28,7 @@ import { ServiceEditView } from "./ServiceEditView";
 import { LoadingContainer } from "../../styles";
 import { LoadingRing } from "../../../components/Loader";
 import { getReadableListenerName } from "./utils";
+import { ConnectorUpgradeBanner } from "./components/ConnectorUpgradeBanner";
 import { POPUP_IDS, useModalStack } from "../../../Context";
 
 const Container = styled.div`
@@ -714,6 +715,7 @@ export function ServiceConfigureView(props: ServiceConfigureProps) {
                     <>
                         <TitleBar title={`${getDisplayServiceName(serviceModel)} Configuration`} subtitle="Configure and manage service details" onBack={handleGoBack} />
                         <ViewContent padding>
+                            <ConnectorUpgradeBanner orgName={serviceModel.orgName} packageName={serviceModel.packageName} />
                             <div style={{ height: 'calc(100vh - 220px)' }}>
                                 <div style={{ width: "auto" }}>
                                     <SplitView defaultWidths={[20, 80]}>
