@@ -1448,10 +1448,14 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
         }
 
         return getTriggerBasicInfoByName(triggerProperty.orgName(), triggerProperty.name())
-                .map(original -> new TriggerBasicInfo(original.id(), triggerProperty.triggerName(), original.orgName(),
-                        original.packageName(), original.moduleName(), original.version(), original.type(),
-                        original.displayName(), original.documentation(), original.listenerProtocol(),
-                        original.icon(), original.triggerKind()));
+                .map(original -> {
+                    String documentation = triggerProperty.description() != null
+                            ? triggerProperty.description() : original.documentation();
+                    return new TriggerBasicInfo(original.id(), triggerProperty.triggerName(), original.orgName(),
+                            original.packageName(), original.moduleName(), original.version(), original.type(),
+                            original.displayName(), documentation, original.listenerProtocol(),
+                            original.icon(), original.triggerKind());
+                });
     }
 
     /** Builds {@link TriggerBasicInfo} straight from a self-describing {@link TriggerProperty} entry. */
@@ -1461,8 +1465,9 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
         int id = triggerProperty.name().hashCode();
         String icon = CommonUtils.generateIcon(triggerProperty.orgName(), triggerProperty.packageName(),
                 triggerProperty.version());
+        String documentation = triggerProperty.description() != null ? triggerProperty.description() : "";
         return new TriggerBasicInfo(id, label, triggerProperty.orgName(), triggerProperty.packageName(),
-                triggerProperty.name(), triggerProperty.version(), triggerProperty.kind(), label, "",
+                triggerProperty.name(), triggerProperty.version(), triggerProperty.kind(), label, documentation,
                 protocol, icon, TriggerKind.effectiveOrNull(triggerProperty.triggerKind(), triggerProperty.kind()));
     }
 }

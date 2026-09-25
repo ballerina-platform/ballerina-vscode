@@ -148,6 +148,7 @@ export function CentralSearchPanel(props: CentralSearchPanelProps) {
                                 icon={getIntegrationIcon(item)}
                                 onClick={() => handleSelect(item, false)}
                                 isBeta={isBetaModule(item.moduleName)}
+                                tooltip={item.documentation || `An integration using the ${item.name} module from Ballerina Central.`}
                             />
                         ))}
                 </CardGrid>
@@ -170,6 +171,7 @@ export function CentralSearchPanel(props: CentralSearchPanelProps) {
                                 icon={getIntegrationIcon(item)}
                                 onClick={() => handleSelect(item, true)}
                                 isBeta={isBetaModule(item.moduleName)}
+                                tooltip={item.documentation || `An integration using the ${item.name} module from your local Ballerina repository.`}
                             />
                         ))}
                     </CardGrid>

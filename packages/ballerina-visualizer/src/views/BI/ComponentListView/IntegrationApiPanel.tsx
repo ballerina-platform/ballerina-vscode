@@ -66,7 +66,7 @@ export function IntegrationAPIPanel(props: IntegrationAPIPanelProps) {
                         title={card.displayName}
                         onClick={() => handleClick(card)}
                         disabled={isDisabled}
-                        tooltip={isDisabled ? OutOfScopeComponentTooltip : ""}
+                        tooltip={isDisabled ? OutOfScopeComponentTooltip : card.tooltip}
                         isBeta={card.isBeta}
                     />
                 ))}
