@@ -43,15 +43,20 @@ isolated function <loadFunction>() returns map<[ai:ConversationThread]>|error {
 
 isolated function <loadFunction>() returns map<[string]>|error {
     string[] queries = [string `<query>`, string `<query>`];
-    return map from string query in queries select [re `["\\]`.replaceAll(query, "'"), [query]];
+    map<[string]> rows = {};
+    foreach string query in queries {
+        string key = re `["\\]`.replaceAll(query, "'");
+        rows[rows.hasKey(key) ? string `${key} #${rows.length() + 1}` : key] = [query];
+    }
+    return rows;
 }
 ```
 
 - Evalset: the path is a string literal, not a constant or variable. Copy it from the `<evalsets>`
   listing and `file_read` the file for its turns and tool calls. If the user means an evalset that is
   not listed, ask. The eval takes `ai:ConversationThread thread`; each thread is one row.
-- Queries: keep the `return` line as shown, it names each row after its query. The eval takes
-  `string query`.
+- Queries: keep the loop as shown, it names each row after its query and keeps repeated queries. The
+  eval takes `string query`.
 - No provider: a custom eval with one hard-coded query.
 
 ## Template evals
