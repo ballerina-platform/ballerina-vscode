@@ -693,6 +693,8 @@ const VIEWS_WITH_ORB: ReadonlySet<MACHINE_VIEW> = new Set([
     MACHINE_VIEW.GraphQLDiagram,
     MACHINE_VIEW.DataMapper,
     MACHINE_VIEW.InlineDataMapper,
+    MACHINE_VIEW.EvalsetList,
+    MACHINE_VIEW.EvalsetViewer,
 ]);
 
 export function viewHidesAgentStatusOrb(view: MACHINE_VIEW | null | undefined): boolean {
