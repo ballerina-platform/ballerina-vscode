@@ -402,10 +402,11 @@ export async function runEvaluations(projectPath: string, functionNames: string[
     const [include, exclude] = selected.length === 1
         ? [selected, undefined]
         : [[group], evaluations.filter((item) => !selected.includes(item))];
-    // preserveFocus = false lets `testing.openTesting` reveal the Test Results panel.
-    const request = new TestRunRequest(include, exclude, undefined, false, false);
+    // preserveFocus keeps the Test Results panel closed unless the run fails.
+    const request = new TestRunRequest(include, exclude, undefined, false, true);
     const errors = await executeRun(request, token);
     if (errors.length > 0) {
+        void commands.executeCommand('testing.showMostRecentOutput');
         throw new Error(errors.join('\n'));
     }
 }
