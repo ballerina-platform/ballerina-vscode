@@ -162,6 +162,8 @@ function describeTool(toolName: string, toolInput: any): string {
         case "file_edit":
         case "file_batch_edit":
             return file ? `Editing ${file}` : "Editing files";
+        case "file_delete":
+            return file ? `Deleting ${file}` : "Deleting files";
         case "file_read":
             return file ? `Reading ${file}` : "Reading files";
         case "getCompilationErrors":
@@ -170,6 +172,8 @@ function describeTool(toolName: string, toolInput: any): string {
             return "Running tests";
         case "runBallerinaPackage":
             return "Running the integration";
+        case "runBallerinaScratch":
+            return "Trying out a snippet";
         case "TaskWrite":
             return "Updating the plan";
         case "Clarify":

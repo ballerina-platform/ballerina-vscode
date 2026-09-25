@@ -333,7 +333,7 @@ These rules are **non-negotiable**. Violating any of them means the enhancement 
    or any guide/roadmap/documentation file.
 2. **Never stop early.** "This project is complex", "time constraints", "token limits", "escaping issues"
    are NOT valid reasons to stop. You have ample budget. Keep making \`file_edit\` calls.
-3. **Edit files in place — always.** Use \`file_edit\` / \`file_multi_edit\` on existing files.
+3. **Edit files in place — always.** Use \`file_edit\` / \`file_batch_edit\` on existing files.
    **NEVER** create \`*_new.bal\`, \`*_backup.bal\`, \`*_v2.bal\`, or any copy of an existing file.
    If a file is large, break your edits into multiple \`file_edit\` calls targeting different regions.
 4. **No stubs or placeholders.** Every construct must become real, runnable Ballerina logic — not an empty
@@ -343,8 +343,8 @@ These rules are **non-negotiable**. Violating any of them means the enhancement 
 6. **Code over commentary.** Your text output between tool calls should be 1–2 sentences of progress.
    If you are writing more than 3 sentences without a tool call, stop and make an edit instead.
 7. **\`file_write\` is ONLY for new files.** ${keepStructure
-    ? `Most \`.bal\` files that correspond to original source files should already exist. Use \`file_edit\` / \`file_multi_edit\` to modify them. Use \`file_write\` only if a required matching \`.bal\` file is missing from the migration output.`
-    : `Files like \`functions.bal\`, \`data_mappings.bal\`, \`main.bal\`, \`configs.bal\`, \`types.bal\` etc. that appear in the initial project source ALREADY EXIST. You must use \`file_edit\` / \`file_multi_edit\` to modify them. Use \`file_write\` only when creating a file that has no content yet.`}
+    ? `Most \`.bal\` files that correspond to original source files should already exist. Use \`file_edit\` / \`file_batch_edit\` to modify them. Use \`file_write\` only if a required matching \`.bal\` file is missing from the migration output.`
+    : `Files like \`functions.bal\`, \`data_mappings.bal\`, \`main.bal\`, \`configs.bal\`, \`types.bal\` etc. that appear in the initial project source ALREADY EXIST. You must use \`file_edit\` / \`file_batch_edit\` to modify them. Use \`file_write\` only when creating a file that has no content yet.`}
 8. **Never write a "Summary" or "Remaining Work" section.** Do not output a final summary of completed
    and remaining work. Just keep editing files until the stage criteria are met.
 9. **Delete every TODO/FIXME comment you address.** When you implement a construct that was annotated
@@ -369,8 +369,9 @@ These rules are **non-negotiable**. Violating any of them means the enhancement 
 |---|---|
 | \`file_read\` | Re-read a file after editing it, or read a file not in the initial message. |
 | \`file_edit\` | Replace one text region in an **existing** file (find-and-replace). |
-| \`file_multi_edit\` | Multiple find-and-replace edits in the **same existing** file. |
+| \`file_batch_edit\` | Multiple find-and-replace edits in the **same existing** file. |
 | \`file_write\` | Create a file that does **not yet exist** (zero content). |
+| \`file_delete\` | Remove a file that should no longer exist (e.g. \`todo.bal\` once it is empty). Never to avoid an edit. |
 
 ---
 
@@ -586,7 +587,7 @@ For each source file in your work plan:
 4. **Verify completeness**: Does the Ballerina code implement every construct from the source?
    Check for: missing flows, stub functions, incomplete DataWeave translations, missing type definitions,
    missing config variables, empty error handlers, TODO/FIXME comments.
-5. **Implement gaps immediately** using \`file_edit\` / \`file_multi_edit\`.
+5. **Implement gaps immediately** using \`file_edit\` / \`file_batch_edit\`.
    - For \`// TODO: UNSUPPORTED ... BLOCK ENCOUNTERED\`: the commented-out source between \`// ---\` lines
      is the spec — translate it to Ballerina and **remove the entire commented block including the TODO line**.
    - For any \`// TODO\` or \`// FIXME\` comment: implement the required code, then **delete the comment
@@ -607,7 +608,7 @@ ${context.sourcePlatform === 'mule'
 
 **Phase D: Clean up todo.bal**
 
-If all constructs from \`todo.bal\` have been moved to their correct files, delete \`todo.bal\`.
+If all constructs from \`todo.bal\` have been moved to their correct files, delete \`todo.bal\` with \`file_delete\`.
 If some remain, continue implementing them.
 
 ### Construct Mapping Reference — ${platformName}
@@ -916,7 +917,7 @@ Steps:
    a. Read the corresponding source file via \`migration_source_read\` to understand semantic intent.
    b. Derive a camelCase name (functions/variables) or PascalCase name (types).
    c. Find all references in the package.
-   d. Rename declaration + all references atomically with \`file_multi_edit\`.
+   d. Rename declaration + all references atomically with \`file_batch_edit\`.
 3. Run diagnostics after all renames. Fix any name collisions before continuing.
 
 Rules:

@@ -172,8 +172,10 @@ function collectFilesFromProject(
                         content: "",
                     });
                 } else {
+                    // getProjectSource stores module files under their bare name; without the
+                    // prefix the agent is told they sit at the package root.
                     files.push({
-                        filePath: `${prefix}${sourceFile.filePath}`,
+                        filePath: `${prefix}modules/${module.moduleName}/${sourceFile.filePath}`,
                         content: sourceFile.content,
                     });
                 }

@@ -89,10 +89,19 @@ export async function addToIntegration(workspaceFolderPath: string, fileChanges:
     }
 
     // Write non ballerina files separately as ls doesn't need to be notified of those changes
+    // Nothing snapshots a non-.bal file, so a deletion here is the user's only copy: follow their
+    // trash setting, the same one WorkspaceEdit honours for the .bal deletions above.
+    const useTrash = workspace.getConfiguration('files').get<boolean>('enableTrash', true);
     for (const fileChange of nonBalFiles) {
         let absoluteFilePath = path.join(workspaceFolderPath, fileChange.filePath);
         if (fileChange.deleted) {
-            fs.rmSync(absoluteFilePath, { force: true });
+            if (fs.existsSync(absoluteFilePath)) {
+                // A refused trash leaves the file; callers verify the removal afterwards.
+                await workspace.fs.delete(Uri.file(absoluteFilePath), { useTrash })
+                    .then(undefined, (error) => {
+                        console.warn(`Could not delete ${fileChange.filePath}, leaving it in place:`, error);
+                    });
+            }
             continue;
         }
         const directory = path.dirname(absoluteFilePath);

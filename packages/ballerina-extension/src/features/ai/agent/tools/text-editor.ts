@@ -233,7 +233,7 @@ interface ValidationResult {
 interface TextEditorResult {
   success: boolean;
   message: string;
-  action?: 'created' | 'updated';
+  action?: 'created' | 'updated' | 'deleted';
   error?: string;
 }
 
@@ -269,6 +269,9 @@ const ErrorMessages = {
   FILE_READ_NOT_PERMITTED: 'File read not permitted',
   WRITE_FAILED: 'Write operation failed',
   WRITE_NOT_PERSISTED: 'Change was not persisted to disk',
+  DELETE_NOT_PERMITTED: 'File delete not permitted',
+  DELETE_FAILED: 'Delete operation failed',
+  DELETE_NOT_PERSISTED: 'Deletion was not persisted to disk',
 };
 
 // ============================================================================
@@ -471,6 +474,241 @@ export function createWriteExecute(
     // Emit tool_result event
     emitFileToolResult(eventHandler, FILE_WRITE_TOOL_NAME, result, file_path);
 
+    return result;
+  });
+}
+
+// ============================================================================
+// Delete Tool Execute Function
+// ============================================================================
+
+/**
+ * The package definition, Config.toml (whose values the agent may not even read), and generated
+ * connector modules, which are replaced by regenerating them rather than by hand.
+ */
+const PROTECTED_DELETE_FILES = ['Ballerina.toml', 'Dependencies.toml', 'Config.toml'];
+const PROTECTED_DELETE_DIRS = ['generated'];
+
+function validateDeletable(file_path: string): ValidationResult {
+  // Lowercased like the restricted-read check below: macOS and Windows resolve `ballerina.toml`
+  // to the real Ballerina.toml.
+  const normalized = file_path.replace(/\\/g, '/').toLowerCase();
+  const baseName = normalized.split('/').pop() ?? '';
+
+  if (PROTECTED_DELETE_FILES.some(f => f.toLowerCase() === baseName)) {
+    return {
+      valid: false,
+      error: `'${file_path}' is part of the package definition and cannot be deleted. `
+        + `Only source files the generation itself owns may be removed.`
+    };
+  }
+
+  const segments = normalized.split('/').filter(Boolean);
+  // Drops the file name, so only directory segments are matched.
+  if (segments.slice(0, -1).some(segment => PROTECTED_DELETE_DIRS.some(d => d.toLowerCase() === segment))) {
+    return {
+      valid: false,
+      error: `'${file_path}' lives under a generated module and cannot be deleted. `
+        + `Generated connectors are replaced by regenerating them, not by editing or removing their files.`
+    };
+  }
+
+  return { valid: true };
+}
+
+/** Shared so the containment check and the delete itself agree on the root. */
+function deleteRootFor(ctx: ExecutionContext | undefined, tempProjectPath: string): string {
+  return ctx ? (ctx.workspacePath || ctx.projectPath) : tempProjectPath;
+}
+
+/**
+ * validateFilePath rejects `..` lexically, which cannot see a symlinked directory resolving outside
+ * the project. Both sides are resolved, since the root is often itself a symlink (/tmp on macOS).
+ * The file's own link is not followed, so deleting a symlink removes the link, not its target.
+ */
+function validateContained(root: string, file_path: string): ValidationResult {
+  try {
+    const realRoot = fs.realpathSync(root);
+    const realParent = fs.realpathSync(path.dirname(path.join(root, file_path)));
+    const relative = path.relative(realRoot, realParent);
+    if (relative === '..' || relative.startsWith('..' + path.sep) || path.isAbsolute(relative)) {
+      return {
+        valid: false,
+        error: `'${file_path}' resolves outside the project and cannot be deleted.`
+      };
+    }
+    return { valid: true };
+  } catch (error) {
+    return {
+      valid: false,
+      error: `'${file_path}' could not be resolved for deletion: ${error instanceof Error ? error.message : String(error)}`
+    };
+  }
+}
+
+/**
+ * Removes a file through the same write path persistLiveEdit uses, so open editors, the language
+ * server and the diagram layer all observe it. The ai:// baseline is left in place on purpose:
+ * the review diffs ai:// against file://, so evicting it would hide the deletion.
+ */
+async function persistLiveDelete(
+  file_path: string,
+  modifiedFiles: string[] | undefined,
+  allModifiedFiles: Set<string> | undefined,
+  ctx: ExecutionContext | undefined,
+  tempProjectPath: string
+): Promise<{ ok: boolean; error?: string; deletedPath?: string }> {
+  if (!ctx) {
+    // No execution context means no document model to go through (see persistLiveEdit).
+    try {
+      const directPath = path.join(tempProjectPath, file_path);
+      fs.rmSync(directPath, { force: true });
+      if (modifiedFiles) {
+        insertIntoUpdateFileNames(modifiedFiles, file_path);
+      }
+      allModifiedFiles?.add(file_path);
+      return { ok: true, deletedPath: directPath };
+    } catch (error) {
+      console.error("[FileDeleteTool] Direct delete failed:", error);
+      return { ok: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  }
+
+  const workspaceRoot = deleteRootFor(ctx, tempProjectPath);
+  const absolutePath = path.join(workspaceRoot, file_path);
+  try {
+    await addToIntegration(workspaceRoot, [{ filePath: file_path, content: '', deleted: true }]);
+  } catch (error) {
+    console.error("[FileDeleteTool] Live delete failed:", error);
+    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+  }
+
+  // The delete landed; a bookkeeping failure must not be reported as a failed delete.
+  try {
+    if (modifiedFiles) {
+      insertIntoUpdateFileNames(modifiedFiles, file_path);
+    }
+    allModifiedFiles?.add(file_path);
+  } catch (error) {
+    console.error(`[FileDeleteTool] Post-delete bookkeeping failed for ${file_path}:`, error);
+  }
+  return { ok: true, deletedPath: absolutePath };
+}
+
+export function createDeleteExecute(
+  eventHandler: CopilotEventHandler,
+  tempProjectPath: string,
+  modifiedFiles?: string[],
+  allModifiedFiles?: Set<string>,
+  ctx?: ExecutionContext
+) {
+  return async (args: {
+    file_path: string;
+  }): Promise<TextEditorResult> => withFileLock(fileLockKey(tempProjectPath, args.file_path), async () => {
+    const { file_path } = args;
+
+    emitFileToolCall(eventHandler, FILE_DELETE_TOOL_NAME, file_path);
+
+    console.log(`[FileDeleteTool] Deleting ${file_path}`);
+
+    const pathValidation = validateFilePath(file_path);
+    if (!pathValidation.valid) {
+      console.error(`[FileDeleteTool] Invalid file path: ${file_path}`);
+      const result = {
+        success: false,
+        message: pathValidation.error!,
+        error: `Error: ${ErrorMessages.INVALID_FILE_PATH}`
+      };
+      emitFileToolResult(eventHandler, FILE_DELETE_TOOL_NAME, result, file_path);
+      return result;
+    }
+
+    const deletableValidation = validateDeletable(file_path);
+    if (!deletableValidation.valid) {
+      console.error(`[FileDeleteTool] Protected path: ${file_path}`);
+      const result = {
+        success: false,
+        message: deletableValidation.error!,
+        error: `Error: ${ErrorMessages.DELETE_NOT_PERMITTED}`
+      };
+      emitFileToolResult(eventHandler, FILE_DELETE_TOOL_NAME, result, file_path);
+      return result;
+    }
+
+    const fullPath = path.join(tempProjectPath, file_path);
+
+    let stats: fs.Stats | undefined;
+    try {
+      stats = fs.statSync(fullPath);
+    } catch {
+      stats = undefined;
+    }
+
+    // Success on purpose: the asked-for end state holds, and a failure only invites a retry.
+    if (!stats) {
+      console.log(`[FileDeleteTool] Nothing to delete, '${file_path}' does not exist.`);
+      const result = {
+        success: true,
+        message: `'${file_path}' does not exist, so nothing was deleted.`,
+        action: 'deleted' as const
+      };
+      emitFileToolResult(eventHandler, FILE_DELETE_TOOL_NAME, result, file_path);
+      return result;
+    }
+
+    if (!stats.isFile()) {
+      const result = {
+        success: false,
+        message: `'${file_path}' is a directory. This tool deletes a single file — delete its files individually.`,
+        error: `Error: ${ErrorMessages.DELETE_NOT_PERMITTED}`
+      };
+      emitFileToolResult(eventHandler, FILE_DELETE_TOOL_NAME, result, file_path);
+      return result;
+    }
+
+    const containment = validateContained(deleteRootFor(ctx, tempProjectPath), file_path);
+    if (!containment.valid) {
+      console.error(`[FileDeleteTool] Path escapes the project: ${file_path}`);
+      const result = {
+        success: false,
+        message: containment.error!,
+        error: `Error: ${ErrorMessages.DELETE_NOT_PERMITTED}`
+      };
+      emitFileToolResult(eventHandler, FILE_DELETE_TOOL_NAME, result, file_path);
+      return result;
+    }
+
+    const persisted = await persistLiveDelete(file_path, modifiedFiles, allModifiedFiles, ctx, tempProjectPath);
+    if (!persisted.ok) {
+      console.error(`[FileDeleteTool] Failed to delete ${file_path}: ${persisted.error}`);
+      const result = {
+        success: false,
+        message: `Failed to delete '${file_path}': ${persisted.error ?? 'the deletion could not be applied'}. The file was not removed.`,
+        error: `Error: ${ErrorMessages.DELETE_FAILED}`
+      };
+      emitFileToolResult(eventHandler, FILE_DELETE_TOOL_NAME, result, file_path);
+      return result;
+    }
+
+    // Same contract as verifyPersisted: never report a removal the model can still read back.
+    if (fs.existsSync(fullPath)) {
+      console.error(`[FileDeleteTool] '${file_path}' is still on disk after the delete.`);
+      const result = {
+        success: false,
+        message: `The deletion of '${file_path}' was not applied — the file is still present on disk.`,
+        error: `Error: ${ErrorMessages.DELETE_NOT_PERSISTED}`
+      };
+      emitFileToolResult(eventHandler, FILE_DELETE_TOOL_NAME, result, file_path);
+      return result;
+    }
+
+    console.log(`[FileDeleteTool] Successfully deleted file: ${file_path}`);
+    const result = {
+      success: true,
+      message: `Successfully deleted file '${file_path}'.`,
+      action: 'deleted' as const
+    };
+    emitFileToolResult(eventHandler, FILE_DELETE_TOOL_NAME, result, file_path);
     return result;
   });
 }
@@ -922,6 +1160,7 @@ export const FILE_BATCH_EDIT_TOOL_NAME = "file_batch_edit";
 export const FILE_SINGLE_EDIT_TOOL_NAME = "file_edit";
 export const FILE_WRITE_TOOL_NAME = "file_write";
 export const FILE_READ_TOOL_NAME = "file_read";
+export const FILE_DELETE_TOOL_NAME = "file_delete";
 
 const getFilePathDescription = (op: string) => `The relative path to the file to ${op}. For workspace projects, include the package directory prefix (e.g., "myPackage/main.bal"). For single-package projects, use just the filename.`;
 
@@ -952,6 +1191,10 @@ type ReadExecute = (args: {
   file_path: string;
   offset?: number;
   limit?: number;
+}) => Promise<any>;
+
+type DeleteExecute = (args: {
+  file_path: string;
 }) => Promise<any>;
 
 // 1. Write Tool
@@ -1068,6 +1311,24 @@ export function createReadTool(execute: ReadExecute) {
     execute
   });
 }
+// 5. Delete Tool
+export function createDeleteTool(execute: DeleteExecute) {
+  return tool({
+    description: `Deletes a single file from the project.
+    Usage:
+    - Use this ONLY to remove a file that should no longer exist — a scratch or temporary file you created, or a file whose contents you have fully moved elsewhere.
+    - NEVER delete a file to work around an edit you could not make. Fix the file with ${FILE_SINGLE_EDIT_TOOL_NAME} or ${FILE_BATCH_EDIT_TOOL_NAME}, or rewrite it with ${FILE_WRITE_TOOL_NAME} and overwrite set to true.
+    - NEVER delete a file the user wrote unless they explicitly asked for it to be removed.
+    - Package definition files (${PROTECTED_DELETE_FILES.join(", ")}) and anything under generated/ cannot be deleted.
+    - Deleting a path that does not exist succeeds and does nothing, so there is no need to check first.
+    - This deletes one file. It does not delete directories.`,
+    inputSchema: z.object({
+      file_path: z.string().describe(getFilePathDescription("delete"))
+    }),
+    execute
+  });
+}
+
 function insertIntoUpdateFileNames(updatedFileNames: string[], file_path: string) {
     if (!updatedFileNames.includes(file_path)) {
       updatedFileNames.push(file_path);
