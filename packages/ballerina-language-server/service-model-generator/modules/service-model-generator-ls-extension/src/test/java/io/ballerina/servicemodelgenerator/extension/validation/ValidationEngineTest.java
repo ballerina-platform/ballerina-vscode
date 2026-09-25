@@ -241,6 +241,13 @@ public class ValidationEngineTest {
     }
 
     @Test
+    public void testServicePathRejectsBareReservedWordButAcceptsQuotedOne() {
+        assertFails(node("Base Path", "/api/function", rule("common.validate.service.path")));
+        assertFails(node("Base Path", "/api/class", rule("common.validate.service.path")));
+        assertPasses(node("Base Path", "/api/'function", rule("common.validate.service.path")));
+    }
+
+    @Test
     public void testEnumInterpolatesValuesList() {
         ValidationResult result = assertFails(node("Mode", "FAST",
                 rule("common.validate.enum", Map.of("values", List.of("SAFE", "SLOW")))));

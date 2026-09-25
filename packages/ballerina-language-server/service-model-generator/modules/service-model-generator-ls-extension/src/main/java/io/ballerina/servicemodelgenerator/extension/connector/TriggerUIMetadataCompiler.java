@@ -36,6 +36,7 @@ import io.ballerina.servicemodelgenerator.extension.model.Value;
 
 import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -1503,6 +1504,8 @@ final class TriggerUIMetadataCompiler {
                     : target == null ? null
                     : target.name() != null ? target.name() : lastSegment(target.id());
             List<JsonObject> matches = new ArrayList<>();
+            List<JsonObject> pinnedAccessorMatches = new ArrayList<>();
+            List<JsonObject> listedAccessorMatches = new ArrayList<>();
             for (String key : List.of("functions", PROP_KEY_SCHEMA_FUNCTIONS)) {
                 if (!service.has(key)) {
                     continue;
@@ -1512,10 +1515,21 @@ final class TriggerUIMetadataCompiler {
                     if (("*".equals(name) && Boolean.TRUE.equals(bool(function, "nameEditable")))
                             || name != null && name.equals(string(function, "name"))) {
                         matches.add(function);
+                    } else if (name != null && "RESOURCE".equals(string(function, "kind"))
+                            && offersAccessor(string(function, "accessor"), name)) {
+                        (name.equals(string(function, "accessor").trim())
+                                ? pinnedAccessorMatches : listedAccessorMatches).add(function);
                     }
                 }
             }
+            matches.addAll(pinnedAccessorMatches.isEmpty() ? listedAccessorMatches : pinnedAccessorMatches);
             return matches;
+        }
+
+        /** Whether a (possibly comma-separated) accessor list includes {@code accessor}. */
+        private static boolean offersAccessor(String accessors, String accessor) {
+            return accessors != null && Arrays.stream(accessors.split(",")).map(String::trim)
+                    .anyMatch(accessor::equals);
         }
 
         private JsonObject parameter(JsonArray params, TriggerUIMetadataModel.Target target, int ordinal) {

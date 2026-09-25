@@ -46,7 +46,9 @@ import java.util.Objects;
 import java.util.Optional;
 
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.CD_TYPE_ANNOTATION_ATTACHMENT;
+import static io.ballerina.servicemodelgenerator.extension.util.Constants.KIND_RESOURCE;
 import static io.ballerina.servicemodelgenerator.extension.util.ServiceModelUtils.getServiceTypeIdentifier;
+import static io.ballerina.servicemodelgenerator.extension.util.Utils.getPath;
 
 /**
  * Schema-driven function builder for connectors that ship a unified {@link TriggerUISchemaModel}.
@@ -83,6 +85,28 @@ public class SchemaDrivenFunctionBuilder extends AbstractFunctionBuilder {
     }
 
     /**
+     * Registers every module a parameter type imports (e.g. websocket's {@code http:Request}), so a file
+     * that already binds it under an alias gets the type re-qualified onto that alias.
+     */
+    private static void registerParameterTypeModules(List<Parameter> parameters, ModulePrefixContext prefixes) {
+        if (parameters == null) {
+            return;
+        }
+        for (Parameter parameter : parameters) {
+            Value type = parameter.getType();
+            if (type == null || type.getImports() == null) {
+                continue;
+            }
+            for (String moduleId : type.getImports().values()) {
+                String[] parts = moduleId.split("/", 2);
+                if (parts.length == 2) {
+                    prefixes.prefixFor(parts[0], parts[1].split(":")[0]);
+                }
+            }
+        }
+    }
+
+    /**
      * Re-qualifies every module reference a function emits (parameter types, return type, annotation
      * qualifiers) onto the prefixes the target file actually binds, since the trigger model authors
      * against a module's natural prefix which may be aliased in the target file.
@@ -100,6 +124,7 @@ public class SchemaDrivenFunctionBuilder extends AbstractFunctionBuilder {
         ModulePrefixContext prefixes = ModulePrefixContext.from(rootNode);
         // Register the function's own module first so it wins any natural-prefix tie.
         prefixes.prefixFor(codedata.getOrgName(), module);
+        registerParameterTypeModules(function.getParameters(), prefixes);
         requalifyProperties(function.getProperties(), prefixes);
         if (!prefixes.hasAliases()) {
             return;
@@ -218,6 +243,7 @@ public class SchemaDrivenFunctionBuilder extends AbstractFunctionBuilder {
             if (model != null) {
                 Function function = overlaySourceOntoFunctionTemplate(TriggerFunctionAdapter.toFunction(model),
                         functionDefinitionNode);
+                overlaySourceIdentity(function, functionDefinitionNode);
                 function.setEditable(true);
                 stampCodedata(function, context);
                 return function;
@@ -231,10 +257,30 @@ public class SchemaDrivenFunctionBuilder extends AbstractFunctionBuilder {
         return function;
     }
 
+    /**
+     * Carries the source's own accessor/path (resource) or name (renamable handler) onto the template,
+     * which otherwise still holds the schema's defaults ({@code .}, the first accessor, a blank name).
+     */
+    private static void overlaySourceIdentity(Function function, FunctionDefinitionNode functionDefinitionNode) {
+        String identifier = functionDefinitionNode.functionName().text().trim();
+        if (KIND_RESOURCE.equals(function.getKind())) {
+            if (function.getAccessor() != null) {
+                function.getAccessor().setValue(identifier);
+            }
+            if (function.getName() != null) {
+                function.getName().setValue(getPath(functionDefinitionNode.relativeResourcePath()));
+            }
+        } else if (Boolean.TRUE.equals(function.getNameEditable()) && function.getName() != null) {
+            function.getName().setValue(identifier);
+        }
+    }
+
     /** Overlays curated function/parameter metadata onto a source-parsed function. Package-visible for testing. */
     static void overlayConnectorMetadata(Function function, TriggerUISchemaModel triggerModel, String serviceType) {
+        Value lookupName = KIND_RESOURCE.equals(function.getKind()) && function.getAccessor() != null
+                ? function.getAccessor() : function.getName();
         TriggerUISchemaModel.FunctionModel model = findFunctionModel(triggerModel, serviceType,
-                function.getName() != null ? function.getName().getValue() : null);
+                lookupName != null ? lookupName.getValue() : null);
         if (model == null) {
             return;
         }
@@ -294,7 +340,21 @@ public class SchemaDrivenFunctionBuilder extends AbstractFunctionBuilder {
         if (functions == null) {
             return null;
         }
-        return functions.stream().filter(f -> name.equals(f.name())).findFirst().orElse(null);
+        return functions.stream().filter(f -> name.equals(f.name())).findFirst()
+                .or(() -> functions.stream()
+                        .filter(f -> servesAccessor(f, name) && f.accessors().size() == 1).findFirst())
+                .orElseGet(() -> functions.stream().filter(f -> servesAccessor(f, name)).findFirst().orElse(null));
+    }
+
+    /**
+     * A resource handler is named by its path in the model but by its accessor in source
+     * ({@code FunctionDefinitionNode#functionName}), so it also answers to any accessor it offers.
+     */
+    private static boolean servesAccessor(TriggerUISchemaModel.FunctionModel function, String accessor) {
+        if (!KIND_RESOURCE.equalsIgnoreCase(function.kind())) {
+            return false;
+        }
+        return function.accessors().contains(accessor);
     }
 
     private void stampCodedata(Function function, ModelFromSourceContext context) {

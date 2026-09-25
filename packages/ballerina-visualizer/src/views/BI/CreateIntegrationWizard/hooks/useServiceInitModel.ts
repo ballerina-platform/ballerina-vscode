@@ -19,6 +19,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ServiceInitModel } from "@wso2/ballerina-core";
 import { BiWsClient } from "../../wsManager/WsClient";
+import { disambiguateFormKeys } from "../../ServiceDesigner/serviceInitModelUtils";
 
 /** Mirrors ServiceCreationView's package-pulling status machine. */
 export enum PullingStatus {
@@ -100,7 +101,7 @@ export function useServiceInitModel({ wsClient, projectRoot, orgName, packageNam
                     return;
                 }
                 if (res?.serviceInitModel) {
-                    setModel(res.serviceInitModel);
+                    setModel(disambiguateFormKeys(res.serviceInitModel));
                     setPullingStatus(undefined);
                 } else {
                     setPullingStatus(PullingStatus.ERROR);

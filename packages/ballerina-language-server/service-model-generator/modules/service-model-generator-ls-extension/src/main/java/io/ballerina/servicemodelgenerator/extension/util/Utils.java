@@ -556,13 +556,9 @@ public final class Utils {
             String moduleName = prefix.isEmpty() ? ""
                     : ImportPrefixReader.moduleNameForPrefix(rootNode, prefix).orElse(prefix);
 
-            // A schema-driven SERVICE_ANNOTATION container (e.g. RabbitMQ's `serviceConfig`, keyed by
-            // its own schema key, not `annot<Name>`) is matched by module/name wherever it sits in the
-            // tree; the raw mapping-constructor text is enough as its value (same as the legacy
-            // flat-property path below) — no need to distribute it field by field.
-            Value schemaContainer = findServiceAnnotationContainer(service.getProperties(), moduleName, annotName);
-            if (schemaContainer != null) {
-                schemaContainer.setValue(getAnnotationValue(annotationNode));
+            Value declared = findServiceAnnotationProperty(service.getProperties(), moduleName, annotName);
+            if (declared != null) {
+                declared.setValue(getAnnotationValue(annotationNode));
                 return;
             }
 
@@ -593,12 +589,6 @@ public final class Utils {
     }
 
     /**
-     * Recursively locates a {@code SERVICE_ANNOTATION} container ({@code codedata.type ==
-     * SERVICE_ANNOTATION}) matching an annotation's module/name — wherever it sits in the service's
-     * properties tree (a schema-driven template keys it by its own schema key, e.g. {@code
-     * serviceConfig}, not by a fixed convention).
-     */
-    /**
      * Whether a module name resolved from source names the same module a model declares. Models are
      * inconsistent about this: some declare the full module ({@code trigger.google.mail}), others only
      * its last segment ({@code mail}). Both are accepted, so tightening the source side to a real module
@@ -613,24 +603,34 @@ public final class Utils {
                 || resolved.equals(ModuleAliasResolver.selfPrefix(declared));
     }
 
-    private static Value findServiceAnnotationContainer(Map<String, Value> properties, String moduleName,
-                                                        String originalName) {
+    /**
+     * Recursively locates the property a model declares for a service annotation ({@code codedata.type}
+     * {@code SERVICE_ANNOTATION} or {@code ANNOTATION_ATTACHMENT}) matching its module/name — wherever
+     * it sits in the service's properties tree (a schema-driven template keys it by its own schema key,
+     * e.g. {@code serviceConfig} or {@code descriptor}, not by a fixed convention).
+     */
+    private static Value findServiceAnnotationProperty(Map<String, Value> properties, String moduleName,
+                                                       String originalName) {
         if (properties == null) {
             return null;
         }
         for (Value value : properties.values()) {
             Codedata cd = value.getCodedata();
-            if (cd != null && CD_TYPE_SERVICE_ANNOTATION.equals(cd.getType())
+            if (cd != null && isServiceAnnotationType(cd.getType())
                     && originalName.equals(cd.getOriginalName())
                     && (moduleName.isEmpty() || sameModule(moduleName, cd.getModuleName()))) {
                 return value;
             }
-            Value nested = findServiceAnnotationContainer(value.getProperties(), moduleName, originalName);
+            Value nested = findServiceAnnotationProperty(value.getProperties(), moduleName, originalName);
             if (nested != null) {
                 return nested;
             }
         }
         return null;
+    }
+
+    private static boolean isServiceAnnotationType(String codedataType) {
+        return CD_TYPE_SERVICE_ANNOTATION.equals(codedataType) || CD_TYPE_ANNOTATION_ATTACHMENT.equals(codedataType);
     }
 
     public static void updateAnnotationAttachmentProperty(FunctionDefinitionNode functionDef,

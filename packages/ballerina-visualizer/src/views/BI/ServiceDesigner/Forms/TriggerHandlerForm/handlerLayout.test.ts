@@ -26,6 +26,7 @@ jest.mock("@wso2/ballerina-core", () => ({}));
 import type { FunctionModel, ParameterModel, PropertyModel } from "@wso2/ballerina-core";
 import {
     DEFAULT_SECTION_KEY,
+    LAYOUT_ID_ACCESSOR,
     LAYOUT_ID_DESCRIPTION,
     LAYOUT_ID_HEADERS,
     LAYOUT_ID_NAME,
@@ -155,6 +156,15 @@ describe("handlerUnitsOf", () => {
             ["$documentation", "documentation"],
             [LAYOUT_ID_PARAMETERS, "parameters"],
             [LAYOUT_ID_RETURN_TYPE, "returnType"],
+        ]);
+    });
+
+    it("addresses a resource's accessor and path fields by their reserved ids", () => {
+        expect(handlerUnitsOf(mcpNewTool, ["accessor", "name"])
+            .filter((unit) => unit.kind === "ARTIFACT_FIELD")
+            .map((unit) => [unit.id, unit.fieldKey])).toEqual([
+            [LAYOUT_ID_ACCESSOR, "accessor"],
+            [LAYOUT_ID_NAME, "name"],
         ]);
     });
 

@@ -944,6 +944,9 @@
             },
             "kind": "REQUIRED",
             "type": {
+              "imports": {
+                "cdc": "ballerinax/cdc"
+              },
               "metadata": {
                 "label": "Parameter Type",
                 "description": "The type of the parameter"

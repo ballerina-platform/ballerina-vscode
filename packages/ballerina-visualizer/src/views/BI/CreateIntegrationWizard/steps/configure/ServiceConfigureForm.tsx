@@ -29,6 +29,7 @@ import {
     applyFormValuesToModel,
     collectRecordTypeFields,
     mapPropertiesToFormFields,
+    restoreFormKeys,
     updateChoiceInModel,
 } from "../../../ServiceDesigner/serviceInitModelUtils";
 import { BiWsClient } from "../../../wsManager/WsClient";
@@ -146,7 +147,7 @@ export function ServiceConfigureForm({ wsClient, projectRoot, selection, isSubmi
 
     const handleOnSubmit = (data: FormValues, formImports?: FormImports) => {
         const populatedModel = applyFormValuesToModel(formFields, model, data, formImports);
-        onSubmit(populatedModel);
+        onSubmit(restoreFormKeys(populatedModel));
     };
 
     return (

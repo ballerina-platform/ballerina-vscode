@@ -31,6 +31,7 @@ import org.eclipse.lsp4j.TextEdit;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -98,6 +99,7 @@ public final class SchemaDrivenSourceGenerator {
     private static final String LISTENER_TYPE = "Listener";
     private static final String NEW = "new";
     private static final String ERROR = "error";
+    private static final String RETURNS_PREFIX = "returns ";
     // Default target for a CDC operation flag with no explicit `path` (the cdc convention).
     private static final String CDC_OPTIONS_FIELD = "options";
     private static final String CDC_SKIPPED_OPERATIONS_FIELD = "skippedOperations";
@@ -151,6 +153,8 @@ public final class SchemaDrivenSourceGenerator {
     private static String buildImports(ServiceInitModel filledInitForm, TriggerUISchemaModel triggerModel,
                                        ModulePartNode rootNode, String emitAlias) {
         StringBuilder imports = new StringBuilder();
+        Set<ModuleRef> declared = new LinkedHashSet<>();
+        declared.add(new ModuleRef(filledInitForm.getOrgName(), filledInitForm.getModuleName()));
         if (!Utils.importExists(rootNode, filledInitForm.getOrgName(), filledInitForm.getModuleName())) {
             imports.append(Utils.getImportStmt(filledInitForm.getOrgName(), filledInitForm.getModuleName(),
                     emitAlias));
@@ -177,9 +181,58 @@ public final class SchemaDrivenSourceGenerator {
                     imports.append(alias == null ? Utils.getImportStmt(org, module)
                             : Utils.getImportStmt(org, module, alias));
                 }
+                declared.add(new ModuleRef(org, module));
+            }
+        }
+        for (ModuleRef moduleRef : handlerParameterModules(filledInitForm, triggerModel)) {
+            if (declared.add(moduleRef) && !Utils.importExists(rootNode, moduleRef.org(), moduleRef.module())) {
+                imports.append(Utils.getImportStmt(moduleRef.org(), moduleRef.module()));
             }
         }
         return imports.toString();
+    }
+
+    /**
+     * An {@code org/module} import target.
+     *
+     * @param org    the module's organization
+     * @param module the module's name
+     */
+    private record ModuleRef(String org, String module) {
+    }
+
+    /**
+     * The {@code org/module} of every cross-module parameter type in the handlers emitted with the service
+     * (e.g. {@code ballerina/http} for an {@code http:Request} parameter), as named by the type's codedata.
+     */
+    private static Set<ModuleRef> handlerParameterModules(ServiceInitModel filledInitForm,
+                                                          TriggerUISchemaModel triggerModel) {
+        Set<ModuleRef> modules = new LinkedHashSet<>();
+        TriggerUISchemaModel.ServiceTypeModel serviceType = triggerModel == null ? null
+                : selectServiceType(filledInitForm, triggerModel);
+        if (serviceType == null || serviceType.functions() == null) {
+            return modules;
+        }
+        for (TriggerUISchemaModel.FunctionModel function : serviceType.functions()) {
+            if (!function.enabled() || Boolean.TRUE.equals(function.optional()) || function.parameters() == null) {
+                continue;
+            }
+            for (TriggerUISchemaModel.Parameter parameter : function.parameters()) {
+                TriggerUISchemaModel.Codedata codedata = parameter.type() == null ? null
+                        : parameter.type().codedata();
+                if (!isEmitted(parameter) || codedata == null || codedata.orgName() == null
+                        || codedata.orgName().isBlank() || codedata.moduleName() == null
+                        || codedata.moduleName().isBlank()) {
+                    continue;
+                }
+                if (codedata.orgName().equals(filledInitForm.getOrgName())
+                        && codedata.moduleName().equals(filledInitForm.getModuleName())) {
+                    continue;
+                }
+                modules.add(new ModuleRef(codedata.orgName(), codedata.moduleName()));
+            }
+        }
+        return modules;
     }
 
     /**
@@ -569,9 +622,8 @@ public final class SchemaDrivenSourceGenerator {
             builder.append(annotation).append(NEW_LINE);
         }
         builder.append(qualifiers(function)).append("function").append(SPACE);
-        if (RESOURCE.equals(qualifierKeyword(function.kind())) && function.accessor() != null
-                && !function.accessor().isBlank()) {
-            builder.append(function.accessor()).append(SPACE);
+        if (RESOURCE.equals(qualifierKeyword(function.kind())) && function.defaultAccessor() != null) {
+            builder.append(function.defaultAccessor()).append(SPACE);
         }
         builder.append(effectiveFunctionName(function)).append("(")
                 .append(buildParameterList(function, selfPrefix, emitAlias)).append(")");
@@ -579,8 +631,51 @@ public final class SchemaDrivenSourceGenerator {
         if (!returnClause.isEmpty()) {
             builder.append(SPACE).append(returnClause);
         }
-        builder.append(SPACE).append(OPEN_BRACE).append(NEW_LINE).append(CLOSE_BRACE);
+        builder.append(SPACE).append(OPEN_BRACE).append(NEW_LINE);
+        String stub = stubBody(returnClause.isEmpty() ? "" : returnClause.substring(RETURNS_PREFIX.length()));
+        if (stub != null) {
+            builder.append(TAB).append(stub).append(NEW_LINE);
+        }
+        builder.append(CLOSE_BRACE);
         return builder.toString();
+    }
+
+    /**
+     * The statement a fresh handler needs to compile when its return type is not nilable (e.g. websocket's
+     * required {@code get} returning {@code websocket:Service|websocket:UpgradeError}): an empty body only
+     * type-checks when {@code ()} is returnable. A type with a builtin {@code error} member returns one,
+     * as other generated services do; any other panics, since a plain {@code error} is not assignable to it.
+     * {@code null} when the empty body already compiles.
+     */
+    static String stubBody(String returnType) {
+        List<String> members = topLevelMembers(returnType);
+        if (members.isEmpty() || returnType.trim().endsWith("?") || members.contains("()")) {
+            return null;
+        }
+        return members.contains(ERROR) ? "return error(\"Not Implemented\");" : "panic error(\"Not Implemented\");";
+    }
+
+    /** The top-level {@code |} members of a union type, ignoring those nested in brackets. */
+    private static List<String> topLevelMembers(String type) {
+        List<String> members = new ArrayList<>();
+        if (type == null || type.isBlank()) {
+            return members;
+        }
+        int depth = 0;
+        int start = 0;
+        for (int i = 0; i < type.length(); i++) {
+            char c = type.charAt(i);
+            if (c == '<' || c == '(' || c == '[' || c == '{') {
+                depth++;
+            } else if (c == '>' || c == ')' || c == ']' || c == '}') {
+                depth--;
+            } else if (c == '|' && depth == 0) {
+                members.add(type.substring(start, i).trim());
+                start = i + 1;
+            }
+        }
+        members.add(type.substring(start).trim());
+        return members;
     }
 
     /** The emitted function name: a format-variant handler fans out to the selected variant's name. */
@@ -644,11 +739,7 @@ public final class SchemaDrivenSourceGenerator {
         }
         List<String> params = new ArrayList<>();
         for (TriggerUISchemaModel.Parameter parameter : function.parameters()) {
-            if (FIELD_TYPE_FLAG.equals(PayloadComposer.selectedFieldType(parameter.type()))) {
-                if (!isFlagOn(parameter)) {
-                    continue;
-                }
-            } else if (Boolean.TRUE.equals(parameter.optional())) {
+            if (!isEmitted(parameter)) {
                 continue;
             }
             String type = rewriteSelfPrefix(PayloadComposer.effectiveType(parameter.type()), selfPrefix, emitAlias);
@@ -658,6 +749,14 @@ public final class SchemaDrivenSourceGenerator {
             }
         }
         return String.join(", ", params);
+    }
+
+    /** Whether a handler parameter is written into the signature: a ticked flag, or a non-optional param. */
+    private static boolean isEmitted(TriggerUISchemaModel.Parameter parameter) {
+        if (FIELD_TYPE_FLAG.equals(PayloadComposer.selectedFieldType(parameter.type()))) {
+            return isFlagOn(parameter);
+        }
+        return !Boolean.TRUE.equals(parameter.optional());
     }
 
     private static boolean isFlagOn(TriggerUISchemaModel.Parameter parameter) {
@@ -686,7 +785,7 @@ public final class SchemaDrivenSourceGenerator {
         if (Boolean.TRUE.equals(returnType.optional()) && !type.endsWith("?")) {
             type = type + "?";
         }
-        return "returns" + SPACE + type;
+        return RETURNS_PREFIX + type;
     }
 
     private static String renderListenerDeclaration(String selfPrefix, String emitAlias, ListenerArgs args) {

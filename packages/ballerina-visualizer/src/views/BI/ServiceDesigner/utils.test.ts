@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2025, WSO2 LLC. (https://www.wso2.com) All Rights Reserved.
+ * Copyright (c) 2026, WSO2 LLC. (https://www.wso2.com) All Rights Reserved.
  *
  * WSO2 LLC. licenses this file to you under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
@@ -16,9 +16,19 @@
  * under the License.
  */
 
-import { ParseResult, parseResourceFunctionPath } from "@wso2/ballerina-side-panel";
+jest.mock("@wso2/ballerina-core", () => ({}));
 
-/** The HTTP resource form applies the same resource-path rules as every other resource handler. */
-export function parseResourcePath(input: string): ParseResult {
-    return parseResourceFunctionPath(input);
-}
+import { sanitizedResourcePath } from "./utils";
+
+describe("sanitizedResourcePath", () => {
+    it.each([
+        ["v1.0", "v1\\.0"],
+        ["a-b", "a\\-b"],
+        ["rooms/[string id]", "rooms/[string id]"],
+        ["a/[int... rest]", "a/[int... rest]"],
+        ["a-b/[string id]/c.d", "a\\-b/[string id]/c\\.d"],
+        ["v1\\.0", "v1\\.0"],
+    ])("sanitizes %p as %p", (path, expected) => {
+        expect(sanitizedResourcePath(path)).toBe(expected);
+    });
+});

@@ -24,6 +24,7 @@ import io.ballerina.modelgenerator.commons.trigger.models.TriggerMetadataModel;
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerUIMetadataModel;
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerUISchemaModel;
 import io.ballerina.modelgenerator.commons.trigger.models.TypeRef;
+import io.ballerina.modelgenerator.commons.trigger.models.ValueSpec;
 import io.ballerina.servicemodelgenerator.extension.model.Listener;
 import io.ballerina.servicemodelgenerator.extension.model.MetaData;
 import io.ballerina.servicemodelgenerator.extension.model.PropertyType;
@@ -602,6 +603,49 @@ public class TriggerUIMetadataCompilerTest {
                 .map(TriggerUISchemaModel.FunctionModel::name).toList(), List.of("onOther"));
         Assert.assertEquals(service(model, "triggerfixture:PingService").functions().stream()
                 .map(TriggerUISchemaModel.FunctionModel::name).toList(), List.of("onPing"));
+    }
+
+    @Test
+    public void testAccessorTargetDoesNotReachWildcardResource() {
+        ValueSpec requiredPath = new ValueSpec("required", null);
+        List<TriggerMetadataModel.ServiceType.HandlerOption> options = List.of(
+                new TriggerMetadataModel.ServiceType.HandlerOption("$service.*", "*", "resource", "many",
+                        "Any resource.", null, null, null, List.of(), null,
+                        new ValueSpec("required", List.of("*")), requiredPath, null),
+                new TriggerMetadataModel.ServiceType.HandlerOption("$service.get", "get", "resource", null,
+                        "A get resource.", null, "optional", null, List.of(), null,
+                        new ValueSpec("required", List.of("get")), requiredPath, null));
+        TriggerMetadataModel.Listener listener = new TriggerMetadataModel.Listener(
+                "$listener", "Listens for events.", new TypeRef("Listener", null), null,
+                List.of("$service"), false, null, null, null);
+        TriggerMetadataModel.ServiceType serviceType = new TriggerMetadataModel.ServiceType(
+                "$service", "A service.", new TypeRef("Service", null), null, false, false, null, null,
+                new TriggerMetadataModel.ServiceType.Handlers(false, options), null);
+        TriggerMetadataModel authoring = new TriggerMetadataModel(
+                "v1.0", List.of(listener), List.of(serviceType), null, null);
+        TriggerLibraryFacts facts = new TriggerLibraryFacts(
+                List.of(new TriggerLibraryFacts.Listener("Listener", List.of())),
+                List.of(new TriggerLibraryFacts.ServiceType("Service", "", List.of())), List.of());
+        TriggerUISchemaModel derived = TriggerModelSynthesizer.synthesize(authoring, facts, listenerModel(), "1",
+                "Test", null, "event", "testorg", MODULE, MODULE, "0.1.0").orElseThrow();
+
+        TriggerUIMetadataModel.FunctionNode excluded = new TriggerUIMetadataModel.FunctionNode(
+                Boolean.FALSE, null, null, null, null, null, null, null, null, null, null);
+        TriggerUIMetadataModel.TargetedNode excludedGet = new TriggerUIMetadataModel.TargetedNode(
+                l1Target("$service.get"), null, null, null, null, excluded, null, null, null, null, null, null,
+                null);
+        TriggerUIMetadataModel.TargetedNode serviceOverlay = new TriggerUIMetadataModel.TargetedNode(
+                l1Target("$service"), null, null, null, null, null, null, null, null,
+                List.of(excludedGet), null, null, null);
+        TriggerUIMetadataModel l2 = newTriggerUIMetadataModel(
+                "v1.0", null, null, null, null, null, List.of(serviceOverlay), null);
+
+        TriggerUISchemaModel model = TriggerUIMetadataCompiler.apply(derived, authoring, facts, Map.of(), null, l2);
+
+        Assert.assertEquals(model.serviceTypes().get(0).schemaFunctions().stream()
+                        .map(TriggerUISchemaModel.FunctionModel::accessor).toList(),
+                List.of("get,post,put,delete,patch,head,options,default"),
+                "excluding $service.get removes only the get resource, not the wildcard that also offers get");
     }
 
     @Test

@@ -487,7 +487,7 @@
             "hidden": true
           }
         },
-        "group": "newTool",
+        "group": "$service.tool",
         "addLabel": "Add Tool",
         "repeatable": "TRUE",
         "nameEditable": true
@@ -870,7 +870,7 @@
           "version": "1.3.0"
         },
         "properties": {},
-        "group": "newTool",
+        "group": "$service.tool",
         "addLabel": "Add Tool",
         "repeatable": "TRUE",
         "nameEditable": true
@@ -1083,7 +1083,7 @@
           "version": "1.3.0"
         },
         "properties": {},
-        "group": "newTool",
+        "group": "$service.tool",
         "addLabel": "Add Tool",
         "repeatable": "TRUE",
         "nameEditable": true

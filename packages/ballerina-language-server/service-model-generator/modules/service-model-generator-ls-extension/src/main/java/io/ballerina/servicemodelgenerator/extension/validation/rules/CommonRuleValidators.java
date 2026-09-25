@@ -19,6 +19,7 @@
 package io.ballerina.servicemodelgenerator.extension.validation.rules;
 
 import com.google.gson.JsonPrimitive;
+import io.ballerina.compiler.syntax.tree.SyntaxInfo;
 import io.ballerina.servicemodelgenerator.extension.model.Value;
 
 import java.net.URI;
@@ -254,7 +255,10 @@ public final class CommonRuleValidators {
         return parsed.get() < 0 ? Optional.of("{label} cannot be negative") : Optional.empty();
     }
 
-    /** Segments are identifiers or (when {@code allowPathParams}) path params; a leading / is optional. */
+    /**
+     * Segments are identifiers (a bare one never a Ballerina keyword, the set the designer's path editor
+     * also rejects) or, when {@code allowPathParams}, path params; a leading / is optional.
+     */
     private static boolean isValidPath(String path, boolean allowPathParams) {
         if (path.chars().anyMatch(Character::isWhitespace)) {
             return false;
@@ -270,8 +274,10 @@ public final class CommonRuleValidators {
             if (allowPathParams && PATH_PARAM_PATTERN.matcher(segment).matches()) {
                 return true;
             }
-            String bare = segment.startsWith("'") ? segment.substring(1) : segment;
-            return IDENTIFIER_PATTERN.matcher(bare).matches();
+            if (segment.startsWith("'")) {
+                return IDENTIFIER_PATTERN.matcher(segment.substring(1)).matches();
+            }
+            return IDENTIFIER_PATTERN.matcher(segment).matches() && !SyntaxInfo.isKeyword(segment);
         });
     }
 
