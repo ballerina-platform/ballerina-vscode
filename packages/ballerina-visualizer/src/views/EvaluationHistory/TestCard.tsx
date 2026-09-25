@@ -16,12 +16,14 @@
  * under the License.
  */
 
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import styled from "@emotion/styled";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { EvaluationRunDataPoint, EvaluationTestHistory } from "./types";
 import { SparklineChart } from "./SparklineChart";
 import { RunHistoryTable } from "./RunHistoryTable";
+import { PassRatePill } from "../../components/PassRatePill";
+import { Button, Codicon } from "@wso2/ui-toolkit";
 
 const Card = styled.section`
     background: var(--vscode-sideBar-background);
@@ -30,6 +32,16 @@ const Card = styled.section`
     margin: 0 24px;
     margin-bottom: 16px;
     overflow: hidden;
+    scroll-margin-top: 72px;
+
+    &[data-focused="true"] {
+        animation: focus-ring 2s ease-out;
+    }
+
+    @keyframes focus-ring {
+        0%, 40% { box-shadow: 0 0 0 2px var(--vscode-focusBorder); }
+        100% { box-shadow: 0 0 0 0 transparent; }
+    }
 `;
 
 const CardHeader = styled.div`
@@ -64,28 +76,13 @@ const CardMeta = styled.div`
     color: var(--vscode-descriptionForeground);
 `;
 
-const PassBadge = styled.span<{ isPassing: boolean }>`
-    font-size: 12px;
+const DeletedTag = styled.span`
+    font-size: 11px;
     font-weight: 600;
-    padding: 3px 10px;
-    border-radius: 12px;
-    background: ${(p: { isPassing: boolean }) =>
-        p.isPassing ? "rgba(76, 175, 80, 0.2)" : "rgba(244, 67, 54, 0.15)"};
-    color: ${(p: { isPassing: boolean }) =>
-        p.isPassing
-            ? "var(--vscode-editorGutter-addedBackground, #2ea043)"
-            : "var(--vscode-editorGutter-deletedBackground, #f85149)"};
-    border: 1px solid
-        ${(p: { isPassing: boolean }) =>
-        p.isPassing
-            ? "rgba(76, 175, 80, 0.4)"
-            : "rgba(244, 67, 54, 0.4)"};
-`;
-
-const BadgeSep = styled.span`
-    opacity: 0.5;
-    margin: 0 2px;
-    font-weight: 400;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: var(--vscode-badge-background);
+    color: var(--vscode-badge-foreground);
 `;
 
 const Trend = styled.span<{ direction: "up" | "down" | "flat" }>`
@@ -125,10 +122,24 @@ const SparklineLabels = styled.div`
 interface TestCardProps {
     history: EvaluationTestHistory;
     projectPath?: string;
+    deleted?: boolean;
+    /** Deletes the given runs, or every run when omitted. */
+    onDeleteHistory?: (reportPaths?: string[]) => void;
+    /** Scrolls to the card, highlights it and shows its runs. */
+    focused?: boolean;
+    /** Rows whose name or failure message matched the search, when nothing else did. */
+    rowMatches?: number;
 }
 
-export function TestCard({ history, projectPath }: TestCardProps) {
+export function TestCard({ history, projectPath, deleted, onDeleteHistory, focused, rowMatches }: TestCardProps) {
     const { rpcClient } = useRpcContext();
+    const cardRef = useRef<HTMLElement>(null);
+
+    useEffect(() => {
+        if (focused) {
+            cardRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+        }
+    }, [focused]);
 
     if (!history.runs.length) {
         return (
@@ -144,8 +155,7 @@ export function TestCard({ history, projectPath }: TestCardProps) {
     }
 
     const latest = history.runs[history.runs.length - 1];
-    const latestPct = (latest.passRate * 100).toFixed(0);
-    const targetPct = (latest.targetPassRate * 100).toFixed(0);
+    const passedRuns = history.runs.filter((run) => run.status === "PASSED").length;
     const isPassing = latest.passRate >= latest.targetPassRate;
 
     let trendElement: React.ReactNode = null;
@@ -162,29 +172,38 @@ export function TestCard({ history, projectPath }: TestCardProps) {
             );
         } else {
             trendElement = (
-                <Trend direction="flat">&rarr; stable</Trend>
+                <Trend direction="flat">&rarr; {isPassing ? "stable" : "still failing"}</Trend>
             );
         }
     }
 
     return (
-        <Card>
+        <Card ref={cardRef} data-focused={focused}>
             <CardHeader>
                 <CardTitleRow>
                     <TestName>{history.testName}</TestName>
                     <CardBadges>
                         {trendElement}
-                        <PassBadge isPassing={isPassing}>
-                            {latestPct}%
-                            <BadgeSep>/</BadgeSep>
-                            {targetPct}%
-                        </PassBadge>
+                        <PassRatePill
+                            passRate={latest.passRate}
+                            minPassRate={latest.targetPassRate}
+                            isPassing={isPassing}
+                            latest
+                        />
+                        {deleted && <DeletedTag title="This evaluation is no longer in the code">Deleted</DeletedTag>}
+                        {onDeleteHistory && (
+                            <Button appearance="icon" tooltip="Delete run history" onClick={() => onDeleteHistory()}>
+                                <Codicon name="trash" />
+                            </Button>
+                        )}
                     </CardBadges>
                 </CardTitleRow>
                 <CardMeta>
                     {history.runs.length} run
                     {history.runs.length !== 1 ? "s" : ""} &middot;{" "}
+                    {passedRuns} passed &middot;{" "}
                     {history.projectName}
+                    {rowMatches > 0 && <> &middot; {rowMatches} {rowMatches === 1 ? "row matches" : "rows match"} the search</>}
                 </CardMeta>
             </CardHeader>
 
@@ -203,7 +222,8 @@ export function TestCard({ history, projectPath }: TestCardProps) {
                 />
             </SparklineWrap>
 
-            <RunHistoryTable runs={history.runs} projectPath={projectPath} />
+            <RunHistoryTable runs={history.runs} projectPath={projectPath} defaultOpen={focused}
+                onDeleteRun={onDeleteHistory && ((reportPath) => onDeleteHistory([reportPath]))} />
         </Card>
     );
 }

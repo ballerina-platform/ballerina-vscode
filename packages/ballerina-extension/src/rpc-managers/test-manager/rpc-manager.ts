@@ -21,6 +21,16 @@ import {
     GetTestFunctionResponse,
     GetTestFunctionNamesRequest,
     GetTestFunctionNamesResponse,
+    EvaluationsRequest,
+    EvaluationRunState,
+    StopEvaluationsRequest,
+    EvaluationAction,
+    EvaluationActionRequest,
+    EvalsetActionRequest,
+    BI_COMMANDS,
+    GetEvaluationsResponse,
+    EvaluationFileResponse,
+    RunEvaluationsRequest,
     STModification,
     SourceUpdateResponse,
     SyntaxTree,
@@ -30,6 +40,7 @@ import {
     GetEvalsetsResponse,
     EvalsetItem,
     GetEvaluationHistoryRequest,
+    DeleteEvaluationHistoryRequest,
     GetEvaluationHistoryResponse,
     OpenEvaluationReportRequest,
     EvaluationHistoryData,
@@ -52,9 +63,62 @@ import { updateSourceCode } from "../../utils/source-utils";
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { EvaluationReportWebview } from "../../views/evaluation-report/webview";
-import { getDiffStat, getDiffFull, objectExists, restoreToCheckpoint } from "../../utils/git-utils";
+import { getDiffStat, getDiffFull, objectExists, restoreToCheckpoint, unpinSnapshot } from "../../utils/git-utils";
 import { getTestFunctionNames } from "../../utils/test-discovery";
 import { refreshTestsForFile } from "../../features/test-explorer/activator";
+import { getEvaluationRunState, queueEvaluations, stopEvaluations } from "../../features/test-explorer/evaluation-queue";
+import { parseReportDate, removeReportTests, reportHtmlPath, reportTestNames } from "../../utils/evaluation-report";
+import { notifyEvaluationHistoryUpdated } from "../../RPCLayer";
+import { ensureEvaluationFile, supportsAIEvaluation } from "../../features/test-explorer/commands";
+import { findEvaluationItem } from "../../features/test-explorer/runner";
+import { deleteEvalset } from "../../features/test-explorer/evalset-commands";
+import { EVALSET_EXCLUDE, EVALSET_GLOB } from "../../features/test-explorer/evalset-utils";
+import { extension } from "../../BalExtensionContext";
+
+const EVALUATION_ACTION_COMMANDS: Record<EvaluationAction, string> = {
+    openFlow: BI_COMMANDS.BI_EDIT_TEST_FUNCTION,
+    delete: BI_COMMANDS.BI_DELETE_TEST_FUNCTION,
+};
+
+const REPORTS_DIR = path.join("tests", "evaluation-reports");
+
+interface LoadedReport {
+    path: string;
+    report: any;
+}
+
+const isInside = (dir: string, filePath: string): boolean => {
+    const relative = path.relative(dir, filePath);
+    return !!relative && !relative.startsWith("..") && !path.isAbsolute(relative);
+};
+
+function readReportsWithTests(params: DeleteEvaluationHistoryRequest, testNames: Set<string>): LoadedReport[] {
+    const reportsDir = path.join(params.projectPath, REPORTS_DIR);
+    const reportPaths = params.reportPaths
+        ?? (fs.existsSync(reportsDir) ? fs.readdirSync(reportsDir) : [])
+            .filter((file) => file.endsWith("_test_results.json"))
+            .map((file) => path.join(reportsDir, file));
+    return reportPaths.filter((reportPath) => isInside(reportsDir, reportPath)).flatMap((reportPath) => {
+        try {
+            const report = JSON.parse(fs.readFileSync(reportPath, "utf-8"));
+            return reportTestNames(report).some((name) => testNames.has(name)) ? [{ path: reportPath, report }] : [];
+        } catch {
+            return [];
+        }
+    });
+}
+
+async function confirmHistoryDeletion(params: DeleteEvaluationHistoryRequest, runCount: number): Promise<boolean> {
+    const subject = params.testNames.length === 1 ? params.testNames[0] : `${params.testNames.length} evaluations`;
+    const message = params.reportPaths?.length === 1 ? `Delete this run of ${subject}?` : `Delete the run history of ${subject}?`;
+    const detail = `This removes the results from ${runCount} ${runCount === 1 ? "run" : "runs"}. `
+        + "Runs that contain only these evaluations go to the Trash. Results removed from other runs can't be restored.";
+    return await vscode.window.showWarningMessage(message, { modal: true, detail }, "Delete") === "Delete";
+}
+
+async function moveToTrash(filePath: string): Promise<void> {
+    await vscode.workspace.fs.delete(vscode.Uri.file(filePath), { useTrash: true });
+}
 
 export class TestServiceManagerRpcManager implements TestManagerServiceAPI {
 
@@ -132,13 +196,68 @@ export class TestServiceManagerRpcManager implements TestManagerServiceAPI {
         }
     }
 
+    async getEvaluations(params: EvaluationsRequest): Promise<GetEvaluationsResponse> {
+        try {
+            const res = await StateMachine.context().langClient.getProjectEvaluations({ projectPath: params.projectPath });
+            if (!res || !('evaluations' in res || 'errorMsg' in res)) {
+                return { evaluations: [], errorMsg: 'Evaluations are not supported by this language server.' };
+            }
+            return { evaluations: res.evaluations ?? [], errorMsg: res.errorMsg };
+        } catch (error) {
+            return { evaluations: [], errorMsg: error instanceof Error ? error.message : String(error) };
+        }
+    }
+
+    async getEvaluationFile(params: EvaluationsRequest): Promise<EvaluationFileResponse> {
+        if (!supportsAIEvaluation(extension.ballerinaExtInstance)) {
+            return { errorMsg: 'AI evaluations need Ballerina 2201.13.2 or later. Upgrade Ballerina to create one.' };
+        }
+        try {
+            return { filePath: await ensureEvaluationFile(params.projectPath) };
+        } catch (error) {
+            return { errorMsg: error instanceof Error ? error.message : String(error) };
+        }
+    }
+
+    async runEvaluations(params: RunEvaluationsRequest): Promise<void> {
+        queueEvaluations(params.projectPath, params.functionNames);
+    }
+
+    async stopEvaluations(params: StopEvaluationsRequest): Promise<void> {
+        stopEvaluations(params.projectPath, params.functionNames);
+    }
+
+    async getEvaluationRunState(params: EvaluationsRequest): Promise<EvaluationRunState> {
+        return getEvaluationRunState(params.projectPath);
+    }
+
+    async runEvaluationAction(params: EvaluationActionRequest): Promise<void> {
+        const item = findEvaluationItem(params.projectPath, params.functionName);
+        if (!item) {
+            vscode.window.showErrorMessage(`'${params.functionName}' was not found in the Testing view. `
+                + 'Refresh the tests and try again.');
+            return;
+        }
+        // Opened from the agent page, so back must return there.
+        await vscode.commands.executeCommand(EVALUATION_ACTION_COMMANDS[params.action], item, { keepHistory: true });
+    }
+
+    async runEvalsetAction(params: EvalsetActionRequest): Promise<void> {
+        const uri = vscode.Uri.file(path.resolve(params.projectPath, params.filePath));
+        if (params.action === "delete") {
+            await deleteEvalset({ uri }, params.usedBy);
+            return;
+        }
+        await vscode.commands.executeCommand("ballerina.openEvalsetViewer", uri);
+    }
+
     async getEvalsets(params: GetEvalsetsRequest): Promise<GetEvalsetsResponse> {
         return new Promise(async (resolve) => {
             try {
                 const pattern = params.projectPath
-                    ? new vscode.RelativePattern(vscode.Uri.file(params.projectPath), '**/tests/resources/evalsets/**/*.evalset.json')
-                    : '**/tests/resources/evalsets/**/*.evalset.json';
-                const evalsetFiles = await vscode.workspace.findFiles(pattern);
+                    ? new vscode.RelativePattern(vscode.Uri.file(params.projectPath), EVALSET_GLOB)
+                    : EVALSET_GLOB;
+                const evalsetFiles = await vscode.workspace.findFiles(pattern, EVALSET_EXCLUDE);
                 const evalsets: EvalsetItem[] = [];
 
                 for (const uri of evalsetFiles) {
@@ -189,6 +308,35 @@ export class TestServiceManagerRpcManager implements TestManagerServiceAPI {
                 resolve({ data: { tests: [], totalRunFiles: 0, projectNames: [] } });
             }
         });
+    }
+
+    async deleteEvaluationHistory(params: DeleteEvaluationHistoryRequest): Promise<void> {
+        const testNames = new Set<string>(params.testNames);
+        const reports = readReportsWithTests(params, testNames);
+        if (reports.length === 0 || !(await confirmHistoryDeletion(params, reports.length))) {
+            return;
+        }
+        const removedSnapshots: string[] = [];
+        try {
+            for (const { path: reportPath, report } of reports) {
+                // Our report view reads only the JSON, so a rewritten run's HTML would just be stale.
+                await moveToTrash(reportHtmlPath(reportPath)).catch(() => undefined);
+                if (removeReportTests(report, testNames)) {
+                    await fs.promises.writeFile(reportPath, JSON.stringify(report, null, 2));
+                } else {
+                    await moveToTrash(reportPath);
+                    removedSnapshots.push(report.gitState?.commitSha);
+                }
+            }
+        } catch (error) {
+            vscode.window.showErrorMessage(`Failed to delete the run history: ${error instanceof Error ? error.message : error}`);
+        }
+        const kept = new Set(this.loadReportData(path.join(params.projectPath, REPORTS_DIR)).tests
+            .flatMap((test) => test.runs.map((run) => run.gitState?.commitSha)));
+        for (const sha of removedSnapshots.filter((sha) => sha && !kept.has(sha))) {
+            await unpinSnapshot(params.projectPath, sha);
+        }
+        notifyEvaluationHistoryUpdated();
     }
 
     async openEvaluationReport(params: OpenEvaluationReportRequest): Promise<void> {
@@ -304,27 +452,6 @@ export class TestServiceManagerRpcManager implements TestManagerServiceAPI {
         };
     }
 
-    private parseDateFromFilename(filename: string): Date | undefined {
-        const match = filename.match(
-            /^(\d{4})-(\d{2})-(\d{2})_(\d{2})-(\d{2})-(\d{2})-(\d{3})/
-        );
-        if (!match) {
-            return undefined;
-        }
-        const [, year, month, day, hour, minute, second, ms] = match;
-        return new Date(
-            Date.UTC(
-                parseInt(year),
-                parseInt(month) - 1,
-                parseInt(day),
-                parseInt(hour),
-                parseInt(minute),
-                parseInt(second),
-                parseInt(ms)
-            )
-        );
-    }
-
     private loadReportData(reportsDir: string): EvaluationHistoryData {
         const testMap = new Map<string, EvaluationTestHistory>();
         const projectNames = new Set<string>();
@@ -340,7 +467,7 @@ export class TestServiceManagerRpcManager implements TestManagerServiceAPI {
             .sort();
 
         for (const jsonFile of jsonFiles) {
-            const date = this.parseDateFromFilename(jsonFile);
+            const date = parseReportDate(jsonFile);
             if (!date) {
                 continue;
             }
@@ -374,15 +501,16 @@ export class TestServiceManagerRpcManager implements TestManagerServiceAPI {
                     const status: "PASSED" | "FAILURE" =
                         test.status === "PASSED" ? "PASSED" : "FAILURE";
 
+                    // Without minPassRate there is no summary: a plain test that must pass on its one run.
                     const evalSummary = test.evaluationSummary ?? {};
                     const observedPassRate: number =
                         typeof evalSummary.observedPassRate === "number"
                             ? evalSummary.observedPassRate
-                            : 0;
+                            : status === "PASSED" ? 1 : 0;
                     const targetPassRate: number =
                         typeof evalSummary.targetPassRate === "number"
                             ? evalSummary.targetPassRate
-                            : 0.8;
+                            : 1;
 
                     const evaluationRuns: EvaluationRun[] = (
                         evalSummary.evaluationRuns ?? []

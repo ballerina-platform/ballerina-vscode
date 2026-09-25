@@ -15,7 +15,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { GetTestFunctionRequest, GetTestFunctionResponse, AddOrUpdateTestFunctionRequest } from "../../interfaces/extended-lang-client";
+import { GetTestFunctionRequest, GetTestFunctionResponse, AddOrUpdateTestFunctionRequest, Evaluation } from "../../interfaces/extended-lang-client";
 import { NotificationType, RequestType } from "vscode-messenger-common";
 import { SourceUpdateResponse } from "../service-designer/interfaces";
 
@@ -37,6 +37,86 @@ export interface GetTestFunctionNamesResponse {
 
 export const getTestFunctionNames: RequestType<GetTestFunctionNamesRequest, GetTestFunctionNamesResponse> =
     { method: `${_preFix}/getTestFunctionNames` };
+
+export interface EvaluationsRequest {
+    projectPath: string;
+}
+
+export interface GetEvaluationsResponse {
+    evaluations: Evaluation[];
+    errorMsg?: string;
+}
+
+export const getEvaluations: RequestType<EvaluationsRequest, GetEvaluationsResponse> =
+    { method: `${_preFix}/getEvaluations` };
+
+export interface EvaluationFileResponse {
+    filePath?: string;
+    errorMsg?: string;
+}
+
+/** Returns the file new evaluations are added to, creating it when missing. */
+export const getEvaluationFile: RequestType<EvaluationsRequest, EvaluationFileResponse> =
+    { method: `${_preFix}/getEvaluationFile` };
+
+export interface RunEvaluationsRequest {
+    projectPath: string;
+    functionNames: string[];
+}
+
+export const runEvaluations: RequestType<RunEvaluationsRequest, void> =
+    { method: `${_preFix}/runEvaluations` };
+
+export type EvaluationAction = "openFlow" | "delete";
+
+export interface EvaluationActionRequest {
+    projectPath: string;
+    functionName: string;
+    action: EvaluationAction;
+}
+
+/** Runs the Testing view's open-flow or delete command on the evaluation. */
+export const runEvaluationAction: RequestType<EvaluationActionRequest, void> =
+    { method: `${_preFix}/runEvaluationAction` };
+
+export type EvalsetAction = "open" | "delete";
+
+export interface EvalsetActionRequest {
+    projectPath: string;
+    /** Relative to the project, as the evalset list returns it. */
+    filePath: string;
+    action: EvalsetAction;
+    /** Evaluations that load the evalset, named in the delete confirmation. */
+    usedBy?: string[];
+}
+
+export const runEvalsetAction: RequestType<EvalsetActionRequest, void> =
+    { method: `${_preFix}/runEvalsetAction` };
+
+export interface StopEvaluationsRequest {
+    projectPath: string;
+    /** Stops every running and queued evaluation when omitted. */
+    functionNames?: string[];
+}
+
+export const stopEvaluations: RequestType<StopEvaluationsRequest, void> =
+    { method: `${_preFix}/stopEvaluations` };
+
+export interface EvaluationRunState {
+    projectPath: string;
+    running: string[];
+    queued: string[];
+    stopping: string[];
+}
+
+export const getEvaluationRunState: RequestType<EvaluationsRequest, EvaluationRunState> =
+    { method: `${_preFix}/getEvaluationRunState` };
+
+export const evaluationRunStateChanged: NotificationType<EvaluationRunState> =
+    { method: `${_preFix}/evaluationRunStateChanged` };
+
+export const evalsetsChanged: NotificationType<void> =
+    { method: `${_preFix}/evalsetsChanged` };
 
 export interface EvalsetItem {
     id: string;
@@ -97,6 +177,26 @@ export interface EvaluationHistoryData {
 export interface GetEvaluationHistoryRequest {
     projectPath: string;
 }
+
+/** What the Evaluation History page first shows; every agent's evaluations when omitted. */
+export interface EvaluationHistoryFilter {
+    agents?: string[];
+    /** Preselects the agents these evaluations run. */
+    testNames?: string[];
+    /** Scrolls to this evaluation and shows its runs. */
+    focus?: string;
+}
+
+export interface DeleteEvaluationHistoryRequest {
+    projectPath: string;
+    testNames: string[];
+    /** Only these runs, as absolute paths under tests/evaluation-reports; every run when omitted. */
+    reportPaths?: string[];
+}
+
+/** Removes the tests' results from past reports, after the user confirms. */
+export const deleteEvaluationHistory: RequestType<DeleteEvaluationHistoryRequest, void> =
+    { method: `${_preFix}/deleteEvaluationHistory` };
 
 export interface GetEvaluationHistoryResponse {
     data: EvaluationHistoryData;

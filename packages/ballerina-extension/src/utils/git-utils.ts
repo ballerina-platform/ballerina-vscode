@@ -92,6 +92,13 @@ export async function pinSnapshot(cwd: string, sha: string): Promise<void> {
     } catch { /* non-fatal: snapshot works short-term without pin */ }
 }
 
+export async function unpinSnapshot(cwd: string, sha: string): Promise<void> {
+    try {
+        assertSha(sha);
+        await run(`git update-ref -d refs/eval-snapshots/${sha}`, cwd);
+    } catch { /* not pinned: the report's run was on a clean tree */ }
+}
+
 export async function getDiffStat(cwd: string, from: string, to: string): Promise<string> {
     assertSha(from);
     if (to !== "HEAD") { assertSha(to); }

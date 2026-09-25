@@ -641,6 +641,34 @@ export interface FunctionLineRange {
     endLine: LinePosition;
 }
 
+export interface EvaluationTemplate {
+    symbol: string;
+    label: string;
+    description: string;
+    kind: string;
+    needsEvalset: boolean;
+}
+
+export interface EvaluationAgent {
+    name: string;
+    lineRange: FunctionLineRange;
+}
+
+export interface Evaluation {
+    functionName: string;
+    lineRange: FunctionLineRange;
+    template?: EvaluationTemplate;
+    agents: EvaluationAgent[];
+    /** Evalset the data provider loads, relative to the package. */
+    evalSetFile?: string;
+}
+
+export interface EvaluationsDiscoveryResponse {
+    evaluations?: Evaluation[];
+    errorMsg?: string;
+    stacktrace?: string;
+}
+
 export interface ICPEnabledRequest {
     projectPath: string;
 }
@@ -679,6 +707,8 @@ export interface AddOrUpdateTestFunctionRequest {
             queries?: string[];
         };
     };
+    /** Agent a custom evaluation starts by running, so it is linked to that agent. */
+    targetAgent?: string;
 }
 
 export interface TestSourceEditResponse {

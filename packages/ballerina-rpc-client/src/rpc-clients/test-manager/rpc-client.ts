@@ -20,8 +20,13 @@ import {
     TestSourceEditResponse, GetTestFunctionResponse,
     getTestFunction, addTestFunction, updateTestFunction,
     GetTestFunctionNamesRequest, GetTestFunctionNamesResponse, getTestFunctionNames,
+    EvaluationsRequest, GetEvaluationsResponse, getEvaluations, EvaluationFileResponse, getEvaluationFile,
+    RunEvaluationsRequest, runEvaluations, StopEvaluationsRequest, stopEvaluations,
+    EvaluationRunState, getEvaluationRunState, EvaluationActionRequest, runEvaluationAction,
+    EvalsetActionRequest, runEvalsetAction,
     SourceUpdateResponse, GetEvalsetsRequest, GetEvalsetsResponse, getEvalsets,
     GetEvaluationHistoryRequest, GetEvaluationHistoryResponse, getEvaluationHistory,
+    DeleteEvaluationHistoryRequest, deleteEvaluationHistory,
     OpenEvaluationReportRequest, openEvaluationReport,
     GetEvaluationReportRequest, GetEvaluationReportResponse, getEvaluationReport,
     GitDiffRequest, GitDiffResponse, getGitDiff,
@@ -53,12 +58,44 @@ export class TestManagerServiceRpcClient implements TestManagerServiceAPI {
         return this._messenger.sendRequest(getTestFunctionNames, HOST_EXTENSION, params);
     }
 
+    getEvaluations(params: EvaluationsRequest): Promise<GetEvaluationsResponse> {
+        return this._messenger.sendRequest(getEvaluations, HOST_EXTENSION, params);
+    }
+
+    getEvaluationFile(params: EvaluationsRequest): Promise<EvaluationFileResponse> {
+        return this._messenger.sendRequest(getEvaluationFile, HOST_EXTENSION, params);
+    }
+
+    runEvaluations(params: RunEvaluationsRequest): Promise<void> {
+        return this._messenger.sendRequest(runEvaluations, HOST_EXTENSION, params);
+    }
+
+    stopEvaluations(params: StopEvaluationsRequest): Promise<void> {
+        return this._messenger.sendRequest(stopEvaluations, HOST_EXTENSION, params);
+    }
+
+    getEvaluationRunState(params: EvaluationsRequest): Promise<EvaluationRunState> {
+        return this._messenger.sendRequest(getEvaluationRunState, HOST_EXTENSION, params);
+    }
+
+    runEvaluationAction(params: EvaluationActionRequest): Promise<void> {
+        return this._messenger.sendRequest(runEvaluationAction, HOST_EXTENSION, params);
+    }
+
+    runEvalsetAction(params: EvalsetActionRequest): Promise<void> {
+        return this._messenger.sendRequest(runEvalsetAction, HOST_EXTENSION, params);
+    }
+
     getEvalsets(params: GetEvalsetsRequest): Promise<GetEvalsetsResponse> {
         return this._messenger.sendRequest(getEvalsets, HOST_EXTENSION, params);
     }
 
     getEvaluationHistory(params: GetEvaluationHistoryRequest): Promise<GetEvaluationHistoryResponse> {
         return this._messenger.sendRequest(getEvaluationHistory, HOST_EXTENSION, params);
+    }
+
+    deleteEvaluationHistory(params: DeleteEvaluationHistoryRequest): Promise<void> {
+        return this._messenger.sendRequest(deleteEvaluationHistory, HOST_EXTENSION, params);
     }
 
     openEvaluationReport(params: OpenEvaluationReportRequest): Promise<void> {

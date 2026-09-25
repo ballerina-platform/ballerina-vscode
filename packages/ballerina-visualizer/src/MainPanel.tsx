@@ -995,6 +995,12 @@ const MainPanel = () => {
                             );
                             break;
                         }
+                        case MACHINE_VIEW.EvalsetList: {
+                            const { EvalsetList } = await import("./views/EvalsetViewer/EvalsetList");
+                            if (isStaleNavigation()) return;
+                            setViewComponent(<EvalsetList projectPath={value.projectPath} />);
+                            break;
+                        }
                         case MACHINE_VIEW.ConfigurationCollector: {
                             const { ConfigurationCollector } = await import("./views/AIPanel/components/ConfigurationCollector");
                             if (isStaleNavigation()) return;
