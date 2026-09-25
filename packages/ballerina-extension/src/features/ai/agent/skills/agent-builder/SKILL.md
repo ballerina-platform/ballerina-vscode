@@ -1,6 +1,6 @@
 ---
 name: agent-builder
-description: Writes and edits Ballerina AI agents (`ai:Agent`): system prompts, model providers, tools, human approval, subagents, toolkits, knowledge bases, and triggers such as chat, Slack, WhatsApp, Telegram, webhooks, Kafka or GitHub events, and HTTP endpoints. Also decides when an agent must be durable (long-running, resumable, crash-resilient, waiting for approval) and makes agents hostable on WSO2 Agent Manager. Use for any `.bal` file that declares or edits an agent, including `agents.bal`.
+description: Writes and edits Ballerina AI agents (`ai:Agent`): system prompts, model providers, tools, human approval, subagents, toolkits, knowledge bases, and triggers such as chat, Slack, WhatsApp, Telegram, webhooks, Kafka or GitHub events, and HTTP endpoints. Also decides when an agent must be durable (long-running, resumable, crash-resilient, waiting for approval). Use for any `.bal` file that declares or edits an agent, including `agents.bal`.
 ---
 
 # Agent Builder
@@ -18,14 +18,16 @@ kebab-case, written `<agent-name>`.
 ## `ai:Agent` or a durable agent
 
 Everything below is for `ai:Agent`. Use a durable agent (`workflow:DurableAgent`) instead, and
-follow the workflow-builder skill, when the user asks for a long-running, durable, resumable or
-crash-resilient agent, or one that must:
+follow the workflow-builder skill, when the user asks for a durable, resumable or crash-resilient
+agent, or one that must:
 
 - keep going after a restart without repeating completed tool calls,
 - wait hours or days for a person or for external data,
 - get approval from an entry point other than chat (an event, a queue, a schedule, HTTP).
 
-Choose it without asking and say why. Memory across chat turns alone is not a reason. A durable
+Choose it without asking and say why. When "long-running" is the only signal, ask first whether
+the agent must survive a restart or wait for a person or data: it often means an always-on
+service, which an `ai:Agent` covers. Memory across chat turns alone is not a reason. A durable
 agent needs a workflow server in production; tell the user.
 
 ## System prompt: always inline
@@ -517,51 +519,5 @@ defaults to the same fixed id, so every caller who omits it shares one memory bu
 endpoint with multiple distinct callers, either derive a per-caller `sessionId` from the request
 and pass it explicitly, or construct the agent with `memory = ()` so there is no shared history to
 leak in the first place.
-
-## Hosting on WSO2 Agent Manager
-
-Apply this only when the user says the agent will be platform-hosted on WSO2 Agent Manager. The
-buildpack builds the project from Git and runs it in a locked-down container.
-
-**Entry point.** A chat agent becomes a Chat Agent: replace the `ai:Listener` trigger with this
-exact contract (`POST /chat` on port 8000). It shows in the diagram as an HTTP service.
-
-```ballerina
-type ChatRequest record {
-    string session_id;
-    string message;
-};
-
-type ChatResponse record {|
-    string response;
-|};
-
-service / on new http:Listener(8000) {
-    resource function post chat(@http:Payload ChatRequest request) returns ChatResponse|error {
-        string reply = check <agent>Agent.run(request.message, request.session_id);
-        return {response: reply};
-    }
-}
-```
-
-Keep `ChatRequest` open; the platform also sends `context`. Any other agent becomes a Custom API
-Agent: keep its HTTP service, and the user registers the port, base path and an OpenAPI file.
-
-**Rules.**
-
-- Pin `distribution = "<version>"` in `Ballerina.toml` and commit `Dependencies.toml`.
-- Add `import ballerinax/amp as _;`. The platform injects `BAL_CONFIG_VAR_BALLERINAX_AMP_*` for
-  tracing, and a `BAL_CONFIG_VAR_*` variable that nothing reads stops the program at startup.
-- Configuration arrives only as `BAL_CONFIG_VAR_<NAME>` environment variables (`openAiApiKey` →
-  `BAL_CONFIG_VAR_OPENAIAPIKEY`), and only for simple-typed configurables. So
-  `ai:getDefaultModelProvider()` cannot be hosted; use a named provider with a
-  `configurable string` key.
-- Repository files are not in the container. Load knowledge-base content from a URL, an external
-  vector store, or a file mount the user adds.
-- In-memory stores reset on every redeploy and differ between replicas; use persistent stores for
-  anything that must survive.
-- Outbound calls reach only public hosts on ports 80 and 443, and the platform gateway. Databases,
-  private hosts and workflow servers are blocked by default; tell the user when the agent needs one.
-- The gateway times out a request after 30 seconds.
 
 Note: `ballerinax/ai` and `ballerinax/ai.agent` are deprecated, everything above is `ballerina/ai`.

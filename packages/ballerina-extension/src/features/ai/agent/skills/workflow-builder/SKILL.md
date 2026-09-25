@@ -391,7 +391,7 @@ way you would for `sendData` or `awaitHumanTask` above.
 final workflow:DurableAgent <agentName> = check new ({
     systemPrompt: {role: "<role>", instructions: "<instructions>"},
     model: <modelProvider>,
-    activities: [<activityName>, <activityName>],
+    activities: [{activity: <activityName>, description: "<what it does, for the model>"}],
     events: {<channelName>: {request: <RequestType>, response: <ResponseType>}}
 });
 ```
@@ -441,11 +441,13 @@ turns are many and short.
 
 **Capability names share one namespace** across `activities`, `tools`, `events`, `humanTasks` and
 `peers`. A name claimed twice is reported at compile time as `WORKFLOW_150`, and rejected again
-when the agent registers, so the program does not start.
+when the agent registers, so the program does not start. The agent also has built-in tools
+named `endConversation`, `sleep`, `getWorkflowId` and `getCurrentTime`; do not reuse those names.
 
-For a capability that needs no extra configuration, pass the bare value — an `@workflow:Activity`
-function in `activities` (as the example above does), or an `@ai:AgentTool` function,
-`ai:ToolConfig` or `ai:BaseToolKit` in `tools`. The records below are the with-configuration forms.
+For a tool that needs no extra configuration, pass the bare value (an `@ai:AgentTool` function,
+`ai:ToolConfig` or `ai:BaseToolKit`) in `tools`. Declare activities with `ActivityDecl`, as the
+example above does, so each one carries a `description`. The records below are the
+with-configuration forms.
 
 #### Activities or tools
 
@@ -461,13 +463,14 @@ An activity capability, with optional gating and retry config.
 |---|---|---|
 | `activity` | `function` | required — the `@workflow:Activity` function |
 | `name` | `string` | optional — the function name |
-| `description` | `string` | optional — the function's doc comment |
+| `description` | `string` | optional — `Tool <name>` |
 | `bindings` | `map<anydata\|object {}>` | optional |
 | `approvalPolicy` | `ReviewTaskDefinition\|NoApproval` | `NoApproval` |
 | `retryPolicy` | `AutoRetry\|ReviewTaskDefinition\|RetryBeforeReview\|NoRetry` | `NoRetry` |
 
-`name` and `description` are what the model sees; they default to the function's own name and doc
-comment. `bindings` are fixed arguments partially applied to the activity (a connection, say),
+`name` and `description` are what the model sees. `name` defaults to the function name, but the
+doc comment is not used: without `description` the model sees only `Tool <name>`, so always set
+it. `bindings` are fixed arguments partially applied to the activity (a connection, say),
 hidden from the model — only the remaining data parameters appear in the tool's schema, and a client
 object is bound by referencing its module-level `final` variable. `retryPolicy` behaves as it does
 for `ctx->callActivity`, and `RetryBeforeReview` retries automatically first and raises a review
@@ -674,16 +677,3 @@ service, importing `ballerina/workflow.management`:
   identity; never hard-code it.
 - Alternatively, `enableManagementApi = true` under `[ballerina.workflow.management.rest]`, with
   `import ballerina/workflow.management.rest as _;`, serves a REST API on its own port (8234).
-
-### Hosting a durable agent on Agent Manager
-
-The agent-builder skill's "Hosting on WSO2 Agent Manager" rules apply, plus:
-
-- Use `SELF_HOSTED` or `CLOUD`; `IN_MEMORY` loses every run on each redeploy.
-- Agent Manager runs no workflow server and blocks port 7233. Tell the user the server must answer
-  on port 443 at a public address, or the platform admin must allow the egress.
-- Set the connection through `BAL_CONFIG_VAR_BALLERINA_WORKFLOW_MODE`, `..._URL`, `..._NAMESPACE`,
-  `..._TASKQUEUE`, and `..._AUTHAPIKEY` as a secret. Certificate files go in as file mounts.
-- Serve task completion from the agent's own service; the management API's separate port is not
-  routed.
-- Behind the Chat Agent contract, persist each `session_id` → instance ID mapping.
