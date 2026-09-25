@@ -982,6 +982,11 @@ export function MiniChat({ anchor, focusRequest, onClose, takeInitialPrompt }: M
         sendPrompt(prompt);
     };
 
+    const stop = () => {
+        rpcClient?.getAiPanelRpcClient().abortAIGeneration({});
+        setStreaming(false);
+    };
+
     useEffect(() => {
         inputRef.current?.focus();
     }, [focusRequest]);
@@ -1077,9 +1082,15 @@ export function MiniChat({ anchor, focusRequest, onClose, takeInitialPrompt }: M
                     aria-label={`Message ${assistantName}`}
                     disabled={runActive}
                 />
-                <SendButton title="Send" aria-label="Send message" onClick={send} disabled={runActive || !input.trim()}>
-                    <Codicon name="send" />
-                </SendButton>
+                {runActive ? (
+                    <SendButton title="Stop" aria-label="Stop generating" onClick={stop}>
+                        <Codicon name="stop-circle" />
+                    </SendButton>
+                ) : (
+                    <SendButton title="Send" aria-label="Send message" onClick={send} disabled={!input.trim()}>
+                        <Codicon name="send" />
+                    </SendButton>
+                )}
             </Footer>
         </Panel>
     );
