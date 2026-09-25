@@ -369,5 +369,20 @@
     "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure.storage.files_1.0.2.png",
     "kind": "file",
     "minSupportedVersion": "1.0.2"
+  },
+  "26": {
+    "name": "ai.wso2.integration",
+    "orgName": "vinoth",
+    "packageName": "ai.wso2.integration",
+    "keywords": [
+      "voice",
+      "ai",
+      "agent",
+      "websocket"
+    ],
+    "triggerName": "Voice Agent Service",
+    "version": "1.0.3",
+    "kind": "ai",
+    "minSupportedVersion": "1.0.3"
   }
 }

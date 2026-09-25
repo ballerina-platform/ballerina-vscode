@@ -24,6 +24,7 @@ import io.ballerina.compiler.syntax.tree.Node;
 import io.ballerina.compiler.syntax.tree.ServiceDeclarationNode;
 import io.ballerina.projects.Document;
 import io.ballerina.projects.Project;
+import io.ballerina.servicemodelgenerator.extension.builder.service.AiAgentTriggerServiceBuilder;
 import io.ballerina.servicemodelgenerator.extension.builder.service.AiChatServiceBuilder;
 import io.ballerina.servicemodelgenerator.extension.builder.service.DefaultServiceBuilder;
 import io.ballerina.servicemodelgenerator.extension.builder.service.GraphqlServiceBuilder;
@@ -67,16 +68,21 @@ import static io.ballerina.servicemodelgenerator.extension.util.Constants.TCP;
  * @since 1.2.0
  */
 public class ServiceBuilderRouter {
+
+    /** Module name of the Voice Agent Service connector. */
+    private static final String AI_AGENT_TRIGGER = "ai.wso2.integration";
+
     private static final Map<String, Supplier<? extends ServiceNodeBuilder>> CONSTRUCTOR_MAP = new HashMap<>() {{
         put(HTTP, HttpServiceBuilder::new);
         put(AI, AiChatServiceBuilder::new);
         put(TCP, TCPServiceBuilder::new);
         put(GRAPHQL, GraphqlServiceBuilder::new);
+        put(AI_AGENT_TRIGGER, AiAgentTriggerServiceBuilder::new);
     }};
 
     /** Protocols with dedicated, mature builders that must never fall through to the schema-driven
      * path, regardless of what {@link TriggerModelReader} resolves for them now or in the future. */
-    private static final Set<String> NEVER_SCHEMA_DRIVEN = Set.of(HTTP, GRAPHQL, TCP, AI);
+    private static final Set<String> NEVER_SCHEMA_DRIVEN = Set.of(HTTP, GRAPHQL, TCP, AI, AI_AGENT_TRIGGER);
 
     public static ServiceNodeBuilder getServiceBuilder(String protocol) {
         return CONSTRUCTOR_MAP.getOrDefault(protocol, DefaultServiceBuilder::new).get();

@@ -99,6 +99,33 @@ public final class AiSourceUtils {
     }
 
     /**
+     * A single agent-trigger handler: hands the caller's message straight to the agent and returns
+     * whatever it replies with.
+     *
+     * @param handlerName   the handler function's name, e.g. {@code onChatMessage}
+     * @param paramType     the handler's single parameter's type, e.g. {@code voice:ChatMessage}
+     * @param paramName     the handler's single parameter's name, e.g. {@code message}
+     * @param returnType    the handler's return type, e.g. {@code string|error}
+     * @param messageField  the field of {@code paramType} carrying the user's message text
+     * @param sessionField  the field of {@code paramType} carrying the session identifier
+     * @param agentVarName  the agent variable to invoke
+     * @param operator      the call operator, from {@link #runOperator(String)}
+     * @return the function source, indented one level for a service body
+     */
+    public static String agentTriggerFunctionSource(String handlerName, String paramType, String paramName,
+                                                     String returnType, String messageField, String sessionField,
+                                                     String agentVarName, String operator) {
+        return String.format(
+                "    isolated remote function %s(%s %s) returns %s {%s" +
+                        "        string response = check %s%srun(%s.%s, %s.%s);%s" +
+                        "        return response;%s" +
+                        "    }",
+                handlerName, paramType, paramName, returnType, NEW_LINE,
+                agentVarName, operator, paramName, messageField, paramName, sessionField, NEW_LINE, NEW_LINE
+        );
+    }
+
+    /**
      * The {@code decision} resource: the human-in-the-loop resume path.
      *
      * <p>Passing decisions rather than a query is what tells {@code run} to continue the paused run
