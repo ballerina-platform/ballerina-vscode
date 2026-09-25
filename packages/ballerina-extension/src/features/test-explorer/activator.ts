@@ -33,6 +33,7 @@ import { openView } from "../../stateMachine";
 import { EvalSet, EVENT_TYPE, MACHINE_VIEW } from "@wso2/ballerina-core";
 import * as fs from 'fs';
 import { EvaluationHistoryWebview } from '../../views/evaluation-history/webview';
+import { notifyEvalsetsChanged } from '../../RPCLayer';
 
 export let testController: TestController;
 
@@ -144,6 +145,7 @@ export async function activate(ballerinaExtInstance: BallerinaExtension) {
         treeDataProvider: evalsetTreeDataProvider,
         showCollapseAll: true
     });
+    evalsetTreeDataProvider.onDidChangeTreeData(() => notifyEvalsetsChanged());
 
     // Create test profiles to display.
     testController.createRunProfile('Run Tests', TestRunProfileKind.Run, runHandler, true);
