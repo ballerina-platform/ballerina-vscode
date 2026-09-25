@@ -590,6 +590,12 @@ export function useAgentRunState(): AgentRunState | undefined {
 
 const miniChatOpenListeners = new Set<(prompt: MiniChatPrompt) => void>();
 
+const IS_MAC = typeof navigator !== "undefined" && /Mac/i.test(navigator.userAgent);
+export const MINI_CHAT_SHORTCUT_LABEL = IS_MAC ? "⌘I" : "Ctrl+I";
+
+export const isMiniChatShortcut = (event: Pick<KeyboardEvent, "metaKey" | "ctrlKey" | "shiftKey" | "altKey" | "key">) =>
+    (IS_MAC ? event.metaKey : event.ctrlKey) && !event.shiftKey && !event.altKey && event.key.toLowerCase() === "i";
+
 /**
  * Ask the ambient Copilot surface to open with a contextual prompt.
  * Returns false only when the orb has not mounted, allowing a full-panel fallback.

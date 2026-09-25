@@ -46,6 +46,7 @@ import {
     subscribeAgentRunStatus,
     subscribeCopilotChatNotify,
     awaitingInputLabel,
+    isMiniChatShortcut,
 } from "./shared";
 import {
     buildFullChatHandoffPrompt,
@@ -684,6 +685,8 @@ function renderTranscript(msgs: MiniMsg[], streaming: boolean): React.ReactNode[
 
 interface MiniChatProps {
     anchor: Anchor;
+    /** Each change, and the first render, moves focus to the input. */
+    focusRequest?: number;
     onClose: () => void;
     /**
      * One-shot accessor for an orb or diagram launch prompt. The source clears
@@ -692,7 +695,7 @@ interface MiniChatProps {
     takeInitialPrompt?: () => MiniChatPrompt | undefined;
 }
 
-export function MiniChat({ anchor, onClose, takeInitialPrompt }: MiniChatProps) {
+export function MiniChat({ anchor, focusRequest, onClose, takeInitialPrompt }: MiniChatProps) {
     const { rpcClient } = useRpcContext();
     const assistantName = useAssistantName();
     const productMode = useProductMode();
@@ -706,6 +709,7 @@ export function MiniChat({ anchor, onClose, takeInitialPrompt }: MiniChatProps) 
     const [streaming, setStreaming] = useState(false);
     const [status, setStatus] = useState<AgentRunStatus | null>(null);
     const bodyRef = useRef<HTMLDivElement | null>(null);
+    const inputRef = useRef<HTMLInputElement | null>(null);
     /**
      * Replay/live high-water mark, scoped per generation: the run-event store
      * resets `seq` to 0 on every new run, so a cross-run mark would silently
@@ -978,10 +982,26 @@ export function MiniChat({ anchor, onClose, takeInitialPrompt }: MiniChatProps) 
         sendPrompt(prompt);
     };
 
+    useEffect(() => {
+        inputRef.current?.focus();
+    }, [focusRequest]);
+
     const transcript = renderTranscript(msgs, streaming);
 
     return (
-        <Panel style={panelPosition(anchor)} role="dialog" aria-label={`${assistantName} mini chat`}>
+        <Panel
+            style={panelPosition(anchor)}
+            role="dialog"
+            aria-label={`${assistantName} mini chat`}
+            onKeyDown={(event) => {
+                if (event.key === "Escape" || isMiniChatShortcut(event)) {
+                    // Keeps a form behind the mini chat and the orb's shortcut listener from handling it too.
+                    event.preventDefault();
+                    event.stopPropagation();
+                    onClose();
+                }
+            }}
+        >
             <Header>
                 <Icon name="bi-ai-chat" sx={{ width: 16, height: 16, flex: "none" }} iconSx={{ fontSize: "16px" }} />
                 <HeaderTitle>{assistantName}</HeaderTitle>
@@ -1039,6 +1059,7 @@ export function MiniChat({ anchor, onClose, takeInitialPrompt }: MiniChatProps) 
             )}
             <Footer>
                 <FooterInput
+                    ref={inputRef}
                     value={input}
                     onChange={(event) => setInput(event.target.value)}
                     onKeyDown={(event) => {
