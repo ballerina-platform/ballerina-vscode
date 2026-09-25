@@ -14,6 +14,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
+import * as path from 'path';
 import { tool } from 'ai';
 import { z } from 'zod';
 import { CopilotEventHandler } from '../../utils/events';
@@ -21,6 +22,8 @@ import { extension } from '../../../../BalExtensionContext';
 import { spawnProcess, killProcessGroup } from './running-service-manager';
 import { BALLERINA_COMMANDS } from '../../../project/cmds/cmd-runner';
 import { DIAGNOSTICS_TOOL_NAME } from './diagnostics';
+import { getWorkspaceTomlValues } from '../../../../utils';
+import { refreshDefaultProviderToken } from '../../utils';
 
 export const TEST_RUNNER_TOOL_NAME = "runTests";
 
@@ -29,9 +32,15 @@ export interface TestRunResult {
     exitCode: number;
 }
 
-const TestRunnerInputSchema = z.object({});
+const TestRunnerInputSchema = z.object({
+    tests: z.array(z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/)).optional()
+        .describe("Test function names to run. Omit to run every test in the project."),
+});
 
-const DEFAULT_TEST_TIMEOUT = 120000;
+type TestRunnerInput = z.infer<typeof TestRunnerInputSchema>;
+
+// Evaluations call the model for every row and run, so one can take minutes.
+const DEFAULT_TEST_TIMEOUT = 300000;
 
 export function createTestRunnerTool(
     tempProjectPath: string,
@@ -49,27 +58,31 @@ export function createTestRunnerTool(
 - After modifying existing code, to confirm tests still pass
 - After writing new test cases, to validate them
 
+**Evaluations:** Tests in the \`evaluations\` group call an LLM for every row and run. Pass \`tests\` with only the evaluations you changed.
+
 **Output:** Returns the full raw \`bal test\` output. Read the output carefully to identify which tests passed or failed, then fix any failures before marking the task as complete.
 `,
         inputSchema: TestRunnerInputSchema,
-        execute: async (_input: Record<string, never>, context?: { toolCallId?: string }): Promise<TestRunResult> => {
+        execute: async (input: TestRunnerInput, context?: { toolCallId?: string }): Promise<TestRunResult> => {
             const toolCallId = context?.toolCallId || `fallback-${Date.now()}`;
+            const args = input.tests?.length ? [BALLERINA_COMMANDS.TEST, "--tests", input.tests.join(",")] : [BALLERINA_COMMANDS.TEST];
+            const command = `bal ${args.join(" ")}`;
 
             eventHandler({
                 type: "tool_call",
                 toolName: TEST_RUNNER_TOOL_NAME,
                 toolCallId,
-                toolInput: { command: "bal test" },
+                toolInput: { command },
             });
 
-            const result = await runBallerinaTests(tempProjectPath);
+            const result = await runBallerinaTests(tempProjectPath, args);
             const status = result.exitCode === 0 ? "completed" : "error";
 
             eventHandler({
                 type: "tool_result",
                 toolName: TEST_RUNNER_TOOL_NAME,
                 toolCallId,
-                toolOutput: { status, summary: parseTestSummary(result.output), command: "bal test", exitCode: result.exitCode, output: result.output },
+                toolOutput: { status, summary: parseTestSummary(result.output), command, exitCode: result.exitCode, output: result.output },
             });
 
             return result;
@@ -89,13 +102,50 @@ function parseTestSummary(output: string): string {
     return "Tests completed";
 }
 
-async function runBallerinaTests(cwd: string): Promise<TestRunResult> {
+async function packagePaths(projectPath: string): Promise<string[]> {
+    const packages = (await getWorkspaceTomlValues(projectPath))?.workspace?.packages ?? [];
+    return packages.length > 0 ? packages.map((pkg) => path.join(projectPath, pkg)) : [projectPath];
+}
+
+// Same token refresh as a run from the Testing view.
+async function refreshProviderTokens(packages: string[]): Promise<boolean> {
+    for (const packagePath of packages) {
+        if (!(await refreshDefaultProviderToken(packagePath))) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// From a workspace root, `bal test` resolves the tests' relative paths against the workspace, not the package.
+async function runBallerinaTests(projectPath: string, args: string[]): Promise<TestRunResult> {
+    const packages = await packagePaths(projectPath);
+    if (!(await refreshProviderTokens(packages))) {
+        return {
+            output: 'The tests did not run: the project uses the WSO2 default model provider, which is not configured. '
+                + 'Ask the user to configure it, then run the tests again.',
+            exitCode: -1,
+        };
+    }
+    const results: TestRunResult[] = [];
+    for (const packagePath of packages) {
+        const result = await runInPackage(packagePath, args);
+        const heading = packages.length > 1 ? `### Package ${path.relative(projectPath, packagePath)}\n` : '';
+        results.push({ ...result, output: heading + result.output });
+    }
+    return {
+        output: results.map((result) => result.output).join('\n'),
+        exitCode: results.find((result) => result.exitCode !== 0)?.exitCode ?? 0,
+    };
+}
+
+async function runInPackage(cwd: string, args: string[]): Promise<TestRunResult> {
     const balCmd = extension.ballerinaExtInstance.getBallerinaCmd();
 
     const logs: string[] = [];
     const { process: proc } = spawnProcess(
         balCmd,
-        [BALLERINA_COMMANDS.TEST],
+        args,
         cwd,
         logs
     );
