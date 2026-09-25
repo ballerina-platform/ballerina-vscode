@@ -1,0 +1,177 @@
+{
+  "filePath": "sample_minpassrate/tests/test1.bal",
+  "description": "Custom evaluation that runs the target agent over an evalset",
+  "function": {
+    "metadata": {
+      "label": "Test Function",
+      "description": "Test Function"
+    },
+    "codedata": {
+      "lineRange": {
+        "fileName": "tests/test1.bal",
+        "startLine": {
+          "line": 3,
+          "offset": 0
+        },
+        "endLine": {
+          "line": 6,
+          "offset": 1
+        }
+      }
+    },
+    "functionName": {
+      "metadata": {
+        "label": "Test Function",
+        "description": "Test function"
+      },
+      "valueType": "IDENTIFIER",
+      "value": "customEvalsetEvaluation",
+      "optional": false,
+      "editable": true,
+      "advanced": false
+    },
+    "returnType": {
+      "metadata": {
+        "label": "Return Type",
+        "description": "Return type of the function"
+      },
+      "valueType": "TYPE",
+      "optional": true,
+      "editable": true,
+      "advanced": true
+    },
+    "parameters": [],
+    "annotations": [
+      {
+        "metadata": {
+          "label": "Config",
+          "description": "Test Function Configurations"
+        },
+        "org": "ballerina",
+        "module": "test",
+        "name": "Config",
+        "fields": [
+          {
+            "metadata": {
+              "label": "Groups",
+              "description": "Groups to run"
+            },
+            "valueType": "EXPRESSION_SET",
+            "originalName": "groups",
+            "value": [
+              "\"evaluations\""
+            ],
+            "optional": true,
+            "editable": true,
+            "advanced": false
+          },
+          {
+            "metadata": {
+              "label": "Runs",
+              "description": "Number of times to execute this test"
+            },
+            "valueType": "EXPRESSION",
+            "originalName": "runs",
+            "value": "1",
+            "optional": true,
+            "editable": true,
+            "advanced": false
+          },
+          {
+            "metadata": {
+              "label": "Minimum Pass Rate (%)",
+              "description": "Minimum percentage of runs that must pass (0-100)"
+            },
+            "valueType": "SLIDER",
+            "originalName": "minPassRate",
+            "value": "80",
+            "optional": true,
+            "editable": true,
+            "advanced": false
+          },
+          {
+            "metadata": {
+              "label": "Data Provider",
+              "description": "Data provider function"
+            },
+            "valueType": "EXPRESSION",
+            "originalName": "dataProvider",
+            "value": "",
+            "optional": true,
+            "editable": true,
+            "advanced": false
+          },
+          {
+            "metadata": {
+              "label": "Data Provider Mode",
+              "description": "Mode of data provider (function or evalSet)"
+            },
+            "valueType": "EXPRESSION",
+            "originalName": "dataProviderMode",
+            "value": "evalSet",
+            "optional": true,
+            "editable": true,
+            "advanced": false
+          },
+          {
+            "metadata": {
+              "label": "Evalset File",
+              "description": "Path to the evalset data file"
+            },
+            "valueType": "EXPRESSION",
+            "originalName": "evalSetFile",
+            "value": "tests/resources/evalsets/math.evalset.json",
+            "optional": true,
+            "editable": true,
+            "advanced": false
+          }
+        ]
+      }
+    ],
+    "editable": true
+  },
+  "targetAgent": "mathAgent",
+  "output": {
+    "sample_minpassrate/tests/test1.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "import ballerina/ai;"
+      },
+      {
+        "range": {
+          "start": {
+            "line": 1,
+            "character": 22
+          },
+          "end": {
+            "line": 1,
+            "character": 22
+          }
+        },
+        "newText": "\n\nisolated function loadEvalsetData() returns map<[ai:ConversationThread]>|error {\n\treturn ai:loadConversationThreads(\"tests/resources/evalsets/math.evalset.json\");\n}"
+      },
+      {
+        "range": {
+          "start": {
+            "line": 1,
+            "character": 22
+          },
+          "end": {
+            "line": 1,
+            "character": 22
+          }
+        },
+        "newText": "@test:Config{\ngroups: [\"evaluations\"],\nminPassRate: 80,\ndataProvider: loadEvalsetData\n}\nfunction customEvalsetEvaluation(ai:ConversationThread thread) returns error? {\n    foreach ai:Trace trace in thread.traces {\n        string response = check mathAgent.run(trace.userMessage.content.toString(), thread.id);\n        test:assertFail(string `Replace this with the checks for the evaluation. The agent responded: ${response}`);\n    }\n}"
+      }
+    ]
+  }
+}
