@@ -1328,7 +1328,7 @@ public class WorkflowUtil {
         for (int i = source.length() - 2; i >= 1 && source.charAt(i) == '\\'; i--) {
             backslashes++;
         }
-        return backslashes % 2 == 1;
+        return backslashes % 2 != 0;
     }
 
     // Names entered in the list mode are text, so each is written as a literal: one name as the
